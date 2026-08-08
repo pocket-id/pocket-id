@@ -19,16 +19,32 @@ import (
 	"github.com/pocket-id/pocket-id/backend/resources"
 )
 
-// initApplicationImages copies the images from the embedded directory to the storage backend
-// and returns a map containing the detected file extensions in the application-images directory.
+const (
+	applicationImagesPath             = "application-images"
+	deletedApplicationImagesPath      = applicationImagesPath + "/.deleted"
+	legacyApplicationImagesInitedPath = applicationImagesPath + "/.inited"
+	deletableBundledApplicationImage  = "background"
+)
+
+// initApplicationImages copies embedded images to storage and returns the detected file extensions
 //
 //nolint:gocognit
 func initApplicationImages(ctx context.Context, fileStorage storage.FileStorage) (map[string]string, error) {
 	// Previous versions of images
 	// If these are found, they are deleted
 	legacyImageHashes := imageHashMap{
-		"background.jpg":  mustDecodeHex("138d510030ed845d1d74de34658acabff562d306476454369a60ab8ade31933f"),
-		"background.webp": mustDecodeHex("3fc436a66d6b872b01d96a4e75046c46b5c3e2daccd51e98ecdf98fd445599ab"),
+		"logoLight.svg": {
+			mustDecodeHex("6d42c88cf6668f7e57c4f2a505e71ecc8a1e0a27534632aa6adec87b812d0bb0"),
+		},
+		"logoDark.svg": {
+			mustDecodeHex("0421a8d93714bacf54c78430f1db378fd0d29565f6de59b6a89090d44a82eb16"),
+		},
+		"background.jpg": {
+			mustDecodeHex("138d510030ed845d1d74de34658acabff562d306476454369a60ab8ade31933f"),
+		},
+		"background.webp": {
+			mustDecodeHex("3fc436a66d6b872b01d96a4e75046c46b5c3e2daccd51e98ecdf98fd445599ab"),
+		},
 	}
 
 	sourceFiles, err := resources.FS.ReadDir("images")
@@ -36,7 +52,7 @@ func initApplicationImages(ctx context.Context, fileStorage storage.FileStorage)
 		return nil, fmt.Errorf("failed to read directory: %w", err)
 	}
 
-	destinationFiles, err := fileStorage.List(ctx, "application-images")
+	destinationFiles, err := fileStorage.List(ctx, applicationImagesPath)
 	if err != nil {
 		if storage.IsNotExist(err) {
 			destinationFiles = []storage.ObjectInfo{}
@@ -46,13 +62,20 @@ func initApplicationImages(ctx context.Context, fileStorage storage.FileStorage)
 
 	}
 	dstNameToExt := make(map[string]string, len(destinationFiles))
+	listedImageNames := make(map[string]struct{}, len(destinationFiles))
 	for _, f := range destinationFiles {
-		// Skip directories
+		// Skip bootstrap state that recursive storage backends may include in the listing
+		if f.Path == legacyApplicationImagesInitedPath || strings.HasPrefix(f.Path, deletedApplicationImagesPath+"/") {
+			continue
+		}
+
+		// Skip directory entries returned by storage backends
 		_, name := path.Split(f.Path)
 		if name == "" {
 			continue
 		}
 		nameWithoutExt, ext := utils.SplitFileName(name)
+		listedImageNames[nameWithoutExt] = struct{}{}
 		reader, _, err := fileStorage.Open(ctx, f.Path)
 		if err != nil {
 			if errors.Is(err, fs.ErrNotExist) {
@@ -68,8 +91,8 @@ func initApplicationImages(ctx context.Context, fileStorage storage.FileStorage)
 			continue
 		}
 
-		// Check if the file is a legacy one - if so, delete it
-		if legacyImageHashes.Contains(hash) {
+		// Remove bundled legacy images so their current versions can be restored
+		if legacyImageHashes.Matches(name, hash) {
 			slog.Info("Found legacy application image that will be removed", slog.String("name", name))
 			if err := fileStorage.Delete(ctx, f.Path); err != nil {
 				return nil, fmt.Errorf("failed to remove legacy file '%s': %w", name, err)
@@ -79,19 +102,25 @@ func initApplicationImages(ctx context.Context, fileStorage storage.FileStorage)
 		dstNameToExt[nameWithoutExt] = ext
 	}
 
-	initedPath := path.Join("application-images", ".inited")
-	if _, _, err := fileStorage.Open(ctx, initedPath); err == nil {
-		return dstNameToExt, nil
-	} else if !os.IsNotExist(err) {
-		return nil, fmt.Errorf("failed to read .inited: %w", err)
-	} else {
-		err := fileStorage.Save(ctx, initedPath, strings.NewReader(""))
-		if err != nil {
-			return nil, fmt.Errorf("failed to store .inited: %w", err)
+	// Preserve an intentionally deleted background when replacing the legacy global initialization marker
+	legacyInited, err := storageObjectExists(ctx, fileStorage, legacyApplicationImagesInitedPath)
+	if err != nil {
+		return nil, fmt.Errorf("failed to read legacy application images marker: %w", err)
+	}
+	if legacyInited {
+		_, backgroundWasPresent := listedImageNames[deletableBundledApplicationImage]
+		if !backgroundWasPresent {
+			deletedPath := deletedApplicationImagePath(deletableBundledApplicationImage)
+			if err := fileStorage.Save(ctx, deletedPath, strings.NewReader("")); err != nil {
+				return nil, fmt.Errorf("failed to store deleted application image marker '%s': %w", deletableBundledApplicationImage, err)
+			}
+		}
+		if err := fileStorage.Delete(ctx, legacyApplicationImagesInitedPath); err != nil {
+			return nil, fmt.Errorf("failed to remove legacy application images marker: %w", err)
 		}
 	}
 
-	// Copy images from the images directory to the application-images directory if they don't already exist
+	// Copy missing bundled images unless an administrator intentionally deleted them
 	for _, sourceFile := range sourceFiles {
 		if sourceFile.IsDir() {
 			continue
@@ -104,13 +133,20 @@ func initApplicationImages(ctx context.Context, fileStorage storage.FileStorage)
 		if _, exists := dstNameToExt[nameWithoutExt]; exists {
 			continue
 		}
+		deleted, err := storageObjectExists(ctx, fileStorage, deletedApplicationImagePath(nameWithoutExt))
+		if err != nil {
+			return nil, fmt.Errorf("failed to read deleted application image marker '%s': %w", nameWithoutExt, err)
+		}
+		if deleted {
+			continue
+		}
 
 		slog.Info("Writing new application image", slog.String("name", name))
 		srcFile, err := resources.FS.Open(srcFilePath)
 		if err != nil {
 			return nil, fmt.Errorf("failed to open embedded file '%s': %w", name, err)
 		}
-		if err := fileStorage.Save(ctx, path.Join("application-images", name), srcFile); err != nil {
+		if err := fileStorage.Save(ctx, path.Join(applicationImagesPath, name), srcFile); err != nil {
 			srcFile.Close()
 			return nil, fmt.Errorf("failed to store application image '%s': %w", name, err)
 		}
@@ -121,18 +157,34 @@ func initApplicationImages(ctx context.Context, fileStorage storage.FileStorage)
 	return dstNameToExt, nil
 }
 
-type imageHashMap map[string][]byte
+type imageHashMap map[string][][]byte
 
-func (m imageHashMap) Contains(target []byte) bool {
+func (m imageHashMap) Matches(name string, target []byte) bool {
 	if len(target) == 0 {
 		return false
 	}
-	for _, h := range m {
-		if bytes.Equal(h, target) {
+	for _, hash := range m[name] {
+		if bytes.Equal(hash, target) {
 			return true
 		}
 	}
 	return false
+}
+
+func deletedApplicationImagePath(name string) string {
+	return path.Join(deletedApplicationImagesPath, name)
+}
+
+func storageObjectExists(ctx context.Context, fileStorage storage.FileStorage, objectPath string) (bool, error) {
+	reader, _, err := fileStorage.Open(ctx, objectPath)
+	if err == nil {
+		reader.Close()
+		return true, nil
+	}
+	if storage.IsNotExist(err) {
+		return false, nil
+	}
+	return false, err
 }
 
 func mustDecodeHex(str string) []byte {

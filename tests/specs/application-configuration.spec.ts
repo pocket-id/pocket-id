@@ -177,17 +177,25 @@ test('Update email configuration', async ({ page }) => {
 });
 
 test.describe('Update application images', () => {
-	test('should upload images', async ({ page }) => {
-		await page.getByLabel('Favicon').setInputFiles('resources/images/w3-schools-favicon.ico');
+	test('should upload images and reset custom logos', async ({ page }) => {
 		await page
-			.getByLabel('Light Mode Logo')
-			.setInputFiles('resources/images/pingvin-share-logo.png');
-		await page.getByLabel('Dark Mode Logo').setInputFiles('resources/images/cloud-logo.png');
-		await page.getByLabel('Email Logo').setInputFiles('resources/images/pingvin-share-logo.png');
+			.getByLabel('Favicon', { exact: true })
+			.setInputFiles('resources/images/w3-schools-favicon.ico');
 		await page
-			.getByLabel('Default Profile Picture')
+			.getByLabel('Light Mode Logo', { exact: true })
 			.setInputFiles('resources/images/pingvin-share-logo.png');
-		await page.getByLabel('Background Image').setInputFiles('resources/images/clouds.jpg');
+		await page
+			.getByLabel('Dark Mode Logo', { exact: true })
+			.setInputFiles('resources/images/cloud-logo.png');
+		await page
+			.getByLabel('Email Logo', { exact: true })
+			.setInputFiles('resources/images/pingvin-share-logo.png');
+		await page
+			.getByLabel('Default Profile Picture', { exact: true })
+			.setInputFiles('resources/images/pingvin-share-logo.png');
+		await page
+			.getByLabel('Background Image', { exact: true })
+			.setInputFiles('resources/images/clouds.jpg');
 		await page.getByRole('button', { name: 'Save', exact: true }).nth(1).click();
 
 		await expect(page.locator('[data-type="success"]')).toHaveText(
@@ -209,10 +217,29 @@ test.describe('Update application images', () => {
 		await page.request
 			.get('/api/application-images/background')
 			.then((res) => expect.soft(res.status()).toBe(200));
+
+		await page
+			.getByRole('button', { name: 'Reset to default Light Mode Logo', exact: true })
+			.click();
+		await page
+			.getByRole('button', { name: 'Reset to default Dark Mode Logo', exact: true })
+			.click();
+		await page.getByRole('button', { name: 'Save', exact: true }).nth(1).click();
+
+		await expect(page.locator('[data-type="success"]')).toHaveText(
+			'Images updated successfully. It may take a few minutes to update.'
+		);
+
+		await page.request
+			.get('/api/application-images/logo?light=true')
+			.then((res) => expect.soft(res.status()).toBe(404));
+		await page.request
+			.get('/api/application-images/logo?light=false')
+			.then((res) => expect.soft(res.status()).toBe(404));
 	});
 
 	test('should only allow png/jpeg for email logo', async ({ page }) => {
-		const emailLogoInput = page.getByLabel('Email Logo');
+		const emailLogoInput = page.getByLabel('Email Logo', { exact: true });
 
 		await emailLogoInput.setInputFiles('resources/images/cloud-logo.svg');
 		await page.getByRole('button', { name: 'Save', exact: true }).nth(1).click();

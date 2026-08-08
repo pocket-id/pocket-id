@@ -57,10 +57,7 @@ func (s *AppImagesService) UpdateImage(ctx context.Context, file *multipart.File
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
-	currentExt, ok := s.extensions[imageName]
-	if !ok {
-		s.extensions[imageName] = fileType
-	}
+	currentExt := s.extensions[imageName]
 
 	imagePath := path.Join("application-images", imageName+"."+fileType)
 	fileReader, err := file.Open()
@@ -84,8 +81,11 @@ func (s *AppImagesService) UpdateImage(ctx context.Context, file *multipart.File
 			return err
 		}
 	}
-
 	s.extensions[imageName] = fileType
+
+	if err := s.storage.Delete(ctx, deletedApplicationImagePath(imageName)); err != nil {
+		return err
+	}
 
 	return nil
 }
@@ -99,6 +99,10 @@ func (s *AppImagesService) DeleteImage(ctx context.Context, imageName string) er
 		return apperror.ImageNotFound()
 	}
 
+	if err := s.storage.Save(ctx, deletedApplicationImagePath(imageName), strings.NewReader("")); err != nil {
+		return err
+	}
+
 	imagePath := path.Join("application-images", imageName+"."+ext)
 	if err := s.storage.Delete(ctx, imagePath); err != nil {
 		return err
@@ -106,6 +110,10 @@ func (s *AppImagesService) DeleteImage(ctx context.Context, imageName string) er
 
 	delete(s.extensions, imageName)
 	return nil
+}
+
+func deletedApplicationImagePath(imageName string) string {
+	return path.Join("application-images", ".deleted", imageName)
 }
 
 func (s *AppImagesService) IsDefaultProfilePictureSet() bool {

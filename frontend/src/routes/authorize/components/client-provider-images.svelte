@@ -37,7 +37,7 @@
 			? 'translate-x-[108px]'
 			: ''}"
 	>
-		<Logo class="size-10" />
+		<Logo class="size-10" animate={false} />
 	</div>
 
 	<ConnectArrow

@@ -1,4 +1,5 @@
 <script lang="ts">
+	import Logo from '$lib/components/logo.svelte';
 	import Button from '$lib/components/ui/button/button.svelte';
 	import { m } from '$lib/paraglide/messages';
 	import {
@@ -13,8 +14,8 @@
 		callback
 	}: {
 		callback: (
-			logoLight: File | undefined,
-			logoDark: File | undefined,
+			logoLight: File | null | undefined,
+			logoDark: File | null | undefined,
 			logoEmail: File | undefined,
 			defaultProfilePicture: File | null | undefined,
 			backgroundImage: File | null | undefined,
@@ -22,8 +23,8 @@
 		) => void;
 	} = $props();
 
-	let logoLight = $state<File | undefined>();
-	let logoDark = $state<File | undefined>();
+	let logoLight = $state<File | null | undefined>();
+	let logoDark = $state<File | null | undefined>();
 	let logoEmail = $state<File | undefined>();
 	let defaultProfilePicture = $state<File | null | undefined>();
 	let backgroundImage = $state<File | null | undefined>();
@@ -31,7 +32,17 @@
 
 	let defaultProfilePictureSet = $state(true);
 	let backgroundImageSet = $state(true);
+	let logoLightSet = $state(true);
+	let logoDarkSet = $state(true);
 </script>
+
+{#snippet lightLogoFallback()}
+	<Logo defaultOnly colorScheme="light" class="size-full" />
+{/snippet}
+
+{#snippet darkLogoFallback()}
+	<Logo defaultOnly colorScheme="dark" class="size-full" />
+{/snippet}
 
 <div class="flex flex-col gap-8">
 	<ApplicationImage
@@ -48,7 +59,10 @@
 		label={m.light_mode_logo()}
 		bind:image={logoLight}
 		imageURL={cachedApplicationLogo.getUrl(true)}
+		fallback={lightLogoFallback}
 		forceColorScheme="light"
+		isResetable
+		bind:isImageSet={logoLightSet}
 	/>
 	<ApplicationImage
 		id="logo-dark"
@@ -56,7 +70,10 @@
 		label={m.dark_mode_logo()}
 		bind:image={logoDark}
 		imageURL={cachedApplicationLogo.getUrl(false)}
+		fallback={darkLogoFallback}
 		forceColorScheme="dark"
+		isResetable
+		bind:isImageSet={logoDarkSet}
 	/>
 	<ApplicationImage
 		id="logo-email"

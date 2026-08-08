@@ -47,6 +47,13 @@ export default class AppConfigService extends APIService {
 		cachedApplicationLogo.bustCache(light);
 	};
 
+	deleteLogo = async (light = true) => {
+		await this.api.delete(`/application-images/logo`, {
+			params: { light }
+		});
+		cachedApplicationLogo.bustCache(light);
+	};
+
 	updateEmailLogo = async (emailLogo: File) => {
 		const formData = new FormData();
 		formData.append('file', emailLogo);

@@ -36,8 +36,8 @@
 	}
 
 	async function updateImages(
-		logoLight: File | undefined,
-		logoDark: File | undefined,
+		logoLight: File | null | undefined,
+		logoDark: File | null | undefined,
 		logoEmail: File | undefined,
 		defaultProfilePicture: File | null | undefined,
 		backgroundImage: File | null | undefined,
@@ -45,13 +45,19 @@
 	) {
 		const faviconPromise = favicon ? appConfigService.updateFavicon(favicon) : Promise.resolve();
 
-		const lightLogoPromise = logoLight
-			? appConfigService.updateLogo(logoLight, true)
-			: Promise.resolve();
+		const lightLogoPromise =
+			logoLight === null
+				? appConfigService.deleteLogo(true)
+				: logoLight
+					? appConfigService.updateLogo(logoLight, true)
+					: Promise.resolve();
 
-		const darkLogoPromise = logoDark
-			? appConfigService.updateLogo(logoDark, false)
-			: Promise.resolve();
+		const darkLogoPromise =
+			logoDark === null
+				? appConfigService.deleteLogo(false)
+				: logoDark
+					? appConfigService.updateLogo(logoDark, false)
+					: Promise.resolve();
 
 		const emailLogoPromise = logoEmail
 			? appConfigService.updateEmailLogo(logoEmail)

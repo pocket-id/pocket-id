@@ -2,8 +2,10 @@
 	import FileInput from '$lib/components/form/file-input.svelte';
 	import { Button } from '$lib/components/ui/button';
 	import * as Field from '$lib/components/ui/field';
+	import { m } from '$lib/paraglide/messages';
 	import { cn } from '$lib/utils/style';
 	import { LucideImageOff, LucideUpload, LucideX } from '@lucide/svelte';
+	import type { Snippet } from 'svelte';
 	import type { HTMLAttributes } from 'svelte/elements';
 
 	let {
@@ -12,6 +14,7 @@
 		label,
 		image = $bindable(),
 		imageURL,
+		fallback,
 		accept = 'image/png, image/jpeg, image/svg+xml, image/gif, image/webp, image/avif, image/heic',
 		forceColorScheme,
 		isResetable = false,
@@ -23,6 +26,7 @@
 		label: string;
 		image: File | null | undefined;
 		imageURL: string;
+		fallback?: Snippet;
 		forceColorScheme?: 'light' | 'dark';
 		accept?: string;
 		isResetable?: boolean;
@@ -70,7 +74,11 @@
 						imageClass
 					)}
 				>
-					<LucideImageOff class="text-muted-foreground" />
+					{#if fallback}
+						{@render fallback()}
+					{:else}
+						<LucideImageOff class="text-muted-foreground" />
+					{/if}
 				</div>
 			{:else}
 				<img
@@ -97,6 +105,7 @@
 			{#if isResetable && isImageSet}
 				<Button
 					size="icon"
+					aria-label={`${m.reset_to_default()} ${label}`}
 					onclick={(e) => {
 						e.stopPropagation();
 						onReset();

@@ -100,10 +100,18 @@ func TestAppImagesService_ErrorsAndFlags(t *testing.T) {
 
 		require.NoError(t, service.DeleteImage(context.Background(), "default-profile-picture"))
 		assert.False(t, service.IsDefaultProfilePictureSet())
+		reader, size, err := store.Open(context.Background(), deletedApplicationImagePath("default-profile-picture"))
+		require.NoError(t, err)
+		assert.Zero(t, size)
+		require.NoError(t, reader.Close())
 
-		err := service.DeleteImage(context.Background(), "default-profile-picture")
+		err = service.DeleteImage(context.Background(), "default-profile-picture")
 		require.Error(t, err)
 		assert.True(t, apperror.IsCode(err, apperror.CodeImageNotFound))
+
+		require.NoError(t, service.UpdateImage(context.Background(), newFileHeader(t, "default-profile-picture.png", []byte("new")), "default-profile-picture"))
+		_, _, err = store.Open(context.Background(), deletedApplicationImagePath("default-profile-picture"))
+		require.ErrorIs(t, err, fs.ErrNotExist)
 	})
 }
 

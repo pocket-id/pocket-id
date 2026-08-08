@@ -37,6 +37,7 @@ func NewAppImagesController(
 	group.PUT("/application-images/favicon", authMiddleware.Add(), httpserver.Handle(controller.updateFaviconHandler))
 	group.PUT("/application-images/default-profile-picture", authMiddleware.Add(), httpserver.Handle(controller.updateDefaultProfilePicture))
 
+	group.DELETE("/application-images/logo", authMiddleware.Add(), httpserver.Handle(controller.deleteLogoHandler))
 	group.DELETE("/application-images/background", authMiddleware.Add(), httpserver.Handle(controller.deleteBackgroundImageHandler))
 	group.DELETE("/application-images/default-profile-picture", authMiddleware.Add(), httpserver.Handle(controller.deleteDefaultProfilePicture))
 }
@@ -56,13 +57,7 @@ type AppImagesController struct {
 // @Success 200 {file} binary "Logo image"
 // @Router /api/application-images/logo [get]
 func (c *AppImagesController) getLogoHandler(ctx *gin.Context) error {
-	lightLogo, _ := strconv.ParseBool(ctx.DefaultQuery("light", "true"))
-	imageName := "logoLight"
-	if !lightLogo {
-		imageName = "logoDark"
-	}
-
-	return c.getImage(ctx, imageName)
+	return c.getImage(ctx, logoImageName(ctx))
 }
 
 // getEmailLogoHandler godoc
@@ -127,18 +122,36 @@ func (c *AppImagesController) updateLogoHandler(ctx *gin.Context) error {
 		return err
 	}
 
-	lightLogo, _ := strconv.ParseBool(ctx.DefaultQuery("light", "true"))
-	imageName := "logoLight"
-	if !lightLogo {
-		imageName = "logoDark"
-	}
-
-	if err := c.appImagesService.UpdateImage(ctx.Request.Context(), file, imageName); err != nil {
+	if err := c.appImagesService.UpdateImage(ctx.Request.Context(), file, logoImageName(ctx)); err != nil {
 		return err
 	}
 
 	ctx.Status(http.StatusNoContent)
 	return nil
+}
+
+// deleteLogoHandler godoc
+// @Summary Delete logo image
+// @Description Delete the custom application logo and restore the default logo
+// @Tags Application Images
+// @Param light query boolean false "Light mode logo (true) or dark mode logo (false)"
+// @Success 204 "No Content"
+// @Router /api/application-images/logo [delete]
+func (c *AppImagesController) deleteLogoHandler(ctx *gin.Context) error {
+	if err := c.appImagesService.DeleteImage(ctx.Request.Context(), logoImageName(ctx)); err != nil {
+		return err
+	}
+
+	ctx.Status(http.StatusNoContent)
+	return nil
+}
+
+func logoImageName(ctx *gin.Context) string {
+	lightLogo, _ := strconv.ParseBool(ctx.DefaultQuery("light", "true"))
+	if lightLogo {
+		return "logoLight"
+	}
+	return "logoDark"
 }
 
 // updateEmailLogoHandler godoc
