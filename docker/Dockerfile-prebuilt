@@ -9,7 +9,7 @@ ARG TARGETVARIANT
 
 WORKDIR /app
 
-RUN apk add --no-cache curl su-exec
+RUN apk add --no-cache su-exec
 
 COPY linux/${TARGETARCH}/${TARGETVARIANT}/pocket-id /app/pocket-id
 COPY ./scripts/docker /app/docker
