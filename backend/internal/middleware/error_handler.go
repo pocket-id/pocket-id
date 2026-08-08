@@ -16,6 +16,7 @@ import (
 	"github.com/go-playground/validator/v10"
 	"github.com/google/uuid"
 	"github.com/pocket-id/pocket-id/backend/internal/apperror"
+	"github.com/pocket-id/pocket-id/backend/internal/dto"
 	"go.opentelemetry.io/otel/trace"
 )
 
@@ -158,7 +159,7 @@ func classifiedValidationError(validationErrors validator.ValidationErrors) clas
 
 	for _, validationError := range validationErrors {
 		fieldName := validationError.Field()
-		code, message := validationFieldError(validationError)
+		code, message := dto.ValidationErrorDetails(validationError)
 		fields = append(fields, apperror.FieldError{
 			Field:   fieldName,
 			Code:    code,
@@ -172,27 +173,6 @@ func classifiedValidationError(validationErrors validator.ValidationErrors) clas
 		status:  http.StatusBadRequest,
 		message: capitalizeFirst(strings.Join(messages, ", ")),
 		fields:  fields,
-	}
-}
-
-func validationFieldError(validationError validator.FieldError) (string, string) {
-	switch validationError.Tag() {
-	case "required":
-		return "required", "is required"
-	case "email":
-		return "invalid_format", "must be a valid email address"
-	case "username":
-		return "invalid_format", "must only contain letters, numbers, underscores, dots, hyphens, and '@' symbols and not start or end with a special character"
-	case "url":
-		return "invalid_format", "must be a valid URL"
-	case "resource_uri":
-		return "invalid_format", "must be an absolute URI without whitespace or a fragment"
-	case "min":
-		return "too_short", fmt.Sprintf("must be at least %s characters long", validationError.Param())
-	case "max":
-		return "too_long", fmt.Sprintf("must be at most %s characters long", validationError.Param())
-	default:
-		return validationError.Tag(), "is invalid"
 	}
 }
 

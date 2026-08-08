@@ -7,9 +7,9 @@ import (
 	"fmt"
 	"os"
 	"reflect"
-	"strings"
 	"time"
 
+	"github.com/go-playground/validator/v10"
 	"github.com/italypaleale/francis/actor"
 	"github.com/italypaleale/francis/host/local"
 	"gorm.io/gorm"
@@ -212,9 +212,10 @@ func (s *AppConfigService) loadDbConfigFromEnv() (*AppConfigModel, error) {
 	for i := range rt.NumField() {
 		field := rt.Field(i)
 
-		// Derive the environment variable name from the configuration's JSON key
-		key, _, _ := strings.Cut(field.Tag.Get("json"), ",")
-		envVarName := utils.CamelCaseToScreamingSnakeCase(key)
+		envVarName := field.Tag.Get("env")
+		if envVarName == "" {
+			return nil, fmt.Errorf("app configuration field %s is missing its environment variable name", field.Name)
+		}
 
 		// Set the value if it's set
 		value, ok := os.LookupEnv(envVarName)
@@ -239,5 +240,42 @@ func (s *AppConfigService) loadDbConfigFromEnv() (*AppConfigModel, error) {
 		}
 	}
 
+	// Validate the resolved configuration before exposing values to the rest of the application
+	if err := validateEnvConfig(dest); err != nil {
+		return nil, err
+	}
+
 	return dest, nil
+}
+
+// validateEnvConfig applies the HTTP configuration rules and reports failures using environment variable names
+func validateEnvConfig(config *AppConfigModel) error {
+	// Map the resolved model to the canonical update DTO so both configuration paths share validation rules
+	var input dto.AppConfigUpdateDto
+	if err := dto.MapStruct(config, &input); err != nil {
+		return fmt.Errorf("failed to prepare environment app configuration for validation: %w", err)
+	}
+
+	// Collect every invalid environment variable
+	err := input.Validate()
+	if err != nil {
+		validationErrors, ok := errors.AsType[validator.ValidationErrors](err)
+		if !ok {
+			return fmt.Errorf("failed to validate environment app configuration: %w", err)
+		}
+
+		failures := make([]error, 0, len(validationErrors))
+		for _, validationError := range validationErrors {
+			envName, ok := appConfigEnvName(validationError.Field())
+			if !ok {
+				return fmt.Errorf("failed to find the environment variable for app configuration field %s", validationError.Field())
+			}
+			_, message := dto.ValidationErrorDetails(validationError)
+			failures = append(failures, fmt.Errorf("%s %s", envName, message))
+		}
+
+		return fmt.Errorf("invalid environment app configuration: %w", errors.Join(failures...))
+	}
+
+	return nil
 }

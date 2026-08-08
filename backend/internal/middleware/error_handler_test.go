@@ -164,6 +164,96 @@ func TestValidationResponseUsesJSONFieldNames(t *testing.T) {
 	})
 }
 
+func TestValidationResponseUsesSpecificCustomMessages(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+
+	router := gin.New()
+	router.Use(NewErrorHandlerMiddleware().Add())
+	router.POST("/config", httpserver.Handle(func(c *gin.Context) error {
+		var input struct {
+			SignupDefaultCustomClaims string `json:"signupDefaultCustomClaims" binding:"json_custom_claims"`
+		}
+		return httpserver.BindJSON(c, &input)
+	}))
+
+	recorder := httptest.NewRecorder()
+	request := httptest.NewRequestWithContext(t.Context(), http.MethodPost, "/config", strings.NewReader(`{"signupDefaultCustomClaims":"[\"immich_role\": \"user\"]"}`))
+	request.Header.Set("Content-Type", "application/json")
+	router.ServeHTTP(recorder, request)
+
+	var body struct {
+		Error   string `json:"error"`
+		Details struct {
+			Fields []apperror.FieldError `json:"fields"`
+		} `json:"details"`
+	}
+	require.NoError(t, json.Unmarshal(recorder.Body.Bytes(), &body))
+	require.Equal(t, http.StatusBadRequest, recorder.Code)
+	require.Equal(t, `SignupDefaultCustomClaims must be a JSON array of objects with string "key" and "value" properties`, body.Error)
+	require.Equal(t, []apperror.FieldError{{
+		Field:   "signupDefaultCustomClaims",
+		Code:    "invalid_format",
+		Message: `must be a JSON array of objects with string "key" and "value" properties`,
+	}}, body.Details.Fields)
+}
+
+func TestValidationResponseUsesAppConfigTypeMessages(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+
+	router := gin.New()
+	router.Use(NewErrorHandlerMiddleware().Add())
+	router.POST("/config", httpserver.Handle(func(c *gin.Context) error {
+		var input dto.AppConfigUpdateDto
+		return httpserver.BindJSON(c, &input)
+	}))
+
+	input := dto.AppConfigUpdateDto{
+		AppName:                          "Pocket ID",
+		SessionDuration:                  "60",
+		HomePageURL:                      "/settings/account",
+		EmailsVerified:                   "false",
+		DisableAnimations:                "false",
+		AllowOwnAccountEdit:              "true",
+		AllowUserSignups:                 "disabled",
+		RequireUserEmail:                 "hello",
+		SmtpTls:                          "none",
+		SmtpSkipCertVerify:               "false",
+		LdapEnabled:                      "false",
+		LdapSkipCertVerify:               "false",
+		LdapSoftDeleteUsers:              "true",
+		WebauthnUserVerification:         "preferred",
+		WebauthnAllowSyncedPasskeys:      "true",
+		WebauthnAuthenticatorAttachment:  "any",
+		EmailOneTimeAccessAsAdminEnabled: "false",
+		EmailOneTimeAccessAsUnauthenticatedEnabled: "false",
+		EmailLoginNotificationEnabled:              "false",
+		EmailApiKeyExpirationEnabled:               "false",
+		EmailVerificationEnabled:                   "false",
+	}
+	payload, err := json.Marshal(input)
+	require.NoError(t, err)
+
+	recorder := httptest.NewRecorder()
+	request := httptest.NewRequestWithContext(t.Context(), http.MethodPost, "/config", strings.NewReader(string(payload)))
+	request.Header.Set("Content-Type", "application/json")
+	router.ServeHTTP(recorder, request)
+
+	var body struct {
+		Error   string `json:"error"`
+		Details struct {
+			Fields []apperror.FieldError `json:"fields"`
+		} `json:"details"`
+	}
+	require.NoError(t, json.Unmarshal(recorder.Body.Bytes(), &body))
+	require.Equal(t, http.StatusBadRequest, recorder.Code)
+	require.Equal(t, "RequireUserEmail must be either true or false", body.Error)
+	require.Equal(t, []apperror.FieldError{{
+		Field:   "requireUserEmail",
+		Code:    "invalid_format",
+		Message: "must be either true or false",
+	}}, body.Details.Fields)
+}
+
 func TestClassifyUnmappedPersistenceErrorAsInternal(t *testing.T) {
 	classified := classifyError(gorm.ErrRecordNotFound)
 

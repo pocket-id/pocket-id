@@ -36,6 +36,72 @@ func TestTokenDurationValidation(t *testing.T) {
 	}
 }
 
+func TestAppConfigJSONValidation(t *testing.T) {
+	tests := []struct {
+		name  string
+		valid bool
+	}{
+		{
+			name:  "valid string array",
+			valid: validateJSONStringArray(`["group-id"]`),
+		},
+		{
+			name:  "valid custom claims",
+			valid: validateJSONCustomClaims(`[{"key":"role","value":"user"}]`),
+		},
+		{
+			name:  "valid CIMD URL allowlist",
+			valid: validateCIMDURLAllowlist(`["https://app.example.com/**"]`),
+		},
+		{
+			name:  "custom claims object instead of array",
+			valid: !validateJSONCustomClaims(`{"key":"role","value":"user"}`),
+		},
+		{
+			name:  "custom claim missing key",
+			valid: !validateJSONCustomClaims(`[{"value":"user"}]`),
+		},
+		{
+			name:  "non-string group ID",
+			valid: !validateJSONStringArray(`[42]`),
+		},
+		{
+			name:  "null array",
+			valid: !validateJSONCustomClaims(`null`),
+		},
+		{
+			name:  "unsafe CIMD pattern",
+			valid: !validateCIMDURLAllowlist(`["data:text/html,test"]`),
+		},
+	}
+
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			assert.True(t, test.valid)
+		})
+	}
+}
+
+func TestAppConfigValueTypeValidation(t *testing.T) {
+	for _, test := range []struct {
+		name  string
+		valid bool
+	}{
+		{name: "true boolean", valid: validateBooleanString("true")},
+		{name: "false boolean", valid: validateBooleanString("false")},
+		{name: "non-boolean word", valid: !validateBooleanString("hello")},
+		{name: "numeric boolean", valid: !validateBooleanString("1")},
+		{name: "integer", valid: validateIntegerString("60")},
+		{name: "negative integer", valid: validateIntegerString("-1")},
+		{name: "decimal", valid: !validateIntegerString("1.5")},
+		{name: "non-integer word", valid: !validateIntegerString("hello")},
+	} {
+		t.Run(test.name, func(t *testing.T) {
+			assert.True(t, test.valid)
+		})
+	}
+}
+
 func TestValidateUsername(t *testing.T) {
 	tests := []struct {
 		name     string

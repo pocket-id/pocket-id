@@ -24,6 +24,64 @@ func dtoWithMarkerValues() dto.AppConfigUpdateDto {
 	return input
 }
 
+func TestAppConfigModel_FieldTags(t *testing.T) {
+	modelType := reflect.TypeFor[AppConfigModel]()
+	jsonNames := make(map[string]string, modelType.NumField())
+	envNames := make(map[string]string, modelType.NumField())
+	for i := range modelType.NumField() {
+		field := modelType.Field(i)
+		t.Run(field.Name, func(t *testing.T) {
+			jsonTag, ok := field.Tag.Lookup("json")
+			require.True(t, ok)
+			jsonName, _, _ := strings.Cut(jsonTag, ",")
+			require.NotEmpty(t, jsonName)
+			require.NotEqual(t, "-", jsonName)
+			require.NotContains(t, jsonNames, jsonName)
+			jsonNames[jsonName] = field.Name
+
+			envName, ok := field.Tag.Lookup("env")
+			require.True(t, ok)
+			require.NotEmpty(t, envName)
+			require.NotContains(t, envNames, envName)
+			envNames[envName] = field.Name
+		})
+	}
+}
+
+func TestAppConfigModel_TypeTagsHaveDTOValidation(t *testing.T) {
+	validatorsByType := map[string]string{
+		"bool": "boolean_string",
+		"int":  "integer_string",
+	}
+
+	dtoType := reflect.TypeFor[dto.AppConfigUpdateDto]()
+	dtoBindings := make(map[string][]string, dtoType.NumField())
+	for i := range dtoType.NumField() {
+		field := dtoType.Field(i)
+		jsonName, _, _ := strings.Cut(field.Tag.Get("json"), ",")
+		dtoBindings[jsonName] = strings.Split(field.Tag.Get("binding"), ",")
+	}
+
+	modelType := reflect.TypeFor[AppConfigModel]()
+	for i := range modelType.NumField() {
+		field := modelType.Field(i)
+		configType := field.Tag.Get("type")
+		if configType == "" {
+			continue
+		}
+
+		t.Run(field.Name, func(t *testing.T) {
+			expectedValidator, ok := validatorsByType[configType]
+			require.True(t, ok)
+
+			jsonName, _, _ := strings.Cut(field.Tag.Get("json"), ",")
+			bindings, ok := dtoBindings[jsonName]
+			require.True(t, ok)
+			require.Contains(t, bindings, expectedValidator)
+		})
+	}
+}
+
 func TestAppConfigModel_Replace(t *testing.T) {
 	t.Run("populates every property from the DTO", func(t *testing.T) {
 		input := dtoWithMarkerValues()

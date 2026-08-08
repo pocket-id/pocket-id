@@ -15,58 +15,73 @@ import (
 
 type AppConfigModel struct {
 	// General
-	AppName             AppConfigValue `json:"appName" public:"true"`
-	SessionDuration     AppConfigValue `json:"sessionDuration" type:"int"` // In minutes
-	HomePageURL         AppConfigValue `json:"homePageUrl" public:"true"`
-	EmailsVerified      AppConfigValue `json:"emailsVerified" type:"bool"`
-	AccentColor         AppConfigValue `json:"accentColor" public:"true"`
-	DisableAnimations   AppConfigValue `json:"disableAnimations" type:"bool" public:"true"`
-	AllowOwnAccountEdit AppConfigValue `json:"allowOwnAccountEdit" type:"bool" public:"true"`
-	AllowUserSignups    AppConfigValue `json:"allowUserSignups" public:"true"`
+	AppName             AppConfigValue `json:"appName" env:"APP_NAME" public:"true"`
+	SessionDuration     AppConfigValue `json:"sessionDuration" env:"SESSION_DURATION" type:"int"` // In minutes
+	HomePageURL         AppConfigValue `json:"homePageUrl" env:"HOME_PAGE_URL" public:"true"`
+	EmailsVerified      AppConfigValue `json:"emailsVerified" env:"EMAILS_VERIFIED" type:"bool"`
+	AccentColor         AppConfigValue `json:"accentColor" env:"ACCENT_COLOR" public:"true"`
+	DisableAnimations   AppConfigValue `json:"disableAnimations" env:"DISABLE_ANIMATIONS" type:"bool" public:"true"`
+	AllowOwnAccountEdit AppConfigValue `json:"allowOwnAccountEdit" env:"ALLOW_OWN_ACCOUNT_EDIT" type:"bool" public:"true"`
+	AllowUserSignups    AppConfigValue `json:"allowUserSignups" env:"ALLOW_USER_SIGNUPS" public:"true"`
 
-	SignupDefaultUserGroupIDs AppConfigValue `json:"signupDefaultUserGroupIDs"` // JSON-encoded array of strings
-	SignupDefaultCustomClaims AppConfigValue `json:"signupDefaultCustomClaims"` // JSON-encoded array of {key:string,value:string}
+	SignupDefaultUserGroupIDs AppConfigValue `json:"signupDefaultUserGroupIDs" env:"SIGNUP_DEFAULT_USER_GROUP_IDS"` // JSON-encoded array of strings
+	SignupDefaultCustomClaims AppConfigValue `json:"signupDefaultCustomClaims" env:"SIGNUP_DEFAULT_CUSTOM_CLAIMS"`  // JSON-encoded array of {key:string,value:string}
 	// Email
-	RequireUserEmail                           AppConfigValue `json:"requireUserEmail" type:"bool" public:"true"`
-	SmtpHost                                   AppConfigValue `json:"smtpHost"`
-	SmtpPort                                   AppConfigValue `json:"smtpPort"`
-	SmtpFrom                                   AppConfigValue `json:"smtpFrom"`
-	SmtpUser                                   AppConfigValue `json:"smtpUser"`
-	SmtpPassword                               AppConfigValue `json:"smtpPassword" sensitive:"true"`
-	SmtpTls                                    AppConfigValue `json:"smtpTls"`
-	SmtpSkipCertVerify                         AppConfigValue `json:"smtpSkipCertVerify" type:"bool"`
-	EmailLoginNotificationEnabled              AppConfigValue `json:"emailLoginNotificationEnabled" type:"bool"`
-	EmailOneTimeAccessAsUnauthenticatedEnabled AppConfigValue `json:"emailOneTimeAccessAsUnauthenticatedEnabled" type:"bool" public:"true"`
-	EmailOneTimeAccessAsAdminEnabled           AppConfigValue `json:"emailOneTimeAccessAsAdminEnabled" type:"bool" public:"true"`
-	EmailApiKeyExpirationEnabled               AppConfigValue `json:"emailApiKeyExpirationEnabled" type:"bool"`
-	EmailVerificationEnabled                   AppConfigValue `json:"emailVerificationEnabled" type:"bool" public:"true"`
+	RequireUserEmail                           AppConfigValue `json:"requireUserEmail" env:"REQUIRE_USER_EMAIL" type:"bool" public:"true"`
+	SmtpHost                                   AppConfigValue `json:"smtpHost" env:"SMTP_HOST"`
+	SmtpPort                                   AppConfigValue `json:"smtpPort" env:"SMTP_PORT"`
+	SmtpFrom                                   AppConfigValue `json:"smtpFrom" env:"SMTP_FROM"`
+	SmtpUser                                   AppConfigValue `json:"smtpUser" env:"SMTP_USER"`
+	SmtpPassword                               AppConfigValue `json:"smtpPassword" env:"SMTP_PASSWORD" sensitive:"true"`
+	SmtpTls                                    AppConfigValue `json:"smtpTls" env:"SMTP_TLS"`
+	SmtpSkipCertVerify                         AppConfigValue `json:"smtpSkipCertVerify" env:"SMTP_SKIP_CERT_VERIFY" type:"bool"`
+	EmailLoginNotificationEnabled              AppConfigValue `json:"emailLoginNotificationEnabled" env:"EMAIL_LOGIN_NOTIFICATION_ENABLED" type:"bool"`
+	EmailOneTimeAccessAsUnauthenticatedEnabled AppConfigValue `json:"emailOneTimeAccessAsUnauthenticatedEnabled" env:"EMAIL_ONE_TIME_ACCESS_AS_UNAUTHENTICATED_ENABLED" type:"bool" public:"true"`
+	EmailOneTimeAccessAsAdminEnabled           AppConfigValue `json:"emailOneTimeAccessAsAdminEnabled" env:"EMAIL_ONE_TIME_ACCESS_AS_ADMIN_ENABLED" type:"bool" public:"true"`
+	EmailApiKeyExpirationEnabled               AppConfigValue `json:"emailApiKeyExpirationEnabled" env:"EMAIL_API_KEY_EXPIRATION_ENABLED" type:"bool"`
+	EmailVerificationEnabled                   AppConfigValue `json:"emailVerificationEnabled" env:"EMAIL_VERIFICATION_ENABLED" type:"bool" public:"true"`
 	// LDAP
-	LdapEnabled                        AppConfigValue `json:"ldapEnabled" type:"bool" public:"true"`
-	LdapUrl                            AppConfigValue `json:"ldapUrl"`
-	LdapBindDn                         AppConfigValue `json:"ldapBindDn"`
-	LdapBindPassword                   AppConfigValue `json:"ldapBindPassword" sensitive:"true"`
-	LdapBase                           AppConfigValue `json:"ldapBase"`
-	LdapUserSearchFilter               AppConfigValue `json:"ldapUserSearchFilter"`
-	LdapUserGroupSearchFilter          AppConfigValue `json:"ldapUserGroupSearchFilter"`
-	LdapSkipCertVerify                 AppConfigValue `json:"ldapSkipCertVerify" type:"bool"`
-	LdapAttributeUserUniqueIdentifier  AppConfigValue `json:"ldapAttributeUserUniqueIdentifier"`
-	LdapAttributeUserUsername          AppConfigValue `json:"ldapAttributeUserUsername"`
-	LdapAttributeUserEmail             AppConfigValue `json:"ldapAttributeUserEmail"`
-	LdapAttributeUserFirstName         AppConfigValue `json:"ldapAttributeUserFirstName"`
-	LdapAttributeUserLastName          AppConfigValue `json:"ldapAttributeUserLastName"`
-	LdapAttributeUserDisplayName       AppConfigValue `json:"ldapAttributeUserDisplayName"`
-	LdapAttributeUserProfilePicture    AppConfigValue `json:"ldapAttributeUserProfilePicture"`
-	LdapAttributeGroupMember           AppConfigValue `json:"ldapAttributeGroupMember"`
-	LdapAttributeGroupUniqueIdentifier AppConfigValue `json:"ldapAttributeGroupUniqueIdentifier"`
-	LdapAttributeGroupName             AppConfigValue `json:"ldapAttributeGroupName"`
-	LdapAdminGroupName                 AppConfigValue `json:"ldapAdminGroupName"`
-	LdapSoftDeleteUsers                AppConfigValue `json:"ldapSoftDeleteUsers" type:"bool"`
+	LdapEnabled                        AppConfigValue `json:"ldapEnabled" env:"LDAP_ENABLED" type:"bool" public:"true"`
+	LdapUrl                            AppConfigValue `json:"ldapUrl" env:"LDAP_URL"`
+	LdapBindDn                         AppConfigValue `json:"ldapBindDn" env:"LDAP_BIND_DN"`
+	LdapBindPassword                   AppConfigValue `json:"ldapBindPassword" env:"LDAP_BIND_PASSWORD" sensitive:"true"`
+	LdapBase                           AppConfigValue `json:"ldapBase" env:"LDAP_BASE"`
+	LdapUserSearchFilter               AppConfigValue `json:"ldapUserSearchFilter" env:"LDAP_USER_SEARCH_FILTER"`
+	LdapUserGroupSearchFilter          AppConfigValue `json:"ldapUserGroupSearchFilter" env:"LDAP_USER_GROUP_SEARCH_FILTER"`
+	LdapSkipCertVerify                 AppConfigValue `json:"ldapSkipCertVerify" env:"LDAP_SKIP_CERT_VERIFY" type:"bool"`
+	LdapAttributeUserUniqueIdentifier  AppConfigValue `json:"ldapAttributeUserUniqueIdentifier" env:"LDAP_ATTRIBUTE_USER_UNIQUE_IDENTIFIER"`
+	LdapAttributeUserUsername          AppConfigValue `json:"ldapAttributeUserUsername" env:"LDAP_ATTRIBUTE_USER_USERNAME"`
+	LdapAttributeUserEmail             AppConfigValue `json:"ldapAttributeUserEmail" env:"LDAP_ATTRIBUTE_USER_EMAIL"`
+	LdapAttributeUserFirstName         AppConfigValue `json:"ldapAttributeUserFirstName" env:"LDAP_ATTRIBUTE_USER_FIRST_NAME"`
+	LdapAttributeUserLastName          AppConfigValue `json:"ldapAttributeUserLastName" env:"LDAP_ATTRIBUTE_USER_LAST_NAME"`
+	LdapAttributeUserDisplayName       AppConfigValue `json:"ldapAttributeUserDisplayName" env:"LDAP_ATTRIBUTE_USER_DISPLAY_NAME"`
+	LdapAttributeUserProfilePicture    AppConfigValue `json:"ldapAttributeUserProfilePicture" env:"LDAP_ATTRIBUTE_USER_PROFILE_PICTURE"`
+	LdapAttributeGroupMember           AppConfigValue `json:"ldapAttributeGroupMember" env:"LDAP_ATTRIBUTE_GROUP_MEMBER"`
+	LdapAttributeGroupUniqueIdentifier AppConfigValue `json:"ldapAttributeGroupUniqueIdentifier" env:"LDAP_ATTRIBUTE_GROUP_UNIQUE_IDENTIFIER"`
+	LdapAttributeGroupName             AppConfigValue `json:"ldapAttributeGroupName" env:"LDAP_ATTRIBUTE_GROUP_NAME"`
+	LdapAdminGroupName                 AppConfigValue `json:"ldapAdminGroupName" env:"LDAP_ADMIN_GROUP_NAME"`
+	LdapSoftDeleteUsers                AppConfigValue `json:"ldapSoftDeleteUsers" env:"LDAP_SOFT_DELETE_USERS" type:"bool"`
 	// WebAuthn
-	WebauthnUserVerification        AppConfigValue `json:"webauthnUserVerification"`
-	WebauthnAllowSyncedPasskeys     AppConfigValue `json:"webauthnAllowSyncedPasskeys" type:"bool"`
-	WebauthnAuthenticatorAttachment AppConfigValue `json:"webauthnAuthenticatorAttachment"`
+	WebauthnUserVerification        AppConfigValue `json:"webauthnUserVerification" env:"WEBAUTHN_USER_VERIFICATION"`
+	WebauthnAllowSyncedPasskeys     AppConfigValue `json:"webauthnAllowSyncedPasskeys" env:"WEBAUTHN_ALLOW_SYNCED_PASSKEYS" type:"bool"`
+	WebauthnAuthenticatorAttachment AppConfigValue `json:"webauthnAuthenticatorAttachment" env:"WEBAUTHN_AUTHENTICATOR_ATTACHMENT"`
 	// OIDC
-	CIMDURLAllowlist AppConfigValue `json:"cimdUrlAllowlist"` // JSON-encoded array of strings
+	CIMDURLAllowlist AppConfigValue `json:"cimdUrlAllowlist" env:"CIMD_URL_ALLOWLIST"` // JSON-encoded array of strings
+}
+
+// appConfigEnvName returns the explicit environment variable name for a JSON configuration field
+func appConfigEnvName(jsonName string) (string, bool) {
+	modelType := reflect.TypeFor[AppConfigModel]()
+	for i := range modelType.NumField() {
+		field := modelType.Field(i)
+		fieldJSONName, _, _ := strings.Cut(field.Tag.Get("json"), ",")
+		if fieldJSONName == jsonName {
+			envName := field.Tag.Get("env")
+			return envName, envName != ""
+		}
+	}
+
+	return "", false
 }
 
 // Clone returns a deep copy of the AppConfigModel.

@@ -106,6 +106,7 @@ func TestService_NewService(t *testing.T) {
 	t.Run("loads config from the environment when the UI config is disabled", func(t *testing.T) {
 		setUIConfigDisabled(t, true)
 		t.Setenv("APP_NAME", "Environment App")
+		t.Setenv("SIGNUP_DEFAULT_CUSTOM_CLAIMS", `[{"key":"role","value":"user"}]`)
 
 		// No actor host or database is needed when the UI config is disabled
 		svc, err := NewService(t.Context(), nil, nil)
@@ -115,6 +116,72 @@ func TestService_NewService(t *testing.T) {
 		cfg, err := svc.GetConfig(t.Context())
 		require.NoError(t, err)
 		assert.Equal(t, AppConfigValue("Environment App"), cfg.AppName)
+		assert.JSONEq(t, `[{"key":"role","value":"user"}]`, string(cfg.SignupDefaultCustomClaims))
+	})
+
+	t.Run("rejects invalid environment application configuration", func(t *testing.T) {
+		tests := []struct {
+			name       string
+			envName    string
+			value      string
+			wantDetail string
+		}{
+			{
+				name:       "malformed custom claims JSON",
+				envName:    "SIGNUP_DEFAULT_CUSTOM_CLAIMS",
+				value:      `["immich_role": "user"]`,
+				wantDetail: `JSON array of objects with string "key" and "value" properties`,
+			},
+			{
+				name:       "custom claim missing value",
+				envName:    "SIGNUP_DEFAULT_CUSTOM_CLAIMS",
+				value:      `[{"key":"role"}]`,
+				wantDetail: `JSON array of objects with string "key" and "value" properties`,
+			},
+			{
+				name:       "user group IDs with the wrong shape",
+				envName:    "SIGNUP_DEFAULT_USER_GROUP_IDS",
+				value:      `{"group":"id"}`,
+				wantDetail: "JSON array of strings",
+			},
+			{
+				name:       "unsafe CIMD URL pattern",
+				envName:    "CIMD_URL_ALLOWLIST",
+				value:      `["javascript:alert(1)"]`,
+				wantDetail: "JSON array of valid callback URL patterns",
+			},
+			{
+				name:       "invalid enum",
+				envName:    "WEBAUTHN_USER_VERIFICATION",
+				value:      "sometimes",
+				wantDetail: "is invalid",
+			},
+			{
+				name:       "invalid boolean type",
+				envName:    "REQUIRE_USER_EMAIL",
+				value:      "hello",
+				wantDetail: "must be either true or false",
+			},
+			{
+				name:       "invalid integer type",
+				envName:    "SESSION_DURATION",
+				value:      "hello",
+				wantDetail: "must be an integer",
+			},
+		}
+
+		for _, test := range tests {
+			t.Run(test.name, func(t *testing.T) {
+				setUIConfigDisabled(t, true)
+				t.Setenv(test.envName, test.value)
+
+				svc, err := NewService(t.Context(), nil, nil)
+				require.Error(t, err)
+				assert.Nil(t, svc)
+				require.ErrorContains(t, err, test.envName)
+				require.ErrorContains(t, err, test.wantDetail)
+			})
+		}
 	})
 }
 
