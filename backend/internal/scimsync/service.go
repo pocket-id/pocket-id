@@ -3,6 +3,7 @@ package scimsync
 import (
 	"bytes"
 	"context"
+	"database/sql"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -14,6 +15,7 @@ import (
 	"slices"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
 
 	"gorm.io/gorm"
@@ -31,7 +33,10 @@ const (
 	scimContentType = "application/scim+json"
 )
 
-const scimErrorBodyLimit = 4 << 10 // 4KB
+const (
+	scimErrorBodyLimit      = 4 << 10 // 4KB
+	syncProviderConcurrency = 4
+)
 
 type scimSyncAction int
 
@@ -66,8 +71,12 @@ func newService(db *gorm.DB, httpClient *http.Client) *Service {
 }
 
 func (s *Service) GetServiceProvider(ctx context.Context, serviceProviderID string) (ServiceProvider, error) {
+	return getServiceProvider(ctx, s.db, serviceProviderID)
+}
+
+func getServiceProvider(ctx context.Context, db *gorm.DB, serviceProviderID string) (ServiceProvider, error) {
 	var provider ServiceProvider
-	err := s.db.WithContext(ctx).
+	err := db.WithContext(ctx).
 		Preload("OidcClient").
 		Preload("OidcClient.AllowedUserGroups").
 		First(&provider, "id = ?", serviceProviderID).
@@ -84,7 +93,7 @@ func (s *Service) GetServiceProvider(ctx context.Context, serviceProviderID stri
 func (s *Service) ListServiceProviders(ctx context.Context) ([]ServiceProvider, error) {
 	var providers []ServiceProvider
 	err := s.db.WithContext(ctx).
-		Preload("OidcClient").
+		Select("id").
 		Find(&providers).
 		Error
 	if err != nil {
@@ -209,44 +218,23 @@ func (s *Service) SyncAll(ctx context.Context) error {
 		return err
 	}
 
-	var errs []error
-	for _, provider := range providers {
-		if ctx.Err() != nil {
-			errs = append(errs, ctx.Err())
-			break
-		}
-		err = s.SyncServiceProvider(ctx, provider.ID)
-		if err != nil {
-			errs = append(errs, fmt.Errorf("failed to sync SCIM provider %s: %w", provider.ID, err))
-		}
-	}
-
-	return errors.Join(errs...)
+	return syncServiceProviders(ctx, providers, s.SyncServiceProvider)
 }
 
 func (s *Service) SyncServiceProvider(ctx context.Context, serviceProviderID string) error {
 	start := time.Now()
-	provider, err := s.GetServiceProvider(ctx, serviceProviderID)
+
+	// Load one consistent local snapshot and release the transaction before making remote requests
+	snapshot, err := s.loadSyncSnapshot(ctx, serviceProviderID)
 	if err != nil {
 		return err
 	}
+	provider := snapshot.provider
 
 	slog.InfoContext(ctx, "Syncing SCIM service provider",
 		slog.String("provider_id", provider.ID),
 		slog.String("oidc_client_id", provider.OidcClientID),
 	)
-
-	allowedGroupIDs := groupIDs(provider.OidcClient.AllowedUserGroups)
-
-	// Load users and groups that should be synced to the SCIM provider
-	groups, err := s.groupsForClient(ctx, provider.OidcClient, allowedGroupIDs)
-	if err != nil {
-		return err
-	}
-	users, err := s.usersForClient(ctx, provider.OidcClient, allowedGroupIDs)
-	if err != nil {
-		return err
-	}
 
 	// Load users and groups that already exist in the SCIM provider
 	userResources, err := listScimResources[ScimUser](s, ctx, provider, "/Users")
@@ -261,12 +249,12 @@ func (s *Service) SyncServiceProvider(ctx context.Context, serviceProviderID str
 	var errs []error
 
 	// Sync users first, so that groups can reference them
-	userStats, err := s.syncUsers(ctx, provider, users, &userResources)
+	userStats, err := s.syncUsers(ctx, provider, snapshot.users, &userResources)
 	if err != nil {
 		errs = append(errs, err)
 	}
 
-	groupStats, err := s.syncGroups(ctx, provider, groups, groupResources.Resources, userResources.Resources)
+	groupStats, err := s.syncGroups(ctx, provider, snapshot.groups, groupResources.Resources, userResources.Resources)
 	if err != nil {
 		errs = append(errs, err)
 	}
@@ -288,10 +276,16 @@ func (s *Service) SyncServiceProvider(ctx context.Context, serviceProviderID str
 		return err
 	}
 
-	provider.LastSyncedAt = new(datatype.DateTime(time.Now()))
-	err = s.db.WithContext(ctx).Save(&provider).Error
-	if err != nil {
-		return err
+	lastSyncedAt := datatype.DateTime(time.Now())
+	result := s.db.WithContext(ctx).
+		Model(&ServiceProvider{}).
+		Where("id = ?", provider.ID).
+		Update("last_synced_at", &lastSyncedAt)
+	if result.Error != nil {
+		return result.Error
+	}
+	if result.RowsAffected == 0 {
+		return apperror.NotFound("SCIM service provider")
 	}
 
 	slog.InfoContext(ctx, "SCIM sync completed",
@@ -306,6 +300,85 @@ func (s *Service) SyncServiceProvider(ctx context.Context, serviceProviderID str
 	)
 
 	return nil
+}
+
+type syncSnapshot struct {
+	provider ServiceProvider
+	users    []model.User
+	groups   []model.UserGroup
+}
+
+// loadSyncSnapshot reads all local inputs from one point in time without holding the transaction across remote SCIM calls
+func (s *Service) loadSyncSnapshot(ctx context.Context, serviceProviderID string) (snapshot syncSnapshot, oErr error) {
+	oErr = s.db.
+		WithContext(ctx).
+		Transaction(
+			func(tx *gorm.DB) (err error) {
+				snapshot.provider, err = getServiceProvider(ctx, tx, serviceProviderID)
+				if err != nil {
+					return err
+				}
+
+				allowedGroupIDs := groupIDs(snapshot.provider.OidcClient.AllowedUserGroups)
+				snapshot.groups, err = groupsForClient(ctx, tx, snapshot.provider.OidcClient, allowedGroupIDs)
+				if err != nil {
+					return err
+				}
+
+				snapshot.users, err = usersForClient(ctx, tx, snapshot.provider.OidcClient, allowedGroupIDs)
+				return err
+			},
+			syncSnapshotTxOptions(s.db.Name()),
+		)
+	if oErr != nil {
+		return syncSnapshot{}, oErr
+	}
+
+	return snapshot, nil
+}
+
+// syncSnapshotTxOptions pins a consistent read snapshot without taking SQLite's configured immediate write lock
+func syncSnapshotTxOptions(provider string) *sql.TxOptions {
+	opts := &sql.TxOptions{ReadOnly: true}
+	if provider == "postgres" {
+		opts.Isolation = sql.LevelRepeatableRead
+	}
+
+	return opts
+}
+
+func syncServiceProviders(ctx context.Context, providers []ServiceProvider, syncProvider func(context.Context, string) error) error {
+	// Bound concurrency so several independent providers make progress without overwhelming the database or network
+	semaphore := make(chan struct{}, syncProviderConcurrency)
+	errs := make([]error, len(providers))
+	var waitGroup sync.WaitGroup
+
+	// Start each provider when a slot is available and retain its error in deterministic provider order
+providerLoop:
+	for i, provider := range providers {
+		select {
+		case semaphore <- struct{}{}:
+		case <-ctx.Done():
+			errs[i] = ctx.Err()
+			break providerLoop
+		}
+
+		waitGroup.Go(func() {
+			defer func() {
+				<-semaphore
+			}()
+
+			err := syncProvider(ctx, provider.ID)
+			if err != nil {
+				errs[i] = fmt.Errorf("failed to sync SCIM provider %s: %w", provider.ID, err)
+			}
+		})
+	}
+
+	// Wait for every started provider so one failure never prevents the remaining providers from synchronizing
+	waitGroup.Wait()
+
+	return errors.Join(errs...)
 }
 
 func (s *Service) syncUsers(ctx context.Context, provider ServiceProvider, users []model.User, resourceList *ScimListResponse[ScimUser]) (stats scimSyncStats, err error) {
@@ -526,10 +599,10 @@ func groupIDs(groups []model.UserGroup) []string {
 	return ids
 }
 
-func (s *Service) groupsForClient(ctx context.Context, client model.OidcClient, allowedGroupIDs []string) ([]model.UserGroup, error) {
+func groupsForClient(ctx context.Context, db *gorm.DB, client model.OidcClient, allowedGroupIDs []string) ([]model.UserGroup, error) {
 	var groups []model.UserGroup
 
-	query := s.db.WithContext(ctx).Preload("Users").Model(&model.UserGroup{})
+	query := db.WithContext(ctx).Preload("Users").Model(&model.UserGroup{})
 	if client.IsGroupRestricted {
 		if len(allowedGroupIDs) == 0 {
 			return groups, nil
@@ -544,14 +617,10 @@ func (s *Service) groupsForClient(ctx context.Context, client model.OidcClient, 
 	return groups, nil
 }
 
-func (s *Service) usersForClient(
-	ctx context.Context,
-	client model.OidcClient,
-	allowedGroupIDs []string,
-) ([]model.User, error) {
+func usersForClient(ctx context.Context, db *gorm.DB, client model.OidcClient, allowedGroupIDs []string) ([]model.User, error) {
 	var users []model.User
 
-	query := s.db.WithContext(ctx).Model(&model.User{})
+	query := db.WithContext(ctx).Model(&model.User{})
 	if client.IsGroupRestricted {
 		if len(allowedGroupIDs) == 0 {
 			return users, nil
