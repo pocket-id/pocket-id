@@ -102,7 +102,7 @@
 	</div>
 
 	{#if clients.data.length === 0 && !showAllApps}
-		<Empty.Root>
+		<Empty.Root class="mt-20">
 			<Empty.Header>
 				<Empty.Media variant="icon">
 					<LayoutDashboard />
@@ -112,11 +112,13 @@
 					{m.contact_your_administrator_for_app_access()}
 				</Empty.Description>
 			</Empty.Header>
-			<Empty.Content>
-				<Button variant="outline" size="sm" onclick={() => (showAllApps = !showAllApps)}
-					>{m.show_hidden_apps()}</Button
-				>
-			</Empty.Content>
+			{#if authorizedClientsWithoutLaunchURL.pagination.totalItems > 0}
+				<Empty.Content>
+					<Button variant="outline" size="sm" onclick={() => (showAllApps = !showAllApps)}
+						>{m.show_hidden_apps()}</Button
+					>
+				</Empty.Content>
+			{/if}
 		</Empty.Root>
 	{:else}
 		{#if clients.data.length > 0}
