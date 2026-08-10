@@ -262,7 +262,7 @@ test('Client secrets can be created with an expiration', async ({ page }) => {
 	await page.goto(`/settings/admin/oidc-clients/${oidcClient.id}#credentials`);
 
 	const card = page.getByTestId('client-secrets-card');
-	await card.getByRole('combobox').click();
+	await card.getByRole('button', { name: 'Expiration' }).click();
 	await page.getByRole('option', { name: '90 days' }).click();
 	await card.getByRole('button', { name: 'Add client secret' }).click();
 
