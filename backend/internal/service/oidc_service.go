@@ -592,6 +592,16 @@ func (s *OidcService) ListAuthorizedClients(ctx context.Context, userID string, 
 		Preload("Client").
 		Where("user_id = ?", userID)
 
+	// Apply the launch URL filter before pagination so hidden authorizations have their own page count
+	if hasLaunchURL, ok := getHasLaunchURLFilter(listRequestOptions); ok {
+		query = query.Joins("JOIN oidc_clients ON oidc_clients.id = user_authorized_oidc_clients.client_id")
+		if hasLaunchURL {
+			query = query.Where("oidc_clients.launch_url IS NOT NULL AND oidc_clients.launch_url <> ''")
+		} else {
+			query = query.Where("oidc_clients.launch_url IS NULL OR oidc_clients.launch_url = ''")
+		}
+	}
+
 	var authorizedClients []model.UserAuthorizedOidcClient
 	response, err := utils.PaginateFilterAndSort(listRequestOptions, query, &authorizedClients)
 
@@ -667,6 +677,15 @@ func (s *OidcService) ListAccessibleOidcClients(ctx context.Context, userID stri
 			WHERE oidc_clients_allowed_user_groups.oidc_client_id = oidc_clients.id
 			AND oidc_clients_allowed_user_groups.user_group_id IN (?))`, false, userGroupIDs)
 
+	// Apply the launch URL filter before pagination so the app launcher never contains empty pages
+	if hasLaunchURL, ok := getHasLaunchURLFilter(listRequestOptions); ok {
+		if hasLaunchURL {
+			query = query.Where("oidc_clients.launch_url IS NOT NULL AND oidc_clients.launch_url <> ''")
+		} else {
+			query = query.Where("oidc_clients.launch_url IS NULL OR oidc_clients.launch_url = ''")
+		}
+	}
+
 	var clients []model.OidcClient
 
 	// Handle custom sorting for lastUsedAt column
@@ -703,6 +722,16 @@ func (s *OidcService) ListAccessibleOidcClients(ctx context.Context, userID stri
 	}
 
 	return dtos, response, err
+}
+
+func getHasLaunchURLFilter(listRequestOptions utils.ListRequestOptions) (bool, bool) {
+	values := listRequestOptions.Filters["hasLaunchURL"]
+	if len(values) == 0 {
+		return false, false
+	}
+
+	hasLaunchURL, ok := values[0].(bool)
+	return hasLaunchURL, ok
 }
 
 func (s *OidcService) GetClientPreview(ctx context.Context, clientID string, userID string, scopes []string, authenticationMethod string) (*dto.OidcClientPreviewDto, error) {

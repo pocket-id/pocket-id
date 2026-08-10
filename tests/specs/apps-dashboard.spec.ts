@@ -5,63 +5,71 @@ import { cleanupBackend } from '../utils/cleanup.util';
 
 test.beforeEach(async () => await cleanupBackend());
 
-test('Dashboard shows all clients in the correct order', async ({ page }) => {
-	const client1 = oidcClients.tailscale;
-	const client2 = oidcClients.nextcloud;
+test('Dashboard shows only clients with launch URLs in the correct order', async ({ page }) => {
+	const client1 = oidcClients.nextcloud;
+	const client2 = oidcClients.immich;
 
 	await page.goto('/settings/apps');
 
-	await expect(page.getByTestId('authorized-oidc-client-card')).toHaveCount(7);
+	const appCards = page.getByRole('article');
+	await expect(appCards).toHaveCount(2);
 
 	// Should be first
-	const card1 = page.getByTestId('authorized-oidc-client-card').first();
+	const card1 = appCards.first();
 
 	await expect(card1.getByRole('heading')).toHaveText(client1.name);
+	await expect(card1.getByText(new URL(client1.launchURL).hostname)).toBeVisible();
 
-	const card2 = page.getByTestId('authorized-oidc-client-card').nth(1);
+	const card2 = page.getByRole('article', { name: client2.name });
 	await expect(card2.getByRole('heading', { name: client2.name })).toBeVisible();
 	await expect(card2.getByText(new URL(client2.launchURL).hostname)).toBeVisible();
+
+	await expect(page.getByRole('article', { name: oidcClients.tailscale.name })).toHaveCount(0);
 });
 
 test.describe('Dashboard shows only clients where user has access', () => {
-	test("User can't see one client", async ({ page }) => {
+	test("User can't see a restricted launchable client", async ({ page }) => {
 		await authUtil.changeUser(page, 'craig');
-		const notVisibleClient = oidcClients.immich;
-
 		await page.goto('/settings/apps');
 
-		const cards = page.getByTestId('authorized-oidc-client-card');
-
-		await expect(cards).toHaveCount(6);
-
-		const cardTexts = await cards.allTextContents();
-		expect(cardTexts.some((text) => text.includes(notVisibleClient.name))).toBe(false);
+		await expect(page.getByRole('article')).toHaveCount(1);
+		await expect(page.getByRole('article', { name: oidcClients.nextcloud.name })).toBeVisible();
+		await expect(page.getByRole('article', { name: oidcClients.immich.name })).toHaveCount(0);
 	});
-	test('User can see all clients', async ({ page }) => {
+
+	test('User can see every accessible launchable client', async ({ page }) => {
 		await page.goto('/settings/apps');
-		const cards = page.getByTestId('authorized-oidc-client-card');
-		await expect(cards).toHaveCount(7);
+
+		await expect(page.getByRole('article')).toHaveCount(2);
+		await expect(page.getByRole('article', { name: oidcClients.nextcloud.name })).toBeVisible();
+		await expect(page.getByRole('article', { name: oidcClients.immich.name })).toBeVisible();
 	});
 });
 
-test('Revoke authorized client', async ({ page }) => {
+test('Show and revoke a hidden authorized client in the app grid', async ({ page }) => {
 	const client = oidcClients.tailscale;
 
 	await page.goto('/settings/apps');
 
-	const card = page.getByTestId('authorized-oidc-client-card').filter({ hasText: client.name });
+	const appCards = page.getByRole('article');
+	const clientCard = page.getByRole('article', { name: client.name });
+	await expect(clientCard).toHaveCount(0);
 
-	card.getByRole('button', { name: 'Toggle menu' }).click();
+	await page.getByRole('button', { name: /Show all apps/ }).click();
 
+	await expect(appCards).toHaveCount(4);
+	await expect(clientCard).toBeVisible();
+	await expect(page.getByRole('main').getByRole('separator')).toBeVisible();
+	await expect(clientCard.getByRole('link', { name: 'Launch' })).toHaveCount(0);
+	await expect(clientCard.getByRole('button', { name: 'Revoke' })).toHaveCount(0);
+	await clientCard.getByRole('button', { name: 'Toggle menu' }).click();
 	await page.getByRole('menuitem', { name: 'Revoke' }).click();
-	await page.getByRole('button', { name: 'Revoke' }).click();
+	await page.getByRole('alertdialog').getByRole('button', { name: 'Revoke' }).click();
 
-	await expect(page.locator('[data-type="success"]')).toHaveText(
-		`The access to ${client.name} has been successfully revoked.`
-	);
-
-	// The ... ago text should be gone as there is no last access anymore
-	await expect(card).not.toContainText('ago');
+	await expect(
+		page.getByText(`The access to ${client.name} has been successfully revoked.`, { exact: true })
+	).toBeVisible();
+	await expect(clientCard).toHaveCount(0);
 });
 
 test('Launch authorized client', async ({ page }) => {
@@ -69,11 +77,11 @@ test('Launch authorized client', async ({ page }) => {
 
 	await page.goto('/settings/apps');
 
-	const card1 = page.getByTestId('authorized-oidc-client-card').first();
-	await expect(card1.getByRole('button', { name: 'Launch' })).toBeDisabled();
+	const appCards = page.getByRole('article');
+	await expect(appCards.getByRole('link', { name: 'Launch' })).toHaveCount(2);
 
-	const card2 = page.getByTestId('authorized-oidc-client-card').nth(1);
-	await expect(card2.getByRole('link', { name: 'Launch' })).toHaveAttribute(
+	const card = page.getByRole('article', { name: client.name });
+	await expect(card.getByRole('link', { name: 'Launch' })).toHaveAttribute(
 		'href',
 		client.launchURL
 	);

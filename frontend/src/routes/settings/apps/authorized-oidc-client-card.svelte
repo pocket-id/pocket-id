@@ -33,10 +33,11 @@
 </script>
 
 <Card.Root
-	class="border-muted group relative h-[160px] p-5 transition-all duration-200 hover:shadow-md sm:max-w-[50vw] md:max-w-[430px]"
-	data-testid="authorized-oidc-client-card"
+	class="border-muted group relative h-[160px] p-5 hover:shadow-md sm:max-w-[50vw] md:max-w-[450px]"
+	role="article"
+	aria-label={client.name}
 >
-	<Card.Content class=" p-0">
+	<Card.Content class="p-0">
 		<div class="flex gap-3">
 			<div class="aspect-square h-[56px]">
 				{#if client.hasLogo}
@@ -124,17 +125,18 @@
 			{:else}
 				<div></div>
 			{/if}
-			<Button
-				href={client.launchURL}
-				target="_blank"
-				size="sm"
-				class="h-8 text-xs"
-				rel="noopener noreferrer"
-				disabled={!client.launchURL}
-			>
-				{m.launch()}
-				<LucideExternalLink class="ml-1 size-3" />
-			</Button>
+			{#if client.launchURL}
+				<Button
+					href={client.launchURL}
+					target="_blank"
+					size="sm"
+					class="h-8 text-xs"
+					rel="noopener noreferrer"
+				>
+					{m.launch()}
+					<LucideExternalLink data-icon="inline-end" />
+				</Button>
+			{/if}
 		</div>
 	</Card.Content>
 </Card.Root>

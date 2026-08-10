@@ -13,10 +13,35 @@ export const load: PageLoad = async () => {
 		sort: {
 			column: 'lastUsedAt',
 			direction: 'desc'
+		},
+		filters: {
+			hasLaunchURL: [true]
 		}
 	};
 
-	const clients = await oidcService.listOwnAccessibleClients(appRequestOptions);
+	const authorizedClientRequestOptions: ListRequestOptions = {
+		pagination: {
+			page: 1,
+			limit: 20
+		},
+		sort: {
+			column: 'lastUsedAt',
+			direction: 'desc'
+		},
+		filters: {
+			hasLaunchURL: [false]
+		}
+	};
 
-	return { clients, appRequestOptions };
+	const [clients, authorizedClientsWithoutLaunchURL] = await Promise.all([
+		oidcService.listOwnAccessibleClients(appRequestOptions),
+		oidcService.listOwnAuthorizedClients(authorizedClientRequestOptions)
+	]);
+
+	return {
+		clients,
+		appRequestOptions,
+		authorizedClientsWithoutLaunchURL,
+		authorizedClientRequestOptions
+	};
 };

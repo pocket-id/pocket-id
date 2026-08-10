@@ -94,6 +94,12 @@ export type AccessibleOidcClient = OidcClientMetaData & {
 	lastUsedAt: Date | null;
 };
 
+export type AuthorizedOidcClient = {
+	scope: string;
+	client: OidcClientMetaData;
+	lastUsedAt: Date;
+};
+
 export type InteractionStep = 'authenticate' | 'select_account' | 'reauthenticate' | 'consent';
 
 export type InteractionScopeInfo = {

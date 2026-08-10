@@ -124,7 +124,7 @@
 				"image_type": null,
 				"is_group_restricted": true,
 				"is_public": false,
-				"launch_url": null,
+				"launch_url": "https://immich.local",
 				"logout_callback_urls": "bnVsbA==",
 				"metadata_expires_at": null,
 				"metadata_grant_types": "bnVsbA==",
