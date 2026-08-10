@@ -3,6 +3,7 @@ package model
 import (
 	"database/sql/driver"
 	"encoding/json"
+	"slices"
 	"time"
 
 	datatype "github.com/pocket-id/pocket-id/backend/internal/model/types"
@@ -150,6 +151,11 @@ func (occ OidcClientCredentials) ActiveSecrets() []OidcClientSecret {
 			active = append(active, secret)
 		}
 	}
+
+	// Sort the copy so the primary hash is always the most recently created active secret
+	slices.SortStableFunc(active, func(a, b OidcClientSecret) int {
+		return b.CreatedAt.ToTime().Compare(a.CreatedAt.ToTime())
+	})
 
 	return active
 }
