@@ -1,4 +1,4 @@
-package service
+package scimsync
 
 import (
 	"bytes"
@@ -16,14 +16,13 @@ import (
 	"strings"
 	"time"
 
-	"github.com/go-co-op/gocron/v2"
+	"gorm.io/gorm"
+
 	"github.com/pocket-id/pocket-id/backend/internal/apperror"
-	"github.com/pocket-id/pocket-id/backend/internal/dto"
 	"github.com/pocket-id/pocket-id/backend/internal/model"
 	datatype "github.com/pocket-id/pocket-id/backend/internal/model/types"
 	"github.com/pocket-id/pocket-id/backend/internal/oidc"
 	"github.com/pocket-id/pocket-id/backend/internal/utils"
-	"gorm.io/gorm"
 )
 
 const (
@@ -32,7 +31,7 @@ const (
 	scimContentType = "application/scim+json"
 )
 
-const scimErrorBodyLimit = 4096
+const scimErrorBodyLimit = 4 << 10 // 4KB
 
 type scimSyncAction int
 
@@ -49,42 +48,41 @@ type scimSyncStats struct {
 	Deleted int
 }
 
-// ScimService handles SCIM provisioning to external service providers.
-type ScimService struct {
+// Service handles SCIM provisioning to external service providers
+type Service struct {
 	db         *gorm.DB
-	scheduler  Scheduler
 	httpClient *http.Client
 }
 
-func NewScimService(db *gorm.DB, scheduler Scheduler, httpClient *http.Client) *ScimService {
+func newService(db *gorm.DB, httpClient *http.Client) *Service {
 	if httpClient == nil {
-		httpClient = &http.Client{Timeout: 20 * time.Second}
+		httpClient = http.DefaultClient
 	}
 
-	return &ScimService{db: db, scheduler: scheduler, httpClient: httpClient}
+	return &Service{
+		db:         db,
+		httpClient: httpClient,
+	}
 }
 
-func (s *ScimService) GetServiceProvider(
-	ctx context.Context,
-	serviceProviderID string,
-) (model.ScimServiceProvider, error) {
-	var provider model.ScimServiceProvider
+func (s *Service) GetServiceProvider(ctx context.Context, serviceProviderID string) (ServiceProvider, error) {
+	var provider ServiceProvider
 	err := s.db.WithContext(ctx).
 		Preload("OidcClient").
 		Preload("OidcClient.AllowedUserGroups").
 		First(&provider, "id = ?", serviceProviderID).
 		Error
 	if errors.Is(err, gorm.ErrRecordNotFound) {
-		return model.ScimServiceProvider{}, apperror.NotFound("SCIM service provider")
+		return ServiceProvider{}, apperror.NotFound("SCIM service provider")
+	} else if err != nil {
+		return ServiceProvider{}, err
 	}
-	if err != nil {
-		return model.ScimServiceProvider{}, err
-	}
+
 	return provider, nil
 }
 
-func (s *ScimService) ListServiceProviders(ctx context.Context) ([]model.ScimServiceProvider, error) {
-	var providers []model.ScimServiceProvider
+func (s *Service) ListServiceProviders(ctx context.Context) ([]ServiceProvider, error) {
+	var providers []ServiceProvider
 	err := s.db.WithContext(ctx).
 		Preload("OidcClient").
 		Find(&providers).
@@ -92,70 +90,87 @@ func (s *ScimService) ListServiceProviders(ctx context.Context) ([]model.ScimSer
 	if err != nil {
 		return nil, err
 	}
+
 	return providers, nil
 }
 
-func (s *ScimService) CreateServiceProvider(
-	ctx context.Context,
-	input *dto.ScimServiceProviderCreateDTO) (model.ScimServiceProvider, error) {
-	tx := s.db.Begin()
-	defer func() {
-		tx.Rollback()
-	}()
-
-	if err := ensureScimOIDCClientExists(ctx, tx, input.OidcClientID); err != nil {
-		return model.ScimServiceProvider{}, err
-	}
-
-	provider := model.ScimServiceProvider{
-		Endpoint:     input.Endpoint,
-		Token:        datatype.EncryptedString(input.Token),
-		OidcClientID: input.OidcClientID,
-	}
-
-	if err := tx.WithContext(ctx).Create(&provider).Error; err != nil {
-		return model.ScimServiceProvider{}, err
-	}
-	if err := tx.Commit().Error; err != nil {
-		return model.ScimServiceProvider{}, err
+func (s *Service) GetServiceProviderByClient(ctx context.Context, clientID string) (ServiceProvider, error) {
+	var provider ServiceProvider
+	err := s.db.WithContext(ctx).
+		First(&provider, "oidc_client_id = ?", clientID).
+		Error
+	if errors.Is(err, gorm.ErrRecordNotFound) {
+		return ServiceProvider{}, apperror.NotFound("SCIM service provider")
+	} else if err != nil {
+		return ServiceProvider{}, err
 	}
 
 	return provider, nil
 }
 
-func (s *ScimService) UpdateServiceProvider(ctx context.Context,
-	serviceProviderID string,
-	input *dto.ScimServiceProviderCreateDTO,
-) (model.ScimServiceProvider, error) {
+func (s *Service) CreateServiceProvider(ctx context.Context, input *ScimServiceProviderCreateDTO) (ServiceProvider, error) {
 	tx := s.db.Begin()
 	defer func() {
 		tx.Rollback()
 	}()
 
-	var provider model.ScimServiceProvider
+	err := ensureScimOIDCClientExists(ctx, tx, input.OidcClientID)
+	if err != nil {
+		return ServiceProvider{}, err
+	}
+
+	provider := ServiceProvider{
+		Endpoint:     input.Endpoint,
+		Token:        datatype.EncryptedString(input.Token),
+		OidcClientID: input.OidcClientID,
+	}
+
+	err = tx.WithContext(ctx).Create(&provider).Error
+	if err != nil {
+		return ServiceProvider{}, fmt.Errorf("error creating service provider: %w", err)
+	}
+
+	err = tx.Commit().Error
+	if err != nil {
+		return ServiceProvider{}, fmt.Errorf("error committing transaction: %w", err)
+	}
+
+	return provider, nil
+}
+
+func (s *Service) UpdateServiceProvider(ctx context.Context, serviceProviderID string, input *ScimServiceProviderCreateDTO) (ServiceProvider, error) {
+	tx := s.db.Begin()
+	defer func() {
+		tx.Rollback()
+	}()
+
+	var provider ServiceProvider
 	err := tx.WithContext(ctx).
 		First(&provider, "id = ?", serviceProviderID).
 		Error
 	if errors.Is(err, gorm.ErrRecordNotFound) {
-		return model.ScimServiceProvider{}, apperror.NotFound("SCIM service provider")
-	}
-	if err != nil {
-		return model.ScimServiceProvider{}, err
+		return ServiceProvider{}, apperror.NotFound("SCIM service provider")
+	} else if err != nil {
+		return ServiceProvider{}, fmt.Errorf("error loading SCIM service provider: %w", err)
 	}
 
-	if err := ensureScimOIDCClientExists(ctx, tx, input.OidcClientID); err != nil {
-		return model.ScimServiceProvider{}, err
+	err = ensureScimOIDCClientExists(ctx, tx, input.OidcClientID)
+	if err != nil {
+		return ServiceProvider{}, err
 	}
 
 	provider.Endpoint = input.Endpoint
 	provider.Token = datatype.EncryptedString(input.Token)
 	provider.OidcClientID = input.OidcClientID
 
-	if err := tx.WithContext(ctx).Save(&provider).Error; err != nil {
-		return model.ScimServiceProvider{}, err
+	err = tx.WithContext(ctx).Save(&provider).Error
+	if err != nil {
+		return ServiceProvider{}, fmt.Errorf("error saving SCIM service provider: %w", err)
 	}
-	if err := tx.Commit().Error; err != nil {
-		return model.ScimServiceProvider{}, err
+
+	err = tx.Commit().Error
+	if err != nil {
+		return ServiceProvider{}, fmt.Errorf("error committing transaction: %w", err)
 	}
 
 	return provider, nil
@@ -174,9 +189,10 @@ func ensureScimOIDCClientExists(ctx context.Context, db *gorm.DB, clientID strin
 	return err
 }
 
-func (s *ScimService) DeleteServiceProvider(ctx context.Context, serviceProviderID string) error {
-	result := s.db.WithContext(ctx).
-		Delete(&model.ScimServiceProvider{}, "id = ?", serviceProviderID)
+func (s *Service) DeleteServiceProvider(ctx context.Context, serviceProviderID string) error {
+	result := s.db.
+		WithContext(ctx).
+		Delete(&ServiceProvider{}, "id = ?", serviceProviderID)
 	if result.Error != nil {
 		return result.Error
 	}
@@ -187,23 +203,7 @@ func (s *ScimService) DeleteServiceProvider(ctx context.Context, serviceProvider
 	return nil
 }
 
-//nolint:contextcheck
-func (s *ScimService) ScheduleSync() {
-	jobName := "ScheduledScimSync"
-	start := time.Now().Add(5 * time.Minute)
-
-	_ = s.scheduler.RemoveJob(jobName)
-
-	err := s.scheduler.RegisterJob(
-		context.Background(), jobName,
-		gocron.OneTimeJob(gocron.OneTimeJobStartDateTime(start)), s.SyncAll, RegisterJobOpts{})
-
-	if err != nil {
-		slog.Error("Failed to schedule SCIM sync", slog.Any("error", err))
-	}
-}
-
-func (s *ScimService) SyncAll(ctx context.Context) error {
+func (s *Service) SyncAll(ctx context.Context) error {
 	providers, err := s.ListServiceProviders(ctx)
 	if err != nil {
 		return err
@@ -220,10 +220,11 @@ func (s *ScimService) SyncAll(ctx context.Context) error {
 			errs = append(errs, fmt.Errorf("failed to sync SCIM provider %s: %w", provider.ID, err))
 		}
 	}
+
 	return errors.Join(errs...)
 }
 
-func (s *ScimService) SyncServiceProvider(ctx context.Context, serviceProviderID string) error {
+func (s *Service) SyncServiceProvider(ctx context.Context, serviceProviderID string) error {
 	start := time.Now()
 	provider, err := s.GetServiceProvider(ctx, serviceProviderID)
 	if err != nil {
@@ -248,11 +249,11 @@ func (s *ScimService) SyncServiceProvider(ctx context.Context, serviceProviderID
 	}
 
 	// Load users and groups that already exist in the SCIM provider
-	userResources, err := listScimResources[dto.ScimUser](s, ctx, provider, "/Users")
+	userResources, err := listScimResources[ScimUser](s, ctx, provider, "/Users")
 	if err != nil {
 		return err
 	}
-	groupResources, err := listScimResources[dto.ScimGroup](s, ctx, provider, "/Groups")
+	groupResources, err := listScimResources[ScimGroup](s, ctx, provider, "/Groups")
 	if err != nil {
 		return err
 	}
@@ -307,12 +308,7 @@ func (s *ScimService) SyncServiceProvider(ctx context.Context, serviceProviderID
 	return nil
 }
 
-func (s *ScimService) syncUsers(
-	ctx context.Context,
-	provider model.ScimServiceProvider,
-	users []model.User,
-	resourceList *dto.ScimListResponse[dto.ScimUser],
-) (stats scimSyncStats, err error) {
+func (s *Service) syncUsers(ctx context.Context, provider ServiceProvider, users []model.User, resourceList *ScimListResponse[ScimUser]) (stats scimSyncStats, err error) {
 	var errs []error
 
 	// Update or create users
@@ -340,7 +336,7 @@ func (s *ScimService) syncUsers(
 		}
 	}
 
-	// Delete users that are present in SCIM provider but not locally.
+	// Delete users that are present in SCIM provider but not locally
 	userSet := make(map[string]struct{})
 	for _, u := range users {
 		userSet[u.ID] = struct{}{}
@@ -359,13 +355,7 @@ func (s *ScimService) syncUsers(
 	return stats, errors.Join(errs...)
 }
 
-func (s *ScimService) syncGroups(
-	ctx context.Context,
-	provider model.ScimServiceProvider,
-	groups []model.UserGroup,
-	remoteGroups []dto.ScimGroup,
-	userResources []dto.ScimUser,
-) (stats scimSyncStats, err error) {
+func (s *Service) syncGroups(ctx context.Context, provider ServiceProvider, groups []model.UserGroup, remoteGroups []ScimGroup, userResources []ScimUser) (stats scimSyncStats, err error) {
 	var errs []error
 
 	// Update or create groups
@@ -410,23 +400,19 @@ func (s *ScimService) syncGroups(
 	return stats, errors.Join(errs...)
 }
 
-func (s *ScimService) syncUser(ctx context.Context,
-	provider model.ScimServiceProvider,
-	user model.User,
-	userResource *dto.ScimUser,
-) (scimSyncAction, *dto.ScimUser, error) {
+func (s *Service) syncUser(ctx context.Context, provider ServiceProvider, user model.User, userResource *ScimUser) (scimSyncAction, *ScimUser, error) {
 	// If user is not allowed for the client, delete it from SCIM provider
 	if userResource != nil && !oidc.IsUserGroupAllowedToAuthorize(user, provider.OidcClient) {
 		return scimActionDeleted, nil, s.deleteScimResource(ctx, provider, fmt.Sprintf("/Users/%s", url.PathEscape(userResource.ID)))
 	}
 
-	payload := dto.ScimUser{
-		ScimResourceData: dto.ScimResourceData{
+	payload := ScimUser{
+		ScimResourceData: ScimResourceData{
 			Schemas:    []string{scimUserSchema},
 			ExternalID: user.ID,
 		},
 		UserName: user.Username,
-		Name: &dto.ScimName{
+		Name: &ScimName{
 			GivenName:  user.FirstName,
 			FamilyName: user.LastName,
 		},
@@ -435,7 +421,7 @@ func (s *ScimService) syncUser(ctx context.Context,
 	}
 
 	if user.Email != nil {
-		payload.Emails = []dto.ScimEmail{{
+		payload.Emails = []ScimEmail{{
 			Value:   *user.Email,
 			Primary: true,
 		}}
@@ -463,20 +449,18 @@ func (s *ScimService) syncUser(ctx context.Context,
 	return scimActionCreated, userResource, nil
 }
 
-func (s *ScimService) syncGroup(
-	ctx context.Context,
-	provider model.ScimServiceProvider,
-	group model.UserGroup,
-	groupResource *dto.ScimGroup,
-	userResources []dto.ScimUser,
-) (scimSyncAction, error) {
+func (s *Service) syncGroup(ctx context.Context, provider ServiceProvider, group model.UserGroup, groupResource *ScimGroup, userResources []ScimUser) (scimSyncAction, error) {
 	// If group is not allowed for the client, delete it from SCIM provider
 	if groupResource != nil && !groupAllowedForClient(group.ID, provider.OidcClient) {
-		return scimActionDeleted, s.deleteScimResource(ctx, provider, fmt.Sprintf("/Groups/%s", url.PathEscape(groupResource.GetID())))
+		err := s.deleteScimResource(ctx, provider, fmt.Sprintf("/Groups/%s", url.PathEscape(groupResource.GetID())))
+		if err != nil {
+			return scimActionNone, err
+		}
+		return scimActionDeleted, nil
 	}
 
 	// Prepare group members
-	members := make([]dto.ScimGroupMember, len(group.Users))
+	members := make([]ScimGroupMember, len(group.Users))
 	for i, user := range group.Users {
 		userResource := getResourceByExternalID(user.ID, userResources)
 		if userResource == nil {
@@ -484,13 +468,13 @@ func (s *ScimService) syncGroup(
 			return scimActionNone, fmt.Errorf("cannot sync group %s: user %s is not provisioned in SCIM provider", group.ID, user.ID)
 		}
 
-		members[i] = dto.ScimGroupMember{
+		members[i] = ScimGroupMember{
 			Value: userResource.GetID(),
 		}
 	}
 
-	groupPayload := dto.ScimGroup{
-		ScimResourceData: dto.ScimResourceData{
+	groupPayload := ScimGroup{
+		ScimResourceData: ScimResourceData{
 			Schemas:    []string{scimGroupSchema},
 			ExternalID: group.ID,
 		},
@@ -542,11 +526,7 @@ func groupIDs(groups []model.UserGroup) []string {
 	return ids
 }
 
-func (s *ScimService) groupsForClient(
-	ctx context.Context,
-	client model.OidcClient,
-	allowedGroupIDs []string,
-) ([]model.UserGroup, error) {
+func (s *Service) groupsForClient(ctx context.Context, client model.OidcClient, allowedGroupIDs []string) ([]model.UserGroup, error) {
 	var groups []model.UserGroup
 
 	query := s.db.WithContext(ctx).Preload("Users").Model(&model.UserGroup{})
@@ -557,13 +537,14 @@ func (s *ScimService) groupsForClient(
 		query = query.Where("id IN ?", allowedGroupIDs)
 	}
 
-	if err := query.Find(&groups).Error; err != nil {
+	err := query.Find(&groups).Error
+	if err != nil {
 		return nil, err
 	}
 	return groups, nil
 }
 
-func (s *ScimService) usersForClient(
+func (s *Service) usersForClient(
 	ctx context.Context,
 	client model.OidcClient,
 	allowedGroupIDs []string,
@@ -584,13 +565,14 @@ func (s *ScimService) usersForClient(
 
 	query = query.Preload("UserGroups")
 
-	if err := query.Find(&users).Error; err != nil {
+	err := query.Find(&users).Error
+	if err != nil {
 		return nil, err
 	}
 	return users, nil
 }
 
-func getResourceByExternalID[T dto.ScimResource](externalID string, resource []T) *T {
+func getResourceByExternalID[T ScimResource](externalID string, resource []T) *T {
 	for i := range resource {
 		if resource[i].GetExternalID() == externalID {
 			return &resource[i]
@@ -599,12 +581,7 @@ func getResourceByExternalID[T dto.ScimResource](externalID string, resource []T
 	return nil
 }
 
-func listScimResources[T any](
-	s *ScimService,
-	ctx context.Context,
-	provider model.ScimServiceProvider,
-	path string,
-) (result dto.ScimListResponse[T], err error) {
+func listScimResources[T any](s *Service, ctx context.Context, provider ServiceProvider, path string) (result ScimListResponse[T], err error) {
 	startIndex := 1
 	count := 1000
 
@@ -617,16 +594,18 @@ func listScimResources[T any](
 
 		resp, err := s.scimRequest(ctx, provider, http.MethodGet, path, nil, queryParams)
 		if err != nil {
-			return dto.ScimListResponse[T]{}, err
+			return ScimListResponse[T]{}, err
 		}
 
-		if err := ensureScimStatus(ctx, resp, provider, http.StatusOK); err != nil {
-			return dto.ScimListResponse[T]{}, err
+		err = ensureScimStatus(ctx, resp, provider, http.StatusOK)
+		if err != nil {
+			return ScimListResponse[T]{}, err
 		}
 
-		var page dto.ScimListResponse[T]
-		if err := json.NewDecoder(resp.Body).Decode(&page); err != nil {
-			return dto.ScimListResponse[T]{}, fmt.Errorf("failed to decode SCIM list response: %w", err)
+		var page ScimListResponse[T]
+		err = json.NewDecoder(resp.Body).Decode(&page)
+		if err != nil {
+			return ScimListResponse[T]{}, fmt.Errorf("failed to decode SCIM list response: %w", err)
 		}
 
 		resp.Body.Close()
@@ -650,55 +629,49 @@ func listScimResources[T any](
 	return result, nil
 }
 
-func createScimResource[T dto.ScimResource](
-	s *ScimService,
-	ctx context.Context,
-	provider model.ScimServiceProvider,
-	path string, payload T) (*T, error) {
+func createScimResource[T ScimResource](s *Service, ctx context.Context, provider ServiceProvider, path string, payload T) (*T, error) {
 	resp, err := s.scimRequest(ctx, provider, http.MethodPost, path, payload, nil)
 	if err != nil {
 		return nil, err
 	}
 	defer resp.Body.Close()
 
-	if err := ensureScimStatus(ctx, resp, provider, http.StatusOK, http.StatusCreated); err != nil {
+	err = ensureScimStatus(ctx, resp, provider, http.StatusOK, http.StatusCreated)
+	if err != nil {
 		return nil, err
 	}
 
 	var resource T
-	if err := json.NewDecoder(resp.Body).Decode(&resource); err != nil {
+	err = json.NewDecoder(resp.Body).Decode(&resource)
+	if err != nil {
 		return nil, fmt.Errorf("failed to decode SCIM create response: %w", err)
 	}
 
 	return &resource, nil
 }
 
-func updateScimResource[T dto.ScimResource](
-	s *ScimService,
-	ctx context.Context,
-	provider model.ScimServiceProvider,
-	path string,
-	payload T,
-) (*T, error) {
+func updateScimResource[T ScimResource](s *Service, ctx context.Context, provider ServiceProvider, path string, payload T) (*T, error) {
 	resp, err := s.scimRequest(ctx, provider, http.MethodPut, path, payload, nil)
 	if err != nil {
 		return nil, err
 	}
 	defer resp.Body.Close()
 
-	if err := ensureScimStatus(ctx, resp, provider, http.StatusOK, http.StatusCreated); err != nil {
+	err = ensureScimStatus(ctx, resp, provider, http.StatusOK, http.StatusCreated)
+	if err != nil {
 		return nil, err
 	}
 
 	var resource T
-	if err := json.NewDecoder(resp.Body).Decode(&resource); err != nil {
+	err = json.NewDecoder(resp.Body).Decode(&resource)
+	if err != nil {
 		return nil, fmt.Errorf("failed to decode SCIM update response: %w", err)
 	}
 
 	return &resource, nil
 }
 
-func (s *ScimService) deleteScimResource(ctx context.Context, provider model.ScimServiceProvider, path string) error {
+func (s *Service) deleteScimResource(ctx context.Context, provider ServiceProvider, path string) error {
 	resp, err := s.scimRequest(ctx, provider, http.MethodDelete, path, nil, nil)
 	if err != nil {
 		return err
@@ -709,17 +682,14 @@ func (s *ScimService) deleteScimResource(ctx context.Context, provider model.Sci
 		return nil
 	}
 
-	return ensureScimStatus(ctx, resp, provider, http.StatusOK, http.StatusNoContent)
+	err = ensureScimStatus(ctx, resp, provider, http.StatusOK, http.StatusNoContent)
+	if err != nil {
+		return err
+	}
+	return nil
 }
 
-func (s *ScimService) scimRequest(
-	ctx context.Context,
-	provider model.ScimServiceProvider,
-	method,
-	path string,
-	payload any,
-	queryParams map[string]string,
-) (*http.Response, error) {
+func (s *Service) scimRequest(ctx context.Context, provider ServiceProvider, method, path string, payload any, queryParams map[string]string) (*http.Response, error) {
 	urlString, err := scimURL(provider.Endpoint, path, queryParams)
 	if err != nil {
 		return nil, err
@@ -781,7 +751,8 @@ func (s *ScimService) scimRequest(
 		)
 
 		resp.Body.Close()
-		if err := utils.SleepWithContext(ctx, retryDelay); err != nil {
+		err = utils.SleepWithContext(ctx, retryDelay)
+		if err != nil {
 			return nil, err
 		}
 	}
@@ -792,11 +763,14 @@ func (s *ScimService) scimRequest(
 func scimRetryDelay(retryAfter string, attempt int) time.Duration {
 	// Respect Retry-After when provided
 	if retryAfter != "" {
-		if seconds, err := strconv.Atoi(retryAfter); err == nil {
+		seconds, err := strconv.Atoi(retryAfter)
+		if err == nil {
 			return time.Duration(seconds) * time.Second
 		}
-		if t, err := http.ParseTime(retryAfter); err == nil {
-			if delay := time.Until(t); delay > 0 {
+		t, err := http.ParseTime(retryAfter)
+		if err == nil {
+			delay := time.Until(t)
+			if delay > 0 {
 				return delay
 			}
 		}
@@ -828,11 +802,7 @@ func scimURL(endpoint, p string, queryParams map[string]string) (string, error) 
 	return u.String(), nil
 }
 
-func ensureScimStatus(
-	ctx context.Context,
-	resp *http.Response,
-	provider model.ScimServiceProvider,
-	allowedStatuses ...int) error {
+func ensureScimStatus(ctx context.Context, resp *http.Response, provider ServiceProvider, allowedStatuses ...int) error {
 	if slices.Contains(allowedStatuses, resp.StatusCode) {
 		return nil
 	}

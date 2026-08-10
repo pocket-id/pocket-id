@@ -1,18 +1,19 @@
-package dto
+package scimsync
 
 import (
 	"time"
 
+	"github.com/pocket-id/pocket-id/backend/internal/dto"
 	datatype "github.com/pocket-id/pocket-id/backend/internal/model/types"
 )
 
 type ScimServiceProviderDTO struct {
-	ID           string                `json:"id"`
-	Endpoint     string                `json:"endpoint"`
-	Token        string                `json:"token"`
-	LastSyncedAt *datatype.DateTime    `json:"lastSyncedAt"`
-	OidcClient   OidcClientMetaDataDto `json:"oidcClient"`
-	CreatedAt    datatype.DateTime     `json:"createdAt"`
+	ID           string                    `json:"id"`
+	Endpoint     string                    `json:"endpoint"`
+	Token        string                    `json:"token"`
+	LastSyncedAt *datatype.DateTime        `json:"lastSyncedAt"`
+	OidcClient   dto.OidcClientMetaDataDto `json:"oidcClient"`
+	CreatedAt    datatype.DateTime         `json:"createdAt"`
 }
 
 type ScimServiceProviderCreateDTO struct {

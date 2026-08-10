@@ -31,6 +31,7 @@ type Service struct {
 	userCreator  UserCreator
 	signer       TokenService
 	auditLog     AuditLogger
+	scimSync     ScimSyncScheduler
 }
 
 func newService(deps Dependencies, actorService *actor.Service) *Service {
@@ -40,6 +41,7 @@ func newService(deps Dependencies, actorService *actor.Service) *Service {
 		userCreator:  deps.UserCreator,
 		signer:       deps.Signer,
 		auditLog:     deps.AuditLog,
+		scimSync:     deps.ScimSync,
 	}
 }
 
@@ -126,6 +128,9 @@ func (s *Service) createSignedUpUser(ctx context.Context, config *appconfig.AppC
 	if err != nil {
 		return model.User{}, "", err
 	}
+	if s.scimSync != nil {
+		s.scimSync.ScheduleSync(ctx)
+	}
 
 	return user, accessToken, nil
 }
@@ -188,6 +193,9 @@ func (s *Service) SignUpInitialAdmin(ctx context.Context, config *appconfig.AppC
 	err = tx.Commit().Error
 	if err != nil {
 		return model.User{}, "", err
+	}
+	if s.scimSync != nil {
+		s.scimSync.ScheduleSync(ctx)
 	}
 
 	return user, token, nil

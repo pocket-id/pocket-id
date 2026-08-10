@@ -16,12 +16,12 @@ import (
 )
 
 type UserGroupService struct {
-	db          *gorm.DB
-	scimService *ScimService
+	db                *gorm.DB
+	scimSyncScheduler ScimSyncScheduler
 }
 
-func NewUserGroupService(db *gorm.DB, scimService *ScimService) *UserGroupService {
-	return &UserGroupService{db: db, scimService: scimService}
+func NewUserGroupService(db *gorm.DB, scimSyncScheduler ScimSyncScheduler) *UserGroupService {
+	return &UserGroupService{db: db, scimSyncScheduler: scimSyncScheduler}
 }
 
 func (s *UserGroupService) List(ctx context.Context, name string, listRequestOptions utils.ListRequestOptions) (groups []model.UserGroup, response utils.PaginationResponse, err error) {
@@ -102,15 +102,23 @@ func (s *UserGroupService) Delete(ctx context.Context, cfg *appconfig.AppConfigM
 		return err
 	}
 
-	if s.scimService != nil {
-		s.scimService.ScheduleSync()
+	if s.scimSyncScheduler != nil {
+		s.scimSyncScheduler.ScheduleSync(ctx)
 	}
 
 	return nil
 }
 
 func (s *UserGroupService) Create(ctx context.Context, input dto.UserGroupCreateDto) (group model.UserGroup, err error) {
-	return s.CreateInternal(ctx, input, s.db)
+	group, err = s.CreateInternal(ctx, input, s.db)
+	if err != nil {
+		return model.UserGroup{}, err
+	}
+	if s.scimSyncScheduler != nil {
+		s.scimSyncScheduler.ScheduleSync(ctx)
+	}
+
+	return group, nil
 }
 
 // CreateInternal creates a user group within an existing transaction
@@ -136,10 +144,6 @@ func (s *UserGroupService) CreateInternal(ctx context.Context, input dto.UserGro
 		return model.UserGroup{}, err
 	}
 
-	if s.scimService != nil {
-		s.scimService.ScheduleSync()
-	}
-
 	return group, nil
 }
 
@@ -157,6 +161,9 @@ func (s *UserGroupService) Update(ctx context.Context, cfg *appconfig.AppConfigM
 	err = tx.Commit().Error
 	if err != nil {
 		return model.UserGroup{}, err
+	}
+	if s.scimSyncScheduler != nil {
+		s.scimSyncScheduler.ScheduleSync(ctx)
 	}
 
 	return group, nil
@@ -196,10 +203,6 @@ func (s *UserGroupService) updateInternal(ctx context.Context, id string, input 
 		return model.UserGroup{}, err
 	}
 
-	if s.scimService != nil {
-		s.scimService.ScheduleSync()
-	}
-
 	return group, nil
 }
 
@@ -217,6 +220,9 @@ func (s *UserGroupService) UpdateUsers(ctx context.Context, id string, userIds [
 	err = tx.Commit().Error
 	if err != nil {
 		return model.UserGroup{}, err
+	}
+	if s.scimSyncScheduler != nil {
+		s.scimSyncScheduler.ScheduleSync(ctx)
 	}
 
 	return group, nil
@@ -262,10 +268,6 @@ func (s *UserGroupService) UpdateUsersInternal(ctx context.Context, id string, u
 		Error
 	if err != nil {
 		return model.UserGroup{}, err
-	}
-
-	if s.scimService != nil {
-		s.scimService.ScheduleSync()
 	}
 
 	return group, nil
@@ -347,8 +349,8 @@ func (s *UserGroupService) UpdateAllowedOidcClient(ctx context.Context, id strin
 		return model.UserGroup{}, err
 	}
 
-	if s.scimService != nil {
-		s.scimService.ScheduleSync()
+	if s.scimSyncScheduler != nil {
+		s.scimSyncScheduler.ScheduleSync(ctx)
 	}
 
 	return group, nil

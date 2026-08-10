@@ -2,7 +2,6 @@ package job
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	"log/slog"
 	"time"
@@ -12,12 +11,21 @@ import (
 	"github.com/google/uuid"
 	"go.opentelemetry.io/otel/trace"
 
-	"github.com/pocket-id/pocket-id/backend/internal/service"
 	"github.com/pocket-id/pocket-id/backend/internal/tracing"
 )
 
 type Scheduler struct {
 	scheduler gocron.Scheduler
+}
+
+// RegisterJobOpts holds optional configuration for registering a scheduled job
+type RegisterJobOpts struct {
+	// RunImmediately runs the job immediately after registration
+	RunImmediately bool
+	// ExtraOptions are additional gocron job options
+	ExtraOptions []gocron.JobOption
+	// BackOff retries transient failures when set
+	BackOff backoff.BackOff
 }
 
 func NewScheduler() (*Scheduler, error) {
@@ -29,22 +37,6 @@ func NewScheduler() (*Scheduler, error) {
 	return &Scheduler{
 		scheduler: scheduler,
 	}, nil
-}
-
-func (s *Scheduler) RemoveJob(name string) error {
-	jobs := s.scheduler.Jobs()
-
-	var errs []error
-	for _, job := range jobs {
-		if job.Name() == name {
-			err := s.scheduler.RemoveJob(job.ID())
-			if err != nil {
-				errs = append(errs, fmt.Errorf("failed to dequeue job %q with ID %q: %w", name, job.ID().String(), err))
-			}
-		}
-	}
-
-	return errors.Join(errs...)
 }
 
 // Run the scheduler.
@@ -66,7 +58,7 @@ func (s *Scheduler) Run(ctx context.Context) error {
 	return nil
 }
 
-func (s *Scheduler) RegisterJob(ctx context.Context, name string, def gocron.JobDefinition, jobFn func(ctx context.Context) error, opts service.RegisterJobOpts) error {
+func (s *Scheduler) RegisterJob(ctx context.Context, name string, def gocron.JobDefinition, jobFn func(ctx context.Context) error, opts RegisterJobOpts) error {
 	// Wrap the job in a handler that adds tracing and logging
 	jobFn = jobWithObservability(name, jobFn)
 

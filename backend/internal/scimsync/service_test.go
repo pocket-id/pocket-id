@@ -1,19 +1,18 @@
-package service
+package scimsync
 
 import (
 	"testing"
 
 	"github.com/pocket-id/pocket-id/backend/internal/apperror"
-	"github.com/pocket-id/pocket-id/backend/internal/dto"
 	"github.com/pocket-id/pocket-id/backend/internal/model"
 	testutils "github.com/pocket-id/pocket-id/backend/internal/utils/testing"
 	"github.com/stretchr/testify/require"
 )
 
-func TestScimServiceProviderOperationsReturnSpecificNotFoundErrors(t *testing.T) {
-	service := NewScimService(testutils.NewDatabaseForTest(t), nil, nil)
+func TestServiceProviderOperationsReturnSpecificNotFoundErrors(t *testing.T) {
+	service := newService(testutils.NewDatabaseForTest(t), nil)
 
-	_, err := service.CreateServiceProvider(t.Context(), &dto.ScimServiceProviderCreateDTO{
+	_, err := service.CreateServiceProvider(t.Context(), &ScimServiceProviderCreateDTO{
 		Endpoint:     "https://scim.example.com",
 		OidcClientID: "missing-client",
 	})
@@ -26,9 +25,9 @@ func TestScimServiceProviderOperationsReturnSpecificNotFoundErrors(t *testing.T)
 	require.True(t, apperror.IsCode(err, apperror.CodeNotFound))
 }
 
-func TestScimServiceProviderCreateAndUpdate(t *testing.T) {
+func TestServiceProviderCreateAndUpdate(t *testing.T) {
 	db := testutils.NewDatabaseForTest(t)
-	service := NewScimService(db, nil, nil)
+	service := newService(db, nil)
 
 	// Create two clients so provider creation and reassignment both satisfy the foreign key
 	require.NoError(t, db.Create(&[]model.OidcClient{
@@ -37,7 +36,7 @@ func TestScimServiceProviderCreateAndUpdate(t *testing.T) {
 	}).Error)
 
 	// Create the provider with its initial client in one transaction
-	provider, err := service.CreateServiceProvider(t.Context(), &dto.ScimServiceProviderCreateDTO{
+	provider, err := service.CreateServiceProvider(t.Context(), &ScimServiceProviderCreateDTO{
 		Endpoint:     "https://scim.example.com/v1",
 		OidcClientID: "client-1",
 	})
@@ -45,7 +44,7 @@ func TestScimServiceProviderCreateAndUpdate(t *testing.T) {
 	require.NotEmpty(t, provider.ID)
 
 	// Move the provider to the second client in one transaction
-	provider, err = service.UpdateServiceProvider(t.Context(), provider.ID, &dto.ScimServiceProviderCreateDTO{
+	provider, err = service.UpdateServiceProvider(t.Context(), provider.ID, &ScimServiceProviderCreateDTO{
 		Endpoint:     "https://scim.example.com/v2",
 		OidcClientID: "client-2",
 	})
