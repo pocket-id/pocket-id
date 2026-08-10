@@ -52,6 +52,29 @@ func TestBuildClientFromMetadata(t *testing.T) {
 		}
 	})
 
+	t.Run("unsupported grant types are dropped", func(t *testing.T) {
+		doc := &fosite.ClientMetadataDocument{
+			ClientID:                id,
+			RedirectURIs:            []string{"https://app.example.com/callback"},
+			TokenEndpointAuthMethod: "none",
+			GrantTypes:              []string{"authorization_code", "refresh_token", "urn:ietf:params:oauth:grant-type:jwt-bearer"},
+		}
+		c, err := buildClientFromMetadata(doc, id)
+		require.NoError(t, err)
+		assert.Equal(t, []string{"authorization_code", "refresh_token"}, []string(c.MetadataGrantTypes))
+	})
+
+	t.Run("documents without a supported initiating grant are rejected", func(t *testing.T) {
+		doc := &fosite.ClientMetadataDocument{
+			ClientID:                id,
+			RedirectURIs:            []string{"https://app.example.com/callback"},
+			TokenEndpointAuthMethod: "none",
+			GrantTypes:              []string{"refresh_token", "urn:ietf:params:oauth:grant-type:jwt-bearer"},
+		}
+		_, err := buildClientFromMetadata(doc, id)
+		require.ErrorIs(t, err, errInitiatingGrantRequired)
+	})
+
 	t.Run("name falls back to the client ID host", func(t *testing.T) {
 		c, err := buildClientFromMetadata(&fosite.ClientMetadataDocument{ClientID: id, TokenEndpointAuthMethod: "none"}, id)
 		require.NoError(t, err)
@@ -71,7 +94,8 @@ func TestCIMDPolicyValidate(t *testing.T) {
 		{name: "defaults are supported"},
 		{name: "authorization code and refresh token are supported", grantTypes: []string{"authorization_code", "refresh_token"}},
 		{name: "device code is supported", grantTypes: []string{string(fosite.GrantTypeDeviceCode)}},
-		{name: "client credentials is rejected", grantTypes: []string{"client_credentials"}, wantError: "unsupported grant_type"},
+		{name: "unsupported grant types are ignored", grantTypes: []string{"authorization_code", "refresh_token", "urn:ietf:params:oauth:grant-type:jwt-bearer"}},
+		{name: "client credentials cannot initiate authorization", grantTypes: []string{"client_credentials"}, wantError: "must enable"},
 		{name: "refresh token cannot initiate authorization", grantTypes: []string{"refresh_token"}, wantError: "must enable"},
 		{name: "implicit response is rejected", grantTypes: []string{"authorization_code"}, responseTypes: []string{"token"}, wantError: "unsupported response_type"},
 	} {
