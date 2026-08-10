@@ -1,6 +1,7 @@
 import test, { expect, Page } from '@playwright/test';
 import { oidcClients, userGroups } from '../data';
 import { cleanupBackend } from '../utils/cleanup.util';
+import * as oidcUtil from '../utils/oidc.util';
 
 test.beforeEach(async () => await cleanupBackend());
 
@@ -37,15 +38,12 @@ test.describe('Create OIDC client', () => {
 		);
 
 		const resolvedClientId = (await page.getByTestId('client-id').innerText()).trim();
-		const clientSecret = (await page.getByTestId('client-secret').innerText()).trim();
 
 		if (clientId) {
 			expect(resolvedClientId).toBe(clientId);
 		} else {
 			expect(resolvedClientId).toMatch(/^[\w-]{36}$/);
 		}
-
-		expect(clientSecret).toMatch(/^\w{32}$/);
 
 		await expect(page.getByLabel('Name')).toHaveValue(oidcClient.name);
 		await expect(page.getByLabel('Description')).toHaveValue(oidcClient.description);
@@ -166,7 +164,7 @@ test('Update OIDC client token lifetimes', async ({ page }) => {
 
 test('Update OIDC client federated credentials', async ({ page }) => {
 	const client = oidcClients.nextcloud;
-	await page.goto(`/settings/admin/oidc-clients/${client.id}`);
+	await page.goto(`/settings/admin/oidc-clients/${client.id}#credentials`);
 
 	const card = page.getByTestId('federated-credentials-card');
 	await card.getByRole('button', { name: 'Create', exact: true }).click();
@@ -188,6 +186,7 @@ test('Update OIDC client federated credentials', async ({ page }) => {
 	await expect(card.getByLabel('Audience')).toHaveValue('https://pocket-id.example.com');
 
 	// Saving the main client form must preserve credentials managed by the separate card
+	await page.locator('[role="tab"][data-value="general"]').click();
 	const description = page.getByLabel('Description');
 	await description.fill('Updated without replacing federated credentials');
 	const clientForm = description.locator('xpath=ancestor::form');
@@ -199,21 +198,87 @@ test('Update OIDC client federated credentials', async ({ page }) => {
 	await clientForm.getByRole('button', { name: 'Save' }).click();
 	expect((await formUpdate).ok()).toBeTruthy();
 
-	await page.reload();
+	await page.goto(`/settings/admin/oidc-clients/${client.id}#credentials`);
 	await expect(card.getByLabel('Issuer')).toHaveValue('https://issuer.example.com');
 });
 
-test('Create new OIDC client secret', async ({ page }) => {
+test('Create and delete OIDC client secrets', async ({ page }) => {
 	const oidcClient = oidcClients.nextcloud;
-	await page.goto(`/settings/admin/oidc-clients/${oidcClient.id}`);
+	await page.goto(`/settings/admin/oidc-clients/${oidcClient.id}#credentials`);
 
-	await page.getByLabel('Create new client secret').click();
-	await page.getByRole('button', { name: 'Generate' }).click();
+	const card = page.getByTestId('client-secrets-card');
+	// The seeded client already has the secret the other tests authenticate with
+	await expect(card.getByTestId('client-secret-row')).toHaveCount(1);
+
+	await card.getByRole('button', { name: 'Add client secret' }).click();
+	await expect(page.locator('[data-type="success"]')).toHaveText(
+		'New client secret created successfully'
+	);
+
+	// The new secret is the only one whose value is shown in full, and only until the page is left
+	await expect(card.getByTestId('client-secret-row')).toHaveCount(2);
+	const createdSecret = (await card.getByTestId('client-secret').nth(1).innerText()).trim();
+	expect(createdSecret).toMatch(/^\w{32}$/);
+
+	// Both secrets authenticate the client, so it can be rotated without downtime
+	for (const secret of [oidcClient.secret, createdSecret]) {
+		const res = await oidcUtil.exchangeCode(page, {
+			grant_type: 'client_credentials',
+			client_id: oidcClient.id,
+			client_secret: secret
+		});
+		expect(res.access_token).toBeTruthy();
+	}
+
+	// After a reload only the stored prefix is left
+	await page.reload();
+	await expect(card.getByTestId('client-secret').nth(1)).toHaveText(
+		`${createdSecret.substring(0, 4)}••••••••`
+	);
+
+	await card
+		.getByTestId('client-secret-row')
+		.nth(1)
+		.getByRole('button', { name: 'Toggle menu' })
+		.click();
+	await page.getByRole('menuitem', { name: 'Delete' }).click();
+	await page.getByRole('button', { name: 'Delete' }).click();
+	await expect(page.locator('[data-type="success"]')).toHaveText(
+		'Client secret deleted successfully'
+	);
+	await expect(card.getByTestId('client-secret-row')).toHaveCount(1);
+
+	// The deleted secret can no longer authenticate the client
+	const res = await oidcUtil.exchangeCode(page, {
+		grant_type: 'client_credentials',
+		client_id: oidcClient.id,
+		client_secret: createdSecret
+	});
+	expect(res.access_token).toBeFalsy();
+});
+
+test('Client secrets can be created with an expiration', async ({ page }) => {
+	const oidcClient = oidcClients.nextcloud;
+	await page.goto(`/settings/admin/oidc-clients/${oidcClient.id}#credentials`);
+
+	const card = page.getByTestId('client-secrets-card');
+	await card.getByRole('combobox').click();
+	await page.getByRole('option', { name: '90 days' }).click();
+	await card.getByRole('button', { name: 'Add client secret' }).click();
 
 	await expect(page.locator('[data-type="success"]')).toHaveText(
 		'New client secret created successfully'
 	);
-	expect((await page.getByTestId('client-secret').textContent())?.length).toBe(32);
+
+	const secrets = await page.request
+		.get(`/api/oidc/clients/${oidcClient.id}/secrets`)
+		.then((r) => r.json());
+	expect(secrets).toHaveLength(2);
+
+	const expiresAt = new Date(secrets[1].expiresAt).getTime();
+	const expected = Date.now() + 90 * 24 * 60 * 60 * 1000;
+	expect(Math.abs(expiresAt - expected)).toBeLessThan(5 * 60 * 1000);
+	expect(secrets[1].isActive).toBe(true);
 });
 
 test('Delete OIDC client', async ({ page }) => {

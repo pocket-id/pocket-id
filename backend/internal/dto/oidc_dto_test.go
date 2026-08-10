@@ -3,10 +3,14 @@ package dto
 import (
 	"encoding/json"
 	"testing"
+	"time"
 
 	"github.com/gin-gonic/gin/binding"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+
+	"github.com/pocket-id/pocket-id/backend/internal/model"
+	datatype "github.com/pocket-id/pocket-id/backend/internal/model/types"
 )
 
 func TestOidcClientUpdateDto_tokenLifetimes(t *testing.T) {
@@ -69,4 +73,36 @@ func TestOidcClientUpdateDto_tokenLifetimes(t *testing.T) {
 			assert.Equal(t, test.wantRefresh, input.RefreshTokenDurationMinutes)
 		})
 	}
+}
+
+func TestOidcClientDto_secrets(t *testing.T) {
+	expired := datatype.DateTime(time.Now().Add(-time.Hour))
+	valid := datatype.DateTime(time.Now().Add(time.Hour))
+	client := model.OidcClient{
+		Base: model.Base{ID: "client-id"},
+		Name: "Test Client",
+		Credentials: model.OidcClientCredentials{
+			Secrets: []model.OidcClientSecret{
+				{ID: "active", Algorithm: model.OidcClientSecretHashSHA256, Hash: "hash-1", Prefix: "abcd"},
+				{ID: "expiring", Algorithm: model.OidcClientSecretHashSHA256, Hash: "hash-2", Prefix: "efgh", ExpiresAt: &valid},
+				{ID: "expired", Algorithm: model.OidcClientSecretHashSHA256, Hash: "hash-3", Prefix: "ijkl", ExpiresAt: &expired},
+			},
+		},
+	}
+
+	var clientDto OidcClientDto
+	require.NoError(t, MapStruct(client, &clientDto))
+	require.Len(t, clientDto.Credentials.Secrets, 3)
+
+	assert.Equal(t, "active", clientDto.Credentials.Secrets[0].ID)
+	assert.Equal(t, "abcd", clientDto.Credentials.Secrets[0].Prefix)
+	assert.True(t, clientDto.Credentials.Secrets[0].IsActive)
+	assert.True(t, clientDto.Credentials.Secrets[1].IsActive)
+	assert.False(t, clientDto.Credentials.Secrets[2].IsActive)
+
+	// Serializing the client must never disclose the hashes of its secrets
+	serialized, err := json.Marshal(clientDto)
+	require.NoError(t, err)
+	assert.NotContains(t, string(serialized), "hash-1")
+	assert.Contains(t, string(serialized), `"isActive":true`)
 }

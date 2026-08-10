@@ -7,6 +7,8 @@ import type {
 	OidcClient,
 	OidcClientCreate,
 	OidcClientMetaData,
+	OidcClientSecret,
+	OidcClientSecretCreated,
 	OidcClientUpdate,
 	OidcClientWithAllowedUserGroups,
 	OidcClientWithAllowedUserGroupsCount,
@@ -87,8 +89,20 @@ class OidcService extends APIService {
 		cachedOidcClientLogo.bustCache(id, light);
 	};
 
-	createClientSecret = async (id: string) =>
-		(await this.api.post(`/oidc/clients/${encodeClientIdParam(id)}/secret`)).data.secret as string;
+	listClientSecrets = async (id: string) =>
+		(await this.api.get(`/oidc/clients/${encodeClientIdParam(id)}/secrets`))
+			.data as OidcClientSecret[];
+
+	createClientSecret = async (id: string, expiresAt: Date | null) =>
+		(
+			await this.api.post(`/oidc/clients/${encodeClientIdParam(id)}/secrets`, {
+				expiresAt: expiresAt?.toISOString() ?? null
+			})
+		).data as OidcClientSecretCreated;
+
+	deleteClientSecret = async (id: string, secretId: string) => {
+		await this.api.delete(`/oidc/clients/${encodeClientIdParam(id)}/secrets/${secretId}`);
+	};
 
 	updateAllowedUserGroups = async (id: string, userGroupIds: string[]) => {
 		const res = await this.api.put(`/oidc/clients/${encodeClientIdParam(id)}/allowed-user-groups`, {
