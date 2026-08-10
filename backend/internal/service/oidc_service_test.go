@@ -755,14 +755,6 @@ func TestOidcService_CreateClientSecret_limit(t *testing.T) {
 
 	_, _, err = s.CreateClientSecret(t.Context(), client.ID, dto.OidcClientSecretCreateDto{})
 	require.Error(t, err)
-
-	// The deprecated endpoint replaces every existing secret with a single new one
-	_, _, err = s.ReplaceClientSecrets(t.Context(), client.ID, dto.OidcClientSecretCreateDto{})
-	require.NoError(t, err)
-
-	secrets, err := s.ListClientSecrets(t.Context(), client.ID)
-	require.NoError(t, err)
-	assert.Len(t, secrets, 1)
 }
 
 func TestOidcService_CreateClientSecret_preservesFederatedIdentities(t *testing.T) {

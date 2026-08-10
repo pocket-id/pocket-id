@@ -333,16 +333,6 @@ func (s *OidcService) ListClientSecrets(ctx context.Context, clientID string) ([
 
 // CreateClientSecret adds a new secret to a client and returns both the stored record and the secret's value, which is not recoverable afterwards
 func (s *OidcService) CreateClientSecret(ctx context.Context, clientID string, input dto.OidcClientSecretCreateDto) (model.OidcClientSecret, string, error) {
-	return s.createClientSecretInternal(ctx, clientID, input, false)
-}
-
-// ReplaceClientSecrets removes every existing secret of a client and creates a new one
-// It backs the deprecated single-secret endpoint, whose documented behavior is that creating a secret invalidates the previous one
-func (s *OidcService) ReplaceClientSecrets(ctx context.Context, clientID string, input dto.OidcClientSecretCreateDto) (model.OidcClientSecret, string, error) {
-	return s.createClientSecretInternal(ctx, clientID, input, true)
-}
-
-func (s *OidcService) createClientSecretInternal(ctx context.Context, clientID string, input dto.OidcClientSecretCreateDto, replaceExisting bool) (model.OidcClientSecret, string, error) {
 	// An expiration date in the past would create a secret that can never be used
 	if input.ExpiresAt != nil && !input.ExpiresAt.ToTime().After(time.Now()) {
 		return model.OidcClientSecret{}, "", apperror.ValidationMessage("The expiration date of a client secret must be in the future")
@@ -362,9 +352,7 @@ func (s *OidcService) createClientSecretInternal(ctx context.Context, clientID s
 		return model.OidcClientSecret{}, "", apperror.ValidationMessage("Cannot create a secret for a public client")
 	}
 
-	if replaceExisting {
-		client.Credentials.Secrets = nil
-	} else if len(client.Credentials.Secrets) >= model.MaxOidcClientSecrets {
+	if len(client.Credentials.Secrets) >= model.MaxOidcClientSecrets {
 		return model.OidcClientSecret{}, "", apperror.ValidationMessage(fmt.Sprintf("A client cannot have more than %d secrets", model.MaxOidcClientSecrets))
 	}
 

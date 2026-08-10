@@ -34,7 +34,6 @@ func NewOidcController(group *gin.RouterGroup, authMiddleware *middleware.AuthMi
 	group.DELETE("/oidc/clients/:id", authMiddleware.Add(), httpserver.Handle(oc.deleteClientHandler))
 
 	group.PUT("/oidc/clients/:id/allowed-user-groups", authMiddleware.Add(), httpserver.Handle(oc.updateAllowedUserGroupsHandler))
-	group.POST("/oidc/clients/:id/secret", authMiddleware.Add(), httpserver.Handle(oc.replaceClientSecretHandler))
 	group.GET("/oidc/clients/:id/secrets", authMiddleware.Add(), httpserver.Handle(oc.listClientSecretsHandler))
 	group.POST("/oidc/clients/:id/secrets", authMiddleware.Add(), httpserver.Handle(oc.createClientSecretHandler))
 	group.DELETE("/oidc/clients/:id/secrets/:secretId", authMiddleware.Add(), httpserver.Handle(oc.deleteClientSecretHandler))
@@ -255,32 +254,6 @@ func (oc *OidcController) refreshClientMetadataHandler(c *gin.Context) error {
 
 	clientDto.HasDarkLogo = client.HasDarkLogo()
 	c.JSON(http.StatusOK, clientDto)
-	return nil
-}
-
-// replaceClientSecretHandler godoc
-// @Summary Replace client secrets
-// @Description Set or generate a new secret for an OIDC client, removing all of its existing secrets. Deprecated: use POST /api/oidc/clients/{id}/secrets to add a secret without invalidating the existing ones.
-// @Tags OIDC
-// @Accept json
-// @Produce json
-// @Param id path string true "Client ID"
-// @Param payload body dto.OidcClientSecretCreateDto false "Client secret"
-// @Success 200 {object} object "{ \"secret\": \"string\" }"
-// @Deprecated true
-// @Router /api/oidc/clients/{id}/secret [post]
-func (oc *OidcController) replaceClientSecretHandler(c *gin.Context) error {
-	var input dto.OidcClientSecretCreateDto
-	if err := httpserver.BindOptionalJSON(c, &input); err != nil {
-		return err
-	}
-
-	_, secret, err := oc.oidcService.ReplaceClientSecrets(c.Request.Context(), c.Param("id"), input)
-	if err != nil {
-		return err
-	}
-
-	c.JSON(http.StatusOK, gin.H{"secret": secret})
 	return nil
 }
 
