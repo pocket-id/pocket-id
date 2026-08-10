@@ -59,10 +59,10 @@ type ScimListResponse[T any] struct {
 }
 
 type ScimResourceData struct {
-	ID         string           `json:"id,omitempty"`
-	ExternalID string           `json:"externalId,omitempty"`
-	Schemas    []string         `json:"schemas"`
-	Meta       ScimResourceMeta `json:"meta,omitempty"`
+	ID         string            `json:"id,omitempty"`
+	ExternalID string            `json:"externalId,omitempty"`
+	Schemas    []string          `json:"schemas"`
+	Meta       *ScimResourceMeta `json:"meta,omitempty"`
 }
 
 type ScimResourceMeta struct {
@@ -86,7 +86,11 @@ func (r ScimResourceData) GetSchemas() []string {
 }
 
 func (r ScimResourceData) GetMeta() ScimResourceMeta {
-	return r.Meta
+	if r.Meta == nil {
+		return ScimResourceMeta{}
+	}
+
+	return *r.Meta
 }
 
 type ScimResource interface {
