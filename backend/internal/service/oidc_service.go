@@ -10,10 +10,11 @@ import (
 	"net/http"
 	"net/url"
 	"path"
+	"slices"
 	"strings"
 	"time"
 
-	"golang.org/x/crypto/bcrypt"
+	"github.com/google/uuid"
 	"gorm.io/gorm"
 	"gorm.io/gorm/clause"
 
@@ -320,7 +321,23 @@ func (s *OidcService) DeleteClient(ctx context.Context, clientID string) error {
 	return nil
 }
 
-func (s *OidcService) CreateClientSecret(ctx context.Context, clientID string, input dto.OidcClientSecretDto) (string, error) {
+// ListClientSecrets returns all secrets configured for a client, including the expired ones
+func (s *OidcService) ListClientSecrets(ctx context.Context, clientID string) ([]model.OidcClientSecret, error) {
+	client, err := s.getClientInternal(ctx, clientID, s.db, false)
+	if err != nil {
+		return nil, err
+	}
+
+	return client.Credentials.Secrets, nil
+}
+
+// CreateClientSecret adds a new secret to a client and returns both the stored record and the secret's value, which is not recoverable afterwards
+func (s *OidcService) CreateClientSecret(ctx context.Context, clientID string, input dto.OidcClientSecretCreateDto) (model.OidcClientSecret, string, error) {
+	// An expiration date in the past would create a secret that can never be used
+	if input.ExpiresAt != nil && !input.ExpiresAt.ToTime().After(time.Now()) {
+		return model.OidcClientSecret{}, "", apperror.ValidationMessage("The expiration date of a client secret must be in the future")
+	}
+
 	tx := s.db.Begin()
 	defer func() {
 		tx.Rollback()
@@ -328,41 +345,100 @@ func (s *OidcService) CreateClientSecret(ctx context.Context, clientID string, i
 
 	client, err := s.getClientInternal(ctx, clientID, tx, true)
 	if err != nil {
-		return "", err
+		return model.OidcClientSecret{}, "", fmt.Errorf("error retrieving OIDC client: %w", err)
 	}
 
 	if client.IsPublic {
-		return "", apperror.ValidationMessage("Cannot create a secret for a public client")
+		return model.OidcClientSecret{}, "", apperror.ValidationMessage("Cannot create a secret for a public client")
 	}
 
+	if len(client.Credentials.Secrets) >= model.MaxOidcClientSecrets {
+		return model.OidcClientSecret{}, "", apperror.ValidationMessage(fmt.Sprintf("A client cannot have more than %d secrets", model.MaxOidcClientSecrets))
+	}
+
+	// Callers may supply their own value, otherwise one with enough entropy is generated here
 	clientSecret := input.Secret
 	if clientSecret == "" {
 		clientSecret, err = utils.GenerateRandomAlphanumericString(32)
 		if err != nil {
-			return "", err
+			return model.OidcClientSecret{}, "", fmt.Errorf("failed to generate client secret: %w", err)
 		}
 	}
 
-	hashedSecret, err := bcrypt.GenerateFromPassword([]byte(clientSecret), bcrypt.DefaultCost)
-	if err != nil {
-		return "", err
+	// Only the hash and a short prefix are persisted, so this is the last time the value is available
+	secret := model.OidcClientSecret{
+		ID:        uuid.New().String(),
+		Algorithm: model.OidcClientSecretHashSHA256,
+		Hash:      utils.CreateSha256Hash(clientSecret),
+		Prefix:    clientSecretPrefix(clientSecret),
+		CreatedAt: datatype.DateTime(time.Now()),
+		ExpiresAt: input.ExpiresAt,
 	}
+	client.Credentials.Secrets = append(client.Credentials.Secrets, secret)
 
-	client.Secret = string(hashedSecret)
 	err = tx.
 		WithContext(ctx).
-		Save(&client).
+		Model(&client).
+		Select("Credentials").
+		Updates(&client).
 		Error
 	if err != nil {
-		return "", err
+		return model.OidcClientSecret{}, "", fmt.Errorf("failed to update OIDC client: %w", err)
 	}
 
 	err = tx.Commit().Error
 	if err != nil {
-		return "", err
+		return model.OidcClientSecret{}, "", fmt.Errorf("failed to commit transaction: %w", err)
 	}
 
-	return clientSecret, nil
+	return secret, clientSecret, nil
+}
+
+// DeleteClientSecret removes a single secret from a client, making it immediately unusable
+func (s *OidcService) DeleteClientSecret(ctx context.Context, clientID string, secretID string) error {
+	tx := s.db.Begin()
+	defer func() {
+		tx.Rollback()
+	}()
+
+	client, err := s.getClientInternal(ctx, clientID, tx, true)
+	if err != nil {
+		return fmt.Errorf("error retrieving OIDC client: %w", err)
+	}
+
+	countBefore := len(client.Credentials.Secrets)
+	client.Credentials.Secrets = slices.DeleteFunc(client.Credentials.Secrets, func(secret model.OidcClientSecret) bool {
+		return secret.ID == secretID
+	})
+	if len(client.Credentials.Secrets) == countBefore {
+		return apperror.NotFound("Client secret")
+	}
+
+	err = tx.
+		WithContext(ctx).
+		Model(&client).
+		Select("Credentials").
+		Updates(&client).
+		Error
+	if err != nil {
+		return fmt.Errorf("failed to update OIDC client: %w", err)
+	}
+
+	err = tx.Commit().Error
+	if err != nil {
+		return fmt.Errorf("failed to commit transaction: %w", err)
+	}
+
+	return nil
+}
+
+// clientSecretPrefix returns the leading characters of a secret that are stored in clear text to help admins tell secrets apart
+func clientSecretPrefix(clientSecret string) string {
+	if len(clientSecret) <= model.OidcClientSecretPrefixLength {
+		return ""
+	}
+
+	return clientSecret[:model.OidcClientSecretPrefixLength]
 }
 
 func (s *OidcService) GetClientLogo(ctx context.Context, clientID string, light bool) (io.ReadCloser, int64, string, error) {
@@ -594,6 +670,16 @@ func (s *OidcService) ListAuthorizedClients(ctx context.Context, userID string, 
 		Preload("Client").
 		Where("user_id = ?", userID)
 
+	// Apply the launch URL filter before pagination so hidden authorizations have their own page count
+	if hasLaunchURL, ok := getHasLaunchURLFilter(listRequestOptions); ok {
+		query = query.Joins("JOIN oidc_clients ON oidc_clients.id = user_authorized_oidc_clients.client_id")
+		if hasLaunchURL {
+			query = query.Where("oidc_clients.launch_url IS NOT NULL AND oidc_clients.launch_url <> ''")
+		} else {
+			query = query.Where("oidc_clients.launch_url IS NULL OR oidc_clients.launch_url = ''")
+		}
+	}
+
 	var authorizedClients []model.UserAuthorizedOidcClient
 	response, err := utils.PaginateFilterAndSort(listRequestOptions, query, &authorizedClients)
 
@@ -669,6 +755,15 @@ func (s *OidcService) ListAccessibleOidcClients(ctx context.Context, userID stri
 			WHERE oidc_clients_allowed_user_groups.oidc_client_id = oidc_clients.id
 			AND oidc_clients_allowed_user_groups.user_group_id IN (?))`, false, userGroupIDs)
 
+	// Apply the launch URL filter before pagination so the app launcher never contains empty pages
+	if hasLaunchURL, ok := getHasLaunchURLFilter(listRequestOptions); ok {
+		if hasLaunchURL {
+			query = query.Where("oidc_clients.launch_url IS NOT NULL AND oidc_clients.launch_url <> ''")
+		} else {
+			query = query.Where("oidc_clients.launch_url IS NULL OR oidc_clients.launch_url = ''")
+		}
+	}
+
 	var clients []model.OidcClient
 
 	// Handle custom sorting for lastUsedAt column
@@ -705,6 +800,16 @@ func (s *OidcService) ListAccessibleOidcClients(ctx context.Context, userID stri
 	}
 
 	return dtos, response, err
+}
+
+func getHasLaunchURLFilter(listRequestOptions utils.ListRequestOptions) (bool, bool) {
+	values := listRequestOptions.Filters["hasLaunchURL"]
+	if len(values) == 0 {
+		return false, false
+	}
+
+	hasLaunchURL, ok := values[0].(bool)
+	return hasLaunchURL, ok
 }
 
 func (s *OidcService) GetClientPreview(ctx context.Context, clientID string, userID string, scopes []string, authenticationMethod string) (*dto.OidcClientPreviewDto, error) {

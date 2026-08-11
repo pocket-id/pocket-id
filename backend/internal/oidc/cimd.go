@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"net/http"
 	"net/url"
+	"slices"
 	"strings"
 
 	"github.com/ory/fosite"
@@ -129,23 +130,9 @@ func (cimdPolicy) ValidateCIMDClient(_ context.Context, doc *fosite.ClientMetada
 		return fmt.Errorf("client metadata documents only support token_endpoint_auth_method %q, got %q", "none", doc.TokenEndpointAuthMethod)
 	}
 
-	// Restrict metadata clients to grant types implemented by Pocket ID and require a flow that can initiate authorization
-	grantTypes := doc.GrantTypes
-	if len(grantTypes) == 0 {
-		grantTypes = []string{string(fosite.GrantTypeAuthorizationCode)}
-	}
-	hasInitiatingGrant := false
-	for _, grantType := range grantTypes {
-		switch grantType {
-		case string(fosite.GrantTypeAuthorizationCode), string(fosite.GrantTypeDeviceCode):
-			hasInitiatingGrant = true
-		case string(fosite.GrantTypeRefreshToken):
-		default:
-			return fmt.Errorf("client metadata document contains unsupported grant_type %q", grantType)
-		}
-	}
-	if !hasInitiatingGrant {
-		return errors.New("client metadata document must enable authorization_code or device_code")
+	// Require a flow that can initiate authorization (ignoring the grant types Pocket ID does not implement)
+	if !hasInitiatingGrantType(supportedMetadataGrantTypes(doc.GrantTypes)) {
+		return errInitiatingGrantRequired
 	}
 
 	// Pocket ID only implements the code response type for metadata clients
@@ -160,6 +147,30 @@ func (cimdPolicy) ValidateCIMDClient(_ context.Context, doc *fosite.ClientMetada
 	}
 
 	return nil
+}
+
+var errInitiatingGrantRequired = errors.New("client metadata document must enable authorization_code or device_code")
+
+// supportedMetadataGrantTypes keeps only the grant types Pocket ID implements for metadata clients and drops the rest
+func supportedMetadataGrantTypes(grantTypes []string) []string {
+	if len(grantTypes) == 0 {
+		// Per RFC 7591 section 2: an omitted grant_types defaults to authorization_code
+		return []string{string(fosite.GrantTypeAuthorizationCode)}
+	}
+
+	supported := make([]string, 0, len(grantTypes))
+	for _, grantType := range grantTypes {
+		switch grantType {
+		case string(fosite.GrantTypeAuthorizationCode), string(fosite.GrantTypeDeviceCode), string(fosite.GrantTypeRefreshToken):
+			supported = append(supported, grantType)
+		}
+	}
+	return supported
+}
+
+func hasInitiatingGrantType(grantTypes []string) bool {
+	return slices.Contains(grantTypes, string(fosite.GrantTypeAuthorizationCode)) ||
+		slices.Contains(grantTypes, string(fosite.GrantTypeDeviceCode))
 }
 
 // validateMetadataRedirectURIs rejects self-asserted redirect URIs Pocket ID must not accept
@@ -193,11 +204,10 @@ func buildClientFromMetadata(doc *fosite.ClientMetadataDocument, rawURL string) 
 		return model.OidcClient{}, err
 	}
 
-	// Record what the document says the client restricts itself to, so it is not silently granted capabilities it never declared
-	// RFC 7591 section 2 defaults an omitted grant_types to authorization_code
-	grantTypes := doc.GrantTypes
-	if len(grantTypes) == 0 {
-		grantTypes = []string{"authorization_code"}
+	// Record the supported grant types the document declares, so the client is neither silently granted capabilities it never declared nor persisted with grants Pocket ID cannot honor
+	grantTypes := supportedMetadataGrantTypes(doc.GrantTypes)
+	if !hasInitiatingGrantType(grantTypes) {
+		return model.OidcClient{}, errInitiatingGrantRequired
 	}
 
 	client := model.OidcClient{

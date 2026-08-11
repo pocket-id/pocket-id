@@ -1,12 +1,15 @@
 import type { ListRequestOptions, Paginated } from '$lib/types/list-request.type';
 import type {
 	AccessibleOidcClient,
+	AuthorizedOidcClient,
 	CompleteInteractionResponse,
 	InteractionSession,
 	InteractionStep,
 	OidcClient,
 	OidcClientCreate,
 	OidcClientMetaData,
+	OidcClientSecret,
+	OidcClientSecretCreated,
 	OidcClientUpdate,
 	OidcClientWithAllowedUserGroups,
 	OidcClientWithAllowedUserGroupsCount,
@@ -87,8 +90,20 @@ class OidcService extends APIService {
 		cachedOidcClientLogo.bustCache(id, light);
 	};
 
-	createClientSecret = async (id: string) =>
-		(await this.api.post(`/oidc/clients/${encodeClientIdParam(id)}/secret`)).data.secret as string;
+	listClientSecrets = async (id: string) =>
+		(await this.api.get(`/oidc/clients/${encodeClientIdParam(id)}/secrets`))
+			.data as OidcClientSecret[];
+
+	createClientSecret = async (id: string, expiresAt: Date | null) =>
+		(
+			await this.api.post(`/oidc/clients/${encodeClientIdParam(id)}/secrets`, {
+				expiresAt: expiresAt?.toISOString() ?? null
+			})
+		).data as OidcClientSecretCreated;
+
+	deleteClientSecret = async (id: string, secretId: string) => {
+		await this.api.delete(`/oidc/clients/${encodeClientIdParam(id)}/secrets/${secretId}`);
+	};
 
 	updateAllowedUserGroups = async (id: string, userGroupIds: string[]) => {
 		const res = await this.api.put(`/oidc/clients/${encodeClientIdParam(id)}/allowed-user-groups`, {
@@ -119,6 +134,11 @@ class OidcService extends APIService {
 	listOwnAccessibleClients = async (options?: ListRequestOptions) => {
 		const res = await this.api.get('/oidc/users/me/clients', { params: options });
 		return res.data as Paginated<AccessibleOidcClient>;
+	};
+
+	listOwnAuthorizedClients = async (options?: ListRequestOptions) => {
+		const res = await this.api.get('/oidc/users/me/authorized-clients', { params: options });
+		return res.data as Paginated<AuthorizedOidcClient>;
 	};
 
 	revokeOwnAuthorizedClient = async (clientId: string) => {

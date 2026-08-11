@@ -6,8 +6,7 @@ import (
 	"strconv"
 	"strings"
 	"testing"
-
-	"golang.org/x/crypto/bcrypt"
+	"time"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -668,16 +667,130 @@ func TestOidcService_CreateClientSecret_withCustomSecret(t *testing.T) {
 	require.NoError(t, err)
 
 	customSecret := "custom-client-secret-with-a-minimum-length"
-	input := dto.OidcClientSecretDto{Secret: customSecret}
+	input := dto.OidcClientSecretCreateDto{Secret: customSecret}
 
-	secret, err := s.CreateClientSecret(t.Context(), client.ID, input)
+	created, secret, err := s.CreateClientSecret(t.Context(), client.ID, input)
 	require.NoError(t, err)
 	assert.Equal(t, customSecret, secret)
+	assert.Equal(t, "cust", created.Prefix)
+	assert.Nil(t, created.ExpiresAt)
+	assert.True(t, created.IsActive())
 
 	var fetched model.OidcClient
 	err = db.First(&fetched, "id = ?", client.ID).Error
 	require.NoError(t, err)
-	require.NoError(t, bcrypt.CompareHashAndPassword([]byte(fetched.Secret), []byte(customSecret)))
+	require.Len(t, fetched.Credentials.Secrets, 1)
+	assert.Equal(t, created.ID, fetched.Credentials.Secrets[0].ID)
+	assert.Equal(t, model.OidcClientSecretHashSHA256, fetched.Credentials.Secrets[0].Algorithm)
+	assert.Equal(t, utils.CreateSha256Hash(customSecret), fetched.Credentials.Secrets[0].Hash)
+}
+
+func TestOidcService_CreateClientSecret_multipleSecrets(t *testing.T) {
+	db := testutils.NewDatabaseForTest(t)
+
+	s, err := NewOidcService(db, nil, nil, nil, nil, nil, nil)
+	require.NoError(t, err)
+
+	client := model.OidcClient{Name: "Test Client"}
+	err = db.Create(&client).Error
+	require.NoError(t, err)
+
+	// Adding a second secret leaves the first one in place
+	first, _, err := s.CreateClientSecret(t.Context(), client.ID, dto.OidcClientSecretCreateDto{})
+	require.NoError(t, err)
+	expiresAt := datatype.DateTime(time.Now().Add(24 * time.Hour))
+	second, _, err := s.CreateClientSecret(t.Context(), client.ID, dto.OidcClientSecretCreateDto{ExpiresAt: &expiresAt})
+	require.NoError(t, err)
+
+	secrets, err := s.ListClientSecrets(t.Context(), client.ID)
+	require.NoError(t, err)
+	require.Len(t, secrets, 2)
+	assert.Equal(t, first.ID, secrets[0].ID)
+	assert.Equal(t, second.ID, secrets[1].ID)
+	assert.Equal(t, expiresAt.ToTime().Unix(), secrets[1].ExpiresAt.ToTime().Unix())
+
+	// Deleting one secret keeps the other usable
+	err = s.DeleteClientSecret(t.Context(), client.ID, first.ID)
+	require.NoError(t, err)
+
+	secrets, err = s.ListClientSecrets(t.Context(), client.ID)
+	require.NoError(t, err)
+	require.Len(t, secrets, 1)
+	assert.Equal(t, second.ID, secrets[0].ID)
+
+	// Deleting an unknown secret is reported as not found
+	err = s.DeleteClientSecret(t.Context(), client.ID, first.ID)
+	require.Error(t, err)
+}
+
+func TestOidcService_CreateClientSecret_expirationInThePast(t *testing.T) {
+	db := testutils.NewDatabaseForTest(t)
+
+	s, err := NewOidcService(db, nil, nil, nil, nil, nil, nil)
+	require.NoError(t, err)
+
+	client := model.OidcClient{Name: "Test Client"}
+	err = db.Create(&client).Error
+	require.NoError(t, err)
+
+	expiresAt := datatype.DateTime(time.Now().Add(-time.Minute))
+	_, _, err = s.CreateClientSecret(t.Context(), client.ID, dto.OidcClientSecretCreateDto{ExpiresAt: &expiresAt})
+	require.Error(t, err)
+}
+
+func TestOidcService_CreateClientSecret_limit(t *testing.T) {
+	db := testutils.NewDatabaseForTest(t)
+
+	s, err := NewOidcService(db, nil, nil, nil, nil, nil, nil)
+	require.NoError(t, err)
+
+	client := model.OidcClient{Name: "Test Client"}
+	err = db.Create(&client).Error
+	require.NoError(t, err)
+
+	for range model.MaxOidcClientSecrets {
+		_, _, err = s.CreateClientSecret(t.Context(), client.ID, dto.OidcClientSecretCreateDto{})
+		require.NoError(t, err)
+	}
+
+	_, _, err = s.CreateClientSecret(t.Context(), client.ID, dto.OidcClientSecretCreateDto{})
+	require.Error(t, err)
+}
+
+func TestOidcService_CreateClientSecret_preservesFederatedIdentities(t *testing.T) {
+	db := testutils.NewDatabaseForTest(t)
+
+	s, err := NewOidcService(db, nil, nil, nil, nil, nil, nil)
+	require.NoError(t, err)
+
+	client := model.OidcClient{
+		Name:         "Test Client",
+		CallbackURLs: datatype.StringList{"https://example.com/callback"},
+		Credentials: model.OidcClientCredentials{
+			FederatedIdentities: []model.OidcClientFederatedIdentity{{Issuer: "https://issuer.example.com"}},
+		},
+	}
+	err = db.Create(&client).Error
+	require.NoError(t, err)
+
+	_, _, err = s.CreateClientSecret(t.Context(), client.ID, dto.OidcClientSecretCreateDto{})
+	require.NoError(t, err)
+
+	// Updating the client must not drop the secrets managed by the dedicated endpoints
+	_, err = s.UpdateClient(t.Context(), client.ID, dto.OidcClientUpdateDto{
+		Name:         "Test Client",
+		CallbackURLs: []string{"https://example.com/callback"},
+		Credentials: dto.OidcClientCredentialsDto{
+			FederatedIdentities: []dto.OidcClientFederatedIdentityDto{{Issuer: "https://other.example.com"}},
+		},
+	})
+	require.NoError(t, err)
+
+	var fetched model.OidcClient
+	require.NoError(t, db.First(&fetched, "id = ?", client.ID).Error)
+	require.Len(t, fetched.Credentials.Secrets, 1)
+	require.Len(t, fetched.Credentials.FederatedIdentities, 1)
+	assert.Equal(t, "https://other.example.com", fetched.Credentials.FederatedIdentities[0].Issuer)
 }
 
 func TestOidcService_UpdateClient_description(t *testing.T) {
@@ -856,6 +969,60 @@ func TestOidcService_ListAccessibleOidcClients_requiresExplicitGroupPermission(t
 	noGroupClients, _, err := s.ListAccessibleOidcClients(t.Context(), userWithoutGroup.ID, utils.ListRequestOptions{})
 	require.NoError(t, err)
 	assert.Equal(t, []string{"Unrestricted"}, accessibleClientNames(noGroupClients))
+}
+
+func TestOidcService_ListClientViewsFilterByLaunchURLPresence(t *testing.T) {
+	db := testutils.NewDatabaseForTest(t)
+	s, err := NewOidcService(db, nil, nil, nil, nil, nil, nil)
+	require.NoError(t, err)
+
+	user := model.User{Username: "launch-url-filter"}
+	require.NoError(t, db.Create(&user).Error)
+
+	launchURL := "https://launchable.example.com"
+	emptyLaunchURL := ""
+	clients := []model.OidcClient{
+		{Name: "Launchable", LaunchURL: &launchURL},
+		{Name: "Missing launch URL"},
+		{Name: "Empty launch URL", LaunchURL: &emptyLaunchURL},
+	}
+	for i := range clients {
+		require.NoError(t, db.Create(&clients[i]).Error)
+		require.NoError(t, db.Create(&model.UserAuthorizedOidcClient{
+			UserID:   user.ID,
+			ClientID: clients[i].ID,
+		}).Error)
+	}
+
+	withLaunchURL := utils.ListRequestOptions{
+		Filters: map[string][]any{"hasLaunchURL": {true}},
+	}
+	withoutLaunchURL := utils.ListRequestOptions{
+		Filters: map[string][]any{"hasLaunchURL": {false}},
+	}
+
+	allClients, allClientsPagination, err := s.ListAccessibleOidcClients(t.Context(), user.ID, utils.ListRequestOptions{})
+	require.NoError(t, err)
+	assert.Equal(t, int64(3), allClientsPagination.TotalItems)
+	assert.ElementsMatch(t, []string{"Launchable", "Missing launch URL", "Empty launch URL"}, accessibleClientNames(allClients))
+
+	launchableClients, launchablePagination, err := s.ListAccessibleOidcClients(t.Context(), user.ID, withLaunchURL)
+	require.NoError(t, err)
+	assert.Equal(t, int64(1), launchablePagination.TotalItems)
+	assert.Equal(t, []string{"Launchable"}, accessibleClientNames(launchableClients))
+
+	allAuthorizations, allAuthorizationsPagination, err := s.ListAuthorizedClients(t.Context(), user.ID, utils.ListRequestOptions{})
+	require.NoError(t, err)
+	assert.Equal(t, int64(3), allAuthorizationsPagination.TotalItems)
+	assert.Len(t, allAuthorizations, 3)
+
+	hiddenAuthorizations, hiddenPagination, err := s.ListAuthorizedClients(t.Context(), user.ID, withoutLaunchURL)
+	require.NoError(t, err)
+	assert.Equal(t, int64(2), hiddenPagination.TotalItems)
+	assert.ElementsMatch(t, []string{"Missing launch URL", "Empty launch URL"}, []string{
+		hiddenAuthorizations[0].Client.Name,
+		hiddenAuthorizations[1].Client.Name,
+	})
 }
 
 func accessibleClientNames(clients []dto.AccessibleOidcClientDto) []string {

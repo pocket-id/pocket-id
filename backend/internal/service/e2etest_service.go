@@ -103,6 +103,26 @@ func (s *TestService) initExternalIdP() error {
 	return nil
 }
 
+// seededClientCredentials returns credentials holding a single client secret with the given value, which E2E tests use to authenticate as the client
+func seededClientCredentials(secretID string, value string) model.OidcClientCredentials {
+	return model.OidcClientCredentials{
+		Secrets: seededClientSecrets(secretID, value),
+	}
+}
+
+// seededClientSecrets returns a single never-expiring client secret with the given value
+func seededClientSecrets(secretID string, value string) []model.OidcClientSecret {
+	return []model.OidcClientSecret{
+		{
+			ID:        secretID,
+			Algorithm: model.OidcClientSecretHashSHA256,
+			Hash:      utils.CreateSha256Hash(value),
+			Prefix:    value[:model.OidcClientSecretPrefixLength],
+			CreatedAt: datatype.DateTime(time.Now()),
+		},
+	}
+}
+
 //nolint:gocognit
 func (s *TestService) SeedDatabase(baseURL string) error {
 	err := s.db.Transaction(func(tx *gorm.DB) error {
@@ -181,7 +201,7 @@ func (s *TestService) SeedDatabase(baseURL string) error {
 				Name:               "Nextcloud",
 				Description:        "This is an example description for Nextcloud",
 				LaunchURL:          new("https://nextcloud.local"),
-				Secret:             "$2a$10$9dypwot8nGuCjT6wQWWpJOckZfRprhe2EkwpKizxS/fpVHrOLEJHC", // w2mUeZISmEvIDMEDvpY0PnxQIpj1m3zY
+				Credentials:        seededClientCredentials("2f1b8f1a-1d3e-4f0c-9c1a-000000000001", "w2mUeZISmEvIDMEDvpY0PnxQIpj1m3zY"),
 				CallbackURLs:       datatype.StringList{"http://nextcloud.localhost/auth/callback"},
 				LogoutCallbackURLs: datatype.StringList{"http://nextcloud.localhost/auth/logout/callback"},
 				ImageType:          new("png"),
@@ -192,7 +212,8 @@ func (s *TestService) SeedDatabase(baseURL string) error {
 					ID: "606c7782-f2b1-49e5-8ea9-26eb1b06d018",
 				},
 				Name:              "Immich",
-				Secret:            "$2a$10$Ak.FP8riD1ssy2AGGbG.gOpnp/rBpymd74j0nxNMtW0GG1Lb4gzxe", // PYjrE9u4v9GVqXKi52eur0eb2Ci4kc0x
+				LaunchURL:         new("https://immich.local"),
+				Credentials:       seededClientCredentials("2f1b8f1a-1d3e-4f0c-9c1a-000000000002", "PYjrE9u4v9GVqXKi52eur0eb2Ci4kc0x"),
 				CallbackURLs:      datatype.StringList{"http://immich.localhost/auth/callback"},
 				CreatedByID:       new(users[1].ID),
 				IsGroupRestricted: true,
@@ -205,7 +226,7 @@ func (s *TestService) SeedDatabase(baseURL string) error {
 					ID: "7c21a609-96b5-4011-9900-272b8d31a9d1",
 				},
 				Name:               "Tailscale",
-				Secret:             "$2a$10$xcRReBsvkI1XI6FG8xu/pOgzeF00bH5Wy4d/NThwcdi3ZBpVq/B9a", // n4VfQeXlTzA6yKpWbR9uJcMdSx2qH0Lo
+				Credentials:        seededClientCredentials("2f1b8f1a-1d3e-4f0c-9c1a-000000000003", "n4VfQeXlTzA6yKpWbR9uJcMdSx2qH0Lo"),
 				CallbackURLs:       datatype.StringList{"http://tailscale.localhost/auth/callback"},
 				LogoutCallbackURLs: datatype.StringList{"http://tailscale.localhost/auth/logout/callback"},
 				IsGroupRestricted:  true,
@@ -219,11 +240,11 @@ func (s *TestService) SeedDatabase(baseURL string) error {
 					ID: "c48232ff-ff65-45ed-ae96-7afa8a9b443b",
 				},
 				Name:              "Federated",
-				Secret:            "$2a$10$Ak.FP8riD1ssy2AGGbG.gOpnp/rBpymd74j0nxNMtW0GG1Lb4gzxe", // PYjrE9u4v9GVqXKi52eur0eb2Ci4kc0x
 				CallbackURLs:      datatype.StringList{"http://federated.localhost/auth/callback"},
 				CreatedByID:       new(users[1].ID),
 				AllowedUserGroups: []model.UserGroup{},
 				Credentials: model.OidcClientCredentials{
+					Secrets: seededClientSecrets("2f1b8f1a-1d3e-4f0c-9c1a-000000000004", "PYjrE9u4v9GVqXKi52eur0eb2Ci4kc0x"),
 					FederatedIdentities: []model.OidcClientFederatedIdentity{
 						{
 							Issuer:   "https://external-idp.local",
@@ -239,7 +260,7 @@ func (s *TestService) SeedDatabase(baseURL string) error {
 					ID: "c46d2090-37a0-4f2b-8748-6aa53b0c1afa",
 				},
 				Name:              "SCIM Client",
-				Secret:            "$2a$10$h4wfa8gI7zavDAxwzSq1sOwYU4e8DwK1XZ8ZweNnY5KzlJ3Iz.qdK", // nQbiuMRG7FpdK2EnDd5MBivWQeKFXohn
+				Credentials:       seededClientCredentials("2f1b8f1a-1d3e-4f0c-9c1a-000000000005", "nQbiuMRG7FpdK2EnDd5MBivWQeKFXohn"),
 				CallbackURLs:      datatype.StringList{"http://scimclient.localhost/auth/callback"},
 				CreatedByID:       new(users[0].ID),
 				IsGroupRestricted: true,
@@ -253,7 +274,7 @@ func (s *TestService) SeedDatabase(baseURL string) error {
 					ID: "a1b2c3d4-e5f6-7890-abcd-ef0000000001",
 				},
 				Name:         "PAR Test Client",
-				Secret:       "$2a$10$9dypwot8nGuCjT6wQWWpJOckZfRprhe2EkwpKizxS/fpVHrOLEJHC", // w2mUeZISmEvIDMEDvpY0PnxQIpj1m3zY
+				Credentials:  seededClientCredentials("2f1b8f1a-1d3e-4f0c-9c1a-000000000006", "w2mUeZISmEvIDMEDvpY0PnxQIpj1m3zY"),
 				CallbackURLs: datatype.StringList{"http://par-client.localhost/auth/callback"},
 				CreatedByID:  new(users[0].ID),
 			},
@@ -262,7 +283,7 @@ func (s *TestService) SeedDatabase(baseURL string) error {
 					ID: "e1f2a3b4-c5d6-7890-abcd-ef0000000002",
 				},
 				Name:         "Skip Consent Client",
-				Secret:       "$2a$10$9dypwot8nGuCjT6wQWWpJOckZfRprhe2EkwpKizxS/fpVHrOLEJHC", // w2mUeZISmEvIDMEDvpY0PnxQIpj1m3zY
+				Credentials:  seededClientCredentials("2f1b8f1a-1d3e-4f0c-9c1a-000000000007", "w2mUeZISmEvIDMEDvpY0PnxQIpj1m3zY"),
 				CallbackURLs: datatype.StringList{"http://skip-consent.localhost/auth/callback"},
 				CreatedByID:  new(users[0].ID),
 				// Trusted client that bypasses the consent screen by default
