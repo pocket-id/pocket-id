@@ -3,6 +3,8 @@
 	import { openConfirmDialog } from '$lib/components/confirm-dialog/';
 	import ImageBox from '$lib/components/image-box.svelte';
 	import AdvancedTable from '$lib/components/table/advanced-table.svelte';
+	import { ScrollArea } from '$lib/components/ui/scroll-area';
+	import * as Tooltip from '$lib/components/ui/tooltip';
 	import { m } from '$lib/paraglide/messages';
 	import OIDCService from '$lib/services/oidc-service';
 	import type {
@@ -44,7 +46,7 @@
 			label: m.oidc_allowed_group_count(),
 			column: 'allowedUserGroupsCount',
 			sortable: true,
-			value: (item) => (item.isGroupRestricted ? item.allowedUserGroupsCount : '-')
+			cell: AllowedGroupCountCell
 		},
 		{
 			label: m.restricted(),
@@ -144,6 +146,34 @@
 		});
 	}
 </script>
+
+{#snippet AllowedGroupCountCell({ item }: { item: OidcClientWithAllowedUserGroupsCount })}
+	{#if !item.isGroupRestricted}
+		-
+	{:else if item.allowedUserGroups.length === 0}
+		{item.allowedUserGroupsCount}
+	{:else}
+		<Tooltip.Provider>
+			<Tooltip.Root>
+				<Tooltip.Trigger class="cursor-default underline decoration-dotted underline-offset-4">
+					{item.allowedUserGroupsCount}
+				</Tooltip.Trigger>
+				<Tooltip.Content side="right" class="flex-col items-start">
+					<ScrollArea
+						class="[&>[data-slot=scroll-area-viewport]]:max-h-48"
+						scrollbarYClasses="[&>[data-slot=scroll-area-thumb]]:bg-background/40"
+					>
+						<div class="flex flex-col gap-0.5 pr-3">
+							{#each item.allowedUserGroups as group (group.id)}
+								<span>{group.friendlyName}</span>
+							{/each}
+						</div>
+					</ScrollArea>
+				</Tooltip.Content>
+			</Tooltip.Root>
+		</Tooltip.Provider>
+	{/if}
+{/snippet}
 
 {#snippet LogoCell({ item }: { item: OidcClientWithAllowedUserGroupsCount })}
 	{#if item.hasLogo}
