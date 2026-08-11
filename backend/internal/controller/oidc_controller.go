@@ -271,6 +271,7 @@ func (oc *OidcController) refreshClientMetadataHandler(c *gin.Context) error {
 // @Produce json
 // @Param id path string true "Client ID"
 // @Success 200 {array} dto.OidcClientSecretDto "Client secrets"
+// @Failure default {object} dto.ErrorDto "Error"
 // @Router /api/oidc/clients/{id}/secrets [get]
 func (oc *OidcController) listClientSecretsHandler(c *gin.Context) error {
 	secrets, err := oc.oidcService.ListClientSecrets(c.Request.Context(), c.Param("id"))
@@ -297,6 +298,7 @@ func (oc *OidcController) listClientSecretsHandler(c *gin.Context) error {
 // @Param id path string true "Client ID"
 // @Param payload body dto.OidcClientSecretCreateDto false "Client secret"
 // @Success 201 {object} dto.OidcClientSecretCreatedDto "Created client secret"
+// @Failure default {object} dto.ErrorDto "Error"
 // @Router /api/oidc/clients/{id}/secrets [post]
 func (oc *OidcController) createClientSecretHandler(c *gin.Context) error {
 	var input dto.OidcClientSecretCreateDto
@@ -328,6 +330,7 @@ func (oc *OidcController) createClientSecretHandler(c *gin.Context) error {
 // @Param id path string true "Client ID"
 // @Param secretId path string true "Client secret ID"
 // @Success 204 "No content"
+// @Failure default {object} dto.ErrorDto "Error"
 // @Router /api/oidc/clients/{id}/secrets/{secretId} [delete]
 func (oc *OidcController) deleteClientSecretHandler(c *gin.Context) error {
 	err := oc.oidcService.DeleteClientSecret(c.Request.Context(), c.Param("id"), c.Param("secretId"))
