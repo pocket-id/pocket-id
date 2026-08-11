@@ -16,6 +16,7 @@
 	import type {
 		OidcClientCreateWithLogo,
 		OidcClientCredentials,
+		OidcClientFederatedIdentity,
 		OidcClientSecret,
 		OidcClientTokenLifetimes
 	} from '$lib/types/oidc.type';
@@ -125,7 +126,9 @@
 		return success;
 	}
 
-	async function updateFederatedCredentials(credentials: OidcClientCredentials) {
+	async function updateFederatedCredentials(federatedIdentities: OidcClientFederatedIdentity[]) {
+		// Secrets are read-only in this request, but they are carried over so the client object keeps matching what the server has
+		const credentials: OidcClientCredentials = { federatedIdentities, secrets: clientSecrets };
 		const success = await updateClient({ ...client, credentials });
 		if (success) {
 			client.credentials = credentials;

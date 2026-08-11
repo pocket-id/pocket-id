@@ -106,3 +106,19 @@ func TestOidcClientDto_secrets(t *testing.T) {
 	assert.NotContains(t, string(serialized), "hash-1")
 	assert.Contains(t, string(serialized), `"isActive":true`)
 }
+
+func TestOidcClientDto_secretsAlwaysSerialized(t *testing.T) {
+	client := model.OidcClient{
+		Base: model.Base{ID: "client-id"},
+		Name: "Test Client",
+	}
+
+	var clientDto OidcClientDto
+	require.NoError(t, MapStruct(client, &clientDto))
+	assert.Empty(t, clientDto.Credentials.Secrets)
+
+	// A client without secrets must serialize an empty list rather than omitting the field, so consumers never have to handle a missing value
+	serialized, err := json.Marshal(clientDto)
+	require.NoError(t, err)
+	assert.Contains(t, string(serialized), `"secrets":[]`)
+}

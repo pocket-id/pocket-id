@@ -91,7 +91,8 @@ type OidcClientSecretCreatedDto struct {
 type OidcClientCredentialsDto struct {
 	FederatedIdentities []OidcClientFederatedIdentityDto `json:"federatedIdentities,omitempty"`
 	// Secrets is read-only: secrets are managed through the dedicated client secret endpoints and any value sent by a client is ignored
-	Secrets []OidcClientSecretDto `json:"secrets,omitempty"`
+	// It is always serialized, as an empty list when the client has no secrets, so clients don't need to handle a missing value
+	Secrets []OidcClientSecretDto `json:"secrets"`
 }
 
 type OidcClientFederatedIdentityDto struct {
