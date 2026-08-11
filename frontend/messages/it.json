@@ -331,8 +331,6 @@
 	"cimd_url_allowlist_description": "Limita gli URL dei documenti di metadati relativi all'ID client che vengono accettati. {#link href=|https://pocket-id.org/docs/advanced/callback-url-wildcards|}Sono supportati i caratteri jolly{/link}. Un elenco vuoto blocca tutti gli URL.",
 	"refresh": "Aggiorna",
 	"oidc_client_metadata_refreshed_successfully": "Il documento dei metadati del cliente è stato aggiornato con successo",
-	"create_new_client_secret": "Crea nuovo client secret",
-	"are_you_sure_you_want_to_create_a_new_client_secret": "Sei sicuro di voler creare un nuovo client secret? Quello vecchio sarà invalidato.",
 	"generate": "Genera",
 	"new_client_secret_created_successfully": "Nuovo client secret creato con successo",
 	"oidc_client_name": "Client OIDC {name}",
@@ -615,5 +613,17 @@
 	"or": "oppure",
 	"visit_and_enter": "Visita il sito {url} e inserisci:",
 	"oidc": "OIDC",
-	"device_login_request_expired": "Il tuo codice QR è scaduto. Ricomincia la procedura di accesso."
+	"device_login_request_expired": "Il tuo codice QR è scaduto. Ricomincia la procedura di accesso.",
+	"credentials": "Credenziali",
+	"client_secrets": "I segreti dei clienti",
+	"client_secrets_description": "I secret che l'app usa per autenticarsi. È possibile avere più secret attivi contemporaneamente, così puoi sostituirne uno senza tempi di inattività.",
+	"no_client_secrets_yet": "Questa app non ha ancora nessun segreto client.",
+	"public_clients_cannot_have_secrets": "I client pubblici non possono avere segreti client.",
+	"add_client_secret": "Aggiungi il segreto client",
+	"no_expiration": "Senza scadenza",
+	"days_count": "{count} giorni",
+	"client_secrets_limit_reached": "Un'app non può avere più di 20 secret client.",
+	"delete_client_secret": "Elimina il segreto del cliente",
+	"are_you_sure_you_want_to_delete_this_client_secret": "Are you sure you want to delete this client secret? Apps using it will no longer be able to authenticate.",
+	"client_secret_deleted_successfully": "Client secret deleted successfully"
 }
