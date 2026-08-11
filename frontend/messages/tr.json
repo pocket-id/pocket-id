@@ -331,8 +331,6 @@
 	"cimd_url_allowlist_description": "Hangi istemci kimliği meta veri belgesi URL’lerinin kabul edileceğini sınırlayın. {#link href=|https://pocket-id.org/docs/advanced/callback-url-wildcards|}Joker karakterler{/link} desteklenmektedir. Boş bir liste, tüm URL’leri engeller.",
 	"refresh": "Yenile",
 	"oidc_client_metadata_refreshed_successfully": "Müşteri meta veri belgesi başarıyla güncellendi",
-	"create_new_client_secret": "Yeni istemci sırrı oluştur",
-	"are_you_sure_you_want_to_create_a_new_client_secret": "Yeni bir istemci sırrı oluşturmak istediğinizden emin misiniz? Eskisi geçersiz kılınacaktır.",
 	"generate": "Üret",
 	"new_client_secret_created_successfully": "Yeni istemci sırrı başarıyla oluşturuldu",
 	"oidc_client_name": "OIDC İstemcisi {name}",
@@ -615,5 +613,17 @@
 	"or": "veya",
 	"visit_and_enter": "{url} adresini ziyaret edin ve şunları girin:",
 	"oidc": "OIDC",
-	"device_login_request_expired": "QR kodunuzun geçerlilik süresi dolmuştur. Lütfen oturum açma işlemini yeniden başlatın."
+	"device_login_request_expired": "QR kodunuzun geçerlilik süresi dolmuştur. Lütfen oturum açma işlemini yeniden başlatın.",
+	"credentials": "Yetki Belgeleri",
+	"client_secrets": "Müşteri gizli bilgileri",
+	"client_secrets_description": "Uygulamanın kimliğini doğrulamak için kullandığı gizli anahtarlar. Aynı anda birden fazla gizli anahtar etkin olabilir; böylece kesintiye yol açmadan bir tanesi değiştirilebilir.",
+	"no_client_secrets_yet": "Bu uygulamanın henüz herhangi bir istemci gizli anahtarı bulunmamaktadır.",
+	"public_clients_cannot_have_secrets": "Genel amaçlı istemcilerde istemci gizli anahtarları bulunamaz.",
+	"add_client_secret": "Müşteri gizli anahtarını ekle",
+	"no_expiration": "Son kullanma tarihi yok",
+	"days_count": "{count} gün",
+	"client_secrets_limit_reached": "Bir uygulama en fazla 20 istemci gizli anahtarına sahip olabilir.",
+	"delete_client_secret": "Müşteri gizli anahtarını sil",
+	"are_you_sure_you_want_to_delete_this_client_secret": "Are you sure you want to delete this client secret? Apps using it will no longer be able to authenticate.",
+	"client_secret_deleted_successfully": "Client secret deleted successfully"
 }
