@@ -331,8 +331,6 @@
 	"cimd_url_allowlist_description": "Begränsa vilka URL:er till metadata-dokument för klient-ID som ska accepteras. {#link href=|https://pocket-id.org/docs/advanced/callback-url-wildcards|}Jokertecken{/link} stöds. En tom lista blockerar alla URL:er.",
 	"refresh": "Uppdatera",
 	"oidc_client_metadata_refreshed_successfully": "Dokumentet med klientmetadata har uppdaterats utan problem",
-	"create_new_client_secret": "Skapa ny client secret",
-	"are_you_sure_you_want_to_create_a_new_client_secret": "Är du säker på att du vill skapa en ny klienthemlighet? Den gamla kommer att ogiltigförklaras.",
 	"generate": "Generera",
 	"new_client_secret_created_successfully": "Ny klienthemlighet har skapats",
 	"oidc_client_name": "OIDC-klient {name}",
@@ -615,5 +613,17 @@
 	"or": "eller",
 	"visit_and_enter": "Besök {url} och ange:",
 	"oidc": "OIDC",
-	"device_login_request_expired": "Din QR-kod har gått ut. Vänligen börja inloggningsprocessen på nytt."
+	"device_login_request_expired": "Din QR-kod har gått ut. Vänligen börja inloggningsprocessen på nytt.",
+	"credentials": "Referenser",
+	"client_secrets": "Kundhemligheter",
+	"client_secrets_description": "Hemliga nycklar som appen använder för att autentisera sig. Flera hemliga nycklar kan vara aktiva samtidigt, vilket gör att en kan bytas ut utan driftstopp.",
+	"no_client_secrets_yet": "Den här appen har ännu inga klienthemligheter.",
+	"public_clients_cannot_have_secrets": "Offentliga klienter kan inte ha klienthemligheter.",
+	"add_client_secret": "Lägg till klienthemlighet",
+	"no_expiration": "Inget utgångsdatum",
+	"days_count": "{count} dagar",
+	"client_secrets_limit_reached": "En app får inte ha fler än 20 klienthemligheter.",
+	"delete_client_secret": "Ta bort klienthemligheten",
+	"are_you_sure_you_want_to_delete_this_client_secret": "Are you sure you want to delete this client secret? Apps using it will no longer be able to authenticate.",
+	"client_secret_deleted_successfully": "Client secret deleted successfully"
 }
