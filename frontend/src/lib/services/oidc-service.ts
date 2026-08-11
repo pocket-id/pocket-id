@@ -1,6 +1,7 @@
 import type { ListRequestOptions, Paginated } from '$lib/types/list-request.type';
 import type {
 	AccessibleOidcClient,
+	AuthorizedOidcClient,
 	CompleteInteractionResponse,
 	InteractionSession,
 	InteractionStep,
@@ -133,6 +134,11 @@ class OidcService extends APIService {
 	listOwnAccessibleClients = async (options?: ListRequestOptions) => {
 		const res = await this.api.get('/oidc/users/me/clients', { params: options });
 		return res.data as Paginated<AccessibleOidcClient>;
+	};
+
+	listOwnAuthorizedClients = async (options?: ListRequestOptions) => {
+		const res = await this.api.get('/oidc/users/me/authorized-clients', { params: options });
+		return res.data as Paginated<AuthorizedOidcClient>;
 	};
 
 	revokeOwnAuthorizedClient = async (clientId: string) => {

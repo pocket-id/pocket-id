@@ -5,7 +5,6 @@
 	import { Button } from '$lib/components/ui/button';
 	import * as Card from '$lib/components/ui/card';
 	import * as InputOTP from '$lib/components/ui/input-otp';
-	import { Spinner } from '$lib/components/ui/spinner';
 	import { m } from '$lib/paraglide/messages';
 	import DeviceLoginService from '$lib/services/device-login-service';
 	import OIDCService from '$lib/services/oidc-service';
@@ -137,7 +136,9 @@
 
 	function retry() {
 		errorMessage = null;
-		userCode = '';
+		if (!deviceLoginInfo) {
+			userCode = '';
+		}
 		if (!deviceLoginInfo) {
 			deviceInfo = undefined;
 			authorizationRequired = false;
@@ -271,13 +272,18 @@
 				<Button
 					class="flex-1"
 					variant="secondary"
-					isLoading={deviceLoginDecision === 'deny' || isLoading}
+					disabled={isLoading}
+					isLoading={deviceLoginDecision === 'deny'}
 					onclick={() => decideDeviceLogin('deny')}
 				>
-					<Spinner data-icon="inline-start" />
 					{m.deny()}
 				</Button>
-				<Button class="flex-1" {isLoading} onclick={() => decideDeviceLogin('approve')}>
+				<Button
+					class="flex-1"
+					disabled={isLoading}
+					isLoading={deviceLoginDecision === 'approve'}
+					onclick={() => decideDeviceLogin('approve')}
+				>
 					{m.approve()}
 				</Button>
 			{:else}

@@ -37,7 +37,8 @@ export const oidcClients = {
 		id: '606c7782-f2b1-49e5-8ea9-26eb1b06d018',
 		name: 'Immich',
 		callbackUrl: 'http://immich.localhost/auth/callback',
-		secret: 'PYjrE9u4v9GVqXKi52eur0eb2Ci4kc0x'
+		secret: 'PYjrE9u4v9GVqXKi52eur0eb2Ci4kc0x',
+		launchURL: 'https://immich.local'
 	},
 	tailscale: {
 		id: '7c21a609-96b5-4011-9900-272b8d31a9d1',

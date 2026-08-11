@@ -971,6 +971,60 @@ func TestOidcService_ListAccessibleOidcClients_requiresExplicitGroupPermission(t
 	assert.Equal(t, []string{"Unrestricted"}, accessibleClientNames(noGroupClients))
 }
 
+func TestOidcService_ListClientViewsFilterByLaunchURLPresence(t *testing.T) {
+	db := testutils.NewDatabaseForTest(t)
+	s, err := NewOidcService(db, nil, nil, nil, nil, nil, nil)
+	require.NoError(t, err)
+
+	user := model.User{Username: "launch-url-filter"}
+	require.NoError(t, db.Create(&user).Error)
+
+	launchURL := "https://launchable.example.com"
+	emptyLaunchURL := ""
+	clients := []model.OidcClient{
+		{Name: "Launchable", LaunchURL: &launchURL},
+		{Name: "Missing launch URL"},
+		{Name: "Empty launch URL", LaunchURL: &emptyLaunchURL},
+	}
+	for i := range clients {
+		require.NoError(t, db.Create(&clients[i]).Error)
+		require.NoError(t, db.Create(&model.UserAuthorizedOidcClient{
+			UserID:   user.ID,
+			ClientID: clients[i].ID,
+		}).Error)
+	}
+
+	withLaunchURL := utils.ListRequestOptions{
+		Filters: map[string][]any{"hasLaunchURL": {true}},
+	}
+	withoutLaunchURL := utils.ListRequestOptions{
+		Filters: map[string][]any{"hasLaunchURL": {false}},
+	}
+
+	allClients, allClientsPagination, err := s.ListAccessibleOidcClients(t.Context(), user.ID, utils.ListRequestOptions{})
+	require.NoError(t, err)
+	assert.Equal(t, int64(3), allClientsPagination.TotalItems)
+	assert.ElementsMatch(t, []string{"Launchable", "Missing launch URL", "Empty launch URL"}, accessibleClientNames(allClients))
+
+	launchableClients, launchablePagination, err := s.ListAccessibleOidcClients(t.Context(), user.ID, withLaunchURL)
+	require.NoError(t, err)
+	assert.Equal(t, int64(1), launchablePagination.TotalItems)
+	assert.Equal(t, []string{"Launchable"}, accessibleClientNames(launchableClients))
+
+	allAuthorizations, allAuthorizationsPagination, err := s.ListAuthorizedClients(t.Context(), user.ID, utils.ListRequestOptions{})
+	require.NoError(t, err)
+	assert.Equal(t, int64(3), allAuthorizationsPagination.TotalItems)
+	assert.Len(t, allAuthorizations, 3)
+
+	hiddenAuthorizations, hiddenPagination, err := s.ListAuthorizedClients(t.Context(), user.ID, withoutLaunchURL)
+	require.NoError(t, err)
+	assert.Equal(t, int64(2), hiddenPagination.TotalItems)
+	assert.ElementsMatch(t, []string{"Missing launch URL", "Empty launch URL"}, []string{
+		hiddenAuthorizations[0].Client.Name,
+		hiddenAuthorizations[1].Client.Name,
+	})
+}
+
 func accessibleClientNames(clients []dto.AccessibleOidcClientDto) []string {
 	names := make([]string, len(clients))
 	for i := range clients {

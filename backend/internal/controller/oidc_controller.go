@@ -451,6 +451,7 @@ func (oc *OidcController) updateAllowedUserGroupsHandler(c *gin.Context) error {
 // @Param pagination[limit] query int false "Number of items per page" default(20)
 // @Param sort[column] query string false "Column to sort by"
 // @Param sort[direction] query string false "Sort direction (asc or desc)" default("asc")
+// @Param filters[hasLaunchURL] query bool false "Filter clients by whether a launch URL is configured"
 // @Success 200 {object} dto.Paginated[dto.AuthorizedOidcClientDto]
 // @Router /api/oidc/users/me/authorized-clients [get]
 func (oc *OidcController) listOwnAuthorizedClientsHandler(c *gin.Context) error {
@@ -467,6 +468,7 @@ func (oc *OidcController) listOwnAuthorizedClientsHandler(c *gin.Context) error 
 // @Param pagination[limit] query int false "Number of items per page" default(20)
 // @Param sort[column] query string false "Column to sort by"
 // @Param sort[direction] query string false "Sort direction (asc or desc)" default("asc")
+// @Param filters[hasLaunchURL] query bool false "Filter clients by whether a launch URL is configured"
 // @Success 200 {object} dto.Paginated[dto.AuthorizedOidcClientDto]
 // @Router /api/oidc/users/{id}/authorized-clients [get]
 func (oc *OidcController) listAuthorizedClientsHandler(c *gin.Context) error {
@@ -524,6 +526,7 @@ func (oc *OidcController) revokeOwnClientAuthorizationHandler(c *gin.Context) er
 // @Param pagination[limit] query int false "Number of items per page" default(20)
 // @Param sort[column] query string false "Column to sort by"
 // @Param sort[direction] query string false "Sort direction (asc or desc)" default("asc")
+// @Param filters[hasLaunchURL] query bool false "Filter clients by whether a launch URL is configured"
 // @Success 200 {object} dto.Paginated[dto.AccessibleOidcClientDto]
 // @Router /api/oidc/users/me/clients [get]
 func (oc *OidcController) listOwnAccessibleClientsHandler(c *gin.Context) error {

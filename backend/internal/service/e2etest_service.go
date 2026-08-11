@@ -212,6 +212,7 @@ func (s *TestService) SeedDatabase(baseURL string) error {
 					ID: "606c7782-f2b1-49e5-8ea9-26eb1b06d018",
 				},
 				Name:              "Immich",
+				LaunchURL:         new("https://immich.local"),
 				Credentials:       seededClientCredentials("2f1b8f1a-1d3e-4f0c-9c1a-000000000002", "PYjrE9u4v9GVqXKi52eur0eb2Ci4kc0x"),
 				CallbackURLs:      datatype.StringList{"http://immich.localhost/auth/callback"},
 				CreatedByID:       new(users[1].ID),
