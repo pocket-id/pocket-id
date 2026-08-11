@@ -624,6 +624,6 @@
 	"days_count": "{count} 天",
 	"client_secrets_limit_reached": "一個應用程式擁有的客戶端密鑰不得超過 20 個。",
 	"delete_client_secret": "刪除客戶密鑰",
-	"are_you_sure_you_want_to_delete_this_client_secret": "Are you sure you want to delete this client secret? Apps using it will no longer be able to authenticate.",
-	"client_secret_deleted_successfully": "Client secret deleted successfully"
+	"are_you_sure_you_want_to_delete_this_client_secret": "您確定要刪除此客戶端密鑰嗎？使用此密鑰的應用程式將無法再進行驗證。",
+	"client_secret_deleted_successfully": "已成功刪除客戶密鑰"
 }
