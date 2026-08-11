@@ -109,7 +109,7 @@
 
 		const success = await callback({
 			...data,
-			credentials: existingClient?.credentials ?? { federatedIdentities: [] },
+			credentials: existingClient?.credentials ?? { federatedIdentities: [], secrets: [] },
 			logo: $inputs.logoUrl?.value ? undefined : logo,
 			logoUrl: $inputs.logoUrl?.value,
 			darkLogo: $inputs.darkLogoUrl?.value ? undefined : darkLogo,

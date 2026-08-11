@@ -57,6 +57,7 @@ func newProvider(store *Store, authenticator *federatedClientAuthenticator, sign
 		GlobalSecret:                            secret,
 		JWTScopeClaimKey:                        jwt.JWTScopeFieldBoth,
 		ClientResolver:                          clientResolver,
+		ClientSecretsHasher:                     clientSecretHasher{},
 	}
 
 	keyGetter := func(context.Context) (interface{}, error) {

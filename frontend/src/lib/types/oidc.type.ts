@@ -21,8 +21,23 @@ export type OidcClientFederatedIdentity = {
 	replayProtection: boolean;
 };
 
+export type OidcClientSecret = {
+	id: string;
+	// The first characters of the secret, empty for secrets created before Pocket ID supported multiple secrets
+	prefix: string;
+	createdAt: string;
+	expiresAt: string | null;
+	isActive: boolean;
+};
+
+// The clear-text value of a secret is only returned when it is created and cannot be retrieved afterwards
+export type OidcClientSecretCreated = OidcClientSecret & {
+	secret: string;
+};
+
 export type OidcClientCredentials = {
 	federatedIdentities: OidcClientFederatedIdentity[];
+	secrets: OidcClientSecret[];
 };
 
 export type OidcDiscoveryConfiguration = {
