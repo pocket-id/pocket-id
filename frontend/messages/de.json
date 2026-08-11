@@ -624,6 +624,6 @@
 	"days_count": "{count} Tage",
 	"client_secrets_limit_reached": "Eine App darf nicht mehr als 20 Client-Geheimnisse haben.",
 	"delete_client_secret": "Client-Secret löschen",
-	"are_you_sure_you_want_to_delete_this_client_secret": "Are you sure you want to delete this client secret? Apps using it will no longer be able to authenticate.",
-	"client_secret_deleted_successfully": "Client secret deleted successfully"
+	"are_you_sure_you_want_to_delete_this_client_secret": "Bist du sicher, dass du dieses Client-Geheimnis löschen möchtest? Apps, die es verwenden, können sich dann nicht mehr authentifizieren.",
+	"client_secret_deleted_successfully": "Client-Secret erfolgreich gelöscht"
 }
