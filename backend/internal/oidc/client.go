@@ -19,8 +19,28 @@ func (c Client) GetID() string {
 	return c.ID
 }
 
+// GetHashedSecret returns the hash of the client's most recently created secret that is still active
+// Fosite checks this one first and then falls back to GetRotatedHashes for the others
 func (c Client) GetHashedSecret() []byte {
-	return []byte(c.Secret)
+	active := c.Credentials.ActiveSecrets()
+	if len(active) == 0 {
+		return nil
+	}
+	return active[0].EncodedHash()
+}
+
+// GetRotatedHashes returns the hashes of every active secret except the one returned by GetHashedSecret
+func (c Client) GetRotatedHashes() [][]byte {
+	active := c.Credentials.ActiveSecrets()
+	if len(active) <= 1 {
+		return nil
+	}
+
+	hashes := make([][]byte, len(active)-1)
+	for i, secret := range active[1:] {
+		hashes[i] = secret.EncodedHash()
+	}
+	return hashes
 }
 
 func (c Client) GetRedirectURIs() []string {

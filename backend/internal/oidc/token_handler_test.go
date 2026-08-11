@@ -20,10 +20,10 @@ import (
 	fositeoauth2 "github.com/ory/fosite/handler/oauth2"
 	fositejwt "github.com/ory/fosite/token/jwt"
 	"github.com/stretchr/testify/require"
-	"golang.org/x/crypto/bcrypt"
 	"gorm.io/gorm"
 
 	"github.com/pocket-id/pocket-id/backend/internal/model"
+	datatype "github.com/pocket-id/pocket-id/backend/internal/model/types"
 	testutils "github.com/pocket-id/pocket-id/backend/internal/utils/testing"
 )
 
@@ -49,12 +49,10 @@ func TestTokenHandlerClientCredentialsGrant(t *testing.T) {
 	key, err := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
 	require.NoError(t, err)
 
-	hashed, err := bcrypt.GenerateFromPassword([]byte(clientPlain), bcrypt.DefaultCost)
-	require.NoError(t, err)
 	require.NoError(t, db.Create(&model.OidcClient{
 		Base:                       model.Base{ID: clientID},
 		Name:                       "Client Credentials Client",
-		Secret:                     string(hashed),
+		Credentials:                testClientCredentials(clientPlain),
 		IsPublic:                   false,
 		AccessTokenDurationMinutes: 2 * 60,
 	}).Error)
@@ -111,13 +109,11 @@ func TestTokenHandlerClientCredentialsDropsIdentityScopes(t *testing.T) {
 	key, err := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
 	require.NoError(t, err)
 
-	hashed, err := bcrypt.GenerateFromPassword([]byte(clientPlain), bcrypt.DefaultCost)
-	require.NoError(t, err)
 	require.NoError(t, db.Create(&model.OidcClient{
-		Base:     model.Base{ID: clientID},
-		Name:     "Client Credentials Client",
-		Secret:   string(hashed),
-		IsPublic: false,
+		Base:        model.Base{ID: clientID},
+		Name:        "Client Credentials Client",
+		Credentials: testClientCredentials(clientPlain),
+		IsPublic:    false,
 	}).Error)
 
 	provider, err := newProvider(NewStore(db, nil), nil, testTokenSigner{key: key}, Config{
@@ -166,13 +162,11 @@ func TestTokenHandlerClientCredentialsUsesClientSubjectGrants(t *testing.T) {
 	key, err := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
 	require.NoError(t, err)
 
-	hashed, err := bcrypt.GenerateFromPassword([]byte(clientPlain), bcrypt.DefaultCost)
-	require.NoError(t, err)
 	require.NoError(t, db.Create(&model.OidcClient{
-		Base:     model.Base{ID: clientID},
-		Name:     "Client Credentials Client",
-		Secret:   string(hashed),
-		IsPublic: false,
+		Base:        model.Base{ID: clientID},
+		Name:        "Client Credentials Client",
+		Credentials: testClientCredentials(clientPlain),
+		IsPublic:    false,
 	}).Error)
 
 	apiAccess := fakeAPIAccess{allowed: map[string]map[SubjectType][]string{
@@ -239,13 +233,11 @@ func TestTokenHandlerClientCredentialsDefaultsResourceScopes(t *testing.T) {
 	key, err := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
 	require.NoError(t, err)
 
-	hashed, err := bcrypt.GenerateFromPassword([]byte(clientPlain), bcrypt.DefaultCost)
-	require.NoError(t, err)
 	require.NoError(t, db.Create(&model.OidcClient{
-		Base:     model.Base{ID: clientID},
-		Name:     "Client Credentials Client",
-		Secret:   string(hashed),
-		IsPublic: false,
+		Base:        model.Base{ID: clientID},
+		Name:        "Client Credentials Client",
+		Credentials: testClientCredentials(clientPlain),
+		IsPublic:    false,
 	}).Error)
 
 	apiAccess := fakeAPIAccess{allowed: map[string]map[SubjectType][]string{
@@ -730,4 +722,125 @@ func TestTokenHandlerRefreshGrantPreservesAudienceAndScope(t *testing.T) {
 		require.Empty(t, body["access_token"])
 		require.Equal(t, "invalid_scope", body["error"])
 	})
+}
+
+// TestTokenHandlerClientSecretRotation drives the token endpoint with each of a client's secrets,
+// to check that every active secret authenticates the client while expired ones are rejected.
+func TestTokenHandlerClientSecretRotation(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+
+	const (
+		baseURL      = "https://issuer.example.com"
+		secret       = "test-secret"
+		clientID     = "rotation-client"
+		currentPlain = "current-secret-value"
+		olderPlain   = "older-secret-value"
+		expiredPlain = "expired-secret-value"
+	)
+
+	db := testutils.NewDatabaseForTest(t)
+	key, err := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
+	require.NoError(t, err)
+
+	credentials := testClientCredentials(currentPlain, olderPlain, expiredPlain)
+	expiredAt := datatype.DateTime(time.Now().Add(-time.Hour))
+	credentials.Secrets[2].ExpiresAt = &expiredAt
+
+	require.NoError(t, db.Create(&model.OidcClient{
+		Base:        model.Base{ID: clientID},
+		Name:        "Secret Rotation Client",
+		Credentials: credentials,
+		IsPublic:    false,
+	}).Error)
+
+	provider, err := newProvider(NewStore(db, nil), nil, testTokenSigner{key: key}, Config{
+		BaseURL:      baseURL,
+		TokenBaseURL: baseURL,
+		Secret:       []byte(secret),
+	}, nil)
+	require.NoError(t, err)
+	handler := newTokenHandler(provider, newClaimsService(db, nil, baseURL, nil), nil)
+
+	requestToken := func(t *testing.T, clientSecret string) map[string]any {
+		t.Helper()
+
+		form := url.Values{"grant_type": {"client_credentials"}}
+		req := httptest.NewRequestWithContext(t.Context(), http.MethodPost, "/api/oidc/token", strings.NewReader(form.Encode()))
+		req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+		req.SetBasicAuth(clientID, clientSecret)
+
+		rec := httptest.NewRecorder()
+		c, _ := gin.CreateTestContext(rec)
+		c.Request = req
+		handler.token(c)
+
+		var body map[string]any
+		require.NoError(t, json.Unmarshal(rec.Body.Bytes(), &body))
+		return body
+	}
+
+	for _, test := range []struct {
+		name         string
+		clientSecret string
+		wantToken    bool
+	}{
+		{name: "most recently created secret", clientSecret: currentPlain, wantToken: true},
+		{name: "secret being rotated out", clientSecret: olderPlain, wantToken: true},
+		{name: "expired secret", clientSecret: expiredPlain},
+		{name: "secret that was never configured", clientSecret: "not-a-secret"},
+	} {
+		t.Run(test.name, func(t *testing.T) {
+			body := requestToken(t, test.clientSecret)
+			if test.wantToken {
+				require.NotEmpty(t, body["access_token"], "expected a token, got error: %v", body["error"])
+			} else {
+				require.Empty(t, body["access_token"])
+				require.Equal(t, "invalid_client", body["error"])
+			}
+		})
+	}
+}
+
+// TestTokenHandlerClientWithoutSecrets checks that a confidential client that has no secrets at all cannot authenticate.
+func TestTokenHandlerClientWithoutSecrets(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+
+	const (
+		baseURL  = "https://issuer.example.com"
+		secret   = "test-secret"
+		clientID = "no-secrets-client"
+	)
+
+	db := testutils.NewDatabaseForTest(t)
+	key, err := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
+	require.NoError(t, err)
+
+	require.NoError(t, db.Create(&model.OidcClient{
+		Base:     model.Base{ID: clientID},
+		Name:     "Client Without Secrets",
+		IsPublic: false,
+	}).Error)
+
+	provider, err := newProvider(NewStore(db, nil), nil, testTokenSigner{key: key}, Config{
+		BaseURL:      baseURL,
+		TokenBaseURL: baseURL,
+		Secret:       []byte(secret),
+	}, nil)
+	require.NoError(t, err)
+	handler := newTokenHandler(provider, newClaimsService(db, nil, baseURL, nil), nil)
+
+	form := url.Values{"grant_type": {"client_credentials"}}
+	req := httptest.NewRequestWithContext(t.Context(), http.MethodPost, "/api/oidc/token", strings.NewReader(form.Encode()))
+	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+	req.SetBasicAuth(clientID, "")
+
+	rec := httptest.NewRecorder()
+	c, _ := gin.CreateTestContext(rec)
+	c.Request = req
+	handler.token(c)
+
+	var body map[string]any
+	require.NoError(t, json.Unmarshal(rec.Body.Bytes(), &body))
+	require.Empty(t, body["access_token"])
+	require.Equal(t, "invalid_client", body["error"])
 }
