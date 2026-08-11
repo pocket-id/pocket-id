@@ -4,6 +4,8 @@ import (
 	"net/http"
 
 	"github.com/gin-gonic/gin"
+
+	_ "github.com/pocket-id/pocket-id/backend/internal/dto"
 )
 
 // NewHealthzController creates a new controller for the healthcheck endpoints
@@ -23,6 +25,7 @@ type HealthzController struct{}
 // @Description Responds with a successful status code to healthcheck requests
 // @Tags Health
 // @Success 204 ""
+// @Failure default {object} dto.ErrorDto "Error"
 // @Router /healthz [get]
 func (hc *HealthzController) healthzHandler(c *gin.Context) {
 	c.Status(http.StatusNoContent)

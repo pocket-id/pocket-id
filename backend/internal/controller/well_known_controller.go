@@ -8,6 +8,7 @@ import (
 	"github.com/gin-gonic/gin"
 
 	"github.com/pocket-id/pocket-id/backend/internal/common"
+	_ "github.com/pocket-id/pocket-id/backend/internal/dto"
 	"github.com/pocket-id/pocket-id/backend/internal/httpserver"
 	"github.com/pocket-id/pocket-id/backend/internal/service"
 )
@@ -37,6 +38,7 @@ type WellKnownController struct {
 // @Tags Well Known
 // @Produce json
 // @Success 200 {object} object "{ \"keys\": []interface{} }"
+// @Failure default {object} dto.ErrorDto "Error"
 // @Router /.well-known/jwks.json [get]
 func (wkc *WellKnownController) jwksHandler(c *gin.Context) error {
 	jwks, err := wkc.jwtService.GetPublicJWKSAsJSON()
@@ -53,6 +55,7 @@ func (wkc *WellKnownController) jwksHandler(c *gin.Context) error {
 // @Description Returns the OpenID Connect discovery document with endpoints and capabilities
 // @Tags Well Known
 // @Success 200 {object} object "OpenID Connect configuration"
+// @Failure default {object} dto.ErrorDto "Error"
 // @Router /.well-known/openid-configuration [get]
 func (wkc *WellKnownController) openIDConfigurationHandler(c *gin.Context) error {
 	oidcConfig, err := wkc.computeOIDCConfiguration()
