@@ -331,8 +331,6 @@
 	"cimd_url_allowlist_description": "Lege fest, welche URLs von Metadaten-Dokumenten zu Client-IDs akzeptiert werden. {#link href=|https://pocket-id.org/docs/advanced/callback-url-wildcards|}Platzhalter{/link} werden unterstützt. Eine leere Liste blockiert alle URLs.",
 	"refresh": "Aktualisieren",
 	"oidc_client_metadata_refreshed_successfully": "Das Dokument mit den Client-Metadaten wurde erfolgreich aktualisiert",
-	"create_new_client_secret": "Neues Client-Geheimnis erstellen",
-	"are_you_sure_you_want_to_create_a_new_client_secret": "Bist du sicher, dass du ein neues Client-Geheimnis erstellen möchtest? Das alte Client-Geheimnis wird dadurch ungültig.",
 	"generate": "Generieren",
 	"new_client_secret_created_successfully": "Neues Client-Geheimnis erfolgreich erstellt",
 	"oidc_client_name": "OIDC-Client {name}",
@@ -615,5 +613,17 @@
 	"or": "oder",
 	"visit_and_enter": "Geh auf {url} und gib Folgendes ein:",
 	"oidc": "OIDC",
-	"device_login_request_expired": "Dein QR-Code ist abgelaufen. Bitte starte den Anmeldevorgang erneut."
+	"device_login_request_expired": "Dein QR-Code ist abgelaufen. Bitte starte den Anmeldevorgang erneut.",
+	"credentials": "Qualifikationen",
+	"client_secrets": "Kundengeheimnisse",
+	"client_secrets_description": "Geheimnisse, die die App zur Authentifizierung verwendet. Es können mehrere Geheimnisse gleichzeitig aktiv sein, sodass eines ohne Ausfallzeiten ausgetauscht werden kann.",
+	"no_client_secrets_yet": "Diese App hat noch keine Client-Geheimnisse.",
+	"public_clients_cannot_have_secrets": "Öffentliche Clients dürfen keine Client-Geheimnisse haben.",
+	"add_client_secret": "Client-Secret hinzufügen",
+	"no_expiration": "Keine Gültigkeitsdauer",
+	"days_count": "{count} Tage",
+	"client_secrets_limit_reached": "Eine App darf nicht mehr als 20 Client-Geheimnisse haben.",
+	"delete_client_secret": "Client-Secret löschen",
+	"are_you_sure_you_want_to_delete_this_client_secret": "Are you sure you want to delete this client secret? Apps using it will no longer be able to authenticate.",
+	"client_secret_deleted_successfully": "Client secret deleted successfully"
 }
