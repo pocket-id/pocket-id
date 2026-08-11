@@ -31,6 +31,7 @@ type ScimController struct {
 // @Tags SCIM
 // @Param id path string true "Service Provider ID"
 // @Success 200 "OK"
+// @Failure default {object} dto.ErrorDto "Error"
 // @Router /api/scim/service-provider/{id}/sync [post]
 func (c *ScimController) syncServiceProviderHandler(ctx *gin.Context) error {
 	err := c.scimService.SyncServiceProvider(ctx.Request.Context(), ctx.Param("id"))
@@ -50,6 +51,7 @@ func (c *ScimController) syncServiceProviderHandler(ctx *gin.Context) error {
 // @Produce json
 // @Param serviceProvider body dto.ScimServiceProviderCreateDTO true "SCIM service provider information"
 // @Success 201 {object} dto.ScimServiceProviderDTO "Created SCIM service provider"
+// @Failure default {object} dto.ErrorDto "Error"
 // @Router /api/scim/service-provider [post]
 func (c *ScimController) createServiceProviderHandler(ctx *gin.Context) error {
 	var input dto.ScimServiceProviderCreateDTO
@@ -80,6 +82,7 @@ func (c *ScimController) createServiceProviderHandler(ctx *gin.Context) error {
 // @Param id path string true "Service Provider ID"
 // @Param serviceProvider body dto.ScimServiceProviderCreateDTO true "SCIM service provider information"
 // @Success 200 {object} dto.ScimServiceProviderDTO "Updated SCIM service provider"
+// @Failure default {object} dto.ErrorDto "Error"
 // @Router /api/scim/service-provider/{id} [put]
 func (c *ScimController) updateServiceProviderHandler(ctx *gin.Context) error {
 	var input dto.ScimServiceProviderCreateDTO
@@ -107,6 +110,7 @@ func (c *ScimController) updateServiceProviderHandler(ctx *gin.Context) error {
 // @Tags SCIM
 // @Param id path string true "Service Provider ID"
 // @Success 204 "No Content"
+// @Failure default {object} dto.ErrorDto "Error"
 // @Router /api/scim/service-provider/{id} [delete]
 func (c *ScimController) deleteServiceProviderHandler(ctx *gin.Context) error {
 	err := c.scimService.DeleteServiceProvider(ctx.Request.Context(), ctx.Param("id"))

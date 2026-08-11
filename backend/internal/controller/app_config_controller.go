@@ -52,6 +52,7 @@ type AppConfigController struct {
 // @Accept json
 // @Produce json
 // @Success 200 {array} dto.PublicAppConfigVariableDto
+// @Failure default {object} dto.ErrorDto "Error"
 // @Router /api/application-configuration [get]
 func (acc *AppConfigController) listAppConfigHandler(c *gin.Context) error {
 	dbConfig, err := acc.appConfigService.GetConfig(c.Request.Context())
@@ -89,6 +90,7 @@ func (acc *AppConfigController) listAppConfigHandler(c *gin.Context) error {
 // @Accept json
 // @Produce json
 // @Success 200 {array} dto.AppConfigVariableDto
+// @Failure default {object} dto.ErrorDto "Error"
 // @Router /api/application-configuration/all [get]
 func (acc *AppConfigController) listAllAppConfigHandler(c *gin.Context) error {
 	dbConfig, err := acc.appConfigService.GetConfig(c.Request.Context())
@@ -114,6 +116,7 @@ func (acc *AppConfigController) listAllAppConfigHandler(c *gin.Context) error {
 // @Produce json
 // @Param body body dto.AppConfigUpdateDto true "Application Configuration"
 // @Success 200 {array} dto.AppConfigVariableDto
+// @Failure default {object} dto.ErrorDto "Error"
 // @Router /api/application-configuration [put]
 func (acc *AppConfigController) updateAppConfigHandler(c *gin.Context) error {
 	var input dto.AppConfigUpdateDto
@@ -140,6 +143,7 @@ func (acc *AppConfigController) updateAppConfigHandler(c *gin.Context) error {
 // @Description Send a test email to verify email configuration
 // @Tags Application Configuration
 // @Success 204 "No Content"
+// @Failure default {object} dto.ErrorDto "Error"
 // @Router /api/application-configuration/test-email [post]
 func (acc *AppConfigController) testEmailHandler(c *gin.Context) error {
 	dbConfig, err := acc.appConfigService.GetConfig(c.Request.Context())

@@ -10,6 +10,7 @@ import (
 	"github.com/gin-gonic/gin"
 
 	"github.com/pocket-id/pocket-id/backend/internal/apperror"
+	_ "github.com/pocket-id/pocket-id/backend/internal/dto"
 	"github.com/pocket-id/pocket-id/backend/internal/httpserver"
 	"github.com/pocket-id/pocket-id/backend/internal/middleware"
 	"github.com/pocket-id/pocket-id/backend/internal/service"
@@ -55,6 +56,7 @@ type AppImagesController struct {
 // @Produce image/jpeg
 // @Produce image/svg+xml
 // @Success 200 {file} binary "Logo image"
+// @Failure default {object} dto.ErrorDto "Error"
 // @Router /api/application-images/logo [get]
 func (c *AppImagesController) getLogoHandler(ctx *gin.Context) error {
 	return c.getImage(ctx, logoImageName(ctx))
@@ -67,6 +69,7 @@ func (c *AppImagesController) getLogoHandler(ctx *gin.Context) error {
 // @Produce image/png
 // @Produce image/jpeg
 // @Success 200 {file} binary "Email logo image"
+// @Failure default {object} dto.ErrorDto "Error"
 // @Router /api/application-images/email [get]
 func (c *AppImagesController) getEmailLogoHandler(ctx *gin.Context) error {
 	return c.getImage(ctx, "logoEmail")
@@ -79,6 +82,7 @@ func (c *AppImagesController) getEmailLogoHandler(ctx *gin.Context) error {
 // @Produce image/png
 // @Produce image/jpeg
 // @Success 200 {file} binary "Background image"
+// @Failure default {object} dto.ErrorDto "Error"
 // @Router /api/application-images/background [get]
 func (c *AppImagesController) getBackgroundImageHandler(ctx *gin.Context) error {
 	return c.getImage(ctx, "background")
@@ -90,6 +94,7 @@ func (c *AppImagesController) getBackgroundImageHandler(ctx *gin.Context) error 
 // @Tags Application Images
 // @Produce image/x-icon
 // @Success 200 {file} binary "Favicon image"
+// @Failure default {object} dto.ErrorDto "Error"
 // @Router /api/application-images/favicon [get]
 func (c *AppImagesController) getFaviconHandler(ctx *gin.Context) error {
 	return c.getImage(ctx, "favicon")
@@ -102,6 +107,7 @@ func (c *AppImagesController) getFaviconHandler(ctx *gin.Context) error {
 // @Produce image/png
 // @Produce image/jpeg
 // @Success 200 {file} binary "Default profile picture image"
+// @Failure default {object} dto.ErrorDto "Error"
 // @Router /api/application-images/default-profile-picture [get]
 func (c *AppImagesController) getDefaultProfilePicture(ctx *gin.Context) error {
 	return c.getImage(ctx, "default-profile-picture")
@@ -115,6 +121,7 @@ func (c *AppImagesController) getDefaultProfilePicture(ctx *gin.Context) error {
 // @Param light query boolean false "Light mode logo (true) or dark mode logo (false)"
 // @Param file formData file true "Logo image file"
 // @Success 204 "No Content"
+// @Failure default {object} dto.ErrorDto "Error"
 // @Router /api/application-images/logo [put]
 func (c *AppImagesController) updateLogoHandler(ctx *gin.Context) error {
 	file, err := httpserver.FormFile(ctx, "file")
@@ -136,6 +143,7 @@ func (c *AppImagesController) updateLogoHandler(ctx *gin.Context) error {
 // @Tags Application Images
 // @Param light query boolean false "Light mode logo (true) or dark mode logo (false)"
 // @Success 204 "No Content"
+// @Failure default {object} dto.ErrorDto "Error"
 // @Router /api/application-images/logo [delete]
 func (c *AppImagesController) deleteLogoHandler(ctx *gin.Context) error {
 	if err := c.appImagesService.DeleteImage(ctx.Request.Context(), logoImageName(ctx)); err != nil {
@@ -161,6 +169,7 @@ func logoImageName(ctx *gin.Context) string {
 // @Accept multipart/form-data
 // @Param file formData file true "Email logo image file"
 // @Success 204 "No Content"
+// @Failure default {object} dto.ErrorDto "Error"
 // @Router /api/application-images/email [put]
 func (c *AppImagesController) updateEmailLogoHandler(ctx *gin.Context) error {
 	file, err := httpserver.FormFile(ctx, "file")
@@ -190,6 +199,7 @@ func (c *AppImagesController) updateEmailLogoHandler(ctx *gin.Context) error {
 // @Accept multipart/form-data
 // @Param file formData file true "Background image file"
 // @Success 204 "No Content"
+// @Failure default {object} dto.ErrorDto "Error"
 // @Router /api/application-images/background [put]
 func (c *AppImagesController) updateBackgroundImageHandler(ctx *gin.Context) error {
 	file, err := httpserver.FormFile(ctx, "file")
@@ -210,6 +220,7 @@ func (c *AppImagesController) updateBackgroundImageHandler(ctx *gin.Context) err
 // @Description Delete the application background image
 // @Tags Application Images
 // @Success 204 "No Content"
+// @Failure default {object} dto.ErrorDto "Error"
 // @Router /api/application-images/background [delete]
 func (c *AppImagesController) deleteBackgroundImageHandler(ctx *gin.Context) error {
 	if err := c.appImagesService.DeleteImage(ctx.Request.Context(), "background"); err != nil {
@@ -227,6 +238,7 @@ func (c *AppImagesController) deleteBackgroundImageHandler(ctx *gin.Context) err
 // @Accept multipart/form-data
 // @Param file formData file true "Favicon file (.svg/.png/.ico)"
 // @Success 204 "No Content"
+// @Failure default {object} dto.ErrorDto "Error"
 // @Router /api/application-images/favicon [put]
 func (c *AppImagesController) updateFaviconHandler(ctx *gin.Context) error {
 	file, err := httpserver.FormFile(ctx, "file")
@@ -268,6 +280,7 @@ func (c *AppImagesController) getImage(ctx *gin.Context, name string) error {
 // @Accept multipart/form-data
 // @Param file formData file true "Profile picture image file"
 // @Success 204 "No Content"
+// @Failure default {object} dto.ErrorDto "Error"
 // @Router /api/application-images/default-profile-picture [put]
 func (c *AppImagesController) updateDefaultProfilePicture(ctx *gin.Context) error {
 	file, err := httpserver.FormFile(ctx, "file")
@@ -288,6 +301,7 @@ func (c *AppImagesController) updateDefaultProfilePicture(ctx *gin.Context) erro
 // @Description Delete the default profile picture image
 // @Tags Application Images
 // @Success 204 "No Content"
+// @Failure default {object} dto.ErrorDto "Error"
 // @Router /api/application-images/default-profile-picture [delete]
 func (c *AppImagesController) deleteDefaultProfilePicture(ctx *gin.Context) error {
 	if err := c.appImagesService.DeleteImage(ctx.Request.Context(), "default-profile-picture"); err != nil {
