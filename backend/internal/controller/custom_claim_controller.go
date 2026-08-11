@@ -36,6 +36,7 @@ type CustomClaimController struct {
 // @Tags Custom Claims
 // @Produce json
 // @Success 200 {array} string "List of suggested custom claim names"
+// @Failure default {object} dto.ErrorDto "Error"
 // @Router /api/custom-claims/suggestions [get]
 func (ccc *CustomClaimController) getSuggestionsHandler(c *gin.Context) error {
 	claims, err := ccc.customClaimService.GetSuggestions(c.Request.Context())
@@ -56,6 +57,7 @@ func (ccc *CustomClaimController) getSuggestionsHandler(c *gin.Context) error {
 // @Param userId path string true "User ID"
 // @Param claims body []dto.CustomClaimCreateDto true "List of custom claims to set for the user"
 // @Success 200 {array} dto.CustomClaimDto "Updated custom claims"
+// @Failure default {object} dto.ErrorDto "Error"
 // @Router /api/custom-claims/user/{userId} [put]
 func (ccc *CustomClaimController) UpdateCustomClaimsForUserHandler(c *gin.Context) error {
 	var input []dto.CustomClaimCreateDto
@@ -88,6 +90,7 @@ func (ccc *CustomClaimController) UpdateCustomClaimsForUserHandler(c *gin.Contex
 // @Param userGroupId path string true "User Group ID"
 // @Param claims body []dto.CustomClaimCreateDto true "List of custom claims to set for the user group"
 // @Success 200 {array} dto.CustomClaimDto "Updated custom claims"
+// @Failure default {object} dto.ErrorDto "Error"
 // @Router /api/custom-claims/user-group/{userGroupId} [put]
 func (ccc *CustomClaimController) UpdateCustomClaimsForUserGroupHandler(c *gin.Context) error {
 	var input []dto.CustomClaimCreateDto

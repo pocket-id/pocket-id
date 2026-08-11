@@ -64,6 +64,7 @@ type OidcController struct {
 // @Produce json
 // @Param id path string true "Client ID"
 // @Success 200 {object} dto.OidcClientMetaDataDto "Client metadata"
+// @Failure default {object} dto.ErrorDto "Error"
 // @Router /api/oidc/clients/{id}/meta [get]
 func (oc *OidcController) getClientMetaDataHandler(c *gin.Context) error {
 	clientId := c.Param("id")
@@ -89,6 +90,7 @@ func (oc *OidcController) getClientMetaDataHandler(c *gin.Context) error {
 // @Produce json
 // @Param id path string true "Client ID"
 // @Success 200 {object} dto.OidcClientWithAllowedUserGroupsDto "Client information"
+// @Failure default {object} dto.ErrorDto "Error"
 // @Router /api/oidc/clients/{id} [get]
 func (oc *OidcController) getClientHandler(c *gin.Context) error {
 	clientId := c.Param("id")
@@ -117,6 +119,7 @@ func (oc *OidcController) getClientHandler(c *gin.Context) error {
 // @Param sort[column] query string false "Column to sort by"
 // @Param sort[direction] query string false "Sort direction (asc or desc)" default("asc")
 // @Success 200 {object} dto.Paginated[dto.OidcClientWithAllowedGroupsCountDto]
+// @Failure default {object} dto.ErrorDto "Error"
 // @Router /api/oidc/clients [get]
 func (oc *OidcController) listClientsHandler(c *gin.Context) error {
 	searchTerm := c.Query("search")
@@ -158,6 +161,7 @@ func (oc *OidcController) listClientsHandler(c *gin.Context) error {
 // @Produce json
 // @Param client body dto.OidcClientCreateDto true "Client information"
 // @Success 201 {object} dto.OidcClientWithAllowedUserGroupsDto "Created client"
+// @Failure default {object} dto.ErrorDto "Error"
 // @Router /api/oidc/clients [post]
 func (oc *OidcController) createClientHandler(c *gin.Context) error {
 	var input dto.OidcClientCreateDto
@@ -185,6 +189,7 @@ func (oc *OidcController) createClientHandler(c *gin.Context) error {
 // @Tags OIDC
 // @Param id path string true "Client ID"
 // @Success 204 "No Content"
+// @Failure default {object} dto.ErrorDto "Error"
 // @Router /api/oidc/clients/{id} [delete]
 func (oc *OidcController) deleteClientHandler(c *gin.Context) error {
 	err := oc.oidcService.DeleteClient(c.Request.Context(), c.Param("id"))
@@ -205,6 +210,7 @@ func (oc *OidcController) deleteClientHandler(c *gin.Context) error {
 // @Param id path string true "Client ID"
 // @Param client body dto.OidcClientUpdateDto true "Client information"
 // @Success 200 {object} dto.OidcClientWithAllowedUserGroupsDto "Updated client"
+// @Failure default {object} dto.ErrorDto "Error"
 // @Router /api/oidc/clients/{id} [put]
 func (oc *OidcController) updateClientHandler(c *gin.Context) error {
 	var input dto.OidcClientUpdateDto
@@ -233,6 +239,7 @@ func (oc *OidcController) updateClientHandler(c *gin.Context) error {
 // @Produce json
 // @Param id path string true "Client ID"
 // @Success 200 {object} dto.OidcClientWithAllowedUserGroupsDto "Refreshed client"
+// @Failure default {object} dto.ErrorDto "Error"
 // @Router /api/oidc/clients/{id}/refresh [post]
 func (oc *OidcController) refreshClientMetadataHandler(c *gin.Context) error {
 	client, err := oc.oidcService.RefreshClientMetadata(c.Request.Context(), c.Param("id"))
@@ -259,6 +266,7 @@ func (oc *OidcController) refreshClientMetadataHandler(c *gin.Context) error {
 // @Param id path string true "Client ID"
 // @Param payload body dto.OidcClientSecretDto false "Client secret"
 // @Success 200 {object} object "{ \"secret\": \"string\" }"
+// @Failure default {object} dto.ErrorDto "Error"
 // @Router /api/oidc/clients/{id}/secret [post]
 func (oc *OidcController) createClientSecretHandler(c *gin.Context) error {
 	var input dto.OidcClientSecretDto
@@ -285,6 +293,7 @@ func (oc *OidcController) createClientSecretHandler(c *gin.Context) error {
 // @Param id path string true "Client ID"
 // @Param light query boolean false "Light mode logo (true) or dark mode logo (false)"
 // @Success 200 {file} binary "Logo image"
+// @Failure default {object} dto.ErrorDto "Error"
 // @Router /api/oidc/clients/{id}/logo [get]
 func (oc *OidcController) getClientLogoHandler(c *gin.Context) error {
 	lightLogo, _ := strconv.ParseBool(c.DefaultQuery("light", "true"))
@@ -311,6 +320,7 @@ func (oc *OidcController) getClientLogoHandler(c *gin.Context) error {
 // @Param file formData file true "Logo image file (PNG, JPG, or SVG)"
 // @Param light query boolean false "Light mode logo (true) or dark mode logo (false)"
 // @Success 204 "No Content"
+// @Failure default {object} dto.ErrorDto "Error"
 // @Router /api/oidc/clients/{id}/logo [post]
 func (oc *OidcController) updateClientLogoHandler(c *gin.Context) error {
 	file, err := httpserver.FormFile(c, "file")
@@ -336,6 +346,7 @@ func (oc *OidcController) updateClientLogoHandler(c *gin.Context) error {
 // @Param id path string true "Client ID"
 // @Param light query boolean false "Light mode logo (true) or dark mode logo (false)"
 // @Success 204 "No Content"
+// @Failure default {object} dto.ErrorDto "Error"
 // @Router /api/oidc/clients/{id}/logo [delete]
 func (oc *OidcController) deleteClientLogoHandler(c *gin.Context) error {
 	var err error
@@ -364,6 +375,7 @@ func (oc *OidcController) deleteClientLogoHandler(c *gin.Context) error {
 // @Param id path string true "Client ID"
 // @Param groups body dto.OidcUpdateAllowedUserGroupsDto true "User group IDs"
 // @Success 200 {object} dto.OidcClientDto "Updated client"
+// @Failure default {object} dto.ErrorDto "Error"
 // @Router /api/oidc/clients/{id}/allowed-user-groups [put]
 func (oc *OidcController) updateAllowedUserGroupsHandler(c *gin.Context) error {
 	var input dto.OidcUpdateAllowedUserGroupsDto
@@ -396,6 +408,7 @@ func (oc *OidcController) updateAllowedUserGroupsHandler(c *gin.Context) error {
 // @Param sort[direction] query string false "Sort direction (asc or desc)" default("asc")
 // @Param filters[hasLaunchURL] query bool false "Filter clients by whether a launch URL is configured"
 // @Success 200 {object} dto.Paginated[dto.AuthorizedOidcClientDto]
+// @Failure default {object} dto.ErrorDto "Error"
 // @Router /api/oidc/users/me/authorized-clients [get]
 func (oc *OidcController) listOwnAuthorizedClientsHandler(c *gin.Context) error {
 	userID := c.GetString("userID")
@@ -413,6 +426,7 @@ func (oc *OidcController) listOwnAuthorizedClientsHandler(c *gin.Context) error 
 // @Param sort[direction] query string false "Sort direction (asc or desc)" default("asc")
 // @Param filters[hasLaunchURL] query bool false "Filter clients by whether a launch URL is configured"
 // @Success 200 {object} dto.Paginated[dto.AuthorizedOidcClientDto]
+// @Failure default {object} dto.ErrorDto "Error"
 // @Router /api/oidc/users/{id}/authorized-clients [get]
 func (oc *OidcController) listAuthorizedClientsHandler(c *gin.Context) error {
 	userID := c.Param("id")
@@ -446,6 +460,7 @@ func (oc *OidcController) listAuthorizedClients(c *gin.Context, userID string) e
 // @Tags OIDC
 // @Param clientId path string true "Client ID to revoke authorization for"
 // @Success 204 "No Content"
+// @Failure default {object} dto.ErrorDto "Error"
 // @Router /api/oidc/users/me/authorized-clients/{clientId} [delete]
 func (oc *OidcController) revokeOwnClientAuthorizationHandler(c *gin.Context) error {
 	clientID := c.Param("clientId")
@@ -471,6 +486,7 @@ func (oc *OidcController) revokeOwnClientAuthorizationHandler(c *gin.Context) er
 // @Param sort[direction] query string false "Sort direction (asc or desc)" default("asc")
 // @Param filters[hasLaunchURL] query bool false "Filter clients by whether a launch URL is configured"
 // @Success 200 {object} dto.Paginated[dto.AccessibleOidcClientDto]
+// @Failure default {object} dto.ErrorDto "Error"
 // @Router /api/oidc/users/me/clients [get]
 func (oc *OidcController) listOwnAccessibleClientsHandler(c *gin.Context) error {
 	listRequestOptions := utils.ParseListRequestOptions(c)
@@ -499,6 +515,7 @@ func (oc *OidcController) listOwnAccessibleClientsHandler(c *gin.Context) error 
 // @Param scopes query string false "Scopes to include in the preview (comma-separated)"
 // @Success 200 {object} dto.OidcClientPreviewDto "Preview data including ID token, access token, and userinfo payloads"
 // @Security BearerAuth
+// @Failure default {object} dto.ErrorDto "Error"
 // @Router /api/oidc/clients/{id}/preview/{userId} [get]
 func (oc *OidcController) getClientPreviewHandler(c *gin.Context) error {
 	clientID := c.Param("id")
@@ -539,6 +556,7 @@ func (oc *OidcController) getClientPreviewHandler(c *gin.Context) error {
 // @Produce json
 // @Param id path string true "Client ID"
 // @Success 200 {object} dto.ScimServiceProviderDTO "SCIM service provider configuration"
+// @Failure default {object} dto.ErrorDto "Error"
 // @Router /api/oidc/clients/{id}/scim-service-provider [get]
 func (oc *OidcController) getClientScimServiceProviderHandler(c *gin.Context) error {
 	clientID := c.Param("id")
