@@ -2,7 +2,7 @@
 	import { Button } from '$lib/components/ui/button';
 	import * as Card from '$lib/components/ui/card';
 	import { m } from '$lib/paraglide/messages';
-	import type { OidcClient, OidcClientCredentials } from '$lib/types/oidc.type';
+	import type { OidcClient, OidcClientFederatedIdentity } from '$lib/types/oidc.type';
 	import { preventDefault } from '$lib/utils/event-util';
 	import { createForm } from '$lib/utils/form-util';
 	import { slide } from 'svelte/transition';
@@ -14,7 +14,7 @@
 		callback
 	}: {
 		client: OidcClient;
-		callback: (credentials: OidcClientCredentials) => Promise<boolean>;
+		callback: (federatedIdentities: OidcClientFederatedIdentity[]) => Promise<boolean>;
 	} = $props();
 
 	let isLoading = $state(false);
@@ -72,7 +72,7 @@
 		if (!data) return;
 
 		isLoading = true;
-		await callback(data.credentials).finally(() => (isLoading = false));
+		await callback(data.credentials.federatedIdentities).finally(() => (isLoading = false));
 	}
 </script>
 

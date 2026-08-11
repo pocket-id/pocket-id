@@ -112,14 +112,10 @@ const (
 
 // OidcClientSecret is a single client secret of an OIDC client, stored hashed in the credentials JSON document
 type OidcClientSecret struct {
-	// ID uniquely identifies the secret within the client, so it can be deleted without knowing its value
-	ID string `json:"id"`
-	// Algorithm used to compute Hash
+	ID        string                        `json:"id"`
 	Algorithm OidcClientSecretHashAlgorithm `json:"alg"`
-	// Hash of the secret's value, hex-encoded for SHA-256 secrets and in modular crypt format for bcrypt ones
-	Hash string `json:"hash"`
-	// Prefix contains the first few characters of the secret in clear text, so admins can match a secret to the app that uses it
-	// It is empty for secrets migrated from the single-secret column, whose value was never stored
+	Hash      string                        `json:"hash"`
+	// Prefix is empty for secrets migrated from the single-secret column, whose value was never stored
 	Prefix    string             `json:"prefix,omitempty"`
 	CreatedAt datatype.DateTime  `json:"createdAt"`
 	ExpiresAt *datatype.DateTime `json:"expiresAt,omitempty"`

@@ -37,7 +37,7 @@ export type OidcClientSecretCreated = OidcClientSecret & {
 
 export type OidcClientCredentials = {
 	federatedIdentities: OidcClientFederatedIdentity[];
-	secrets?: OidcClientSecret[];
+	secrets: OidcClientSecret[];
 };
 
 export type OidcDiscoveryConfiguration = {
