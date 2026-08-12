@@ -21,18 +21,15 @@ const parRequestURIPrefix = "urn:ietf:params:oauth:request_uri:"
 type authorizationHandler struct {
 	provider             fosite.OAuth2Provider
 	authorizationService *authorizationService
-	baseURL              string
 }
 
 func newAuthorizationHandler(
 	provider fosite.OAuth2Provider,
 	authorizationService *authorizationService,
-	baseURL string,
 ) *authorizationHandler {
 	return &authorizationHandler{
 		provider:             provider,
 		authorizationService: authorizationService,
-		baseURL:              baseURL,
 	}
 }
 
@@ -98,8 +95,6 @@ func (h *authorizationHandler) authorize(c *gin.Context) {
 		h.writeAuthorizeError(ctx, c, ar, err)
 		return
 	}
-
-	response.AddParameter("iss", h.baseURL)
 
 	// fosite renders an auto-submitting HTML page for response_mode=form_post, which needs a relaxed CSP
 	h.relaxCSPForFormPost(c, ar)
