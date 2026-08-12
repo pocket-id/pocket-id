@@ -24,6 +24,7 @@ func newHandler(service *Service) *handler {
 // @Produce json
 // @Param id path string true "Client ID"
 // @Success 200 {object} ScimServiceProviderDTO "SCIM service provider configuration"
+// @Failure default {object} dto.ErrorDto "Error"
 // @Router /api/oidc/clients/{id}/scim-service-provider [get]
 func (h *handler) getServiceProviderByClient(c *gin.Context) error {
 	provider, err := h.service.GetServiceProviderByClient(c.Request.Context(), c.Param("id"))
@@ -40,6 +41,7 @@ func (h *handler) getServiceProviderByClient(c *gin.Context) error {
 // @Tags SCIM
 // @Param id path string true "Service Provider ID"
 // @Success 200 "OK"
+// @Failure default {object} dto.ErrorDto "Error"
 // @Router /api/scim/service-provider/{id}/sync [post]
 func (h *handler) syncServiceProvider(c *gin.Context) error {
 	// The sync runs inline rather than through the actor so the response reports whether it succeeded
@@ -60,6 +62,7 @@ func (h *handler) syncServiceProvider(c *gin.Context) error {
 // @Produce json
 // @Param serviceProvider body ScimServiceProviderCreateDTO true "SCIM service provider information"
 // @Success 201 {object} ScimServiceProviderDTO "Created SCIM service provider"
+// @Failure default {object} dto.ErrorDto "Error"
 // @Router /api/scim/service-provider [post]
 func (h *handler) createServiceProvider(c *gin.Context) error {
 	var input ScimServiceProviderCreateDTO
@@ -85,6 +88,7 @@ func (h *handler) createServiceProvider(c *gin.Context) error {
 // @Param id path string true "Service Provider ID"
 // @Param serviceProvider body ScimServiceProviderCreateDTO true "SCIM service provider information"
 // @Success 200 {object} ScimServiceProviderDTO "Updated SCIM service provider"
+// @Failure default {object} dto.ErrorDto "Error"
 // @Router /api/scim/service-provider/{id} [put]
 func (h *handler) updateServiceProvider(c *gin.Context) error {
 	var input ScimServiceProviderCreateDTO
@@ -107,6 +111,7 @@ func (h *handler) updateServiceProvider(c *gin.Context) error {
 // @Tags SCIM
 // @Param id path string true "Service Provider ID"
 // @Success 204 "No Content"
+// @Failure default {object} dto.ErrorDto "Error"
 // @Router /api/scim/service-provider/{id} [delete]
 func (h *handler) deleteServiceProvider(c *gin.Context) error {
 	err := h.service.DeleteServiceProvider(c.Request.Context(), c.Param("id"))

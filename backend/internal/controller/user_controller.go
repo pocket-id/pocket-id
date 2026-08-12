@@ -61,6 +61,7 @@ type UserController struct {
 // @Tags Users,User Groups
 // @Param id path string true "User ID"
 // @Success 200 {array} dto.UserGroupDto
+// @Failure default {object} dto.ErrorDto "Error"
 // @Router /api/users/{id}/groups [get]
 func (uc *UserController) getUserGroupsHandler(c *gin.Context) error {
 	userID := c.Param("id")
@@ -84,6 +85,7 @@ func (uc *UserController) getUserGroupsHandler(c *gin.Context) error {
 // @Tags Users
 // @Param id path string true "User ID"
 // @Success 200 {array} dto.WebauthnCredentialDto
+// @Failure default {object} dto.ErrorDto "Error"
 // @Router /api/users/{id}/webauthn-credentials [get]
 func (uc *UserController) listUserWebauthnCredentialsHandler(c *gin.Context) error {
 	userID := c.Param("id")
@@ -116,6 +118,7 @@ func (uc *UserController) listUserWebauthnCredentialsHandler(c *gin.Context) err
 // @Param sort[column] query string false "Column to sort by"
 // @Param sort[direction] query string false "Sort direction (asc or desc)" default("asc")
 // @Success 200 {object} dto.Paginated[dto.UserDto]
+// @Failure default {object} dto.ErrorDto "Error"
 // @Router /api/users [get]
 func (uc *UserController) listUsersHandler(c *gin.Context) error {
 	searchTerm := c.Query("search")
@@ -144,6 +147,7 @@ func (uc *UserController) listUsersHandler(c *gin.Context) error {
 // @Tags Users
 // @Param id path string true "User ID"
 // @Success 200 {object} dto.UserDto
+// @Failure default {object} dto.ErrorDto "Error"
 // @Router /api/users/{id} [get]
 func (uc *UserController) getUserHandler(c *gin.Context) error {
 	user, err := uc.userService.GetUser(c.Request.Context(), c.Param("id"))
@@ -165,6 +169,7 @@ func (uc *UserController) getUserHandler(c *gin.Context) error {
 // @Description Retrieve information about the currently authenticated user
 // @Tags Users
 // @Success 200 {object} dto.UserDto
+// @Failure default {object} dto.ErrorDto "Error"
 // @Router /api/users/me [get]
 func (uc *UserController) getCurrentUserHandler(c *gin.Context) error {
 	user, err := uc.userService.GetUser(c.Request.Context(), c.GetString("userID"))
@@ -187,6 +192,7 @@ func (uc *UserController) getCurrentUserHandler(c *gin.Context) error {
 // @Tags Users
 // @Param id path string true "User ID"
 // @Success 204 "No Content"
+// @Failure default {object} dto.ErrorDto "Error"
 // @Router /api/users/{id} [delete]
 func (uc *UserController) deleteUserHandler(c *gin.Context) error {
 	dbConfig, err := uc.appConfigService.GetConfig(c.Request.Context())
@@ -209,6 +215,7 @@ func (uc *UserController) deleteUserHandler(c *gin.Context) error {
 // @Param id path string true "User ID"
 // @Param credentialId path string true "Credential ID"
 // @Success 204 "No Content"
+// @Failure default {object} dto.ErrorDto "Error"
 // @Router /api/users/{id}/webauthn-credentials/{credentialId} [delete]
 func (uc *UserController) deleteUserWebauthnCredentialHandler(c *gin.Context) error {
 	err := uc.webAuthnService.DeleteCredential(
@@ -233,6 +240,7 @@ func (uc *UserController) deleteUserWebauthnCredentialHandler(c *gin.Context) er
 // @Tags Users
 // @Param user body dto.UserCreateDto true "User information"
 // @Success 201 {object} dto.UserDto
+// @Failure default {object} dto.ErrorDto "Error"
 // @Router /api/users [post]
 func (uc *UserController) createUserHandler(c *gin.Context) error {
 	dbConfig, err := uc.appConfigService.GetConfig(c.Request.Context())
@@ -266,6 +274,7 @@ func (uc *UserController) createUserHandler(c *gin.Context) error {
 // @Param id path string true "User ID"
 // @Param user body dto.UserCreateDto true "User information"
 // @Success 200 {object} dto.UserDto
+// @Failure default {object} dto.ErrorDto "Error"
 // @Router /api/users/{id} [put]
 func (uc *UserController) updateUserHandler(c *gin.Context) error {
 	return uc.updateUser(c, false)
@@ -277,6 +286,7 @@ func (uc *UserController) updateUserHandler(c *gin.Context) error {
 // @Tags Users
 // @Param user body dto.UserCreateDto true "User information"
 // @Success 200 {object} dto.UserDto
+// @Failure default {object} dto.ErrorDto "Error"
 // @Router /api/users/me [put]
 func (uc *UserController) updateCurrentUserHandler(c *gin.Context) error {
 	return uc.updateUser(c, true)
@@ -289,6 +299,7 @@ func (uc *UserController) updateCurrentUserHandler(c *gin.Context) error {
 // @Produce image/png
 // @Param id path string true "User ID"
 // @Success 200 {file} binary "PNG image"
+// @Failure default {object} dto.ErrorDto "Error"
 // @Router /api/users/{id}/profile-picture.png [get]
 func (uc *UserController) getUserProfilePictureHandler(c *gin.Context) error {
 	userID := c.Param("id")
@@ -316,6 +327,7 @@ func (uc *UserController) getUserProfilePictureHandler(c *gin.Context) error {
 // @Param id path string true "User ID"
 // @Param file formData file true "Profile picture image file (PNG, JPG, or JPEG)"
 // @Success 204 "No Content"
+// @Failure default {object} dto.ErrorDto "Error"
 // @Router /api/users/{id}/profile-picture [put]
 func (uc *UserController) updateUserProfilePictureHandler(c *gin.Context) error {
 	userID := c.Param("id")
@@ -345,6 +357,7 @@ func (uc *UserController) updateUserProfilePictureHandler(c *gin.Context) error 
 // @Produce json
 // @Param file formData file true "Profile picture image file (PNG, JPG, or JPEG)"
 // @Success 204 "No Content"
+// @Failure default {object} dto.ErrorDto "Error"
 // @Router /api/users/me/profile-picture [put]
 func (uc *UserController) updateCurrentUserProfilePictureHandler(c *gin.Context) error {
 	userID := c.GetString("userID")
@@ -373,6 +386,7 @@ func (uc *UserController) updateCurrentUserProfilePictureHandler(c *gin.Context)
 // @Param id path string true "User ID"
 // @Param groups body dto.UserUpdateUserGroupDto true "User group IDs"
 // @Success 200 {object} dto.UserDto
+// @Failure default {object} dto.ErrorDto "Error"
 // @Router /api/users/{id}/user-groups [put]
 func (uc *UserController) updateUserGroups(c *gin.Context) error {
 	var input dto.UserUpdateUserGroupDto
@@ -434,6 +448,7 @@ func (uc *UserController) updateUser(c *gin.Context, updateOwnUser bool) error {
 // @Produce json
 // @Param id path string true "User ID"
 // @Success 204 "No Content"
+// @Failure default {object} dto.ErrorDto "Error"
 // @Router /api/users/{id}/profile-picture [delete]
 func (uc *UserController) resetUserProfilePictureHandler(c *gin.Context) error {
 	userID := c.Param("id")
@@ -452,6 +467,7 @@ func (uc *UserController) resetUserProfilePictureHandler(c *gin.Context) error {
 // @Tags Users
 // @Produce json
 // @Success 204 "No Content"
+// @Failure default {object} dto.ErrorDto "Error"
 // @Router /api/users/me/profile-picture [delete]
 func (uc *UserController) resetCurrentUserProfilePictureHandler(c *gin.Context) error {
 	userID := c.GetString("userID")

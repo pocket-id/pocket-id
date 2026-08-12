@@ -40,6 +40,7 @@ type AuditLogController struct {
 // @Param sort[column] query string false "Column to sort by"
 // @Param sort[direction] query string false "Sort direction (asc or desc)" default("asc")
 // @Success 200 {object} dto.Paginated[dto.AuditLogDto]
+// @Failure default {object} dto.ErrorDto "Error"
 // @Router /api/audit-logs [get]
 func (alc *AuditLogController) listAuditLogsForUserHandler(c *gin.Context) error {
 	listRequestOptions := utils.ParseListRequestOptions(c)
@@ -82,6 +83,7 @@ func (alc *AuditLogController) listAuditLogsForUserHandler(c *gin.Context) error
 // @Param sort[column] query string false "Column to sort by"
 // @Param sort[direction] query string false "Sort direction (asc or desc)" default("asc")
 // @Success 200 {object} dto.Paginated[dto.AuditLogDto]
+// @Failure default {object} dto.ErrorDto "Error"
 // @Router /api/audit-logs/all [get]
 func (alc *AuditLogController) listAllAuditLogsHandler(c *gin.Context) error {
 	listRequestOptions := utils.ParseListRequestOptions(c)
@@ -116,6 +118,7 @@ func (alc *AuditLogController) listAllAuditLogsHandler(c *gin.Context) error {
 // @Description Get a list of all client names for audit log filtering
 // @Tags Audit Logs
 // @Success 200 {array} string "List of client names"
+// @Failure default {object} dto.ErrorDto "Error"
 // @Router /api/audit-logs/filters/client-names [get]
 func (alc *AuditLogController) listClientNamesHandler(c *gin.Context) error {
 	names, err := alc.auditLogService.ListClientNames(c.Request.Context())
@@ -132,6 +135,7 @@ func (alc *AuditLogController) listClientNamesHandler(c *gin.Context) error {
 // @Description Get a list of all usernames with their IDs for audit log filtering
 // @Tags Audit Logs
 // @Success 200 {object} map[string]string "Map of user IDs to usernames"
+// @Failure default {object} dto.ErrorDto "Error"
 // @Router /api/audit-logs/filters/users [get]
 func (alc *AuditLogController) listUserNamesWithIdsHandler(c *gin.Context) error {
 	users, err := alc.auditLogService.ListUsernamesWithIds(c.Request.Context())

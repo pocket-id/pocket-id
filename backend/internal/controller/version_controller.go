@@ -6,6 +6,7 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"github.com/pocket-id/pocket-id/backend/internal/common"
+	_ "github.com/pocket-id/pocket-id/backend/internal/dto"
 	"github.com/pocket-id/pocket-id/backend/internal/httpserver"
 	"github.com/pocket-id/pocket-id/backend/internal/middleware"
 	"github.com/pocket-id/pocket-id/backend/internal/service"
@@ -28,6 +29,7 @@ type VersionController struct {
 // @Tags Version
 // @Produce json
 // @Success 200 {object} map[string]string "Latest version information"
+// @Failure default {object} dto.ErrorDto "Error"
 // @Router /api/version/latest [get]
 func (vc *VersionController) getLatestVersionHandler(c *gin.Context) error {
 	tag, err := vc.versionService.GetLatestVersion(c.Request.Context())
@@ -48,6 +50,7 @@ func (vc *VersionController) getLatestVersionHandler(c *gin.Context) error {
 // @Tags Version
 // @Produce json
 // @Success 200 {object} map[string]string "Current version information"
+// @Failure default {object} dto.ErrorDto "Error"
 // @Router /api/version/current [get]
 func (vc *VersionController) getCurrentVersionHandler(c *gin.Context) error {
 	c.JSON(http.StatusOK, gin.H{
