@@ -15,7 +15,7 @@ import (
 
 // NewWellKnownController creates a new controller for OIDC discovery endpoints
 // @Summary OIDC Discovery controller
-// @Description Initializes OIDC discovery and JWKS endpoints
+// @Description Initializes OIDC discovery, OAuth 2.0 authorization server metadata and JWKS endpoints
 // @Tags Well Known
 func NewWellKnownController(group *gin.RouterGroup, jwtService *service.JwtService, getCIMDURLAllowlist func() []string) {
 	wkc := &WellKnownController{
@@ -25,6 +25,7 @@ func NewWellKnownController(group *gin.RouterGroup, jwtService *service.JwtServi
 
 	group.GET("/.well-known/jwks.json", httpserver.Handle(wkc.jwksHandler))
 	group.GET("/.well-known/openid-configuration", httpserver.Handle(wkc.openIDConfigurationHandler))
+	group.GET("/.well-known/oauth-authorization-server", httpserver.Handle(wkc.oauthAuthorizationServerHandler))
 }
 
 type WellKnownController struct {
@@ -58,15 +59,30 @@ func (wkc *WellKnownController) jwksHandler(c *gin.Context) error {
 // @Failure default {object} dto.ErrorDto "Error"
 // @Router /.well-known/openid-configuration [get]
 func (wkc *WellKnownController) openIDConfigurationHandler(c *gin.Context) error {
-	oidcConfig, err := wkc.computeOIDCConfiguration()
+	return wkc.writeServerMetadata(c)
+}
+
+// oauthAuthorizationServerHandler godoc
+// @Summary Get OAuth 2.0 authorization server metadata
+// @Description Returns the RFC 8414 OAuth 2.0 authorization server metadata document with endpoints and capabilities
+// @Tags Well Known
+// @Success 200 {object} object "OAuth 2.0 authorization server metadata"
+// @Failure default {object} dto.ErrorDto "Error"
+// @Router /.well-known/oauth-authorization-server [get]
+func (wkc *WellKnownController) oauthAuthorizationServerHandler(c *gin.Context) error {
+	return wkc.writeServerMetadata(c)
+}
+
+func (wkc *WellKnownController) writeServerMetadata(c *gin.Context) error {
+	metadata, err := wkc.computeServerMetadata()
 	if err != nil {
 		return err
 	}
-	c.Data(http.StatusOK, "application/json; charset=utf-8", oidcConfig)
+	c.Data(http.StatusOK, "application/json; charset=utf-8", metadata)
 	return nil
 }
 
-func (wkc *WellKnownController) computeOIDCConfiguration() ([]byte, error) {
+func (wkc *WellKnownController) computeServerMetadata() ([]byte, error) {
 	appUrl := common.EnvConfig.AppURL
 
 	internalAppUrl := common.EnvConfig.InternalAppURL
@@ -81,18 +97,20 @@ func (wkc *WellKnownController) computeOIDCConfiguration() ([]byte, error) {
 	}
 
 	config := map[string]any{
-		"issuer":                                         appUrl,
-		"authorization_endpoint":                         appUrl + "/authorize",
-		"token_endpoint":                                 internalAppUrl + "/api/oidc/token",
-		"userinfo_endpoint":                              internalAppUrl + "/api/oidc/userinfo",
-		"end_session_endpoint":                           appUrl + "/api/oidc/end-session",
-		"introspection_endpoint":                         internalAppUrl + "/api/oidc/introspect",
+		"issuer":                 appUrl,
+		"authorization_endpoint": appUrl + "/authorize",
+		"token_endpoint":         internalAppUrl + "/api/oidc/token",
+		"userinfo_endpoint":      internalAppUrl + "/api/oidc/userinfo",
+		"end_session_endpoint":   appUrl + "/api/oidc/end-session",
+		"introspection_endpoint": internalAppUrl + "/api/oidc/introspect",
+		"introspection_endpoint_auth_methods_supported":  []string{"client_secret_basic", "Bearer"},
 		"device_authorization_endpoint":                  appUrl + "/api/oidc/device/authorize",
 		"jwks_uri":                                       internalAppUrl + "/.well-known/jwks.json",
 		"grant_types_supported":                          []string{service.GrantTypeAuthorizationCode, service.GrantTypeRefreshToken, service.GrantTypeDeviceCode, service.GrantTypeClientCredentials},
 		"scopes_supported":                               []string{"openid", "profile", "email", "groups", "offline_access"},
 		"claims_supported":                               []string{"sub", "given_name", "family_name", "name", "display_name", "email", "email_verified", "preferred_username", "picture", "groups", "auth_time", "amr"},
-		"response_types_supported":                       []string{"code", "id_token"},
+		"response_types_supported":                       []string{"code"},
+		"response_modes_supported":                       []string{"query", "fragment", "form_post"},
 		"subject_types_supported":                        []string{"public"},
 		"id_token_signing_alg_values_supported":          []string{alg.String()},
 		"authorization_response_iss_parameter_supported": true,
@@ -105,6 +123,7 @@ func (wkc *WellKnownController) computeOIDCConfiguration() ([]byte, error) {
 		"pushed_authorization_request_endpoint":          internalAppUrl + "/api/oidc/par",
 		"require_pushed_authorization_requests":          false,
 		"client_id_metadata_document_supported":          cimdSupported,
+		"service_documentation":                          "https://pocket-id.org/docs",
 	}
 	return json.Marshal(config)
 }

@@ -46,7 +46,8 @@ func isCorsPath(path string) bool {
 		"/api/oidc/end-session",
 		"/api/oidc/introspect",
 		"/.well-known/jwks.json",
-		"/.well-known/openid-configuration":
+		"/.well-known/openid-configuration",
+		"/.well-known/oauth-authorization-server":
 		return true
 	default:
 		return false
