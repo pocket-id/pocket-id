@@ -109,7 +109,7 @@ func (wkc *WellKnownController) computeServerMetadata() ([]byte, error) {
 		"grant_types_supported":                          []string{service.GrantTypeAuthorizationCode, service.GrantTypeRefreshToken, service.GrantTypeDeviceCode, service.GrantTypeClientCredentials},
 		"scopes_supported":                               []string{"openid", "profile", "email", "groups", "offline_access"},
 		"claims_supported":                               []string{"sub", "given_name", "family_name", "name", "display_name", "email", "email_verified", "preferred_username", "picture", "groups", "auth_time", "amr"},
-		"response_types_supported":                       []string{"code", "id_token"},
+		"response_types_supported":                       []string{"code"},
 		"response_modes_supported":                       []string{"query", "fragment", "form_post"},
 		"subject_types_supported":                        []string{"public"},
 		"id_token_signing_alg_values_supported":          []string{alg.String()},
