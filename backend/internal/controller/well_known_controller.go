@@ -97,12 +97,13 @@ func (wkc *WellKnownController) computeServerMetadata() ([]byte, error) {
 	}
 
 	config := map[string]any{
-		"issuer":                                         appUrl,
-		"authorization_endpoint":                         appUrl + "/authorize",
-		"token_endpoint":                                 internalAppUrl + "/api/oidc/token",
-		"userinfo_endpoint":                              internalAppUrl + "/api/oidc/userinfo",
-		"end_session_endpoint":                           appUrl + "/api/oidc/end-session",
-		"introspection_endpoint":                         internalAppUrl + "/api/oidc/introspect",
+		"issuer":                 appUrl,
+		"authorization_endpoint": appUrl + "/authorize",
+		"token_endpoint":         internalAppUrl + "/api/oidc/token",
+		"userinfo_endpoint":      internalAppUrl + "/api/oidc/userinfo",
+		"end_session_endpoint":   appUrl + "/api/oidc/end-session",
+		"introspection_endpoint": internalAppUrl + "/api/oidc/introspect",
+		"introspection_endpoint_auth_methods_supported":  []string{"client_secret_basic", "Bearer"},
 		"device_authorization_endpoint":                  appUrl + "/api/oidc/device/authorize",
 		"jwks_uri":                                       internalAppUrl + "/.well-known/jwks.json",
 		"grant_types_supported":                          []string{service.GrantTypeAuthorizationCode, service.GrantTypeRefreshToken, service.GrantTypeDeviceCode, service.GrantTypeClientCredentials},
