@@ -101,7 +101,7 @@ func New(ctx context.Context, deps Dependencies) (*Module, error) {
 		store:        store,
 		cimdResolver: cimdResolver,
 
-		authorizationHandler: newAuthorizationHandler(provider, authorizationService, deps.Config.BaseURL),
+		authorizationHandler: newAuthorizationHandler(provider, authorizationService),
 		tokenHandler:         newTokenHandler(provider, claimsService, deps.APIAccess),
 		userInfoHandler:      newUserInfoHandler(provider, claimsService, deps.Config.BaseURL),
 		parHandler:           newPARHandler(provider),
