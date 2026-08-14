@@ -82,11 +82,11 @@ jobs:
           MACOS_NOTARY_ISSUER_ID: ${{ secrets.MACOS_NOTARY_ISSUER_ID }}
 
       - name: Binary attestation
-        uses: actions/attest@v4.2.1
+        uses: actions/attest@v4.2.2
         with:
           subject-checksums: ./dist/checksums.txt
 
       - name: Container image attestation
-        uses: actions/attest@v4.2.1
+        uses: actions/attest@v4.2.2
         with:
           subject-checksums: ./dist/digests.txt
