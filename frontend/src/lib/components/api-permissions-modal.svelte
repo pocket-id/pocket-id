@@ -1,38 +1,47 @@
 <script lang="ts">
+	import SwitchWithLabel from '$lib/components/form/switch-with-label.svelte';
 	import AdvancedTable from '$lib/components/table/advanced-table.svelte';
 	import { Button } from '$lib/components/ui/button';
 	import Checkbox from '$lib/components/ui/checkbox/checkbox.svelte';
 	import * as Dialog from '$lib/components/ui/dialog';
 	import { m } from '$lib/paraglide/messages';
 	import type { AdvancedTableColumn } from '$lib/types/advanced-table.type';
-	import type { Api, ApiPermission } from '$lib/types/api.type';
+	import type { Api, ApiClientGrant, ApiPermission } from '$lib/types/api.type';
 	import type { ListRequestOptions, Paginated } from '$lib/types/list-request.type';
 	import { axiosErrorToast } from '$lib/utils/error-util';
 
 	let {
 		open = $bindable(),
 		api,
-		userAllowedIds,
-		clientAllowedIds,
+		grant,
+		implicitUserAccess = false,
+		implicitUserIds = [],
 		showClientAccess,
+		title,
 		onSave
 	}: {
 		open: boolean;
 		api: Api;
-		userAllowedIds: string[];
-		clientAllowedIds: string[];
+		grant: ApiClientGrant;
+		implicitUserAccess?: boolean;
+		implicitUserIds?: string[];
 		showClientAccess: boolean;
-		onSave: (userPermissionIds: string[], clientPermissionIds: string[]) => Promise<void>;
+		title?: string;
+		onSave: (grant: ApiClientGrant) => Promise<void>;
 	} = $props();
 
+	let workingUserAccess = $state(false);
+	let workingClientAccess = $state(false);
 	let workingUser = $state<string[]>([]);
 	let workingClient = $state<string[]>([]);
 	let saving = $state(false);
 
 	$effect(() => {
 		if (open) {
-			workingUser = [...userAllowedIds];
-			workingClient = [...clientAllowedIds];
+			workingUserAccess = grant.userDelegatedAccess;
+			workingClientAccess = grant.clientAccess;
+			workingUser = [...grant.userDelegatedPermissionIds];
+			workingClient = [...grant.clientPermissionIds];
 		}
 	});
 
@@ -51,6 +60,21 @@
 			return ids.includes(id) ? ids : [...ids, id];
 		}
 		return ids.filter((existing) => existing !== id);
+	}
+
+	// A permission only makes sense together with access to the API, so checking one turns the access on and turning access off drops the selection
+	function toggleUserPermission(id: string, checked: boolean) {
+		workingUser = toggle(workingUser, id, checked);
+		if (checked) {
+			workingUserAccess = true;
+		}
+	}
+
+	function toggleClientPermission(id: string, checked: boolean) {
+		workingClient = toggle(workingClient, id, checked);
+		if (checked) {
+			workingClientAccess = true;
+		}
 	}
 
 	function fetchCallback(options: ListRequestOptions): Promise<Paginated<ApiPermission>> {
@@ -95,7 +119,12 @@
 	async function save() {
 		saving = true;
 		try {
-			await onSave(workingUser, workingClient);
+			await onSave({
+				userDelegatedAccess: workingUserAccess,
+				clientAccess: showClientAccess && workingClientAccess,
+				userDelegatedPermissionIds: workingUserAccess ? workingUser : [],
+				clientPermissionIds: showClientAccess && workingClientAccess ? workingClient : []
+			});
 			open = false;
 		} catch (e) {
 			axiosErrorToast(e);
@@ -110,10 +139,13 @@
 {/snippet}
 
 {#snippet UserDelegatedCell({ item }: { item: ApiPermission })}
+	{@const implicit = implicitUserIds.includes(item.id)}
 	<Checkbox
 		aria-label={`${m.user_delegated_access()}: ${item.name}`}
-		checked={workingUser.includes(item.id)}
-		onCheckedChange={(checked: boolean) => (workingUser = toggle(workingUser, item.id, checked))}
+		checked={implicit || workingUser.includes(item.id)}
+		disabled={implicit}
+		title={implicit ? m.granted_through_cimd_access() : undefined}
+		onCheckedChange={(checked: boolean) => toggleUserPermission(item.id, checked)}
 	/>
 {/snippet}
 
@@ -121,29 +153,64 @@
 	<Checkbox
 		aria-label={`${m.client_access()}: ${item.name}`}
 		checked={workingClient.includes(item.id)}
-		onCheckedChange={(checked: boolean) =>
-			(workingClient = toggle(workingClient, item.id, checked))}
+		onCheckedChange={(checked: boolean) => toggleClientPermission(item.id, checked)}
 	/>
 {/snippet}
 
 <Dialog.Root bind:open>
 	<Dialog.Content class="max-h-[90vh] min-w-[90vw] overflow-auto lg:min-w-250">
 		<Dialog.Header>
-			<Dialog.Title>{api.name}</Dialog.Title>
+			<Dialog.Title>{title ?? api.name}</Dialog.Title>
 			<Dialog.Description>
-				{m.select_the_permissions_this_client_may_request()}
+				{m.select_the_access_this_client_may_request()}
 				{#if !showClientAccess}
 					{m.client_access_unavailable_for_public_clients()}
+				{/if}
+				{#if implicitUserAccess}
+					{m.access_granted_through_cimd_access()}
 				{/if}
 			</Dialog.Description>
 		</Dialog.Header>
 
-		<AdvancedTable
-			id={`api-access-grants-${api.id}`}
-			{columns}
-			{fetchCallback}
-			defaultSort={{ column: 'name', direction: 'asc' }}
-		/>
+		<div class="flex flex-col gap-4 sm:flex-row sm:gap-10">
+			<SwitchWithLabel
+				id={`api-user-access-${api.id}`}
+				label={m.user_delegated_access()}
+				description={m.user_delegated_access_description()}
+				checked={implicitUserAccess || workingUserAccess}
+				disabled={implicitUserAccess}
+				onCheckedChange={(checked) => {
+					workingUserAccess = checked;
+					if (!checked) {
+						workingUser = [];
+					}
+				}}
+			/>
+			{#if showClientAccess}
+				<SwitchWithLabel
+					id={`api-client-access-${api.id}`}
+					label={m.client_access()}
+					description={m.client_access_description()}
+					bind:checked={workingClientAccess}
+					onCheckedChange={(checked) => {
+						if (!checked) {
+							workingClient = [];
+						}
+					}}
+				/>
+			{/if}
+		</div>
+
+		{#if api.permissions.length > 0}
+			<div class="overflow-auto">
+				<AdvancedTable
+					id={`api-access-grants-${api.id}`}
+					{columns}
+					{fetchCallback}
+					defaultSort={{ column: 'name', direction: 'asc' }}
+				/>
+			</div>
+		{/if}
 
 		<div class="mt-4 flex justify-end gap-2">
 			<Button variant="secondary" onclick={() => (open = false)}>{m.cancel()}</Button>

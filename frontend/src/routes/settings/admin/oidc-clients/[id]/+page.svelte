@@ -359,15 +359,7 @@
 	</Tabs.Content>
 
 	<Tabs.Content value="api-access" id="api-access">
-		<Card.Root>
-			<Card.Header>
-				<Card.Title>{m.api_access()}</Card.Title>
-				<Card.Description>{m.api_access_description()}</Card.Description>
-			</Card.Header>
-			<Card.Content>
-				<ApiAccessCard clientId={client.id} isPublicClient={client.isPublic} />
-			</Card.Content>
-		</Card.Root>
+		<ApiAccessCard clientId={client.id} isPublicClient={client.isPublic} />
 	</Tabs.Content>
 
 	<Tabs.Content value="scim" id="scim-provisioning">

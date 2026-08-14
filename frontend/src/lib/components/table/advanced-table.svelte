@@ -25,6 +25,7 @@
 		selectedIds = $bindable(),
 		withoutSearch = false,
 		selectionDisabled = false,
+		onRowClick,
 		rowSelectionDisabled,
 		fetchCallback,
 		defaultSort,
@@ -39,6 +40,7 @@
 		fetchCallback: (requestOptions: ListRequestOptions) => Promise<Paginated<T>>;
 		defaultSort?: SortRequest;
 		columns: AdvancedTableColumn<T>[];
+		onRowClick?: (item: T) => void;
 		actions?: CreateAdvancedTableActions<T>;
 	} = $props();
 
@@ -270,9 +272,9 @@
 						<Table.Row
 							class={{
 								'bg-muted/20': selectedIds?.includes(item.id),
-								'cursor-pointer': getPrimaryAction(item)
+								'cursor-pointer': getPrimaryAction(item) || onRowClick
 							}}
-							onclick={getPrimaryAction(item)}
+							onclick={onRowClick ? () => onRowClick(item) : getPrimaryAction(item)}
 						>
 							{#if selectedIds}
 								<Table.Cell class="w-12">

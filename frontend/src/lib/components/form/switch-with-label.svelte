@@ -1,6 +1,7 @@
 <script lang="ts">
 	import { Label } from '$lib/components/ui/label';
 	import { Switch } from '$lib/components/ui/switch/index.js';
+	import { cn } from '$lib/utils/style';
 
 	let {
 		id,
@@ -8,6 +9,7 @@
 		label,
 		description,
 		disabled = false,
+		class: className,
 		onCheckedChange
 	}: {
 		id: string;
@@ -15,11 +17,12 @@
 		label: string;
 		description?: string;
 		disabled?: boolean;
+		class?: string;
 		onCheckedChange?: (checked: boolean) => void;
 	} = $props();
 </script>
 
-<div class="items-top flex space-x-2">
+<div class={cn('items-top flex space-x-2', className)}>
 	<Switch
 		{id}
 		{disabled}

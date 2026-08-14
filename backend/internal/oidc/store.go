@@ -107,7 +107,7 @@ func (s *Store) GetClient(ctx context.Context, id string) (fosite.Client, error)
 
 	// Populate the custom-API scopes and audiences the client may request only when the API feature is wired
 	if s.apiAccess != nil {
-		apiScopes, apiAudiences, err := s.apiAccess.ClientAPIScopes(ctx, tx, id)
+		apiScopes, apiAudiences, err := s.apiAccess.ClientAPIScopes(ctx, tx, id, clientModel.IsMetadataDocument())
 		if err != nil {
 			return nil, err
 		}
@@ -133,7 +133,7 @@ func (s *Store) clientFromModel(ctx context.Context, tx *gorm.DB, clientModel mo
 
 	// Populate the custom-API scopes and audiences the client may request only when the API feature is wired
 	if s.apiAccess != nil {
-		apiScopes, apiAudiences, err := s.apiAccess.ClientAPIScopes(ctx, tx, clientModel.ID)
+		apiScopes, apiAudiences, err := s.apiAccess.ClientAPIScopes(ctx, tx, clientModel.ID, clientModel.IsMetadataDocument())
 		if err != nil {
 			return Client{}, err
 		}

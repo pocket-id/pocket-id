@@ -1,9 +1,13 @@
 import type {
 	Api,
+	ApiCimdAccessUpdate,
+	ApiClient,
+	ApiClientAccess,
+	ApiClientGrant,
 	ApiCreate,
 	ApiPermissionInput,
 	ApiUpdate,
-	ClientApiAccess
+	ClientApiGrant
 } from '$lib/types/api.type';
 import type { ListRequestOptions, Paginated } from '$lib/types/list-request.type';
 import { encodeClientIdParam } from '$lib/utils/client-id-util';
@@ -44,13 +48,39 @@ export default class ApisService extends APIService {
 		return res.data as Api;
 	};
 
-	getClientAccess = async (clientId: string) => {
-		const res = await this.api.get(`/api-access/${encodeClientIdParam(clientId)}`);
-		return res.data as ClientApiAccess;
+	updateCimdAccess = async (id: string, access: ApiCimdAccessUpdate) => {
+		const res = await this.api.put(`/apis/${id}/cimd-access`, access);
+		return res.data as Api;
 	};
 
-	updateClientAccess = async (clientId: string, access: ClientApiAccess) => {
-		const res = await this.api.put(`/api-access/${encodeClientIdParam(clientId)}`, access);
-		return res.data as ClientApiAccess;
+	listClients = async (id: string, options?: ListRequestOptions) => {
+		const res = await this.api.get(`/apis/${id}/clients`, { params: options });
+		return res.data as Paginated<ApiClientAccess>;
+	};
+
+	listAssignableClients = async (id: string, options?: ListRequestOptions) => {
+		const res = await this.api.get(`/apis/${id}/assignable-clients`, { params: options });
+		return res.data as Paginated<ApiClient>;
+	};
+
+	updateClientAccessForApi = async (id: string, clientId: string, grant: ApiClientGrant) => {
+		const res = await this.api.put(`/apis/${id}/clients/${encodeClientIdParam(clientId)}`, grant);
+		return res.data as ApiClientGrant;
+	};
+
+	removeClientAccessForApi = async (id: string, clientId: string) => {
+		await this.api.delete(`/apis/${id}/clients/${encodeClientIdParam(clientId)}`);
+	};
+
+	listClientApis = async (clientId: string) => {
+		const res = await this.api.get(`/api-access/${encodeClientIdParam(clientId)}/apis`);
+		return res.data as ClientApiGrant[];
+	};
+
+	listAssignableApis = async (clientId: string, options?: ListRequestOptions) => {
+		const res = await this.api.get(`/api-access/${encodeClientIdParam(clientId)}/assignable-apis`, {
+			params: options
+		});
+		return res.data as Paginated<Api>;
 	};
 }
