@@ -15,6 +15,7 @@ type UserDto struct {
 	LastName      *string               `json:"lastName"`
 	DisplayName   string                `json:"displayName"`
 	IsAdmin       bool                  `json:"isAdmin"`
+	IsAgent       bool                  `json:"isAgent"`
 	Locale        *string               `json:"locale"`
 	CustomClaims  []CustomClaimDto      `json:"customClaims"`
 	UserGroups    []UserGroupMinimalDto `json:"userGroups"`
@@ -31,6 +32,7 @@ type UserCreateDto struct {
 	LastName      string   `json:"lastName" binding:"max=50" unorm:"nfc"`
 	DisplayName   string   `json:"displayName" binding:"max=100" unorm:"nfc"`
 	IsAdmin       bool     `json:"isAdmin"`
+	IsAgent       bool     `json:"isAgent"`
 	Locale        *string  `json:"locale"`
 	Disabled      bool     `json:"disabled"`
 	UserGroupIds  []string `json:"userGroupIds"`

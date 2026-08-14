@@ -11,6 +11,7 @@ export type User = {
 	lastName?: string;
 	displayName: string;
 	isAdmin: boolean;
+	isAgent: boolean;
 	userGroups: UserGroup[];
 	customClaims: CustomClaim[];
 	locale?: Locale;
@@ -20,11 +21,11 @@ export type User = {
 
 export type UserCreate = Omit<User, 'id' | 'customClaims' | 'ldapId' | 'userGroups'>;
 
-export type AccountUpdate = Omit<UserCreate, 'isAdmin' | 'disabled' | 'emailVerified'>;
+export type AccountUpdate = Omit<UserCreate, 'isAdmin' | 'disabled' | 'emailVerified' | 'isAgent'>;
 
 export type UserSignUp = Omit<
 	UserCreate,
-	'isAdmin' | 'disabled' | 'displayName' | 'emailVerified'
+	'isAdmin' | 'disabled' | 'displayName' | 'emailVerified' | 'isAgent'
 > & {
 	token?: string;
 };

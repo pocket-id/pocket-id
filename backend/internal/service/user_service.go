@@ -289,6 +289,11 @@ func (s *UserService) createUserInternal(ctx context.Context, input dto.UserCrea
 		}
 	}
 
+	isAgent := input.IsAgent
+	if isLdapSync {
+		isAgent = false
+	}
+
 	user := model.User{
 		FirstName:     input.FirstName,
 		LastName:      input.LastName,
@@ -297,6 +302,7 @@ func (s *UserService) createUserInternal(ctx context.Context, input dto.UserCrea
 		EmailVerified: input.EmailVerified,
 		Username:      input.Username,
 		IsAdmin:       input.IsAdmin,
+		IsAgent:       isAgent,
 		Locale:        input.Locale,
 		Disabled:      input.Disabled,
 		UserGroups:    userGroups,
@@ -506,6 +512,25 @@ func (s *UserService) UpdateUserInternal(ctx context.Context, cfg *appconfig.App
 			user.IsAdmin = updatedUser.IsAdmin
 			user.EmailVerified = updatedUser.EmailVerified
 			user.Disabled = updatedUser.Disabled
+
+			if !isLdapSync {
+				if user.IsAgent != updatedUser.IsAgent {
+					var passkeyCount int64
+					if err := tx.WithContext(ctx).Model(&model.WebauthnCredential{}).Where("user_id = ?", user.ID).Count(&passkeyCount).Error; err != nil {
+						return model.User{}, err
+					}
+
+					var runtimeCredentialCount int64
+					if err := tx.WithContext(ctx).Model(&model.RuntimeCredential{}).Where("user_id = ? AND revoked_at IS NULL", user.ID).Count(&runtimeCredentialCount).Error; err != nil {
+						return model.User{}, err
+					}
+
+					if passkeyCount > 0 || runtimeCredentialCount > 0 {
+						return model.User{}, apperror.AuthenticationPathChangeBlocked()
+					}
+					user.IsAgent = updatedUser.IsAgent
+				}
+			}
 		}
 	}
 

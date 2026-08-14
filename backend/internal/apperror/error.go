@@ -68,6 +68,10 @@ const (
 	CodeLogoTypeNotSupported            Code = "logo_type_not_supported"
 	CodeLogoTooLarge                    Code = "logo_too_large"
 	CodeOidcPARRequired                 Code = "oidc_par_required"
+	CodeAuthenticationPathChangeBlocked Code = "authentication_path_change_blocked"
+	CodeAuthenticationPathMismatch      Code = "authentication_path_mismatch"
+	CodeRuntimeCredentialInvalid        Code = "runtime_credential_invalid"
+	CodeRuntimeCredentialExists         Code = "runtime_credential_exists"
 )
 
 // FieldError describes one safe, client-actionable validation failure

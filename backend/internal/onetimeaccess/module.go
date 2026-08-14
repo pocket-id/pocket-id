@@ -47,6 +47,16 @@ type Module struct {
 	handler *handler
 }
 
+// ConsumeToken atomically consumes one-time bootstrap authority for another Pocket ID completion flow
+func (m *Module) ConsumeToken(ctx context.Context, token, deviceToken string) (TokenState, error) {
+	return m.service.ConsumeToken(ctx, token, deviceToken)
+}
+
+// RestoreToken performs best-effort compensation when a completion flow fails before durable state is committed
+func (m *Module) RestoreToken(ctx context.Context, token string, state TokenState) {
+	m.service.RestoreToken(ctx, token, state)
+}
+
 func New(deps Dependencies) (*Module, error) {
 	// Register the actor that manages a one-time access token
 	// Each token is its own actor, whose actor ID is the token's value

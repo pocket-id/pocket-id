@@ -12,13 +12,15 @@
 	import UserService from '$lib/services/user-service';
 	import appConfigStore from '$lib/stores/application-configuration-store';
 	import type { Passkey } from '$lib/types/passkey.type';
+	import type { RuntimeCredential } from '$lib/types/runtime-credential.type';
 	import type { UserCreate } from '$lib/types/user.type';
 	import { axiosErrorToast } from '$lib/utils/error-util';
-	import { KeyRound, LucideChevronLeft } from '@lucide/svelte';
+	import { Bot, KeyRound, LucideChevronLeft } from '@lucide/svelte';
 	import { toast } from 'svelte-sonner';
 	import { backNavigate } from '../navigate-back-util';
 	import UserForm from '../user-form.svelte';
 	import AdminPasskeyList from './admin-passkey-list.svelte';
+	import AdminRuntimeCredentialList from './admin-runtime-credential-list.svelte';
 
 	let { data } = $props();
 	let user = $state({
@@ -26,6 +28,10 @@
 		userGroupIds: data.user.userGroups.map((g) => g.id)
 	});
 	let passkeys: Passkey[] = $state(data.passkeys);
+	let runtimeCredentials: RuntimeCredential[] = $state(data.runtimeCredentials);
+	let authenticationPathChangeBlocked = $derived(
+		passkeys.length > 0 || runtimeCredentials.some((credential) => !credential.revokedAt)
+	);
 
 	const userService = new UserService();
 	const customClaimService = new CustomClaimService();
@@ -44,7 +50,10 @@
 		let success = true;
 		await userService
 			.update(user.id, updatedUser)
-			.then(() => toast.success(m.user_updated_successfully()))
+			.then((updatedUser) => {
+				Object.assign(user, updatedUser);
+				toast.success(m.user_updated_successfully());
+			})
 			.catch((e) => {
 				axiosErrorToast(e);
 				success = false;
@@ -99,7 +108,9 @@
 		<Tabs.List variant="line" class="min-w-max">
 			<Tabs.Trigger value="general">{m.general()}</Tabs.Trigger>
 			<Tabs.Trigger value="groups">{m.user_groups()}</Tabs.Trigger>
-			<Tabs.Trigger value="passkeys">{m.passkeys()}</Tabs.Trigger>
+			<Tabs.Trigger value="credentials">
+				{user.isAgent ? m.runtime_credentials() : m.passkeys()}
+			</Tabs.Trigger>
 			<Tabs.Trigger value="custom-claims">{m.custom_claims()}</Tabs.Trigger>
 		</Tabs.List>
 	</div>
@@ -110,7 +121,7 @@
 				<Card.Title>{m.general()}</Card.Title>
 			</Card.Header>
 			<Card.Content>
-				<UserForm existingUser={user} callback={updateUser} />
+				<UserForm {authenticationPathChangeBlocked} existingUser={user} callback={updateUser} />
 			</Card.Content>
 		</Card.Root>
 
@@ -148,22 +159,35 @@
 		</Card.Root>
 	</Tabs.Content>
 
-	<Tabs.Content value="passkeys">
+	<Tabs.Content value="credentials">
 		<Item.Group class="bg-card rounded-4xl border p-5 shadow-sm">
 			<Item.Root class="border-none bg-transparent p-0">
 				<Item.Media class="text-primary/80">
-					<KeyRound class="size-5" />
+					{#if user.isAgent}
+						<Bot class="size-5" />
+					{:else}
+						<KeyRound class="size-5" />
+					{/if}
 				</Item.Media>
 				<Item.Content class="min-w-52">
-					<Item.Title class="text-xl font-semibold">{m.passkeys()}</Item.Title>
-					<Item.Description
-						>{passkeys.length > 0
-							? m.manage_this_users_passkeys()
-							: m.user_has_no_passkeys_yet()}</Item.Description
-					>
+					{#if user.isAgent}
+						<Item.Title class="text-xl font-semibold">{m.runtime_credentials()}</Item.Title>
+						<Item.Description>
+							{runtimeCredentials.length > 0
+								? m.manage_this_users_runtime_credentials()
+								: m.user_has_no_runtime_credentials_yet()}
+						</Item.Description>
+					{:else}
+						<Item.Title class="text-xl font-semibold">{m.passkeys()}</Item.Title>
+						<Item.Description>
+							{passkeys.length > 0 ? m.manage_this_users_passkeys() : m.user_has_no_passkeys_yet()}
+						</Item.Description>
+					{/if}
 				</Item.Content>
 			</Item.Root>
-			{#if passkeys.length > 0}
+			{#if user.isAgent && runtimeCredentials.length > 0}
+				<AdminRuntimeCredentialList userId={user.id} bind:credentials={runtimeCredentials} />
+			{:else if !user.isAgent && passkeys.length > 0}
 				<AdminPasskeyList userId={user.id} bind:passkeys />
 			{/if}
 		</Item.Group>

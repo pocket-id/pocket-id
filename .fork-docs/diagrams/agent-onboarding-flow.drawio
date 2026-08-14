@@ -1,0 +1,102 @@
+<mxfile host="app.diagrams.net" modified="2026-08-13T20:55:00.000Z" agent="OpenClaw Vex" version="24.7.17">
+  <diagram id="agent-onboarding-flow" name="Agent Onboarding Flow">
+    <mxGraphModel dx="1600" dy="900" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="1600" pageHeight="1000" math="0" shadow="0">
+      <root>
+        <mxCell id="0" />
+        <mxCell id="1" parent="0" />
+        <mxCell id="title" value="Agent identity onboarding: PocketID configuration to first app authentication" style="text;html=1;strokeColor=none;fillColor=none;align=center;verticalAlign=middle;whiteSpace=wrap;rounded=0;fontSize=22;fontStyle=1" vertex="1" parent="1">
+          <mxGeometry x="180" y="20" width="1240" height="40" as="geometry" />
+        </mxCell>
+        <mxCell id="subtitle" value="Example agent: Vex &lt;vex@vanness.me&gt;. Goal: match human onboarding division of work while identifying where agent-friendly features are needed." style="text;html=1;strokeColor=none;fillColor=none;align=center;verticalAlign=middle;whiteSpace=wrap;rounded=0;fontSize=14;fontColor=#4b5563" vertex="1" parent="1">
+          <mxGeometry x="210" y="60" width="1180" height="30" as="geometry" />
+        </mxCell>
+
+        <mxCell id="phase1" value="1. PocketID configuration" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#eef2ff;strokeColor=#6366f1;fontSize=16;fontStyle=1" vertex="1" parent="1">
+          <mxGeometry x="230" y="110" width="330" height="52" as="geometry" />
+        </mxCell>
+        <mxCell id="phase2" value="2. Agent completion" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#eef2ff;strokeColor=#6366f1;fontSize=16;fontStyle=1" vertex="1" parent="1">
+          <mxGeometry x="635" y="110" width="330" height="52" as="geometry" />
+        </mxCell>
+        <mxCell id="phase3" value="3. First app authentication" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#eef2ff;strokeColor=#6366f1;fontSize=16;fontStyle=1" vertex="1" parent="1">
+          <mxGeometry x="1040" y="110" width="330" height="52" as="geometry" />
+        </mxCell>
+
+        <mxCell id="admin-lane" value="Human administrator actions" style="swimlane;html=1;rounded=1;startSize=36;fillColor=#f8fafc;strokeColor=#94a3b8;fontSize=15;fontStyle=1;horizontal=0" vertex="1" parent="1">
+          <mxGeometry x="50" y="185" width="1500" height="295" as="geometry" />
+        </mxCell>
+        <mxCell id="agent-lane" value="Agent Vex actions" style="swimlane;html=1;rounded=1;startSize=36;fillColor=#ffffff;strokeColor=#94a3b8;fontSize=15;fontStyle=1;horizontal=0" vertex="1" parent="1">
+          <mxGeometry x="50" y="510" width="1500" height="315" as="geometry" />
+        </mxCell>
+
+        <mxCell id="admin-create-user" value="Create PocketID user&lt;br&gt;&lt;b&gt;Vex&lt;/b&gt; / vex@vanness.me&lt;br&gt;&lt;font color=&quot;#047857&quot;&gt;Existing&lt;/font&gt;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ecfdf5;strokeColor=#10b981;fontSize=14" vertex="1" parent="1">
+          <mxGeometry x="245" y="230" width="250" height="90" as="geometry" />
+        </mxCell>
+        <mxCell id="admin-send-bootstrap" value="Provide bootstrap details&lt;br&gt;username, one-time login URL&lt;br&gt;&lt;font color=&quot;#047857&quot;&gt;Existing: one-time access link&lt;/font&gt;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ecfdf5;strokeColor=#10b981;fontSize=14" vertex="1" parent="1">
+          <mxGeometry x="245" y="350" width="250" height="90" as="geometry" />
+        </mxCell>
+        <mxCell id="admin-enable-outline" value="Enable Outline Wiki for Vex&lt;br&gt;app assignment / membership&lt;br&gt;&lt;font color=&quot;#047857&quot;&gt;Existing: app-side admin step&lt;/font&gt;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ecfdf5;strokeColor=#10b981;fontSize=14" vertex="1" parent="1">
+          <mxGeometry x="1055" y="230" width="270" height="90" as="geometry" />
+        </mxCell>
+        <mxCell id="admin-stop" value="Admin handoff complete&lt;br&gt;Identity and app access are ready&lt;br&gt;&lt;font color=&quot;#4b5563&quot;&gt;Same role as human onboarding&lt;/font&gt;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f1f5f9;strokeColor=#64748b;fontSize=14" vertex="1" parent="1">
+          <mxGeometry x="1055" y="350" width="270" height="90" as="geometry" />
+        </mxCell>
+
+        <mxCell id="agent-open-link" value="Open one-time login URL&lt;br&gt;establish PocketID session&lt;br&gt;&lt;font color=&quot;#047857&quot;&gt;Existing&lt;/font&gt;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ecfdf5;strokeColor=#10b981;fontSize=14" vertex="1" parent="1">
+          <mxGeometry x="245" y="555" width="250" height="90" as="geometry" />
+        </mxCell>
+        <mxCell id="agent-passkey-blocker" value="Current completion blocker&lt;br&gt;passkey registration requires native user presence&lt;br&gt;&lt;font color=&quot;#b91c1c&quot;&gt;Existing behavior, agent-hostile&lt;/font&gt;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#fef2f2;strokeColor=#ef4444;fontSize=14" vertex="1" parent="1">
+          <mxGeometry x="610" y="555" width="300" height="95" as="geometry" />
+        </mxCell>
+        <mxCell id="agent-enrollment" value="Complete agent-compatible first login&lt;br&gt;create durable agent login capability&lt;br&gt;&lt;font color=&quot;#b45309&quot;&gt;Proposed PocketID feature&lt;/font&gt;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#fffbeb;strokeColor=#f59e0b;fontSize=14" vertex="1" parent="1">
+          <mxGeometry x="610" y="690" width="300" height="90" as="geometry" />
+        </mxCell>
+        <mxCell id="agent-outline-oidc" value="Authenticate to Outline via PocketID OIDC&lt;br&gt;Vex acts as Vex&lt;br&gt;&lt;font color=&quot;#047857&quot;&gt;Existing identity pattern&lt;/font&gt;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ecfdf5;strokeColor=#10b981;fontSize=14" vertex="1" parent="1">
+          <mxGeometry x="1035" y="555" width="310" height="90" as="geometry" />
+        </mxCell>
+        <mxCell id="agent-outline-work" value="Begin work in Outline Wiki&lt;br&gt;browser session or app-issued API key for MCP&lt;br&gt;&lt;font color=&quot;#4b5563&quot;&gt;App-specific step after login&lt;/font&gt;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f1f5f9;strokeColor=#64748b;fontSize=14" vertex="1" parent="1">
+          <mxGeometry x="1035" y="690" width="310" height="90" as="geometry" />
+        </mxCell>
+
+        <mxCell id="note-human-analogy" value="Human analogy&lt;br&gt;Admin provisions identity and app access, then hands off a one-time login URL. Vex completes first login. For agents, PocketID needs a completion path that substitutes for human passkey/password setup without adding a second approval gate." style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f8fafc;strokeColor=#cbd5e1;fontSize=13;align=left;spacing=12" vertex="1" parent="1">
+          <mxGeometry x="100" y="855" width="520" height="90" as="geometry" />
+        </mxCell>
+        <mxCell id="legend-existing" value="Existing functionality" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ecfdf5;strokeColor=#10b981;fontSize=13" vertex="1" parent="1">
+          <mxGeometry x="930" y="855" width="170" height="40" as="geometry" />
+        </mxCell>
+        <mxCell id="legend-proposed" value="Proposed feature" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#fffbeb;strokeColor=#f59e0b;fontSize=13" vertex="1" parent="1">
+          <mxGeometry x="1120" y="855" width="170" height="40" as="geometry" />
+        </mxCell>
+        <mxCell id="legend-blocker" value="Current blocker" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#fef2f2;strokeColor=#ef4444;fontSize=13" vertex="1" parent="1">
+          <mxGeometry x="1310" y="855" width="170" height="40" as="geometry" />
+        </mxCell>
+
+        <mxCell id="edge-admin-1" value="" style="endArrow=block;html=1;rounded=0;strokeWidth=2;strokeColor=#64748b" edge="1" parent="1" source="admin-create-user" target="admin-send-bootstrap">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="edge-admin-to-agent" value="handoff" style="endArrow=block;html=1;rounded=0;strokeWidth=2;strokeColor=#64748b;fontSize=12" edge="1" parent="1" source="admin-send-bootstrap" target="agent-open-link">
+          <mxGeometry relative="1" as="geometry">
+            <mxPoint x="395" y="500" as="targetPoint" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="edge-agent-1" value="" style="endArrow=block;html=1;rounded=0;strokeWidth=2;strokeColor=#64748b" edge="1" parent="1" source="agent-open-link" target="agent-passkey-blocker">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="edge-blocker-to-proposed" value="replace or bypass for managed agents" style="endArrow=block;html=1;rounded=0;strokeWidth=2;strokeColor=#f59e0b;fontSize=12" edge="1" parent="1" source="agent-passkey-blocker" target="agent-enrollment">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="edge-admin-outline" value="" style="endArrow=block;html=1;rounded=0;strokeWidth=2;strokeColor=#64748b" edge="1" parent="1" source="admin-enable-outline" target="admin-stop">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="edge-enroll-outline" value="identity ready" style="endArrow=block;html=1;rounded=0;strokeWidth=2;strokeColor=#64748b;fontSize=12" edge="1" parent="1" source="agent-enrollment" target="agent-outline-oidc">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="edge-admin-app-to-agent" value="app enabled" style="endArrow=block;html=1;rounded=0;strokeWidth=2;strokeColor=#64748b;fontSize=12" edge="1" parent="1" source="admin-stop" target="agent-outline-oidc">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="edge-agent-work" value="" style="endArrow=block;html=1;rounded=0;strokeWidth=2;strokeColor=#64748b" edge="1" parent="1" source="agent-outline-oidc" target="agent-outline-work">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+      </root>
+    </mxGraphModel>
+  </diagram>
+</mxfile>

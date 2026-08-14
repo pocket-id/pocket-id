@@ -24,6 +24,8 @@ import (
 // It must match the value emitted by the JWT service in the access token's "amr" claim
 const authenticationMethodPhishingResistant = "phr"
 
+const authenticationMethodProofOfPossession = "pop"
+
 const defaultRPDisplayName = "Pocket ID"
 
 // go-webauthn exposes the missing user-verification reason only through DevInfo
@@ -70,6 +72,7 @@ func newService(deps Dependencies) (*Service, error) {
 	}, nil
 }
 
+// BeginRegistration anchors FCA11 by keeping passkey registration, login, and reauthentication unavailable on the runtime-key path
 func (s *Service) BeginRegistration(ctx context.Context, dbConfig *appconfig.AppConfigModel, userID string) (*PublicKeyCredentialCreationOptions, error) {
 	s.updateWebAuthnConfig(dbConfig)
 
@@ -89,6 +92,9 @@ func (s *Service) BeginRegistration(ctx context.Context, dbConfig *appconfig.App
 	}
 	if err != nil {
 		return nil, fmt.Errorf("failed to load user: %w", err)
+	}
+	if user.IsAgent {
+		return nil, apperror.AuthenticationPathMismatch()
 	}
 
 	options, session, err := s.webAuthn.BeginRegistration(
@@ -169,6 +175,9 @@ func (s *Service) VerifyRegistration(ctx context.Context, dbConfig *appconfig.Ap
 	}
 	if err != nil {
 		return model.WebauthnCredential{}, fmt.Errorf("failed to load user: %w", err)
+	}
+	if user.IsAgent {
+		return model.WebauthnCredential{}, apperror.AuthenticationPathMismatch()
 	}
 
 	credential, err := s.webAuthn.FinishRegistration(&user, session, r)
@@ -298,6 +307,9 @@ func (s *Service) VerifyLogin(ctx context.Context, dbConfig *appconfig.AppConfig
 	}
 	if user == nil {
 		return model.User{}, "", apperror.WebAuthnAuthenticationFailed(errors.New("WebAuthn response did not resolve to a user"))
+	}
+	if user.IsAgent {
+		return model.User{}, "", apperror.AuthenticationPathMismatch()
 	}
 
 	if user.Disabled {
@@ -468,7 +480,7 @@ func (s *Service) CreateReauthenticationTokenWithAccessToken(ctx context.Context
 	if err != nil {
 		return "", apperror.ReauthenticationRequiredWithCause(err)
 	}
-	if authenticationMethod != authenticationMethodPhishingResistant {
+	if authenticationMethod != authenticationMethodPhishingResistant && authenticationMethod != authenticationMethodProofOfPossession {
 		return "", apperror.ReauthenticationRequired()
 	}
 
@@ -552,6 +564,9 @@ func (s *Service) CreateReauthenticationTokenWithWebauthn(ctx context.Context, s
 	}
 	if user == nil {
 		return "", apperror.WebAuthnAuthenticationFailed(errors.New("WebAuthn response did not resolve to a user"))
+	}
+	if user.IsAgent {
+		return "", apperror.AuthenticationPathMismatch()
 	}
 
 	// Create reauthentication token

@@ -1,6 +1,6 @@
 {
 	"provider": "sqlite",
-	"version": 20260807120000,
+	"version": 20260814060000,
 	"tableOrder": [
 		"users",
 		"user_groups",
@@ -387,6 +387,7 @@
 		],
 		"users": [
 			{
+				"is_agent": false,
 				"created_at": "2025-11-25T12:39:02Z",
 				"updated_at": null,
 				"disabled": false,
@@ -402,6 +403,7 @@
 				"username": "tim"
 			},
 			{
+				"is_agent": false,
 				"created_at": "2025-11-25T12:39:02Z",
 				"updated_at": null,
 				"disabled": false,
@@ -417,6 +419,7 @@
 				"username": "craig"
 			},
 			{
+				"is_agent": false,
 				"created_at": "2025-11-25T12:39:02Z",
 				"updated_at": null,
 				"disabled": false,

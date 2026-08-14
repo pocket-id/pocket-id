@@ -98,6 +98,17 @@ func TestCreateReauthenticationTokenWithAccessToken(t *testing.T) {
 		assert.NotEmpty(t, reauthenticationToken)
 	})
 
+	t.Run("accepts a fresh access token from runtime proof login", func(t *testing.T) {
+		service, signer, user := setupService(t)
+		accessToken, err := signer.GenerateAccessToken(user, authenticationMethodProofOfPossession, time.Hour)
+		require.NoError(t, err)
+
+		reauthenticationToken, err := service.CreateReauthenticationTokenWithAccessToken(t.Context(), accessToken)
+
+		require.NoError(t, err)
+		assert.NotEmpty(t, reauthenticationToken)
+	})
+
 	t.Run("rejects a fresh access token from one-time access login", func(t *testing.T) {
 		service, signer, user := setupService(t)
 		accessToken, err := signer.GenerateAccessToken(user, "otp", time.Hour)
@@ -269,6 +280,17 @@ func TestWebAuthnManagementOperationsReturnSpecificNotFoundErrors(t *testing.T) 
 
 	err = service.DeleteCredential(t.Context(), "missing-user", "missing-passkey", "", "", "")
 	require.True(t, apperror.IsCode(err, apperror.CodeNotFound))
+}
+
+func TestBeginRegistrationRejectsRuntimeAuthenticationPath(t *testing.T) {
+	db := testutils.NewDatabaseForTest(t)
+	user := model.User{Base: model.Base{ID: "runtime-user"}, Username: "runtime-user", IsAgent: true}
+	require.NoError(t, db.Create(&user).Error)
+	service, err := newService(Dependencies{DB: db, AppURL: "https://example.com"})
+	require.NoError(t, err)
+
+	_, err = service.BeginRegistration(t.Context(), &appconfig.AppConfigModel{}, user.ID)
+	require.ErrorIs(t, err, apperror.AuthenticationPathMismatch())
 }
 
 // A ceremony that references a session which does not exist must be rejected outright

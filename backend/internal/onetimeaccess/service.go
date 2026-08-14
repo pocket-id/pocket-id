@@ -151,40 +151,52 @@ func (s *Service) CreateToken(ctx context.Context, userID string, ttl time.Durat
 func (s *Service) ExchangeToken(ctx context.Context, dbConfig *appconfig.AppConfigModel, token, deviceToken, ipAddress, userAgent string) (model.User, string, error) {
 	token = utils.NormalizeUnambiguousString(token)
 
+	state, err := s.ConsumeToken(ctx, token, deviceToken)
+	if err != nil {
+		return model.User{}, "", err
+	}
+
+	// The token has now been consumed. From this point on, if we hit an error we compensate by restoring the token (this is best-effort).
+	user, accessToken, err := s.completeTokenExchange(ctx, dbConfig, state, ipAddress, userAgent)
+	if err != nil {
+		s.RestoreToken(ctx, token, state)
+		return model.User{}, "", err
+	}
+
+	return user, accessToken, nil
+}
+
+// ConsumeToken implements FCA05 by sharing atomic one-time bootstrap authority with completion flows while avoiding a SQLite actor deadlock
+func (s *Service) ConsumeToken(ctx context.Context, token, deviceToken string) (TokenState, error) {
+	token = utils.NormalizeUnambiguousString(token)
+
 	// Consume the token by invoking its actor: this atomically validates it and, if valid, deletes it.
 	// It must happen outside of a DB transaction, since invoking an actor while a transaction is open would deadlock on SQLite.
 	res, err := s.actorService.Invoke(ctx, TokenActorType, token, tokenMethodConsume, tokenConsumeRequest{
 		DeviceToken: deviceToken,
 	})
 	if err != nil {
-		return model.User{}, "", fmt.Errorf("error invoking one-time access token actor: %w", err)
+		return TokenState{}, fmt.Errorf("error invoking one-time access token actor: %w", err)
 	}
 
 	var consumeRes tokenConsumeResponse
 	err = res.Decode(&consumeRes)
 	if err != nil {
-		return model.User{}, "", fmt.Errorf("error decoding one-time access token actor response: %w", err)
+		return TokenState{}, fmt.Errorf("error decoding one-time access token actor response: %w", err)
 	}
 
 	switch consumeRes.Status {
 	case tokenConsumeNotFound:
-		return model.User{}, "", apperror.TokenInvalidOrExpired()
+		return TokenState{}, apperror.TokenInvalidOrExpired()
 	case tokenConsumeDeviceMismatch:
-		return model.User{}, "", apperror.DeviceCodeInvalid()
+		return TokenState{}, apperror.DeviceCodeInvalid()
 	case tokenConsumeOK:
 		// All good, continue below
 	default:
-		return model.User{}, "", fmt.Errorf("unexpected status from one-time access token actor: %s", consumeRes.Status)
+		return TokenState{}, fmt.Errorf("unexpected status from one-time access token actor: %s", consumeRes.Status)
 	}
 
-	// The token has now been consumed. From this point on, if we hit an error we compensate by restoring the token (this is best-effort).
-	user, accessToken, err := s.completeTokenExchange(ctx, dbConfig, consumeRes.State, ipAddress, userAgent)
-	if err != nil {
-		s.restoreToken(ctx, token, consumeRes.State)
-		return model.User{}, "", err
-	}
-
-	return user, accessToken, nil
+	return consumeRes.State, nil
 }
 
 // completeTokenExchange performs the work that follows consuming a token: loading the user, validating it, and issuing an access token.
@@ -225,9 +237,9 @@ func (s *Service) completeTokenExchange(ctx context.Context, dbConfig *appconfig
 	return user, accessToken, nil
 }
 
-// restoreToken restores a token that was consumed but whose exchange could not be completed.
+// RestoreToken restores a token that was consumed but whose exchange could not be completed
 // It's a best-effort compensation: if it fails (or the process crashes before it runs) we accept that the token was consumed unnecessarily.
-func (s *Service) restoreToken(parentCtx context.Context, token string, state TokenState) {
+func (s *Service) RestoreToken(parentCtx context.Context, token string, state TokenState) {
 	// Use a context that is not canceled when the original request ends
 	ctx, cancel := context.WithTimeout(context.WithoutCancel(parentCtx), 10*time.Second)
 	defer cancel()

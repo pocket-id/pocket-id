@@ -1,0 +1,17 @@
+ℹ️  Using version: 2.13.1
+🗃  Cache: harbor.vanness.me/public/pocket-id:buildcache
+▶️  Build plan
+  Platform : linux/amd64
+  Context  : amd
+  Build dir: .
+  Dockerfile: ./Dockerfile
+  Builder  : pminc-builder-amd (docker-container)
+  Target   : fork
+  Registry : harbor.vanness.me/public
+  Image    : pocket-id
+  Version  : 2.13.1
+  Tag base : 2.13.1-dev
+  Tags     :
+    - harbor.vanness.me/public/pocket-id:2.13.1-dev
+    - harbor.vanness.me/public/pocket-id:latest
+❌ Error on line 584 (exit 1)

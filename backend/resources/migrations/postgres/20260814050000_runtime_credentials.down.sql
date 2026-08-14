@@ -1,0 +1,11 @@
+DROP TRIGGER IF EXISTS prevent_runtime_credential_on_passkey_path ON runtime_credentials;
+DROP FUNCTION IF EXISTS enforce_runtime_credential_path();
+DROP TRIGGER IF EXISTS prevent_passkey_on_runtime_path ON webauthn_credentials;
+DROP FUNCTION IF EXISTS enforce_passkey_path();
+DROP TRIGGER IF EXISTS prevent_agent_identifier_change_with_credentials ON users;
+DROP FUNCTION IF EXISTS enforce_authentication_path_transition();
+DROP TABLE IF EXISTS runtime_credential_challenges;
+DROP TABLE IF EXISTS runtime_credentials;
+DROP INDEX IF EXISTS idx_users_agent_identifier;
+ALTER TABLE users DROP CONSTRAINT IF EXISTS chk_users_agent_identifier;
+ALTER TABLE users DROP COLUMN agent_identifier;

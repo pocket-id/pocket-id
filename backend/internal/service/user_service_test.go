@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/google/uuid"
 	"github.com/stretchr/testify/require"
@@ -11,6 +12,8 @@ import (
 	"github.com/pocket-id/pocket-id/backend/internal/appconfig"
 	"github.com/pocket-id/pocket-id/backend/internal/apperror"
 	"github.com/pocket-id/pocket-id/backend/internal/dto"
+	"github.com/pocket-id/pocket-id/backend/internal/model"
+	datatype "github.com/pocket-id/pocket-id/backend/internal/model/types"
 	"github.com/pocket-id/pocket-id/backend/internal/storage"
 	testutils "github.com/pocket-id/pocket-id/backend/internal/utils/testing"
 )
@@ -77,6 +80,36 @@ func TestProfilePictureUpdatesRejectMissingUser(t *testing.T) {
 
 	err = userService.ResetProfilePicture(t.Context(), missingUserID)
 	require.True(t, apperror.IsCode(err, apperror.CodeUserNotFound))
+}
+
+func TestAgentSelectorPathChangesRequireNoActiveCredentials(t *testing.T) {
+	userService, _ := newTestUserService(t)
+	config := &appconfig.AppConfigModel{RequireUserEmail: "false"}
+	user, err := userService.CreateUser(t.Context(), config, dto.UserCreateDto{ID: uuid.NewString(), Username: "vex", IsAgent: true})
+	require.NoError(t, err)
+	require.True(t, user.IsAgent)
+
+	clearAgentSelector := dto.UserCreateDto{Username: user.Username}
+	passkey := model.WebauthnCredential{Name: "Existing passkey", CredentialID: []byte("credential"), PublicKey: []byte("public-key"), UserID: user.ID}
+	err = userService.db.Create(&passkey).Error
+	require.ErrorContains(t, err, "passkeys are not allowed on the runtime authentication path")
+
+	publicKey := make([]byte, 32)
+	runtimeCredential := model.RuntimeCredential{Name: "Runtime", Algorithm: model.RuntimeCredentialAlgorithmEd25519, PublicKey: publicKey, UserID: user.ID}
+	require.NoError(t, userService.db.Create(&runtimeCredential).Error)
+	_, err = userService.UpdateUser(t.Context(), config, user.ID, clearAgentSelector, false, false)
+	require.ErrorIs(t, err, apperror.AuthenticationPathChangeBlocked())
+
+	now := datatype.DateTime(time.Now())
+	require.NoError(t, userService.db.Model(&runtimeCredential).Update("revoked_at", now).Error)
+	updated, err := userService.UpdateUser(t.Context(), config, user.ID, clearAgentSelector, false, false)
+	require.NoError(t, err)
+	require.False(t, updated.IsAgent)
+
+	passkey = model.WebauthnCredential{Name: "Existing passkey", CredentialID: []byte("credential"), PublicKey: []byte("public-key"), UserID: user.ID}
+	require.NoError(t, userService.db.Create(&passkey).Error)
+	_, err = userService.UpdateUser(t.Context(), config, user.ID, dto.UserCreateDto{Username: user.Username, IsAgent: true}, false, false)
+	require.ErrorIs(t, err, apperror.AuthenticationPathChangeBlocked())
 }
 
 func TestCreateUserBumpsGroupUpdatedAt(t *testing.T) {

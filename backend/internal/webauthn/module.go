@@ -72,6 +72,11 @@ func (m *Module) ConsumeReauthenticationToken(ctx context.Context, tx *gorm.DB, 
 	return m.service.ConsumeReauthenticationToken(ctx, tx, token, userID)
 }
 
+// CreateReauthenticationToken creates the common recent-proof artifact after another credential module verifies its method-specific proof
+func (m *Module) CreateReauthenticationToken(ctx context.Context, tx *gorm.DB, userID string) (string, error) {
+	return m.service.createReauthenticationToken(ctx, tx, userID)
+}
+
 // ListCredentials returns the passkeys registered for the given user
 // It is consumed by the user controller for the admin "manage passkeys" view
 func (m *Module) ListCredentials(ctx context.Context, userID string) ([]model.WebauthnCredential, error) {

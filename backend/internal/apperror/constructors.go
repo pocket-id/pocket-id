@@ -90,6 +90,22 @@ func MissingPermission() *Error {
 	return New(CodeForbidden, http.StatusForbidden, "You don't have permission to perform this action")
 }
 
+func AuthenticationPathChangeBlocked() *Error {
+	return New(CodeAuthenticationPathChangeBlocked, http.StatusConflict, "Authentication path can't change while active credentials exist")
+}
+
+func AuthenticationPathMismatch() *Error {
+	return New(CodeAuthenticationPathMismatch, http.StatusConflict, "This credential isn't available for the configured authentication path")
+}
+
+func RuntimeCredentialInvalid() *Error {
+	return New(CodeRuntimeCredentialInvalid, http.StatusUnauthorized, "Runtime credential request is invalid or expired")
+}
+
+func RuntimeCredentialExists() *Error {
+	return New(CodeRuntimeCredentialExists, http.StatusConflict, "An active runtime credential already exists")
+}
+
 func TooManyRequests() *Error {
 	return New(CodeRateLimited, http.StatusTooManyRequests, "Too many requests")
 }

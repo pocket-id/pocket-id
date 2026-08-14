@@ -11,6 +11,7 @@ import (
 	"github.com/pocket-id/pocket-id/backend/internal/utils"
 )
 
+// User carries the FCA01 authentication-path selector without defining a separate identity class
 type User struct {
 	Base
 
@@ -21,14 +22,16 @@ type User struct {
 	LastName      string  `sortable:"true"`
 	DisplayName   string  `sortable:"true"`
 	IsAdmin       bool    `sortable:"true" filterable:"true"`
+	IsAgent       bool    `sortable:"true" filterable:"true"`
 	Locale        *string
 	LdapID        *string
 	Disabled      bool `sortable:"true" filterable:"true"`
 	UpdatedAt     *datatype.DateTime
 
-	CustomClaims []CustomClaim
-	UserGroups   []UserGroup `gorm:"many2many:user_groups_users;"`
-	Credentials  []WebauthnCredential
+	CustomClaims       []CustomClaim
+	UserGroups         []UserGroup `gorm:"many2many:user_groups_users;"`
+	Credentials        []WebauthnCredential
+	RuntimeCredentials []RuntimeCredential
 }
 
 func (u User) WebAuthnID() []byte { return []byte(u.ID) }

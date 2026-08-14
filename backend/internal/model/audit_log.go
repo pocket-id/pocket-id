@@ -27,16 +27,19 @@ type AuditLogData map[string]string //nolint:recvcheck
 type AuditLogEvent string //nolint:recvcheck
 
 const (
-	AuditLogEventSignIn                     AuditLogEvent = "SIGN_IN"
-	AuditLogEventOneTimeAccessTokenSignIn   AuditLogEvent = "TOKEN_SIGN_IN"
-	AuditLogEventRemoteSignIn               AuditLogEvent = "REMOTE_SIGN_IN"
-	AuditLogEventAccountCreated             AuditLogEvent = "ACCOUNT_CREATED"
-	AuditLogEventClientAuthorization        AuditLogEvent = "CLIENT_AUTHORIZATION"
-	AuditLogEventNewClientAuthorization     AuditLogEvent = "NEW_CLIENT_AUTHORIZATION"
-	AuditLogEventDeviceCodeAuthorization    AuditLogEvent = "DEVICE_CODE_AUTHORIZATION"
-	AuditLogEventNewDeviceCodeAuthorization AuditLogEvent = "NEW_DEVICE_CODE_AUTHORIZATION"
-	AuditLogEventPasskeyAdded               AuditLogEvent = "PASSKEY_ADDED"
-	AuditLogEventPasskeyRemoved             AuditLogEvent = "PASSKEY_REMOVED"
+	AuditLogEventSignIn                         AuditLogEvent = "SIGN_IN"
+	AuditLogEventOneTimeAccessTokenSignIn       AuditLogEvent = "TOKEN_SIGN_IN"
+	AuditLogEventRemoteSignIn                   AuditLogEvent = "REMOTE_SIGN_IN"
+	AuditLogEventAccountCreated                 AuditLogEvent = "ACCOUNT_CREATED"
+	AuditLogEventClientAuthorization            AuditLogEvent = "CLIENT_AUTHORIZATION"
+	AuditLogEventNewClientAuthorization         AuditLogEvent = "NEW_CLIENT_AUTHORIZATION"
+	AuditLogEventDeviceCodeAuthorization        AuditLogEvent = "DEVICE_CODE_AUTHORIZATION"
+	AuditLogEventNewDeviceCodeAuthorization     AuditLogEvent = "NEW_DEVICE_CODE_AUTHORIZATION"
+	AuditLogEventPasskeyAdded                   AuditLogEvent = "PASSKEY_ADDED"
+	AuditLogEventPasskeyRemoved                 AuditLogEvent = "PASSKEY_REMOVED"
+	AuditLogEventRuntimeCredentialRegistered    AuditLogEvent = "RUNTIME_CREDENTIAL_REGISTERED"
+	AuditLogEventRuntimeCredentialAuthenticated AuditLogEvent = "RUNTIME_CREDENTIAL_AUTHENTICATED"
+	AuditLogEventRuntimeCredentialRevoked       AuditLogEvent = "RUNTIME_CREDENTIAL_REVOKED"
 )
 
 // Scan and Value methods for GORM to handle the custom type

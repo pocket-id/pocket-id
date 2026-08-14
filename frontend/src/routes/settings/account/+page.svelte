@@ -5,24 +5,30 @@
 	import * as Card from '$lib/components/ui/card';
 	import * as Item from '$lib/components/ui/item/index.js';
 	import { m } from '$lib/paraglide/messages';
+	import RuntimeCredentialService from '$lib/services/runtime-credential-service';
 	import UserService from '$lib/services/user-service';
 	import WebAuthnService from '$lib/services/webauthn-service';
 	import appConfigStore from '$lib/stores/application-configuration-store';
 	import userStore from '$lib/stores/user-store';
 	import type { Passkey } from '$lib/types/passkey.type';
+	import type { RuntimeCredential } from '$lib/types/runtime-credential.type';
 	import type { AccountUpdate } from '$lib/types/user.type';
 	import { axiosErrorToast, getWebauthnErrorMessage } from '$lib/utils/error-util';
-	import { KeyRound, Languages, LucideAlertTriangle, UserCog } from '@lucide/svelte';
+	import { Bot, KeyRound, Languages, LucideAlertTriangle, UserCog } from '@lucide/svelte';
 	import { startRegistration } from '@simplewebauthn/browser';
 	import { toast } from 'svelte-sonner';
 	import AccountForm from './account-form.svelte';
 	import LocalePicker from './locale-picker.svelte';
 	import PasskeyList from './passkey-list.svelte';
 	import RenamePasskeyModal from './rename-passkey-modal.svelte';
+	import RenameRuntimeCredentialModal from './rename-runtime-credential-modal.svelte';
+	import RuntimeCredentialList from './runtime-credential-list.svelte';
 
 	let { data } = $props();
 	let account = $state(data.account);
 	let passkeys = $state(data.passkeys);
+	let runtimeCredentials: RuntimeCredential[] = $state(data.runtimeCredentials);
+	let runtimeCredentialToRename: RuntimeCredential | null = $state(null);
 	let passkeyToRename: Passkey | null = $state(null);
 	const userService = new UserService();
 	const webauthnService = new WebAuthnService();
@@ -65,7 +71,17 @@
 	<title>{m.account_settings()}</title>
 </svelte:head>
 
-{#if passkeys.length == 0}
+{#if account.isAgent && !runtimeCredentials.some((credential) => !credential.revokedAt)}
+	<Alert.Root variant="warning" class="flex gap-3">
+		<LucideAlertTriangle class="size-4" />
+		<div>
+			<Alert.Title class="font-semibold">{m.runtime_credential_missing()}</Alert.Title>
+			<Alert.Description class="text-sm">
+				{m.request_a_new_one_time_link_to_register_a_runtime_credential()}
+			</Alert.Description>
+		</div>
+	</Alert.Root>
+{:else if !account.isAgent && passkeys.length == 0}
 	<Alert.Root variant="warning" class="flex gap-3">
 		<LucideAlertTriangle class="size-4" />
 		<div class="md:flex md:w-full md:place-content-between">
@@ -82,7 +98,7 @@
 			</div>
 		</div>
 	</Alert.Root>
-{:else if passkeys.length == 1}
+{:else if !account.isAgent && passkeys.length == 1}
 	<Alert.Root variant="warning" dismissibleId="single-passkey" class="flex gap-3">
 		<LucideAlertTriangle class="size-4" />
 		<div>
@@ -112,24 +128,40 @@
 	</Card.Content>
 </Card.Root>
 
+<!-- FCA13 switches account credential management between passkeys and runtime credentials without changing account capabilities -->
 <Item.Group class="bg-card border shadow-sm rounded-4xl p-5">
 	<Item.Root class="border-none bg-transparent p-0">
 		<Item.Media class="text-primary/80">
-			<KeyRound class="size-5" />
+			{#if account.isAgent}
+				<Bot class="size-5" />
+			{:else}
+				<KeyRound class="size-5" />
+			{/if}
 		</Item.Media>
 		<Item.Content class="min-w-52">
-			<Item.Title class="text-xl font-semibold">{m.passkeys()}</Item.Title>
+			<Item.Title class="text-xl font-semibold">
+				{account.isAgent ? m.runtime_credentials() : m.passkeys()}
+			</Item.Title>
 			<Item.Description>
-				{m.manage_your_passkeys_that_you_can_use_to_authenticate_yourself()}
+				{account.isAgent
+					? m.manage_your_runtime_credentials()
+					: m.manage_your_passkeys_that_you_can_use_to_authenticate_yourself()}
 			</Item.Description>
 		</Item.Content>
-		<Item.Actions>
-			<Button variant="outline" onclick={createPasskey}>
-				{m.add_passkey()}
-			</Button>
-		</Item.Actions>
+		{#if !account.isAgent}
+			<Item.Actions>
+				<Button variant="outline" onclick={createPasskey}>
+					{m.add_passkey()}
+				</Button>
+			</Item.Actions>
+		{/if}
 	</Item.Root>
-	{#if passkeys.length != 0}
+	{#if account.isAgent && runtimeCredentials.length != 0}
+		<RuntimeCredentialList
+			bind:credentials={runtimeCredentials}
+			onRename={(credential) => (runtimeCredentialToRename = credential)}
+		/>
+	{:else if !account.isAgent && passkeys.length != 0}
 		<PasskeyList bind:passkeys />
 	{/if}
 </Item.Group>
@@ -154,4 +186,9 @@
 <RenamePasskeyModal
 	bind:passkey={passkeyToRename}
 	callback={async () => (passkeys = await webauthnService.listCredentials())}
+/>
+
+<RenameRuntimeCredentialModal
+	bind:credential={runtimeCredentialToRename}
+	callback={async () => (runtimeCredentials = await new RuntimeCredentialService().list())}
 />

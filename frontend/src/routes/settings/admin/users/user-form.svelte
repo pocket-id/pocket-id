@@ -18,10 +18,12 @@
 	let {
 		callback,
 		existingUser,
-		emailsVerifiedPerDefault = false
+		emailsVerifiedPerDefault = false,
+		authenticationPathChangeBlocked = false
 	}: {
 		existingUser?: User;
 		emailsVerifiedPerDefault?: boolean;
+		authenticationPathChangeBlocked?: boolean;
 		callback: (user: UserCreate) => Promise<boolean>;
 	} = $props();
 
@@ -37,7 +39,8 @@
 		emailVerified: existingUser?.emailVerified ?? emailsVerifiedPerDefault,
 		username: existingUser?.username || '',
 		isAdmin: existingUser?.isAdmin || false,
-		disabled: existingUser?.disabled || false
+		disabled: existingUser?.disabled || false,
+		isAgent: existingUser?.isAgent || false
 	};
 
 	const formSchema = z.object({
@@ -50,7 +53,8 @@
 			: emptyToUndefined(z.email().optional()),
 		emailVerified: z.boolean(),
 		isAdmin: z.boolean(),
-		disabled: z.boolean()
+		disabled: z.boolean(),
+		isAgent: z.boolean()
 	});
 	type FormSchema = typeof formSchema;
 
@@ -117,6 +121,16 @@
 			/>
 		</div>
 		<div class="mt-5 grid grid-cols-1 items-start gap-5 md:grid-cols-2">
+			<!-- FCA12 presents authentication path as an administrator-managed binary choice and explains blocked transitions -->
+			<SwitchWithLabel
+				id="agent-authentication"
+				label={m.agent_authentication()}
+				description={authenticationPathChangeBlocked
+					? m.authentication_path_change_blocked()
+					: m.agent_authentication_description()}
+				disabled={authenticationPathChangeBlocked}
+				bind:checked={$inputs.isAgent.value}
+			/>
 			<SwitchWithLabel
 				id="admin-privileges"
 				label={m.admin_privileges()}

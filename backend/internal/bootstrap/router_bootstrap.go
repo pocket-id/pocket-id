@@ -187,6 +187,14 @@ func registerRoutes(r *gin.Engine, db *gorm.DB, svc *services, rateLimitServices
 		rateLimitMiddleware.Add(middleware.RateLimitOneTimeAccessToken),
 		rateLimitMiddleware.Add(middleware.RateLimitOneTimeAccessEmail),
 	)
+	svc.runtimeCredentialModule.RegisterRoutes(
+		apiGroup,
+		authMiddleware.WithAdminNotRequired().Add(),
+		authMiddleware.WithAdminNotRequired().WithApiKeyAuthDisabled().Add(),
+		authMiddleware.Add(),
+		rateLimitMiddleware.Add(middleware.RateLimitOneTimeAccessToken),
+		rateLimitMiddleware.Add(middleware.RateLimitWebauthnReauthenticate),
+	)
 	svc.emailVerificationModule.RegisterRoutes(
 		apiGroup,
 		authMiddleware.WithAdminNotRequired().Add(),

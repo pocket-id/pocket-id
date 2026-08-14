@@ -26,30 +26,38 @@ func TestClientPreviewBuilderUsesFositeTokenStrategies(t *testing.T) {
 	}, nil)
 	require.NoError(t, err)
 
-	builder := newClientPreviewBuilder(newClaimsService(db, nil, "https://issuer.example.com", nil), provider.tokenStrategies)
+	builder := newClientPreviewBuilder(newClaimsService(db, fakeCustomClaimSource{}, "https://issuer.example.com", nil), provider.tokenStrategies)
 
 	const (
 		userID   = "test-user"
 		clientID = "test-client"
 	)
 	email := "user@example.com"
-	require.NoError(t, db.Create(&model.User{
+	user := model.User{
 		Base:          model.Base{ID: userID},
 		Username:      "test-user",
+		FirstName:     "Test",
+		LastName:      "Runtime",
+		DisplayName:   "Test Runtime",
 		Email:         &email,
 		EmailVerified: true,
-	}).Error)
+		IsAgent:       true,
+	}
+	require.NoError(t, db.Create(&user).Error)
+	group := model.UserGroup{Base: model.Base{ID: "test-group"}, Name: "operators", FriendlyName: "Operators"}
+	require.NoError(t, db.Create(&group).Error)
+	require.NoError(t, db.Model(&user).Association("UserGroups").Append(&group))
 
 	preview, err := builder.BuildClientPreview(t.Context(), model.OidcClient{
 		Base:                       model.Base{ID: clientID},
 		Name:                       "Test Client",
 		AccessTokenDurationMinutes: 2 * 60,
-	}, userID, []string{"openid", "email"}, "phr")
+	}, userID, []string{"openid", "profile", "email", "groups"}, "pop")
 	require.NoError(t, err)
 
 	require.Equal(t, "https://issuer.example.com", preview.AccessToken["iss"])
 	require.Equal(t, clientID, preview.AccessToken["client_id"])
-	require.ElementsMatch(t, []string{"openid", "email"}, stringSliceClaim(t, preview.AccessToken["scp"]))
+	require.ElementsMatch(t, []string{"openid", "profile", "email", "groups"}, stringSliceClaim(t, preview.AccessToken["scp"]))
 	// The identity scopes add the issuer to the audience so the previewed token would also work at /userinfo
 	require.ElementsMatch(t, []string{clientID, "https://issuer.example.com"}, stringSliceClaim(t, preview.AccessToken["aud"]))
 	require.NotContains(t, preview.AccessToken, "type")
@@ -63,10 +71,13 @@ func TestClientPreviewBuilderUsesFositeTokenStrategies(t *testing.T) {
 	// ID tokens carry the "type" marker (so the end-session endpoint can reject access tokens
 	// passed as id_token_hint) and the amr from the authentication method.
 	require.Equal(t, idTokenType, preview.IDToken["type"])
-	require.ElementsMatch(t, []string{"phr"}, stringSliceClaim(t, preview.IDToken["amr"]))
+	require.ElementsMatch(t, []string{"pop"}, stringSliceClaim(t, preview.IDToken["amr"]))
 
 	require.Equal(t, email, preview.UserInfo["email"])
 	require.Equal(t, true, preview.UserInfo["email_verified"])
+	require.Equal(t, "Test Runtime", preview.UserInfo["name"])
+	require.Equal(t, "test-user", preview.UserInfo["preferred_username"])
+	require.Equal(t, []string{"operators"}, preview.UserInfo["groups"])
 }
 
 func TestClientPreviewBuilderIgnoresUnknownScopes(t *testing.T) {
