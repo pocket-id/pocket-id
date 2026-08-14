@@ -224,7 +224,20 @@ test.describe('Update application images', () => {
 		await page
 			.getByRole('button', { name: 'Reset to default Dark Mode Logo', exact: true })
 			.click();
+		const logoDeleteResponses = [true, false].map((light) =>
+			page.waitForResponse((response) => {
+				const url = new URL(response.url());
+				return (
+					response.request().method() === 'DELETE' &&
+					url.pathname === '/api/application-images/logo' &&
+					url.searchParams.get('light') === String(light)
+				);
+			})
+		);
 		await page.getByRole('button', { name: 'Save', exact: true }).nth(1).click();
+		for (const response of await Promise.all(logoDeleteResponses)) {
+			expect(response.status()).toBe(204);
+		}
 
 		await expect(page.locator('[data-type="success"]')).toHaveText(
 			'Images updated successfully. It may take a few minutes to update.'
