@@ -179,8 +179,12 @@ func initServices(
 	}
 
 	svc.apiKeyModule, err = apikey.New(ctx, apikey.Dependencies{
-		DB:           db,
-		StaticApiKey: common.EnvConfig.StaticApiKey,
+		DB:              db,
+		Actors:          actors,
+		StaticApiKey:    common.EnvConfig.StaticApiKey,
+		AppConfig:       svc.appConfigService,
+		EmailSender:     svc.emailModule,
+		CleanupDisabled: common.EnvConfig.AppEnv.IsTest(),
 	})
 	if err != nil {
 		return nil, fmt.Errorf("failed to create API key module: %w", err)

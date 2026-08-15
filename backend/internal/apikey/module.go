@@ -2,17 +2,25 @@ package apikey
 
 import (
 	"context"
+	"errors"
+	"fmt"
 
 	"github.com/gin-gonic/gin"
+	"github.com/italypaleale/francis/host/local"
 	"gorm.io/gorm"
 
+	"github.com/pocket-id/pocket-id/backend/internal/appconfig"
 	"github.com/pocket-id/pocket-id/backend/internal/httpserver"
 	"github.com/pocket-id/pocket-id/backend/internal/model"
 )
 
 type Dependencies struct {
-	DB           *gorm.DB
-	StaticApiKey string
+	DB              *gorm.DB
+	Actors          *local.Host
+	StaticApiKey    string
+	AppConfig       appconfig.AppConfigResolver
+	EmailSender     APIKeyExpiryEmailSender
+	CleanupDisabled bool
 }
 
 type Module struct {
@@ -26,10 +34,32 @@ func New(ctx context.Context, deps Dependencies) (*Module, error) {
 		return nil, err
 	}
 
-	return &Module{
+	module := &Module{
 		service: service,
 		handler: newHandler(service),
-	}, nil
+	}
+
+	// Register the cleanup job for expired API keys
+	if !deps.CleanupDisabled {
+		if deps.Actors == nil {
+			return nil, errors.New("actor host is required for the API key expiration cron job")
+		}
+		if deps.AppConfig == nil || deps.EmailSender == nil {
+			return nil, errors.New("notification dependencies are required for the API key expiration cron job")
+		}
+
+		expiryJob, err := newExpiryJob(service, deps.AppConfig, deps.EmailSender)
+		if err != nil {
+			return nil, err
+		}
+
+		err = deps.Actors.RegisterBuiltInActor(expiryJob)
+		if err != nil {
+			return nil, fmt.Errorf("error registering API key expiration cron actor: %w", err)
+		}
+	}
+
+	return module, nil
 }
 
 // RegisterRoutes mounts the API key management endpoints
@@ -46,14 +76,4 @@ func (m *Module) RegisterRoutes(apiGroup *gin.RouterGroup, auth, authWithoutApiK
 // It is used by the authentication middleware
 func (m *Module) ValidateApiKey(ctx context.Context, apiKey string) (model.User, error) {
 	return m.service.ValidateApiKey(ctx, apiKey)
-}
-
-// ListExpiringApiKeys returns API keys expiring within the given number of days that have not been notified yet
-func (m *Module) ListExpiringApiKeys(ctx context.Context, daysAhead int) ([]ApiKey, error) {
-	return m.service.ListExpiringApiKeys(ctx, daysAhead)
-}
-
-// MarkExpirationEmailSent records that the expiration notification email was sent for the given API key
-func (m *Module) MarkExpirationEmailSent(ctx context.Context, apiKeyID string) error {
-	return m.service.MarkExpirationEmailSent(ctx, apiKeyID)
 }

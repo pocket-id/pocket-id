@@ -14,9 +14,5 @@ func registerScheduledJobs(ctx context.Context, db *gorm.DB, svc *services, sche
 	if err != nil {
 		return fmt.Errorf("failed to register DB cleanup jobs in scheduler: %w", err)
 	}
-	err = scheduler.RegisterApiKeyExpiryJob(ctx, svc.apiKeyModule, svc.appConfigService, svc.emailModule)
-	if err != nil {
-		return fmt.Errorf("failed to register API key expiration jobs in scheduler: %w", err)
-	}
 	return nil
 }
