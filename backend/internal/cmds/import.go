@@ -47,10 +47,14 @@ func init() {
 
 // runImport handles the high-level orchestration of the import process
 func runImport(ctx context.Context, flags importFlags) error {
-	// The archive carries the actor data, which is restored into Pocket ID's own database and so is only reachable with the embedded runtime
-	// A standalone Francis runtime owns that data instead, and it has to be restored through the runtime itself
-	if !common.EnvConfig.HasEmbeddedFrancisRuntime() {
-		return errors.New("importing is not supported when FRANCIS_HOST points to a standalone Francis runtime: import Pocket ID's data and the runtime's data separately, using the runtime's own restore command for the latter")
+	// A standalone Francis runtime owns the actor data, so this import only covers what lives in Pocket ID's own database
+	// Nothing here can fence the replicas either, since they are hosts of the runtime's cluster rather than of a cluster in this database
+	embeddedRuntime := common.EnvConfig.HasEmbeddedFrancisRuntime()
+	if !embeddedRuntime {
+		printRemoteActorDataNotice(
+			"The actor data will NOT be restored, and Pocket ID replicas will NOT be stopped for you",
+			"stop every replica first, then restore the runtime with: francis runtime restore -f actors.bin",
+		)
 	}
 
 	if !flags.Yes {
@@ -81,35 +85,49 @@ func runImport(ctx context.Context, flags importFlags) error {
 	}
 	defer zipReader.Close()
 
+	// An archive carrying the actor data was taken from a deployment with an embedded runtime, and there is nowhere to put that data here
+	// Restoring only the Pocket ID half of it would leave the runtime holding actor state from a different deployment, so refuse rather than half-restore
+	if !embeddedRuntime {
+		err = ensureNoActorsBackup(&zipReader.Reader)
+		if err != nil {
+			return err
+		}
+	}
+
 	// Connect to the database without running migrations: the import re-creates the Pocket ID schema itself
 	db, pg, err := bootstrap.ConnectDatabase(ctx)
 	if err != nil {
 		return err
 	}
 
-	// The cluster admin talks to the same database as the actor host, so build its provider options the same way the host does
-	providerOpts, err := bootstrap.ActorsProviderOptions(db, pg)
-	if err != nil {
-		return err
-	}
-
-	// Take exclusive access to the cluster so no Pocket ID replica is running while we overwrite the database
-	release, lost, err := acquireExclusiveAccess(ctx, providerOpts, flags.ForcefullyAcquireLock)
-	if err != nil {
-		return err
-	}
-	defer release()
-
-	// Abort the import if exclusive access is lost partway through (for example if the lease can no longer be renewed)
 	importCtx, cancel := context.WithCancel(ctx)
 	defer cancel()
-	go func() {
-		select {
-		case <-lost:
-			cancel()
-		case <-importCtx.Done():
+
+	// Take exclusive access to the cluster so no Pocket ID replica is running while we overwrite the database
+	// The lease lives in the actor host's own tables, so it only exists when the runtime is embedded: with a standalone runtime the operator was told to stop the replicas instead
+	var providerOpts components.ProviderOptions
+	if embeddedRuntime {
+		// The cluster admin talks to the same database as the actor host, so build its provider options the same way the host does
+		providerOpts, err = bootstrap.ActorsProviderOptions(db, pg)
+		if err != nil {
+			return err
 		}
-	}()
+
+		release, lost, acquireErr := acquireExclusiveAccess(ctx, providerOpts, flags.ForcefullyAcquireLock)
+		if acquireErr != nil {
+			return acquireErr
+		}
+		defer release()
+
+		// Abort the import if exclusive access is lost partway through (for example if the lease can no longer be renewed)
+		go func() {
+			select {
+			case <-lost:
+				cancel()
+			case <-importCtx.Done():
+			}
+		}()
+	}
 
 	// Init the storage provider
 	storage, err := bootstrap.InitStorage(importCtx, db)
@@ -122,15 +140,20 @@ func runImport(ctx context.Context, flags importFlags) error {
 		_ = storage.Close()
 	}()
 
-	// The actor host's data lives outside of the Pocket ID schema, so it's restored through Francis
-	// Restoring requires exclusive access to the cluster, which was acquired above
-	actorsProvider, err := bootstrap.NewActorsBackupProvider(importCtx, providerOpts)
-	if err != nil {
-		return fmt.Errorf("failed to initialize the actor host's data provider: %w", err)
+	// The actor data lives outside of the Pocket ID schema, so it's restored through Francis
+	// Restoring requires exclusive access to the cluster, which was acquired above, and the import service skips the actor data entirely when no provider is passed
+	var actorsProvider service.ActorsBackupProvider
+	if embeddedRuntime {
+		provider, provErr := bootstrap.NewActorsBackupProvider(importCtx, providerOpts)
+		if provErr != nil {
+			return fmt.Errorf("failed to initialize the actor host's data provider: %w", provErr)
+		}
+		defer func() {
+			_ = provider.Close()
+		}()
+
+		actorsProvider = provider
 	}
-	defer func() {
-		_ = actorsProvider.Close()
-	}()
 
 	// Create the import service
 	importService := service.NewImportService(db, storage, actorsProvider)
