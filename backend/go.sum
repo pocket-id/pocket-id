@@ -245,8 +245,8 @@ github.com/inconshreveable/mousetrap v1.1.0 h1:wN+x4NVGpMsO7ErUn/mUI3vEoE6Jt13X2
 github.com/inconshreveable/mousetrap v1.1.0/go.mod h1:vpF70FUmC8bwa3OWnCshd2FqLfsEA9PFc4w1p2J65bw=
 github.com/italypaleale/francis v0.1.0-beta.23 h1:Yu0K/LE7NwQWVC1yOH6/uVE/+1JZ966aAftPnDTUDmw=
 github.com/italypaleale/francis v0.1.0-beta.23/go.mod h1:qB+0OgLCTWw3/AmdHe30bN81TTo5BcI95kAwAJdLPuM=
-github.com/italypaleale/go-kit v0.0.0-20260810215935-944b377ddc2f h1:0WjKnQPDkpvDcOIDT0Xd1LtXhnn59agn5vVmN/ItD+g=
-github.com/italypaleale/go-kit v0.0.0-20260810215935-944b377ddc2f/go.mod h1:wg4UsIbsbtDiVqUjJdo/tO9lXo0OXBuwPOpSJ+u+1jI=
+github.com/italypaleale/go-kit v1.0.0 h1:c+SaYHTaoZzTgbPXhSbNVdNRkNdNhE0YljBWWoPTdKI=
+github.com/italypaleale/go-kit v1.0.0/go.mod h1:wg4UsIbsbtDiVqUjJdo/tO9lXo0OXBuwPOpSJ+u+1jI=
 github.com/italypaleale/go-sql-utils v0.3.5 h1:kkrhIo1tVJvcsjRc1kePWE9Cqdm26+Et5XZYSNmv764=
 github.com/italypaleale/go-sql-utils v0.3.5/go.mod h1:STWS4qGjiGKt2tf9OdRUlf025FhKZvUA31siUOnejj0=
 github.com/jackc/pgerrcode v0.0.0-20250907135507-afb5586c32a6 h1:D/V0gu4zQ3cL2WKeVNVM4r2gLxGGf6McLwgXzRTo2RQ=
