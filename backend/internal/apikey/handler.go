@@ -39,7 +39,8 @@ func (h *handler) list(c *gin.Context) error {
 	}
 
 	var apiKeysDto []apiKeyDto
-	if err := dto.MapStructList(apiKeys, &apiKeysDto); err != nil {
+	err = dto.MapStructList(apiKeys, &apiKeysDto)
+	if err != nil {
 		return err
 	}
 
@@ -61,7 +62,8 @@ func (h *handler) create(c *gin.Context) error {
 	userID := c.GetString("userID")
 
 	var input apiKeyCreateDto
-	if err := httpserver.BindJSON(c, &input); err != nil {
+	err := httpserver.BindJSON(c, &input)
+	if err != nil {
 		return err
 	}
 
@@ -71,7 +73,8 @@ func (h *handler) create(c *gin.Context) error {
 	}
 
 	var responseDto apiKeyDto
-	if err := dto.MapStruct(apiKey, &responseDto); err != nil {
+	err = dto.MapStruct(apiKey, &responseDto)
+	if err != nil {
 		return err
 	}
 
@@ -94,7 +97,8 @@ func (h *handler) renew(c *gin.Context) error {
 	apiKeyID := c.Param("id")
 
 	var input apiKeyRenewDto
-	if err := httpserver.BindJSON(c, &input); err != nil {
+	err := httpserver.BindJSON(c, &input)
+	if err != nil {
 		return err
 	}
 
@@ -104,7 +108,8 @@ func (h *handler) renew(c *gin.Context) error {
 	}
 
 	var responseDto apiKeyDto
-	if err := dto.MapStruct(apiKey, &responseDto); err != nil {
+	err = dto.MapStruct(apiKey, &responseDto)
+	if err != nil {
 		return err
 	}
 
@@ -126,7 +131,8 @@ func (h *handler) revoke(c *gin.Context) error {
 	userID := c.GetString("userID")
 	apiKeyID := c.Param("id")
 
-	if err := h.service.RevokeApiKey(c.Request.Context(), userID, apiKeyID); err != nil {
+	err := h.service.RevokeApiKey(c.Request.Context(), userID, apiKeyID)
+	if err != nil {
 		return err
 	}
 

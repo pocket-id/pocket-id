@@ -3,6 +3,7 @@ package apikey
 import (
 	"context"
 	"errors"
+	"fmt"
 	"time"
 
 	"gorm.io/gorm"
@@ -46,7 +47,7 @@ func (s *Service) ListApiKeys(ctx context.Context, userID string, listRequestOpt
 	var apiKeys []ApiKey
 	pagination, err := utils.PaginateFilterAndSort(listRequestOptions, query, &apiKeys)
 	if err != nil {
-		return nil, utils.PaginationResponse{}, err
+		return nil, utils.PaginationResponse{}, fmt.Errorf("error listing API keys: %w", err)
 	}
 
 	return apiKeys, pagination, nil
@@ -61,7 +62,7 @@ func (s *Service) CreateApiKey(ctx context.Context, userID string, input apiKeyC
 	// Generate a secure random API key
 	token, err := utils.GenerateRandomAlphanumericString(32)
 	if err != nil {
-		return ApiKey{}, "", err
+		return ApiKey{}, "", fmt.Errorf("error generating API key token: %w", err)
 	}
 
 	apiKey := ApiKey{
@@ -80,7 +81,7 @@ func (s *Service) CreateApiKey(ctx context.Context, userID string, input apiKeyC
 		if errors.Is(err, gorm.ErrDuplicatedKey) {
 			return ApiKey{}, "", apperror.AlreadyInUse("API key name")
 		}
-		return ApiKey{}, "", err
+		return ApiKey{}, "", fmt.Errorf("error creating API key: %w", err)
 	}
 
 	// Return the raw token only once - it cannot be retrieved later
@@ -103,12 +104,10 @@ func (s *Service) RenewApiKey(ctx context.Context, userID, apiKeyID string, expi
 		Where("id = ? AND user_id = ?", apiKeyID, userID).
 		First(&apiKey).
 		Error
-
-	if err != nil {
-		if errors.Is(err, gorm.ErrRecordNotFound) {
-			return ApiKey{}, "", apperror.APIKeyNotFound()
-		}
-		return ApiKey{}, "", err
+	if errors.Is(err, gorm.ErrRecordNotFound) {
+		return ApiKey{}, "", apperror.APIKeyNotFound()
+	} else if err != nil {
+		return ApiKey{}, "", fmt.Errorf("error loading API key: %w", err)
 	}
 
 	// Only allow renewal if the key has already expired
@@ -119,7 +118,7 @@ func (s *Service) RenewApiKey(ctx context.Context, userID, apiKeyID string, expi
 	// Generate a secure random API key
 	token, err := utils.GenerateRandomAlphanumericString(32)
 	if err != nil {
-		return ApiKey{}, "", err
+		return ApiKey{}, "", fmt.Errorf("error generating API key token: %w", err)
 	}
 
 	apiKey.Key = utils.CreateSha256Hash(token)
@@ -127,11 +126,12 @@ func (s *Service) RenewApiKey(ctx context.Context, userID, apiKeyID string, expi
 
 	err = tx.WithContext(ctx).Save(&apiKey).Error
 	if err != nil {
-		return ApiKey{}, "", err
+		return ApiKey{}, "", fmt.Errorf("error saving API key: %w", err)
 	}
 
-	if err := tx.Commit().Error; err != nil {
-		return ApiKey{}, "", err
+	err = tx.Commit().Error
+	if err != nil {
+		return ApiKey{}, "", fmt.Errorf("error committing transaction: %w", err)
 	}
 
 	return apiKey, token, nil
@@ -144,7 +144,7 @@ func (s *Service) RevokeApiKey(ctx context.Context, userID, apiKeyID string) err
 		Where("id = ? AND user_id = ?", apiKeyID, userID).
 		Delete(&apiKey)
 	if result.Error != nil {
-		return result.Error
+		return fmt.Errorf("error deleting API key: %w", result.Error)
 	}
 	if result.RowsAffected == 0 {
 		return apperror.APIKeyNotFound()
@@ -177,12 +177,10 @@ func (s *Service) ValidateApiKey(ctx context.Context, apiKey string) (model.User
 		Preload("User").
 		First(&key).
 		Error
-	if err != nil {
-		if errors.Is(err, gorm.ErrRecordNotFound) {
-			return model.User{}, apperror.InvalidAPIKey()
-		}
-
-		return model.User{}, err
+	if errors.Is(err, gorm.ErrRecordNotFound) {
+		return model.User{}, apperror.InvalidAPIKey()
+	} else if err != nil {
+		return model.User{}, fmt.Errorf("error loading API key: %w", err)
 	}
 
 	return key.User, nil
@@ -199,17 +197,25 @@ func (s *Service) ListExpiringApiKeys(ctx context.Context, daysAhead int) ([]Api
 		Where("expires_at > ? AND expires_at <= ? AND expiration_email_sent = ?", datatype.DateTime(now), datatype.DateTime(cutoff), false).
 		Find(&keys).
 		Error
+	if err != nil {
+		return nil, fmt.Errorf("error listing API keys: %w", err)
+	}
 
-	return keys, err
+	return keys, nil
 }
 
 // MarkExpirationEmailSent records that the expiration notification email was sent for the given API key
 func (s *Service) MarkExpirationEmailSent(ctx context.Context, apiKeyID string) error {
-	return s.db.WithContext(ctx).
+	err := s.db.WithContext(ctx).
 		Model(&ApiKey{}).
 		Where("id = ?", apiKeyID).
 		Update("expiration_email_sent", true).
 		Error
+	if err != nil {
+		return fmt.Errorf("error marking API key expiration email sent: %w", err)
+	}
+
+	return nil
 }
 
 func (s *Service) initStaticApiKeyUser(ctx context.Context) (user model.User, err error) {
@@ -223,12 +229,12 @@ func (s *Service) initStaticApiKeyUser(ctx context.Context) (user model.User, er
 	}
 
 	if !errors.Is(err, gorm.ErrRecordNotFound) {
-		return model.User{}, err
+		return model.User{}, fmt.Errorf("error loading static API key user: %w", err)
 	}
 
 	usernameSuffix, err := utils.GenerateRandomAlphanumericString(6)
 	if err != nil {
-		return model.User{}, err
+		return model.User{}, fmt.Errorf("error generating static API key username suffix: %w", err)
 	}
 
 	user = model.User{
@@ -245,13 +251,21 @@ func (s *Service) initStaticApiKeyUser(ctx context.Context) (user model.User, er
 		WithContext(ctx).
 		Create(&user).
 		Error
+	if err != nil {
+		return model.User{}, fmt.Errorf("error creating static API key user: %w", err)
+	}
 
-	return user, err
+	return user, nil
 }
 
 func (s *Service) deleteStaticApiKeyUser(ctx context.Context) error {
-	return s.db.
+	err := s.db.
 		WithContext(ctx).
 		Delete(&model.User{}, "id = ?", common.StaticApiKeyUserID).
 		Error
+	if err != nil {
+		return fmt.Errorf("error deleting static API key user: %w", err)
+	}
+
+	return nil
 }

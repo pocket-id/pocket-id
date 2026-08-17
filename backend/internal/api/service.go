@@ -90,6 +90,9 @@ func (s *Service) Get(ctx context.Context, tx *gorm.DB, id string) (api API, err
 }
 
 func (s *Service) Create(ctx context.Context, input apiCreateDto) (api API, err error) {
+	// Store one canonical resource identifier so trailing-slash variants cannot create separate audiences
+	input.Resource = strings.TrimRight(input.Resource, "/")
+
 	// Reject the issuer as an audience so a custom API cannot impersonate Pocket ID's own identity tokens
 	if isIssuerAudience(input.Resource, s.issuer) {
 		return API{}, apperror.InvalidField("resource", "reserved", "is reserved by Pocket ID and cannot be used for a custom API")
@@ -1025,6 +1028,9 @@ func (s *Service) DescribePermissions(ctx context.Context, audience string, keys
 	if len(keys) == 0 {
 		return nil, nil
 	}
+
+	// Match scope information against the same canonical audience used during resource resolution
+	audience = strings.TrimRight(audience, "/")
 
 	var permissions []Permission
 	err := s.db.WithContext(ctx).

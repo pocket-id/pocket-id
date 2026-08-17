@@ -354,6 +354,19 @@ func TestCreateAcceptsAbsoluteResourceURIs(t *testing.T) {
 	}
 }
 
+func TestCreateTrimsResourceTrailingSlashes(t *testing.T) {
+	db := testutils.NewDatabaseForTest(t)
+	svc := New(Dependencies{DB: db}).service
+
+	created, err := svc.Create(t.Context(), apiCreateDto{Name: "Orders", Resource: "https://api.orders.example.com///"})
+	require.NoError(t, err)
+	assert.Equal(t, "https://api.orders.example.com", created.Audience)
+
+	// A trailing-slash variant must conflict with the canonical resource instead of creating a second audience
+	_, err = svc.Create(t.Context(), apiCreateDto{Name: "Duplicate", Resource: "https://api.orders.example.com/"})
+	require.True(t, apperror.IsCode(err, apperror.CodeAlreadyInUse))
+}
+
 func TestDescribePermissions(t *testing.T) {
 	db := testutils.NewDatabaseForTest(t)
 	svc := New(Dependencies{DB: db}).service
@@ -367,7 +380,7 @@ func TestDescribePermissions(t *testing.T) {
 	}})
 	require.NoError(t, err)
 
-	infos, err := svc.DescribePermissions(t.Context(), "https://api.orders.example.com", []string{"read:orders", "unknown"})
+	infos, err := svc.DescribePermissions(t.Context(), "https://api.orders.example.com/", []string{"read:orders", "unknown"})
 	require.NoError(t, err)
 	require.Len(t, infos, 1)
 	assert.Equal(t, "read:orders", infos[0].Key)

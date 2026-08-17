@@ -96,6 +96,17 @@ func TestResolveResourceCustomAPIGrantsValidScopes(t *testing.T) {
 	assert.ElementsMatch(t, []string{"openid", "read:orders"}, granted)
 }
 
+func TestResolveResourceTrimsTrailingSlashes(t *testing.T) {
+	provider := userAccess(map[string][]string{
+		"https://api.orders.example.com": {"read:orders"},
+	})
+
+	audience, granted, err := resolveResource(t.Context(), nil, provider, "client-1", "https://api.orders.example.com///", []string{"read:orders"}, SubjectTypeUser)
+	require.NoError(t, err)
+	assert.Equal(t, "https://api.orders.example.com", audience)
+	assert.Equal(t, []string{"read:orders"}, granted)
+}
+
 func TestResolveResourceRejectsScopeFromAnotherAPI(t *testing.T) {
 	provider := userAccess(map[string][]string{
 		"https://api.orders.example.com": {"read:orders", "write:orders"},

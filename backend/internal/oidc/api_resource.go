@@ -3,6 +3,7 @@ package oidc
 import (
 	"context"
 	"slices"
+	"strings"
 
 	"github.com/ory/fosite"
 	"github.com/pocket-id/pocket-id/backend/internal/dto"
@@ -54,6 +55,8 @@ func resolveResource(ctx context.Context, tx *gorm.DB, provider APIAccessProvide
 		if !fosite.IsValidResourceIndicatorURI(resource) || provider == nil {
 			return "", nil, fosite.ErrInvalidTarget.WithHintf("The requested resource '%s' is invalid, missing, unknown, or malformed.", resource)
 		}
+		// Resolve every trailing-slash variant against the same canonical resource and stamp that value into the token audience
+		resource = strings.TrimRight(resource, "/")
 
 		allowedScopes, apiExists, hasAccess, err := provider.AllowedScopesForAudience(ctx, tx, clientID, resource, subjectType)
 		if err != nil {
