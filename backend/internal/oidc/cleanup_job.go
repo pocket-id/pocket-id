@@ -64,7 +64,8 @@ func newCleanupJob(name string, fn func(ctx context.Context) error) (*cronjob.Cr
 	return cronActor, nil
 }
 
-// clearOAuth2Sessions deletes expired and invalidated OAuth2 sessions.
+// clearOAuth2Sessions deletes expired OAuth2 sessions.
+// Invalidated sessions are kept until their original expiry: see cleanupExpiredOAuth2Sessions.
 func (j *cleanupJobs) clearOAuth2Sessions(ctx context.Context) error {
 	count, err := cleanupExpiredOAuth2Sessions(ctx, j.db)
 	if err != nil {

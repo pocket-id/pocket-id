@@ -48,20 +48,26 @@ func TestAuditLogCleanupJobDeletesLogsPastRetention(t *testing.T) {
 		LastName:    "Job",
 		DisplayName: "Cleanup Job",
 	}
-	require.NoError(t, db.Create(&user).Error)
+	err := db.Create(&user).Error
+	require.NoError(t, err)
 
-	require.NoError(t, db.Create(&model.AuditLog{Base: model.Base{ID: "log-old"}, Event: model.AuditLogEventSignIn, UserID: user.ID}).Error)
-	require.NoError(t, db.Create(&model.AuditLog{Base: model.Base{ID: "log-recent"}, Event: model.AuditLogEventSignIn, UserID: user.ID}).Error)
+	err = db.Create(&model.AuditLog{Base: model.Base{ID: "log-old"}, Event: model.AuditLogEventSignIn, UserID: user.ID}).Error
+	require.NoError(t, err)
+	err = db.Create(&model.AuditLog{Base: model.Base{ID: "log-recent"}, Event: model.AuditLogEventSignIn, UserID: user.ID}).Error
+	require.NoError(t, err)
 
 	// BeforeCreate stamps CreatedAt, so the log past the retention window is backdated directly
 	oldCreatedAt := datatype.DateTime(time.Now().AddDate(0, 0, -retentionDays-1))
-	require.NoError(t, db.Model(&model.AuditLog{}).Where("id = ?", "log-old").Update("created_at", oldCreatedAt).Error)
+	err = db.Model(&model.AuditLog{}).Where("id = ?", "log-old").Update("created_at", oldCreatedAt).Error
+	require.NoError(t, err)
 
 	job := &cleanupJob{db: db, retentionDays: retentionDays}
-	require.NoError(t, job.clearAuditLogs(t.Context()))
+	err = job.clearAuditLogs(t.Context())
+	require.NoError(t, err)
 
 	var remaining []string
-	require.NoError(t, db.Model(&model.AuditLog{}).Pluck("id", &remaining).Error)
+	err = db.Model(&model.AuditLog{}).Pluck("id", &remaining).Error
+	require.NoError(t, err)
 	require.Equal(t, []string{"log-recent"}, remaining)
 }
 
