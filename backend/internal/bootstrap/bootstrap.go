@@ -112,7 +112,7 @@ func Bootstrap(ctx context.Context) error {
 
 	// Register scheduled jobs, only in non-test mode
 	if common.EnvConfig.AppEnv != "test" {
-		err = registerScheduledJobs(ctx, db, svc, scheduler)
+		err = registerScheduledJobs(ctx, svc, scheduler)
 		if err != nil {
 			return fmt.Errorf("failed to register scheduled jobs: %w", err)
 		}

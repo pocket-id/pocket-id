@@ -163,9 +163,3 @@ func jobWithBackOff(job jobFn, bo backoff.BackOff) jobFn {
 		return err
 	}
 }
-
-func jobDefWithJitter(interval time.Duration) gocron.JobDefinition {
-	const jitter = 5 * time.Minute
-
-	return gocron.DurationRandomJob(interval-jitter, interval+jitter)
-}
