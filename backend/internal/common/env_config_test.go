@@ -353,6 +353,134 @@ func TestParseEnvConfig(t *testing.T) {
 	})
 }
 
+func TestFrancisHostConfig(t *testing.T) {
+	originalConfig := EnvConfig
+	t.Cleanup(func() {
+		EnvConfig = originalConfig
+	})
+
+	// setBaseEnv sets the variables every valid configuration needs, so each subtest only sets what it is about
+	setBaseEnv := func(t *testing.T) {
+		t.Helper()
+		EnvConfig = defaultConfig()
+		t.Setenv("DB_CONNECTION_STRING", "file:test.db")
+		t.Setenv("APP_URL", "http://localhost:3000")
+	}
+
+	t.Run("should default to the embedded runtime", func(t *testing.T) {
+		setBaseEnv(t)
+
+		err := parseAndValidateEnvConfig(t)
+		require.NoError(t, err)
+		assert.Equal(t, FrancisHostEmbedded, EnvConfig.FrancisHost)
+		assert.Empty(t, EnvConfig.FrancisAddresses)
+		assert.True(t, EnvConfig.HasEmbeddedFrancisRuntime())
+	})
+
+	t.Run("should keep the embedded runtime when FRANCIS_HOST is empty", func(t *testing.T) {
+		setBaseEnv(t)
+		t.Setenv("FRANCIS_HOST", "")
+
+		err := parseAndValidateEnvConfig(t)
+		require.NoError(t, err)
+		assert.Empty(t, EnvConfig.FrancisAddresses)
+		assert.True(t, EnvConfig.HasEmbeddedFrancisRuntime())
+	})
+
+	t.Run("should keep the embedded runtime when FRANCIS_HOST is 'embedded'", func(t *testing.T) {
+		setBaseEnv(t)
+		t.Setenv("FRANCIS_HOST", "EMBEDDED")
+
+		err := parseAndValidateEnvConfig(t)
+		require.NoError(t, err)
+		assert.Equal(t, FrancisHostEmbedded, EnvConfig.FrancisHost) // lowercased
+		assert.Empty(t, EnvConfig.FrancisAddresses)
+		assert.True(t, EnvConfig.HasEmbeddedFrancisRuntime())
+	})
+
+	t.Run("should parse a single remote runtime address", func(t *testing.T) {
+		setBaseEnv(t)
+		t.Setenv("FRANCIS_HOST", "francis.example.com:8443")
+		t.Setenv("FRANCIS_HOST_PSK", "bootstrap-psk-that-is-long-enough")
+
+		err := parseAndValidateEnvConfig(t)
+		require.NoError(t, err)
+		assert.Equal(t, []string{"francis.example.com:8443"}, EnvConfig.FrancisAddresses)
+		assert.False(t, EnvConfig.HasEmbeddedFrancisRuntime())
+	})
+
+	t.Run("should parse a comma-separated list of remote runtime addresses", func(t *testing.T) {
+		setBaseEnv(t)
+		t.Setenv("FRANCIS_HOST", "one.example.com:8443, two.example.com:8443 ,[2001:db8::1]:8443")
+		t.Setenv("FRANCIS_HOST_PSK", "bootstrap-psk-that-is-long-enough")
+
+		err := parseAndValidateEnvConfig(t)
+		require.NoError(t, err)
+		assert.Equal(t, []string{"one.example.com:8443", "two.example.com:8443", "[2001:db8::1]:8443"}, EnvConfig.FrancisAddresses)
+		assert.False(t, EnvConfig.HasEmbeddedFrancisRuntime())
+	})
+
+	t.Run("should fail when a remote runtime address has no port", func(t *testing.T) {
+		setBaseEnv(t)
+		t.Setenv("FRANCIS_HOST", "francis.example.com")
+		t.Setenv("FRANCIS_HOST_PSK", "bootstrap-psk-that-is-long-enough")
+
+		err := parseAndValidateEnvConfig(t)
+		require.Error(t, err)
+		assert.ErrorContains(t, err, "invalid address 'francis.example.com' in FRANCIS_HOST")
+	})
+
+	t.Run("should fail when FRANCIS_HOST only contains separators", func(t *testing.T) {
+		setBaseEnv(t)
+		t.Setenv("FRANCIS_HOST", " , ")
+		t.Setenv("FRANCIS_HOST_PSK", "bootstrap-psk-that-is-long-enough")
+
+		err := parseAndValidateEnvConfig(t)
+		require.Error(t, err)
+		assert.ErrorContains(t, err, "FRANCIS_HOST does not contain any address")
+	})
+
+	t.Run("should fail when the bootstrap PSK is missing", func(t *testing.T) {
+		setBaseEnv(t)
+		t.Setenv("FRANCIS_HOST", "francis.example.com:8443")
+
+		err := parseAndValidateEnvConfig(t)
+		require.Error(t, err)
+		assert.ErrorContains(t, err, "FRANCIS_HOST_PSK is required")
+	})
+
+	t.Run("should fail when the bootstrap PSK is too short", func(t *testing.T) {
+		setBaseEnv(t)
+		t.Setenv("FRANCIS_HOST", "francis.example.com:8443")
+		t.Setenv("FRANCIS_HOST_PSK", "too-short")
+
+		err := parseAndValidateEnvConfig(t)
+		require.Error(t, err)
+		assert.ErrorContains(t, err, "FRANCIS_HOST_PSK must be at least 16 bytes long")
+	})
+
+	t.Run("should read the bootstrap PSK and the CA from files", func(t *testing.T) {
+		setBaseEnv(t)
+
+		tempDir := t.TempDir()
+		pskFile := tempDir + "/psk"
+		caFile := tempDir + "/ca.pem"
+		caContent := "-----BEGIN CERTIFICATE-----\ntest\n-----END CERTIFICATE-----"
+		// The trailing newline is what writing a secret to a file usually leaves behind, and it must not become part of the key
+		require.NoError(t, os.WriteFile(pskFile, []byte("bootstrap-psk-that-is-long-enough\n"), 0600))
+		require.NoError(t, os.WriteFile(caFile, []byte(caContent), 0600))
+
+		t.Setenv("FRANCIS_HOST", "francis.example.com:8443")
+		t.Setenv("FRANCIS_HOST_PSK_FILE", pskFile)
+		t.Setenv("FRANCIS_CA_FILE", caFile)
+
+		err := parseAndValidateEnvConfig(t)
+		require.NoError(t, err)
+		assert.Equal(t, []byte("bootstrap-psk-that-is-long-enough"), EnvConfig.FrancisHostPSK)
+		assert.Equal(t, []byte(caContent), EnvConfig.FrancisCA)
+	})
+}
+
 func TestPrepareEnvConfig_FileBasedAndToLower(t *testing.T) {
 	// Create temporary directory for test files
 	tempDir := t.TempDir()

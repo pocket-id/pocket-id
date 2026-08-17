@@ -6,6 +6,8 @@ import (
 	"path/filepath"
 	"testing"
 
+	"github.com/italypaleale/francis/host/local"
+	"github.com/italypaleale/francis/host/remote"
 	"github.com/libtnb/sqlite"
 	"github.com/stretchr/testify/require"
 	"gorm.io/gorm"
@@ -29,6 +31,85 @@ func TestNewActorsOptsGetPSKUsesStableValue(t *testing.T) {
 	actual, err := opts.getPSK()
 	require.NoError(t, err)
 	require.Equalf(t, expected, actual, "actual result: %s", actual)
+}
+
+// TestNewActorsSelectsTopology covers the branch that FRANCIS_HOST drives: with no standalone runtime configured Pocket ID starts an embedded one, and otherwise it connects to the addresses it was given.
+func TestNewActorsSelectsTopology(t *testing.T) {
+	// The actor host is created but never run, so the database only has to exist
+	newDB := func(t *testing.T) *gorm.DB {
+		t.Helper()
+
+		dbPath := filepath.Join(t.TempDir(), "pocket-id.db")
+		db, err := gorm.Open(sqlite.Open("file:"+dbPath+"?_pragma=foreign_keys(1)"), &gorm.Config{})
+		require.NoError(t, err)
+		t.Cleanup(func() {
+			sqlDB, dbErr := db.DB()
+			if dbErr == nil {
+				_ = sqlDB.Close()
+			}
+		})
+
+		return db
+	}
+
+	// registerCronJobs reads the app environment off the global config and skips every job in test mode, which keeps each case down to the host itself and the rate limiters
+	baseConfig := func(t *testing.T) *common.EnvConfigSchema {
+		t.Helper()
+
+		originalAppEnv := common.EnvConfig.AppEnv
+		common.EnvConfig.AppEnv = common.AppEnvTest
+		t.Cleanup(func() {
+			common.EnvConfig.AppEnv = originalAppEnv
+		})
+
+		return &common.EnvConfigSchema{
+			AppEnv:        common.AppEnvTest,
+			EncryptionKey: []byte("test-encryption-key"),
+			ActorsHost:    "127.0.0.1",
+			ActorsPort:    "1414",
+		}
+	}
+
+	t.Run("embedded runtime by default", func(t *testing.T) {
+		cfg := baseConfig(t)
+
+		h, rateLimitServices, err := NewActors(NewActorsOpts{
+			EnvConfig:  cfg,
+			InstanceID: "ee05c3eb-8129-47a6-a1c7-849998b6f876",
+			DB:         newDB(t),
+		})
+		require.NoError(t, err)
+		require.IsType(t, &local.Host{}, h)
+		require.NotEmpty(t, rateLimitServices)
+	})
+
+	t.Run("remote runtime when addresses are configured", func(t *testing.T) {
+		cfg := baseConfig(t)
+		cfg.FrancisAddresses = []string{"runtime-1.example.com:8443", "runtime-2.example.com:8443"}
+		cfg.FrancisHostPSK = []byte("bootstrap-psk-that-is-long-enough")
+
+		// No database is passed, since a standalone runtime owns the actor data and the remote host must not reach for Pocket ID's own database
+		h, rateLimitServices, err := NewActors(NewActorsOpts{
+			EnvConfig:  cfg,
+			InstanceID: "ee05c3eb-8129-47a6-a1c7-849998b6f876",
+		})
+		require.NoError(t, err)
+		require.IsType(t, &remote.Host{}, h)
+		require.NotEmpty(t, rateLimitServices)
+	})
+
+	t.Run("state store is unavailable with a remote runtime", func(t *testing.T) {
+		cfg := baseConfig(t)
+		cfg.FrancisAddresses = []string{"runtime-1.example.com:8443"}
+		cfg.FrancisHostPSK = []byte("bootstrap-psk-that-is-long-enough")
+
+		_, err := NewActorStateStore(NewActorsOpts{
+			EnvConfig:  cfg,
+			InstanceID: "ee05c3eb-8129-47a6-a1c7-849998b6f876",
+			DB:         newDB(t),
+		})
+		require.ErrorIs(t, err, ErrRemoteFrancisRuntime)
+	})
 }
 
 // TestNewActorsBackupProvider covers the provider the export and import use to back up and restore the actor host's data.

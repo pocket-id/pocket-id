@@ -1,6 +1,7 @@
 package common
 
 import (
+	"bytes"
 	"errors"
 	"fmt"
 	"log/slog"
@@ -37,6 +38,11 @@ const (
 	defaultSqliteConnString string     = "data/pocket-id.db"
 	defaultFsUploadPath     string     = "data/uploads"
 	AppUrl                  string     = "http://localhost:1411"
+
+	// FrancisHostEmbedded is the FRANCIS_HOST value that keeps the Francis actor runtime embedded in the Pocket ID process
+	FrancisHostEmbedded string = "embedded"
+	// francisHostPSKMinLength is the shortest host bootstrap pre-shared key Francis accepts
+	francisHostPSKMinLength int = 16
 )
 
 type EnvConfigSchema struct {
@@ -88,6 +94,20 @@ type EnvConfigSchema struct {
 	ActorsPort string `env:"ACTORS_PORT"`
 	ActorsHost string `env:"ACTORS_HOST" options:"toLower"`
 
+	// FrancisHost selects where the Francis actor runtime lives
+	// When empty or set to "embedded", Pocket ID runs the runtime inside its own process, which is the default
+	// Any other value is the address (or a comma-separated list of addresses) of a standalone Francis runtime to connect to, and in that case Pocket ID does not start an embedded runtime
+	FrancisHost string `env:"FRANCIS_HOST" options:"toLower"`
+	// FrancisHostPSK is the pre-shared key Pocket ID presents to a standalone Francis runtime when joining the cluster
+	// It must match the "bootstrap.hostPSK" value in the runtime's own configuration, and it is required whenever FrancisHost points to a standalone runtime
+	FrancisHostPSK []byte `env:"FRANCIS_HOST_PSK" options:"file"`
+	// FrancisCA is the PEM-encoded cluster CA of a standalone Francis runtime, which Pocket ID pins before its first connection
+	// Leaving it empty makes Pocket ID trust the certificate the runtime presents on the first connection, which is vulnerable to an attacker intercepting that connection
+	FrancisCA []byte `env:"FRANCIS_CA" options:"file"`
+	// FrancisAddresses contains the runtime addresses parsed out of FrancisHost, and is empty when the actor runtime is embedded
+	// It is derived from FrancisHost and is not bound to an environment variable of its own
+	FrancisAddresses []string
+
 	// HAEnabled turns on high-availability mode, allowing more than one replica of Pocket ID to run against the same database at once
 	// It is intentionally not bound to an environment variable while HA support is still being completed
 	// TODO: Add env var when HA mode is ready
@@ -124,6 +144,7 @@ func defaultConfig() EnvConfigSchema {
 		Host:                      "0.0.0.0",
 		ActorsPort:                "1414",
 		ActorsHost:                "0.0.0.0",
+		FrancisHost:               FrancisHostEmbedded,
 		GeoLiteDBPath:             "data/GeoLite2-City.mmdb",
 		GeoLiteDBUrl:              MaxMindGeoLiteCityUrl,
 	}
@@ -186,6 +207,12 @@ func ValidateEnvConfig(config *EnvConfigSchema) error {
 	// Prepare the DB config
 	prepareDbConfig(config)
 
+	// Resolve where the Francis actor runtime lives, which decides whether Pocket ID starts an embedded one
+	err = prepareFrancisConfig(config)
+	if err != nil {
+		return err
+	}
+
 	// Validate other required options
 	err = validateAppURLs(config)
 	if err != nil {
@@ -220,6 +247,60 @@ func prepareDbConfig(config *EnvConfigSchema) {
 	default:
 		config.DbProvider = DbProviderSqlite
 	}
+}
+
+// prepareFrancisConfig resolves FRANCIS_HOST into the list of standalone runtime addresses Pocket ID connects to
+// An empty value or the "embedded" constant keeps the actor runtime inside the Pocket ID process, and leaves the address list empty
+func prepareFrancisConfig(config *EnvConfigSchema) error {
+	config.FrancisAddresses = nil
+
+	value := strings.TrimSpace(config.FrancisHost)
+	if value == "" || value == FrancisHostEmbedded {
+		return nil
+	}
+
+	// Any other value is one address, or a comma-separated list of addresses, of the standalone runtime replicas
+	// Pocket ID dials them directly rather than resolving a service record, so each one must carry an explicit port
+	parts := strings.Split(value, ",")
+	addresses := make([]string, 0, len(parts))
+	for _, address := range parts {
+		address = strings.TrimSpace(address)
+		if address == "" {
+			continue
+		}
+
+		_, port, err := net.SplitHostPort(address)
+		if err != nil || port == "" {
+			return fmt.Errorf("invalid address '%s' in FRANCIS_HOST: addresses must be in the 'host:port' format", address)
+		}
+
+		addresses = append(addresses, address)
+	}
+
+	if len(addresses) == 0 {
+		return errors.New("FRANCIS_HOST does not contain any address")
+	}
+
+	// The key has to match the runtime's byte-for-byte, and reading it from a file (including a container secret) usually leaves a trailing newline behind, so surrounding whitespace is never meaningful here
+	config.FrancisHostPSK = bytes.TrimSpace(config.FrancisHostPSK)
+
+	// A standalone runtime only admits hosts that present the bootstrap pre-shared key it is configured with
+	// Francis rejects a shorter key, so checking the length here turns that into a configuration error at startup
+	switch {
+	case len(config.FrancisHostPSK) == 0:
+		return errors.New("FRANCIS_HOST_PSK is required when FRANCIS_HOST points to a standalone Francis runtime")
+	case len(config.FrancisHostPSK) < francisHostPSKMinLength:
+		return fmt.Errorf("FRANCIS_HOST_PSK must be at least %d bytes long", francisHostPSKMinLength)
+	}
+
+	config.FrancisAddresses = addresses
+
+	return nil
+}
+
+// HasEmbeddedFrancisRuntime returns true when Pocket ID runs the Francis actor runtime inside its own process, which is the case unless FRANCIS_HOST points to a standalone runtime
+func (config *EnvConfigSchema) HasEmbeddedFrancisRuntime() bool {
+	return len(config.FrancisAddresses) == 0
 }
 
 func validateAppURLs(config *EnvConfigSchema) error {

@@ -2,6 +2,7 @@ package cmds
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"io"
 	"os"
@@ -9,6 +10,7 @@ import (
 	"github.com/spf13/cobra"
 
 	"github.com/pocket-id/pocket-id/backend/internal/bootstrap"
+	"github.com/pocket-id/pocket-id/backend/internal/common"
 	"github.com/pocket-id/pocket-id/backend/internal/service"
 )
 
@@ -34,6 +36,12 @@ func init() {
 
 // runExport orchestrates the export flow
 func runExport(ctx context.Context, flags exportFlags) error {
+	// The export includes the actor data, which a standalone Francis runtime keeps in its own store rather than in Pocket ID's database
+	// Exporting anyway would silently produce an archive missing that data, so refuse instead
+	if !common.EnvConfig.HasEmbeddedFrancisRuntime() {
+		return errors.New("exporting is not supported when FRANCIS_HOST points to a standalone Francis runtime: export Pocket ID's data and the runtime's data separately, using the runtime's own backup command for the latter")
+	}
+
 	db, pg, err := bootstrap.NewDatabase(ctx)
 	if err != nil {
 		return fmt.Errorf("failed to connect to database: %w", err)

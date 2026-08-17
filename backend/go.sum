@@ -2,6 +2,10 @@ github.com/Azure/go-ansiterm v0.0.0-20250102033503-faa5f7b0171c h1:udKWzYgxTojEK
 github.com/Azure/go-ansiterm v0.0.0-20250102033503-faa5f7b0171c/go.mod h1:xomTg63KZ2rFqZQzSB4Vz2SUXa1BpHTVz9L5PTmPC4E=
 github.com/Azure/go-ntlmssp v0.1.1 h1:l+FM/EEMb0U9QZE7mKNEDw5Mu3mFiaa2GKOoTSsNDPw=
 github.com/Azure/go-ntlmssp v0.1.1/go.mod h1:NYqdhxd/8aAct/s4qSYZEerdPuH1liG2/X9DiVTbhpk=
+github.com/MicahParks/jwkset v0.11.3 h1:Phli4RdTDdIdLXZpuO7abkwZyzIk0RDTUPVVBHPRdkQ=
+github.com/MicahParks/jwkset v0.11.3/go.mod h1:U2oRhRaLgDCLjtpGL2GseNKGmZtLs/3O7p+OZaL5vo0=
+github.com/MicahParks/keyfunc/v3 v3.8.1 h1:VR3jlEs2wz1xGjvUUwUHeoB+eJ6gUnBrpnIByRrtj6g=
+github.com/MicahParks/keyfunc/v3 v3.8.1/go.mod h1:LcorJ0sz2tZGvgZqIfaeyLkJmM+kxIfRDu8dFY0TAas=
 github.com/Microsoft/go-winio v0.6.2 h1:F2VQgta7ecxGYO8k3ZZz3RS8fVIXVxONVUPlNERoyfY=
 github.com/Microsoft/go-winio v0.6.2/go.mod h1:yd8OoFMLzJbo9gZq8j5qaps8bJ9aShtEA8Ipt1oGCvU=
 github.com/alexbrainman/sspi v0.0.0-20250919150558-7d374ff0d59e h1:4dAU9FXIyQktpoUAgOJK3OTFc/xug0PCXYCqU0FgDKI=
@@ -243,8 +247,8 @@ github.com/hashicorp/golang-lru/v2 v2.0.7 h1:a+bsQ5rvGLjzHuww6tVxozPZFVghXaHOwFs
 github.com/hashicorp/golang-lru/v2 v2.0.7/go.mod h1:QeFd9opnmA6QUJc5vARoKUSoFhyfM2/ZepoAG6RGpeM=
 github.com/inconshreveable/mousetrap v1.1.0 h1:wN+x4NVGpMsO7ErUn/mUI3vEoE6Jt13X2s0bqwp9tc8=
 github.com/inconshreveable/mousetrap v1.1.0/go.mod h1:vpF70FUmC8bwa3OWnCshd2FqLfsEA9PFc4w1p2J65bw=
-github.com/italypaleale/francis v0.1.0-beta.23 h1:Yu0K/LE7NwQWVC1yOH6/uVE/+1JZ966aAftPnDTUDmw=
-github.com/italypaleale/francis v0.1.0-beta.23/go.mod h1:qB+0OgLCTWw3/AmdHe30bN81TTo5BcI95kAwAJdLPuM=
+github.com/italypaleale/francis v0.1.0-beta.23.0.20260817061021-17e8f38e50cd h1:GVUawGFf4RwwXIUPX+TKgBqi60lTHCpP6n5roIthPZU=
+github.com/italypaleale/francis v0.1.0-beta.23.0.20260817061021-17e8f38e50cd/go.mod h1:qB+0OgLCTWw3/AmdHe30bN81TTo5BcI95kAwAJdLPuM=
 github.com/italypaleale/go-kit v1.0.0 h1:c+SaYHTaoZzTgbPXhSbNVdNRkNdNhE0YljBWWoPTdKI=
 github.com/italypaleale/go-kit v1.0.0/go.mod h1:wg4UsIbsbtDiVqUjJdo/tO9lXo0OXBuwPOpSJ+u+1jI=
 github.com/italypaleale/go-sql-utils v0.3.5 h1:kkrhIo1tVJvcsjRc1kePWE9Cqdm26+Et5XZYSNmv764=

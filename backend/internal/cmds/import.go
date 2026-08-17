@@ -47,6 +47,12 @@ func init() {
 
 // runImport handles the high-level orchestration of the import process
 func runImport(ctx context.Context, flags importFlags) error {
+	// The archive carries the actor data, which is restored into Pocket ID's own database and so is only reachable with the embedded runtime
+	// A standalone Francis runtime owns that data instead, and it has to be restored through the runtime itself
+	if !common.EnvConfig.HasEmbeddedFrancisRuntime() {
+		return errors.New("importing is not supported when FRANCIS_HOST points to a standalone Francis runtime: import Pocket ID's data and the runtime's data separately, using the runtime's own restore command for the latter")
+	}
+
 	if !flags.Yes {
 		ok, err := askForConfirmation()
 		if err != nil {

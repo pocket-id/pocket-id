@@ -61,7 +61,10 @@ var oneTimeAccessTokenCmd = &cobra.Command{
 			EnvConfig:  &common.EnvConfig,
 			InstanceID: instanceID,
 		})
-		if err != nil {
+		if errors.Is(err, bootstrap.ErrRemoteFrancisRuntime) {
+			// Writing the token through a standalone runtime would mean joining the cluster as a full actor host, which this short-lived command does not do
+			return errors.New("generating a one-time access token from the CLI is not supported when FRANCIS_HOST points to a standalone Francis runtime: request the token from a running Pocket ID instance instead")
+		} else if err != nil {
 			return fmt.Errorf("failed to initialize the actor state store: %w", err)
 		}
 
