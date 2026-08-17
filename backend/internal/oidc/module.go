@@ -2,11 +2,13 @@ package oidc
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"net/http"
 	"time"
 
 	"github.com/gin-gonic/gin"
+	"github.com/italypaleale/francis/host/local"
 	"github.com/lestrrat-go/jwx/v3/jwa"
 	"github.com/pocket-id/pocket-id/backend/internal/model"
 	"go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp"
@@ -40,6 +42,7 @@ type AuditLogger interface {
 
 type Dependencies struct {
 	DB         *gorm.DB
+	Actors     *local.Host
 	Config     Config
 	HTTPClient *http.Client
 
@@ -50,6 +53,9 @@ type Dependencies struct {
 	Reauth       ReauthenticationTokenConsumer
 	AuditLog     AuditLogger
 	APIAccess    APIAccessProvider
+
+	// CleanupDisabled skips registering the cron jobs that delete expired rows from the database, for example in tests
+	CleanupDisabled bool
 }
 
 type Module struct {
@@ -93,6 +99,25 @@ func New(ctx context.Context, deps Dependencies) (*Module, error) {
 	authorizationService := newAuthorizationService(deps.DB, interactionSessionService, claimsService, deps.Reauth, deps.AuditLog, deps.APIAccess)
 	deviceService := newDeviceService(provider, store, provider.deviceStrategy, authorizationService, claimsService, deps.AuditLog, deps.DB)
 	endSessionService := newEndSessionService(deps.DB, store, deps.Signer, deps.Config.BaseURL)
+
+	// Register the cleanup jobs for expired OIDC rows
+	if !deps.CleanupDisabled {
+		if deps.Actors == nil {
+			return nil, errors.New("actor host is required for the OIDC cleanup cron jobs")
+		}
+
+		jobs, err := newCleanupJobs(deps.DB)
+		if err != nil {
+			return nil, err
+		}
+
+		for _, cj := range jobs {
+			err = deps.Actors.RegisterBuiltInActor(cj)
+			if err != nil {
+				return nil, fmt.Errorf("error registering OIDC cleanup cron actor %q: %w", cj.ActorType(), err)
+			}
+		}
+	}
 
 	return &Module{
 		Preview: previewBuilder,

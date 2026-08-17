@@ -9,6 +9,7 @@ import (
 	"github.com/pocket-id/pocket-id/backend/internal/api"
 	"github.com/pocket-id/pocket-id/backend/internal/apikey"
 	"github.com/pocket-id/pocket-id/backend/internal/appconfig"
+	"github.com/pocket-id/pocket-id/backend/internal/auditlogs"
 	"github.com/pocket-id/pocket-id/backend/internal/common"
 	"github.com/pocket-id/pocket-id/backend/internal/devicelogin"
 	"github.com/pocket-id/pocket-id/backend/internal/email"
@@ -40,6 +41,7 @@ type services struct {
 	fileStorage        storage.FileStorage
 
 	apiKeyModule            *apikey.Module
+	auditLogsModule         *auditlogs.Module
 	deviceLoginModule       *devicelogin.Module
 	ldapSyncModule          *ldapsync.Module
 	scimSyncModule          *scimsync.Module
@@ -91,6 +93,17 @@ func initServices(
 	}
 
 	svc.auditLogService = service.NewAuditLogService(db, svc.emailModule, svc.geoLiteModule, svc.appConfigService)
+	svc.auditLogsModule, err = auditlogs.New(auditlogs.Dependencies{
+		DB:            db,
+		Actors:        actors,
+		RetentionDays: common.EnvConfig.AuditLogRetentionDays,
+		// Disable in test environment
+		CleanupDisabled: common.EnvConfig.AppEnv.IsTest(),
+	})
+	if err != nil {
+		return nil, fmt.Errorf("failed to create audit logs module: %w", err)
+	}
+
 	svc.jwtService, err = service.NewJwtService(ctx, db, instanceID)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create JWT service: %w", err)
@@ -99,10 +112,13 @@ func initServices(
 	svc.customClaimService = service.NewCustomClaimService(db)
 	svc.webauthnModule, err = webauthn.New(webauthn.Dependencies{
 		DB:        db,
+		Actors:    actors,
 		AppURL:    common.EnvConfig.AppURL,
 		Signer:    svc.jwtService,
 		AuditLog:  svc.auditLogService,
 		AppConfig: svc.appConfigService,
+		// Disable in test environment
+		CleanupDisabled: common.EnvConfig.AppEnv.IsTest(),
 	})
 	if err != nil {
 		return nil, fmt.Errorf("failed to create WebAuthn module: %w", err)
@@ -136,6 +152,7 @@ func initServices(
 
 	svc.oidcModule, err = oidc.New(ctx, oidc.Dependencies{
 		DB:                  db,
+		Actors:              actors,
 		HTTPClient:          httpClient,
 		GetCIMDURLAllowlist: svc.appConfigService.GetCIMDURLAllowlist,
 		Config: oidc.Config{
@@ -149,6 +166,8 @@ func initServices(
 		Reauth:       svc.webauthnModule,
 		AuditLog:     svc.auditLogService,
 		APIAccess:    svc.apiModule,
+		// Disable in test environment
+		CleanupDisabled: common.EnvConfig.AppEnv.IsTest(),
 	})
 	if err != nil {
 		return nil, fmt.Errorf("failed to create OIDC module: %w", err)
