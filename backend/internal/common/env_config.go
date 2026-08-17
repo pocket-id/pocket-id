@@ -99,8 +99,15 @@ type EnvConfigSchema struct {
 	// Any other value is the address (or a comma-separated list of addresses) of a standalone Francis runtime to connect to, and in that case Pocket ID does not start an embedded runtime
 	FrancisHost string `env:"FRANCIS_HOST" options:"toLower"`
 	// FrancisHostPSK is the pre-shared key Pocket ID presents to a standalone Francis runtime when joining the cluster
-	// It must match the "bootstrap.hostPSK" value in the runtime's own configuration, and it is required whenever FrancisHost points to a standalone runtime
+	// It must match the "bootstrap.hostPSK" value in the runtime's own configuration
+	// It is one of the three ways to authenticate to the runtime, and exactly one of them is required whenever FrancisHost points to a standalone runtime
 	FrancisHostPSK []byte `env:"FRANCIS_HOST_PSK" options:"file"`
+	// FrancisHostJWT is the bearer token Pocket ID presents to a standalone Francis runtime configured for JWT bootstrap
+	// Prefer FrancisHostJWTFile in production, since a token passed inline cannot be rotated without restarting Pocket ID
+	FrancisHostJWT string `env:"FRANCIS_HOST_JWT"`
+	// FrancisHostJWTFile is the path to a file holding the bearer token Pocket ID presents to a standalone Francis runtime
+	// Unlike the other "_FILE" variables this one keeps the path rather than the contents: the file is re-read on every connection to the runtime, so a rotated token (such as a Kubernetes projected service account token) is picked up without restarting Pocket ID
+	FrancisHostJWTFile string `env:"FRANCIS_HOST_JWT_FILE"`
 	// FrancisCA is the PEM-encoded cluster CA of a standalone Francis runtime, which Pocket ID pins before its first connection
 	// Leaving it empty makes Pocket ID trust the certificate the runtime presents on the first connection, which is vulnerable to an attacker intercepting that connection
 	FrancisCA []byte `env:"FRANCIS_CA" options:"file"`
@@ -281,19 +288,55 @@ func prepareFrancisConfig(config *EnvConfigSchema) error {
 		return errors.New("FRANCIS_HOST does not contain any address")
 	}
 
-	// The key has to match the runtime's byte-for-byte, and reading it from a file (including a container secret) usually leaves a trailing newline behind, so surrounding whitespace is never meaningful here
+	// Credentials have to match the runtime's byte-for-byte, and reading one from a file (including a container secret) usually leaves a trailing newline behind, so surrounding whitespace is never meaningful here
 	config.FrancisHostPSK = bytes.TrimSpace(config.FrancisHostPSK)
+	config.FrancisHostJWT = strings.TrimSpace(config.FrancisHostJWT)
 
-	// A standalone runtime only admits hosts that present the bootstrap pre-shared key it is configured with
-	// Francis rejects a shorter key, so checking the length here turns that into a configuration error at startup
-	switch {
-	case len(config.FrancisHostPSK) == 0:
-		return errors.New("FRANCIS_HOST_PSK is required when FRANCIS_HOST points to a standalone Francis runtime")
-	case len(config.FrancisHostPSK) < francisHostPSKMinLength:
-		return fmt.Errorf("FRANCIS_HOST_PSK must be at least %d bytes long", francisHostPSKMinLength)
+	err := validateFrancisBootstrap(config)
+	if err != nil {
+		return err
 	}
 
 	config.FrancisAddresses = addresses
+
+	return nil
+}
+
+// validateFrancisBootstrap checks the credential Pocket ID presents when joining a standalone Francis runtime
+// The runtime admits a host through exactly one bootstrap method, so configuring none or more than one is a configuration error rather than something to resolve by picking a winner
+func validateFrancisBootstrap(config *EnvConfigSchema) error {
+	configured := make([]string, 0, 3)
+	if len(config.FrancisHostPSK) > 0 {
+		configured = append(configured, "FRANCIS_HOST_PSK")
+	}
+	if config.FrancisHostJWT != "" {
+		configured = append(configured, "FRANCIS_HOST_JWT")
+	}
+	if config.FrancisHostJWTFile != "" {
+		configured = append(configured, "FRANCIS_HOST_JWT_FILE")
+	}
+
+	switch len(configured) {
+	case 1:
+		// Exactly one method, which is what the runtime expects
+	case 0:
+		return errors.New("one of FRANCIS_HOST_PSK, FRANCIS_HOST_JWT, or FRANCIS_HOST_JWT_FILE is required when FRANCIS_HOST points to a standalone Francis runtime")
+	default:
+		return fmt.Errorf("only one host bootstrap method may be configured, but %s are all set", strings.Join(configured, ", "))
+	}
+
+	// Francis rejects a shorter key, so checking the length here turns that into a configuration error at startup
+	if len(config.FrancisHostPSK) > 0 && len(config.FrancisHostPSK) < francisHostPSKMinLength {
+		return fmt.Errorf("FRANCIS_HOST_PSK must be at least %d bytes long", francisHostPSKMinLength)
+	}
+
+	// A token read on every connection is useless if the file is not there when Pocket ID starts
+	if config.FrancisHostJWTFile != "" {
+		_, err := os.Stat(config.FrancisHostJWTFile)
+		if err != nil {
+			return fmt.Errorf("FRANCIS_HOST_JWT_FILE not found: %w", err)
+		}
+	}
 
 	return nil
 }

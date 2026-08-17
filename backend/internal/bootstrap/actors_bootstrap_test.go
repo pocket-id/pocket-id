@@ -2,10 +2,14 @@ package bootstrap
 
 import (
 	"bytes"
+	"context"
 	"encoding/hex"
+	"log/slog"
+	"os"
 	"path/filepath"
 	"testing"
 
+	francishost "github.com/italypaleale/francis/host"
 	"github.com/italypaleale/francis/host/local"
 	"github.com/italypaleale/francis/host/remote"
 	"github.com/libtnb/sqlite"
@@ -96,6 +100,48 @@ func TestNewActorsSelectsTopology(t *testing.T) {
 		require.NoError(t, err)
 		require.IsType(t, &remote.Host{}, h)
 		require.NotEmpty(t, rateLimitServices)
+	})
+
+	// Each bootstrap method has to produce a host Francis accepts, which is the only part of the remote wiring that can be checked without a runtime to connect to
+	t.Run("every bootstrap method builds a valid remote host", func(t *testing.T) {
+		jwtFile := filepath.Join(t.TempDir(), "token")
+		require.NoError(t, os.WriteFile(jwtFile, []byte("header.payload.signature"), 0600))
+
+		for name, apply := range map[string]func(cfg *common.EnvConfigSchema){
+			"PSK":      func(cfg *common.EnvConfigSchema) { cfg.FrancisHostPSK = []byte("bootstrap-psk-that-is-long-enough") },
+			"JWT":      func(cfg *common.EnvConfigSchema) { cfg.FrancisHostJWT = "header.payload.signature" },
+			"JWT file": func(cfg *common.EnvConfigSchema) { cfg.FrancisHostJWTFile = jwtFile },
+		} {
+			t.Run(name, func(t *testing.T) {
+				cfg := baseConfig(t)
+				cfg.FrancisAddresses = []string{"runtime-1.example.com:8443"}
+				apply(cfg)
+
+				opts := NewActorsOpts{EnvConfig: cfg, InstanceID: "ee05c3eb-8129-47a6-a1c7-849998b6f876"}
+				h, err := opts.newRemoteHost(slog.New(slog.DiscardHandler))
+				require.NoError(t, err)
+				require.NotNil(t, h)
+			})
+		}
+	})
+
+	t.Run("no bootstrap method is rejected by Francis", func(t *testing.T) {
+		cfg := baseConfig(t)
+		cfg.FrancisAddresses = []string{"runtime-1.example.com:8443"}
+
+		opts := NewActorsOpts{EnvConfig: cfg, InstanceID: "ee05c3eb-8129-47a6-a1c7-849998b6f876"}
+		_, err := opts.newRemoteHost(slog.New(slog.DiscardHandler))
+		require.Error(t, err)
+	})
+
+	t.Run("the actor client requires a standalone runtime", func(t *testing.T) {
+		cfg := baseConfig(t)
+
+		err := WithActorClient(t.Context(), cfg, func(context.Context, francishost.Host) error {
+			t.Fatal("the callback must not run without a standalone runtime")
+			return nil
+		})
+		require.ErrorIs(t, err, ErrEmbeddedFrancisRuntime)
 	})
 
 	t.Run("state store is unavailable with a remote runtime", func(t *testing.T) {

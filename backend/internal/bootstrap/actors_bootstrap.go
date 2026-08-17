@@ -30,6 +30,10 @@ import (
 // That runtime owns the actor data instead, so it can only be reached through the runtime itself
 var ErrRemoteFrancisRuntime = errors.New("the actor data is owned by the standalone Francis runtime configured in FRANCIS_HOST, and is not stored in Pocket ID's database")
 
+// ErrEmbeddedFrancisRuntime is returned by the helpers that reach the actor data through a standalone Francis runtime when Pocket ID runs an embedded one
+// There is no runtime to connect to in that case, and the actor data is in Pocket ID's own database
+var ErrEmbeddedFrancisRuntime = errors.New("the actor runtime is embedded in Pocket ID, so there is no standalone Francis runtime to connect to")
+
 type NewActorsOpts struct {
 	Postgres *pgxpool.Pool
 
@@ -138,22 +142,12 @@ func (o *NewActorsOpts) newEmbeddedHost(log *slog.Logger) (*local.Host, error) {
 // The runtime owns the actor state, placement, and alarms, so none of the embedded runtime's database and clustering options apply here
 // That includes the cap on the number of hosts in the cluster, which the runtime enforces through its own "maxHosts" setting: Pocket ID cannot limit itself to a single replica from this side
 func (o *NewActorsOpts) newRemoteHost(log *slog.Logger) (*remote.Host, error) {
-	opts := []remote.HostOption{
+	opts := append(
+		remoteConnectionOptions(o.EnvConfig, log),
 		// Actors placed on this host are invoked by its peers at this address, which is also the one it advertises to the runtime
 		remote.WithAddress(net.JoinHostPort(o.EnvConfig.ActorsHost, o.EnvConfig.ActorsPort)),
-		remote.WithLogger(log),
-		remote.WithRuntimeAddresses(o.EnvConfig.FrancisAddresses...),
-		remote.WithHostBootstrapPSK(o.EnvConfig.FrancisHostPSK),
-		remote.WithShutdownGracePeriod(10 * time.Second),
-	}
-
-	// Pinning the cluster CA lets Pocket ID verify the runtime on its very first connection
-	// Francis requires the trust decision to be explicit, so without a pinned CA we have to opt into trusting the certificate served on first use, which it warns about
-	if len(o.EnvConfig.FrancisCA) > 0 {
-		opts = append(opts, remote.WithPinnedCA(o.EnvConfig.FrancisCA))
-	} else {
-		opts = append(opts, remote.WithUnsafeNoPinnedCA())
-	}
+		remote.WithShutdownGracePeriod(10*time.Second),
+	)
 
 	h, err := remote.NewHost(opts...)
 	if err != nil {
@@ -161,6 +155,36 @@ func (o *NewActorsOpts) newRemoteHost(log *slog.Logger) (*remote.Host, error) {
 	}
 
 	return h, nil
+}
+
+// remoteConnectionOptions builds the options that address and authenticate Pocket ID to a standalone Francis runtime
+// Both the actor host and the short-lived client the CLI commands use go through here, so they always present the same identity to the same cluster
+func remoteConnectionOptions(envConfig *common.EnvConfigSchema, log *slog.Logger) []remote.HostOption {
+	opts := []remote.HostOption{
+		remote.WithLogger(log),
+		remote.WithRuntimeAddresses(envConfig.FrancisAddresses...),
+	}
+
+	// The configuration is validated to carry exactly one bootstrap method, so the first match is the one the operator chose
+	switch {
+	case len(envConfig.FrancisHostPSK) > 0:
+		opts = append(opts, remote.WithHostBootstrapPSK(envConfig.FrancisHostPSK))
+	case envConfig.FrancisHostJWTFile != "":
+		// Francis re-reads the file on every connection, so a rotated token is picked up without restarting Pocket ID
+		opts = append(opts, remote.WithHostBootstrapJWTFile(envConfig.FrancisHostJWTFile))
+	case envConfig.FrancisHostJWT != "":
+		opts = append(opts, remote.WithHostBootstrapJWT(envConfig.FrancisHostJWT))
+	}
+
+	// Pinning the cluster CA lets Pocket ID verify the runtime on its very first connection
+	// Francis requires the trust decision to be explicit, so without a pinned CA we have to opt into trusting the certificate served on first use, which it warns about
+	if len(envConfig.FrancisCA) > 0 {
+		opts = append(opts, remote.WithPinnedCA(envConfig.FrancisCA))
+	} else {
+		opts = append(opts, remote.WithUnsafeNoPinnedCA())
+	}
+
+	return opts
 }
 
 // Derive a PSK from the global encryption key

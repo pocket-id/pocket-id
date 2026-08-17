@@ -440,13 +440,61 @@ func TestFrancisHostConfig(t *testing.T) {
 		assert.ErrorContains(t, err, "FRANCIS_HOST does not contain any address")
 	})
 
-	t.Run("should fail when the bootstrap PSK is missing", func(t *testing.T) {
+	t.Run("should fail when no bootstrap method is configured", func(t *testing.T) {
 		setBaseEnv(t)
 		t.Setenv("FRANCIS_HOST", "francis.example.com:8443")
 
 		err := parseAndValidateEnvConfig(t)
 		require.Error(t, err)
-		assert.ErrorContains(t, err, "FRANCIS_HOST_PSK is required")
+		assert.ErrorContains(t, err, "one of FRANCIS_HOST_PSK, FRANCIS_HOST_JWT, or FRANCIS_HOST_JWT_FILE is required")
+	})
+
+	t.Run("should accept a bootstrap JWT", func(t *testing.T) {
+		setBaseEnv(t)
+		t.Setenv("FRANCIS_HOST", "francis.example.com:8443")
+		t.Setenv("FRANCIS_HOST_JWT", " header.payload.signature\n")
+
+		err := parseAndValidateEnvConfig(t)
+		require.NoError(t, err)
+		assert.Equal(t, "header.payload.signature", EnvConfig.FrancisHostJWT)
+		assert.False(t, EnvConfig.HasEmbeddedFrancisRuntime())
+	})
+
+	t.Run("should accept a bootstrap JWT file and keep its path", func(t *testing.T) {
+		setBaseEnv(t)
+
+		// The path is what gets stored, not the contents: Francis re-reads the file on every connection so a rotated token is picked up
+		jwtFile := t.TempDir() + "/token"
+		require.NoError(t, os.WriteFile(jwtFile, []byte("header.payload.signature"), 0600))
+
+		t.Setenv("FRANCIS_HOST", "francis.example.com:8443")
+		t.Setenv("FRANCIS_HOST_JWT_FILE", jwtFile)
+
+		err := parseAndValidateEnvConfig(t)
+		require.NoError(t, err)
+		assert.Equal(t, jwtFile, EnvConfig.FrancisHostJWTFile)
+		assert.Empty(t, EnvConfig.FrancisHostJWT)
+	})
+
+	t.Run("should fail when the bootstrap JWT file does not exist", func(t *testing.T) {
+		setBaseEnv(t)
+		t.Setenv("FRANCIS_HOST", "francis.example.com:8443")
+		t.Setenv("FRANCIS_HOST_JWT_FILE", "/nonexistent/token")
+
+		err := parseAndValidateEnvConfig(t)
+		require.Error(t, err)
+		assert.ErrorContains(t, err, "FRANCIS_HOST_JWT_FILE not found")
+	})
+
+	t.Run("should fail when more than one bootstrap method is configured", func(t *testing.T) {
+		setBaseEnv(t)
+		t.Setenv("FRANCIS_HOST", "francis.example.com:8443")
+		t.Setenv("FRANCIS_HOST_PSK", "bootstrap-psk-that-is-long-enough")
+		t.Setenv("FRANCIS_HOST_JWT", "header.payload.signature")
+
+		err := parseAndValidateEnvConfig(t)
+		require.Error(t, err)
+		assert.ErrorContains(t, err, "only one host bootstrap method may be configured, but FRANCIS_HOST_PSK, FRANCIS_HOST_JWT are all set")
 	})
 
 	t.Run("should fail when the bootstrap PSK is too short", func(t *testing.T) {
