@@ -129,15 +129,11 @@
 {/snippet}
 
 {#snippet ClientAccessCell({ item }: { item: ClientRow })}
-	{#if item.client.isPublic}
-		<span class="text-muted-foreground text-sm">-</span>
-	{:else}
-		<ApiAccessCell
-			hasAccess={item.clientAccess}
-			granted={item.clientPermissionIds.length}
-			total={api.permissions.length}
-		/>
-	{/if}
+	<ApiAccessCell
+		hasAccess={item.clientAccess}
+		granted={item.clientPermissionIds.length}
+		total={api.permissions.length}
+	/>
 {/snippet}
 
 {#snippet ActionsCell({ item }: { item: ClientRow })}
