@@ -21,7 +21,11 @@ import (
 
 // authenticationMethodOneTimePassword identifies one-time password/code authentication
 // It must match the value emitted by the JWT service in the access token's "amr" claim
-const authenticationMethodOneTimePassword = "otp"
+const (
+	authenticationMethodOneTimePassword = "otp"
+	shortTokenLength                    = 6
+	longTokenLength                     = 12
+)
 
 // TokenStore is the minimal interface needed to persist a one-time access token in the actor state store.
 // It's satisfied by both *actor.Service (used by the running application) and *local.Host (used by CLI commands, which don't run the full actor host).
@@ -263,10 +267,10 @@ func StoreToken(ctx context.Context, store TokenStore, userID string, ttl time.D
 
 // generateToken generates the random token value (and optional device token) for a one-time access token.
 func generateToken(ttl time.Duration, withDeviceToken bool) (token string, deviceToken *string, err error) {
-	// If expires at is less than 15 minutes, use a 6-character token instead of 16
-	tokenLength := 16
+	// Use the shorter format only for codes that expire within 15 minutes
+	tokenLength := longTokenLength
 	if ttl <= 15*time.Minute {
-		tokenLength = 6
+		tokenLength = shortTokenLength
 	}
 
 	token, err = utils.GenerateRandomUnambiguousString(tokenLength)

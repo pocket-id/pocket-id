@@ -657,7 +657,7 @@ func (s *TestService) seedOneTimeAccessTokens(ctx context.Context) error {
 		token string
 		ttl   time.Duration
 	}{
-		{token: "HPe6k6u1DRRVuAQV", ttl: time.Hour},
+		{token: "HPe6k6u1DRRV", ttl: time.Hour},
 		{token: "0ne-t1me-t0ken", ttl: time.Hour},
 	}
 
