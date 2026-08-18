@@ -60,11 +60,7 @@
 		[m.userinfo_url()]: data.oidcConfiguration.userinfo_endpoint,
 		[m.logout_url()]: data.oidcConfiguration.end_session_endpoint,
 		[m.certificate_url()]: data.oidcConfiguration.jwks_uri,
-		[m.pkce()]: client.pkceEnabled ? m.enabled() : m.disabled(),
-		[m.requires_reauthentication()]: client.requiresReauthentication ? m.enabled() : m.disabled(),
-		[m.requires_pushed_authorization_requests()]: client.requiresPushedAuthorizationRequests
-			? m.enabled()
-			: m.disabled()
+		[m.pkce()]: client.pkceEnabled ? m.enabled() : m.disabled()
 	});
 
 	async function updateClient(updatedClient: OidcClientCreateWithLogo) {
