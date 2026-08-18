@@ -35,6 +35,7 @@ type Service struct {
 	httpClient    *http.Client
 	users         UserSyncer
 	groups        GroupSyncer
+	scimSync      ScimSyncScheduler
 	fileStorage   storage.FileStorage
 	clientFactory func(dbConfig *appconfig.AppConfigModel) (ldapClient, error)
 }
@@ -76,6 +77,7 @@ func newService(deps Dependencies) *Service {
 		httpClient:  deps.HTTPClient,
 		users:       deps.Users,
 		groups:      deps.Groups,
+		scimSync:    deps.ScimSync,
 		fileStorage: deps.FileStorage,
 	}
 
@@ -142,6 +144,11 @@ func (s *Service) SyncAll(ctx context.Context, dbConfig *appconfig.AppConfigMode
 	err = tx.Commit().Error
 	if err != nil {
 		return fmt.Errorf("failed to commit changes to database: %w", err)
+	}
+
+	// Schedule downstream SCIM reconciliation only after the LDAP transaction releases its database locks
+	if s.scimSync != nil {
+		s.scimSync.ScheduleSync(ctx)
 	}
 
 	// Now that we've committed the transaction, we can perform operations on the storage layer

@@ -50,9 +50,10 @@ func TestModuleRegistersAPIKeyExpiryCronJob(t *testing.T) {
 
 func TestAPIKeyExpiryCronJobNotifiesAndMarksExpiringKeys(t *testing.T) {
 	db := testutils.NewDatabaseForTest(t)
+	userEmail := "expiry-job@example.com"
 	user := model.User{
 		Username:    "expiry-job-user",
-		Email:       new("expiry-job@example.com"),
+		Email:       &userEmail,
 		FirstName:   "Expiry",
 		LastName:    "Job",
 		DisplayName: "Expiry Job",

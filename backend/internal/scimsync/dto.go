@@ -1,18 +1,19 @@
-package dto
+package scimsync
 
 import (
 	"time"
 
+	"github.com/pocket-id/pocket-id/backend/internal/dto"
 	datatype "github.com/pocket-id/pocket-id/backend/internal/model/types"
 )
 
 type ScimServiceProviderDTO struct {
-	ID           string                `json:"id"`
-	Endpoint     string                `json:"endpoint"`
-	Token        string                `json:"token"`
-	LastSyncedAt *datatype.DateTime    `json:"lastSyncedAt"`
-	OidcClient   OidcClientMetaDataDto `json:"oidcClient"`
-	CreatedAt    datatype.DateTime     `json:"createdAt"`
+	ID           string                    `json:"id"`
+	Endpoint     string                    `json:"endpoint"`
+	Token        string                    `json:"token"`
+	LastSyncedAt *datatype.DateTime        `json:"lastSyncedAt"`
+	OidcClient   dto.OidcClientMetaDataDto `json:"oidcClient"`
+	CreatedAt    datatype.DateTime         `json:"createdAt"`
 }
 
 type ScimServiceProviderCreateDTO struct {
@@ -58,10 +59,10 @@ type ScimListResponse[T any] struct {
 }
 
 type ScimResourceData struct {
-	ID         string           `json:"id,omitempty"`
-	ExternalID string           `json:"externalId,omitempty"`
-	Schemas    []string         `json:"schemas"`
-	Meta       ScimResourceMeta `json:"meta,omitempty"`
+	ID         string            `json:"id,omitempty"`
+	ExternalID string            `json:"externalId,omitempty"`
+	Schemas    []string          `json:"schemas"`
+	Meta       *ScimResourceMeta `json:"meta,omitempty"`
 }
 
 type ScimResourceMeta struct {
@@ -85,7 +86,11 @@ func (r ScimResourceData) GetSchemas() []string {
 }
 
 func (r ScimResourceData) GetMeta() ScimResourceMeta {
-	return r.Meta
+	if r.Meta == nil {
+		return ScimResourceMeta{}
+	}
+
+	return *r.Meta
 }
 
 type ScimResource interface {
