@@ -32,18 +32,18 @@ type UserService struct {
 	auditLogService    *AuditLogService
 	customClaimService *CustomClaimService
 	appImagesService   *AppImagesService
-	scimService        *ScimService
+	scimSyncScheduler  ScimSyncScheduler
 	fileStorage        storage.FileStorage
 }
 
-func NewUserService(db *gorm.DB, jwtService *JwtService, auditLogService *AuditLogService, customClaimService *CustomClaimService, appImagesService *AppImagesService, scimService *ScimService, fileStorage storage.FileStorage) *UserService {
+func NewUserService(db *gorm.DB, jwtService *JwtService, auditLogService *AuditLogService, customClaimService *CustomClaimService, appImagesService *AppImagesService, scimSyncScheduler ScimSyncScheduler, fileStorage storage.FileStorage) *UserService {
 	return &UserService{
 		db:                 db,
 		jwtService:         jwtService,
 		auditLogService:    auditLogService,
 		customClaimService: customClaimService,
 		appImagesService:   appImagesService,
-		scimService:        scimService,
+		scimSyncScheduler:  scimSyncScheduler,
 		fileStorage:        fileStorage,
 	}
 }
@@ -201,6 +201,9 @@ func (s *UserService) DeleteUser(ctx context.Context, dbConfig *appconfig.AppCon
 	if err != nil {
 		return fmt.Errorf("failed to delete user '%s': %w", userID, err)
 	}
+	if s.scimSyncScheduler != nil {
+		s.scimSyncScheduler.ScheduleSync(ctx)
+	}
 
 	// Storage operations must be executed outside of a transaction
 	profilePicturePath := path.Join("profile-pictures", userID+".png")
@@ -242,10 +245,6 @@ func (s *UserService) DeleteUserInternal(ctx context.Context, cfg *appconfig.App
 		return fmt.Errorf("failed to delete user: %w", err)
 	}
 
-	if s.scimService != nil {
-		s.scimService.ScheduleSync()
-	}
-
 	return nil
 }
 
@@ -263,6 +262,9 @@ func (s *UserService) CreateUser(ctx context.Context, dbConfig *appconfig.AppCon
 	err = tx.Commit().Error
 	if err != nil {
 		return model.User{}, err
+	}
+	if s.scimSyncScheduler != nil {
+		s.scimSyncScheduler.ScheduleSync(ctx)
 	}
 
 	return user, nil
@@ -327,7 +329,7 @@ func (s *UserService) createUserInternal(ctx context.Context, input dto.UserCrea
 	// Bump the UpdatedAt timestamp of the groups the new user was added to
 	// This is necessary for SCIM to work with the newly-created user, or groups may not be synced via SCIM
 	if len(userGroups) > 0 {
-		err = s.touchUserGroups(ctx, tx, groupIDs(userGroups))
+		err = s.touchUserGroups(ctx, tx, userGroupIDs(userGroups))
 		if err != nil {
 			return model.User{}, err
 		}
@@ -348,11 +350,16 @@ func (s *UserService) createUserInternal(ctx context.Context, input dto.UserCrea
 		}
 	}
 
-	if s.scimService != nil {
-		s.scimService.ScheduleSync()
+	return user, nil
+}
+
+func userGroupIDs(groups []model.UserGroup) []string {
+	ids := make([]string, len(groups))
+	for i, group := range groups {
+		ids[i] = group.ID
 	}
 
-	return user, nil
+	return ids
 }
 
 func (s *UserService) applyDefaultGroups(ctx context.Context, user *model.User, tx *gorm.DB, cfg *appconfig.AppConfigModel) error {
@@ -451,6 +458,9 @@ func (s *UserService) UpdateUser(ctx context.Context, cfg *appconfig.AppConfigMo
 	if err != nil {
 		return model.User{}, err
 	}
+	if s.scimSyncScheduler != nil {
+		s.scimSyncScheduler.ScheduleSync(ctx)
+	}
 
 	return user, nil
 }
@@ -530,10 +540,6 @@ func (s *UserService) UpdateUserInternal(ctx context.Context, cfg *appconfig.App
 		return user, err
 	}
 
-	if s.scimService != nil {
-		s.scimService.ScheduleSync()
-	}
-
 	return user, nil
 }
 
@@ -592,8 +598,8 @@ func (s *UserService) UpdateUserGroups(ctx context.Context, id string, userGroup
 		return model.User{}, err
 	}
 
-	if s.scimService != nil {
-		s.scimService.ScheduleSync()
+	if s.scimSyncScheduler != nil {
+		s.scimSyncScheduler.ScheduleSync(ctx)
 	}
 
 	return user, nil
@@ -660,10 +666,6 @@ func (s *UserService) DisableUserInternal(ctx context.Context, tx *gorm.DB, user
 
 	if err != nil {
 		return err
-	}
-
-	if s.scimService != nil {
-		s.scimService.ScheduleSync()
 	}
 
 	return nil

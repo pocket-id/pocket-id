@@ -44,7 +44,7 @@ type OidcService struct {
 	jwtService        *JwtService
 	previewBuilder    oidcClientPreviewBuilder
 	metadataRefresher metadataRefresher
-	scimService       *ScimService
+	scimSyncScheduler ScimSyncScheduler
 
 	httpClient  *http.Client
 	fileStorage storage.FileStorage
@@ -63,7 +63,7 @@ func NewOidcService(
 	jwtService *JwtService,
 	previewBuilder oidcClientPreviewBuilder,
 	metadataRefresher metadataRefresher,
-	scimService *ScimService,
+	scimSyncScheduler ScimSyncScheduler,
 	httpClient *http.Client,
 	fileStorage storage.FileStorage,
 ) (s *OidcService, err error) {
@@ -72,7 +72,7 @@ func NewOidcService(
 		jwtService:        jwtService,
 		previewBuilder:    previewBuilder,
 		metadataRefresher: metadataRefresher,
-		scimService:       scimService,
+		scimSyncScheduler: scimSyncScheduler,
 		httpClient:        httpClient,
 		fileStorage:       fileStorage,
 	}
@@ -642,7 +642,9 @@ func (s *OidcService) UpdateAllowedUserGroups(ctx context.Context, id string, in
 		return model.OidcClient{}, err
 	}
 
-	s.scimService.ScheduleSync()
+	if s.scimSyncScheduler != nil {
+		s.scimSyncScheduler.ScheduleSync(ctx)
+	}
 	return client, nil
 }
 
@@ -1042,20 +1044,4 @@ func oidcClientImagePath(clientID string, suffix string, extension string) strin
 		storageID = "cimd-" + utils.CreateSha256Hash(clientID)
 	}
 	return path.Join("oidc-client-images", storageID+suffix+"."+extension)
-}
-
-func (s *OidcService) GetClientScimServiceProvider(ctx context.Context, clientID string) (model.ScimServiceProvider, error) {
-	var provider model.ScimServiceProvider
-	err := s.db.
-		WithContext(ctx).
-		First(&provider, "oidc_client_id = ?", clientID).
-		Error
-	if err != nil {
-		if errors.Is(err, gorm.ErrRecordNotFound) {
-			return model.ScimServiceProvider{}, apperror.NotFound("SCIM service provider")
-		}
-		return model.ScimServiceProvider{}, err
-	}
-
-	return provider, nil
 }

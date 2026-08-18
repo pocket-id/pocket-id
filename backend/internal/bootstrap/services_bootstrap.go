@@ -15,10 +15,10 @@ import (
 	"github.com/pocket-id/pocket-id/backend/internal/email"
 	"github.com/pocket-id/pocket-id/backend/internal/emailverification"
 	"github.com/pocket-id/pocket-id/backend/internal/geolite"
-	"github.com/pocket-id/pocket-id/backend/internal/job"
 	"github.com/pocket-id/pocket-id/backend/internal/ldapsync"
 	"github.com/pocket-id/pocket-id/backend/internal/oidc"
 	"github.com/pocket-id/pocket-id/backend/internal/onetimeaccess"
+	"github.com/pocket-id/pocket-id/backend/internal/scimsync"
 	"github.com/pocket-id/pocket-id/backend/internal/service"
 	"github.com/pocket-id/pocket-id/backend/internal/storage"
 	"github.com/pocket-id/pocket-id/backend/internal/usersignup"
@@ -33,7 +33,6 @@ type services struct {
 	geoLiteModule      *geolite.Module
 	auditLogService    *service.AuditLogService
 	jwtService         *service.JwtService
-	scimService        *service.ScimService
 	userService        *service.UserService
 	customClaimService *service.CustomClaimService
 	oidcService        *service.OidcService
@@ -45,6 +44,7 @@ type services struct {
 	auditLogsModule         *auditlogs.Module
 	deviceLoginModule       *devicelogin.Module
 	ldapSyncModule          *ldapsync.Module
+	scimSyncModule          *scimsync.Module
 	oidcModule              *oidc.Module
 	webauthnModule          *webauthn.Module
 	userSignUpModule        *usersignup.Module
@@ -63,7 +63,6 @@ func initServices(
 	httpClient *http.Client,
 	imageExtensions map[string]string,
 	fileStorage storage.FileStorage,
-	scheduler *job.Scheduler,
 ) (svc *services, err error) {
 	svc = &services{
 		actors: actors,
@@ -138,7 +137,16 @@ func initServices(
 		return nil, fmt.Errorf("failed to create device login module: %w", err)
 	}
 
-	svc.scimService = service.NewScimService(db, scheduler, httpClient)
+	svc.scimSyncModule, err = scimsync.New(scimsync.Dependencies{
+		DB:         db,
+		Actors:     actors,
+		HTTPClient: httpClient,
+		// Disable in test environment
+		ScheduleDisabled: common.EnvConfig.AppEnv.IsTest(),
+	})
+	if err != nil {
+		return nil, fmt.Errorf("failed to create SCIM sync module: %w", err)
+	}
 
 	svc.apiModule = api.New(api.Dependencies{DB: db, Issuer: common.EnvConfig.AppURL})
 
@@ -165,13 +173,13 @@ func initServices(
 		return nil, fmt.Errorf("failed to create OIDC module: %w", err)
 	}
 
-	svc.oidcService, err = service.NewOidcService(db, svc.jwtService, svc.oidcModule.Preview, svc.oidcModule, svc.scimService, httpClient, fileStorage)
+	svc.oidcService, err = service.NewOidcService(db, svc.jwtService, svc.oidcModule.Preview, svc.oidcModule, svc.scimSyncModule, httpClient, fileStorage)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create OIDC service: %w", err)
 	}
 
-	svc.userGroupService = service.NewUserGroupService(db, svc.scimService)
-	svc.userService = service.NewUserService(db, svc.jwtService, svc.auditLogService, svc.customClaimService, svc.appImagesService, svc.scimService, fileStorage)
+	svc.userGroupService = service.NewUserGroupService(db, svc.scimSyncModule)
+	svc.userService = service.NewUserService(db, svc.jwtService, svc.auditLogService, svc.customClaimService, svc.appImagesService, svc.scimSyncModule, fileStorage)
 
 	svc.ldapSyncModule, err = ldapsync.New(ldapsync.Dependencies{
 		DB:          db,
@@ -181,6 +189,7 @@ func initServices(
 		Users:       svc.userService,
 		Groups:      svc.userGroupService,
 		AppConfig:   svc.appConfigService,
+		ScimSync:    svc.scimSyncModule,
 		// Disable in test environment
 		ScheduleDisabled: common.EnvConfig.AppEnv.IsTest(),
 	})
@@ -207,6 +216,7 @@ func initServices(
 		AuditLog:    svc.auditLogService,
 		UserCreator: svc.userService,
 		AppConfig:   svc.appConfigService,
+		ScimSync:    svc.scimSyncModule,
 	})
 	if err != nil {
 		return nil, fmt.Errorf("failed to create user signup module: %w", err)

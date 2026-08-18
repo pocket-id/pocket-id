@@ -9,8 +9,8 @@ import (
 
 	"github.com/pocket-id/pocket-id/backend/internal/common"
 	"github.com/pocket-id/pocket-id/backend/internal/instanceid"
-	"github.com/pocket-id/pocket-id/backend/internal/model"
 	datatype "github.com/pocket-id/pocket-id/backend/internal/model/types"
+	"github.com/pocket-id/pocket-id/backend/internal/scimsync"
 	jwkutils "github.com/pocket-id/pocket-id/backend/internal/utils/jwk"
 	testingutils "github.com/pocket-id/pocket-id/backend/internal/utils/testing"
 )
@@ -77,7 +77,10 @@ func TestEncryptionKeyRotate(t *testing.T) {
 	require.NotNil(t, rotatedKey)
 
 	var storedToken string
-	err = db.Model(&model.ScimServiceProvider{}).Where("id = ?", "scim-1").Pluck("token", &storedToken).Error
+	err = db.Model(&scimsync.ServiceProvider{}).
+		Where("id = ?", "scim-1").
+		Pluck("token", &storedToken).
+		Error
 	require.NoError(t, err)
 
 	newEncKey, err := datatype.DeriveEncryptedStringKey(newKey)

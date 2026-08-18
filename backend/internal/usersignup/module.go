@@ -27,6 +27,11 @@ type UserCreator interface {
 	CreateUserInternal(ctx context.Context, dbConfig *appconfig.AppConfigModel, input dto.UserCreateDto, isLdapSync bool, tx *gorm.DB) (model.User, error)
 }
 
+// ScimSyncScheduler schedules SCIM after the signup transaction has committed
+type ScimSyncScheduler interface {
+	ScheduleSync(ctx context.Context)
+}
+
 type Dependencies struct {
 	DB     *gorm.DB
 	Actors *local.Host
@@ -35,6 +40,7 @@ type Dependencies struct {
 	AuditLog    AuditLogger
 	UserCreator UserCreator
 	AppConfig   appconfig.AppConfigResolver
+	ScimSync    ScimSyncScheduler
 }
 
 type Module struct {
