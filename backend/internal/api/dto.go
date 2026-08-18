@@ -6,18 +6,20 @@ import (
 
 // apiResponseDto is the full representation of an API including its permissions
 type apiResponseDto struct {
-	ID          string                     `json:"id"`
-	Name        string                     `json:"name"`
-	Resource    string                     `json:"resource"`
-	CreatedAt   datatype.DateTime          `json:"createdAt"`
-	Permissions []apiPermissionResponseDto `json:"permissions"`
+	ID               string                     `json:"id"`
+	Name             string                     `json:"name"`
+	Resource         string                     `json:"resource" copier:"Audience"`
+	CreatedAt        datatype.DateTime          `json:"createdAt"`
+	Permissions      []apiPermissionResponseDto `json:"permissions"`
+	AllowCIMDClients bool                       `json:"allowCimdClients"`
 }
 
 type apiPermissionResponseDto struct {
-	ID          string  `json:"id"`
-	Key         string  `json:"key"`
-	Name        string  `json:"name"`
-	Description *string `json:"description,omitempty"`
+	ID                    string  `json:"id"`
+	Key                   string  `json:"key"`
+	Name                  string  `json:"name"`
+	Description           *string `json:"description,omitempty"`
+	AllowedForCIMDClients bool    `json:"allowedForCimdClients"`
 }
 
 // apiCreateDto is the payload for creating an API
@@ -44,14 +46,51 @@ type apiPermissionsUpdateDto struct {
 	Permissions []apiPermissionInputDto `json:"permissions" binding:"omitempty,dive"`
 }
 
-// clientApiAccessDto is the set of API permissions a client is allowed to request, split by subject type
-// User-delegated permissions may be requested on behalf of a signed-in user, client permissions may be obtained by the client itself through the client credentials grant
-type clientApiAccessDto struct {
+// apiCimdAccessUpdateDto replaces which permissions of an API every CIMD client may request
+// The permission IDs are kept while Enabled is false, so switching access off and on again preserves the selection
+type apiCimdAccessUpdateDto struct {
+	Enabled       bool     `json:"enabled"`
+	PermissionIDs []string `json:"permissionIds" binding:"omitempty,dive,required"`
+}
+
+// apiClientGrantDto is what one client may do with a single API
+type apiClientGrantDto struct {
+	UserDelegatedAccess        bool     `json:"userDelegatedAccess"`
+	ClientAccess               bool     `json:"clientAccess"`
 	UserDelegatedPermissionIDs []string `json:"userDelegatedPermissionIds"`
 	ClientPermissionIDs        []string `json:"clientPermissionIds"`
 }
 
-type clientApiAccessUpdateDto struct {
+type apiClientGrantUpdateDto struct {
+	UserDelegatedAccess        bool     `json:"userDelegatedAccess"`
+	ClientAccess               bool     `json:"clientAccess"`
 	UserDelegatedPermissionIDs []string `json:"userDelegatedPermissionIds" binding:"omitempty,dive,required"`
 	ClientPermissionIDs        []string `json:"clientPermissionIds" binding:"omitempty,dive,required"`
+}
+
+// apiClientAccessDto is one client's grants on a single API, as listed on the API's detail page
+// The CIMD fields are read-only here: that access is managed on the API, not per client
+type apiClientAccessDto struct {
+	Client apiClientDto `json:"client"`
+	apiClientGrantDto
+	CIMDGrantedAccess        bool     `json:"cimdGrantedAccess"`
+	CIMDGrantedPermissionIDs []string `json:"cimdGrantedPermissionIds"`
+}
+
+// clientApiGrantDto is one API a client may reach, as listed on the client's detail page
+type clientApiGrantDto struct {
+	API apiResponseDto `json:"api"`
+	apiClientGrantDto
+	CIMDGrantedAccess        bool     `json:"cimdGrantedAccess"`
+	CIMDGrantedPermissionIDs []string `json:"cimdGrantedPermissionIds"`
+}
+
+// apiClientDto identifies an OIDC client with the few fields the API detail page needs to render a row
+type apiClientDto struct {
+	ID          string `json:"id"`
+	Name        string `json:"name"`
+	ClientType  string `json:"clientType"`
+	IsPublic    bool   `json:"isPublic"`
+	HasLogo     bool   `json:"hasLogo"`
+	HasDarkLogo bool   `json:"hasDarkLogo"`
 }

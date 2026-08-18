@@ -24,7 +24,12 @@
 		{ label: 'ID', column: 'id', hidden: true },
 		{ label: m.name(), column: 'name', sortable: true },
 		{ label: m.api_resource(), column: 'resource', sortable: true },
-		{ label: m.api_permissions(), key: 'permissions', value: (item) => item.permissions.length }
+		{ label: m.api_permissions(), key: 'permissions', value: (item) => item.permissions.length },
+		{
+			label: m.metadata_document_client_access(),
+			column: 'allowCimdClients',
+			value: (item) => (item.allowCimdClients ? m.enabled() : m.disabled())
+		}
 	];
 
 	const actions: CreateAdvancedTableActions<Api> = () => [

@@ -71,6 +71,24 @@ func newServiceForTest(t *testing.T, db *gorm.DB) (*Service, *local.Host, *fakeA
 	return svc, host, auditLog
 }
 
+func TestGenerateTokenLength(t *testing.T) {
+	for _, test := range []struct {
+		name       string
+		ttl        time.Duration
+		wantLength int
+	}{
+		{name: "short-lived", ttl: 15 * time.Minute, wantLength: shortTokenLength},
+		{name: "long-lived", ttl: time.Hour, wantLength: longTokenLength},
+	} {
+		t.Run(test.name, func(t *testing.T) {
+			token, _, err := generateToken(test.ttl, false)
+
+			require.NoError(t, err)
+			require.Len(t, token, test.wantLength)
+		})
+	}
+}
+
 func TestExchangeTokenSuccess(t *testing.T) {
 	db := testutils.NewDatabaseForTest(t)
 	svc, host, auditLog := newServiceForTest(t, db)

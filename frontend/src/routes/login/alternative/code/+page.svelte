@@ -18,12 +18,16 @@
 	let isLoading = $state(false);
 	let error: string | undefined = $state();
 	let backHref = $state('/login/alternative');
+	const shortCodeLength = 6;
+	const longCodeLength = 12;
 
 	let longCodeRequested = $state(
-		code.length > 6 || !$appConfigStore.emailOneTimeAccessAsUnauthenticatedEnabled
+		code.length > shortCodeLength || !$appConfigStore.emailOneTimeAccessAsUnauthenticatedEnabled
 	);
 	let showLongCodeOption = $state($appConfigStore.emailOneTimeAccessAsUnauthenticatedEnabled);
-	let codeComplete = $derived(longCodeRequested ? code.length === 16 : code.length === 6);
+	let codeComplete = $derived(
+		longCodeRequested ? code.length === longCodeLength : code.length === shortCodeLength
+	);
 
 	const userService = new UserService();
 
@@ -94,7 +98,7 @@
 					type="text"
 				/>
 			{:else}
-				<InputOTP.Root maxlength={6} bind:value={code} autofocus>
+				<InputOTP.Root maxlength={shortCodeLength} bind:value={code} autofocus>
 					{#snippet children({ cells })}
 						<InputOTP.Group>
 							{#each cells as cell (cell)}

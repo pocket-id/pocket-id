@@ -47,7 +47,8 @@ func (s *authorizationService) resolveGrant(ctx context.Context, clientID, resou
 	if err != nil {
 		return "", nil, nil, err
 	}
-	return audience, grantedScopes, consentScopeKeys(audience, grantedScopes), nil
+
+	return audience, grantedScopes, consentKeysForGrant(audience, resource, grantedScopes), nil
 }
 
 type requestMeta struct {

@@ -421,6 +421,25 @@ func (s *TestService) SeedDatabase(baseURL string) error {
 			}
 		}
 
+		// Immich may reach the Orders API for both subject types, which is what the permission grants below build on
+		allowedAPIs := []api.OidcClientAllowedAPI{
+			{
+				OidcClientID: oidcClients[1].ID,
+				APIID:        ordersAPI.ID,
+				SubjectType:  oidc.SubjectTypeUser,
+			},
+			{
+				OidcClientID: oidcClients[1].ID,
+				APIID:        ordersAPI.ID,
+				SubjectType:  oidc.SubjectTypeClient,
+			},
+		}
+		for _, allowed := range allowedAPIs {
+			if err := tx.Create(&allowed).Error; err != nil {
+				return err
+			}
+		}
+
 		// Immich is allowed to request read:orders on behalf of users and to obtain write:orders for itself via the client credentials grant
 		allowedAPIPermissions := []api.OidcClientAllowedAPIPermission{
 			{
@@ -638,7 +657,7 @@ func (s *TestService) seedOneTimeAccessTokens(ctx context.Context) error {
 		token string
 		ttl   time.Duration
 	}{
-		{token: "HPe6k6u1DRRVuAQV", ttl: time.Hour},
+		{token: "HPe6k6u1DRRV", ttl: time.Hour},
 		{token: "0ne-t1me-t0ken", ttl: time.Hour},
 	}
 
