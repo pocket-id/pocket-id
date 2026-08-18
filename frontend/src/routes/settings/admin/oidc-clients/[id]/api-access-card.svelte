@@ -81,7 +81,7 @@
 				action: async () => {
 					try {
 						await apisService.removeClientAccessForApi(entry.api.id, clientId);
-						grants = grants.filter((g) => g.api.id !== entry.api.id);
+						await load();
 						toast.success(m.api_access_updated_successfully());
 					} catch (e) {
 						axiosErrorToast(e);

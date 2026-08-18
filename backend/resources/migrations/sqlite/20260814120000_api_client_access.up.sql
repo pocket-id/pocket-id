@@ -1,6 +1,9 @@
 PRAGMA foreign_keys=OFF;
 BEGIN;
 
+-- Keep existing API audiences aligned with the canonical resource identifiers used by new APIs and OAuth resource resolution
+UPDATE apis SET audience = RTRIM(audience, '/') WHERE audience <> RTRIM(audience, '/');
+
 ALTER TABLE apis ADD COLUMN allow_cimd_clients BOOLEAN NOT NULL DEFAULT FALSE;
 ALTER TABLE api_permissions ADD COLUMN allowed_for_cimd_clients BOOLEAN NOT NULL DEFAULT FALSE;
 
