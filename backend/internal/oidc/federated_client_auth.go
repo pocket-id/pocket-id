@@ -17,6 +17,9 @@ import (
 	"github.com/lestrrat-go/jwx/v3/jws"
 	"github.com/lestrrat-go/jwx/v3/jwt"
 	"github.com/ory/fosite"
+
+	"github.com/pocket-id/pocket-id/backend/internal/model"
+	jwkutils "github.com/pocket-id/pocket-id/backend/internal/utils/jwk"
 )
 
 const clientAssertionTypeJWTBearer = "urn:ietf:params:oauth:client-assertion-type:jwt-bearer" // #nosec G101 -- OAuth assertion type identifier, not a credential
@@ -143,14 +146,9 @@ func (a *federatedClientAuthenticator) authenticateAssertion(ctx context.Context
 		return nil, errNoFederatedClientAssertion
 	}
 
-	jwksURL := federatedIdentity.JWKS
-	if jwksURL == "" {
-		jwksURL = strings.TrimRight(issuer, "/") + "/.well-known/jwks.json"
-	}
-
-	jwks, err := a.fetchJWKSet(ctx, jwksURL)
+	jwks, err := a.keySetForIdentity(ctx, federatedIdentity)
 	if err != nil {
-		return nil, fosite.ErrInvalidClient.WithHint("Unable to fetch client assertion JWKS.").WithWrap(err)
+		return nil, err
 	}
 
 	audience := federatedIdentity.Audience
@@ -194,6 +192,30 @@ func (a *federatedClientAuthenticator) authenticateAssertion(ctx context.Context
 	}
 
 	return client, nil
+}
+
+// keySetForIdentity returns the keys that may have signed an assertion for the given identity.
+// Identities with public keys configured are verified against those alone, so no JWKS is fetched over the network.
+func (a *federatedClientAuthenticator) keySetForIdentity(ctx context.Context, federatedIdentity model.OidcClientFederatedIdentity) (jwk.Set, error) {
+	if len(federatedIdentity.PublicKeys) > 0 {
+		jwks, err := jwkutils.ParsePublicKeySet(federatedIdentity.PublicKeys)
+		if err != nil {
+			return nil, fosite.ErrInvalidClient.WithHint("Unable to load the public keys configured for the client assertion.").WithWrap(err)
+		}
+		return jwks, nil
+	}
+
+	jwksURL := federatedIdentity.JWKS
+	if jwksURL == "" {
+		jwksURL = strings.TrimRight(federatedIdentity.Issuer, "/") + "/.well-known/jwks.json"
+	}
+
+	jwks, err := a.fetchJWKSet(ctx, jwksURL)
+	if err != nil {
+		return nil, fosite.ErrInvalidClient.WithHint("Unable to fetch client assertion JWKS.").WithWrap(err)
+	}
+
+	return jwks, nil
 }
 
 func (a *federatedClientAuthenticator) fetchJWKSet(ctx context.Context, jwksURL string) (jwk.Set, error) {
