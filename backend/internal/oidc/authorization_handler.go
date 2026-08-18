@@ -136,6 +136,20 @@ func (h *authorizationHandler) completeInteraction(c *gin.Context) {
 }
 
 func (h *authorizationHandler) writeAuthorizeError(ctx context.Context, c *gin.Context, ar fosite.AuthorizeRequester, err error) {
+	if rfcErr, ok := errors.AsType[*fosite.RFC6749Error](err); ok {
+		attrs := []slog.Attr{
+			slog.String("error", rfcErr.ErrorField),
+			slog.String("description", rfcErr.DescriptionField),
+			slog.String("hint", rfcErr.Reason()),
+			slog.String("debug", rfcErr.Debug()),
+			slog.Int("status_code", rfcErr.StatusCode()),
+		}
+		if cause := rfcErr.Cause(); cause != nil {
+			attrs = append(attrs, slog.String("cause", cause.Error()))
+		}
+		slog.LogAttrs(ctx, slog.LevelDebug, "Fosite authorize error details", attrs...)
+	}
+
 	// Keep authorization policy denials in Pocket ID so users can see why access was refused
 	if errors.Is(err, fosite.ErrAccessDenied) {
 		h.redirectToInteractionError(c, err)

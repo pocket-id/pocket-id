@@ -39,14 +39,9 @@ func (h *handler) list(c *gin.Context) error {
 		return err
 	}
 
-	items := make([]apiResponseDto, len(apis))
-	for i, api := range apis {
-		var item apiResponseDto
-		if err := dto.MapStruct(api, &item); err != nil {
-			return err
-		}
-		item.Resource = api.Audience
-		items[i] = item
+	var items []apiResponseDto
+	if err := dto.MapStructList(apis, &items); err != nil {
+		return err
 	}
 
 	c.JSON(http.StatusOK, dto.Paginated[apiResponseDto]{
@@ -70,7 +65,13 @@ func (h *handler) get(c *gin.Context) error {
 		return err
 	}
 
-	return h.respond(c, http.StatusOK, api)
+	var responseDto apiResponseDto
+	if err := dto.MapStruct(api, &responseDto); err != nil {
+		return err
+	}
+
+	c.JSON(http.StatusOK, responseDto)
+	return nil
 }
 
 // create godoc
@@ -93,7 +94,13 @@ func (h *handler) create(c *gin.Context) error {
 		return err
 	}
 
-	return h.respond(c, http.StatusCreated, api)
+	var responseDto apiResponseDto
+	if err := dto.MapStruct(api, &responseDto); err != nil {
+		return err
+	}
+
+	c.JSON(http.StatusCreated, responseDto)
+	return nil
 }
 
 // update godoc
@@ -117,7 +124,13 @@ func (h *handler) update(c *gin.Context) error {
 		return err
 	}
 
-	return h.respond(c, http.StatusOK, api)
+	var responseDto apiResponseDto
+	if err := dto.MapStruct(api, &responseDto); err != nil {
+		return err
+	}
+
+	c.JSON(http.StatusOK, responseDto)
+	return nil
 }
 
 // delete godoc
@@ -157,71 +170,207 @@ func (h *handler) updatePermissions(c *gin.Context) error {
 		return err
 	}
 
-	return h.respond(c, http.StatusOK, api)
+	var responseDto apiResponseDto
+	if err := dto.MapStruct(api, &responseDto); err != nil {
+		return err
+	}
+
+	c.JSON(http.StatusOK, responseDto)
+	return nil
 }
 
-// getClientAccess godoc
-// @Summary Get client API access
-// @Description Get the API permissions an OIDC client is allowed to request, split into user-delegated and client (machine-to-machine) access
+// updateCimdAccess godoc
+// @Summary Update metadata document client access
+// @Description Replace which permissions of an API every client registered through a Client ID Metadata Document may request
 // @Tags APIs
+// @Accept json
 // @Produce json
-// @Param clientId path string true "OIDC Client ID"
-// @Success 200 {object} clientApiAccessDto
-// @Router /api/api-access/{clientId} [get]
-func (h *handler) getClientAccess(c *gin.Context) error {
-	access, err := h.service.GetClientAPIAccess(c.Request.Context(), c.Param("clientId"))
+// @Param id path string true "API ID"
+// @Param access body apiCimdAccessUpdateDto true "Metadata document client access"
+// @Success 200 {object} apiResponseDto "Updated API"
+// @Router /api/apis/{id}/cimd-access [put]
+func (h *handler) updateCimdAccess(c *gin.Context) error {
+	var input apiCimdAccessUpdateDto
+	if err := httpserver.BindJSON(c, &input); err != nil {
+		return err
+	}
+
+	api, err := h.service.SetCIMDAccess(c.Request.Context(), c.Param("id"), input)
 	if err != nil {
 		return err
 	}
 
-	c.JSON(http.StatusOK, newClientApiAccessDto(access))
+	var responseDto apiResponseDto
+	if err := dto.MapStruct(api, &responseDto); err != nil {
+		return err
+	}
+
+	c.JSON(http.StatusOK, responseDto)
 	return nil
 }
 
-// updateClientAccess godoc
-// @Summary Update client API access
-// @Description Replace the API permissions an OIDC client is allowed to request, split into user-delegated and client (machine-to-machine) access
+// listClients godoc
+// @Summary List clients with access to an API
+// @Description Get a paginated list of OIDC clients that may reach the API, with their permissions split into user-delegated and client (machine-to-machine) access
+// @Tags APIs
+// @Produce json
+// @Param id path string true "API ID"
+// @Param search query string false "Search term to filter clients by name"
+// @Param pagination[page] query int false "Page number for pagination" default(1)
+// @Param pagination[limit] query int false "Number of items per page" default(20)
+// @Param sort[column] query string false "Column to sort by"
+// @Param sort[direction] query string false "Sort direction (asc or desc)" default("asc")
+// @Success 200 {object} dto.Paginated[apiClientAccessDto]
+// @Router /api/apis/{id}/clients [get]
+func (h *handler) listClients(c *gin.Context) error {
+	clients, pagination, err := h.service.ListAPIClients(c.Request.Context(), c.Param("id"), c.Query("search"), utils.ParseListRequestOptions(c))
+	if err != nil {
+		return err
+	}
+
+	var items []apiClientAccessDto
+	if err := dto.MapStructList(clients, &items); err != nil {
+		return err
+	}
+
+	c.JSON(http.StatusOK, dto.Paginated[apiClientAccessDto]{
+		Data:       items,
+		Pagination: pagination,
+	})
+	return nil
+}
+
+// listAssignableClients godoc
+// @Summary List clients that can still be granted access to an API
+// @Description Get a paginated list of OIDC clients that have no grant on the API yet
+// @Tags APIs
+// @Produce json
+// @Param id path string true "API ID"
+// @Param search query string false "Search term to filter clients by name"
+// @Param pagination[page] query int false "Page number for pagination" default(1)
+// @Param pagination[limit] query int false "Number of items per page" default(20)
+// @Param sort[column] query string false "Column to sort by"
+// @Param sort[direction] query string false "Sort direction (asc or desc)" default("asc")
+// @Success 200 {object} dto.Paginated[apiClientDto]
+// @Router /api/apis/{id}/assignable-clients [get]
+func (h *handler) listAssignableClients(c *gin.Context) error {
+	clients, pagination, err := h.service.ListAssignableClients(c.Request.Context(), c.Param("id"), c.Query("search"), utils.ParseListRequestOptions(c))
+	if err != nil {
+		return err
+	}
+
+	var items []apiClientDto
+	if err := dto.MapStructList(clients, &items); err != nil {
+		return err
+	}
+
+	c.JSON(http.StatusOK, dto.Paginated[apiClientDto]{
+		Data:       items,
+		Pagination: pagination,
+	})
+	return nil
+}
+
+// listAssignableApis godoc
+// @Summary List APIs a client can still be granted access to
+// @Description Get a paginated list of APIs the OIDC client cannot already reach
+// @Tags APIs
+// @Produce json
+// @Param clientId path string true "OIDC Client ID"
+// @Param search query string false "Search term to filter APIs by name or resource"
+// @Param pagination[page] query int false "Page number for pagination" default(1)
+// @Param pagination[limit] query int false "Number of items per page" default(20)
+// @Param sort[column] query string false "Column to sort by"
+// @Param sort[direction] query string false "Sort direction (asc or desc)" default("asc")
+// @Success 200 {object} dto.Paginated[apiResponseDto]
+// @Router /api/api-access/{clientId}/assignable-apis [get]
+func (h *handler) listAssignableApis(c *gin.Context) error {
+	apis, pagination, err := h.service.ListAssignableAPIs(c.Request.Context(), c.Param("clientId"), c.Query("search"), utils.ParseListRequestOptions(c))
+	if err != nil {
+		return err
+	}
+
+	var items []apiResponseDto
+	if err := dto.MapStructList(apis, &items); err != nil {
+		return err
+	}
+
+	c.JSON(http.StatusOK, dto.Paginated[apiResponseDto]{
+		Data:       items,
+		Pagination: pagination,
+	})
+	return nil
+}
+
+// updateClientAccessForApi godoc
+// @Summary Update a client's access to an API
+// @Description Replace the permissions of this API a single OIDC client may request, leaving its grants on other APIs untouched
 // @Tags APIs
 // @Accept json
 // @Produce json
+// @Param id path string true "API ID"
 // @Param clientId path string true "OIDC Client ID"
-// @Param access body clientApiAccessUpdateDto true "Allowed permission IDs per subject type"
-// @Success 200 {object} clientApiAccessDto
-// @Router /api/api-access/{clientId} [put]
-func (h *handler) updateClientAccess(c *gin.Context) error {
-	var input clientApiAccessUpdateDto
+// @Param access body apiClientGrantUpdateDto true "Access and allowed permission IDs per subject type"
+// @Success 200 {object} apiClientGrantDto
+// @Router /api/apis/{id}/clients/{clientId} [put]
+func (h *handler) updateClientAccessForApi(c *gin.Context) error {
+	var input apiClientGrantUpdateDto
 	err := httpserver.BindJSON(c, &input)
 	if err != nil {
 		return err
 	}
 
-	applied, err := h.service.SetClientAPIAccess(c.Request.Context(), c.Param("clientId"), ClientAPIAccess(input))
+	applied, err := h.service.SetAPIClientAccess(c.Request.Context(), c.Param("id"), c.Param("clientId"), APIClientGrant(input))
 	if err != nil {
 		return err
 	}
 
-	c.JSON(http.StatusOK, newClientApiAccessDto(applied))
+	var grant apiClientGrantDto
+	if err := dto.MapStruct(applied, &grant); err != nil {
+		return err
+	}
+
+	c.JSON(http.StatusOK, grant)
 	return nil
 }
 
-// newClientApiAccessDto always serializes both permission lists as arrays rather than null
-func newClientApiAccessDto(access ClientAPIAccess) clientApiAccessDto {
-	dto := clientApiAccessDto(access)
-	if dto.UserDelegatedPermissionIDs == nil {
-		dto.UserDelegatedPermissionIDs = []string{}
-	}
-	if dto.ClientPermissionIDs == nil {
-		dto.ClientPermissionIDs = []string{}
-	}
-	return dto
-}
-
-func (h *handler) respond(c *gin.Context, status int, api API) error {
-	var responseDto apiResponseDto
-	if err := dto.MapStruct(api, &responseDto); err != nil {
+// removeClientAccessForApi godoc
+// @Summary Revoke a client's access to an API
+// @Description Remove every permission of this API a single OIDC client was allowed to request
+// @Tags APIs
+// @Param id path string true "API ID"
+// @Param clientId path string true "OIDC Client ID"
+// @Success 204 "No Content"
+// @Router /api/apis/{id}/clients/{clientId} [delete]
+func (h *handler) removeClientAccessForApi(c *gin.Context) error {
+	err := h.service.RemoveAPIClientAccess(c.Request.Context(), c.Param("id"), c.Param("clientId"))
+	if err != nil {
 		return err
 	}
-	responseDto.Resource = api.Audience
-	c.JSON(status, responseDto)
+
+	c.Status(http.StatusNoContent)
+	return nil
+}
+
+// listClientApis godoc
+// @Summary List APIs a client may access
+// @Description Get every API the OIDC client may request tokens for, with its access and permissions split into user-delegated and client (machine-to-machine) access
+// @Tags APIs
+// @Produce json
+// @Param clientId path string true "OIDC Client ID"
+// @Success 200 {array} clientApiGrantDto
+// @Router /api/api-access/{clientId}/apis [get]
+func (h *handler) listClientApis(c *gin.Context) error {
+	grants, err := h.service.ListClientAPIs(c.Request.Context(), c.Param("clientId"))
+	if err != nil {
+		return err
+	}
+
+	var items []clientApiGrantDto
+	if err := dto.MapStructList(grants, &items); err != nil {
+		return err
+	}
+
+	c.JSON(http.StatusOK, items)
 	return nil
 }

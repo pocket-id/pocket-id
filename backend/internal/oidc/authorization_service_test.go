@@ -118,8 +118,8 @@ func TestAuthorizationServiceCollapsesResourceErrorsBeforeAuthentication(t *test
 
 	// The targeted API does not exist at all
 	unknownErr := authorizeWithResource(t, userAccess(map[string][]string{}), unknownAPI)
-	// The targeted API exists but this client has been granted none of its permissions
-	ungrantedErr := authorizeWithResource(t, userAccess(map[string][]string{knownAPI: {}}), knownAPI)
+	// The targeted API exists but this client has not been granted access to it
+	ungrantedErr := authorizeWithResource(t, fakeAPIAccess{allowed: map[string]map[SubjectType][]string{knownAPI: {}}}, knownAPI)
 
 	require.Error(t, unknownErr)
 	require.Error(t, ungrantedErr)
@@ -193,8 +193,8 @@ func TestAuthorizationServiceConsentMergesAudienceQualifiedScopeKeys(t *testing.
 		Name: "Test Client",
 	}).Error)
 
-	apiAConsent := consentScopeKeys(apiA, []string{"openid", "read"})
-	apiBConsent := consentScopeKeys(apiB, []string{"openid", "read"})
+	apiAConsent := consentKeysForGrant(apiA, apiA, []string{"openid", "read"})
+	apiBConsent := consentKeysForGrant(apiB, apiB, []string{"openid", "read"})
 
 	hasAlreadyAuthorized, err := service.consent(t.Context(), userID, clientID, apiAConsent)
 	require.NoError(t, err)
@@ -206,7 +206,11 @@ func TestAuthorizationServiceConsentMergesAudienceQualifiedScopeKeys(t *testing.
 
 	var authorizedClient model.UserAuthorizedOidcClient
 	require.NoError(t, db.First(&authorizedClient, "user_id = ? AND client_id = ?", userID, clientID).Error)
-	require.ElementsMatch(t, []string{"openid", consentScopeKey(apiA, "read"), consentScopeKey(apiB, "read")}, authorizedClient.Scope)
+	require.ElementsMatch(t, []string{
+		"openid",
+		consentScopeKey(apiA, "read"), consentAudienceKey(apiA),
+		consentScopeKey(apiB, "read"), consentAudienceKey(apiB),
+	}, authorizedClient.Scope)
 
 	hasAuthorizedAPIA, err := service.hasAuthorizedClient(t.Context(), clientID, userID, apiAConsent)
 	require.NoError(t, err)
@@ -231,6 +235,58 @@ func TestAuthorizationServiceConsentMergesAudienceQualifiedScopeKeys(t *testing.
 	require.NoError(t, err)
 	require.False(t, authorization.RequiresInteraction)
 	require.Equal(t, []model.AuditLogEvent{model.AuditLogEventClientAuthorization}, auditLogger.events)
+}
+
+// TestAuthorizationServiceRequiresConsentForScopelessAPIAccess guards that a token audienced to a custom API always needs
+// its own consent, even when the grant carries no custom scope and the user already consented to a plain login.
+func TestAuthorizationServiceRequiresConsentForScopelessAPIAccess(t *testing.T) {
+	db := testutils.NewDatabaseForTest(t)
+
+	const (
+		userID   = "test-user"
+		clientID = "test-client"
+		api      = "https://api-a.example.com"
+	)
+
+	// The client may reach the API but was granted none of its permissions, which is the MCP-style scopeless grant
+	service := newAuthorizationService(db, newInteractionSessionService(db), newClaimsService(db, nil, "", nil), nil, nil, userAccess(map[string][]string{
+		api: {},
+	}))
+
+	require.NoError(t, db.Create(&model.User{Base: model.Base{ID: userID}}).Error)
+	require.NoError(t, db.Create(&model.OidcClient{Base: model.Base{ID: clientID}, Name: "Test Client"}).Error)
+
+	// The user has already signed in to this client, so a bare identity consent is on record
+	_, err := service.consent(t.Context(), userID, clientID, []string{"openid"})
+	require.NoError(t, err)
+
+	// That consent must not carry over to a request audienced at the API
+	form := url.Values{"prompt": {"none"}, "resource": {api}}
+	requester := newTestAuthorizeRequesterWithForm("silent-api-request", clientID, form)
+	requester.(*fosite.AuthorizeRequest).RequestedScope = fosite.Arguments{"openid"}
+
+	_, err = service.authorize(t.Context(), authorizeInput{
+		userID:             userID,
+		authenticationTime: time.Now().UTC(),
+		requester:          requester,
+		meta:               requestMeta{IPAddress: "203.0.113.1", UserAgent: "test-agent"},
+	})
+	require.Error(t, err)
+
+	// Once the API access itself is consented to, the same silent request goes through
+	_, err = service.consent(t.Context(), userID, clientID, consentKeysForGrant(api, api, []string{"openid"}))
+	require.NoError(t, err)
+
+	requester = newTestAuthorizeRequesterWithForm("silent-api-request-2", clientID, form)
+	requester.(*fosite.AuthorizeRequest).RequestedScope = fosite.Arguments{"openid"}
+	authorization, err := service.authorize(t.Context(), authorizeInput{
+		userID:             userID,
+		authenticationTime: time.Now().UTC(),
+		requester:          requester,
+		meta:               requestMeta{IPAddress: "203.0.113.1", UserAgent: "test-agent"},
+	})
+	require.NoError(t, err)
+	require.False(t, authorization.RequiresInteraction)
 }
 
 func TestAuthorizationServiceAuthorizeConsumesInteractionSession(t *testing.T) {

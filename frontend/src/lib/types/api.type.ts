@@ -3,6 +3,7 @@ export type ApiPermission = {
 	key: string;
 	name: string;
 	description?: string;
+	allowedForCimdClients: boolean;
 };
 
 export type Api = {
@@ -11,6 +12,7 @@ export type Api = {
 	resource: string;
 	createdAt: string;
 	permissions: ApiPermission[];
+	allowCimdClients: boolean;
 };
 
 export type ApiCreate = {
@@ -28,7 +30,35 @@ export type ApiPermissionInput = {
 	description: string;
 };
 
-export type ClientApiAccess = {
+export type ApiClientGrant = {
+	userDelegatedAccess: boolean;
+	clientAccess: boolean;
 	userDelegatedPermissionIds: string[];
 	clientPermissionIds: string[];
+};
+
+export type ApiCimdAccessUpdate = {
+	enabled: boolean;
+	permissionIds: string[];
+};
+
+export type ApiClient = {
+	id: string;
+	name: string;
+	clientType: string;
+	isPublic: boolean;
+	hasLogo: boolean;
+	hasDarkLogo: boolean;
+};
+
+export type ApiClientAccess = ApiClientGrant & {
+	client: ApiClient;
+	cimdGrantedAccess: boolean;
+	cimdGrantedPermissionIds: string[];
+};
+
+export type ClientApiGrant = ApiClientGrant & {
+	api: Api;
+	cimdGrantedAccess: boolean;
+	cimdGrantedPermissionIds: string[];
 };

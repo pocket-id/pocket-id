@@ -13,7 +13,7 @@ import (
 )
 
 // fakeAPIAccess implements APIAccessProvider from an audience -> subject type -> allowed-scopes map.
-// An audience present in the map exists as an API even when a subject type has no grants.
+// An audience present in the map exists as an API; a subject type present under it grants access, together with the scopes that subject may request, which can be none.
 type fakeAPIAccess struct {
 	allowed map[string]map[SubjectType][]string
 }
@@ -27,7 +27,7 @@ func userAccess(allowed map[string][]string) fakeAPIAccess {
 	return f
 }
 
-func (f fakeAPIAccess) ClientAPIScopes(_ context.Context, _ *gorm.DB, _ string) ([]string, []string, error) {
+func (f fakeAPIAccess) ClientAPIScopes(_ context.Context, _ *gorm.DB, _ string, _ bool) ([]string, []string, error) {
 	seen := map[string]struct{}{}
 	var scopes, audiences []string
 	for audience, bySubject := range f.allowed {
@@ -44,12 +44,13 @@ func (f fakeAPIAccess) ClientAPIScopes(_ context.Context, _ *gorm.DB, _ string) 
 	return scopes, audiences, nil
 }
 
-func (f fakeAPIAccess) AllowedScopesForAudience(_ context.Context, _ *gorm.DB, _ string, audience string, subjectType SubjectType) ([]string, bool, error) {
+func (f fakeAPIAccess) AllowedScopesForAudience(_ context.Context, _ *gorm.DB, _ string, audience string, subjectType SubjectType) ([]string, bool, bool, error) {
 	bySubject, exists := f.allowed[audience]
 	if !exists {
-		return nil, false, nil
+		return nil, false, false, nil
 	}
-	return bySubject[subjectType], true, nil
+	scopes, hasAccess := bySubject[subjectType]
+	return scopes, true, hasAccess, nil
 }
 
 func (f fakeAPIAccess) DescribePermissions(_ context.Context, audience string, keys []string) ([]dto.ScopeInfoDto, error) {
@@ -122,11 +123,33 @@ func TestResolveResourceUnknownIsRejected(t *testing.T) {
 }
 
 func TestResolveResourceUnauthorizedClientIsRejected(t *testing.T) {
-	// The API exists but the client has no allowed permissions for it.
+	// The API exists but the client was not granted access to it for any subject type.
+	provider := fakeAPIAccess{allowed: map[string]map[SubjectType][]string{
+		"https://api.orders.example.com": {},
+	}}
+	_, _, err := resolveResource(t.Context(), nil, provider, "client-1", "https://api.orders.example.com", []string{"read:orders"}, SubjectTypeUser)
+	require.Error(t, err)
+}
+
+// TestResolveResourceAccessWithoutPermissions covers a client that may reach an API without holding a single
+// permission, which is what the MCP specification expects: the token is audienced to the resource and carries no scope.
+func TestResolveResourceAccessWithoutPermissions(t *testing.T) {
 	provider := userAccess(map[string][]string{
 		"https://api.orders.example.com": {},
 	})
-	_, _, err := resolveResource(t.Context(), nil, provider, "client-1", "https://api.orders.example.com", []string{"read:orders"}, SubjectTypeUser)
+
+	audience, granted, err := resolveResource(t.Context(), nil, provider, "client-1", "https://api.orders.example.com", nil, SubjectTypeUser)
+	require.NoError(t, err)
+	assert.Equal(t, "https://api.orders.example.com", audience)
+	assert.Empty(t, granted)
+
+	// Identity scopes still ride along, so the same request can also produce an ID token
+	_, granted, err = resolveResource(t.Context(), nil, provider, "client-1", "https://api.orders.example.com", []string{"openid"}, SubjectTypeUser)
+	require.NoError(t, err)
+	assert.Equal(t, []string{"openid"}, granted)
+
+	// Access alone does not make a custom scope requestable
+	_, _, err = resolveResource(t.Context(), nil, provider, "client-1", "https://api.orders.example.com", []string{"read:orders"}, SubjectTypeUser)
 	require.Error(t, err)
 }
 
