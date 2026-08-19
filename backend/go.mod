@@ -24,7 +24,7 @@ require (
 	github.com/go-webauthn/webauthn v0.17.4
 	github.com/golang-migrate/migrate/v4 v4.19.1
 	github.com/google/uuid v1.6.0
-	github.com/italypaleale/francis v0.1.0-beta.23.0.20260817170946-54d0bec147d3
+	github.com/italypaleale/francis v0.1.0-rc.1
 	github.com/italypaleale/go-kit v1.0.0
 	github.com/italypaleale/go-sql-utils v0.3.5
 	github.com/jackc/pgx/v5 v5.10.0
@@ -41,7 +41,7 @@ require (
 	github.com/pires/go-proxyproto v0.15.0
 	github.com/quic-go/quic-go v0.61.0
 	github.com/spf13/cobra v1.10.2
-	github.com/stretchr/testify v1.11.1
+	github.com/stretchr/testify v1.12.0
 	github.com/zitadel/exifremove v0.1.0
 	go.opentelemetry.io/contrib/bridges/otelslog v0.20.0
 	go.opentelemetry.io/contrib/exporters/autoexport v0.70.0
@@ -90,7 +90,6 @@ require (
 	github.com/cespare/xxhash/v2 v2.3.0 // indirect
 	github.com/cloudwego/base64x v0.1.7 // indirect
 	github.com/cristalhq/jwt/v5 v5.4.0 // indirect
-	github.com/davecgh/go-spew v1.1.2-0.20180830191138-d8f796af33cc // indirect
 	github.com/decred/dcrd/dcrec/secp256k1/v4 v4.4.1 // indirect
 	github.com/dgraph-io/ristretto/v2 v2.4.0 // indirect
 	github.com/disintegration/gift v1.2.1 // indirect
@@ -165,7 +164,6 @@ require (
 	github.com/pelletier/go-toml/v2 v2.4.3 // indirect
 	github.com/philhofer/fwd v1.2.0 // indirect
 	github.com/pkg/errors v0.9.1 // indirect
-	github.com/pmezard/go-difflib v1.0.1-0.20181226105442-5d4384ee4fb2 // indirect
 	github.com/prometheus/client_golang v1.24.1 // indirect
 	github.com/prometheus/client_model v0.6.2 // indirect
 	github.com/prometheus/common v0.70.1 // indirect
