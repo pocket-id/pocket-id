@@ -3,11 +3,18 @@ package bootstrap
 import (
 	"bytes"
 	"context"
+	"crypto/ed25519"
+	"crypto/rand"
+	"crypto/x509"
+	"crypto/x509/pkix"
 	"encoding/hex"
+	"encoding/pem"
 	"log/slog"
+	"math/big"
 	"os"
 	"path/filepath"
 	"testing"
+	"time"
 
 	francishost "github.com/italypaleale/francis/host"
 	"github.com/italypaleale/francis/host/local"
@@ -125,6 +132,30 @@ func TestNewActorsSelectsTopology(t *testing.T) {
 		}
 	})
 
+	// The E2E suite runs the remote variant without a pinned CA, so this is the only place the pinning branch is exercised
+	t.Run("pinning the cluster CA builds a valid remote host", func(t *testing.T) {
+		cfg := baseConfig(t)
+		cfg.FrancisAddresses = []string{"runtime-1.example.com:8443"}
+		cfg.FrancisHostPSK = []byte("bootstrap-psk-that-is-long-enough")
+		cfg.FrancisCA = testCAPEM(t)
+
+		opts := NewActorsOpts{EnvConfig: cfg, InstanceID: "ee05c3eb-8129-47a6-a1c7-849998b6f876"}
+		h, err := opts.newRemoteHost(slog.New(slog.DiscardHandler))
+		require.NoError(t, err)
+		require.NotNil(t, h)
+	})
+
+	t.Run("an unparsable cluster CA is rejected", func(t *testing.T) {
+		cfg := baseConfig(t)
+		cfg.FrancisAddresses = []string{"runtime-1.example.com:8443"}
+		cfg.FrancisHostPSK = []byte("bootstrap-psk-that-is-long-enough")
+		cfg.FrancisCA = []byte("-----BEGIN CERTIFICATE-----\nnot a certificate\n-----END CERTIFICATE-----")
+
+		opts := NewActorsOpts{EnvConfig: cfg, InstanceID: "ee05c3eb-8129-47a6-a1c7-849998b6f876"}
+		_, err := opts.newRemoteHost(slog.New(slog.DiscardHandler))
+		require.Error(t, err)
+	})
+
 	t.Run("no bootstrap method is rejected by Francis", func(t *testing.T) {
 		cfg := baseConfig(t)
 		cfg.FrancisAddresses = []string{"runtime-1.example.com:8443"}
@@ -196,4 +227,27 @@ func TestNewActorsBackupProvider(t *testing.T) {
 
 	err = provider.Restore(t.Context(), bytes.NewReader(buf.Bytes()))
 	require.NoError(t, err)
+}
+
+// testCAPEM returns a self-signed CA certificate in PEM form, standing in for the cluster CA an operator would pin with FRANCIS_CA
+func testCAPEM(t *testing.T) []byte {
+	t.Helper()
+
+	pub, priv, err := ed25519.GenerateKey(rand.Reader)
+	require.NoError(t, err)
+
+	tmpl := &x509.Certificate{
+		SerialNumber:          big.NewInt(1),
+		Subject:               pkix.Name{CommonName: "test-cluster-ca"},
+		NotBefore:             time.Now().Add(-time.Hour),
+		NotAfter:              time.Now().Add(time.Hour),
+		IsCA:                  true,
+		KeyUsage:              x509.KeyUsageCertSign,
+		BasicConstraintsValid: true,
+	}
+
+	der, err := x509.CreateCertificate(rand.Reader, tmpl, tmpl, pub, priv)
+	require.NoError(t, err)
+
+	return pem.EncodeToMemory(&pem.Block{Type: "CERTIFICATE", Bytes: der})
 }

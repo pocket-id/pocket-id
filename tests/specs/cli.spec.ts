@@ -12,11 +12,19 @@ const containerName = 'pocket-id';
 const setupDir = pathFromRoot('setup');
 const exampleExportPath = pathFromRoot('resources/export');
 const dockerCommandMaxBuffer = 100 * 1024 * 1024;
-let mode: 'sqlite' | 'postgres' | 's3' = 'sqlite';
+let mode: 'sqlite' | 'postgres' | 's3' | 'francis' = 'sqlite';
+
+// With a standalone Francis runtime the actor data lives in the runtime's own store rather than in Pocket ID's database,
+// so an export cannot include francis.bin and an import refuses an archive that carries one.
+function isRemoteFrancis(): boolean {
+	return mode === 'francis';
+}
 
 test.beforeAll(() => {
 	const dockerComposeLs = runDockerCommand(['compose', 'ls', '--format', 'json']);
-	if (dockerComposeLs.includes('postgres')) {
+	if (dockerComposeLs.includes('francis')) {
+		mode = 'francis';
+	} else if (dockerComposeLs.includes('postgres')) {
 		mode = 'postgres';
 	} else if (dockerComposeLs.includes('s3')) {
 		mode = 's3';
@@ -104,6 +112,30 @@ test('Import SQLite export via stdin', async () => {
 	compareExports(exampleExportPath, exportExtracted);
 });
 
+test('Import rejects an archive with actor data against a standalone runtime', async () => {
+	test.skip(
+		!isRemoteFrancis(),
+		'Only applies when a standalone Francis runtime owns the actor data'
+	);
+
+	// Keeping francis.bin makes this the archive of a deployment that embedded the runtime, which has nowhere to be restored here
+	const archivePath = path.join(tmpDir, 'example-export-with-actors.zip');
+	const archive = archiveExampleExport(archivePath, true);
+
+	// The import aborts before it opens the database, so the running instance is left untouched
+	let stderr = '';
+	expect(() => {
+		try {
+			runImportFromStdin(archive);
+		} catch (err: any) {
+			stderr = err?.stderr?.toString() ?? '';
+			throw err;
+		}
+	}).toThrow();
+
+	expect(stderr).toContain('francis.bin');
+});
+
 function compareExports(dir1: string, dir2: string): void {
 	const hashes1 = hashAllFiles(dir1);
 	const hashes2 = hashAllFiles(dir2);
@@ -135,9 +167,18 @@ function compareExports(dir1: string, dir2: string): void {
 	expect(normalizedActual).toEqual(normalizedExpected);
 
 	// Compare francis.bin contents
+	// The reference export always carries it, while the produced one only does when Pocket ID owns the actor data
 	const file1 = path.join(dir1, 'francis.bin');
 	const file2 = path.join(dir2, 'francis.bin');
-	 
+
+	if (isRemoteFrancis()) {
+		expect(
+			fs.existsSync(file2),
+			`${file2} must not exist: the standalone Francis runtime owns the actor data`
+		).toBe(false);
+		return;
+	}
+
 	for (const filePath of [file1, file2]) {
 		expect(fs.existsSync(filePath), `${filePath} should exist`).toBe(true);
 
@@ -149,12 +190,18 @@ function compareExports(dir1: string, dir2: string): void {
 	}
 }
 
-function archiveExampleExport(outputPath: string): Buffer {
+// archiveExampleExport zips the reference export so it can be fed back to the import command.
+// With a standalone Francis runtime it drops francis.bin, so the archive matches what an export produces in that topology; keepActorsBackup overrides that to build the archive the import is expected to reject.
+function archiveExampleExport(outputPath: string, keepActorsBackup = false): Buffer {
 	fs.rmSync(outputPath, { force: true });
+
+	const skipActorsBackup = isRemoteFrancis() && !keepActorsBackup;
 
 	const zip = new AdmZip();
 	const files = fs.readdirSync(exampleExportPath);
 	for (const file of files) {
+		if (skipActorsBackup && file === 'francis.bin') continue;
+
 		const filePath = path.join(exampleExportPath, file);
 		if (fs.statSync(filePath).isFile()) {
 			zip.addLocalFile(filePath);
@@ -167,7 +214,6 @@ function archiveExampleExport(outputPath: string): Buffer {
 	fs.writeFileSync(outputPath, buffer);
 	return buffer;
 }
-
 
 // Helper to load JSON files
 function loadJSON(path: string) {
@@ -381,6 +427,9 @@ function dockerComposeArgs(args: string[]): string[] {
 			break;
 		case 's3':
 			dockerComposeFile = 'docker-compose-s3.yml';
+			break;
+		case 'francis':
+			dockerComposeFile = 'docker-compose-francis.yml';
 			break;
 	}
 	return ['compose', '-f', dockerComposeFile, ...args];
