@@ -157,11 +157,12 @@ func (occ OidcClientCredentials) ActiveSecrets() []OidcClientSecret {
 }
 
 type OidcClientFederatedIdentity struct {
-	Issuer           string `json:"issuer"`
-	Subject          string `json:"subject,omitempty"`
-	Audience         string `json:"audience,omitempty"`
-	JWKS             string `json:"jwks,omitempty"` // URL of the JWKS
-	ReplayProtection bool   `json:"replayProtection,omitempty"`
+	Issuer           string            `json:"issuer"`
+	Subject          string            `json:"subject,omitempty"`
+	Audience         string            `json:"audience,omitempty"`
+	JWKS             string            `json:"jwks,omitempty"`       // URL of the JWKS - mutually exclusive with PublicKeys
+	PublicKeys       []json.RawMessage `json:"publicKeys,omitempty"` // Raw JWKs - mutually exclusive with JWKS
+	ReplayProtection bool              `json:"replayProtection,omitempty"`
 }
 
 func (occ OidcClientCredentials) FederatedIdentityForIssuer(issuer string) (OidcClientFederatedIdentity, bool) {

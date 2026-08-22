@@ -1,3 +1,4 @@
+import type { Jwk } from '$lib/utils/jwk-util';
 import type { UserGroup } from './user-group.type';
 
 export type OidcClientType = 'standard' | 'cimd';
@@ -18,6 +19,7 @@ export type OidcClientFederatedIdentity = {
 	subject?: string;
 	audience?: string;
 	jwks?: string | undefined;
+	publicKeys?: Jwk[];
 	replayProtection: boolean;
 };
 
