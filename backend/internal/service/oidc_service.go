@@ -124,6 +124,7 @@ func (s *OidcService) ListClients(ctx context.Context, name string, listRequestO
 	query := s.db.
 		WithContext(ctx).
 		Preload("CreatedBy").
+		Preload("AllowedUserGroups").
 		Model(&model.OidcClient{})
 
 	if name != "" {
@@ -627,22 +628,6 @@ func (s *OidcService) UpdateAllowedUserGroups(ctx context.Context, id string, in
 		s.scimSyncScheduler.ScheduleSync(ctx)
 	}
 	return client, nil
-}
-
-func (s *OidcService) GetAllowedGroupsCountOfClient(ctx context.Context, id string) (int64, error) {
-	// We only perform select queries here, so we can rollback in all cases
-	tx := s.db.Begin()
-	defer func() {
-		tx.Rollback()
-	}()
-
-	client, err := s.getClientInternal(ctx, id, tx, false)
-	if err != nil {
-		return 0, err
-	}
-
-	count := tx.WithContext(ctx).Model(&client).Association("AllowedUserGroups").Count()
-	return count, nil
 }
 
 func (s *OidcService) ListAuthorizedClients(ctx context.Context, userID string, listRequestOptions utils.ListRequestOptions) ([]model.UserAuthorizedOidcClient, utils.PaginationResponse, error) {

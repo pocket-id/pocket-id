@@ -138,11 +138,7 @@ func (oc *OidcController) listClientsHandler(c *gin.Context) error {
 			return err
 		}
 		clientDto.HasDarkLogo = client.HasDarkLogo()
-
-		clientDto.AllowedUserGroupsCount, err = oc.oidcService.GetAllowedGroupsCountOfClient(c, client.ID)
-		if err != nil {
-			return err
-		}
+		clientDto.AllowedUserGroupsCount = int64(len(client.AllowedUserGroups))
 		clientsDto[i] = clientDto
 	}
 
