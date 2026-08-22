@@ -156,7 +156,9 @@
 			style={`animation-delay: ${delaySqliteStorageWarning()};`}
 		>
 			<LucideTriangleAlert class="mt-0.5 size-3.5 shrink-0" />
-			<FormattedMessage message={m.sqlite_storage_warning} />
+			<span class="min-w-0 break-words [&_a]:block">
+				<FormattedMessage message={m.sqlite_storage_warning} />
+			</span>
 		</div>
 	{/if}
 
