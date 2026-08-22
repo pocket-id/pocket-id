@@ -1,9 +1,10 @@
 <script lang="ts">
 	import { page } from '$app/state';
+	import FormattedMessage from '$lib/components/formatted-message.svelte';
 	import { m } from '$lib/paraglide/messages';
 	import appConfigStore from '$lib/stores/application-configuration-store';
 	import { cn } from '$lib/utils/style';
-	import { LucideChevronDown, LucideExternalLink } from '@lucide/svelte';
+	import { LucideChevronDown, LucideExternalLink, LucideTriangleAlert } from '@lucide/svelte';
 	import { PersistedState } from 'runed';
 	import { slide } from 'svelte/transition';
 
@@ -17,7 +18,8 @@
 		items = [] as NavItem[],
 		storageKey = 'sidebar-open:settings',
 		isAdmin = false,
-		isUpToDate = undefined
+		isUpToDate = undefined,
+		sqliteStorageWarning = false
 	} = $props();
 
 	const openState = new PersistedState<Record<string, boolean>>(storageKey, {});
@@ -74,7 +76,10 @@
 
 	const delayTop = (i: number) => `${layout().offsets[i] * ROW_STAGGER}ms`;
 	const delayChild = (i: number, j: number) => `${(layout().offsets[i] + 1 + j) * ROW_STAGGER}ms`;
-	const delayUpdateLink = () => `${layout().total * ROW_STAGGER}ms`;
+	const showSqliteStorageWarning = $derived(isAdmin && sqliteStorageWarning);
+	const delaySqliteStorageWarning = () => `${layout().total * ROW_STAGGER}ms`;
+	const delayUpdateLink = () =>
+		`${(layout().total + (showSqliteStorageWarning ? 1 : 0)) * ROW_STAGGER}ms`;
 </script>
 
 <nav
@@ -141,6 +146,19 @@
 			</a>
 		{/if}
 	{/each}
+
+	{#if showSqliteStorageWarning}
+		<div
+			class={cn(
+				'text-destructive flex items-start gap-2 rounded-md px-3 py-1.5 text-xs leading-relaxed',
+				!$appConfigStore.disableAnimations && 'animate-fade-in'
+			)}
+			style={`animation-delay: ${delaySqliteStorageWarning()};`}
+		>
+			<LucideTriangleAlert class="mt-0.5 size-3.5 shrink-0" />
+			<FormattedMessage message={m.sqlite_storage_warning} />
+		</div>
+	{/if}
 
 	{#if isAdmin && isUpToDate === false}
 		<a

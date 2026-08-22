@@ -16,7 +16,7 @@
 		data: LayoutData;
 	} = $props();
 
-	const { versionInformation, user } = data;
+	const { versionInformation, sqliteStorageWarning, user } = data;
 
 	type NavItem = {
 		href?: string;
@@ -62,6 +62,7 @@
 						storageKey="sidebar-open:settings"
 						isAdmin={$userStore?.isAdmin || user?.isAdmin}
 						isUpToDate={versionInformation?.isUpToDate}
+						{sqliteStorageWarning}
 					/>
 				</div>
 			</div>

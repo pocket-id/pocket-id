@@ -177,6 +177,7 @@ func registerRoutes(r *gin.Engine, db *gorm.DB, svc *services, rateLimitServices
 	svc.apiModule.RegisterRoutes(apiGroup, authMiddleware.Add())
 	controller.NewCustomClaimController(apiGroup, authMiddleware, svc.customClaimService)
 	controller.NewVersionController(apiGroup, authMiddleware, svc.versionService)
+	controller.NewStorageController(apiGroup, authMiddleware)
 	svc.scimSyncModule.RegisterRoutes(apiGroup, authMiddleware.Add())
 	svc.userSignUpModule.RegisterRoutes(apiGroup,
 		authMiddleware.Add(),

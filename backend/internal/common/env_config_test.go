@@ -337,6 +337,38 @@ func TestParseEnvConfig(t *testing.T) {
 		assert.ErrorContains(t, err, "TLS_CERT_FILE not found")
 	})
 
+	t.Run("should not dismiss the SQLite storage warning by default", func(t *testing.T) {
+		EnvConfig = defaultConfig()
+		t.Setenv("DB_CONNECTION_STRING", "file:test.db")
+		t.Setenv("APP_URL", "http://localhost:3000")
+
+		err := parseAndValidateEnvConfig(t)
+		require.NoError(t, err)
+		assert.False(t, bool(EnvConfig.DismissSQLiteStorageWarning))
+	})
+
+	t.Run("should not dismiss the SQLite storage warning with an unrelated value", func(t *testing.T) {
+		EnvConfig = defaultConfig()
+		t.Setenv("DB_CONNECTION_STRING", "file:test.db")
+		t.Setenv("APP_URL", "http://localhost:3000")
+		t.Setenv("DISMISS_SQLITE_STORAGE_WARNING", "true")
+
+		err := parseAndValidateEnvConfig(t)
+		require.NoError(t, err)
+		assert.False(t, bool(EnvConfig.DismissSQLiteStorageWarning))
+	})
+
+	t.Run("should dismiss the SQLite storage warning with the confirmation phrase", func(t *testing.T) {
+		EnvConfig = defaultConfig()
+		t.Setenv("DB_CONNECTION_STRING", "file:test.db")
+		t.Setenv("APP_URL", "http://localhost:3000")
+		t.Setenv("DISMISS_SQLITE_STORAGE_WARNING", "  I Understand That My Database Can Get Corrupted And I Will Not Receive Support  ")
+
+		err := parseAndValidateEnvConfig(t)
+		require.NoError(t, err)
+		assert.True(t, bool(EnvConfig.DismissSQLiteStorageWarning))
+	})
+
 	t.Run("should fail when TLS key file does not exist", func(t *testing.T) {
 		EnvConfig = defaultConfig()
 		t.Setenv("DB_CONNECTION_STRING", "file:test.db")
