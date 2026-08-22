@@ -1,9 +1,11 @@
+import StorageService from '$lib/services/storage-service';
 import VersionService from '$lib/services/version-service';
 import type { AppVersionInformation } from '$lib/types/application-configuration.type';
 import type { LayoutLoad } from './$types';
 
 export const load: LayoutLoad = async () => {
 	const versionService = new VersionService();
+	const storageService = new StorageService();
 	const currentVersion = versionService.getCurrentVersion();
 
 	let newestVersion = null;
@@ -24,7 +26,11 @@ export const load: LayoutLoad = async () => {
 		isUpToDate
 	};
 
+	// If the request fails, don't show the warning to avoid a false positive.
+	const sqliteStorageWarning = await storageService.getSqliteStorageWarning().catch(() => false);
+
 	return {
-		versionInformation
+		versionInformation,
+		sqliteStorageWarning
 	};
 };

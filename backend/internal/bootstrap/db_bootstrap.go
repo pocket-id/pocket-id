@@ -68,6 +68,9 @@ func ConnectDatabase(ctx context.Context) (db *gorm.DB, pg *pgxpool.Pool, err er
 			return nil, nil, err
 		}
 
+		// Detect whether the database lives on a networked filesystem to show a warning in the admin UI
+		common.SQLiteOnNetworkedFilesystem = connector.IsNetworked()
+
 		// We open the connection ourselves, rather than letting Gorm do it, so it goes through the instrumented driver
 		// It also caps in-memory databases to a single connection, which they need to see the whole data
 		sqliteDB, err := sqliteinstrument.Open(connector, sqlInstrumentOptions())
