@@ -362,7 +362,18 @@ func TestParseEnvConfig(t *testing.T) {
 		EnvConfig = defaultConfig()
 		t.Setenv("DB_CONNECTION_STRING", "file:test.db")
 		t.Setenv("APP_URL", "http://localhost:3000")
-		t.Setenv("DISMISS_SQLITE_STORAGE_WARNING", "  I Understand That My Database Can Get Corrupted And I Will Not Receive Support  ")
+		t.Setenv("DISMISS_SQLITE_STORAGE_WARNING", "  I Accept The Risks  ")
+
+		err := parseAndValidateEnvConfig(t)
+		require.NoError(t, err)
+		assert.True(t, bool(EnvConfig.DismissSQLiteStorageWarning))
+	})
+
+	t.Run("should dismiss the SQLite storage warning with the confirmation phrase with dashes", func(t *testing.T) {
+		EnvConfig = defaultConfig()
+		t.Setenv("DB_CONNECTION_STRING", "file:test.db")
+		t.Setenv("APP_URL", "http://localhost:3000")
+		t.Setenv("DISMISS_SQLITE_STORAGE_WARNING", " I-Accept_The_Risks  ")
 
 		err := parseAndValidateEnvConfig(t)
 		require.NoError(t, err)

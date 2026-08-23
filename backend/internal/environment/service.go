@@ -1,4 +1,4 @@
-package service
+package environment
 
 import (
 	"context"
@@ -19,19 +19,22 @@ const (
 	versionCheckURL = "https://api.github.com/repos/pocket-id/pocket-id/releases/latest"
 )
 
-type VersionService struct {
+type Service struct {
 	httpClient *http.Client
 	cache      *utils.Cache[string]
+
+	sqliteOnNetworkedFilesystem bool
 }
 
-func NewVersionService(httpClient *http.Client) *VersionService {
-	return &VersionService{
-		httpClient: httpClient,
-		cache:      utils.New[string](versionTTL),
+func newService(deps Dependencies) *Service {
+	return &Service{
+		httpClient:                  deps.HTTPClient,
+		cache:                       utils.New[string](versionTTL),
+		sqliteOnNetworkedFilesystem: deps.SQLiteOnNetworkedFilesystem,
 	}
 }
 
-func (s *VersionService) GetLatestVersion(ctx context.Context) (string, error) {
+func (s *Service) GetLatestVersion(ctx context.Context) (string, error) {
 	if common.EnvConfig.VersionCheckDisabled {
 		return "", nil
 	}
@@ -75,4 +78,9 @@ func (s *VersionService) GetLatestVersion(ctx context.Context) (string, error) {
 	}
 
 	return version, err
+}
+
+// ShowSQLiteStorageWarning reports whether admins should be warned that the SQLite database is on a networked filesystem
+func (s *Service) ShowSQLiteStorageWarning() bool {
+	return s.sqliteOnNetworkedFilesystem && !bool(common.EnvConfig.DismissSQLiteStorageWarning)
 }

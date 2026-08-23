@@ -28,8 +28,8 @@ const (
 	TracerName = "github.com/pocket-id/pocket-id/backend/tracing"
 	// MeterName should be passed to otel.Meter when create custom metrics.
 	MeterName = "github.com/pocket-id/pocket-id/backend/metrics"
-	// dismissSQLiteStorageWarningPhrase is the exact phrase DISMISS_SQLITE_STORAGE_WARNING must be set to (case-insensitively) to suppress the warning.
-	dismissSQLiteStorageWarningPhrase = "i understand that my database can get corrupted and i will not receive support"
+	// dismissSQLiteStorageWarningPhrase is the exact phrase DISMISS_SQLITE_STORAGE_WARNING must be set to to suppress the warning (matched case-insensitive)
+	dismissSQLiteStorageWarningPhrase = "i accept the risks"
 )
 
 const (
@@ -432,7 +432,10 @@ func (a AppEnv) IsTest() bool {
 }
 
 func (config *DismissSQLiteStorageWarningConfig) UnmarshalText(text []byte) error {
+	// Make lowercase, then replace all - and _ with spaces
 	value := strings.ToLower(strings.TrimSpace(string(text)))
+	value = strings.ReplaceAll(value, "_", " ")
+	value = strings.ReplaceAll(value, "-", " ")
 	*config = DismissSQLiteStorageWarningConfig(value == dismissSQLiteStorageWarningPhrase)
 	return nil
 }
