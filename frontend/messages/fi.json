@@ -99,6 +99,7 @@
 	"application_configuration": "Sovelluksen määritys",
 	"settings": "Asetukset",
 	"update_pocket_id": "Päivitä Pocket ID",
+	"sqlite_storage_warning": "Havaitsimme, että SQLite-tietokantasi on tallennettu verkkoon liitettyyn asemaan, kuten NFS-, SMB- tai FUSE-asemaan. Tätä ei tueta, ja se voi johtaa tietokannan vioittumiseen. {#link href=|https://pocket-id.org/docs/configuration/environment-variables#sqlite|}Katso ohjeet.{/link}",
 	"powered_by": "Voimanlähteenä",
 	"see_your_recent_account_activities": "Tarkastele tilisi tapahtumia määritetyn säilytysajan puitteissa.",
 	"time": "Aika",
