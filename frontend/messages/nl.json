@@ -99,6 +99,7 @@
 	"application_configuration": "Toepassingsconfiguratie",
 	"settings": "Instellingen",
 	"update_pocket_id": "Pocket-ID bijwerken",
+	"sqlite_storage_warning": "We hebben vastgesteld dat je SQLite-database is opgeslagen op een netwerkstation, zoals NFS, SMB of FUSE. Dit wordt niet ondersteund en kan ertoe leiden dat je database beschadigd raakt. {#link href=|https://pocket-id.org/docs/configuration/environment-variables#sqlite|}Zie de documentatie.{/link}",
 	"powered_by": "Aangedreven door",
 	"see_your_recent_account_activities": "Bekijk je accountactiviteiten binnen de ingestelde bewaartermijn.",
 	"time": "Tijd",
