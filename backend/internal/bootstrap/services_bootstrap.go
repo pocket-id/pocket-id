@@ -14,6 +14,7 @@ import (
 	"github.com/pocket-id/pocket-id/backend/internal/devicelogin"
 	"github.com/pocket-id/pocket-id/backend/internal/email"
 	"github.com/pocket-id/pocket-id/backend/internal/emailverification"
+	"github.com/pocket-id/pocket-id/backend/internal/environment"
 	"github.com/pocket-id/pocket-id/backend/internal/geolite"
 	"github.com/pocket-id/pocket-id/backend/internal/ldapsync"
 	"github.com/pocket-id/pocket-id/backend/internal/oidc"
@@ -37,7 +38,6 @@ type services struct {
 	customClaimService *service.CustomClaimService
 	oidcService        *service.OidcService
 	userGroupService   *service.UserGroupService
-	versionService     *service.VersionService
 	fileStorage        storage.FileStorage
 
 	apiKeyModule            *apikey.Module
@@ -51,6 +51,7 @@ type services struct {
 	oneTimeAccessModule     *onetimeaccess.Module
 	emailVerificationModule *emailverification.Module
 	apiModule               *api.Module
+	environmentModule       *environment.Module
 	actors                  *local.Host
 }
 
@@ -247,7 +248,10 @@ func initServices(
 		return nil, fmt.Errorf("failed to create email verification module: %w", err)
 	}
 
-	svc.versionService = service.NewVersionService(httpClient)
+	svc.environmentModule = environment.New(environment.Dependencies{
+		HTTPClient:                  httpClient,
+		SQLiteOnNetworkedFilesystem: sqliteOnNetworkedFilesystem,
+	})
 
 	return svc, nil
 }
