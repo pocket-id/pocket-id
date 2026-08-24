@@ -1,9 +1,12 @@
 <script lang="ts">
 	import EmailVerificationStateBox from '$lib/components/email-verification-state-box.svelte';
 	import FadeWrapper from '$lib/components/fade-wrapper.svelte';
+	import FormattedMessage from '$lib/components/formatted-message.svelte';
 	import Sidebar from '$lib/components/sidebar.svelte';
+	import * as Alert from '$lib/components/ui/alert';
 	import { m } from '$lib/paraglide/messages';
 	import userStore from '$lib/stores/user-store';
+	import { LucideTriangleAlert } from '@lucide/svelte';
 	import type { Snippet } from 'svelte';
 	import { fade, fly } from 'svelte/transition';
 	import type { LayoutData } from './$types';
@@ -62,13 +65,20 @@
 						storageKey="sidebar-open:settings"
 						isAdmin={$userStore?.isAdmin || user?.isAdmin}
 						isUpToDate={versionInformation?.isUpToDate}
-						{sqliteStorageWarning}
 					/>
 				</div>
 			</div>
 
 			<div class="flex w-full flex-col gap-4 overflow-hidden pb-2 px-2">
 				<FadeWrapper>
+					{#if sqliteStorageWarning && ($userStore?.isAdmin || user?.isAdmin)}
+						<Alert.Root variant="destructive">
+							<LucideTriangleAlert />
+							<Alert.Description>
+								<FormattedMessage message={m.sqlite_storage_warning} />
+							</Alert.Description>
+						</Alert.Root>
+					{/if}
 					<EmailVerificationStateBox />
 					{@render children()}
 				</FadeWrapper>
