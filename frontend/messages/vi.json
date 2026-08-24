@@ -99,6 +99,7 @@
 	"application_configuration": "Cấu hình ứng dụng",
 	"settings": "Cài đặt",
 	"update_pocket_id": "Cập nhật Pocket ID",
+	"sqlite_storage_warning": "Chúng tôi phát hiện thấy cơ sở dữ liệu SQLite của bạn đang được lưu trữ trên một ổ đĩa kết nối mạng như NFS, SMB hoặc FUSE. Tính năng này không được hỗ trợ và có thể dẫn đến việc cơ sở dữ liệu của bạn bị hỏng. {#link href=|https://pocket-id.org/docs/configuration/environment-variables#sqlite|}Xem tài liệu.{/link}",
 	"powered_by": "Được cung cấp bởi",
 	"see_your_recent_account_activities": "Xem các hoạt động tài khoản của bạn trong khoảng thời gian lưu trữ đã được cấu hình.",
 	"time": "Thời gian",
