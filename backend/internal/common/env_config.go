@@ -16,15 +16,20 @@ import (
 	_ "github.com/joho/godotenv/autoload"
 )
 
-type AppEnv string
-type DbProvider string
-type TrustProxyConfig []string
+type (
+	AppEnv                            string
+	DbProvider                        string
+	TrustProxyConfig                  []string
+	DismissSQLiteStorageWarningConfig bool
+)
 
 const (
 	// TracerName should be passed to otel.Tracer, trace.SpanFromContext when creating custom spans.
 	TracerName = "github.com/pocket-id/pocket-id/backend/tracing"
 	// MeterName should be passed to otel.Meter when create custom metrics.
 	MeterName = "github.com/pocket-id/pocket-id/backend/metrics"
+	// dismissSQLiteStorageWarningPhrase is the exact phrase DISMISS_SQLITE_STORAGE_WARNING must be set to to suppress the warning (matched case-insensitive)
+	dismissSQLiteStorageWarningPhrase = "i accept the risks"
 )
 
 const (
@@ -99,6 +104,10 @@ type EnvConfigSchema struct {
 	// LogQueryArgs includes the values of SQL query parameters in traces and in the query logs printed when LogLevel is "debug"
 	// Note that these may can contain sensitive data
 	LogQueryArgs bool `env:"LOG_QUERY_ARGS"`
+
+	// This is true when DISMISS_SQLITE_STORAGE_WARNING is the exact confirmation phrase set in the constant above
+	// Note: this is omitted from the general list of environment variables in the docs, and documented only in the SQLite-specific section
+	DismissSQLiteStorageWarning DismissSQLiteStorageWarningConfig `env:"DISMISS_SQLITE_STORAGE_WARNING"`
 }
 
 var EnvConfig = defaultConfig()
@@ -420,6 +429,15 @@ func (a AppEnv) IsProduction() bool {
 
 func (a AppEnv) IsTest() bool {
 	return a == AppEnvTest
+}
+
+func (config *DismissSQLiteStorageWarningConfig) UnmarshalText(text []byte) error {
+	// Make lowercase, then replace all - and _ with spaces
+	value := strings.ToLower(strings.TrimSpace(string(text)))
+	value = strings.ReplaceAll(value, "_", " ")
+	value = strings.ReplaceAll(value, "-", " ")
+	*config = DismissSQLiteStorageWarningConfig(value == dismissSQLiteStorageWarningPhrase)
+	return nil
 }
 
 func (config *TrustProxyConfig) UnmarshalText(text []byte) error {

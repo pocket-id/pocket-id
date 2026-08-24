@@ -27,6 +27,10 @@ import (
 	sqliteutil "github.com/pocket-id/pocket-id/backend/internal/utils/sqlite"
 )
 
+// Records whether the SQLite database was found on a networked filesystem
+// It's always false when using Postgres
+var sqliteOnNetworkedFilesystem bool
+
 func NewDatabase(ctx context.Context) (db *gorm.DB, pg *pgxpool.Pool, err error) {
 	db, pg, err = ConnectDatabase(ctx)
 	if err != nil {
@@ -67,6 +71,9 @@ func ConnectDatabase(ctx context.Context) (db *gorm.DB, pg *pgxpool.Pool, err er
 		if err != nil {
 			return nil, nil, err
 		}
+
+		// Detect whether the database lives on a networked filesystem to show a warning in the admin UI
+		sqliteOnNetworkedFilesystem = connector.IsNetworked()
 
 		// We open the connection ourselves, rather than letting Gorm do it, so it goes through the instrumented driver
 		// It also caps in-memory databases to a single connection, which they need to see the whole data

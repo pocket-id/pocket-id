@@ -25,7 +25,7 @@ require (
 	github.com/google/uuid v1.6.0
 	github.com/italypaleale/francis v0.1.0-beta.23
 	github.com/italypaleale/go-kit v1.0.0
-	github.com/italypaleale/go-sql-utils v0.3.5
+	github.com/italypaleale/go-sql-utils v0.3.6
 	github.com/jackc/pgx/v5 v5.10.0
 	github.com/jinzhu/copier v0.4.0
 	github.com/joho/godotenv v1.5.1
