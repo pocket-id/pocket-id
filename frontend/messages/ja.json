@@ -99,6 +99,7 @@
 	"application_configuration": "アプリケーション設定",
 	"settings": "設定",
 	"update_pocket_id": "Pocket ID を更新",
+	"sqlite_storage_warning": "お使いのSQLiteデータベースが、NFS、SMB、FUSEなどのネットワーク接続ドライブに保存されていることが検出されました。これはサポート対象外であり、データベースが破損する原因となる可能性があります。{#link href=|https://pocket-id.org/docs/configuration/environment-variables#sqlite|}ドキュメントを参照してください。{/link}",
 	"powered_by": "Powered by",
 	"see_your_recent_account_activities": "設定された保持期間内のアカウント活動を確認できます。",
 	"time": "時間",
