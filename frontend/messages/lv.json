@@ -99,6 +99,7 @@
 	"application_configuration": "Lietotnes konfigurācija",
 	"settings": "Iestatījumi",
 	"update_pocket_id": "Atjaunināt Pocket ID",
+	"sqlite_storage_warning": "Mēs konstatējām, ka jūsu SQLite datubāze ir saglabāta tīklam pieslēgtā diskā, piemēram, NFS, SMB vai FUSE. Šāda konfigurācija netiek atbalstīta un var izraisīt datubāzes bojājumus. {#link href=|https://pocket-id.org/docs/configuration/environment-variables#sqlite|}Skatīt dokumentāciju.{/link}",
 	"powered_by": "Darbojas ar",
 	"see_your_recent_account_activities": "Skatiet sava konta aktivitātes konfigurētajā saglabāšanas periodā.",
 	"time": "Laiks",
