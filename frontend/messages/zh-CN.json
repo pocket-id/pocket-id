@@ -99,6 +99,7 @@
 	"application_configuration": "设置",
 	"settings": "设置",
 	"update_pocket_id": "更新 Pocket ID",
+	"sqlite_storage_warning": "我们检测到您的 SQLite 数据库存储在 NFS、SMB 或 FUSE 等网络连接的驱动器上。此操作不受支持，可能会导致数据库损坏。{#link href=|https://pocket-id.org/docs/configuration/environment-variables#sqlite|}请参阅文档。{/link}",
 	"powered_by": "",
 	"see_your_recent_account_activities": "查看您账户的活动日志。日志保存期已在环境变量中配置。",
 	"time": "时间",
