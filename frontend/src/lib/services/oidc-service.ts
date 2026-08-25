@@ -11,8 +11,8 @@ import type {
 	OidcClientSecret,
 	OidcClientSecretCreated,
 	OidcClientUpdate,
+	OidcClientWithAllowedGroups,
 	OidcClientWithAllowedUserGroups,
-	OidcClientWithAllowedUserGroupsCount,
 	OidcDeviceCodeInfo
 } from '$lib/types/oidc.type';
 import type { ScimServiceProvider } from '$lib/types/scim.type';
@@ -38,7 +38,7 @@ class OidcService extends APIService {
 		const res = await this.api.get('/oidc/clients', {
 			params: options
 		});
-		return res.data as Paginated<OidcClientWithAllowedUserGroupsCount>;
+		return res.data as Paginated<OidcClientWithAllowedGroups>;
 	};
 
 	createClient = async (client: OidcClientCreate) =>

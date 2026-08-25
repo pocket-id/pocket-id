@@ -118,7 +118,7 @@ func (oc *OidcController) getClientHandler(c *gin.Context) error {
 // @Param pagination[limit] query int false "Number of items per page" default(20)
 // @Param sort[column] query string false "Column to sort by"
 // @Param sort[direction] query string false "Sort direction (asc or desc)" default("asc")
-// @Success 200 {object} dto.Paginated[dto.OidcClientWithAllowedGroupsCountDto]
+// @Success 200 {object} dto.Paginated[dto.OidcClientWithAllowedGroupsDto]
 // @Failure default {object} dto.ErrorDto "Error"
 // @Router /api/oidc/clients [get]
 func (oc *OidcController) listClientsHandler(c *gin.Context) error {
@@ -131,22 +131,17 @@ func (oc *OidcController) listClientsHandler(c *gin.Context) error {
 	}
 
 	// Map the user groups to DTOs
-	var clientsDto = make([]dto.OidcClientWithAllowedGroupsCountDto, len(clients))
+	var clientsDto = make([]dto.OidcClientWithAllowedGroupsDto, len(clients))
 	for i, client := range clients {
-		var clientDto dto.OidcClientWithAllowedGroupsCountDto
+		var clientDto dto.OidcClientWithAllowedGroupsDto
 		if err := dto.MapStruct(client, &clientDto); err != nil {
 			return err
 		}
 		clientDto.HasDarkLogo = client.HasDarkLogo()
-
-		clientDto.AllowedUserGroupsCount, err = oc.oidcService.GetAllowedGroupsCountOfClient(c, client.ID)
-		if err != nil {
-			return err
-		}
 		clientsDto[i] = clientDto
 	}
 
-	c.JSON(http.StatusOK, dto.Paginated[dto.OidcClientWithAllowedGroupsCountDto]{
+	c.JSON(http.StatusOK, dto.Paginated[dto.OidcClientWithAllowedGroupsDto]{
 		Data:       clientsDto,
 		Pagination: pagination,
 	})

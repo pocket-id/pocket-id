@@ -124,14 +124,15 @@ func (s *OidcService) ListClients(ctx context.Context, name string, listRequestO
 	query := s.db.
 		WithContext(ctx).
 		Preload("CreatedBy").
+		Preload("AllowedUserGroups").
 		Model(&model.OidcClient{})
 
 	if name != "" {
 		query = query.Where("name LIKE ?", "%"+name+"%")
 	}
 
-	// As allowedUserGroupsCount is not a column, we need to manually sort it
-	if listRequestOptions.Sort.Column == "allowedUserGroupsCount" && utils.IsValidSortDirection(listRequestOptions.Sort.Direction) {
+	// Sort the allowed user groups relation by its row count because it is not an OIDC client column
+	if listRequestOptions.Sort.Column == "allowedUserGroups" && utils.IsValidSortDirection(listRequestOptions.Sort.Direction) {
 		query = query.Select("oidc_clients.*, COUNT(oidc_clients_allowed_user_groups.oidc_client_id)").
 			Joins("LEFT JOIN oidc_clients_allowed_user_groups ON oidc_clients.id = oidc_clients_allowed_user_groups.oidc_client_id").
 			Group("oidc_clients.id").
@@ -627,22 +628,6 @@ func (s *OidcService) UpdateAllowedUserGroups(ctx context.Context, id string, in
 		s.scimSyncScheduler.ScheduleSync(ctx)
 	}
 	return client, nil
-}
-
-func (s *OidcService) GetAllowedGroupsCountOfClient(ctx context.Context, id string) (int64, error) {
-	// We only perform select queries here, so we can rollback in all cases
-	tx := s.db.Begin()
-	defer func() {
-		tx.Rollback()
-	}()
-
-	client, err := s.getClientInternal(ctx, id, tx, false)
-	if err != nil {
-		return 0, err
-	}
-
-	count := tx.WithContext(ctx).Model(&client).Association("AllowedUserGroups").Count()
-	return count, nil
 }
 
 func (s *OidcService) ListAuthorizedClients(ctx context.Context, userID string, listRequestOptions utils.ListRequestOptions) ([]model.UserAuthorizedOidcClient, utils.PaginationResponse, error) {

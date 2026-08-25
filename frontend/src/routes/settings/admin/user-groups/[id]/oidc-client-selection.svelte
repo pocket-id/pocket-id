@@ -5,7 +5,7 @@
 	import OidcService from '$lib/services/oidc-service';
 	import type { AdvancedTableColumn } from '$lib/types/advanced-table.type';
 	import type { ListRequestOptions } from '$lib/types/list-request.type';
-	import type { OidcClient, OidcClientWithAllowedUserGroupsCount } from '$lib/types/oidc.type';
+	import type { OidcClient, OidcClientWithAllowedGroups } from '$lib/types/oidc.type';
 	import { cachedOidcClientLogo } from '$lib/utils/cached-image-util';
 	import { mode } from 'mode-watcher';
 
@@ -17,7 +17,7 @@
 
 	const oidcClientService = new OidcService();
 
-	let tableRef: AdvancedTable<OidcClientWithAllowedUserGroupsCount>;
+	let tableRef: AdvancedTable<OidcClientWithAllowedGroups>;
 
 	export function refresh() {
 		return tableRef?.refresh();
@@ -25,16 +25,16 @@
 
 	const isLightMode = $derived(mode.current === 'light');
 
-	const columns: AdvancedTableColumn<OidcClientWithAllowedUserGroupsCount>[] = [
+	const columns: AdvancedTableColumn<OidcClientWithAllowedGroups>[] = [
 		{ label: 'ID', column: 'id', hidden: true },
 		{ label: m.logo(), key: 'logo', cell: LogoCell },
 		{ label: m.name(), column: 'name', sortable: true },
 		{
 			label: m.oidc_allowed_group_count(),
-			column: 'allowedUserGroupsCount',
+			column: 'allowedUserGroups',
 			sortable: true,
 
-			value: (item) => (item.isGroupRestricted ? item.allowedUserGroupsCount : '-')
+			value: (item) => (item.isGroupRestricted ? item.allowedUserGroups.length : '-')
 		},
 		{
 			label: m.restricted(),

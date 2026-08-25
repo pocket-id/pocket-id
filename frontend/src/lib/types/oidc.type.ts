@@ -1,4 +1,4 @@
-import type { UserGroup } from './user-group.type';
+import type { UserGroup, UserGroupMinimal } from './user-group.type';
 
 export type OidcClientType = 'standard' | 'cimd';
 
@@ -74,8 +74,8 @@ export type OidcClientWithAllowedUserGroups = OidcClient & {
 	allowedUserGroups: UserGroup[];
 };
 
-export type OidcClientWithAllowedUserGroupsCount = OidcClient & {
-	allowedUserGroupsCount: number;
+export type OidcClientWithAllowedGroups = OidcClient & {
+	allowedUserGroups: UserGroupMinimal[];
 };
 
 export type OidcClientUpdate = Omit<
