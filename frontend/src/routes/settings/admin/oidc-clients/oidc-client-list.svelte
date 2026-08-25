@@ -11,7 +11,7 @@
 		AdvancedTableColumn,
 		CreateAdvancedTableActions
 	} from '$lib/types/advanced-table.type';
-	import type { OidcClient, OidcClientWithAllowedUserGroupsCount } from '$lib/types/oidc.type';
+	import type { OidcClient, OidcClientWithAllowedGroups } from '$lib/types/oidc.type';
 	import { cachedOidcClientLogo } from '$lib/utils/cached-image-util';
 	import { encodeClientIdParam } from '$lib/utils/client-id-util';
 	import { axiosErrorToast } from '$lib/utils/error-util';
@@ -20,7 +20,7 @@
 	import { toast } from 'svelte-sonner';
 
 	const oidcService = new OIDCService();
-	let tableRef: AdvancedTable<OidcClientWithAllowedUserGroupsCount>;
+	let tableRef: AdvancedTable<OidcClientWithAllowedGroups>;
 
 	export function refresh() {
 		return tableRef?.refresh();
@@ -38,13 +38,13 @@
 		{ label: m.client_type_metadata_document(), value: 'cimd' }
 	];
 
-	const columns: AdvancedTableColumn<OidcClientWithAllowedUserGroupsCount>[] = [
+	const columns: AdvancedTableColumn<OidcClientWithAllowedGroups>[] = [
 		{ label: 'ID', column: 'id', hidden: true },
 		{ label: m.logo(), key: 'logo', cell: LogoCell },
 		{ label: m.name(), column: 'name', sortable: true },
 		{
 			label: m.oidc_allowed_group_count(),
-			column: 'allowedUserGroupsCount',
+			column: 'allowedUserGroups',
 			sortable: true,
 			cell: AllowedGroupCountCell
 		},
@@ -95,7 +95,7 @@
 		}
 	];
 
-	const actions: CreateAdvancedTableActions<OidcClientWithAllowedUserGroupsCount> = (client) => [
+	const actions: CreateAdvancedTableActions<OidcClientWithAllowedGroups> = (client) => [
 		{
 			label: m.edit(),
 			primary: true,
@@ -147,16 +147,16 @@
 	}
 </script>
 
-{#snippet AllowedGroupCountCell({ item }: { item: OidcClientWithAllowedUserGroupsCount })}
+{#snippet AllowedGroupCountCell({ item }: { item: OidcClientWithAllowedGroups })}
 	{#if !item.isGroupRestricted}
 		-
 	{:else if item.allowedUserGroups.length === 0}
-		{item.allowedUserGroupsCount}
+		{item.allowedUserGroups.length}
 	{:else}
 		<Tooltip.Provider>
 			<Tooltip.Root>
 				<Tooltip.Trigger class="cursor-default underline decoration-dotted underline-offset-4">
-					{item.allowedUserGroupsCount}
+					{item.allowedUserGroups.length}
 				</Tooltip.Trigger>
 				<Tooltip.Content side="right" class="flex-col items-start">
 					<ScrollArea
@@ -175,7 +175,7 @@
 	{/if}
 {/snippet}
 
-{#snippet LogoCell({ item }: { item: OidcClientWithAllowedUserGroupsCount })}
+{#snippet LogoCell({ item }: { item: OidcClientWithAllowedGroups })}
 	{#if item.hasLogo}
 		<ImageBox
 			class="size-12 rounded-lg"

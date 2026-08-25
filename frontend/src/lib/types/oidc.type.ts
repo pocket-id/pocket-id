@@ -74,9 +74,8 @@ export type OidcClientWithAllowedUserGroups = OidcClient & {
 	allowedUserGroups: UserGroup[];
 };
 
-export type OidcClientWithAllowedUserGroupsCount = OidcClient & {
+export type OidcClientWithAllowedGroups = OidcClient & {
 	allowedUserGroups: UserGroupMinimal[];
-	allowedUserGroupsCount: number;
 };
 
 export type OidcClientUpdate = Omit<

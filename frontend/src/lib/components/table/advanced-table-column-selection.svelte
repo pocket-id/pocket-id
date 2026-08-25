@@ -28,20 +28,20 @@
 			<DropdownMenu.Separator />
 			{#each columns as column (column)}
 				{#if column.label}
-				<DropdownMenu.CheckboxItem
-					closeOnSelect={false}
-					checked={selectedColumns.includes(column.column ?? column.key!)}
-					onCheckedChange={(v) => {
-						const key = column.column ?? column.key!;
-						if (v) {
-							selectedColumns = [...selectedColumns, key];
-						} else {
-							selectedColumns = selectedColumns.filter((c) => c !== key);
-						}
-					}}
-				>
-					{column.label}
-				</DropdownMenu.CheckboxItem>
+					<DropdownMenu.CheckboxItem
+						closeOnSelect={false}
+						checked={selectedColumns.includes(column.column ?? column.key!)}
+						onCheckedChange={(v) => {
+							const key = column.column ?? column.key!;
+							if (v) {
+								selectedColumns = [...selectedColumns, key];
+							} else {
+								selectedColumns = selectedColumns.filter((c) => c !== key);
+							}
+						}}
+					>
+						{column.label}
+					</DropdownMenu.CheckboxItem>
 				{/if}
 			{/each}
 		</DropdownMenu.Group>

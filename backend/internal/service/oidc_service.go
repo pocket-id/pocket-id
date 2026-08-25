@@ -131,8 +131,8 @@ func (s *OidcService) ListClients(ctx context.Context, name string, listRequestO
 		query = query.Where("name LIKE ?", "%"+name+"%")
 	}
 
-	// As allowedUserGroupsCount is not a column, we need to manually sort it
-	if listRequestOptions.Sort.Column == "allowedUserGroupsCount" && utils.IsValidSortDirection(listRequestOptions.Sort.Direction) {
+	// Sort the allowed user groups relation by its row count because it is not an OIDC client column
+	if listRequestOptions.Sort.Column == "allowedUserGroups" && utils.IsValidSortDirection(listRequestOptions.Sort.Direction) {
 		query = query.Select("oidc_clients.*, COUNT(oidc_clients_allowed_user_groups.oidc_client_id)").
 			Joins("LEFT JOIN oidc_clients_allowed_user_groups ON oidc_clients.id = oidc_clients_allowed_user_groups.oidc_client_id").
 			Group("oidc_clients.id").
