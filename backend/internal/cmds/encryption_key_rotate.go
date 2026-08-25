@@ -12,8 +12,8 @@ import (
 	"github.com/pocket-id/pocket-id/backend/internal/bootstrap"
 	"github.com/pocket-id/pocket-id/backend/internal/common"
 	"github.com/pocket-id/pocket-id/backend/internal/instanceid"
-	"github.com/pocket-id/pocket-id/backend/internal/model"
 	datatype "github.com/pocket-id/pocket-id/backend/internal/model/types"
+	"github.com/pocket-id/pocket-id/backend/internal/scimsync"
 	"github.com/pocket-id/pocket-id/backend/internal/utils"
 	jwkutils "github.com/pocket-id/pocket-id/backend/internal/utils/jwk"
 )
@@ -156,7 +156,9 @@ type scimTokenRow struct {
 
 func rotateScimTokens(db *gorm.DB, oldEncKey []byte, newEncKey []byte) error {
 	var rows []scimTokenRow
-	err := db.Model(&model.ScimServiceProvider{}).Select("id, token").Scan(&rows).Error
+	err := db.Model(&scimsync.ServiceProvider{}).
+		Select("id, token").
+		Scan(&rows).Error
 	if err != nil {
 		return fmt.Errorf("failed to list SCIM service providers: %w", err)
 	}
@@ -176,7 +178,9 @@ func rotateScimTokens(db *gorm.DB, oldEncKey []byte, newEncKey []byte) error {
 			return fmt.Errorf("failed to encrypt SCIM token for provider %s: %w", row.ID, err)
 		}
 
-		err = db.Model(&model.ScimServiceProvider{}).Where("id = ?", row.ID).Update("token", encValue).Error
+		err = db.Model(&scimsync.ServiceProvider{}).
+			Where("id = ?", row.ID).
+			Update("token", encValue).Error
 		if err != nil {
 			return fmt.Errorf("failed to update SCIM token for provider %s: %w", row.ID, err)
 		}

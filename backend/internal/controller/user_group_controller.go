@@ -51,6 +51,7 @@ type UserGroupController struct {
 // @Param sort[column] query string false "Column to sort by"
 // @Param sort[direction] query string false "Sort direction (asc or desc)" default("asc")
 // @Success 200 {object} dto.Paginated[dto.UserGroupMinimalDto]
+// @Failure default {object} dto.ErrorDto "Error"
 // @Router /api/user-groups [get]
 func (ugc *UserGroupController) list(c *gin.Context) error {
 	searchTerm := c.Query("search")
@@ -90,6 +91,7 @@ func (ugc *UserGroupController) list(c *gin.Context) error {
 // @Produce json
 // @Param id path string true "User Group ID"
 // @Success 200 {object} dto.UserGroupDto
+// @Failure default {object} dto.ErrorDto "Error"
 // @Router /api/user-groups/{id} [get]
 func (ugc *UserGroupController) get(c *gin.Context) error {
 	group, err := ugc.UserGroupService.Get(c.Request.Context(), c.Param("id"))
@@ -114,6 +116,7 @@ func (ugc *UserGroupController) get(c *gin.Context) error {
 // @Produce json
 // @Param userGroup body dto.UserGroupCreateDto true "User group information"
 // @Success 201 {object} dto.UserGroupDto "Created user group"
+// @Failure default {object} dto.ErrorDto "Error"
 // @Router /api/user-groups [post]
 func (ugc *UserGroupController) create(c *gin.Context) error {
 	var input dto.UserGroupCreateDto
@@ -144,6 +147,7 @@ func (ugc *UserGroupController) create(c *gin.Context) error {
 // @Param id path string true "User Group ID"
 // @Param userGroup body dto.UserGroupCreateDto true "User group information"
 // @Success 200 {object} dto.UserGroupDto "Updated user group"
+// @Failure default {object} dto.ErrorDto "Error"
 // @Router /api/user-groups/{id} [put]
 func (ugc *UserGroupController) update(c *gin.Context) error {
 	dbConfig, err := ugc.appConfigService.GetConfig(c.Request.Context())
@@ -178,6 +182,7 @@ func (ugc *UserGroupController) update(c *gin.Context) error {
 // @Produce json
 // @Param id path string true "User Group ID"
 // @Success 204 "No Content"
+// @Failure default {object} dto.ErrorDto "Error"
 // @Router /api/user-groups/{id} [delete]
 func (ugc *UserGroupController) delete(c *gin.Context) error {
 	dbConfig, err := ugc.appConfigService.GetConfig(c.Request.Context())
@@ -202,6 +207,7 @@ func (ugc *UserGroupController) delete(c *gin.Context) error {
 // @Param id path string true "User Group ID"
 // @Param users body dto.UserGroupUpdateUsersDto true "List of user IDs to assign to this group"
 // @Success 200 {object} dto.UserGroupDto
+// @Failure default {object} dto.ErrorDto "Error"
 // @Router /api/user-groups/{id}/users [put]
 func (ugc *UserGroupController) updateUsers(c *gin.Context) error {
 	var input dto.UserGroupUpdateUsersDto
@@ -232,6 +238,7 @@ func (ugc *UserGroupController) updateUsers(c *gin.Context) error {
 // @Param id path string true "User Group ID"
 // @Param groups body dto.UserGroupUpdateAllowedOidcClientsDto true "OIDC client IDs to allow"
 // @Success 200 {object} dto.UserGroupDto "Updated user group"
+// @Failure default {object} dto.ErrorDto "Error"
 // @Router /api/user-groups/{id}/allowed-oidc-clients [put]
 func (ugc *UserGroupController) updateAllowedOidcClients(c *gin.Context) error {
 	var input dto.UserGroupUpdateAllowedOidcClientsDto

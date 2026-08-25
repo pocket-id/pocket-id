@@ -9,9 +9,10 @@ import (
 type API struct {
 	model.Base
 
-	Name      string `sortable:"true"`
-	Audience  string `sortable:"true"`
-	UpdatedAt *datatype.DateTime
+	Name             string `sortable:"true"`
+	Audience         string `sortable:"true"`
+	UpdatedAt        *datatype.DateTime
+	AllowCIMDClients bool `gorm:"column:allow_cimd_clients"`
 
 	Permissions []Permission `gorm:"foreignKey:APIID;references:ID;constraint:OnDelete:CASCADE"`
 }
@@ -19,13 +20,24 @@ type API struct {
 type Permission struct {
 	model.Base
 
-	APIID       string `gorm:"column:api_id"`
-	Key         string `sortable:"true"`
-	Name        string
-	Description *string
+	APIID                 string `gorm:"column:api_id"`
+	Key                   string `sortable:"true"`
+	Name                  string
+	Description           *string
+	AllowedForCIMDClients bool `gorm:"column:allowed_for_cimd_clients"`
 }
 
 func (Permission) TableName() string { return "api_permissions" }
+
+type OidcClientAllowedAPI struct {
+	OidcClientID string
+	APIID        string `gorm:"column:api_id"`
+	SubjectType  oidc.SubjectType
+}
+
+func (OidcClientAllowedAPI) TableName() string {
+	return "oidc_clients_allowed_apis"
+}
 
 type OidcClientAllowedAPIPermission struct {
 	OidcClientID    string

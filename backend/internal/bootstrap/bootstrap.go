@@ -16,7 +16,6 @@ import (
 
 	"github.com/pocket-id/pocket-id/backend/internal/common"
 	"github.com/pocket-id/pocket-id/backend/internal/instanceid"
-	"github.com/pocket-id/pocket-id/backend/internal/job"
 	"github.com/pocket-id/pocket-id/backend/internal/storage"
 )
 
@@ -75,12 +74,6 @@ func Bootstrap(ctx context.Context) error {
 		return fmt.Errorf("failed to initialize application images: %w", err)
 	}
 
-	// Init the scheduler
-	scheduler, err := job.NewScheduler()
-	if err != nil {
-		return fmt.Errorf("failed to create job scheduler: %w", err)
-	}
-
 	// Init the actors
 	// The actor host is created and started before the services, so services can depend on it once it's ready
 	actorsOpts := NewActorsOpts{
@@ -102,7 +95,7 @@ func Bootstrap(ctx context.Context) error {
 	services = append(services, actorsRun)
 
 	// Create all services
-	svc, err := initServices(ctx, db, instanceID, actors, httpClient, imageExtensions, fileStorage, scheduler)
+	svc, err := initServices(ctx, db, instanceID, actors, httpClient, imageExtensions, fileStorage)
 	if err != nil {
 		return fmt.Errorf("failed to initialize services: %w", err)
 	}
@@ -110,18 +103,10 @@ func Bootstrap(ctx context.Context) error {
 	// Migrate the pre-actor signup tokens into their actors, once the actor host is ready
 	services = append(services, actorsReady.Await(svc.userSignUpModule.RunSignupTokenMigration))
 
-	// Register scheduled jobs, only in non-test mode
+	// These services are only registered in non-test mode
 	if common.EnvConfig.AppEnv != "test" {
-		err = registerScheduledJobs(ctx, db, svc, scheduler)
-		if err != nil {
-			return fmt.Errorf("failed to register scheduled jobs: %w", err)
-		}
-
 		// Refresh the GeoLite database (this is cached per each replica)
 		services = append(services, svc.geoLiteModule.Run)
-
-		// The scheduler must wait on the actor host being ready, since jobs invoke actors
-		services = append(services, actorsReady.Await(scheduler.Run))
 	}
 
 	// Init the router

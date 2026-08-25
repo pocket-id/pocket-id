@@ -43,6 +43,7 @@ func newProvider(store *Store, authenticator *federatedClientAuthenticator, sign
 		PushedAuthorizeContextLifespan:          90 * time.Second,
 		IDTokenIssuer:                           config.BaseURL,
 		AccessTokenIssuer:                       config.BaseURL,
+		AuthorizationResponseIssuer:             config.BaseURL,
 		TokenURL:                                config.TokenBaseURL + "/api/oidc/token",
 		ScopeStrategy:                           fosite.ExactScopeStrategy,
 		IgnoreUnknownScopes:                     true,

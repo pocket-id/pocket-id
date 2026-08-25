@@ -106,13 +106,6 @@ func (m *ErrorHandlerMiddleware) Add() gin.HandlerFunc {
 	}
 }
 
-type errorResponseBody struct {
-	Error     string         `json:"error"`
-	Code      apperror.Code  `json:"code"`
-	Details   map[string]any `json:"details,omitempty"`
-	RequestID string         `json:"request_id,omitempty"`
-}
-
 func classifyError(err error) classifiedError {
 	var structuredErr *apperror.Error
 	if errors.As(err, &structuredErr) && structuredErr != nil {
@@ -188,7 +181,7 @@ func writeErrorResponse(c *gin.Context, classified classifiedError, requestID st
 		details = nil
 	}
 
-	response := errorResponseBody{
+	response := dto.ErrorDto{
 		Error:     classified.message,
 		Code:      classified.code,
 		Details:   details,

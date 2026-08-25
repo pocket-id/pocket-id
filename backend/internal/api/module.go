@@ -31,12 +31,12 @@ func New(deps Dependencies) *Module {
 }
 
 // ClientAPIScopes implements the OIDC module's APIAccessProvider interface
-func (m *Module) ClientAPIScopes(ctx context.Context, tx *gorm.DB, clientID string) (scopes []string, audiences []string, err error) {
-	return m.service.ClientAPIScopesAndAudiences(ctx, tx, clientID)
+func (m *Module) ClientAPIScopes(ctx context.Context, tx *gorm.DB, clientID string, isCIMDClient bool) (scopes []string, audiences []string, err error) {
+	return m.service.ClientAPIScopesAndAudiences(ctx, tx, clientID, isCIMDClient)
 }
 
 // AllowedScopesForAudience implements the OIDC module's APIAccessProvider interface
-func (m *Module) AllowedScopesForAudience(ctx context.Context, tx *gorm.DB, clientID, audience string, subjectType oidc.SubjectType) (scopes []string, apiExists bool, err error) {
+func (m *Module) AllowedScopesForAudience(ctx context.Context, tx *gorm.DB, clientID, audience string, subjectType oidc.SubjectType) (scopes []string, apiExists bool, hasAccess bool, err error) {
 	return m.service.AllowedScopesForAudience(ctx, tx, clientID, audience, subjectType)
 }
 
@@ -70,10 +70,16 @@ func (m *Module) RegisterRoutes(apiGroup *gin.RouterGroup, adminAuth gin.Handler
 	apis.PUT("/:id", httpserver.Handle(m.handler.update))
 	apis.DELETE("/:id", httpserver.Handle(m.handler.delete))
 	apis.PUT("/:id/permissions", httpserver.Handle(m.handler.updatePermissions))
+	apis.PUT("/:id/cimd-access", httpserver.Handle(m.handler.updateCimdAccess))
 
-	// The per-client API-access allow-list lives on a separate path so it does not collide with the /apis/:id wildcard
+	// The same client grants are editable from either side of the relation, so the API can list and manage its clients too
+	apis.GET("/:id/clients", httpserver.Handle(m.handler.listClients))
+	apis.GET("/:id/assignable-clients", httpserver.Handle(m.handler.listAssignableClients))
+	apis.PUT("/:id/clients/:clientId", httpserver.Handle(m.handler.updateClientAccessForApi))
+	apis.DELETE("/:id/clients/:clientId", httpserver.Handle(m.handler.removeClientAccessForApi))
+
 	access := apiGroup.Group("/api-access")
 	access.Use(adminAuth)
-	access.GET("/:clientId", httpserver.Handle(m.handler.getClientAccess))
-	access.PUT("/:clientId", httpserver.Handle(m.handler.updateClientAccess))
+	access.GET("/:clientId/apis", httpserver.Handle(m.handler.listClientApis))
+	access.GET("/:clientId/assignable-apis", httpserver.Handle(m.handler.listAssignableApis))
 }

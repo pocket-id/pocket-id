@@ -40,7 +40,7 @@ func TestWithApiKeyAuthDisabled(t *testing.T) {
 	require.NoError(t, err)
 
 	userService := service.NewUserService(db, jwtService, nil, nil, nil, nil, nil)
-	apiKeyModule, err := apikey.New(t.Context(), apikey.Dependencies{DB: db})
+	apiKeyModule, err := apikey.New(t.Context(), apikey.Dependencies{DB: db, CleanupDisabled: true})
 	require.NoError(t, err)
 
 	authMiddleware := NewAuthMiddleware(apiKeyModule, userService, jwtService)

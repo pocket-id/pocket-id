@@ -3,6 +3,7 @@ package oidc
 import (
 	"context"
 	"slices"
+	"strings"
 
 	"github.com/ory/fosite"
 	"github.com/pocket-id/pocket-id/backend/internal/dto"
@@ -29,9 +30,10 @@ func isStandardScope(scope string) bool {
 // It lets the OIDC module widen per-client scope and audience validation and resolve RFC 8707 resources to the permission keys a client may be granted
 type APIAccessProvider interface {
 	// ClientAPIScopes returns the custom-API permission keys and the distinct API audiences a client is allowed to request across all subject types
-	ClientAPIScopes(ctx context.Context, tx *gorm.DB, clientID string) (scopes []string, audiences []string, err error)
-	// AllowedScopesForAudience returns the permission keys the client is allowed for the API identified by the given audience and subject type, and whether such an API exists
-	AllowedScopesForAudience(ctx context.Context, tx *gorm.DB, clientID, audience string, subjectType SubjectType) (scopes []string, apiExists bool, err error)
+	ClientAPIScopes(ctx context.Context, tx *gorm.DB, clientID string, isCIMDClient bool) (scopes []string, audiences []string, err error)
+	// AllowedScopesForAudience returns the permission keys the client is allowed for the API identified by the given audience and subject type, whether such an API exists, and whether the client may access it at all
+	// A client can have access without any permission, in which case scopes is empty but hasAccess is true
+	AllowedScopesForAudience(ctx context.Context, tx *gorm.DB, clientID, audience string, subjectType SubjectType) (scopes []string, apiExists bool, hasAccess bool, err error)
 	// DescribePermissions returns the display information for the given permission keys of the API identified by audience
 	// Unknown keys are omitted
 	DescribePermissions(ctx context.Context, audience string, keys []string) ([]dto.ScopeInfoDto, error)
@@ -53,15 +55,18 @@ func resolveResource(ctx context.Context, tx *gorm.DB, provider APIAccessProvide
 		if !fosite.IsValidResourceIndicatorURI(resource) || provider == nil {
 			return "", nil, fosite.ErrInvalidTarget.WithHintf("The requested resource '%s' is invalid, missing, unknown, or malformed.", resource)
 		}
+		// Resolve every trailing-slash variant against the same canonical resource and stamp that value into the token audience
+		resource = strings.TrimRight(resource, "/")
 
-		allowedScopes, apiExists, err := provider.AllowedScopesForAudience(ctx, tx, clientID, resource, subjectType)
+		allowedScopes, apiExists, hasAccess, err := provider.AllowedScopesForAudience(ctx, tx, clientID, resource, subjectType)
 		if err != nil {
 			return "", nil, err
 		}
 		if !apiExists {
 			return "", nil, fosite.ErrInvalidTarget.WithHintf("The requested resource '%s' is invalid, missing, unknown, or malformed.", resource)
 		}
-		if len(allowedScopes) == 0 {
+		// Access is per API: a client allowed to reach one without any permission still gets a token, only without a scope
+		if !hasAccess {
 			return "", nil, fosite.ErrAccessDenied.WithHintf("The OAuth 2.0 Client is not allowed to access resource '%s'.", resource)
 		}
 
@@ -112,6 +117,21 @@ func consentScopeKeys(audience string, scopes []string) []string {
 	keys := make([]string, len(scopes))
 	for i, scope := range scopes {
 		keys[i] = consentScopeKey(audience, scope)
+	}
+	return keys
+}
+
+// consentAudienceKey records consent to reach the API itself, independent of any scope, so an audience-only request still prompts instead of reusing a plain login's consent
+// The trailing unit separator with an empty scope cannot collide with a real key because permission keys are non-empty
+func consentAudienceKey(audience string) string {
+	return audience + "\x1f"
+}
+
+// consentKeysForGrant is the full set of keys a resolved grant has to be consented to: one per granted scope, plus the audience itself when a custom API was targeted
+func consentKeysForGrant(audience, resource string, grantedScopes []string) []string {
+	keys := consentScopeKeys(audience, grantedScopes)
+	if resource != "" {
+		keys = append(keys, consentAudienceKey(audience))
 	}
 	return keys
 }

@@ -141,8 +141,8 @@ func (h *handler) exchangeToken(c *gin.Context) error {
 	}
 
 	loginCode := c.Param("token")
-	// reject invalid length login codes
-	if len(loginCode) != 6 && len(loginCode) != 16 {
+	// Reject values that cannot match either supported login code format
+	if len(loginCode) != shortTokenLength && len(loginCode) != longTokenLength {
 		return apperror.TokenInvalidOrExpired()
 	}
 

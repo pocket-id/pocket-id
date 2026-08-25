@@ -110,12 +110,13 @@ test('Grant a client user-delegated and client access to API permissions', async
 	// Nextcloud has no API access granted by default
 	await page.goto(`/settings/admin/oidc-clients/${oidcClients.nextcloud.id}`);
 
-	// Open the API access tab, then edit the Orders API row
+	// Open the API access tab, where no API is listed yet, and add the Orders API
 	await page.getByRole('tab', { name: 'API access' }).click();
-	await page
-		.getByRole('row', { name: apis.orders.name })
-		.getByRole('button', { name: 'Edit' })
-		.click();
+	await expect(
+		page.getByText('This client has not been granted access to any API yet.')
+	).toBeVisible();
+	await page.getByRole('button', { name: 'Add API' }).click();
+	await page.getByRole('row', { name: apis.orders.name }).click();
 
 	// Grant read:orders and write:orders on behalf of users, but only write:orders for the client itself
 	const dialog = page.getByRole('dialog');
@@ -137,10 +138,140 @@ test('Grant a client user-delegated and client access to API permissions', async
 	await dialog.getByRole('button', { name: 'Save' }).click();
 
 	await expect(page.locator('[data-type="success"]')).toHaveText('API access updated successfully');
+	// The dialogs carry rows with the same names, so the assertions below wait until they are gone
+	await expect(page.getByRole('dialog')).toHaveCount(0);
 	// Both subject types keep their own count: 2 / 2 user-delegated, 1 / 2 client access
 	const row = page.getByRole('row', { name: apis.orders.name });
 	await expect(row).toContainText('2 / 2');
 	await expect(row).toContainText('1 / 2');
+
+	// The API is not offered a second time, because the selection is filtered server-side
+	await page.getByRole('button', { name: 'Add API' }).click();
+	await expect(page.getByRole('dialog').getByText('No items found')).toBeVisible();
+});
+
+test('Grant a client access from the API details page', async ({ page }) => {
+	await page.goto(`/settings/admin/apis/${apis.orders.id}`);
+
+	// Nextcloud has no API access granted by default, so it can be picked from the client selection
+	await page.getByRole('button', { name: 'Add client' }).click();
+	await page.getByRole('row', { name: oidcClients.nextcloud.name }).click();
+
+	await page
+		.getByRole('checkbox', {
+			name: `User-delegated access: ${apis.orders.permissions.readOrders.name}`
+		})
+		.click();
+	await page
+		.getByRole('checkbox', {
+			name: `Client access (M2M): ${apis.orders.permissions.writeOrders.name}`
+		})
+		.click();
+	await page.getByRole('dialog').getByRole('button', { name: 'Save' }).click();
+
+	await expect(page.locator('[data-type="success"]')).toHaveText('API access updated successfully');
+	// The client selection dialog carries a row with the same name, so this waits until it is gone
+	await expect(page.getByRole('dialog')).toHaveCount(0);
+	const row = page.getByRole('row', { name: oidcClients.nextcloud.name });
+	await expect(row).toContainText('1 / 2');
+
+	// Clients that already have access are filtered out of the selection, the others stay
+	await page.getByRole('button', { name: 'Add client' }).click();
+	const picker = page.getByRole('dialog');
+	await expect(picker.getByRole('row', { name: oidcClients.tailscale.name })).toBeVisible();
+	await expect(picker.getByRole('row', { name: oidcClients.nextcloud.name })).toHaveCount(0);
+	await expect(picker.getByRole('row', { name: oidcClients.immich.name })).toHaveCount(0);
+	await page.keyboard.press('Escape');
+
+	// The same grant shows up on the client's side of the relation
+	await page.goto(`/settings/admin/oidc-clients/${oidcClients.nextcloud.id}`);
+	await page.getByRole('tab', { name: 'API access' }).click();
+	await expect(page.getByRole('row', { name: apis.orders.name })).toContainText('1 / 2');
+});
+
+test('Grant a client access to an API without any permission', async ({ page, baseURL }) => {
+	const client = oidcClients.nextcloud;
+	const api = apis.orders;
+
+	// The client is added with user-delegated access and no permission at all
+	await page.goto(`/settings/admin/apis/${api.id}`);
+	await page.getByRole('button', { name: 'Add client' }).click();
+	await page.getByRole('row', { name: client.name }).click();
+	await page.getByRole('dialog').getByRole('button', { name: 'Save' }).click();
+
+	await expect(page.locator('[data-type="success"]')).toHaveText('API access updated successfully');
+	// The client selection dialog carries a row with the same name, so this waits until it is gone
+	await expect(page.getByRole('dialog')).toHaveCount(0);
+	await expect(page.getByRole('row', { name: client.name })).toContainText('0 / 2');
+
+	// A resource request without any scope now succeeds, which is what MCP clients send
+	const params = new URLSearchParams({
+		client_id: client.id,
+		response_type: 'code',
+		resource: api.resource,
+		redirect_uri: client.callbackUrl,
+		state: 'nXx-6Qr-owc1SHBa'
+	});
+
+	const callbackUrl = await oidcUtil.interceptCallbackRedirect(
+		page,
+		new URL(client.callbackUrl).pathname,
+		async () => {
+			await page.goto(`/authorize?${params.toString()}`);
+			await page.getByRole('button', { name: 'Sign in' }).click();
+		}
+	);
+	const code = callbackUrl.searchParams.get('code');
+	expect(code).toBeTruthy();
+
+	const res = await oidcUtil.exchangeCode(page, {
+		grant_type: 'authorization_code',
+		redirect_uri: client.callbackUrl,
+		code: code!,
+		client_id: client.id,
+		client_secret: client.secret
+	});
+	expect(res.access_token).toBeTruthy();
+
+	// The token is audienced to the API and carries no scope
+	const claims = jose.decodeJwt(res.access_token!);
+	expect(tokenAudiences(claims)).toContain(api.resource);
+	expect(tokenAudiences(claims)).not.toContain(baseURL);
+	expect(tokenScopes(claims)).toEqual([]);
+});
+
+test('Revoke a client from the API details page', async ({ page }) => {
+	// Immich is seeded with grants on the Orders API
+	await page.goto(`/settings/admin/apis/${apis.orders.id}`);
+
+	const row = page.getByRole('row', { name: oidcClients.immich.name });
+	await expect(row).toBeVisible();
+	await row.getByRole('button', { name: 'Revoke' }).click();
+	await page.getByRole('button', { name: 'Revoke' }).last().click();
+
+	await expect(page.locator('[data-type="success"]')).toHaveText('API access updated successfully');
+	await expect(page.getByRole('row', { name: oidcClients.immich.name })).not.toBeVisible();
+});
+
+test('Allow all metadata document clients for an API', async ({ page }) => {
+	await page.goto(`/settings/admin/apis/${apis.orders.id}`);
+
+	await page.getByRole('tab', { name: 'Metadata document clients' }).click();
+	await page.getByLabel('Allow all metadata document clients').click();
+	await page.getByLabel(apis.orders.permissions.readOrders.name, { exact: true }).click();
+	await page.getByRole('button', { name: 'Save' }).nth(2).click();
+
+	await expect(page.locator('[data-type="success"]')).toHaveText('API access updated successfully');
+
+	await page.reload();
+	await page.getByRole('tab', { name: 'Metadata document clients' }).click();
+	await expect(page.getByLabel('Allow all metadata document clients')).toBeChecked();
+	await expect(
+		page.getByLabel(apis.orders.permissions.readOrders.name, { exact: true })
+	).toBeChecked();
+	await expect(
+		page.getByLabel(apis.orders.permissions.writeOrders.name, { exact: true })
+	).not.toBeChecked();
 });
 
 // ---------------------------------------------------------------------------

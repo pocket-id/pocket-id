@@ -27,6 +27,7 @@
 			<DropdownMenu.Label>{m.toggle_columns()}</DropdownMenu.Label>
 			<DropdownMenu.Separator />
 			{#each columns as column (column)}
+				{#if column.label}
 				<DropdownMenu.CheckboxItem
 					closeOnSelect={false}
 					checked={selectedColumns.includes(column.column ?? column.key!)}
@@ -41,6 +42,7 @@
 				>
 					{column.label}
 				</DropdownMenu.CheckboxItem>
+				{/if}
 			{/each}
 		</DropdownMenu.Group>
 	</DropdownMenu.Content>

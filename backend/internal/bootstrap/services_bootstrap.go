@@ -9,15 +9,17 @@ import (
 	"github.com/pocket-id/pocket-id/backend/internal/api"
 	"github.com/pocket-id/pocket-id/backend/internal/apikey"
 	"github.com/pocket-id/pocket-id/backend/internal/appconfig"
+	"github.com/pocket-id/pocket-id/backend/internal/auditlogs"
 	"github.com/pocket-id/pocket-id/backend/internal/common"
 	"github.com/pocket-id/pocket-id/backend/internal/devicelogin"
 	"github.com/pocket-id/pocket-id/backend/internal/email"
 	"github.com/pocket-id/pocket-id/backend/internal/emailverification"
+	"github.com/pocket-id/pocket-id/backend/internal/environment"
 	"github.com/pocket-id/pocket-id/backend/internal/geolite"
-	"github.com/pocket-id/pocket-id/backend/internal/job"
 	"github.com/pocket-id/pocket-id/backend/internal/ldapsync"
 	"github.com/pocket-id/pocket-id/backend/internal/oidc"
 	"github.com/pocket-id/pocket-id/backend/internal/onetimeaccess"
+	"github.com/pocket-id/pocket-id/backend/internal/scimsync"
 	"github.com/pocket-id/pocket-id/backend/internal/service"
 	"github.com/pocket-id/pocket-id/backend/internal/storage"
 	"github.com/pocket-id/pocket-id/backend/internal/usersignup"
@@ -32,23 +34,24 @@ type services struct {
 	geoLiteModule      *geolite.Module
 	auditLogService    *service.AuditLogService
 	jwtService         *service.JwtService
-	scimService        *service.ScimService
 	userService        *service.UserService
 	customClaimService *service.CustomClaimService
 	oidcService        *service.OidcService
 	userGroupService   *service.UserGroupService
-	versionService     *service.VersionService
 	fileStorage        storage.FileStorage
 
 	apiKeyModule            *apikey.Module
+	auditLogsModule         *auditlogs.Module
 	deviceLoginModule       *devicelogin.Module
 	ldapSyncModule          *ldapsync.Module
+	scimSyncModule          *scimsync.Module
 	oidcModule              *oidc.Module
 	webauthnModule          *webauthn.Module
 	userSignUpModule        *usersignup.Module
 	oneTimeAccessModule     *onetimeaccess.Module
 	emailVerificationModule *emailverification.Module
 	apiModule               *api.Module
+	environmentModule       *environment.Module
 	actors                  *local.Host
 }
 
@@ -61,7 +64,6 @@ func initServices(
 	httpClient *http.Client,
 	imageExtensions map[string]string,
 	fileStorage storage.FileStorage,
-	scheduler *job.Scheduler,
 ) (svc *services, err error) {
 	svc = &services{
 		actors: actors,
@@ -92,6 +94,17 @@ func initServices(
 	}
 
 	svc.auditLogService = service.NewAuditLogService(db, svc.emailModule, svc.geoLiteModule, svc.appConfigService)
+	svc.auditLogsModule, err = auditlogs.New(auditlogs.Dependencies{
+		DB:            db,
+		Actors:        actors,
+		RetentionDays: common.EnvConfig.AuditLogRetentionDays,
+		// Disable in test environment
+		CleanupDisabled: common.EnvConfig.AppEnv.IsTest(),
+	})
+	if err != nil {
+		return nil, fmt.Errorf("failed to create audit logs module: %w", err)
+	}
+
 	svc.jwtService, err = service.NewJwtService(ctx, db, instanceID)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create JWT service: %w", err)
@@ -100,10 +113,13 @@ func initServices(
 	svc.customClaimService = service.NewCustomClaimService(db)
 	svc.webauthnModule, err = webauthn.New(webauthn.Dependencies{
 		DB:        db,
+		Actors:    actors,
 		AppURL:    common.EnvConfig.AppURL,
 		Signer:    svc.jwtService,
 		AuditLog:  svc.auditLogService,
 		AppConfig: svc.appConfigService,
+		// Disable in test environment
+		CleanupDisabled: common.EnvConfig.AppEnv.IsTest(),
 	})
 	if err != nil {
 		return nil, fmt.Errorf("failed to create WebAuthn module: %w", err)
@@ -122,12 +138,22 @@ func initServices(
 		return nil, fmt.Errorf("failed to create device login module: %w", err)
 	}
 
-	svc.scimService = service.NewScimService(db, scheduler, httpClient)
+	svc.scimSyncModule, err = scimsync.New(scimsync.Dependencies{
+		DB:         db,
+		Actors:     actors,
+		HTTPClient: httpClient,
+		// Disable in test environment
+		ScheduleDisabled: common.EnvConfig.AppEnv.IsTest(),
+	})
+	if err != nil {
+		return nil, fmt.Errorf("failed to create SCIM sync module: %w", err)
+	}
 
 	svc.apiModule = api.New(api.Dependencies{DB: db, Issuer: common.EnvConfig.AppURL})
 
 	svc.oidcModule, err = oidc.New(ctx, oidc.Dependencies{
 		DB:                  db,
+		Actors:              actors,
 		HTTPClient:          httpClient,
 		GetCIMDURLAllowlist: svc.appConfigService.GetCIMDURLAllowlist,
 		Config: oidc.Config{
@@ -141,18 +167,20 @@ func initServices(
 		Reauth:       svc.webauthnModule,
 		AuditLog:     svc.auditLogService,
 		APIAccess:    svc.apiModule,
+		// Disable in test environment
+		CleanupDisabled: common.EnvConfig.AppEnv.IsTest(),
 	})
 	if err != nil {
 		return nil, fmt.Errorf("failed to create OIDC module: %w", err)
 	}
 
-	svc.oidcService, err = service.NewOidcService(db, svc.jwtService, svc.oidcModule.Preview, svc.oidcModule, svc.scimService, httpClient, fileStorage)
+	svc.oidcService, err = service.NewOidcService(db, svc.jwtService, svc.oidcModule.Preview, svc.oidcModule, svc.scimSyncModule, httpClient, fileStorage)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create OIDC service: %w", err)
 	}
 
-	svc.userGroupService = service.NewUserGroupService(db, svc.scimService)
-	svc.userService = service.NewUserService(db, svc.jwtService, svc.auditLogService, svc.customClaimService, svc.appImagesService, svc.scimService, fileStorage)
+	svc.userGroupService = service.NewUserGroupService(db, svc.scimSyncModule)
+	svc.userService = service.NewUserService(db, svc.jwtService, svc.auditLogService, svc.customClaimService, svc.appImagesService, svc.scimSyncModule, fileStorage)
 
 	svc.ldapSyncModule, err = ldapsync.New(ldapsync.Dependencies{
 		DB:          db,
@@ -162,6 +190,7 @@ func initServices(
 		Users:       svc.userService,
 		Groups:      svc.userGroupService,
 		AppConfig:   svc.appConfigService,
+		ScimSync:    svc.scimSyncModule,
 		// Disable in test environment
 		ScheduleDisabled: common.EnvConfig.AppEnv.IsTest(),
 	})
@@ -170,8 +199,12 @@ func initServices(
 	}
 
 	svc.apiKeyModule, err = apikey.New(ctx, apikey.Dependencies{
-		DB:           db,
-		StaticApiKey: common.EnvConfig.StaticApiKey,
+		DB:              db,
+		Actors:          actors,
+		StaticApiKey:    common.EnvConfig.StaticApiKey,
+		AppConfig:       svc.appConfigService,
+		EmailSender:     svc.emailModule,
+		CleanupDisabled: common.EnvConfig.AppEnv.IsTest(),
 	})
 	if err != nil {
 		return nil, fmt.Errorf("failed to create API key module: %w", err)
@@ -184,6 +217,7 @@ func initServices(
 		AuditLog:    svc.auditLogService,
 		UserCreator: svc.userService,
 		AppConfig:   svc.appConfigService,
+		ScimSync:    svc.scimSyncModule,
 	})
 	if err != nil {
 		return nil, fmt.Errorf("failed to create user signup module: %w", err)
@@ -214,7 +248,10 @@ func initServices(
 		return nil, fmt.Errorf("failed to create email verification module: %w", err)
 	}
 
-	svc.versionService = service.NewVersionService(httpClient)
+	svc.environmentModule = environment.New(environment.Dependencies{
+		HTTPClient:                  httpClient,
+		SQLiteOnNetworkedFilesystem: sqliteOnNetworkedFilesystem,
+	})
 
 	return svc, nil
 }

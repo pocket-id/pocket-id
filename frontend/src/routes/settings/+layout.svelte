@@ -1,9 +1,12 @@
 <script lang="ts">
 	import EmailVerificationStateBox from '$lib/components/email-verification-state-box.svelte';
 	import FadeWrapper from '$lib/components/fade-wrapper.svelte';
+	import FormattedMessage from '$lib/components/formatted-message.svelte';
 	import Sidebar from '$lib/components/sidebar.svelte';
+	import * as Alert from '$lib/components/ui/alert';
 	import { m } from '$lib/paraglide/messages';
 	import userStore from '$lib/stores/user-store';
+	import { LucideTriangleAlert } from '@lucide/svelte';
 	import type { Snippet } from 'svelte';
 	import { fade, fly } from 'svelte/transition';
 	import type { LayoutData } from './$types';
@@ -16,7 +19,7 @@
 		data: LayoutData;
 	} = $props();
 
-	const { versionInformation, user } = data;
+	const { versionInformation, sqliteStorageWarning, user } = data;
 
 	type NavItem = {
 		href?: string;
@@ -55,7 +58,7 @@
 			in:fade={{ duration: 200 }}
 			class="mx-auto flex w-full max-w-[1720px] flex-col gap-x-8 gap-y-8 p-4 md:p-8 lg:flex-row"
 		>
-			<div class="min-w-[200px] xl:min-w-[250px]">
+			<div class="w-full lg:w-[200px] lg:shrink-0 xl:w-[250px]">
 				<div in:fly={{ x: -15, duration: 200 }} class="sticky top-6">
 					<Sidebar
 						{items}
@@ -68,6 +71,14 @@
 
 			<div class="flex w-full flex-col gap-4 overflow-hidden pb-2 px-2">
 				<FadeWrapper>
+					{#if sqliteStorageWarning && ($userStore?.isAdmin || user?.isAdmin)}
+						<Alert.Root variant="destructive">
+							<LucideTriangleAlert />
+							<Alert.Description>
+								<FormattedMessage message={m.sqlite_storage_warning} />
+							</Alert.Description>
+						</Alert.Root>
+					{/if}
 					<EmailVerificationStateBox />
 					{@render children()}
 				</FadeWrapper>

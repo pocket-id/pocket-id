@@ -1,6 +1,6 @@
 {
 	"provider": "sqlite",
-	"version": 20260807120000,
+	"version": 20260814120000,
 	"tableOrder": [
 		"users",
 		"user_groups",
@@ -9,6 +9,7 @@
 		"signup_tokens",
 		"apis",
 		"api_permissions",
+		"oidc_clients_allowed_apis",
 		"oidc_clients_allowed_api_permissions"
 	],
 	"tables": {
@@ -18,7 +19,8 @@
 				"created_at": "2025-11-25T12:39:02Z",
 				"updated_at": null,
 				"name": "Orders API",
-				"audience": "https://api.orders.test"
+				"audience": "https://api.orders.test",
+				"allow_cimd_clients": false
 			}
 		],
 		"api_permissions": [
@@ -28,7 +30,8 @@
 				"api_id": "f6a8b3c1-2d4e-4a6b-8c9d-0e1f2a3b4c5d",
 				"key": "read:orders",
 				"name": "Read orders",
-				"description": "Read order data"
+				"description": "Read order data",
+				"allowed_for_cimd_clients": false
 			},
 			{
 				"id": "2b3c4d5e-6f7a-4b8c-9d0e-1f2a3b4c5d6e",
@@ -36,7 +39,20 @@
 				"api_id": "f6a8b3c1-2d4e-4a6b-8c9d-0e1f2a3b4c5d",
 				"key": "write:orders",
 				"name": "Write orders",
-				"description": "Create and modify orders"
+				"description": "Create and modify orders",
+				"allowed_for_cimd_clients": false
+			}
+		],
+		"oidc_clients_allowed_apis": [
+			{
+				"oidc_client_id": "606c7782-f2b1-49e5-8ea9-26eb1b06d018",
+				"api_id": "f6a8b3c1-2d4e-4a6b-8c9d-0e1f2a3b4c5d",
+				"subject_type": "user"
+			},
+			{
+				"oidc_client_id": "606c7782-f2b1-49e5-8ea9-26eb1b06d018",
+				"api_id": "f6a8b3c1-2d4e-4a6b-8c9d-0e1f2a3b4c5d",
+				"subject_type": "client"
 			}
 		],
 		"oidc_clients_allowed_api_permissions": [

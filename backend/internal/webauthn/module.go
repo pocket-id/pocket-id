@@ -2,9 +2,12 @@ package webauthn
 
 import (
 	"context"
+	"errors"
+	"fmt"
 	"time"
 
 	"github.com/gin-gonic/gin"
+	"github.com/italypaleale/francis/host/local"
 	"github.com/lestrrat-go/jwx/v3/jwt"
 	"gorm.io/gorm"
 
@@ -26,11 +29,15 @@ type AuditLogger interface {
 
 type Dependencies struct {
 	DB     *gorm.DB
+	Actors *local.Host
 	AppURL string
 
 	Signer    TokenService
 	AuditLog  AuditLogger
 	AppConfig appconfig.AppConfigResolver
+
+	// CleanupDisabled skips registering the cron jobs that delete expired rows from the database, for example in tests
+	CleanupDisabled bool
 }
 
 type Module struct {
@@ -42,6 +49,25 @@ func New(deps Dependencies) (*Module, error) {
 	service, err := newService(deps)
 	if err != nil {
 		return nil, err
+	}
+
+	// Register the cleanup jobs for expired WebAuthn rows
+	if !deps.CleanupDisabled {
+		if deps.Actors == nil {
+			return nil, errors.New("actor host is required for the WebAuthn cleanup cron jobs")
+		}
+
+		jobs, err := newCleanupJobs(deps.DB)
+		if err != nil {
+			return nil, err
+		}
+
+		for _, cj := range jobs {
+			err = deps.Actors.RegisterBuiltInActor(cj)
+			if err != nil {
+				return nil, fmt.Errorf("error registering WebAuthn cleanup cron actor %q: %w", cj.ActorType(), err)
+			}
+		}
 	}
 
 	return &Module{
