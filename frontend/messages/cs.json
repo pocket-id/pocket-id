@@ -99,6 +99,7 @@
 	"application_configuration": "Konfigurace aplikace",
 	"settings": "Nastavení",
 	"update_pocket_id": "Aktualizovat Pocket ID",
+	"sqlite_storage_warning": "Zjistili jsme, že vaše databáze SQLite je uložena na síťovém disku, jako je NFS, SMB nebo FUSE. Toto použití není podporováno a může vést k poškození vaší databáze. {#link href=|https://pocket-id.org/docs/configuration/environment-variables#sqlite|}Viz dokumentace.{/link}",
 	"powered_by": "Poháněno pomocí",
 	"see_your_recent_account_activities": "Zobrazte aktivity svého účtu v rámci nastavené doby uchovávání.",
 	"time": "Čas",

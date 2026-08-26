@@ -99,6 +99,7 @@
 	"application_configuration": "Konfiguracja aplikacji",
 	"settings": "Ustawienia",
 	"update_pocket_id": "Aktualizuj Pocket ID",
+	"sqlite_storage_warning": "Zauważyliśmy, że Twoja baza danych SQLite jest przechowywana na dysku podłączonym przez sieć, np. NFS, SMB lub FUSE. Takie rozwiązanie nie jest obsługiwane i może doprowadzić do uszkodzenia bazy danych. {#link href=|https://pocket-id.org/docs/configuration/environment-variables#sqlite|}Zobacz dokumentację.{/link}",
 	"powered_by": "Zasilane przez",
 	"see_your_recent_account_activities": "Zobacz aktywność swojego konta w skonfigurowanym okresie przechowywania danych.",
 	"time": "Czas",

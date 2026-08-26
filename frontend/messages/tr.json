@@ -99,6 +99,7 @@
 	"application_configuration": "Uygulama Yapılandırması",
 	"settings": "Ayarlar",
 	"update_pocket_id": "Pocket ID'yi Güncelle",
+	"sqlite_storage_warning": "SQLite veritabanınızın NFS, SMB veya FUSE gibi ağa bağlı bir sürücüde depolandığını tespit ettik. Bu durum desteklenmemektedir ve veritabanınızın bozulmasına yol açabilir. {#link href=|https://pocket-id.org/docs/configuration/environment-variables#sqlite|}Belgelere bakın.{/link}",
 	"powered_by": "Destekleyen",
 	"see_your_recent_account_activities": "Yapılandırılan saklama süresi içinde hesap hareketlerinizi görüntüleyin.",
 	"time": "Zaman",
