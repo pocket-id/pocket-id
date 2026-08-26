@@ -416,7 +416,7 @@
 	"token_lifetime_maximum": "토큰의 유효 기간은 365일을 초과할 수 없습니다.",
 	"token_lifetime_whole_minutes": "토큰 유효 기간은 분 단위로 설정해야 합니다.",
 	"duration_unit_for": "{name} 단위",
-	"minutes": "회의록",
+	"minutes": "분",
 	"hours": "운영 시간",
 	"days": "일",
 	"userinfo": "사용자 정보",
