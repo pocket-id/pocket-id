@@ -530,7 +530,7 @@
 	"yes": "Tak",
 	"no": "Nie",
 	"restricted": "Ograniczony",
-	"scim_provisioning": "SCIM Provisioning",
+	"scim_provisioning": "Aprowizowanie SCIM",
 	"scim_provisioning_description": "Provisioning SCIM umożliwia automatyczne dodawanie i usuwanie użytkowników oraz grup z klienta OIDC. Więcej informacji znajdziesz w {#link href=|https://pocket-id.org/docs/configuration/scim|}dokumentacji{/link}.",
 	"scim_endpoint": "Punkt końcowy SCIM",
 	"scim_token": "Token SCIM",
