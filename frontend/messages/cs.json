@@ -530,7 +530,7 @@
 	"yes": "Ano",
 	"no": "Ne",
 	"restricted": "Omezený",
-	"scim_provisioning": "SCIM Provisioning",
+	"scim_provisioning": "Zřizování pomocí SCIM",
 	"scim_provisioning_description": "Provisioning SCIM vám umožňuje automaticky přidávat a odebírat uživatele a skupiny z vašeho klienta OIDC. Více informací najdete v {#link href=|https://pocket-id.org/docs/configuration/scim|}dokumentaci{/link}.",
 	"scim_endpoint": "Koncový bod SCIM",
 	"scim_token": "SCIM token",
