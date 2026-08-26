@@ -3,13 +3,15 @@
 	import { openConfirmDialog } from '$lib/components/confirm-dialog/';
 	import ImageBox from '$lib/components/image-box.svelte';
 	import AdvancedTable from '$lib/components/table/advanced-table.svelte';
+	import { ScrollArea } from '$lib/components/ui/scroll-area';
+	import * as Tooltip from '$lib/components/ui/tooltip';
 	import { m } from '$lib/paraglide/messages';
 	import OIDCService from '$lib/services/oidc-service';
 	import type {
 		AdvancedTableColumn,
 		CreateAdvancedTableActions
 	} from '$lib/types/advanced-table.type';
-	import type { OidcClient, OidcClientWithAllowedUserGroupsCount } from '$lib/types/oidc.type';
+	import type { OidcClient, OidcClientWithAllowedGroups } from '$lib/types/oidc.type';
 	import { cachedOidcClientLogo } from '$lib/utils/cached-image-util';
 	import { encodeClientIdParam } from '$lib/utils/client-id-util';
 	import { axiosErrorToast } from '$lib/utils/error-util';
@@ -18,7 +20,7 @@
 	import { toast } from 'svelte-sonner';
 
 	const oidcService = new OIDCService();
-	let tableRef: AdvancedTable<OidcClientWithAllowedUserGroupsCount>;
+	let tableRef: AdvancedTable<OidcClientWithAllowedGroups>;
 
 	export function refresh() {
 		return tableRef?.refresh();
@@ -36,15 +38,15 @@
 		{ label: m.client_type_metadata_document(), value: 'cimd' }
 	];
 
-	const columns: AdvancedTableColumn<OidcClientWithAllowedUserGroupsCount>[] = [
+	const columns: AdvancedTableColumn<OidcClientWithAllowedGroups>[] = [
 		{ label: 'ID', column: 'id', hidden: true },
 		{ label: m.logo(), key: 'logo', cell: LogoCell },
 		{ label: m.name(), column: 'name', sortable: true },
 		{
 			label: m.oidc_allowed_group_count(),
-			column: 'allowedUserGroupsCount',
+			column: 'allowedUserGroups',
 			sortable: true,
-			value: (item) => (item.isGroupRestricted ? item.allowedUserGroupsCount : '-')
+			cell: AllowedGroupCountCell
 		},
 		{
 			label: m.restricted(),
@@ -93,7 +95,7 @@
 		}
 	];
 
-	const actions: CreateAdvancedTableActions<OidcClientWithAllowedUserGroupsCount> = (client) => [
+	const actions: CreateAdvancedTableActions<OidcClientWithAllowedGroups> = (client) => [
 		{
 			label: m.edit(),
 			primary: true,
@@ -145,7 +147,35 @@
 	}
 </script>
 
-{#snippet LogoCell({ item }: { item: OidcClientWithAllowedUserGroupsCount })}
+{#snippet AllowedGroupCountCell({ item }: { item: OidcClientWithAllowedGroups })}
+	{#if !item.isGroupRestricted}
+		-
+	{:else if item.allowedUserGroups.length === 0}
+		{item.allowedUserGroups.length}
+	{:else}
+		<Tooltip.Provider>
+			<Tooltip.Root>
+				<Tooltip.Trigger class="cursor-default underline decoration-dotted underline-offset-4">
+					{item.allowedUserGroups.length}
+				</Tooltip.Trigger>
+				<Tooltip.Content side="right" class="flex-col items-start">
+					<ScrollArea
+						class="[&>[data-slot=scroll-area-viewport]]:max-h-48"
+						scrollbarYClasses="[&>[data-slot=scroll-area-thumb]]:bg-background/40"
+					>
+						<div class="flex flex-col gap-0.5 pr-3">
+							{#each item.allowedUserGroups as group (group.id)}
+								<span>{group.friendlyName}</span>
+							{/each}
+						</div>
+					</ScrollArea>
+				</Tooltip.Content>
+			</Tooltip.Root>
+		</Tooltip.Provider>
+	{/if}
+{/snippet}
+
+{#snippet LogoCell({ item }: { item: OidcClientWithAllowedGroups })}
 	{#if item.hasLogo}
 		<ImageBox
 			class="size-12 rounded-lg"

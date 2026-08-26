@@ -37,9 +37,9 @@ type OidcClientWithAllowedUserGroupsDto struct {
 	AllowedUserGroups []UserGroupMinimalDto `json:"allowedUserGroups"`
 }
 
-type OidcClientWithAllowedGroupsCountDto struct {
+type OidcClientWithAllowedGroupsDto struct {
 	OidcClientDto
-	AllowedUserGroupsCount int64 `json:"allowedUserGroupsCount"`
+	AllowedUserGroups []UserGroupMinimalDto `json:"allowedUserGroups"`
 }
 
 type OidcClientUpdateDto struct {

@@ -24,7 +24,6 @@
 	let longCodeRequested = $state(
 		code.length > shortCodeLength || !$appConfigStore.emailOneTimeAccessAsUnauthenticatedEnabled
 	);
-	let showLongCodeOption = $state($appConfigStore.emailOneTimeAccessAsUnauthenticatedEnabled);
 	let codeComplete = $derived(
 		longCodeRequested ? code.length === longCodeLength : code.length === shortCodeLength
 	);
@@ -61,10 +60,6 @@
 	onMount(() => {
 		if (code) {
 			authenticate();
-		}
-
-		if (data.redirect.startsWith('/interaction')) {
-			showLongCodeOption = false;
 		}
 	});
 </script>
@@ -108,7 +103,7 @@
 					{/snippet}
 				</InputOTP.Root>
 			{/if}
-			{#if !longCodeRequested && showLongCodeOption}
+			{#if !longCodeRequested}
 				<div class="flex justify-center">
 					<Button
 						class="mt-2 text-muted-foreground text-xs"
