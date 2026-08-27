@@ -99,7 +99,7 @@
 	"application_configuration": "Alkalmazásbeállítások",
 	"settings": "Beállítások",
 	"update_pocket_id": "Pocket ID frissítése",
-	"sqlite_storage_warning": "We detected that your SQLite database is stored on a network-attached drive like NFS, SMB, or FUSE. This is unsupported and can lead to your database getting corrupted. {#link href=|https://pocket-id.org/docs/configuration/environment-variables#sqlite|}See docs.{/link}",
+	"sqlite_storage_warning": "A rendszer azt észlelte, hogy az SQLite-adatbázis hálózaton csatlakoztatott meghajtón, például NFS-, SMB- vagy FUSE-meghajtón található. Ez nem támogatott, és az adatbázis sérüléséhez vezethet. {#link href=|https://pocket-id.org/docs/configuration/environment-variables#sqlite|}Lásd a dokumentációt.{/link}",
 	"powered_by": "Működteti:",
 	"see_your_recent_account_activities": "Tekintsd meg a fiókod tevékenységeit a beállított megőrzési időszakban.",
 	"time": "Idő",
