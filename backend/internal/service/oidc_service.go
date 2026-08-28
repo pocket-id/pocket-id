@@ -26,6 +26,7 @@ import (
 	"github.com/pocket-id/pocket-id/backend/internal/storage"
 	"github.com/pocket-id/pocket-id/backend/internal/utils"
 	imageutil "github.com/pocket-id/pocket-id/backend/internal/utils/image"
+	jwkutils "github.com/pocket-id/pocket-id/backend/internal/utils/jwk"
 )
 
 const (
@@ -153,9 +154,12 @@ func (s *OidcService) CreateClient(ctx context.Context, input dto.OidcClientCrea
 		},
 		CreatedByID: new(userID),
 	}
-	updateOIDCClientModelFromDto(&client, &input.OidcClientUpdateDto)
+	err := updateOIDCClientModelFromDto(&client, &input.OidcClientUpdateDto)
+	if err != nil {
+		return model.OidcClient{}, err
+	}
 
-	err := s.db.
+	err = s.db.
 		WithContext(ctx).
 		Create(&client).
 		Error
@@ -195,7 +199,10 @@ func (s *OidcService) UpdateClient(ctx context.Context, clientID string, input d
 		return model.OidcClient{}, err
 	}
 
-	updateOIDCClientModelFromDto(&client, &input)
+	err = updateOIDCClientModelFromDto(&client, &input)
+	if err != nil {
+		return model.OidcClient{}, err
+	}
 
 	if !input.IsGroupRestricted {
 		// Clear allowed user groups if the restriction is removed
@@ -250,7 +257,7 @@ func (s *OidcService) UpdateClient(ctx context.Context, clientID string, input d
 	return client, nil
 }
 
-func updateOIDCClientModelFromDto(client *model.OidcClient, input *dto.OidcClientUpdateDto) {
+func updateOIDCClientModelFromDto(client *model.OidcClient, input *dto.OidcClientUpdateDto) error {
 	// Update fields that remain locally managed for every client type
 	client.Description = input.Description
 	client.RequiresReauthentication = input.RequiresReauthentication
@@ -265,7 +272,7 @@ func updateOIDCClientModelFromDto(client *model.OidcClient, input *dto.OidcClien
 
 	// Preserve fields that are sourced from the client metadata document
 	if client.IsMetadataDocument() {
-		return
+		return nil
 	}
 
 	// Update registration fields for manually configured clients
@@ -281,17 +288,29 @@ func updateOIDCClientModelFromDto(client *model.OidcClient, input *dto.OidcClien
 	}
 
 	// Replace the federated credentials with the submitted configuration
-	client.Credentials.FederatedIdentities = make([]model.OidcClientFederatedIdentity, len(input.Credentials.FederatedIdentities))
+	federatedIdentities := make([]model.OidcClientFederatedIdentity, len(input.Credentials.FederatedIdentities))
 	for i, fi := range input.Credentials.FederatedIdentities {
-		client.Credentials.FederatedIdentities[i] = model.OidcClientFederatedIdentity{
+		// Validate the public keys before storing them
+		publicKeys, err := jwkutils.NormalizePublicKeys(fi.PublicKeys)
+		if err != nil {
+			return apperror.ValidationMessage(fmt.Sprintf("Federated client credential %d has an invalid public key: %v", i+1, err))
+		}
+		if len(publicKeys) > 0 && fi.JWKS != "" {
+			return apperror.ValidationMessage(fmt.Sprintf("Federated client credential %d must use either a JWKS URL or public keys, but not both", i+1))
+		}
+
+		federatedIdentities[i] = model.OidcClientFederatedIdentity{
 			Issuer:           fi.Issuer,
 			Audience:         fi.Audience,
 			Subject:          fi.Subject,
 			JWKS:             fi.JWKS,
+			PublicKeys:       publicKeys,
 			ReplayProtection: fi.ReplayProtection,
 		}
 	}
+	client.Credentials.FederatedIdentities = federatedIdentities
 
+	return nil
 }
 
 func (s *OidcService) DeleteClient(ctx context.Context, clientID string) error {

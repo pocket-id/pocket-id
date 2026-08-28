@@ -308,3 +308,114 @@ func TestFederatedClientAuthenticatorCachesJWKS(t *testing.T) {
 	require.Equal(t, clientID, client.GetID())
 	require.EqualValues(t, 1, requests.Load())
 }
+
+func TestFederatedClientAuthenticatorConfiguredPublicKeys(t *testing.T) {
+	const (
+		issuer   = "https://agent.example.com"
+		clientID = "federated-client"
+		audience = "https://pocket-id.example.com"
+	)
+
+	generateKeyPair := func(t *testing.T) (jwk.Key, json.RawMessage) {
+		t.Helper()
+
+		signingKey, err := jwkutils.GenerateKey(jwa.ES256().String(), "")
+		require.NoError(t, err)
+		publicKey, err := signingKey.PublicKey()
+		require.NoError(t, err)
+		encoded, err := json.Marshal(publicKey)
+		require.NoError(t, err)
+
+		return signingKey, encoded
+	}
+
+	// The JWKS endpoint must never be called when public keys are configured
+	failingHTTPClient := &http.Client{Transport: roundTripFunc(func(*http.Request) (*http.Response, error) {
+		return nil, errors.New("no JWKS request is expected")
+	})}
+
+	newAuthenticator := func(t *testing.T, identity model.OidcClientFederatedIdentity) *federatedClientAuthenticator {
+		t.Helper()
+
+		store := &fakeFederatedStore{
+			client: Client{OidcClient: model.OidcClient{
+				Base:        model.Base{ID: clientID},
+				Name:        "Federated Client",
+				Credentials: model.OidcClientCredentials{FederatedIdentities: []model.OidcClientFederatedIdentity{identity}},
+			}},
+			jtis: map[string]time.Time{},
+		}
+		authenticator, err := newFederatedClientAuthenticator(t.Context(), store, failingHTTPClient, audience)
+		require.NoError(t, err)
+		return authenticator
+	}
+
+	signAssertion := func(t *testing.T, signingKey jwk.Key) string {
+		t.Helper()
+
+		token, err := jwt.NewBuilder().
+			Issuer(issuer).
+			Subject(clientID).
+			Audience([]string{audience}).
+			IssuedAt(time.Now()).
+			Expiration(time.Now().Add(5 * time.Minute)).
+			Build()
+		require.NoError(t, err)
+
+		alg, ok := signingKey.Algorithm()
+		require.True(t, ok)
+		signed, err := jwt.Sign(token, jwt.WithKey(alg, signingKey))
+		require.NoError(t, err)
+		return string(signed)
+	}
+
+	t.Run("authenticates with a configured public key", func(t *testing.T) {
+		signingKey, publicKey := generateKeyPair(t)
+		authenticator := newAuthenticator(t, model.OidcClientFederatedIdentity{
+			Issuer:     issuer,
+			PublicKeys: []json.RawMessage{publicKey},
+		})
+
+		client, err := authenticator.authenticateAssertion(t.Context(), signAssertion(t, signingKey), clientID)
+		require.NoError(t, err)
+		require.Equal(t, clientID, client.GetID())
+	})
+
+	t.Run("selects the key matching the assertion", func(t *testing.T) {
+		_, firstPublicKey := generateKeyPair(t)
+		secondSigningKey, secondPublicKey := generateKeyPair(t)
+		authenticator := newAuthenticator(t, model.OidcClientFederatedIdentity{
+			Issuer:     issuer,
+			PublicKeys: []json.RawMessage{firstPublicKey, secondPublicKey},
+		})
+
+		client, err := authenticator.authenticateAssertion(t.Context(), signAssertion(t, secondSigningKey), clientID)
+		require.NoError(t, err)
+		require.Equal(t, clientID, client.GetID())
+	})
+
+	t.Run("rejects an assertion signed by an unknown key", func(t *testing.T) {
+		_, publicKey := generateKeyPair(t)
+		otherSigningKey, _ := generateKeyPair(t)
+		authenticator := newAuthenticator(t, model.OidcClientFederatedIdentity{
+			Issuer:     issuer,
+			PublicKeys: []json.RawMessage{publicKey},
+		})
+
+		_, err := authenticator.authenticateAssertion(t.Context(), signAssertion(t, otherSigningKey), clientID)
+		require.ErrorIs(t, err, fosite.ErrInvalidClient)
+	})
+
+	t.Run("configured public keys take precedence over a JWKS URL", func(t *testing.T) {
+		signingKey, publicKey := generateKeyPair(t)
+		authenticator := newAuthenticator(t, model.OidcClientFederatedIdentity{
+			Issuer:     issuer,
+			JWKS:       "https://agent.example.com/jwks.json",
+			PublicKeys: []json.RawMessage{publicKey},
+		})
+
+		client, err := authenticator.authenticateAssertion(t.Context(), signAssertion(t, signingKey), clientID)
+		require.NoError(t, err)
+		require.Equal(t, clientID, client.GetID())
+	})
+}
