@@ -9,8 +9,8 @@ import (
 type API struct {
 	model.Base
 
-	Name             string `sortable:"true"`
-	Audience         string `sortable:"true"`
+	Name             string `sortable:"case-insensitive"`
+	Audience         string `sortable:"case-insensitive"`
 	UpdatedAt        *datatype.DateTime
 	AllowCIMDClients bool `gorm:"column:allow_cimd_clients"`
 

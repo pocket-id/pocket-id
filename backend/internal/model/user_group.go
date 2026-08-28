@@ -8,8 +8,8 @@ import (
 
 type UserGroup struct {
 	Base
-	FriendlyName       string `sortable:"true"`
-	Name               string `sortable:"true"`
+	FriendlyName       string `sortable:"case-insensitive"`
+	Name               string `sortable:"case-insensitive"`
 	LdapID             *string
 	UpdatedAt          *datatype.DateTime
 	Users              []User `gorm:"many2many:user_groups_users;"`

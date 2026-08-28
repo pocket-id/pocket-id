@@ -9,7 +9,7 @@ import (
 type ApiKey struct {
 	model.Base
 
-	Name                string `sortable:"true"`
+	Name                string `sortable:"case-insensitive"`
 	Key                 string
 	Description         *string
 	ExpiresAt           datatype.DateTime  `sortable:"true"`
