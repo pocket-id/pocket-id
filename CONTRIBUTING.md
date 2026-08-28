@@ -74,7 +74,7 @@ If you use [Dev Containers](https://code.visualstudio.com/docs/remote/containers
 If you don't use Dev Containers, you need to install the following tools manually:
 
 - [Node.js](https://nodejs.org/en/download/) >= 24
-- [Go](https://golang.org/doc/install) >= 1.26
+- [Go](https://golang.org/doc/install) >= 1.27
 - [Git](https://git-scm.com/downloads)
 
 #### 2. Setup

@@ -79,7 +79,7 @@ func TestOidcClientDto_secrets(t *testing.T) {
 	expired := datatype.DateTime(time.Now().Add(-time.Hour))
 	valid := datatype.DateTime(time.Now().Add(time.Hour))
 	client := model.OidcClient{
-		Base: model.Base{ID: "client-id"},
+		ID:   "client-id",
 		Name: "Test Client",
 		Credentials: model.OidcClientCredentials{
 			Secrets: []model.OidcClientSecret{
@@ -109,7 +109,7 @@ func TestOidcClientDto_secrets(t *testing.T) {
 
 func TestOidcClientDto_secretsAlwaysSerialized(t *testing.T) {
 	client := model.OidcClient{
-		Base: model.Base{ID: "client-id"},
+		ID:   "client-id",
 		Name: "Test Client",
 	}
 
