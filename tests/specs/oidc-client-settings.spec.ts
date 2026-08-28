@@ -228,6 +228,13 @@ test('Update OIDC client federated credentials with public keys', async ({ page 
 	const pasteInput = card.getByLabel('Public key', { exact: true });
 	const addKeyButton = card.getByRole('button', { name: 'Add public key' });
 	const publicKeys = card.getByTestId('federated-identity-public-key');
+	const saveButton = card.getByRole('button', { name: 'Save' });
+	const waitForClientUpdate = () =>
+		page.waitForResponse(
+			(response) =>
+				response.request().method() === 'PUT' &&
+				response.url().endsWith(`/api/oidc/clients/${client.id}`)
+		);
 
 	// A single JWK is imported as one key
 	await pasteInput.fill(JSON.stringify(first.jwk));
@@ -240,28 +247,38 @@ test('Update OIDC client federated credentials with public keys', async ({ page 
 	await addKeyButton.click();
 	await expect(publicKeys).toHaveCount(3);
 
-	// Private keys are rejected
+	// Private keys pass the JSON-only importer but are rejected by the backend
 	await pasteInput.fill(JSON.stringify(await jose.exportJWK(first.privateKey)));
 	await addKeyButton.click();
-	await expect(card.getByText(/private key material/)).toBeVisible();
+	await expect(publicKeys).toHaveCount(4);
+	const privateKeyUpdate = waitForClientUpdate();
+	await saveButton.click();
+	expect((await privateKeyUpdate).status()).toBe(400);
+	await expect(
+		page.locator('[data-type="error"]').filter({ hasText: 'private key material' })
+	).toBeVisible();
+	await publicKeys.last().getByRole('button').click();
 	await expect(publicKeys).toHaveCount(3);
 
-	// Keys without a key ID are rejected, since it is what identifies the key that signed an assertion
+	// Keys without a key ID pass the JSON-only importer but are rejected by the backend
 	const { kid, ...withoutKeyId } = third.jwk;
 	await pasteInput.fill(JSON.stringify(withoutKeyId));
 	await addKeyButton.click();
-	await expect(card.getByText(/missing the "kid" property/)).toBeVisible();
+	await expect(publicKeys).toHaveCount(4);
+	const missingKeyIdUpdate = waitForClientUpdate();
+	await saveButton.click();
+	expect((await missingKeyIdUpdate).status()).toBe(400);
+	await expect(
+		page.locator('[data-type="error"]').filter({ hasText: 'missing the "kid" property' })
+	).toBeVisible();
+	await publicKeys.last().getByRole('button').click();
 	await expect(publicKeys).toHaveCount(3);
 
 	await card.getByRole('button', { name: `Remove public key ${third.jwk.kid}` }).click();
 	await expect(publicKeys).toHaveCount(2);
 
-	const cardUpdate = page.waitForResponse(
-		(response) =>
-			response.request().method() === 'PUT' &&
-			response.url().endsWith(`/api/oidc/clients/${client.id}`)
-	);
-	await card.getByRole('button', { name: 'Save' }).click();
+	const cardUpdate = waitForClientUpdate();
+	await saveButton.click();
 	expect((await cardUpdate).ok()).toBeTruthy();
 
 	await page.reload();
