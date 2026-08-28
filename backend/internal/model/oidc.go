@@ -46,7 +46,7 @@ const (
 type OidcClient struct {
 	Base
 
-	Name                                string `sortable:"true"`
+	Name                                string `sortable:"case-insensitive"`
 	Description                         string
 	CallbackURLs                        datatype.StringList
 	LogoutCallbackURLs                  datatype.StringList

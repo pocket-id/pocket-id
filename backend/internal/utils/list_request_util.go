@@ -29,9 +29,10 @@ type ListRequestOptions struct {
 }
 
 type FieldMeta struct {
-	ColumnName   string
-	IsSortable   bool
-	IsFilterable bool
+	ColumnName        string
+	IsSortable        bool
+	IsFilterable      bool
+	IsCaseInsensitive bool
 }
 
 func ParseListRequestOptions(ctx *gin.Context) (listRequestOptions ListRequestOptions) {
@@ -155,6 +156,18 @@ func applySorting(sortColumn string, sortDirection string, query *gorm.DB, meta 
 	}
 
 	sortDirection = NormalizeSortDirection(sortDirection)
+	if fieldMeta.IsCaseInsensitive {
+		expression := "LOWER(?)"
+		if sortDirection == "desc" {
+			expression += " DESC"
+		}
+		return query.Clauses(clause.OrderBy{
+			Expression: clause.Expr{
+				SQL:  expression,
+				Vars: []any{clause.Column{Name: fieldMeta.ColumnName}},
+			},
+		})
+	}
 
 	query = query.Clauses(clause.OrderBy{
 		Columns: []clause.OrderByColumn{
@@ -191,10 +204,12 @@ func extractModelMetadata(model any) map[string]FieldMeta {
 
 			// Normal field: record metadata
 			name := field.Name
+			sortMode := field.Tag.Get("sortable")
 			meta[name] = FieldMeta{
-				ColumnName:   CamelCaseToSnakeCase(name),
-				IsSortable:   field.Tag.Get("sortable") == "true",
-				IsFilterable: field.Tag.Get("filterable") == "true",
+				ColumnName:        CamelCaseToSnakeCase(name),
+				IsSortable:        sortMode == "true" || sortMode == "case-insensitive",
+				IsFilterable:      field.Tag.Get("filterable") == "true",
+				IsCaseInsensitive: sortMode == "case-insensitive",
 			}
 		}
 	}
