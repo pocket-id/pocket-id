@@ -99,6 +99,7 @@
 	"application_configuration": "應用程式設定",
 	"settings": "設定",
 	"update_pocket_id": "更新 Pocket ID",
+	"sqlite_storage_warning": "我們偵測到您的 SQLite 資料庫儲存於 NFS、SMB 或 FUSE 等網路連接的磁碟機上。此種儲存方式不受支援，且可能導致資料庫損毀。{#link href=|https://pocket-id.org/docs/configuration/environment-variables#sqlite|}請參閱文件。{/link}",
 	"powered_by": "技術支援",
 	"see_your_recent_account_activities": "查看您在設定的保留期間內的帳戶活動。",
 	"time": "時間",

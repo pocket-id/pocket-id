@@ -99,6 +99,7 @@
 	"application_configuration": "Applikasjonskonfigurasjon",
 	"settings": "Innstillinger",
 	"update_pocket_id": "Oppdater Pocket ID",
+	"sqlite_storage_warning": "We detected that your SQLite database is stored on a network-attached drive like NFS, SMB, or FUSE. This is unsupported and can lead to your database getting corrupted. {#link href=|https://pocket-id.org/docs/configuration/environment-variables#sqlite|}See docs.{/link}",
 	"powered_by": "Drevet av",
 	"see_your_recent_account_activities": "Se kontoaktiviteter innenfor den konfigurerte oppbevaringsperioden.",
 	"time": "Tid",

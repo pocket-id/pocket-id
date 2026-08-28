@@ -99,6 +99,7 @@
 	"application_configuration": "Applikationskonfiguration",
 	"settings": "Inställningar",
 	"update_pocket_id": "Uppdatera Pocket-ID",
+	"sqlite_storage_warning": "Vi har upptäckt att din SQLite-databas är lagrad på en nätverksansluten enhet, till exempel NFS, SMB eller FUSE. Detta stöds inte och kan leda till att din databas skadas. {#link href=|https://pocket-id.org/docs/configuration/environment-variables#sqlite|}Se dokumentationen.{/link}",
 	"powered_by": "Drivs av",
 	"see_your_recent_account_activities": "Se dina kontoaktiviteter inom den konfigurerade lagringsperioden.",
 	"time": "Tid",

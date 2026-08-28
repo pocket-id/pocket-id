@@ -99,6 +99,7 @@
 	"application_configuration": "Configuració de l'aplicació",
 	"settings": "Configuració",
 	"update_pocket_id": "Actualitza Pocket ID",
+	"sqlite_storage_warning": "Hem detectat que la vostra base de dades SQLite s'emmagatzema en una unitat connectada a la xarxa com ara NFS, SMB o FUSE. Això no està suportat i pot provocar que la vostra base de dades es corrompi. {#link href=|https://pocket-id.org/docs/configuration/environment-variables#sqlite|}Consulteu la documentació.{/link}",
 	"powered_by": "Impulsat per",
 	"see_your_recent_account_activities": "Veuràs les activitats del teu compte dins del període de retenció configurat.",
 	"time": "Hora",
