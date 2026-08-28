@@ -37,14 +37,15 @@ func BuildFormPostCSP(nonce, redirectURI, scriptHash string) string {
 
 func buildCSP(nonce string, formActionExtra, scriptSrcExtra []string) string {
 	formAction := "'self'"
-	scriptSrc := "script-src 'self'"
+	var scriptSrc strings.Builder
+	scriptSrc.WriteString("script-src 'self'")
 	if nonce != "" {
-		scriptSrc += " 'nonce-" + nonce + "'"
+		scriptSrc.WriteString(" 'nonce-" + nonce + "'")
 	}
 
 	for _, extra := range scriptSrcExtra {
 		if extra != "" {
-			scriptSrc += " " + extra
+			scriptSrc.WriteString(" " + extra)
 		}
 	}
 
@@ -69,7 +70,7 @@ func buildCSP(nonce string, formActionExtra, scriptSrcExtra []string) string {
 		"img-src * blob:;" +
 		"font-src 'self'; " +
 		"style-src 'self' 'unsafe-inline'; " +
-		scriptSrc
+		scriptSrc.String()
 }
 
 // GenerateCSPNonce returns a random base64 nonce for use in a CSP header.

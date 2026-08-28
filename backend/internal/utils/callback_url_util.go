@@ -49,8 +49,8 @@ func validateCallbackURLPatternURL(pattern string) error {
 }
 
 func callbackURLPatternForURLParse(pattern string) string {
-	if strings.HasPrefix(pattern, "*://") {
-		pattern = "https://" + strings.TrimPrefix(pattern, "*://")
+	if after, ok := strings.CutPrefix(pattern, "*://"); ok {
+		pattern = "https://" + after
 	}
 
 	scheme, rest, ok := strings.Cut(pattern, "://")

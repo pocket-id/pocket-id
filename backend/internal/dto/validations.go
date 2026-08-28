@@ -31,7 +31,7 @@ func init() {
 
 	// Use JSON tags to keep client-visible validation field names stable
 	engine.RegisterTagNameFunc(func(field reflect.StructField) string {
-		name := strings.SplitN(field.Tag.Get("json"), ",", 2)[0]
+		name, _, _ := strings.Cut(field.Tag.Get("json"), ",")
 		if name == "" || name == "-" {
 			return field.Name
 		}
