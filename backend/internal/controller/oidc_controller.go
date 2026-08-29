@@ -454,6 +454,7 @@ func (oc *OidcController) updateAllowedUserGroupsHandler(c *gin.Context) error {
 // @Summary List authorized clients for current user
 // @Description Get a paginated list of OIDC clients that the current user has authorized
 // @Tags OIDC
+// @Param search query string false "Search term to filter clients by name"
 // @Param pagination[page] query int false "Page number for pagination" default(1)
 // @Param pagination[limit] query int false "Number of items per page" default(20)
 // @Param sort[column] query string false "Column to sort by"
@@ -472,6 +473,7 @@ func (oc *OidcController) listOwnAuthorizedClientsHandler(c *gin.Context) error 
 // @Description Get a paginated list of OIDC clients that a specific user has authorized
 // @Tags OIDC
 // @Param id path string true "User ID"
+// @Param search query string false "Search term to filter clients by name"
 // @Param pagination[page] query int false "Page number for pagination" default(1)
 // @Param pagination[limit] query int false "Number of items per page" default(20)
 // @Param sort[column] query string false "Column to sort by"
@@ -486,9 +488,10 @@ func (oc *OidcController) listAuthorizedClientsHandler(c *gin.Context) error {
 }
 
 func (oc *OidcController) listAuthorizedClients(c *gin.Context, userID string) error {
+	searchTerm := c.Query("search")
 	listRequestOptions := utils.ParseListRequestOptions(c)
 
-	authorizedClients, pagination, err := oc.oidcService.ListAuthorizedClients(c.Request.Context(), userID, listRequestOptions)
+	authorizedClients, pagination, err := oc.oidcService.ListAuthorizedClients(c.Request.Context(), userID, searchTerm, listRequestOptions)
 	if err != nil {
 		return err
 	}
@@ -532,6 +535,7 @@ func (oc *OidcController) revokeOwnClientAuthorizationHandler(c *gin.Context) er
 // @Summary List accessible OIDC clients for current user
 // @Description Get a list of OIDC clients that the current user can access
 // @Tags OIDC
+// @Param search query string false "Search term to filter clients by name"
 // @Param pagination[page] query int false "Page number for pagination" default(1)
 // @Param pagination[limit] query int false "Number of items per page" default(20)
 // @Param sort[column] query string false "Column to sort by"
@@ -541,11 +545,12 @@ func (oc *OidcController) revokeOwnClientAuthorizationHandler(c *gin.Context) er
 // @Failure default {object} dto.ErrorDto "Error"
 // @Router /api/oidc/users/me/clients [get]
 func (oc *OidcController) listOwnAccessibleClientsHandler(c *gin.Context) error {
+	searchTerm := c.Query("search")
 	listRequestOptions := utils.ParseListRequestOptions(c)
 
 	userID := c.GetString("userID")
 
-	clients, pagination, err := oc.oidcService.ListAccessibleOidcClients(c.Request.Context(), userID, listRequestOptions)
+	clients, pagination, err := oc.oidcService.ListAccessibleOidcClients(c.Request.Context(), userID, searchTerm, listRequestOptions)
 	if err != nil {
 		return err
 	}

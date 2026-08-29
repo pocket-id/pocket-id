@@ -24,7 +24,7 @@ import (
 func TestListAuthorizedClientsRejectsMissingUser(t *testing.T) {
 	service := &OidcService{db: testutils.NewDatabaseForTest(t)}
 
-	_, _, err := service.ListAuthorizedClients(t.Context(), "missing-user", utils.ListRequestOptions{})
+	_, _, err := service.ListAuthorizedClients(t.Context(), "missing-user", "", utils.ListRequestOptions{})
 
 	require.True(t, apperror.IsCode(err, apperror.CodeUserNotFound))
 }
@@ -962,11 +962,11 @@ func TestOidcService_ListAccessibleOidcClients_requiresExplicitGroupPermission(t
 		require.NoError(t, db.Create(&clients[i]).Error)
 	}
 
-	groupClients, _, err := s.ListAccessibleOidcClients(t.Context(), userWithGroup.ID, utils.ListRequestOptions{})
+	groupClients, _, err := s.ListAccessibleOidcClients(t.Context(), userWithGroup.ID, "", utils.ListRequestOptions{})
 	require.NoError(t, err)
 	assert.ElementsMatch(t, []string{"Unrestricted", "Restricted to user group"}, accessibleClientNames(groupClients))
 
-	noGroupClients, _, err := s.ListAccessibleOidcClients(t.Context(), userWithoutGroup.ID, utils.ListRequestOptions{})
+	noGroupClients, _, err := s.ListAccessibleOidcClients(t.Context(), userWithoutGroup.ID, "", utils.ListRequestOptions{})
 	require.NoError(t, err)
 	assert.Equal(t, []string{"Unrestricted"}, accessibleClientNames(noGroupClients))
 }
@@ -1001,28 +1001,87 @@ func TestOidcService_ListClientViewsFilterByLaunchURLPresence(t *testing.T) {
 		Filters: map[string][]any{"hasLaunchURL": {false}},
 	}
 
-	allClients, allClientsPagination, err := s.ListAccessibleOidcClients(t.Context(), user.ID, utils.ListRequestOptions{})
+	allClients, allClientsPagination, err := s.ListAccessibleOidcClients(t.Context(), user.ID, "", utils.ListRequestOptions{})
 	require.NoError(t, err)
 	assert.Equal(t, int64(3), allClientsPagination.TotalItems)
 	assert.ElementsMatch(t, []string{"Launchable", "Missing launch URL", "Empty launch URL"}, accessibleClientNames(allClients))
 
-	launchableClients, launchablePagination, err := s.ListAccessibleOidcClients(t.Context(), user.ID, withLaunchURL)
+	launchableClients, launchablePagination, err := s.ListAccessibleOidcClients(t.Context(), user.ID, "", withLaunchURL)
 	require.NoError(t, err)
 	assert.Equal(t, int64(1), launchablePagination.TotalItems)
 	assert.Equal(t, []string{"Launchable"}, accessibleClientNames(launchableClients))
 
-	allAuthorizations, allAuthorizationsPagination, err := s.ListAuthorizedClients(t.Context(), user.ID, utils.ListRequestOptions{})
+	allAuthorizations, allAuthorizationsPagination, err := s.ListAuthorizedClients(t.Context(), user.ID, "", utils.ListRequestOptions{})
 	require.NoError(t, err)
 	assert.Equal(t, int64(3), allAuthorizationsPagination.TotalItems)
 	assert.Len(t, allAuthorizations, 3)
 
-	hiddenAuthorizations, hiddenPagination, err := s.ListAuthorizedClients(t.Context(), user.ID, withoutLaunchURL)
+	hiddenAuthorizations, hiddenPagination, err := s.ListAuthorizedClients(t.Context(), user.ID, "", withoutLaunchURL)
 	require.NoError(t, err)
 	assert.Equal(t, int64(2), hiddenPagination.TotalItems)
 	assert.ElementsMatch(t, []string{"Missing launch URL", "Empty launch URL"}, []string{
 		hiddenAuthorizations[0].Client.Name,
 		hiddenAuthorizations[1].Client.Name,
 	})
+}
+
+func TestOidcService_ListClientViewsSearchAndSort(t *testing.T) {
+	db := testutils.NewDatabaseForTest(t)
+	s, err := NewOidcService(db, nil, nil, nil, nil, nil, nil)
+	require.NoError(t, err)
+
+	user := model.User{Username: "search-sort-user"}
+	require.NoError(t, db.Create(&user).Error)
+
+	launchURL := "https://app.example.com"
+	clients := []model.OidcClient{
+		{Name: "Beta App", LaunchURL: &launchURL},
+		{Name: "Alpha App", LaunchURL: &launchURL},
+		{Name: "Gamma App", LaunchURL: &launchURL},
+	}
+	for i := range clients {
+		require.NoError(t, db.Create(&clients[i]).Error)
+		require.NoError(t, db.Create(&model.UserAuthorizedOidcClient{
+			UserID:   user.ID,
+			ClientID: clients[i].ID,
+		}).Error)
+	}
+
+	// Search accessible clients
+	searchedClients, searchPagination, err := s.ListAccessibleOidcClients(t.Context(), user.ID, "Alpha", utils.ListRequestOptions{})
+	require.NoError(t, err)
+	assert.Equal(t, int64(1), searchPagination.TotalItems)
+	assert.Equal(t, []string{"Alpha App"}, accessibleClientNames(searchedClients))
+
+	// Sort accessible clients by name ascending
+	sortAscOptions := utils.ListRequestOptions{}
+	sortAscOptions.Sort.Column = "name"
+	sortAscOptions.Sort.Direction = "asc"
+	sortedAscClients, _, err := s.ListAccessibleOidcClients(t.Context(), user.ID, "", sortAscOptions)
+	require.NoError(t, err)
+	assert.Equal(t, []string{"Alpha App", "Beta App", "Gamma App"}, accessibleClientNames(sortedAscClients))
+
+	// Sort accessible clients by name descending
+	sortDescOptions := utils.ListRequestOptions{}
+	sortDescOptions.Sort.Column = "name"
+	sortDescOptions.Sort.Direction = "desc"
+	sortedDescClients, _, err := s.ListAccessibleOidcClients(t.Context(), user.ID, "", sortDescOptions)
+	require.NoError(t, err)
+	assert.Equal(t, []string{"Gamma App", "Beta App", "Alpha App"}, accessibleClientNames(sortedDescClients))
+
+	// Search authorized clients
+	searchedAuth, authSearchPagination, err := s.ListAuthorizedClients(t.Context(), user.ID, "Beta", utils.ListRequestOptions{})
+	require.NoError(t, err)
+	assert.Equal(t, int64(1), authSearchPagination.TotalItems)
+	assert.Equal(t, "Beta App", searchedAuth[0].Client.Name)
+
+	// Sort authorized clients by name ascending
+	sortedAuthAsc, _, err := s.ListAuthorizedClients(t.Context(), user.ID, "", sortAscOptions)
+	require.NoError(t, err)
+	require.Len(t, sortedAuthAsc, 3)
+	assert.Equal(t, "Alpha App", sortedAuthAsc[0].Client.Name)
+	assert.Equal(t, "Beta App", sortedAuthAsc[1].Client.Name)
+	assert.Equal(t, "Gamma App", sortedAuthAsc[2].Client.Name)
 }
 
 func accessibleClientNames(clients []dto.AccessibleOidcClientDto) []string {

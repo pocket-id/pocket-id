@@ -1,17 +1,22 @@
 <script lang="ts">
+	import { onMount } from 'svelte';
+	import { PersistedState } from 'runed';
 	import { openConfirmDialog } from '$lib/components/confirm-dialog';
 	import { Button } from '$lib/components/ui/button';
 	import * as Empty from '$lib/components/ui/empty';
+	import { Input } from '$lib/components/ui/input';
 	import * as Pagination from '$lib/components/ui/pagination';
+	import * as Select from '$lib/components/ui/select';
 	import { Separator } from '$lib/components/ui/separator';
 	import { m } from '$lib/paraglide/messages';
 	import OIDCService from '$lib/services/oidc-service';
-	import type { ListRequestOptions, Paginated } from '$lib/types/list-request.type';
+	import type { ListRequestOptions, Paginated, SortRequest } from '$lib/types/list-request.type';
 	import type {
 		AccessibleOidcClient,
 		AuthorizedOidcClient,
 		OidcClientMetaData
 	} from '$lib/types/oidc.type';
+	import { debounced } from '$lib/utils/debounce-util';
 	import { axiosErrorToast } from '$lib/utils/error-util';
 	import { cn } from '$lib/utils/style';
 	import { ChevronDown, LayoutDashboard } from '@lucide/svelte';
@@ -19,16 +24,56 @@
 	import { slide } from 'svelte/transition';
 	import AuthorizedOidcClientCard from './authorized-oidc-client-card.svelte';
 
+	type AppPreferences = {
+		paginationLimit: number;
+		sort: SortRequest;
+	};
+
+	const availablePageSizes: number[] = [20, 50, 100];
+	const defaultSort: SortRequest = { column: 'lastUsedAt', direction: 'desc' };
+
+	const appPreferences = new PersistedState<AppPreferences>('my-apps-preferences', {
+		paginationLimit: 20,
+		sort: defaultSort
+	});
+
 	let { data } = $props();
 	let clients: Paginated<AccessibleOidcClient> = $state(data.clients);
-	let requestOptions: ListRequestOptions = $state(data.appRequestOptions);
 	let authorizedClientsWithoutLaunchURL: Paginated<AuthorizedOidcClient> = $state(
 		data.authorizedClientsWithoutLaunchURL
 	);
-	let authorizedClientRequestOptions: ListRequestOptions = $state(
-		data.authorizedClientRequestOptions
-	);
+	let requestOptions: ListRequestOptions = $state({
+		...data.appRequestOptions,
+		sort: appPreferences.current.sort ?? defaultSort,
+		pagination: { limit: appPreferences.current.paginationLimit ?? 20, page: 1 }
+	});
+	let authorizedClientRequestOptions: ListRequestOptions = $state({
+		...data.authorizedClientRequestOptions,
+		sort: appPreferences.current.sort ?? defaultSort,
+		pagination: { limit: appPreferences.current.paginationLimit ?? 20, page: 1 }
+	});
 	let showAllApps = $state(false);
+	let searchValue = $state('');
+
+	const sortOptions = [
+		{
+			label: m.last_used(),
+			value: 'lastUsedAt-desc',
+			column: 'lastUsedAt',
+			direction: 'desc' as const
+		},
+		{ label: m.name_asc(), value: 'name-asc', column: 'name', direction: 'asc' as const },
+		{ label: m.name_desc(), value: 'name-desc', column: 'name', direction: 'desc' as const }
+	];
+
+	let sortValue = $derived(
+		`${requestOptions.sort?.column || 'lastUsedAt'}-${requestOptions.sort?.direction || 'desc'}`
+	);
+
+	const initialHasApps =
+		data.clients.pagination.totalItems > 0 ||
+		data.authorizedClientsWithoutLaunchURL.pagination.totalItems > 0;
+
 	const hiddenAuthorizedClients = $derived(
 		authorizedClientsWithoutLaunchURL.data.map(({ client, lastUsedAt }) => ({
 			...client,
@@ -36,6 +81,18 @@
 		}))
 	);
 	const oidcService = new OIDCService();
+
+	onMount(async () => {
+		const currentSort = appPreferences.current.sort ?? defaultSort;
+		const currentLimit = appPreferences.current.paginationLimit ?? 20;
+		if (
+			currentSort.column !== 'lastUsedAt' ||
+			currentSort.direction !== 'desc' ||
+			currentLimit !== 20
+		) {
+			await refreshClients();
+		}
+	});
 
 	async function refreshClients() {
 		[clients, authorizedClientsWithoutLaunchURL] = await Promise.all([
@@ -45,6 +102,41 @@
 		if (authorizedClientsWithoutLaunchURL.pagination.totalItems === 0) {
 			showAllApps = false;
 		}
+	}
+
+	const onSearch = debounced(async (search: string) => {
+		searchValue = search;
+		requestOptions.search = search;
+		requestOptions.pagination = { limit: requestOptions.pagination?.limit ?? 20, page: 1 };
+		authorizedClientRequestOptions.search = search;
+		authorizedClientRequestOptions.pagination = {
+			limit: authorizedClientRequestOptions.pagination?.limit ?? 20,
+			page: 1
+		};
+		await refreshClients();
+	}, 300);
+
+	async function onSortChange(value: string) {
+		const option = sortOptions.find((o) => o.value === value);
+		if (!option) return;
+
+		const sort: SortRequest = { column: option.column, direction: option.direction };
+		appPreferences.current.sort = sort;
+		requestOptions.sort = sort;
+		requestOptions.pagination = { limit: requestOptions.pagination?.limit ?? 20, page: 1 };
+		authorizedClientRequestOptions.sort = sort;
+		authorizedClientRequestOptions.pagination = {
+			limit: authorizedClientRequestOptions.pagination?.limit ?? 20,
+			page: 1
+		};
+		await refreshClients();
+	}
+
+	async function onPageSizeChange(size: number) {
+		appPreferences.current.paginationLimit = size;
+		requestOptions.pagination = { limit: size, page: 1 };
+		authorizedClientRequestOptions.pagination = { limit: size, page: 1 };
+		await refreshClients();
 	}
 
 	async function onPageChange(page: number) {
@@ -94,23 +186,46 @@
 	<title>{m.my_apps()}</title>
 </svelte:head>
 <div>
-	<div>
-		<h1 class="flex items-center gap-2 text-2xl font-bold mb-5">
+	<div class="mb-5 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+		<h1 class="flex items-center gap-2 text-2xl font-bold">
 			<LayoutDashboard class="text-primary/80 size-6" />
 			{m.my_apps()}
 		</h1>
+		{#if initialHasApps || searchValue}
+			<div class="flex flex-col gap-2 sm:flex-row sm:items-center">
+				<Input
+					value={searchValue}
+					class="w-full sm:w-64"
+					placeholder={m.search()}
+					type="text"
+					oninput={(e: Event) => onSearch((e.currentTarget as HTMLInputElement).value)}
+				/>
+				<Select.Root type="single" value={sortValue} onValueChange={onSortChange}>
+					<Select.Trigger class="w-full sm:w-44" aria-label={m.sort_by()}>
+						{sortOptions.find((o) => o.value === sortValue)?.label}
+					</Select.Trigger>
+					<Select.Content>
+						{#each sortOptions as option (option.value)}
+							<Select.Item value={option.value}>{option.label}</Select.Item>
+						{/each}
+					</Select.Content>
+				</Select.Root>
+			</div>
+		{/if}
 	</div>
 
 	{#if clients.data.length === 0 && !showAllApps}
-		<Empty.Root class="mt-20">
+		<Empty.Root class={searchValue ? 'mt-12' : 'mt-20'}>
 			<Empty.Header>
 				<Empty.Media variant="icon">
 					<LayoutDashboard />
 				</Empty.Media>
-				<Empty.Title>{m.no_apps_available()}</Empty.Title>
-				<Empty.Description>
-					{m.contact_your_administrator_for_app_access()}
-				</Empty.Description>
+				<Empty.Title>{searchValue ? m.no_items_found() : m.no_apps_available()}</Empty.Title>
+				{#if !searchValue}
+					<Empty.Description>
+						{m.contact_your_administrator_for_app_access()}
+					</Empty.Description>
+				{/if}
 			</Empty.Header>
 			{#if authorizedClientsWithoutLaunchURL.pagination.totalItems > 0}
 				<Empty.Content>
@@ -136,38 +251,57 @@
 			</div>
 		{/if}
 
-		{#if clients.pagination.totalPages > 1}
-			<div class="flex items-center justify-center mt-5">
-				<Pagination.Root
-					class="mx-0 w-auto"
-					count={clients.pagination.totalItems}
-					perPage={clients.pagination.itemsPerPage}
-					{onPageChange}
-					page={clients.pagination.currentPage}
-				>
-					{#snippet children({ pages })}
-						<Pagination.Content class="flex justify-center">
-							<Pagination.Item>
-								<Pagination.PrevButton />
-							</Pagination.Item>
-							{#each pages as page (page.key)}
-								{#if page.type !== 'ellipsis' && page.value != 0}
-									<Pagination.Item>
-										<Pagination.Link
-											{page}
-											isActive={clients.pagination.currentPage === page.value}
-										>
-											{page.value}
-										</Pagination.Link>
-									</Pagination.Item>
-								{/if}
+		{#if clients.data.length > 0}
+			<div class="mt-5 flex flex-col-reverse items-center justify-between gap-3 sm:flex-row">
+				<div class="flex items-center space-x-2">
+					<p class="text-sm font-medium">{m.items_per_page()}</p>
+					<Select.Root
+						type="single"
+						value={clients.pagination.itemsPerPage.toString()}
+						onValueChange={(v) => onPageSizeChange(Number(v))}
+					>
+						<Select.Trigger class="w-20">
+							{clients.pagination.itemsPerPage}
+						</Select.Trigger>
+						<Select.Content>
+							{#each availablePageSizes as size (size)}
+								<Select.Item value={size.toString()}>{size}</Select.Item>
 							{/each}
-							<Pagination.Item>
-								<Pagination.NextButton />
-							</Pagination.Item>
-						</Pagination.Content>
-					{/snippet}
-				</Pagination.Root>
+						</Select.Content>
+					</Select.Root>
+				</div>
+				{#if clients.pagination.totalPages > 1}
+					<Pagination.Root
+						class="mx-0 w-auto"
+						count={clients.pagination.totalItems}
+						perPage={clients.pagination.itemsPerPage}
+						{onPageChange}
+						page={clients.pagination.currentPage}
+					>
+						{#snippet children({ pages })}
+							<Pagination.Content class="flex justify-end">
+								<Pagination.Item>
+									<Pagination.PrevButton />
+								</Pagination.Item>
+								{#each pages as page (page.key)}
+									{#if page.type !== 'ellipsis' && page.value != 0}
+										<Pagination.Item>
+											<Pagination.Link
+												{page}
+												isActive={clients.pagination.currentPage === page.value}
+											>
+												{page.value}
+											</Pagination.Link>
+										</Pagination.Item>
+									{/if}
+								{/each}
+								<Pagination.Item>
+									<Pagination.NextButton />
+								</Pagination.Item>
+							</Pagination.Content>
+						{/snippet}
+					</Pagination.Root>
+				{/if}
 			</div>
 		{/if}
 

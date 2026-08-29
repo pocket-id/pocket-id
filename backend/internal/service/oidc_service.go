@@ -630,7 +630,7 @@ func (s *OidcService) UpdateAllowedUserGroups(ctx context.Context, id string, in
 	return client, nil
 }
 
-func (s *OidcService) ListAuthorizedClients(ctx context.Context, userID string, listRequestOptions utils.ListRequestOptions) ([]model.UserAuthorizedOidcClient, utils.PaginationResponse, error) {
+func (s *OidcService) ListAuthorizedClients(ctx context.Context, userID string, searchTerm string, listRequestOptions utils.ListRequestOptions) ([]model.UserAuthorizedOidcClient, utils.PaginationResponse, error) {
 	tx := s.db.Begin()
 	defer func() {
 		tx.Rollback()
@@ -655,14 +655,31 @@ func (s *OidcService) ListAuthorizedClients(ctx context.Context, userID string, 
 		Preload("Client").
 		Where("user_id = ?", userID)
 
+	hasJoinedClient := false
 	// Apply the launch URL filter before pagination so hidden authorizations have their own page count
 	if hasLaunchURL, ok := getHasLaunchURLFilter(listRequestOptions); ok {
 		query = query.Joins("JOIN oidc_clients ON oidc_clients.id = user_authorized_oidc_clients.client_id")
+		hasJoinedClient = true
 		if hasLaunchURL {
 			query = query.Where("oidc_clients.launch_url IS NOT NULL AND oidc_clients.launch_url <> ''")
 		} else {
 			query = query.Where("oidc_clients.launch_url IS NULL OR oidc_clients.launch_url = ''")
 		}
+	}
+
+	if searchTerm != "" {
+		if !hasJoinedClient {
+			query = query.Joins("JOIN oidc_clients ON oidc_clients.id = user_authorized_oidc_clients.client_id")
+			hasJoinedClient = true
+		}
+		query = query.Where("oidc_clients.name LIKE ?", "%"+searchTerm+"%")
+	}
+
+	if listRequestOptions.Sort.Column == "name" && utils.IsValidSortDirection(listRequestOptions.Sort.Direction) {
+		if !hasJoinedClient {
+			query = query.Joins("JOIN oidc_clients ON oidc_clients.id = user_authorized_oidc_clients.client_id")
+		}
+		query = query.Order("oidc_clients.name " + listRequestOptions.Sort.Direction)
 	}
 
 	var authorizedClients []model.UserAuthorizedOidcClient
@@ -706,7 +723,7 @@ func (s *OidcService) RevokeAuthorizedClient(ctx context.Context, userID string,
 	return nil
 }
 
-func (s *OidcService) ListAccessibleOidcClients(ctx context.Context, userID string, listRequestOptions utils.ListRequestOptions) ([]dto.AccessibleOidcClientDto, utils.PaginationResponse, error) {
+func (s *OidcService) ListAccessibleOidcClients(ctx context.Context, userID string, searchTerm string, listRequestOptions utils.ListRequestOptions) ([]dto.AccessibleOidcClientDto, utils.PaginationResponse, error) {
 	tx := s.db.Begin()
 	defer func() {
 		tx.Rollback()
@@ -739,6 +756,10 @@ func (s *OidcService) ListAccessibleOidcClients(ctx context.Context, userID stri
 			SELECT 1 FROM oidc_clients_allowed_user_groups
 			WHERE oidc_clients_allowed_user_groups.oidc_client_id = oidc_clients.id
 			AND oidc_clients_allowed_user_groups.user_group_id IN (?))`, false, userGroupIDs)
+
+	if searchTerm != "" {
+		query = query.Where("oidc_clients.name LIKE ?", "%"+searchTerm+"%")
+	}
 
 	// Apply the launch URL filter before pagination so the app launcher never contains empty pages
 	if hasLaunchURL, ok := getHasLaunchURLFilter(listRequestOptions); ok {
