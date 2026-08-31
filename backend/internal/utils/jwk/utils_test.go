@@ -9,8 +9,8 @@ import (
 	"encoding/hex"
 	"testing"
 
-	"github.com/lestrrat-go/jwx/v3/jwa"
-	"github.com/lestrrat-go/jwx/v3/jwk"
+	"github.com/lestrrat-go/jwx/v4/jwa"
+	"github.com/lestrrat-go/jwx/v4/jwk"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
@@ -130,8 +130,7 @@ func TestGenerateKey(t *testing.T) {
 			assert.True(t, ok, "key usage should be set")
 			assert.Equal(t, KeyUsageSigning, usage)
 
-			var crv any
-			_ = key.Get("crv", &crv)
+			crv, _ := jwk.Get[any](key, "crv")
 
 			// Verify key type matches expected algorithm
 			switch tt.expectedAlg {
@@ -162,7 +161,7 @@ func TestEnsureAlgInKey(t *testing.T) {
 
 	t.Run("does not change alg already set", func(t *testing.T) {
 		// Import the RSA key
-		key, err := jwk.Import(rsaKey)
+		key, err := jwk.Import[jwk.Key](rsaKey)
 		require.NoError(t, err)
 
 		// Pre-set the algorithm
@@ -224,7 +223,7 @@ func TestEnsureAlgInKey(t *testing.T) {
 				rawKey, err := tt.keyGen()
 				require.NoError(t, err)
 
-				key, err := jwk.Import(rawKey)
+				key, err := jwk.Import[jwk.Key](rawKey)
 				require.NoError(t, err)
 
 				// Ensure no algorithm is set initially
@@ -241,8 +240,7 @@ func TestEnsureAlgInKey(t *testing.T) {
 
 				// Verify curve if expected
 				if tt.expectedCrv != "" {
-					var crv any
-					_ = key.Get("crv", &crv)
+					crv, _ := jwk.Get[any](key, "crv")
 					require.NotNil(t, crv)
 					eca, ok := crv.(jwa.EllipticCurveAlgorithm)
 					require.True(t, ok)
@@ -291,7 +289,7 @@ func TestEnsureAlgInKey(t *testing.T) {
 				rawKey, err := tt.keyGen()
 				require.NoError(t, err)
 
-				key, err := jwk.Import(rawKey)
+				key, err := jwk.Import[jwk.Key](rawKey)
 				require.NoError(t, err)
 
 				// Ensure no algorithm is set initially
@@ -308,8 +306,7 @@ func TestEnsureAlgInKey(t *testing.T) {
 
 				// Verify curve if expected
 				if tt.expectedCrv != "" {
-					var crv any
-					_ = key.Get("crv", &crv)
+					crv, _ := jwk.Get[any](key, "crv")
 					require.NotNil(t, crv)
 					eca, ok := crv.(jwa.EllipticCurveAlgorithm)
 					require.True(t, ok)
@@ -323,7 +320,7 @@ func TestEnsureAlgInKey(t *testing.T) {
 		rsaKey, err := rsa.GenerateKey(rand.Reader, 2048)
 		require.NoError(t, err)
 
-		key, err := jwk.Import(rsaKey)
+		key, err := jwk.Import[jwk.Key](rsaKey)
 		require.NoError(t, err)
 
 		// Call EnsureAlgInKey with invalid curve
@@ -334,8 +331,7 @@ func TestEnsureAlgInKey(t *testing.T) {
 		require.True(t, ok)
 		assert.Equal(t, jwa.RS256().String(), alg.String())
 
-		var crv any
-		_ = key.Get("crv", &crv)
+		crv, _ := jwk.Get[any](key, "crv")
 		assert.Nil(t, crv)
 	})
 }

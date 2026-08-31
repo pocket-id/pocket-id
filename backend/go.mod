@@ -28,8 +28,9 @@ require (
 	github.com/jackc/pgx/v5 v5.10.0
 	github.com/jinzhu/copier v0.4.0
 	github.com/joho/godotenv v1.5.1
+	github.com/jwx-go/jwkfetch/v4 v4.0.4
 	github.com/lestrrat-go/httprc/v3 v3.0.6
-	github.com/lestrrat-go/jwx/v3 v3.2.0
+	github.com/lestrrat-go/jwx/v4 v4.4.0
 	github.com/libtnb/sqlite v1.2.2
 	github.com/lmittmann/tint v1.2.0
 	github.com/mattn/go-isatty v0.0.24
@@ -86,7 +87,6 @@ require (
 	github.com/cespare/xxhash/v2 v2.3.0 // indirect
 	github.com/cloudwego/base64x v0.1.7 // indirect
 	github.com/cristalhq/jwt/v5 v5.4.0 // indirect
-	github.com/decred/dcrd/dcrec/secp256k1/v4 v4.4.1 // indirect
 	github.com/dgraph-io/ristretto/v2 v2.4.0 // indirect
 	github.com/disintegration/gift v1.2.1 // indirect
 	github.com/dsoprea/go-exif v0.0.0-20230826092837-6579e82b732d // indirect
@@ -139,10 +139,10 @@ require (
 	github.com/klauspost/cpuid/v2 v2.4.0 // indirect
 	github.com/leodido/go-urn v1.5.0 // indirect
 	github.com/lestrrat-go/blackmagic v1.0.4 // indirect
-	github.com/lestrrat-go/dsig v1.3.0 // indirect
-	github.com/lestrrat-go/dsig-secp256k1 v1.0.0 // indirect
+	github.com/lestrrat-go/dsig v1.4.0 // indirect
 	github.com/lestrrat-go/httpcc v1.0.1 // indirect
 	github.com/lestrrat-go/option/v2 v2.0.0 // indirect
+	github.com/lestrrat-go/option/v3 v3.0.0-alpha1 // indirect
 	github.com/lib/pq v1.12.3 // indirect
 	github.com/mattn/go-sqlite3 v1.14.42 // indirect
 	github.com/mattn/goveralls v0.0.12 // indirect
@@ -171,7 +171,6 @@ require (
 	github.com/robfig/cron/v3 v3.0.1 // indirect
 	github.com/sagikazarmark/locafero v0.12.0 // indirect
 	github.com/seatgeek/logrus-gelf-formatter v0.0.0-20210414080842-5b05eb8ff761 // indirect
-	github.com/segmentio/asm v1.2.1 // indirect
 	github.com/sirupsen/logrus v1.9.4 // indirect
 	github.com/spf13/afero v1.15.0 // indirect
 	github.com/spf13/cast v1.10.0 // indirect

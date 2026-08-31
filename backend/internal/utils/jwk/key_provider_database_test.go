@@ -7,7 +7,7 @@ import (
 	"encoding/base64"
 	"testing"
 
-	"github.com/lestrrat-go/jwx/v3/jwk"
+	"github.com/lestrrat-go/jwx/v4/jwk"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
@@ -44,7 +44,7 @@ func TestKeyProviderDatabase_LoadKey(t *testing.T) {
 	pk, err := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
 	require.NoError(t, err)
 
-	key, err := jwk.Import(pk)
+	key, err := jwk.Import[jwk.Key](pk)
 	require.NoError(t, err)
 
 	t.Run("LoadKey with no existing key", func(t *testing.T) {
@@ -213,7 +213,7 @@ func TestKeyProviderDatabase_SaveKey(t *testing.T) {
 	pk, err := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
 	require.NoError(t, err)
 
-	key, err := jwk.Import(pk)
+	key, err := jwk.Import[jwk.Key](pk)
 	require.NoError(t, err)
 
 	t.Run("SaveKey and verify database record", func(t *testing.T) {

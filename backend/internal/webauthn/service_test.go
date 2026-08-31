@@ -8,7 +8,7 @@ import (
 
 	"github.com/go-webauthn/webauthn/protocol"
 	gowebauthn "github.com/go-webauthn/webauthn/webauthn"
-	"github.com/lestrrat-go/jwx/v3/jwt"
+	"github.com/lestrrat-go/jwx/v4/jwt"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
@@ -62,8 +62,8 @@ func (s *fakeSigner) GetAuthenticationMethod(token jwt.Token) (string, error) {
 	if !token.Has(common.AuthenticationMethodsClaim) {
 		return "", nil
 	}
-	var methods []string
-	if err := token.Get(common.AuthenticationMethodsClaim, &methods); err != nil {
+	methods, err := jwt.Get[[]string](token, common.AuthenticationMethodsClaim)
+	if err != nil {
 		return "", err
 	}
 	if len(methods) == 0 {

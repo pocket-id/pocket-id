@@ -6,7 +6,7 @@ import (
 	"net/url"
 	"time"
 
-	"github.com/lestrrat-go/jwx/v3/jwt"
+	"github.com/lestrrat-go/jwx/v4/jwt"
 	"github.com/pocket-id/pocket-id/backend/internal/apperror"
 	"github.com/pocket-id/pocket-id/backend/internal/common"
 	"github.com/pocket-id/pocket-id/backend/internal/dto"
@@ -116,8 +116,8 @@ func (s *endSessionService) verifyIDTokenHint(tokenString string) (jwt.Token, er
 
 	// id_token_hint must be an ID token, never an access token (both are signed with the same
 	// key). An expired ID token is still accepted here, as required by OIDC RP-Initiated Logout.
-	var tokenType string
-	if err := token.Get(common.TokenTypeClaim, &tokenType); err != nil || tokenType != idTokenType {
+	tokenType, err := jwt.Get[string](token, common.TokenTypeClaim)
+	if err != nil || tokenType != idTokenType {
 		return nil, apperror.TokenInvalid()
 	}
 

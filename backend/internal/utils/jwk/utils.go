@@ -13,8 +13,8 @@ import (
 	"fmt"
 	"io"
 
-	"github.com/lestrrat-go/jwx/v3/jwa"
-	"github.com/lestrrat-go/jwx/v3/jwk"
+	"github.com/lestrrat-go/jwx/v4/jwa"
+	"github.com/lestrrat-go/jwx/v4/jwk"
 
 	"github.com/pocket-id/pocket-id/backend/internal/common"
 	"github.com/pocket-id/pocket-id/backend/internal/utils/crypto"
@@ -58,7 +58,7 @@ func LoadKeyEncryptionKey(envConfig *common.EnvConfigSchema, instanceID string) 
 // ImportRawKey imports a crypto key in "raw" format (e.g. crypto.PrivateKey) into a jwk.Key.
 // It also populates additional fields such as the key ID, usage, and alg.
 func ImportRawKey(rawKey any, alg string, crv string) (jwk.Key, error) {
-	key, err := jwk.Import(rawKey)
+	key, err := jwk.Import[jwk.Key](rawKey)
 	if err != nil {
 		return nil, fmt.Errorf("failed to import generated private key: %w", err)
 	}
