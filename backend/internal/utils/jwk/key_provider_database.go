@@ -7,7 +7,7 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/lestrrat-go/jwx/v3/jwk"
+	"github.com/lestrrat-go/jwx/v4/jwk"
 	"gorm.io/gorm"
 	"gorm.io/gorm/clause"
 

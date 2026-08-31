@@ -6,7 +6,7 @@ import (
 	"net/url"
 	"time"
 
-	jwxjwt "github.com/lestrrat-go/jwx/v3/jwt"
+	jwxjwt "github.com/lestrrat-go/jwx/v4/jwt"
 	"github.com/ory/fosite"
 
 	"github.com/pocket-id/pocket-id/backend/internal/model"

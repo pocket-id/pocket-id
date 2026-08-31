@@ -8,9 +8,9 @@ import (
 	"time"
 	"uuid"
 
-	"github.com/lestrrat-go/jwx/v3/jwa"
-	"github.com/lestrrat-go/jwx/v3/jwk"
-	"github.com/lestrrat-go/jwx/v3/jwt"
+	"github.com/lestrrat-go/jwx/v4/jwa"
+	"github.com/lestrrat-go/jwx/v4/jwk"
+	"github.com/lestrrat-go/jwx/v4/jwt"
 	"gorm.io/gorm"
 
 	"github.com/pocket-id/pocket-id/backend/internal/common"
@@ -294,8 +294,7 @@ func (s *JwtService) GetAuthenticationMethod(token jwt.Token) (string, error) {
 	if !token.Has(common.AuthenticationMethodsClaim) {
 		return "", nil
 	}
-	var rawAuthenticationMethods []any
-	err := token.Get(common.AuthenticationMethodsClaim, &rawAuthenticationMethods)
+	rawAuthenticationMethods, err := jwt.Get[[]any](token, common.AuthenticationMethodsClaim)
 	if err != nil {
 		return "", fmt.Errorf("failed to get '%s' claim from token: %w", common.AuthenticationMethodsClaim, err)
 	}
@@ -344,8 +343,7 @@ func SetAudienceString(token jwt.Token, audience string) error {
 // TokenTypeValidator is a validator function that checks the "type" claim in the token
 func TokenTypeValidator(expectedTokenType string) jwt.ValidatorFunc {
 	return func(_ context.Context, t jwt.Token) error {
-		var tokenType string
-		err := t.Get(TokenTypeClaim, &tokenType)
+		tokenType, err := jwt.Get[string](t, TokenTypeClaim)
 		if err != nil {
 			return fmt.Errorf("failed to get token type claim: %w", err)
 		}
@@ -357,7 +355,6 @@ func TokenTypeValidator(expectedTokenType string) jwt.ValidatorFunc {
 }
 
 func (s *JwtService) GetPrivateKey() any {
-	var privateKey any
-	_ = jwk.Export(s.privateKey, &privateKey)
+	privateKey, _ := jwk.Export[any](s.privateKey)
 	return privateKey
 }

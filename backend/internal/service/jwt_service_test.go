@@ -10,9 +10,9 @@ import (
 	"testing"
 	"time"
 
-	"github.com/lestrrat-go/jwx/v3/jwa"
-	"github.com/lestrrat-go/jwx/v3/jwk"
-	"github.com/lestrrat-go/jwx/v3/jwt"
+	"github.com/lestrrat-go/jwx/v4/jwa"
+	"github.com/lestrrat-go/jwx/v4/jwk"
+	"github.com/lestrrat-go/jwx/v4/jwt"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"gorm.io/gorm"
@@ -177,8 +177,7 @@ func TestJwtService_Init(t *testing.T) {
 		_ = assert.True(t, ok) &&
 			assert.Equal(t, jwa.EdDSA().String(), alg.String(), "Loaded key has the incorrect algorithm")
 
-		var curve jwa.EllipticCurveAlgorithm
-		err := svc.privateKey.Get("crv", &curve)
+		curve, err := jwk.Get[jwa.EllipticCurveAlgorithm](svc.privateKey, "crv")
 		_ = assert.NoError(t, err, "Failed to get 'crv' claim") &&
 			assert.Equal(t, jwa.Ed25519().String(), curve.String(), "Curve does not match expected value")
 
@@ -333,7 +332,8 @@ func TestGenerateVerifyAccessToken(t *testing.T) {
 			assert.Equal(t, user.ID, subject, "Token subject should match user ID")
 		isAdmin := false
 		if claims.Has(IsAdminClaim) {
-			require.NoError(t, claims.Get(IsAdminClaim, &isAdmin), "Failed to get isAdmin claim")
+			isAdmin, err = jwt.Get[bool](claims, IsAdminClaim)
+			require.NoError(t, err, "Failed to get isAdmin claim")
 		}
 		assert.False(t, isAdmin, "isAdmin should be false")
 		authenticationMethod, err := service.GetAuthenticationMethod(claims)
@@ -370,7 +370,8 @@ func TestGenerateVerifyAccessToken(t *testing.T) {
 
 		isAdmin := false
 		if claims.Has(IsAdminClaim) {
-			require.NoError(t, claims.Get(IsAdminClaim, &isAdmin), "Failed to get isAdmin claim")
+			isAdmin, err = jwt.Get[bool](claims, IsAdminClaim)
+			require.NoError(t, err, "Failed to get isAdmin claim")
 		}
 		assert.True(t, isAdmin, "isAdmin should be true")
 		subject, ok := claims.Subject()
@@ -422,7 +423,8 @@ func TestGenerateVerifyAccessToken(t *testing.T) {
 			assert.Equal(t, user.ID, subject, "Token subject should match user ID")
 		isAdmin := false
 		if claims.Has(IsAdminClaim) {
-			require.NoError(t, claims.Get(IsAdminClaim, &isAdmin), "Failed to get isAdmin claim")
+			isAdmin, err = jwt.Get[bool](claims, IsAdminClaim)
+			require.NoError(t, err, "Failed to get isAdmin claim")
 		}
 		assert.True(t, isAdmin, "isAdmin should be true")
 
@@ -460,7 +462,8 @@ func TestGenerateVerifyAccessToken(t *testing.T) {
 			assert.Equal(t, user.ID, subject, "Token subject should match user ID")
 		isAdmin := false
 		if claims.Has(IsAdminClaim) {
-			require.NoError(t, claims.Get(IsAdminClaim, &isAdmin), "Failed to get isAdmin claim")
+			isAdmin, err = jwt.Get[bool](claims, IsAdminClaim)
+			require.NoError(t, err, "Failed to get isAdmin claim")
 		}
 		assert.True(t, isAdmin, "isAdmin should be true")
 
@@ -498,7 +501,8 @@ func TestGenerateVerifyAccessToken(t *testing.T) {
 			assert.Equal(t, user.ID, subject, "Token subject should match user ID")
 		isAdmin := false
 		if claims.Has(IsAdminClaim) {
-			require.NoError(t, claims.Get(IsAdminClaim, &isAdmin), "Failed to get isAdmin claim")
+			isAdmin, err = jwt.Get[bool](claims, IsAdminClaim)
+			require.NoError(t, err, "Failed to get isAdmin claim")
 		}
 		assert.True(t, isAdmin, "isAdmin should be true")
 

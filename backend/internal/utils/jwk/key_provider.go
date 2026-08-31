@@ -4,7 +4,7 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/lestrrat-go/jwx/v3/jwk"
+	"github.com/lestrrat-go/jwx/v4/jwk"
 	"gorm.io/gorm"
 
 	"github.com/pocket-id/pocket-id/backend/internal/common"

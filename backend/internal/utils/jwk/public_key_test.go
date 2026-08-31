@@ -4,8 +4,8 @@ import (
 	"encoding/json"
 	"testing"
 
-	"github.com/lestrrat-go/jwx/v3/jwa"
-	"github.com/lestrrat-go/jwx/v3/jwk"
+	"github.com/lestrrat-go/jwx/v4/jwa"
+	"github.com/lestrrat-go/jwx/v4/jwk"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -54,7 +54,7 @@ func TestParsePublicKey(t *testing.T) {
 	})
 
 	t.Run("rejects symmetric keys", func(t *testing.T) {
-		symmetricKey, err := jwk.Import([]byte("this-is-a-shared-secret"))
+		symmetricKey, err := jwk.Import[jwk.Key]([]byte("this-is-a-shared-secret"))
 		require.NoError(t, err)
 		require.NoError(t, symmetricKey.Set(jwk.KeyIDKey, "symmetric"))
 		encoded, err := json.Marshal(symmetricKey)

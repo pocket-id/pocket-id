@@ -4,7 +4,7 @@ import (
 	"context"
 	"testing"
 
-	"github.com/lestrrat-go/jwx/v3/jwa"
+	"github.com/lestrrat-go/jwx/v4/jwa"
 	"github.com/ory/fosite"
 	"github.com/stretchr/testify/require"
 	"gorm.io/gorm"

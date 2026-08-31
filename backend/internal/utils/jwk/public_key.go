@@ -6,7 +6,7 @@ import (
 	"errors"
 	"fmt"
 
-	"github.com/lestrrat-go/jwx/v3/jwk"
+	"github.com/lestrrat-go/jwx/v4/jwk"
 )
 
 var (

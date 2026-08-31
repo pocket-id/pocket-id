@@ -16,7 +16,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/lestrrat-go/jwx/v3/jwa"
+	"github.com/lestrrat-go/jwx/v4/jwa"
 	"github.com/ory/fosite"
 	fositeoauth2 "github.com/ory/fosite/handler/oauth2"
 	"github.com/pocket-id/pocket-id/backend/internal/model"
