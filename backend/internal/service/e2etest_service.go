@@ -16,7 +16,7 @@ import (
 
 	"github.com/go-webauthn/webauthn/protocol"
 	"github.com/italypaleale/francis/actor"
-	"github.com/italypaleale/francis/host/local"
+	francishost "github.com/italypaleale/francis/host"
 	"github.com/lestrrat-go/jwx/v4/jwa"
 	"github.com/lestrrat-go/jwx/v4/jwk"
 	"github.com/lestrrat-go/jwx/v4/jwt"
@@ -51,7 +51,7 @@ type LdapSyncer interface {
 
 type TestService struct {
 	db               *gorm.DB
-	actors           *local.Host
+	actors           francishost.Host
 	jwtService       *JwtService
 	appConfigService *appconfig.AppConfigService
 	ldapSyncer       LdapSyncer
@@ -69,7 +69,7 @@ const (
 	e2eEmailVerificationToken          = "2FZFSoupBdHyqIL65bWTsgCgHIhxlXup"
 )
 
-func NewTestService(db *gorm.DB, actors *local.Host, appConfigService *appconfig.AppConfigService, jwtService *JwtService, ldapSyncer LdapSyncer, fileStorage storage.FileStorage) (*TestService, error) {
+func NewTestService(db *gorm.DB, actors francishost.Host, appConfigService *appconfig.AppConfigService, jwtService *JwtService, ldapSyncer LdapSyncer, fileStorage storage.FileStorage) (*TestService, error) {
 	s := &TestService{
 		db:               db,
 		actors:           actors,

@@ -11,7 +11,7 @@ import (
 
 	"github.com/go-playground/validator/v10"
 	"github.com/italypaleale/francis/actor"
-	"github.com/italypaleale/francis/host/local"
+	francishost "github.com/italypaleale/francis/host"
 	"gorm.io/gorm"
 
 	"github.com/pocket-id/pocket-id/backend/internal/apperror"
@@ -26,7 +26,7 @@ type AppConfigService struct {
 	envConfig *AppConfigModel
 }
 
-func NewService(ctx context.Context, actors *local.Host, db *gorm.DB) (service *AppConfigService, err error) {
+func NewService(ctx context.Context, actors francishost.Host, db *gorm.DB) (service *AppConfigService, err error) {
 	service = &AppConfigService{}
 
 	// If the UI config is disabled, we do not need to init the config actor
@@ -56,8 +56,8 @@ func NewService(ctx context.Context, actors *local.Host, db *gorm.DB) (service *
 	}
 	err = actors.RegisterSingletonActor(
 		AppConfigActorType, NewAppConfigActor,
-		local.WithBootstrapData(bootstrapData),
-		local.WithIdleTimeout(-1), // Disable idle timeout for this actor
+		francishost.WithBootstrapData(bootstrapData),
+		francishost.WithIdleTimeout(-1), // Disable idle timeout for this actor
 	)
 	if err != nil {
 		return nil, fmt.Errorf("error registering the %s actor: %w", AppConfigActorType, err)

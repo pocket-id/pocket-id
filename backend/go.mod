@@ -64,6 +64,8 @@ require (
 
 require (
 	github.com/Azure/go-ntlmssp v0.1.1 // indirect
+	github.com/MicahParks/jwkset v0.11.3 // indirect
+	github.com/MicahParks/keyfunc/v3 v3.8.1 // indirect
 	github.com/alphadose/haxmap v1.4.1 // indirect
 	github.com/asaskevich/govalidator v0.0.0-20230301143203-a9d515a09cc2 // indirect
 	github.com/aws/aws-sdk-go-v2/aws/protocol/eventstream v1.7.18 // indirect

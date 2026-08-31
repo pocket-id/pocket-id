@@ -2,10 +2,23 @@ package bootstrap
 
 import (
 	"bytes"
+	"context"
+	"crypto/ed25519"
+	"crypto/rand"
+	"crypto/x509"
+	"crypto/x509/pkix"
 	"encoding/hex"
+	"encoding/pem"
+	"log/slog"
+	"math/big"
+	"os"
 	"path/filepath"
 	"testing"
+	"time"
 
+	francishost "github.com/italypaleale/francis/host"
+	"github.com/italypaleale/francis/host/local"
+	"github.com/italypaleale/francis/host/remote"
 	"github.com/libtnb/sqlite"
 	"github.com/stretchr/testify/require"
 	"gorm.io/gorm"
@@ -29,6 +42,151 @@ func TestNewActorsOptsGetPSKUsesStableValue(t *testing.T) {
 	actual, err := opts.getPSK()
 	require.NoError(t, err)
 	require.Equalf(t, expected, actual, "actual result: %s", actual)
+}
+
+// TestNewActorsSelectsTopology covers the branch that FRANCIS_HOST drives: with no standalone runtime configured Pocket ID starts an embedded one, and otherwise it connects to the addresses it was given.
+func TestNewActorsSelectsTopology(t *testing.T) {
+	// The actor host is created but never run, so the database only has to exist
+	newDB := func(t *testing.T) *gorm.DB {
+		t.Helper()
+
+		dbPath := filepath.Join(t.TempDir(), "pocket-id.db")
+		db, err := gorm.Open(sqlite.Open("file:"+dbPath+"?_pragma=foreign_keys(1)"), &gorm.Config{})
+		require.NoError(t, err)
+		t.Cleanup(func() {
+			sqlDB, dbErr := db.DB()
+			if dbErr == nil {
+				_ = sqlDB.Close()
+			}
+		})
+
+		return db
+	}
+
+	// registerCronJobs reads the app environment off the global config and skips every job in test mode, which keeps each case down to the host itself and the rate limiters
+	baseConfig := func(t *testing.T) *common.EnvConfigSchema {
+		t.Helper()
+
+		originalAppEnv := common.EnvConfig.AppEnv
+		common.EnvConfig.AppEnv = common.AppEnvTest
+		t.Cleanup(func() {
+			common.EnvConfig.AppEnv = originalAppEnv
+		})
+
+		return &common.EnvConfigSchema{
+			AppEnv:        common.AppEnvTest,
+			EncryptionKey: []byte("test-encryption-key"),
+			ActorsHost:    "127.0.0.1",
+			ActorsPort:    "1414",
+		}
+	}
+
+	t.Run("embedded runtime by default", func(t *testing.T) {
+		cfg := baseConfig(t)
+
+		h, rateLimitServices, err := NewActors(NewActorsOpts{
+			EnvConfig:  cfg,
+			InstanceID: "ee05c3eb-8129-47a6-a1c7-849998b6f876",
+			DB:         newDB(t),
+		})
+		require.NoError(t, err)
+		require.IsType(t, &local.Host{}, h)
+		require.NotEmpty(t, rateLimitServices)
+	})
+
+	t.Run("remote runtime when addresses are configured", func(t *testing.T) {
+		cfg := baseConfig(t)
+		cfg.FrancisAddresses = []string{"runtime-1.example.com:8443", "runtime-2.example.com:8443"}
+		cfg.FrancisHostPSK = []byte("bootstrap-psk-that-is-long-enough")
+
+		// No database is passed, since a standalone runtime owns the actor data and the remote host must not reach for Pocket ID's own database
+		h, rateLimitServices, err := NewActors(NewActorsOpts{
+			EnvConfig:  cfg,
+			InstanceID: "ee05c3eb-8129-47a6-a1c7-849998b6f876",
+		})
+		require.NoError(t, err)
+		require.IsType(t, &remote.Host{}, h)
+		require.NotEmpty(t, rateLimitServices)
+	})
+
+	// Each bootstrap method has to produce a host Francis accepts, which is the only part of the remote wiring that can be checked without a runtime to connect to
+	t.Run("every bootstrap method builds a valid remote host", func(t *testing.T) {
+		jwtFile := filepath.Join(t.TempDir(), "token")
+		require.NoError(t, os.WriteFile(jwtFile, []byte("header.payload.signature"), 0600))
+
+		for name, apply := range map[string]func(cfg *common.EnvConfigSchema){
+			"PSK":      func(cfg *common.EnvConfigSchema) { cfg.FrancisHostPSK = []byte("bootstrap-psk-that-is-long-enough") },
+			"JWT":      func(cfg *common.EnvConfigSchema) { cfg.FrancisHostJWT = "header.payload.signature" },
+			"JWT file": func(cfg *common.EnvConfigSchema) { cfg.FrancisHostJWTFile = jwtFile },
+		} {
+			t.Run(name, func(t *testing.T) {
+				cfg := baseConfig(t)
+				cfg.FrancisAddresses = []string{"runtime-1.example.com:8443"}
+				apply(cfg)
+
+				opts := NewActorsOpts{EnvConfig: cfg, InstanceID: "ee05c3eb-8129-47a6-a1c7-849998b6f876"}
+				h, err := opts.newRemoteHost(slog.New(slog.DiscardHandler))
+				require.NoError(t, err)
+				require.NotNil(t, h)
+			})
+		}
+	})
+
+	// The E2E suite runs the remote variant without a pinned CA, so this is the only place the pinning branch is exercised
+	t.Run("pinning the cluster CA builds a valid remote host", func(t *testing.T) {
+		cfg := baseConfig(t)
+		cfg.FrancisAddresses = []string{"runtime-1.example.com:8443"}
+		cfg.FrancisHostPSK = []byte("bootstrap-psk-that-is-long-enough")
+		cfg.FrancisCA = testCAPEM(t)
+
+		opts := NewActorsOpts{EnvConfig: cfg, InstanceID: "ee05c3eb-8129-47a6-a1c7-849998b6f876"}
+		h, err := opts.newRemoteHost(slog.New(slog.DiscardHandler))
+		require.NoError(t, err)
+		require.NotNil(t, h)
+	})
+
+	t.Run("an unparsable cluster CA is rejected", func(t *testing.T) {
+		cfg := baseConfig(t)
+		cfg.FrancisAddresses = []string{"runtime-1.example.com:8443"}
+		cfg.FrancisHostPSK = []byte("bootstrap-psk-that-is-long-enough")
+		cfg.FrancisCA = []byte("-----BEGIN CERTIFICATE-----\nnot a certificate\n-----END CERTIFICATE-----")
+
+		opts := NewActorsOpts{EnvConfig: cfg, InstanceID: "ee05c3eb-8129-47a6-a1c7-849998b6f876"}
+		_, err := opts.newRemoteHost(slog.New(slog.DiscardHandler))
+		require.Error(t, err)
+	})
+
+	t.Run("no bootstrap method is rejected by Francis", func(t *testing.T) {
+		cfg := baseConfig(t)
+		cfg.FrancisAddresses = []string{"runtime-1.example.com:8443"}
+
+		opts := NewActorsOpts{EnvConfig: cfg, InstanceID: "ee05c3eb-8129-47a6-a1c7-849998b6f876"}
+		_, err := opts.newRemoteHost(slog.New(slog.DiscardHandler))
+		require.Error(t, err)
+	})
+
+	t.Run("the actor client requires a standalone runtime", func(t *testing.T) {
+		cfg := baseConfig(t)
+
+		err := WithActorClient(t.Context(), cfg, func(context.Context, francishost.Host) error {
+			t.Fatal("the callback must not run without a standalone runtime")
+			return nil
+		})
+		require.ErrorIs(t, err, ErrEmbeddedFrancisRuntime)
+	})
+
+	t.Run("state store is unavailable with a remote runtime", func(t *testing.T) {
+		cfg := baseConfig(t)
+		cfg.FrancisAddresses = []string{"runtime-1.example.com:8443"}
+		cfg.FrancisHostPSK = []byte("bootstrap-psk-that-is-long-enough")
+
+		_, err := NewActorStateStore(NewActorsOpts{
+			EnvConfig:  cfg,
+			InstanceID: "ee05c3eb-8129-47a6-a1c7-849998b6f876",
+			DB:         newDB(t),
+		})
+		require.ErrorIs(t, err, ErrRemoteFrancisRuntime)
+	})
 }
 
 // TestNewActorsBackupProvider covers the provider the export and import use to back up and restore the actor host's data.
@@ -69,4 +227,27 @@ func TestNewActorsBackupProvider(t *testing.T) {
 
 	err = provider.Restore(t.Context(), bytes.NewReader(buf.Bytes()))
 	require.NoError(t, err)
+}
+
+// testCAPEM returns a self-signed CA certificate in PEM form, standing in for the cluster CA an operator would pin with FRANCIS_CA
+func testCAPEM(t *testing.T) []byte {
+	t.Helper()
+
+	pub, priv, err := ed25519.GenerateKey(rand.Reader)
+	require.NoError(t, err)
+
+	tmpl := &x509.Certificate{
+		SerialNumber:          big.NewInt(1),
+		Subject:               pkix.Name{CommonName: "test-cluster-ca"},
+		NotBefore:             time.Now().Add(-time.Hour),
+		NotAfter:              time.Now().Add(time.Hour),
+		IsCA:                  true,
+		KeyUsage:              x509.KeyUsageCertSign,
+		BasicConstraintsValid: true,
+	}
+
+	der, err := x509.CreateCertificate(rand.Reader, tmpl, tmpl, pub, priv)
+	require.NoError(t, err)
+
+	return pem.EncodeToMemory(&pem.Block{Type: "CERTIFICATE", Bytes: der})
 }

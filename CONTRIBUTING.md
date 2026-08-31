@@ -121,6 +121,17 @@ The tests can be run like this:
 
 If you make any changes to the application, you have to rebuild the test environment by running `docker compose up -d --build` again.
 
+By default the test environment runs Pocket ID with the Francis actor runtime embedded in it. To run the same suite against a **standalone Francis runtime** instead, start the environment from the other Compose file:
+
+```bash
+echo "FRANCIS_VERSION=$(./francis-version.sh)" > .env
+docker compose -f docker-compose-francis.yml up -d --build
+```
+
+That brings up a SQLite-backed Francis runtime alongside Pocket ID and points `FRANCIS_HOST` at it, so Pocket ID starts no embedded runtime and the actor state, alarms, and placement all live in the runtime instead. The tests themselves are unchanged. CI runs this as an extra matrix entry.
+
+The runtime's image tag is not hardcoded: `francis-version.sh` reads it from the `github.com/italypaleale/francis` requirement in `backend/go.mod`, so the runtime is always the same version as the client Pocket ID is built against. Writing it to `.env` (rather than exporting it for one command) matters because the CLI tests shell out to `docker compose run` themselves, and Compose picks the variable up from that file.
+
 #### Unit tests
 
 In the backend we are using unit tests with the built-in Go testing framework. The tests are located in the same folder as the code they are testing and have the `_test.go` suffix.

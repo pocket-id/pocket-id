@@ -5,9 +5,9 @@ import (
 	"io"
 )
 
-// actorsBackupFileName is the name of the entry in the export ZIP that contains the actor host's data
+// ActorsBackupFileName is the name of the entry in the export ZIP that contains the actor host's data
 // The payload is Francis' own backup stream, which is a binary, versioned, provider-neutral format
-const actorsBackupFileName = "francis.bin"
+const ActorsBackupFileName = "francis.bin"
 
 // ActorsBackupProvider backs up and restores the actor host's data: actor state, alarms, and dead-lettered jobs.
 type ActorsBackupProvider interface {

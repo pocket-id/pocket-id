@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"net/http"
 
-	"github.com/italypaleale/francis/host/local"
+	francishost "github.com/italypaleale/francis/host"
 	"github.com/pocket-id/pocket-id/backend/internal/api"
 	"github.com/pocket-id/pocket-id/backend/internal/apikey"
 	"github.com/pocket-id/pocket-id/backend/internal/appconfig"
@@ -52,7 +52,7 @@ type services struct {
 	emailVerificationModule *emailverification.Module
 	apiModule               *api.Module
 	environmentModule       *environment.Module
-	actors                  *local.Host
+	actors                  francishost.Host
 }
 
 // Initializes all services
@@ -60,7 +60,7 @@ func initServices(
 	ctx context.Context,
 	db *gorm.DB,
 	instanceID string,
-	actors *local.Host,
+	actors francishost.Host,
 	httpClient *http.Client,
 	imageExtensions map[string]string,
 	fileStorage storage.FileStorage,

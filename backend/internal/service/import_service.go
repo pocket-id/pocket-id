@@ -81,20 +81,20 @@ func (s *ImportService) importActorsBackup(ctx context.Context, files []*zip.Fil
 
 	var backupFile *zip.File
 	for _, f := range files {
-		if f.Name == actorsBackupFileName {
+		if f.Name == ActorsBackupFileName {
 			backupFile = f
 			break
 		}
 	}
 	if backupFile == nil {
 		// Archives exported before Pocket ID included the actor host's data don't have that entry, in which case the existing data is left untouched
-		slog.WarnContext(ctx, "The archive does not contain the actor host's data, which will be left unchanged", slog.String("file", actorsBackupFileName))
+		slog.WarnContext(ctx, "The archive does not contain the actor host's data, which will be left unchanged", slog.String("file", ActorsBackupFileName))
 		return nil
 	}
 
 	rc, err := backupFile.Open()
 	if err != nil {
-		return fmt.Errorf("failed to open %s: %w", actorsBackupFileName, err)
+		return fmt.Errorf("failed to open %s: %w", ActorsBackupFileName, err)
 	}
 	defer rc.Close()
 
