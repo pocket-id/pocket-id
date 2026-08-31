@@ -11,8 +11,8 @@ import (
 	"log/slog"
 	"path"
 	"time"
+	"uuid"
 
-	"github.com/google/uuid"
 	"gorm.io/gorm"
 	"gorm.io/gorm/clause"
 
@@ -88,7 +88,8 @@ func (s *UserService) getUserInternal(ctx context.Context, userID string, tx *go
 
 func (s *UserService) GetProfilePicture(ctx context.Context, userID string) (io.ReadCloser, int64, error) {
 	// Validate the user ID to prevent directory traversal
-	if err := uuid.Validate(userID); err != nil {
+	_, err := uuid.Parse(userID)
+	if err != nil {
 		return nil, 0, apperror.InvalidUserID()
 	}
 
@@ -167,7 +168,7 @@ func (s *UserService) GetUserGroups(ctx context.Context, userID string) ([]model
 
 func (s *UserService) UpdateProfilePicture(ctx context.Context, userID string, file io.ReadSeeker) error {
 	// Validate the user ID to prevent directory traversal
-	err := uuid.Validate(userID)
+	_, err := uuid.Parse(userID)
 	if err != nil {
 		return apperror.InvalidUserID()
 	}
@@ -639,16 +640,19 @@ func (s *UserService) checkDuplicatedFields(ctx context.Context, user model.User
 // ResetProfilePicture deletes a user's custom profile picture
 func (s *UserService) ResetProfilePicture(ctx context.Context, userID string) error {
 	// Validate the user ID to prevent directory traversal
-	if err := uuid.Validate(userID); err != nil {
+	_, err := uuid.Parse(userID)
+	if err != nil {
 		return apperror.InvalidUserID()
 	}
 
-	if _, err := s.GetUser(ctx, userID); err != nil {
+	_, err = s.GetUser(ctx, userID)
+	if err != nil {
 		return err
 	}
 
 	profilePicturePath := path.Join("profile-pictures", userID+".png")
-	if err := s.fileStorage.Delete(ctx, profilePicturePath); err != nil {
+	err = s.fileStorage.Delete(ctx, profilePicturePath)
+	if err != nil {
 		return fmt.Errorf("failed to delete profile picture: %w", err)
 	}
 	return nil

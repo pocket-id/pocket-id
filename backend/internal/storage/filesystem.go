@@ -9,8 +9,7 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
-
-	"github.com/google/uuid"
+	"uuid"
 )
 
 type filesystemStorage struct {
@@ -51,7 +50,7 @@ func (s *filesystemStorage) Save(_ context.Context, path string, data io.Reader)
 	}
 
 	// Our strategy is to save to a separate file and then rename it to override the original file
-	tmpName := path + "." + uuid.NewString() + "-tmp"
+	tmpName := path + "." + uuid.NewV4().String() + "-tmp"
 
 	// Write to the temporary file
 	tmpFile, err := s.root.Create(tmpName)

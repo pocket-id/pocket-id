@@ -6,8 +6,8 @@ import (
 	"errors"
 	"fmt"
 	"time"
+	"uuid"
 
-	"github.com/google/uuid"
 	"github.com/lestrrat-go/jwx/v3/jwa"
 	"github.com/lestrrat-go/jwx/v3/jwk"
 	"github.com/lestrrat-go/jwx/v3/jwt"
@@ -188,7 +188,7 @@ func (s *JwtService) GenerateAccessToken(user model.User, authenticationMethod s
 		Expiration(now.Add(sessionDuration)).
 		IssuedAt(now).
 		Issuer(s.envConfig.AppURL).
-		JwtID(uuid.New().String()).
+		JwtID(uuid.NewV4().String()).
 		Build()
 	if err != nil {
 		return "", fmt.Errorf("failed to build token: %w", err)

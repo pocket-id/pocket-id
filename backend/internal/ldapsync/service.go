@@ -14,9 +14,9 @@ import (
 	"strings"
 	"time"
 	"unicode/utf8"
+	"uuid"
 
 	"github.com/go-ldap/ldap/v3"
-	"github.com/google/uuid"
 	"golang.org/x/text/unicode/norm"
 	"gorm.io/gorm"
 
@@ -735,9 +735,7 @@ func convertLdapIdToString(ldapId string) string {
 
 	// Try to parse as binary UUID (16 bytes)
 	if len(ldapId) == 16 {
-		if parsedUUID, err := uuid.FromBytes([]byte(ldapId)); err == nil {
-			return parsedUUID.String()
-		}
+		return uuid.UUID([]byte(ldapId)).String()
 	}
 
 	// As a last resort, encode as base64 to make it UTF-8 safe

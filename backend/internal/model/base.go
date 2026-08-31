@@ -2,8 +2,8 @@ package model
 
 import (
 	"time"
+	"uuid"
 
-	"github.com/google/uuid"
 	datatype "github.com/pocket-id/pocket-id/backend/internal/model/types"
 	"gorm.io/gorm"
 )
@@ -16,7 +16,7 @@ type Base struct {
 
 func (b *Base) BeforeCreate(_ *gorm.DB) (err error) {
 	if b.ID == "" {
-		b.ID = uuid.New().String()
+		b.ID = uuid.NewV4().String()
 	}
 	b.CreatedAt = datatype.DateTime(time.Now())
 	return

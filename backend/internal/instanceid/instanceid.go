@@ -5,8 +5,8 @@ import (
 	"errors"
 	"fmt"
 	"time"
+	"uuid"
 
-	"github.com/google/uuid"
 	"gorm.io/gorm"
 )
 
@@ -14,7 +14,7 @@ import (
 // If no instance ID exists yet, a new one is generated and persisted atomically
 func Load(parentCtx context.Context, db *gorm.DB) (string, error) {
 	// Candidate value used only if there's no instance ID stored yet
-	newInstanceID := uuid.NewString()
+	newInstanceID := uuid.NewV4().String()
 
 	// We use a raw query because gorm can't build it for us in this atomic way
 	// The syntax is valid for both SQLite and Postgres

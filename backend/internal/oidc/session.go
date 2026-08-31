@@ -3,8 +3,8 @@ package oidc
 import (
 	"encoding/json"
 	"time"
+	"uuid"
 
-	"github.com/google/uuid"
 	"github.com/ory/fosite"
 	fositeoauth2 "github.com/ory/fosite/handler/oauth2"
 	"github.com/ory/fosite/handler/openid"
@@ -48,7 +48,7 @@ func NewAuthenticatedSession(subject, authenticationMethod string, authenticatio
 	session.Claims.Subject = subject
 	session.Claims.AuthTime = authenticationTime.UTC()
 	session.Claims.RequestedAt = requestedAt.UTC()
-	session.Claims.JTI = uuid.NewString()
+	session.Claims.JTI = uuid.NewV4().String()
 
 	return session
 }
