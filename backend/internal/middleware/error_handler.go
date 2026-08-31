@@ -10,14 +10,15 @@ import (
 	"strings"
 	"time"
 	"unicode"
+	"uuid"
 
 	"github.com/gin-gonic/gin"
 	"github.com/gin-gonic/gin/binding"
 	"github.com/go-playground/validator/v10"
-	"github.com/google/uuid"
+	"go.opentelemetry.io/otel/trace"
+
 	"github.com/pocket-id/pocket-id/backend/internal/apperror"
 	"github.com/pocket-id/pocket-id/backend/internal/dto"
-	"go.opentelemetry.io/otel/trace"
 )
 
 const requestIDHeader = "X-Request-ID"
@@ -81,7 +82,7 @@ type classifiedError struct {
 // Add records a request ID before executing the request and serializes the first returned error afterward
 func (m *ErrorHandlerMiddleware) Add() gin.HandlerFunc {
 	return func(c *gin.Context) {
-		requestID := uuid.NewString()
+		requestID := uuid.NewV4().String()
 		c.Set(requestIDContextKey{}, requestID)
 		c.Header(requestIDHeader, requestID)
 

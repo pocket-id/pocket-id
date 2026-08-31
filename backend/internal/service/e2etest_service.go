@@ -12,9 +12,9 @@ import (
 	"log/slog"
 	"path"
 	"time"
+	"uuid"
 
 	"github.com/go-webauthn/webauthn/protocol"
-	"github.com/google/uuid"
 	"github.com/italypaleale/francis/actor"
 	"github.com/italypaleale/francis/host/local"
 	"github.com/lestrrat-go/jwx/v3/jwa"
@@ -920,7 +920,7 @@ func (s *TestService) SignAccessToken(ctx context.Context, userID, clientID stri
 
 	session := fositeTokenSession{
 		Kind:                 "access_token",
-		RequestID:            "e2e-access-" + uuid.NewString(),
+		RequestID:            "e2e-access-" + uuid.NewV4().String(),
 		UserID:               userID,
 		ClientID:             clientID,
 		AuthenticationMethod: AuthenticationMethodPhishingResistant,
@@ -1022,7 +1022,7 @@ func (s *TestService) SignExternalIdPToken(iss, sub, aud string) (string, error)
 		Subject(sub).
 		Expiration(now.Add(time.Hour)).
 		IssuedAt(now).
-		JwtID(uuid.NewString()).
+		JwtID(uuid.NewV4().String()).
 		Issuer(iss).
 		Audience([]string{aud}).
 		Build()

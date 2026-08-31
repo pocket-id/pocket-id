@@ -3,8 +3,8 @@ package instanceid
 import (
 	"sync"
 	"testing"
+	"uuid"
 
-	"github.com/google/uuid"
 	"github.com/stretchr/testify/require"
 	"gorm.io/gorm"
 
@@ -138,7 +138,7 @@ func TestMigrateFromAppConfig(t *testing.T) {
 	}
 
 	t.Run("moves an existing instance ID from app_config_variables into the kv table", func(t *testing.T) {
-		legacyID := uuid.NewString()
+		legacyID := uuid.NewV4().String()
 		db := testutils.NewDatabaseForTestWithMigrationSeed(t, versionBeforeMove, seedAppConfigInstanceID(legacyID))
 
 		// The migration should have copied the value into the kv table under the "instance_id" key
@@ -160,7 +160,7 @@ func TestMigrateFromAppConfig(t *testing.T) {
 	})
 
 	t.Run("keeps the existing kv value when both tables have an instance ID", func(t *testing.T) {
-		legacyID := uuid.NewString()
+		legacyID := uuid.NewV4().String()
 		db := testutils.NewDatabaseForTestWithMigrationSeed(t, versionBeforeMove, func(t *testing.T, db *gorm.DB) {
 			t.Helper()
 			// An instance ID is already present in the kv table before the move runs

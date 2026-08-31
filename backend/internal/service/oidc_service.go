@@ -13,8 +13,8 @@ import (
 	"slices"
 	"strings"
 	"time"
+	"uuid"
 
-	"github.com/google/uuid"
 	"gorm.io/gorm"
 	"gorm.io/gorm/clause"
 
@@ -387,7 +387,7 @@ func (s *OidcService) CreateClientSecret(ctx context.Context, clientID string, i
 
 	// Only the hash and a short prefix are persisted, so this is the last time the value is available
 	secret := model.OidcClientSecret{
-		ID:        uuid.New().String(),
+		ID:        uuid.NewV4().String(),
 		Algorithm: model.OidcClientSecretHashSHA256,
 		Hash:      utils.CreateSha256Hash(clientSecret),
 		Prefix:    clientSecretPrefix(clientSecret),

@@ -7,8 +7,8 @@ import (
 	"sort"
 	"strings"
 	"time"
+	"uuid"
 
-	"github.com/google/uuid"
 	"github.com/italypaleale/francis/actor"
 	"gorm.io/gorm"
 
@@ -347,7 +347,7 @@ func (s *Service) CreateSignupToken(ctx context.Context, ttl time.Duration, usag
 
 	now := time.Now().Round(time.Second)
 	state := SignupTokenState{
-		ID:           uuid.NewString(),
+		ID:           uuid.NewV4().String(),
 		ExpiresAt:    now.Add(ttl),
 		UsageLimit:   usageLimit,
 		UsageCount:   0,
