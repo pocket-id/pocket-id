@@ -10,7 +10,7 @@ import (
 	_ "github.com/golang-migrate/migrate/v4/source/file"
 
 	"github.com/italypaleale/francis/components"
-	"github.com/italypaleale/francis/host/local"
+	francishost "github.com/italypaleale/francis/host"
 	"github.com/italypaleale/go-kit/servicerunner"
 	"gorm.io/gorm"
 
@@ -137,7 +137,7 @@ func Bootstrap(ctx context.Context) error {
 }
 
 // actorsRunServiceFn wraps the actor host's Run method in a background service and returns a "ready" signal that other services can wait on
-func actorsRunServiceFn(actors *local.Host) (servicerunner.Service, *servicerunner.Ready) {
+func actorsRunServiceFn(actors francishost.Host) (servicerunner.Service, *servicerunner.Ready) {
 	actorsReady := servicerunner.NewReady()
 	fn := func(ctx context.Context) error {
 		runErrCh := make(chan error, 1)

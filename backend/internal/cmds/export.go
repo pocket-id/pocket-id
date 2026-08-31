@@ -9,6 +9,7 @@ import (
 	"github.com/spf13/cobra"
 
 	"github.com/pocket-id/pocket-id/backend/internal/bootstrap"
+	"github.com/pocket-id/pocket-id/backend/internal/common"
 	"github.com/pocket-id/pocket-id/backend/internal/service"
 )
 
@@ -49,18 +50,27 @@ func runExport(ctx context.Context, flags exportFlags) error {
 		_ = storage.Close()
 	}()
 
-	// The actor host's data lives outside of the Pocket ID schema, so it's exported through Francis
-	providerOpts, err := bootstrap.ActorsProviderOptions(db, pg)
-	if err != nil {
-		return err
+	// The actor data lives outside of the Pocket ID schema, so it's exported through Francis
+	// A standalone runtime keeps it in its own store, out of reach from here, and the export service leaves the entry out of the archive when no provider is passed
+	var actorsProvider service.ActorsBackupProvider
+	if common.EnvConfig.HasEmbeddedFrancisRuntime() {
+		providerOpts, provErr := bootstrap.ActorsProviderOptions(db, pg)
+		if provErr != nil {
+			return provErr
+		}
+
+		provider, provErr := bootstrap.NewActorsBackupProvider(ctx, providerOpts)
+		if provErr != nil {
+			return fmt.Errorf("failed to initialize the actor host's data provider: %w", provErr)
+		}
+		defer func() {
+			_ = provider.Close()
+		}()
+
+		actorsProvider = provider
+	} else {
+		printRemoteActorDataNotice("The actor data is NOT included in this export", "back it up separately with: francis runtime backup -f actors.bin")
 	}
-	actorsProvider, err := bootstrap.NewActorsBackupProvider(ctx, providerOpts)
-	if err != nil {
-		return fmt.Errorf("failed to initialize the actor host's data provider: %w", err)
-	}
-	defer func() {
-		_ = actorsProvider.Close()
-	}()
 
 	exportService := service.NewExportService(db, storage, actorsProvider)
 

@@ -1,0 +1,50 @@
+# This Docker Compose file is used to set up the environment for the tests.
+# It's the variant where Pocket ID does not embed the Francis actor runtime, but connects to a standalone one instead.
+services:
+  lldap:
+    extends:
+      file: docker-compose.yml
+      service: lldap
+  scim-test-server:
+    extends:
+      file: docker-compose.yml
+      service: scim-test-server
+  francis-runtime:
+    # The version comes from the Francis dependency in backend/go.mod, so the runtime always matches the client Pocket ID is built with
+    # Set it with: echo "FRANCIS_VERSION=$(./francis-version.sh)" > .env
+    image: ghcr.io/italypaleale/francis:${FRANCIS_VERSION:?run ./francis-version.sh to set it, see CONTRIBUTING.md}
+    volumes:
+      - ./francis-config.yaml:/etc/francis/config.yaml:ro
+      - francis-test-data:/data
+    # The image ships its own HEALTHCHECK, which probes the runtime over the loopback
+    # It's repeated here so Pocket ID can wait on it, and so a runtime that never comes up fails fast instead of after the default retries
+    healthcheck:
+      test: ["CMD", "/bin/francis", "healthcheck"]
+      interval: 2s
+      timeout: 5s
+      retries: 15
+      start_period: 5s
+  pocket-id:
+    extends:
+      file: docker-compose.yml
+      service: pocket-id
+    environment:
+      APP_ENV: test
+      ENCRYPTION_KEY: test-encryption-key
+      FILE_BACKEND: ${FILE_BACKEND}
+      # The runtime's port is UDP, since WebTransport runs over HTTP/3
+      FRANCIS_HOST: francis-runtime:7400
+      # Must match "bootstrap.hostPSK" in francis-config.yaml
+      FRANCIS_HOST_PSK: e2e-host-bootstrap-psk-0123456789
+      # FRANCIS_CA is intentionally unset, so this exercises the same trust-on-first-use path an operator gets without it
+      # The cluster only exists inside this Compose network for the duration of the tests
+      #
+      # Peers reach actors placed on this host at ACTORS_HOST, which the runtime hands out, so it has to be the address other containers resolve rather than the default wildcard
+      ACTORS_HOST: pocket-id
+    depends_on:
+      francis-runtime:
+        condition: service_healthy
+
+volumes:
+  pocket-id-test-data:
+  francis-test-data:

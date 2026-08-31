@@ -7,7 +7,7 @@ import (
 	"net/http"
 
 	"github.com/gin-gonic/gin"
-	"github.com/italypaleale/francis/host/local"
+	francishost "github.com/italypaleale/francis/host"
 	"gorm.io/gorm"
 
 	"github.com/pocket-id/pocket-id/backend/internal/appconfig"
@@ -43,7 +43,7 @@ type ScimSyncScheduler interface {
 
 type Dependencies struct {
 	DB          *gorm.DB
-	Actors      *local.Host
+	Actors      francishost.Host
 	HTTPClient  *http.Client
 	FileStorage storage.FileStorage
 

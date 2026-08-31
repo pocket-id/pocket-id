@@ -13,7 +13,9 @@ import (
 	"github.com/italypaleale/francis/components"
 	"github.com/italypaleale/francis/components/postgres"
 	"github.com/italypaleale/francis/components/sqlite"
+	francishost "github.com/italypaleale/francis/host"
 	"github.com/italypaleale/francis/host/local"
+	"github.com/italypaleale/francis/host/remote"
 	"github.com/jackc/pgx/v5/pgxpool"
 	"gorm.io/gorm"
 
@@ -23,6 +25,14 @@ import (
 	"github.com/pocket-id/pocket-id/backend/internal/storage"
 	"github.com/pocket-id/pocket-id/backend/internal/utils/crypto"
 )
+
+// ErrRemoteFrancisRuntime is returned by the helpers that reach the actor data through Pocket ID's own database when FRANCIS_HOST points to a standalone Francis runtime
+// That runtime owns the actor data instead, so it can only be reached through the runtime itself
+var ErrRemoteFrancisRuntime = errors.New("the actor data is owned by the standalone Francis runtime configured in FRANCIS_HOST, and is not stored in Pocket ID's database")
+
+// ErrEmbeddedFrancisRuntime is returned by the helpers that reach the actor data through a standalone Francis runtime when Pocket ID runs an embedded one
+// There is no runtime to connect to in that case, and the actor data is in Pocket ID's own database
+var ErrEmbeddedFrancisRuntime = errors.New("the actor runtime is embedded in Pocket ID, so there is no standalone Francis runtime to connect to")
 
 type NewActorsOpts struct {
 	Postgres *pgxpool.Pool
@@ -34,56 +44,24 @@ type NewActorsOpts struct {
 	FileStorage storage.FileStorage
 }
 
-func NewActors(o NewActorsOpts) (*local.Host, map[string]*ratelimit.RateLimitService, error) {
-	log := slog.Default()
+func NewActors(o NewActorsOpts) (francishost.Host, map[string]*ratelimit.RateLimitService, error) {
+	log := slog.Default().With("scope", "actor-host")
 
-	// Derive a PSK from the global encryption key
-	// The runtime PSK derives the cluster CA used for host-to-host mTLS
-	psk, err := o.getPSK()
-	if err != nil {
-		return nil, nil, fmt.Errorf("failed to derive PSK: %w", err)
+	// Create the actor host for the configured topology
+	// The embedded runtime keeps the actor data in Pocket ID's own database, while a standalone Francis runtime owns it instead and coordinates every host that connects to it
+	var (
+		h   francishost.Host
+		err error
+	)
+	if o.EnvConfig.HasEmbeddedFrancisRuntime() {
+		log.Debug("Starting the embedded Francis runtime")
+		h, err = o.newEmbeddedHost(log)
+	} else {
+		log.Info("Connecting to a standalone Francis runtime", slog.Any("addresses", o.EnvConfig.FrancisAddresses))
+		h, err = o.newRemoteHost(log)
 	}
-
-	// Derive the cluster host limit from the HA setting
-	// With HA disabled the cluster is capped at a single replica
-	maxHosts := 1
-	if o.EnvConfig.HAEnabled {
-		// 0 = no cap
-		maxHosts = 0
-	}
-
-	// Options for the host
-	opts := []local.HostOption{
-		local.WithAddress(net.JoinHostPort(o.EnvConfig.ActorsHost, o.EnvConfig.ActorsPort)),
-		local.WithLogger(log.With("scope", "actor-host")),
-		local.WithRuntimePSKs(psk),
-		local.WithShutdownGracePeriod(10 * time.Second),
-		local.WithMaxHosts(maxHosts),
-		local.WithHostHealthCheckDeadline(ActorsHostHealthCheckDeadline(o.EnvConfig.HAEnabled)),
-	}
-
-	// With a single active host the relaxed alarm intervals reduce database load
-	// The longer lease duration also means fewer lease renewals, since Francis renews a lease 10s before it expires (no other host can claim the alarm anyways)
-	// When HA is enabled these are dropped so Francis uses its tighter defaults, which distribute alarm work and fail over faster across multiple hosts
-	if !o.EnvConfig.HAEnabled {
-		opts = append(opts,
-			local.WithAlarmsPollInterval(5*time.Minute),
-			local.WithAlarmsFetchAheadInterval(5*time.Minute),
-			local.WithAlarmsLeaseDuration(180*time.Second),
-		)
-	}
-
-	// Add the database connection
-	providerOpt, err := o.getProviderOption()
 	if err != nil {
 		return nil, nil, err
-	}
-	opts = append(opts, providerOpt)
-
-	// Create a new actor host
-	h, err := local.NewHost(opts...)
-	if err != nil {
-		return nil, nil, fmt.Errorf("failed to create actor host: %w", err)
 	}
 
 	// Add all cron jobs
@@ -107,6 +85,108 @@ func NewActors(o NewActorsOpts) (*local.Host, map[string]*ratelimit.RateLimitSer
 	return h, rateLimitServices, nil
 }
 
+// newEmbeddedHost creates the actor host that runs the Francis runtime inside the Pocket ID process, backed by Pocket ID's own database
+func (o *NewActorsOpts) newEmbeddedHost(log *slog.Logger) (*local.Host, error) {
+	// Derive a PSK from the global encryption key
+	// The runtime PSK derives the cluster CA used for host-to-host mTLS
+	psk, err := o.getPSK()
+	if err != nil {
+		return nil, fmt.Errorf("failed to derive PSK: %w", err)
+	}
+
+	// Derive the cluster host limit from the HA setting
+	// With HA disabled the cluster is capped at a single replica
+	maxHosts := 1
+	if o.EnvConfig.HAEnabled {
+		// 0 = no cap
+		maxHosts = 0
+	}
+
+	// Options for the host
+	opts := []local.HostOption{
+		local.WithAddress(net.JoinHostPort(o.EnvConfig.ActorsHost, o.EnvConfig.ActorsPort)),
+		local.WithLogger(log),
+		local.WithRuntimePSKs(psk),
+		local.WithShutdownGracePeriod(10 * time.Second),
+		local.WithMaxHosts(maxHosts),
+		local.WithHostHealthCheckDeadline(ActorsHostHealthCheckDeadline(o.EnvConfig.HAEnabled)),
+	}
+
+	// With a single active host the relaxed alarm intervals reduce database load
+	// The longer lease duration also means fewer lease renewals, since Francis renews a lease 10s before it expires (no other host can claim the alarm anyways)
+	// When HA is enabled these are dropped so Francis uses its tighter defaults, which distribute alarm work and fail over faster across multiple hosts
+	if !o.EnvConfig.HAEnabled {
+		opts = append(opts,
+			local.WithAlarmsPollInterval(5*time.Minute),
+			local.WithAlarmsFetchAheadInterval(5*time.Minute),
+			local.WithAlarmsLeaseDuration(180*time.Second),
+		)
+	}
+
+	// Add the database connection
+	providerOpt, err := o.getProviderOption()
+	if err != nil {
+		return nil, err
+	}
+	opts = append(opts, providerOpt)
+
+	h, err := local.NewHost(opts...)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create actor host: %w", err)
+	}
+
+	return h, nil
+}
+
+// newRemoteHost creates the actor host that connects to a standalone Francis runtime
+// The runtime owns the actor state, placement, and alarms, so none of the embedded runtime's database and clustering options apply here
+// That includes the cap on the number of hosts in the cluster, which the runtime enforces through its own "maxHosts" setting: Pocket ID cannot limit itself to a single replica from this side
+func (o *NewActorsOpts) newRemoteHost(log *slog.Logger) (*remote.Host, error) {
+	opts := append(
+		remoteConnectionOptions(o.EnvConfig, log),
+		// Actors placed on this host are invoked by its peers at this address, which is also the one it advertises to the runtime
+		remote.WithAddress(net.JoinHostPort(o.EnvConfig.ActorsHost, o.EnvConfig.ActorsPort)),
+		remote.WithShutdownGracePeriod(10*time.Second),
+	)
+
+	h, err := remote.NewHost(opts...)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create remote actor host: %w", err)
+	}
+
+	return h, nil
+}
+
+// remoteConnectionOptions builds the options that address and authenticate Pocket ID to a standalone Francis runtime
+// Both the actor host and the short-lived client the CLI commands use go through here, so they always present the same identity to the same cluster
+func remoteConnectionOptions(envConfig *common.EnvConfigSchema, log *slog.Logger) []remote.HostOption {
+	opts := []remote.HostOption{
+		remote.WithLogger(log),
+		remote.WithRuntimeAddresses(envConfig.FrancisAddresses...),
+	}
+
+	// The configuration is validated to carry exactly one bootstrap method, so the first match is the one the operator chose
+	switch {
+	case len(envConfig.FrancisHostPSK) > 0:
+		opts = append(opts, remote.WithHostBootstrapPSK(envConfig.FrancisHostPSK))
+	case envConfig.FrancisHostJWTFile != "":
+		// Francis re-reads the file on every connection, so a rotated token is picked up without restarting Pocket ID
+		opts = append(opts, remote.WithHostBootstrapJWTFile(envConfig.FrancisHostJWTFile))
+	case envConfig.FrancisHostJWT != "":
+		opts = append(opts, remote.WithHostBootstrapJWT(envConfig.FrancisHostJWT))
+	}
+
+	// Pinning the cluster CA lets Pocket ID verify the runtime on its very first connection
+	// Francis requires the trust decision to be explicit, so without a pinned CA we have to opt into trusting the certificate served on first use, which it warns about
+	if len(envConfig.FrancisCA) > 0 {
+		opts = append(opts, remote.WithPinnedCA(envConfig.FrancisCA))
+	} else {
+		opts = append(opts, remote.WithUnsafeNoPinnedCA())
+	}
+
+	return opts
+}
+
 // Derive a PSK from the global encryption key
 func (o *NewActorsOpts) getPSK() ([]byte, error) {
 	// This is tied to the instance ID of the Pocket ID deployment/cluster
@@ -117,7 +197,12 @@ func (o *NewActorsOpts) getPSK() ([]byte, error) {
 // NewActorStateStore creates a minimal actor host that can read and write actor state directly, without joining the cluster or binding a network port.
 // It's meant for short-lived contexts such as CLI commands that need to persist actor state (for example, one-time access tokens) without running the full actor host.
 // The returned host must NOT be Run(): only direct state operations (Get/Set/Delete on state) are supported, and they require the actor state tables to already exist, which is the case whenever the server has run at least once against this database.
+// It only works with the embedded runtime, since the actor state then lives in Pocket ID's own database: with a standalone Francis runtime it returns ErrRemoteFrancisRuntime.
 func NewActorStateStore(o NewActorsOpts) (*local.Host, error) {
+	if !o.EnvConfig.HasEmbeddedFrancisRuntime() {
+		return nil, ErrRemoteFrancisRuntime
+	}
+
 	providerOpt, err := o.getProviderOption()
 	if err != nil {
 		return nil, err
@@ -234,7 +319,7 @@ func (o *NewActorsOpts) getProviderOption() (local.HostOption, error) {
 	}
 }
 
-func (o *NewActorsOpts) registerCronJobs(host *local.Host) (err error) {
+func (o *NewActorsOpts) registerCronJobs(host francishost.Host) (err error) {
 	// In test mode, we do not register anything
 	if common.EnvConfig.AppEnv == "test" {
 		return nil
@@ -271,7 +356,7 @@ func (o *NewActorsOpts) registerCronJobs(host *local.Host) (err error) {
 
 // registerRateLimiters creates a built-in rate-limit actor for each middleware policy and returns both the created actors (keyed by policy name) and the host options to register them
 // Unlike cron jobs, rate limiters keep no durable state, so they are registered in every environment
-func (o *NewActorsOpts) registerRateLimiters(host *local.Host) (actors map[string]*ratelimit.RateLimit, err error) {
+func (o *NewActorsOpts) registerRateLimiters(host francishost.Host) (actors map[string]*ratelimit.RateLimit, err error) {
 	policies := middleware.RateLimitPolicies()
 	actors = make(map[string]*ratelimit.RateLimit, len(policies))
 	for _, p := range policies {
