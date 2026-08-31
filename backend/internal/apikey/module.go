@@ -6,7 +6,7 @@ import (
 	"fmt"
 
 	"github.com/gin-gonic/gin"
-	"github.com/italypaleale/francis/host/local"
+	francishost "github.com/italypaleale/francis/host"
 	"gorm.io/gorm"
 
 	"github.com/pocket-id/pocket-id/backend/internal/appconfig"
@@ -16,7 +16,7 @@ import (
 
 type Dependencies struct {
 	DB              *gorm.DB
-	Actors          *local.Host
+	Actors          francishost.Host
 	StaticApiKey    string
 	AppConfig       appconfig.AppConfigResolver
 	EmailSender     APIKeyExpiryEmailSender

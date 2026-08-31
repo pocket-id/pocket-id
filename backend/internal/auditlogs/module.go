@@ -5,13 +5,13 @@ import (
 	"errors"
 	"fmt"
 
-	"github.com/italypaleale/francis/host/local"
+	francishost "github.com/italypaleale/francis/host"
 	"gorm.io/gorm"
 )
 
 type Dependencies struct {
 	DB     *gorm.DB
-	Actors *local.Host
+	Actors francishost.Host
 
 	// RetentionDays is how long audit logs are kept before the cleanup job deletes them
 	RetentionDays int

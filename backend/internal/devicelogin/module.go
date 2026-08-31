@@ -6,7 +6,7 @@ import (
 	"time"
 
 	"github.com/gin-gonic/gin"
-	"github.com/italypaleale/francis/host/local"
+	francishost "github.com/italypaleale/francis/host"
 	"gorm.io/gorm"
 
 	"github.com/pocket-id/pocket-id/backend/internal/appconfig"
@@ -33,7 +33,7 @@ type IPLocationResolver interface {
 
 type Dependencies struct {
 	DB      *gorm.DB
-	Actors  *local.Host
+	Actors  francishost.Host
 	BaseURL string
 
 	Signer    TokenService

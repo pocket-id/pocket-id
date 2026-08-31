@@ -248,9 +248,9 @@ func (s *ExportService) addActorsBackupToZip(ctx context.Context, zipWriter *zip
 		return nil
 	}
 
-	w, err := zipWriter.Create(actorsBackupFileName)
+	w, err := zipWriter.Create(ActorsBackupFileName)
 	if err != nil {
-		return fmt.Errorf("failed to create %s in zip: %w", actorsBackupFileName, err)
+		return fmt.Errorf("failed to create %s in zip: %w", ActorsBackupFileName, err)
 	}
 
 	err = s.actors.Backup(ctx, w)

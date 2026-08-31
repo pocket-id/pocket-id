@@ -27,6 +27,8 @@ End-to-end (needs Docker; **stop any local backend on `:1411` first** — see go
 
 ```sh
 cd tests/setup && docker compose up -d --build   # rebuild after ANY code change, or you test stale code
+# docker-compose-francis.yml runs the same suite against a standalone Francis runtime instead of the embedded one
+# It needs FRANCIS_VERSION in tests/setup/.env: echo "FRANCIS_VERSION=$(./francis-version.sh)" > .env
 cd ../.. && pnpm test                            # = playwright test in tests/
 ```
 
