@@ -12,6 +12,7 @@ import (
 
 	"github.com/lestrrat-go/jwx/v4/jwa"
 	"github.com/lestrrat-go/jwx/v4/jwk"
+	"github.com/lestrrat-go/jwx/v4/jws"
 	"github.com/lestrrat-go/jwx/v4/jwt"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -187,6 +188,162 @@ func TestJwtService_Init(t *testing.T) {
 			assert.Equal(t, origKeyID, loadedKeyID, "Loaded key should have the same ID as the original")
 	})
 
+}
+
+func TestJwtService_SessionKey(t *testing.T) {
+	mockConfig := appconfig.NewTestAppConfigService(nil)
+
+	t.Run("should generate a new session key when none exists", func(t *testing.T) {
+		db := testutils.NewDatabaseForTest(t)
+		mockEnvConfig := newTestEnvConfig()
+		instanceID := newInstanceID(t, db)
+
+		// Initialize the JWT service
+		service := initJwtService(t, db, instanceID, mockConfig, mockEnvConfig)
+
+		// Verify the session key was set and is a symmetric HS256 key
+		require.NotNil(t, service.sessionKey, "Session key should be set")
+		assert.Equal(t, jwa.OctetSeq(), service.sessionKey.KeyType(), "Session key should be a symmetric key")
+		alg, ok := service.sessionKey.Algorithm()
+		_ = assert.True(t, ok, "Session key should have an algorithm") &&
+			assert.Equal(t, jwa.HS256().String(), alg.String(), "Session key should use HS256")
+
+		// Verify the session key has been persisted in its own row in the database
+		keyProvider, err := jwkutils.GetSessionKeyProvider(db, mockEnvConfig, instanceID)
+		require.NoError(t, err, "Failed to init session key provider")
+		key, err := keyProvider.LoadKey(t.Context())
+		require.NoError(t, err, "Failed to load session key from provider")
+		require.NotNil(t, key, "Session key should be present in the database")
+
+		keyID, ok := key.KeyID()
+		_ = assert.True(t, ok, "Session key should have a key ID") &&
+			assert.NotEmpty(t, keyID)
+	})
+
+	t.Run("should load an existing session key", func(t *testing.T) {
+		db := testutils.NewDatabaseForTest(t)
+		mockEnvConfig := newTestEnvConfig()
+		instanceID := newInstanceID(t, db)
+
+		// First create a service to generate a session key
+		firstService := initJwtService(t, db, instanceID, mockConfig, mockEnvConfig)
+		origKeyID, ok := firstService.sessionKey.KeyID()
+		require.True(t, ok)
+
+		// Now create a new service that should load the existing session key
+		secondService := initJwtService(t, db, instanceID, mockConfig, mockEnvConfig)
+		loadedKeyID, ok := secondService.sessionKey.KeyID()
+		require.True(t, ok)
+		assert.Equal(t, origKeyID, loadedKeyID, "Loaded session key should have the same ID as the original")
+
+		// A session token issued by the first service must be accepted by the second one
+		tokenString, err := firstService.GenerateAccessToken(model.User{Base: model.Base{ID: "user123"}}, "", time.Hour)
+		require.NoError(t, err)
+		_, err = secondService.VerifyAccessToken(tokenString)
+		require.NoError(t, err, "Session token should be verified by a service that loaded the same session key")
+	})
+
+	t.Run("session key is separate from the token signing key", func(t *testing.T) {
+		db := testutils.NewDatabaseForTest(t)
+		mockEnvConfig := newTestEnvConfig()
+		instanceID := newInstanceID(t, db)
+
+		service := initJwtService(t, db, instanceID, mockConfig, mockEnvConfig)
+
+		signingKeyID, ok := service.privateKey.KeyID()
+		require.True(t, ok)
+		sessionKeyID, ok := service.sessionKey.KeyID()
+		require.True(t, ok)
+		assert.NotEqual(t, signingKeyID, sessionKeyID, "Session key and token signing key should be different keys")
+
+		// The session key is a shared secret, so it must never be published in the JWKS
+		jwks, err := service.GetPublicJWKSAsJSON()
+		require.NoError(t, err)
+		assert.NotContains(t, string(jwks), sessionKeyID, "Session key must not be included in the JWKS")
+		assert.NotContains(t, string(jwks), jwa.OctetSeq().String(), "JWKS must not contain symmetric keys")
+	})
+
+	t.Run("session tokens are signed with HS256 and the session key", func(t *testing.T) {
+		db := testutils.NewDatabaseForTest(t)
+		mockEnvConfig := newTestEnvConfig()
+		instanceID := newInstanceID(t, db)
+
+		service := initJwtService(t, db, instanceID, mockConfig, mockEnvConfig)
+
+		tokenString, err := service.GenerateAccessToken(model.User{Base: model.Base{ID: "user123"}}, "", time.Hour)
+		require.NoError(t, err)
+
+		// Inspect the JWS header to confirm the algorithm and key used
+		msg, err := jws.ParseString(tokenString)
+		require.NoError(t, err)
+		require.Len(t, msg.Signatures(), 1)
+
+		headers := msg.Signatures()[0].ProtectedHeaders()
+		headerAlg, ok := headers.Algorithm()
+		_ = assert.True(t, ok, "Session token should declare an algorithm") &&
+			assert.Equal(t, jwa.HS256().String(), headerAlg.String(), "Session token should be signed with HS256")
+
+		sessionKeyID, _ := service.sessionKey.KeyID()
+		kid, ok := headers.KeyID()
+		_ = assert.True(t, ok, "Session token should reference a key ID") &&
+			assert.Equal(t, sessionKeyID, kid, "Session token should be signed with the session key")
+	})
+
+	t.Run("session tokens signed with a different session key are rejected", func(t *testing.T) {
+		db := testutils.NewDatabaseForTest(t)
+		mockEnvConfig := newTestEnvConfig()
+		instanceID := newInstanceID(t, db)
+
+		service := initJwtService(t, db, instanceID, mockConfig, mockEnvConfig)
+
+		tokenString, err := service.GenerateAccessToken(model.User{Base: model.Base{ID: "user123"}}, "", time.Hour)
+		require.NoError(t, err)
+
+		// Rotate the session key, as the key-rotate command does, then reload it
+		rotatedKey, err := jwkutils.GenerateSessionKey()
+		require.NoError(t, err)
+		keyProvider, err := jwkutils.GetSessionKeyProvider(db, mockEnvConfig, instanceID)
+		require.NoError(t, err)
+		require.NoError(t, keyProvider.SaveKey(t.Context(), rotatedKey))
+		require.NoError(t, service.LoadOrGenerateKey(t.Context()))
+
+		// Tokens issued with the previous session key must no longer be accepted
+		_, err = service.VerifyAccessToken(tokenString)
+		require.Error(t, err, "Session token signed with the previous session key should be rejected")
+	})
+
+	t.Run("rejects an invalid session key", func(t *testing.T) {
+		service := &JwtService{}
+
+		// A key for tokens meant for external consumption is not valid as a session key
+		signingKey, err := jwkutils.GenerateKey(jwa.ES256().String(), "")
+		require.NoError(t, err)
+		err = service.SetSessionKey(signingKey)
+		require.Error(t, err, "An asymmetric key should not be accepted as a session key")
+		require.ErrorContains(t, err, "not a symmetric key")
+
+		// A symmetric key for another algorithm is not valid either
+		rawKey := make([]byte, 32)
+		_, err = rand.Read(rawKey)
+		require.NoError(t, err)
+		otherAlgKey, err := jwkutils.ImportRawKey(rawKey, jwa.HS512().String(), "")
+		require.NoError(t, err)
+		err = service.SetSessionKey(otherAlgKey)
+		require.Error(t, err, "A key for another algorithm should not be accepted as a session key")
+		assert.ErrorContains(t, err, "not valid for the HS256 algorithm")
+	})
+
+	t.Run("returns an error when the session key is not initialized", func(t *testing.T) {
+		service := &JwtService{}
+
+		_, err := service.GenerateAccessToken(model.User{Base: model.Base{ID: "user123"}}, "", time.Hour)
+		require.Error(t, err)
+		assert.ErrorContains(t, err, "session key is not initialized")
+
+		_, err = service.VerifyAccessToken("some-token")
+		require.Error(t, err)
+		assert.ErrorContains(t, err, "session key is not initialized")
+	})
 }
 
 func TestJwtService_GetPublicJWK(t *testing.T) {

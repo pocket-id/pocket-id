@@ -15,11 +15,18 @@ import (
 	cryptoutils "github.com/pocket-id/pocket-id/backend/internal/utils/crypto"
 )
 
-const PrivateKeyDBKey = "jwt_private_key.json"
+const (
+	// PrivateKeyDBKey is the row in the "kv" table containing the key used to sign tokens that are consumed externally
+	PrivateKeyDBKey = "jwt_private_key.json"
+
+	// SessionKeyDBKey is the row in the "kv" table containing the symmetric key used to sign session tokens
+	SessionKeyDBKey = "session_key.json"
+)
 
 type KeyProviderDatabase struct {
-	db  *gorm.DB
-	kek []byte
+	db    *gorm.DB
+	kek   []byte
+	dbKey string
 }
 
 func (f *KeyProviderDatabase) Init(opts KeyProviderOpts) error {
@@ -30,12 +37,18 @@ func (f *KeyProviderDatabase) Init(opts KeyProviderOpts) error {
 	f.db = opts.DB
 	f.kek = opts.Kek
 
+	// Callers that don't ask for a specific row get the token signing key, which is the key most of the codebase deals with
+	f.dbKey = opts.DBKey
+	if f.dbKey == "" {
+		f.dbKey = PrivateKeyDBKey
+	}
+
 	return nil
 }
 
 func (f *KeyProviderDatabase) LoadKey(ctx context.Context) (key jwk.Key, err error) {
 	row := model.KV{
-		Key: PrivateKeyDBKey,
+		Key: f.dbKey,
 	}
 
 	ctx, cancel := context.WithTimeout(ctx, 10*time.Second)
@@ -45,7 +58,7 @@ func (f *KeyProviderDatabase) LoadKey(ctx context.Context) (key jwk.Key, err err
 		// Key not present in the database - return nil so a new one can be generated
 		return nil, nil
 	} else if err != nil {
-		return nil, fmt.Errorf("failed to retrieve private key from the database: %w", err)
+		return nil, fmt.Errorf("failed to retrieve key from the database: %w", err)
 	}
 
 	if row.Value == nil || *row.Value == "" {
@@ -56,19 +69,19 @@ func (f *KeyProviderDatabase) LoadKey(ctx context.Context) (key jwk.Key, err err
 	// Decode from base64
 	enc, err := base64.StdEncoding.DecodeString(*row.Value)
 	if err != nil {
-		return nil, fmt.Errorf("failed to read encrypted private key: not a valid base64-encoded value: %w", err)
+		return nil, fmt.Errorf("failed to read encrypted key: not a valid base64-encoded value: %w", err)
 	}
 
 	// Decrypt the data
 	data, err := cryptoutils.Decrypt(f.kek, enc, nil)
 	if err != nil {
-		return nil, fmt.Errorf("failed to decrypt private key: %w", err)
+		return nil, fmt.Errorf("failed to decrypt key: %w", err)
 	}
 
 	// Parse the key
 	key, err = jwk.ParseKey(data)
 	if err != nil {
-		return nil, fmt.Errorf("failed to parse encrypted private key: %w", err)
+		return nil, fmt.Errorf("failed to parse encrypted key: %w", err)
 	}
 
 	return key, nil
@@ -88,7 +101,7 @@ func (f *KeyProviderDatabase) SaveKey(ctx context.Context, key jwk.Key) error {
 	}
 	// Save to database
 	row := model.KV{
-		Key:   PrivateKeyDBKey,
+		Key:   f.dbKey,
 		Value: new(base64.StdEncoding.EncodeToString(enc)),
 	}
 
@@ -103,9 +116,9 @@ func (f *KeyProviderDatabase) SaveKey(ctx context.Context, key jwk.Key) error {
 		Create(&row).
 		Error
 	if err != nil {
-		// There's one scenario where if Pocket ID is started fresh with more than 1 replica, they both could be trying to create the private key in the database at the same time
-		// In this case, only one of the replicas will succeed; the other one(s) will return an error here, which will cascade down and cause the replica(s) to crash and be restarted (at that point they'll load the then-existing key from the database)
-		return fmt.Errorf("failed to store private key in database: %w", err)
+		// There's one scenario where if Pocket ID is started fresh with more than 1 replica, they both could be trying to create the key in the database at the same time
+		// In this case, only one of the replicas will succeed and the other one(s) will return an error here, which will cascade down and cause the replica(s) to crash and be restarted (at that point they'll load the then-existing key from the database)
+		return fmt.Errorf("failed to store key in database: %w", err)
 	}
 
 	return nil

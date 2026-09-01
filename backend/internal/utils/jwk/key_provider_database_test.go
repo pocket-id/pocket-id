@@ -259,6 +259,80 @@ func TestKeyProviderDatabase_SaveKey(t *testing.T) {
 	})
 }
 
+func TestKeyProviderDatabase_DBKey(t *testing.T) {
+	t.Run("keys stored under different rows do not overwrite each other", func(t *testing.T) {
+		db := testutils.NewDatabaseForTest(t)
+		kek := generateTestKEK(t)
+
+		signingKeyProvider := &KeyProviderDatabase{}
+		err := signingKeyProvider.Init(KeyProviderOpts{
+			DB:    db,
+			Kek:   kek,
+			DBKey: PrivateKeyDBKey,
+		})
+		require.NoError(t, err)
+
+		sessionKeyProvider := &KeyProviderDatabase{}
+		err = sessionKeyProvider.Init(KeyProviderOpts{
+			DB:    db,
+			Kek:   kek,
+			DBKey: SessionKeyDBKey,
+		})
+		require.NoError(t, err)
+
+		// Save a different key with each provider
+		signingKey, err := GenerateKey("ES256", "")
+		require.NoError(t, err)
+		err = signingKeyProvider.SaveKey(t.Context(), signingKey)
+		require.NoError(t, err)
+
+		sessionKey, err := GenerateSessionKey()
+		require.NoError(t, err)
+		err = sessionKeyProvider.SaveKey(t.Context(), sessionKey)
+		require.NoError(t, err)
+
+		// Each provider must load back the key it saved
+		loadedSigningKey, err := signingKeyProvider.LoadKey(t.Context())
+		require.NoError(t, err)
+		require.NotNil(t, loadedSigningKey)
+		signingKid, _ := signingKey.KeyID()
+		loadedSigningKid, _ := loadedSigningKey.KeyID()
+		assert.Equal(t, signingKid, loadedSigningKid)
+
+		loadedSessionKey, err := sessionKeyProvider.LoadKey(t.Context())
+		require.NoError(t, err)
+		require.NotNil(t, loadedSessionKey)
+		sessionKid, _ := sessionKey.KeyID()
+		loadedSessionKid, _ := loadedSessionKey.KeyID()
+		assert.Equal(t, sessionKid, loadedSessionKid)
+
+		// Both rows must exist in the database
+		var count int64
+		err = db.Model(&model.KV{}).Where("key IN ?", []string{PrivateKeyDBKey, SessionKeyDBKey}).Count(&count).Error
+		require.NoError(t, err)
+		assert.Equal(t, int64(2), count)
+	})
+
+	t.Run("defaults to the token signing key row when not set", func(t *testing.T) {
+		db := testutils.NewDatabaseForTest(t)
+		kek := generateTestKEK(t)
+
+		provider := &KeyProviderDatabase{}
+		require.NoError(t, provider.Init(KeyProviderOpts{
+			DB:  db,
+			Kek: kek,
+		}))
+
+		key, err := GenerateKey("ES256", "")
+		require.NoError(t, err)
+		require.NoError(t, provider.SaveKey(t.Context(), key))
+
+		var kv model.KV
+		err = db.Where("key = ?", PrivateKeyDBKey).First(&kv).Error
+		require.NoError(t, err, "Expected the key to be stored in the token signing key row")
+	})
+}
+
 func generateTestKEK(t *testing.T) []byte {
 	t.Helper()
 

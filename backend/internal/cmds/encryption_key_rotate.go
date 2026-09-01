@@ -93,9 +93,12 @@ func encryptionKeyRotate(ctx context.Context, flags encryptionKeyRotateFlags, db
 	}
 
 	err = db.Transaction(func(tx *gorm.DB) error {
-		err = rotateSigningKeyEncryption(ctx, tx, oldKek, newKek)
-		if err != nil {
-			return err
+		// Both the key used for tokens meant for external consumption and the session key are encrypted with the KEK
+		for _, dbKey := range []string{jwkutils.PrivateKeyDBKey, jwkutils.SessionKeyDBKey} {
+			err = rotateJWKEncryption(ctx, tx, oldKek, newKek, dbKey)
+			if err != nil {
+				return err
+			}
 		}
 
 		err = rotateScimTokens(tx, oldEncKey, newEncKey)
@@ -115,19 +118,20 @@ func encryptionKeyRotate(ctx context.Context, flags encryptionKeyRotateFlags, db
 	return nil
 }
 
-func rotateSigningKeyEncryption(ctx context.Context, db *gorm.DB, oldKek []byte, newKek []byte) error {
+func rotateJWKEncryption(ctx context.Context, db *gorm.DB, oldKek []byte, newKek []byte, dbKey string) error {
 	oldProvider := &jwkutils.KeyProviderDatabase{}
 	err := oldProvider.Init(jwkutils.KeyProviderOpts{
-		DB:  db,
-		Kek: oldKek,
+		DB:    db,
+		Kek:   oldKek,
+		DBKey: dbKey,
 	})
 	if err != nil {
-		return fmt.Errorf("failed to init key provider with old encryption key: %w", err)
+		return fmt.Errorf("failed to init key provider for %q with old encryption key: %w", dbKey, err)
 	}
 
 	key, err := oldProvider.LoadKey(ctx)
 	if err != nil {
-		return fmt.Errorf("failed to load signing key using old encryption key: %w", err)
+		return fmt.Errorf("failed to load key %q using old encryption key: %w", dbKey, err)
 	}
 	if key == nil {
 		return nil
@@ -135,15 +139,17 @@ func rotateSigningKeyEncryption(ctx context.Context, db *gorm.DB, oldKek []byte,
 
 	newProvider := &jwkutils.KeyProviderDatabase{}
 	err = newProvider.Init(jwkutils.KeyProviderOpts{
-		DB:  db,
-		Kek: newKek,
+		DB:    db,
+		Kek:   newKek,
+		DBKey: dbKey,
 	})
 	if err != nil {
-		return fmt.Errorf("failed to init key provider with new encryption key: %w", err)
+		return fmt.Errorf("failed to init key provider for %q with new encryption key: %w", dbKey, err)
 	}
 
-	if err := newProvider.SaveKey(ctx, key); err != nil {
-		return fmt.Errorf("failed to store signing key with new encryption key: %w", err)
+	err = newProvider.SaveKey(ctx, key)
+	if err != nil {
+		return fmt.Errorf("failed to store key %q with new encryption key: %w", dbKey, err)
 	}
 
 	return nil
