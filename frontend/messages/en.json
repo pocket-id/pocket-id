@@ -299,6 +299,8 @@
 	"add": "Add",
 	"callback_urls": "Callback URLs",
 	"logout_callback_urls": "Logout Callback URLs",
+	"backchannel_logout_url": "Back-Channel Logout URL",
+	"backchannel_logout_url_description": "URL that receives a logout token when a user's access is revoked, for example when they are disabled or removed from a required group.",
 	"public_client": "Public Client",
 	"public_clients_description": "Public clients do not have a client secret. They are designed for mobile, web, and native applications where secrets cannot be securely stored.",
 	"pkce": "PKCE",

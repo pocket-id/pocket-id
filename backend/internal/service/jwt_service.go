@@ -10,6 +10,7 @@ import (
 
 	"github.com/lestrrat-go/jwx/v4/jwa"
 	"github.com/lestrrat-go/jwx/v4/jwk"
+	"github.com/lestrrat-go/jwx/v4/jws"
 	"github.com/lestrrat-go/jwx/v4/jwt"
 	"gorm.io/gorm"
 
@@ -37,6 +38,15 @@ const (
 
 	// AccessTokenJWTType identifies a JWT as an access token used by Pocket ID
 	AccessTokenJWTType = "access-token"
+
+	// LogoutTokenJWTTyp is the JOSE "typ" header for OIDC back-channel logout tokens
+	LogoutTokenJWTTyp = "logout+jwt" //nolint:gosec // this is a JOSE typ header, not a credential
+
+	// BackchannelLogoutEvent is the member of the "events" claim that marks a JWT as a back-channel logout token
+	BackchannelLogoutEvent = "http://schemas.openid.net/event/backchannel-logout"
+
+	// logoutTokenDuration is the lifetime of a logout token, which only needs to survive the delivery to the client
+	logoutTokenDuration = 2 * time.Minute
 
 	// Acceptable clock skew for verifying tokens
 	clockSkew = time.Minute
@@ -216,6 +226,43 @@ func (s *JwtService) GenerateAccessToken(user model.User, authenticationMethod s
 
 	alg, _ := s.privateKey.Algorithm()
 	signed, err := jwt.Sign(token, jwt.WithKey(alg, s.privateKey))
+	if err != nil {
+		return "", fmt.Errorf("failed to sign token: %w", err)
+	}
+
+	return string(signed), nil
+}
+
+// GenerateLogoutToken creates a logout token for OIDC Back-Channel Logout 1.0
+// The token identifies the user with a "sub" claim only, as Pocket ID does not track per-session "sid" values
+func (s *JwtService) GenerateLogoutToken(userID string, clientID string) (string, error) {
+	now := time.Now()
+	token, err := jwt.NewBuilder().
+		Subject(userID).
+		Audience([]string{clientID}).
+		Expiration(now.Add(logoutTokenDuration)).
+		IssuedAt(now).
+		Issuer(s.envConfig.AppURL).
+		JwtID(uuid.NewV4().String()).
+		Claim("events", map[string]any{BackchannelLogoutEvent: struct{}{}}).
+		Build()
+	if err != nil {
+		return "", fmt.Errorf("failed to build token: %w", err)
+	}
+
+	// The spec requires the "typ" header so clients can tell logout tokens apart from ID tokens
+	headers := jws.NewHeaders()
+	err = headers.Set(jws.TypeKey, LogoutTokenJWTTyp)
+	if err != nil {
+		return "", fmt.Errorf("failed to set 'typ' header: %w", err)
+	}
+
+	alg, err := s.GetKeyAlg()
+	if err != nil {
+		return "", err
+	}
+
+	signed, err := jwt.Sign(token, jwt.WithKey(alg, s.privateKey, jws.WithProtectedHeaders(headers)))
 	if err != nil {
 		return "", fmt.Errorf("failed to sign token: %w", err)
 	}

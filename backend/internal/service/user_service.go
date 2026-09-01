@@ -10,6 +10,7 @@ import (
 	"io/fs"
 	"log/slog"
 	"path"
+	"slices"
 	"time"
 	"uuid"
 
@@ -33,10 +34,11 @@ type UserService struct {
 	customClaimService *CustomClaimService
 	appImagesService   *AppImagesService
 	scimSyncScheduler  ScimSyncScheduler
+	backchannelLogout  *BackchannelLogoutService
 	fileStorage        storage.FileStorage
 }
 
-func NewUserService(db *gorm.DB, jwtService *JwtService, auditLogService *AuditLogService, customClaimService *CustomClaimService, appImagesService *AppImagesService, scimSyncScheduler ScimSyncScheduler, fileStorage storage.FileStorage) *UserService {
+func NewUserService(db *gorm.DB, jwtService *JwtService, auditLogService *AuditLogService, customClaimService *CustomClaimService, appImagesService *AppImagesService, scimSyncScheduler ScimSyncScheduler, backchannelLogout *BackchannelLogoutService, fileStorage storage.FileStorage) *UserService {
 	return &UserService{
 		db:                 db,
 		jwtService:         jwtService,
@@ -44,6 +46,7 @@ func NewUserService(db *gorm.DB, jwtService *JwtService, auditLogService *AuditL
 		customClaimService: customClaimService,
 		appImagesService:   appImagesService,
 		scimSyncScheduler:  scimSyncScheduler,
+		backchannelLogout:  backchannelLogout,
 		fileStorage:        fileStorage,
 	}
 }
@@ -196,7 +199,18 @@ func (s *UserService) UpdateProfilePicture(ctx context.Context, userID string, f
 }
 
 func (s *UserService) DeleteUser(ctx context.Context, dbConfig *appconfig.AppConfigModel, userID string, allowLdapDelete bool) error {
+	// The user's authorizations are gone after the delete, so the clients to notify must be resolved inside the transaction
+	notifyLogout := func() {}
 	err := s.db.Transaction(func(tx *gorm.DB) error {
+		if s.backchannelLogout != nil {
+			var err error
+			notifyLogout, err = s.backchannelLogout.PrepareUserNotifications(ctx, tx, []string{userID})
+			if err != nil {
+				// Notifications are best effort and must never block the deletion itself
+				slog.ErrorContext(ctx, "Failed to prepare back-channel logout notifications for user", slog.String("userId", userID), slog.Any("error", err))
+			}
+		}
+
 		return s.DeleteUserInternal(ctx, dbConfig, tx, userID, allowLdapDelete)
 	})
 	if err != nil {
@@ -205,6 +219,7 @@ func (s *UserService) DeleteUser(ctx context.Context, dbConfig *appconfig.AppCon
 	if s.scimSyncScheduler != nil {
 		s.scimSyncScheduler.ScheduleSync(ctx)
 	}
+	notifyLogout()
 
 	// Storage operations must be executed outside of a transaction
 	profilePicturePath := path.Join("profile-pictures", userID+".png")
@@ -450,6 +465,21 @@ func (s *UserService) UpdateUser(ctx context.Context, cfg *appconfig.AppConfigMo
 		tx.Rollback()
 	}()
 
+	// Only an admin setting the flag can disable a user, so the previous state is only needed to detect that transition
+	canDisable := s.backchannelLogout != nil && !updateOwnUser && updatedUser.Disabled
+	var wasDisabled bool
+	if canDisable {
+		err := tx.
+			WithContext(ctx).
+			Model(&model.User{}).
+			Where("id = ?", userID).
+			Pluck("disabled", &wasDisabled).
+			Error
+		if err != nil {
+			return model.User{}, err
+		}
+	}
+
 	user, err := s.UpdateUserInternal(ctx, cfg, userID, updatedUser, updateOwnUser, isLdapSync, tx)
 	if err != nil {
 		return model.User{}, err
@@ -461,6 +491,11 @@ func (s *UserService) UpdateUser(ctx context.Context, cfg *appconfig.AppConfigMo
 	}
 	if s.scimSyncScheduler != nil {
 		s.scimSyncScheduler.ScheduleSync(ctx)
+	}
+
+	// A disabled user cannot sign in again, so tell their clients to end the sessions as well
+	if canDisable && !wasDisabled && user.Disabled {
+		s.backchannelLogout.NotifyUser(ctx, userID)
 	}
 
 	return user, nil
@@ -555,6 +590,11 @@ func (s *UserService) UpdateUserGroups(ctx context.Context, id string, userGroup
 		return model.User{}, err
 	}
 
+	// Only a removed group can revoke access, so adding groups skips the notification below
+	lostGroup := slices.ContainsFunc(user.UserGroups, func(group model.UserGroup) bool {
+		return !slices.Contains(userGroupIds, group.ID)
+	})
+
 	// Fetch the groups based on userGroupIds
 	var groups []model.UserGroup
 	if len(userGroupIds) > 0 {
@@ -601,6 +641,11 @@ func (s *UserService) UpdateUserGroups(ctx context.Context, id string, userGroup
 
 	if s.scimSyncScheduler != nil {
 		s.scimSyncScheduler.ScheduleSync(ctx)
+	}
+
+	// Losing a group can revoke access to group-restricted clients, so tell those clients to end the user's sessions
+	if s.backchannelLogout != nil && lostGroup {
+		s.backchannelLogout.NotifyUsersLostGroupAccess(ctx, []string{id})
 	}
 
 	return user, nil

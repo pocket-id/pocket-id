@@ -3,6 +3,7 @@ package service
 import (
 	"context"
 	"errors"
+	"log/slog"
 	"time"
 
 	"github.com/pocket-id/pocket-id/backend/internal/appconfig"
@@ -18,10 +19,11 @@ import (
 type UserGroupService struct {
 	db                *gorm.DB
 	scimSyncScheduler ScimSyncScheduler
+	backchannelLogout *BackchannelLogoutService
 }
 
-func NewUserGroupService(db *gorm.DB, scimSyncScheduler ScimSyncScheduler) *UserGroupService {
-	return &UserGroupService{db: db, scimSyncScheduler: scimSyncScheduler}
+func NewUserGroupService(db *gorm.DB, scimSyncScheduler ScimSyncScheduler, backchannelLogout *BackchannelLogoutService) *UserGroupService {
+	return &UserGroupService{db: db, scimSyncScheduler: scimSyncScheduler, backchannelLogout: backchannelLogout}
 }
 
 func (s *UserGroupService) List(ctx context.Context, name string, listRequestOptions utils.ListRequestOptions) (groups []model.UserGroup, response utils.PaginationResponse, err error) {
@@ -89,6 +91,16 @@ func (s *UserGroupService) Delete(ctx context.Context, cfg *appconfig.AppConfigM
 		return apperror.LdapUserGroupUpdate()
 	}
 
+	// Capture the members before the delete, as they may lose access to clients restricted to this group
+	// Notifications are best effort and must never block the deletion itself
+	var memberIDs []string
+	if s.backchannelLogout != nil {
+		memberIDs, err = s.memberIDs(ctx, tx, id)
+		if err != nil {
+			slog.ErrorContext(ctx, "Failed to find group members to notify for back-channel logout", slog.String("groupId", id), slog.Any("error", err))
+		}
+	}
+
 	err = tx.
 		WithContext(ctx).
 		Delete(&group).
@@ -106,7 +118,27 @@ func (s *UserGroupService) Delete(ctx context.Context, cfg *appconfig.AppConfigM
 		s.scimSyncScheduler.ScheduleSync(ctx)
 	}
 
+	// Tell group-restricted clients that former members can no longer access to end their sessions
+	if s.backchannelLogout != nil {
+		s.backchannelLogout.NotifyUsersLostGroupAccess(ctx, memberIDs)
+	}
+
 	return nil
+}
+
+// memberIDs returns the IDs of the users that are currently members of the group
+func (s *UserGroupService) memberIDs(ctx context.Context, tx *gorm.DB, groupID string) ([]string, error) {
+	var userIDs []string
+	err := tx.
+		WithContext(ctx).
+		Table("user_groups_users").
+		Where("user_group_id = ?", groupID).
+		Pluck("user_id", &userIDs).
+		Error
+	if err != nil {
+		return nil, err
+	}
+	return userIDs, nil
 }
 
 func (s *UserGroupService) Create(ctx context.Context, input dto.UserGroupCreateDto) (group model.UserGroup, err error) {
@@ -212,6 +244,16 @@ func (s *UserGroupService) UpdateUsers(ctx context.Context, id string, userIds [
 		tx.Rollback()
 	}()
 
+	// Capture the previous members to work out who is removed from the group by this update
+	// Notifications are best effort and must never block the update itself
+	var previousMemberIDs []string
+	if s.backchannelLogout != nil {
+		previousMemberIDs, err = s.memberIDs(ctx, tx, id)
+		if err != nil {
+			slog.ErrorContext(ctx, "Failed to find group members to notify for back-channel logout", slog.String("groupId", id), slog.Any("error", err))
+		}
+	}
+
 	group, err = s.UpdateUsersInternal(ctx, id, userIds, tx)
 	if err != nil {
 		return model.UserGroup{}, err
@@ -223,6 +265,22 @@ func (s *UserGroupService) UpdateUsers(ctx context.Context, id string, userIds [
 	}
 	if s.scimSyncScheduler != nil {
 		s.scimSyncScheduler.ScheduleSync(ctx)
+	}
+
+	// Removed members may lose access to clients restricted to this group, so tell those clients to end their sessions
+	if s.backchannelLogout != nil {
+		remainingMembers := make(map[string]struct{}, len(userIds))
+		for _, userID := range userIds {
+			remainingMembers[userID] = struct{}{}
+		}
+
+		removedUserIDs := make([]string, 0, len(previousMemberIDs))
+		for _, memberID := range previousMemberIDs {
+			if _, remains := remainingMembers[memberID]; !remains {
+				removedUserIDs = append(removedUserIDs, memberID)
+			}
+		}
+		s.backchannelLogout.NotifyUsersLostGroupAccess(ctx, removedUserIDs)
 	}
 
 	return group, nil

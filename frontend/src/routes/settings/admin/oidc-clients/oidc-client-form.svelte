@@ -48,6 +48,7 @@
 		description: existingClient?.description || '',
 		callbackURLs: existingClient?.callbackURLs || [],
 		logoutCallbackURLs: existingClient?.logoutCallbackURLs || [],
+		backchannelLogoutURL: existingClient?.backchannelLogoutURL || '',
 		isPublic: existingClient?.isPublic || false,
 		pkceEnabled: existingClient?.pkceEnabled || false,
 		requiresReauthentication: existingClient?.requiresReauthentication || false,
@@ -77,6 +78,7 @@
 		description: z.string().max(150),
 		callbackURLs: z.array(callbackUrlSchema).default([]),
 		logoutCallbackURLs: z.array(callbackUrlSchema).default([]),
+		backchannelLogoutURL: optionalUrl,
 		isPublic: z.boolean(),
 		pkceEnabled: z.boolean(),
 		requiresReauthentication: z.boolean(),
@@ -315,6 +317,14 @@
 				label={m.requires_pushed_authorization_requests()}
 				description={m.requires_pushed_authorization_requests_description()}
 				bind:checked={$inputs.requiresPushedAuthorizationRequests.value}
+			/>
+			<FormInput
+				label={m.backchannel_logout_url()}
+				description={m.backchannel_logout_url_description()}
+				class="w-full md:w-1/2"
+				type="url"
+				bind:input={$inputs.backchannelLogoutURL}
+				disabled={isCIMDClient}
 			/>
 			{#if mode == 'create'}
 				<FormInput

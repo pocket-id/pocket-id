@@ -317,6 +317,39 @@ func TestLdapServiceSyncAllSetsAdminFromGroupMembership(t *testing.T) {
 	}
 }
 
+func TestLoadGroupMembers(t *testing.T) {
+	svc, db := newTestLdapService(t, nil)
+
+	require.NoError(t, db.Create(&model.User{Base: model.Base{ID: "user-1"}, Username: "user1"}).Error)
+	require.NoError(t, db.Create(&model.User{Base: model.Base{ID: "user-2"}, Username: "user2"}).Error)
+
+	group := model.UserGroup{Base: model.Base{ID: "group-1"}, Name: "group1", FriendlyName: "Group 1"}
+	require.NoError(t, db.Create(&group).Error)
+	require.NoError(t, db.Model(&group).Association("Users").Append([]model.User{
+		{Base: model.Base{ID: "user-1"}},
+		{Base: model.Base{ID: "user-2"}},
+	}))
+
+	emptyGroup := model.UserGroup{Base: model.Base{ID: "group-2"}, Name: "group2", FriendlyName: "Group 2"}
+	require.NoError(t, db.Create(&emptyGroup).Error)
+
+	membersByGroup, err := svc.loadGroupMembers(t.Context(), db, []model.UserGroup{group, emptyGroup})
+	require.NoError(t, err)
+	assert.ElementsMatch(t, []string{"user-1", "user-2"}, membersByGroup["group-1"])
+	assert.Empty(t, membersByGroup["group-2"])
+}
+
+func TestCollectRemovedMembers(t *testing.T) {
+	removedMembers := map[string]struct{}{}
+
+	collectRemovedMembers(removedMembers, []string{"user-1", "user-2"}, []string{"user-2", "user-3"})
+	assert.Equal(t, map[string]struct{}{"user-1": {}}, removedMembers)
+
+	// Deleting a group passes no remaining members, and a user removed from two groups is only collected once
+	collectRemovedMembers(removedMembers, []string{"user-1", "user-4"}, nil)
+	assert.Equal(t, map[string]struct{}{"user-1": {}, "user-4": {}}, removedMembers)
+}
+
 func newTestLdapService(t *testing.T, client ldapClient) (*Service, *gorm.DB) {
 	t.Helper()
 
@@ -326,13 +359,14 @@ func newTestLdapService(t *testing.T, client ldapClient) (*Service, *gorm.DB) {
 	require.NoError(t, err)
 
 	// The sync is exercised against the real user and group services, so the assertions below can check what actually lands in the database
-	groupService := service.NewUserGroupService(db, nil)
+	groupService := service.NewUserGroupService(db, nil, nil)
 	userService := service.NewUserService(
 		db,
 		nil,
 		nil,
 		service.NewCustomClaimService(db),
 		service.NewAppImagesService(map[string]string{}, fileStorage),
+		nil,
 		nil,
 		fileStorage,
 	)

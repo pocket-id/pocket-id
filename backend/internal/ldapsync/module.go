@@ -41,16 +41,26 @@ type ScimSyncScheduler interface {
 	ScheduleSync(ctx context.Context)
 }
 
+// BackchannelLogoutNotifier tells OIDC clients to end their sessions for users the sync deprovisions
+type BackchannelLogoutNotifier interface {
+	// PrepareUserNotifications resolves the notifications within the sync transaction and returns a function that delivers them, which must only be called after the transaction has committed
+	PrepareUserNotifications(ctx context.Context, tx *gorm.DB, userIDs []string) (func(), error)
+
+	// NotifyUsersLostGroupAccess delivers logout tokens to group-restricted clients the given users can no longer access, and must be called after the transaction has committed
+	NotifyUsersLostGroupAccess(ctx context.Context, userIDs []string)
+}
+
 type Dependencies struct {
 	DB          *gorm.DB
 	Actors      *local.Host
 	HTTPClient  *http.Client
 	FileStorage storage.FileStorage
 
-	Users     UserSyncer
-	Groups    GroupSyncer
-	AppConfig appconfig.AppConfigResolver
-	ScimSync  ScimSyncScheduler
+	Users             UserSyncer
+	Groups            GroupSyncer
+	AppConfig         appconfig.AppConfigResolver
+	ScimSync          ScimSyncScheduler
+	BackchannelLogout BackchannelLogoutNotifier
 
 	// ScheduleDisabled keeps the recurring sync from being armed
 	// It's set in the test environment, where syncs are driven explicitly by the end-to-end tests

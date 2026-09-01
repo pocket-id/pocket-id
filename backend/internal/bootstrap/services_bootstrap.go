@@ -174,23 +174,26 @@ func initServices(
 		return nil, fmt.Errorf("failed to create OIDC module: %w", err)
 	}
 
-	svc.oidcService, err = service.NewOidcService(db, svc.jwtService, svc.oidcModule.Preview, svc.oidcModule, svc.scimSyncModule, httpClient, fileStorage)
+	backchannelLogoutService := service.NewBackchannelLogoutService(db, svc.jwtService, httpClient)
+
+	svc.oidcService, err = service.NewOidcService(db, svc.jwtService, svc.oidcModule.Preview, svc.oidcModule, svc.scimSyncModule, backchannelLogoutService, httpClient, fileStorage)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create OIDC service: %w", err)
 	}
 
-	svc.userGroupService = service.NewUserGroupService(db, svc.scimSyncModule)
-	svc.userService = service.NewUserService(db, svc.jwtService, svc.auditLogService, svc.customClaimService, svc.appImagesService, svc.scimSyncModule, fileStorage)
+	svc.userGroupService = service.NewUserGroupService(db, svc.scimSyncModule, backchannelLogoutService)
+	svc.userService = service.NewUserService(db, svc.jwtService, svc.auditLogService, svc.customClaimService, svc.appImagesService, svc.scimSyncModule, backchannelLogoutService, fileStorage)
 
 	svc.ldapSyncModule, err = ldapsync.New(ldapsync.Dependencies{
-		DB:          db,
-		Actors:      actors,
-		HTTPClient:  httpClient,
-		FileStorage: fileStorage,
-		Users:       svc.userService,
-		Groups:      svc.userGroupService,
-		AppConfig:   svc.appConfigService,
-		ScimSync:    svc.scimSyncModule,
+		DB:                db,
+		Actors:            actors,
+		HTTPClient:        httpClient,
+		FileStorage:       fileStorage,
+		Users:             svc.userService,
+		Groups:            svc.userGroupService,
+		AppConfig:         svc.appConfigService,
+		ScimSync:          svc.scimSyncModule,
+		BackchannelLogout: backchannelLogoutService,
 		// Disable in test environment
 		ScheduleDisabled: common.EnvConfig.AppEnv.IsTest(),
 	})
