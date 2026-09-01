@@ -318,23 +318,25 @@
 				description={m.requires_pushed_authorization_requests_description()}
 				bind:checked={$inputs.requiresPushedAuthorizationRequests.value}
 			/>
-			<FormInput
-				label={m.backchannel_logout_url()}
-				description={m.backchannel_logout_url_description()}
-				class="w-full md:w-1/2"
-				type="url"
-				bind:input={$inputs.backchannelLogoutURL}
-				disabled={isCIMDClient}
-			/>
-			{#if mode == 'create'}
+			<div class="grid grid-cols-1 gap-x-3 gap-y-7 md:grid-cols-2">
 				<FormInput
-					label={m.client_id()}
-					placeholder={m.generated()}
-					class="w-full md:w-1/2"
-					description={m.custom_client_id_description()}
-					bind:input={$inputs.id}
+					label={m.backchannel_logout_url()}
+					description={m.backchannel_logout_url_description()}
+					class="w-full"
+					type="url"
+					bind:input={$inputs.backchannelLogoutURL}
+					disabled={isCIMDClient}
 				/>
-			{/if}
+				{#if mode == 'create'}
+					<FormInput
+						label={m.client_id()}
+						placeholder={m.generated()}
+						class="w-full"
+						description={m.custom_client_id_description()}
+						bind:input={$inputs.id}
+					/>
+				{/if}
+			</div>
 		</div>
 	{/if}
 
