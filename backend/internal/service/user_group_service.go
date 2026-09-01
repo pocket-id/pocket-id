@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"log/slog"
+	"slices"
 	"time"
 
 	"github.com/pocket-id/pocket-id/backend/internal/appconfig"
@@ -370,6 +371,17 @@ func (s *UserGroupService) UpdateAllowedOidcClient(ctx context.Context, id strin
 		return model.UserGroup{}, err
 	}
 
+	// Dropping a client from the group's allowed list revokes access for the members that reach it through this group only
+	// Clients that are not group restricted are reachable either way, so they are left out
+	var removedClientIDs []string
+	if s.backchannelLogout != nil {
+		for _, client := range group.AllowedOidcClients {
+			if client.IsGroupRestricted && !slices.Contains(input.OidcClientIDs, client.ID) {
+				removedClientIDs = append(removedClientIDs, client.ID)
+			}
+		}
+	}
+
 	// Fetch the clients based on the client IDs
 	var clients []model.OidcClient
 	if len(input.OidcClientIDs) > 0 {
@@ -409,6 +421,11 @@ func (s *UserGroupService) UpdateAllowedOidcClient(ctx context.Context, id strin
 
 	if s.scimSyncScheduler != nil {
 		s.scimSyncScheduler.ScheduleSync(ctx)
+	}
+
+	// Tell the clients that lost this group that the members who can no longer reach them should be signed out
+	for _, clientID := range removedClientIDs {
+		s.backchannelLogout.NotifyClientLostGroupAccess(ctx, clientID)
 	}
 
 	return group, nil
