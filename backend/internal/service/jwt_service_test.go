@@ -74,7 +74,7 @@ func newTestDbAndEnv(t *testing.T) (*gorm.DB, *common.EnvConfigSchema) {
 	return testutils.NewDatabaseForTest(t), newTestEnvConfig()
 }
 
-func saveKeyToDatabase(t *testing.T, db *gorm.DB, instanceID string, envConfig *common.EnvConfigSchema, appConfig *appconfig.AppConfigService, key jwk.Key) string {
+func saveKeyToDatabase(t *testing.T, db *gorm.DB, instanceID string, envConfig *common.EnvConfigSchema, key jwk.Key) string {
 	t.Helper()
 
 	keyProvider, err := jwkutils.GetKeyProvider(db, envConfig, instanceID)
@@ -148,7 +148,7 @@ func TestJwtService_Init(t *testing.T) {
 		instanceID := newInstanceID(t, db)
 
 		// Create a new JWK and save it to the database
-		origKeyID := createECDSAKeyJWK(t, db, instanceID, mockEnvConfig, mockConfig)
+		origKeyID := createECDSAKeyJWK(t, db, instanceID, mockEnvConfig)
 
 		// Now create a new service that should load the existing key
 		svc := initJwtService(t, db, instanceID, mockConfig, mockEnvConfig)
@@ -170,7 +170,7 @@ func TestJwtService_Init(t *testing.T) {
 		instanceID := newInstanceID(t, db)
 
 		// Create a new JWK and save it to the database
-		origKeyID := createEdDSAKeyJWK(t, db, instanceID, mockEnvConfig, mockConfig)
+		origKeyID := createEdDSAKeyJWK(t, db, instanceID, mockEnvConfig)
 
 		// Now create a new service that should load the existing key
 		svc := initJwtService(t, db, instanceID, mockConfig, mockEnvConfig)
@@ -234,7 +234,7 @@ func TestRetryKeyStorageStopsAfterThreeRetries(t *testing.T) {
 
 	// Verify the initial attempt was followed by exactly three retries
 	require.ErrorIs(t, err, jwkutils.ErrRetryKeyStorage)
-	require.Equal(t, 1+maxKeyStorageRetries, attempts)
+	require.Equal(t, 4, attempts)
 }
 
 func TestJwtService_SessionKey(t *testing.T) {
@@ -377,7 +377,7 @@ func TestJwtService_SessionKey(t *testing.T) {
 		require.NoError(t, err)
 		err = service.SetSessionKey(otherAlgKey)
 		require.Error(t, err, "A key for another algorithm should not be accepted as a session key")
-		assert.ErrorContains(t, err, "not valid for the HS256 algorithm")
+		require.ErrorContains(t, err, "not valid for the HS256 algorithm")
 	})
 
 	t.Run("returns an error when the session key is not initialized", func(t *testing.T) {
@@ -385,11 +385,11 @@ func TestJwtService_SessionKey(t *testing.T) {
 
 		_, err := service.GenerateAccessToken(model.User{Base: model.Base{ID: "user123"}}, "", time.Hour)
 		require.Error(t, err)
-		assert.ErrorContains(t, err, "session key is not initialized")
+		require.ErrorContains(t, err, "session key is not initialized")
 
 		_, err = service.VerifyAccessToken("some-token")
 		require.Error(t, err)
-		assert.ErrorContains(t, err, "session key is not initialized")
+		require.ErrorContains(t, err, "session key is not initialized")
 	})
 }
 
@@ -426,7 +426,7 @@ func TestJwtService_GetPublicJWK(t *testing.T) {
 
 	t.Run("returns public key when ECDSA private key is initialized", func(t *testing.T) {
 		// Create an ECDSA key and save it in the database
-		originalKeyID := createECDSAKeyJWK(t, db, instanceID, mockEnvConfig, mockConfig)
+		originalKeyID := createECDSAKeyJWK(t, db, instanceID, mockEnvConfig)
 
 		// Create a JWT service that loads the ECDSA key
 		service := initJwtService(t, db, instanceID, mockConfig, mockEnvConfig)
@@ -462,7 +462,7 @@ func TestJwtService_GetPublicJWK(t *testing.T) {
 		mockEnvConfig := newTestEnvConfig()
 
 		// Create an EdDSA key and save it in the database
-		originalKeyID := createEdDSAKeyJWK(t, db, instanceID, mockEnvConfig, mockConfig)
+		originalKeyID := createEdDSAKeyJWK(t, db, instanceID, mockEnvConfig)
 
 		// Create a JWT service that loads the EdDSA key
 		service := initJwtService(t, db, instanceID, mockConfig, mockEnvConfig)
@@ -602,7 +602,7 @@ func TestGenerateVerifyAccessToken(t *testing.T) {
 	})
 
 	t.Run("works with Ed25519 keys", func(t *testing.T) {
-		origKeyID := createEdDSAKeyJWK(t, db, instanceID, envConfig, mockConfig)
+		origKeyID := createEdDSAKeyJWK(t, db, instanceID, envConfig)
 		service := initJwtService(t, db, instanceID, mockConfig, envConfig)
 
 		loadedKeyID, ok := service.privateKey.KeyID()
@@ -641,7 +641,7 @@ func TestGenerateVerifyAccessToken(t *testing.T) {
 	})
 
 	t.Run("works with P-256 keys", func(t *testing.T) {
-		origKeyID := createECDSAKeyJWK(t, db, instanceID, envConfig, mockConfig)
+		origKeyID := createECDSAKeyJWK(t, db, instanceID, envConfig)
 		service := initJwtService(t, db, instanceID, mockConfig, envConfig)
 
 		loadedKeyID, ok := service.privateKey.KeyID()
@@ -680,7 +680,7 @@ func TestGenerateVerifyAccessToken(t *testing.T) {
 	})
 
 	t.Run("works with RSA-4096 keys", func(t *testing.T) {
-		origKeyID := createRSA4096KeyJWK(t, db, instanceID, envConfig, mockConfig)
+		origKeyID := createRSA4096KeyJWK(t, db, instanceID, envConfig)
 		service := initJwtService(t, db, instanceID, mockConfig, envConfig)
 
 		loadedKeyID, ok := service.privateKey.KeyID()
@@ -763,13 +763,13 @@ func TestTokenTypeValidator(t *testing.T) {
 	})
 }
 
-func importKey(t *testing.T, db *gorm.DB, instanceID string, envConfig *common.EnvConfigSchema, appConfig *appconfig.AppConfigService, privateKeyRaw any) string {
+func importKey(t *testing.T, db *gorm.DB, instanceID string, envConfig *common.EnvConfigSchema, privateKeyRaw any) string {
 	t.Helper()
 
 	privateKey, err := jwkutils.ImportRawKey(privateKeyRaw, "", "")
 	require.NoError(t, err, "Failed to import private key")
 
-	return saveKeyToDatabase(t, db, instanceID, envConfig, appConfig, privateKey)
+	return saveKeyToDatabase(t, db, instanceID, envConfig, privateKey)
 }
 
 // Because generating a RSA-406 key isn't immediate, we pre-compute one
@@ -778,7 +778,7 @@ var (
 	rsaKeyPrecomputeOnce sync.Once
 )
 
-func createRSA4096KeyJWK(t *testing.T, db *gorm.DB, instanceID string, envConfig *common.EnvConfigSchema, appConfig *appconfig.AppConfigService) string {
+func createRSA4096KeyJWK(t *testing.T, db *gorm.DB, instanceID string, envConfig *common.EnvConfigSchema) string {
 	t.Helper()
 
 	rsaKeyPrecomputeOnce.Do(func() {
@@ -790,10 +790,10 @@ func createRSA4096KeyJWK(t *testing.T, db *gorm.DB, instanceID string, envConfig
 	})
 
 	// Import as JWK and save it
-	return importKey(t, db, instanceID, envConfig, appConfig, rsaKeyPrecomputed)
+	return importKey(t, db, instanceID, envConfig, rsaKeyPrecomputed)
 }
 
-func createECDSAKeyJWK(t *testing.T, db *gorm.DB, instanceID string, envConfig *common.EnvConfigSchema, appConfig *appconfig.AppConfigService) string {
+func createECDSAKeyJWK(t *testing.T, db *gorm.DB, instanceID string, envConfig *common.EnvConfigSchema) string {
 	t.Helper()
 
 	// Generate a new P-256 ECDSA key
@@ -801,11 +801,11 @@ func createECDSAKeyJWK(t *testing.T, db *gorm.DB, instanceID string, envConfig *
 	require.NoError(t, err, "Failed to generate ECDSA key")
 
 	// Import as JWK and save it
-	return importKey(t, db, instanceID, envConfig, appConfig, privateKeyRaw)
+	return importKey(t, db, instanceID, envConfig, privateKeyRaw)
 }
 
 // Helper function to create an Ed25519 key and save it as JWK
-func createEdDSAKeyJWK(t *testing.T, db *gorm.DB, instanceID string, envConfig *common.EnvConfigSchema, appConfig *appconfig.AppConfigService) string {
+func createEdDSAKeyJWK(t *testing.T, db *gorm.DB, instanceID string, envConfig *common.EnvConfigSchema) string {
 	t.Helper()
 
 	// Generate a new Ed25519 key pair
@@ -813,5 +813,5 @@ func createEdDSAKeyJWK(t *testing.T, db *gorm.DB, instanceID string, envConfig *
 	require.NoError(t, err, "Failed to generate Ed25519 key")
 
 	// Import as JWK and save it
-	return importKey(t, db, instanceID, envConfig, appConfig, privateKeyRaw)
+	return importKey(t, db, instanceID, envConfig, privateKeyRaw)
 }
