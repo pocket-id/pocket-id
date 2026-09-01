@@ -147,7 +147,7 @@ func rotateJWKEncryption(ctx context.Context, db *gorm.DB, oldKek []byte, newKek
 		return fmt.Errorf("failed to init key provider for %q with new encryption key: %w", dbKey, err)
 	}
 
-	err = newProvider.SaveKey(ctx, key)
+	err = newProvider.ReplaceKey(ctx, key)
 	if err != nil {
 		return fmt.Errorf("failed to store key %q with new encryption key: %w", dbKey, err)
 	}

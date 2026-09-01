@@ -113,7 +113,7 @@ func keyRotate(ctx context.Context, flags keyRotateFlags, db *gorm.DB, instanceI
 	}
 
 	// Save the key
-	err = keyProvider.SaveKey(ctx, key)
+	err = keyProvider.ReplaceKey(ctx, key)
 	if err != nil {
 		return fmt.Errorf("failed to store new key: %w", err)
 	}
@@ -150,7 +150,7 @@ func sessionKeyRotate(ctx context.Context, flags keyRotateFlags, db *gorm.DB, in
 	}
 
 	// Save the key
-	err = keyProvider.SaveKey(ctx, key)
+	err = keyProvider.ReplaceKey(ctx, key)
 	if err != nil {
 		return fmt.Errorf("failed to store new session key: %w", err)
 	}

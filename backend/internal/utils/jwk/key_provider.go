@@ -21,6 +21,7 @@ type KeyProvider interface {
 	Init(opts KeyProviderOpts) error
 	LoadKey(ctx context.Context) (jwk.Key, error)
 	SaveKey(ctx context.Context, key jwk.Key) error
+	ReplaceKey(ctx context.Context, key jwk.Key) error
 }
 
 // GetKeyProvider returns the provider for the key used to sign tokens that are consumed externally, such as ID tokens and access tokens for apps

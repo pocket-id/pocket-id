@@ -23,6 +23,9 @@ const (
 	SessionKeyDBKey = "session_key.json"
 )
 
+// ErrRetryKeyStorage signals that the caller should reload the key before trying to store it again
+var ErrRetryKeyStorage = errors.New("retry key storage")
+
 type KeyProviderDatabase struct {
 	db    *gorm.DB
 	kek   []byte
@@ -88,23 +91,43 @@ func (f *KeyProviderDatabase) LoadKey(ctx context.Context) (key jwk.Key, err err
 }
 
 func (f *KeyProviderDatabase) SaveKey(ctx context.Context, key jwk.Key) error {
-	// Encode the key to JSON
-	data, err := EncodeJWKBytes(key)
+	// Prepare the encrypted database value before attempting the insert
+	row, err := f.prepareKeyRow(key)
 	if err != nil {
-		return fmt.Errorf("failed to encode key to JSON: %w", err)
+		return err
 	}
 
-	// Encrypt the key then encode to Base64
-	enc, err := cryptoutils.Encrypt(f.kek, data, nil)
-	if err != nil {
-		return fmt.Errorf("failed to encrypt key: %w", err)
-	}
-	// Save to database
-	row := model.KV{
-		Key:   f.dbKey,
-		Value: new(base64.StdEncoding.EncodeToString(enc)),
+	// Insert only if the key doesn't exist yet
+	ctx, cancel := context.WithTimeout(ctx, 10*time.Second)
+	defer cancel()
+	result := f.db.
+		WithContext(ctx).
+		Clauses(clause.OnConflict{
+			Columns:   []clause.Column{{Name: "key"}},
+			DoNothing: true,
+		}).
+		Create(&row)
+	if result.Error != nil {
+		// Preserve ordinary database failures because only an existing row can be resolved by reloading
+		return fmt.Errorf("failed to store key in database: %w", result.Error)
 	}
 
+	// Ask the caller to reload the winning key when another writer created the row first
+	if result.RowsAffected == 0 {
+		return ErrRetryKeyStorage
+	}
+
+	return nil
+}
+
+func (f *KeyProviderDatabase) ReplaceKey(ctx context.Context, key jwk.Key) error {
+	// Prepare the encrypted database value before attempting the replacement
+	row, err := f.prepareKeyRow(key)
+	if err != nil {
+		return err
+	}
+
+	// Upsert explicitly because key rotation must replace an existing key and can also recover a missing row
 	ctx, cancel := context.WithTimeout(ctx, 10*time.Second)
 	defer cancel()
 	err = f.db.
@@ -116,12 +139,30 @@ func (f *KeyProviderDatabase) SaveKey(ctx context.Context, key jwk.Key) error {
 		Create(&row).
 		Error
 	if err != nil {
-		// There's one scenario where if Pocket ID is started fresh with more than 1 replica, they both could be trying to create the key in the database at the same time
-		// In this case, only one of the replicas will succeed and the other one(s) will return an error here, which will cascade down and cause the replica(s) to crash and be restarted (at that point they'll load the then-existing key from the database)
-		return fmt.Errorf("failed to store key in database: %w", err)
+		return fmt.Errorf("failed to replace key in database: %w", err)
 	}
 
 	return nil
+}
+
+func (f *KeyProviderDatabase) prepareKeyRow(key jwk.Key) (model.KV, error) {
+	// Encode the key to JSON
+	data, err := EncodeJWKBytes(key)
+	if err != nil {
+		return model.KV{}, fmt.Errorf("failed to encode key to JSON: %w", err)
+	}
+
+	// Encrypt the key then encode to Base64
+	enc, err := cryptoutils.Encrypt(f.kek, data, nil)
+	if err != nil {
+		return model.KV{}, fmt.Errorf("failed to encrypt key: %w", err)
+	}
+
+	// Build the row once so inserts and explicit replacements encode keys identically
+	return model.KV{
+		Key:   f.dbKey,
+		Value: new(base64.StdEncoding.EncodeToString(enc)),
+	}, nil
 }
 
 // Compile-time interface check

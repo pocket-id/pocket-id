@@ -1,11 +1,13 @@
 package service
 
 import (
+	"context"
 	"crypto/ecdsa"
 	"crypto/ed25519"
 	"crypto/elliptic"
 	"crypto/rand"
 	"crypto/rsa"
+	"errors"
 	"sync"
 	"testing"
 	"time"
@@ -78,7 +80,7 @@ func saveKeyToDatabase(t *testing.T, db *gorm.DB, instanceID string, envConfig *
 	keyProvider, err := jwkutils.GetKeyProvider(db, envConfig, instanceID)
 	require.NoError(t, err, "Failed to init key provider")
 
-	err = keyProvider.SaveKey(t.Context(), key)
+	err = keyProvider.ReplaceKey(t.Context(), key)
 	require.NoError(t, err, "Failed to save key")
 
 	kid, ok := key.KeyID()
@@ -188,6 +190,51 @@ func TestJwtService_Init(t *testing.T) {
 			assert.Equal(t, origKeyID, loadedKeyID, "Loaded key should have the same ID as the original")
 	})
 
+	for _, dbKey := range []string{jwkutils.PrivateKeyDBKey, jwkutils.SessionKeyDBKey} {
+		t.Run("should not retry a failed database write for "+dbKey, func(t *testing.T) {
+			// Configure the database to fail the first attempt for the selected key
+			db := testutils.NewDatabaseForTest(t)
+			mockEnvConfig := newTestEnvConfig()
+			instanceID := newInstanceID(t, db)
+			storeAttempts := 0
+			storeErr := errors.New("test database error")
+
+			err := db.Callback().Create().Before("gorm:create").Register("fail_first_key_storage", func(tx *gorm.DB) {
+				row, ok := tx.Statement.Dest.(*model.KV)
+				if !ok || row.Key != dbKey {
+					return
+				}
+
+				storeAttempts++
+				if storeAttempts == 1 {
+					_ = tx.AddError(storeErr)
+				}
+			})
+			require.NoError(t, err)
+
+			// Initialize the service and preserve the ordinary database failure
+			service := &JwtService{}
+			err = service.init(t.Context(), db, instanceID, mockEnvConfig)
+			require.ErrorIs(t, err, storeErr)
+
+			// Verify the failed write was not retried
+			require.Equal(t, 1, storeAttempts)
+		})
+	}
+
+}
+
+func TestRetryKeyStorageStopsAfterThreeRetries(t *testing.T) {
+	// Return a conflict on every attempt so the retry limit is reached
+	attempts := 0
+	err := retryKeyStorage(t.Context(), func(_ context.Context) error {
+		attempts++
+		return jwkutils.ErrRetryKeyStorage
+	})
+
+	// Verify the initial attempt was followed by exactly three retries
+	require.ErrorIs(t, err, jwkutils.ErrRetryKeyStorage)
+	require.Equal(t, 1+maxKeyStorageRetries, attempts)
 }
 
 func TestJwtService_SessionKey(t *testing.T) {
@@ -304,7 +351,7 @@ func TestJwtService_SessionKey(t *testing.T) {
 		require.NoError(t, err)
 		keyProvider, err := jwkutils.GetSessionKeyProvider(db, mockEnvConfig, instanceID)
 		require.NoError(t, err)
-		require.NoError(t, keyProvider.SaveKey(t.Context(), rotatedKey))
+		require.NoError(t, keyProvider.ReplaceKey(t.Context(), rotatedKey))
 		require.NoError(t, service.LoadOrGenerateKey(t.Context()))
 
 		// Tokens issued with the previous session key must no longer be accepted

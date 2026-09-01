@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"log/slog"
 	"time"
 	"uuid"
 
@@ -15,6 +16,7 @@ import (
 
 	"github.com/pocket-id/pocket-id/backend/internal/common"
 	"github.com/pocket-id/pocket-id/backend/internal/model"
+	"github.com/pocket-id/pocket-id/backend/internal/utils"
 	jwkutils "github.com/pocket-id/pocket-id/backend/internal/utils/jwk"
 )
 
@@ -77,18 +79,40 @@ func (s *JwtService) init(ctx context.Context, db *gorm.DB, instanceID string, e
 // LoadOrGenerateKey loads the signing keys from the database, generating and persisting them if they don't exist yet
 func (s *JwtService) LoadOrGenerateKey(ctx context.Context) error {
 	// Load the key used for tokens that are consumed externally, such as ID tokens and access tokens for apps
-	err := s.loadOrGenerateSigningKey(ctx)
+	err := retryKeyStorage(ctx, s.loadOrGenerateSigningKey)
 	if err != nil {
 		return fmt.Errorf("error loading signing key: %w", err)
 	}
 
 	// Load the key used for Pocket ID's own sessions, which is symmetric
-	err = s.loadOrGenerateSessionKey(ctx)
+	err = retryKeyStorage(ctx, s.loadOrGenerateSessionKey)
 	if err != nil {
 		return fmt.Errorf("error loading session key: %w", err)
 	}
 
 	return nil
+}
+
+func retryKeyStorage(ctx context.Context, loadOrGenerate func(context.Context) error) error {
+	for retries := 0; ; retries++ {
+		// Run the full load and store sequence so a key written by another replica takes precedence
+		err := loadOrGenerate(ctx)
+		if !errors.Is(err, jwkutils.ErrRetryKeyStorage) {
+			return err
+		}
+
+		// Return the last conflict after the configured number of retries has been exhausted
+		if retries == 3 {
+			return err
+		}
+
+		// Wait briefly before reloading so the competing database transaction has time to finish
+		slog.WarnContext(ctx, "Failed to store key, retrying", slog.Int("retry", retries+1), slog.Any("error", err))
+		err = utils.SleepWithContext(ctx, 200*time.Millisecond)
+		if err != nil {
+			return err
+		}
+	}
 }
 
 func (s *JwtService) loadOrGenerateSigningKey(ctx context.Context) error {
