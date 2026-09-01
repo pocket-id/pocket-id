@@ -94,6 +94,19 @@ func (s *BackchannelLogoutService) targetsForAuthorization(ctx context.Context, 
 	return targets, nil
 }
 
+// targetsForClient returns every user who has authorized the given client, when that client is registered for back-channel logout
+func (s *BackchannelLogoutService) targetsForClient(ctx context.Context, tx *gorm.DB, clientID string) ([]backchannelLogoutTarget, error) {
+	var targets []backchannelLogoutTarget
+	err := s.targetsQuery(ctx, tx).
+		Where("user_authorized_oidc_clients.client_id = ?", clientID).
+		Scan(&targets).
+		Error
+	if err != nil {
+		return nil, err
+	}
+	return targets, nil
+}
+
 // targetsForLostGroupAccess returns clients registered for back-channel logout that the matched users have authorized but can no longer access because of the client's group restriction
 // It must run after the group membership or allowed-group change has been committed
 func (s *BackchannelLogoutService) targetsForLostGroupAccess(ctx context.Context, tx *gorm.DB, userIDs []string, clientID string) ([]backchannelLogoutTarget, error) {
@@ -136,6 +149,16 @@ func (s *BackchannelLogoutService) PrepareUserNotifications(ctx context.Context,
 // The returned function behaves like the one from PrepareUserNotifications
 func (s *BackchannelLogoutService) PrepareAuthorizationNotification(ctx context.Context, tx *gorm.DB, userID string, clientID string) (func(), error) {
 	targets, err := s.targetsForAuthorization(ctx, tx, userID, clientID)
+	if err != nil {
+		return func() {}, err
+	}
+	return func() { s.notifyClients(ctx, targets) }, nil
+}
+
+// PrepareClientNotifications resolves, within the given transaction, the logout notifications for every user of a client that is being deleted
+// The returned function behaves like the one from PrepareUserNotifications
+func (s *BackchannelLogoutService) PrepareClientNotifications(ctx context.Context, tx *gorm.DB, clientID string) (func(), error) {
+	targets, err := s.targetsForClient(ctx, tx, clientID)
 	if err != nil {
 		return func() {}, err
 	}

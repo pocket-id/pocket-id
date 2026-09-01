@@ -139,6 +139,27 @@ func TestBackchannelLogoutService_TargetsForAuthorization(t *testing.T) {
 	})
 }
 
+func TestBackchannelLogoutService_TargetsForClient(t *testing.T) {
+	db := testutils.NewDatabaseForTest(t)
+	seedBackchannelLogoutFixtures(t, db)
+	s := NewBackchannelLogoutService(db, nil, nil)
+
+	t.Run("returns every user who authorized the client", func(t *testing.T) {
+		targets, err := s.targetsForClient(t.Context(), db, "client-restricted")
+		require.NoError(t, err)
+		require.Len(t, targets, 2)
+		userIDs := []string{targets[0].UserID, targets[1].UserID}
+		assert.ElementsMatch(t, []string{"user-1", "user-2"}, userIDs)
+		assert.Equal(t, "https://restricted.example.com/logout", targets[0].LogoutURL)
+	})
+
+	t.Run("returns nothing for a client without a back-channel logout URL", func(t *testing.T) {
+		targets, err := s.targetsForClient(t.Context(), db, "client-silent")
+		require.NoError(t, err)
+		assert.Empty(t, targets)
+	})
+}
+
 func TestBackchannelLogoutService_TargetsForLostGroupAccess(t *testing.T) {
 	db := testutils.NewDatabaseForTest(t)
 	seedBackchannelLogoutFixtures(t, db)

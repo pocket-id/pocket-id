@@ -325,8 +325,24 @@ func updateOIDCClientModelFromDto(client *model.OidcClient, input *dto.OidcClien
 }
 
 func (s *OidcService) DeleteClient(ctx context.Context, clientID string) error {
+	tx := s.db.Begin()
+	defer func() {
+		tx.Rollback()
+	}()
+
+	// The authorizations cascade away with the client, so the users to notify must be resolved inside the transaction
+	notifyLogout := func() {}
+	if s.backchannelLogout != nil {
+		var err error
+		notifyLogout, err = s.backchannelLogout.PrepareClientNotifications(ctx, tx, clientID)
+		if err != nil {
+			// Notifications are best effort and must never block the deletion itself
+			slog.ErrorContext(ctx, "Failed to prepare back-channel logout notifications for client", slog.String("clientId", clientID), slog.Any("error", err))
+		}
+	}
+
 	var client model.OidcClient
-	result := s.db.
+	result := tx.
 		WithContext(ctx).
 		Where("id = ?", clientID).
 		Clauses(clause.Returning{}).
@@ -337,6 +353,14 @@ func (s *OidcService) DeleteClient(ctx context.Context, clientID string) error {
 	if result.RowsAffected == 0 {
 		return apperror.NotFound("OIDC client")
 	}
+
+	err := tx.Commit().Error
+	if err != nil {
+		return err
+	}
+
+	// The deleted client keeps serving its signed-in users, so tell it to end their sessions
+	notifyLogout()
 
 	// Delete images if present
 	// Note that storage operations must be done outside of a transaction
