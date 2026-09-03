@@ -4,7 +4,9 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"testing"
+	"time"
 
+	"github.com/italypaleale/francis/host/local"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"gorm.io/gorm"
@@ -63,7 +65,7 @@ func seedFixtures(t *testing.T, db *gorm.DB) {
 func TestService_TargetsForUsers(t *testing.T) {
 	db := testutils.NewDatabaseForTest(t)
 	seedFixtures(t, db)
-	s := NewService(db, stubSigner{}, nil)
+	s := &Service{db: db}
 
 	targets, err := s.targetsForUsers(t.Context(), db, []string{"user-1"})
 	require.NoError(t, err)
@@ -82,7 +84,7 @@ func TestService_TargetsForUsers(t *testing.T) {
 func TestService_TargetsForAuthorization(t *testing.T) {
 	db := testutils.NewDatabaseForTest(t)
 	seedFixtures(t, db)
-	s := NewService(db, stubSigner{}, nil)
+	s := &Service{db: db}
 
 	t.Run("returns the authorized client", func(t *testing.T) {
 		targets, err := s.targetsForAuthorization(t.Context(), db, "user-1", "client-open")
@@ -108,7 +110,7 @@ func TestService_TargetsForAuthorization(t *testing.T) {
 func TestService_TargetsForClient(t *testing.T) {
 	db := testutils.NewDatabaseForTest(t)
 	seedFixtures(t, db)
-	s := NewService(db, stubSigner{}, nil)
+	s := &Service{db: db}
 
 	t.Run("returns every user who authorized the client", func(t *testing.T) {
 		targets, err := s.targetsForClient(t.Context(), db, "client-restricted")
@@ -129,7 +131,7 @@ func TestService_TargetsForClient(t *testing.T) {
 func TestService_TargetsForLostGroupAccess(t *testing.T) {
 	db := testutils.NewDatabaseForTest(t)
 	seedFixtures(t, db)
-	s := NewService(db, stubSigner{}, nil)
+	s := &Service{db: db}
 
 	t.Run("member of an allowed group is not returned", func(t *testing.T) {
 		targets, err := s.targetsForLostGroupAccess(t.Context(), db, []string{"user-1"}, "")
@@ -171,7 +173,7 @@ func TestService_TargetsForLostGroupAccess(t *testing.T) {
 func TestService_PrepareUserNotifications(t *testing.T) {
 	db := testutils.NewDatabaseForTest(t)
 	seedFixtures(t, db)
-	s := NewService(db, stubSigner{}, nil)
+	s := &Service{db: db}
 
 	t.Run("returns a notify function for a user with targets", func(t *testing.T) {
 		notify, err := s.PrepareUserNotifications(t.Context(), db, []string{"user-1"})
@@ -191,8 +193,6 @@ func TestService_PrepareUserNotifications(t *testing.T) {
 }
 
 func TestService_sendLogoutToken_refusesRedirects(t *testing.T) {
-	db := testutils.NewDatabaseForTest(t)
-
 	// Following the redirect would turn the POST into a GET without the logout token, so it must be reported as a failure
 	var redirectTargetHit bool
 	redirectTarget := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -205,13 +205,13 @@ func TestService_sendLogoutToken_refusesRedirects(t *testing.T) {
 	}))
 	t.Cleanup(redirecting.Close)
 
-	s := NewService(db, stubSigner{}, redirecting.Client())
+	s := &Service{tokenSigner: stubSigner{}, httpClient: newHTTPClient(redirecting.Client())}
 	err := s.sendLogoutToken(t.Context(), target{UserID: "user-1", ClientID: "client-1", LogoutURL: redirecting.URL})
 	require.ErrorContains(t, err, "302")
 	assert.False(t, redirectTargetHit)
 }
 
-func TestService_notifyClientsSync(t *testing.T) {
+func TestService_notifyClients(t *testing.T) {
 	db := testutils.NewDatabaseForTest(t)
 
 	received := make(chan string, 2)
@@ -224,19 +224,29 @@ func TestService_notifyClientsSync(t *testing.T) {
 	}))
 	t.Cleanup(server.Close)
 
-	s := NewService(db, stubSigner{}, server.Client())
-
 	// A failing target must not prevent delivery to the remaining targets
 	failingServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusBadRequest)
 	}))
 	t.Cleanup(failingServer.Close)
 
-	s.notifyClientsSync(t.Context(), []target{
+	var s *Service
+	testutils.NewActorHostForTest(t, func(t *testing.T, h *local.Host) {
+		var err error
+		s, err = NewService(db, stubSigner{}, server.Client(), h)
+		require.NoError(t, err)
+	})
+
+	s.notifyClients(t.Context(), []target{
 		{UserID: "user-1", ClientID: "client-fail", LogoutURL: failingServer.URL},
 		{UserID: "user-1", ClientID: "client-ok", LogoutURL: server.URL},
 	})
 
-	require.Len(t, received, 1)
-	assert.Equal(t, "logout-token-user-1-client-ok", <-received)
+	// The jobs are executed asynchronously by the actor runtime
+	select {
+	case logoutToken := <-received:
+		assert.Equal(t, "logout-token-user-1-client-ok", logoutToken)
+	case <-time.After(10 * time.Second):
+		t.Fatal("timed out waiting for the logout token to be delivered")
+	}
 }

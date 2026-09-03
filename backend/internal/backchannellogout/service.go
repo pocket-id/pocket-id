@@ -7,21 +7,17 @@ import (
 	"net/http"
 	"net/url"
 	"strings"
-	"sync"
 	"time"
 
+	"github.com/italypaleale/francis/actor"
+	"github.com/italypaleale/francis/host/local"
 	"gorm.io/gorm"
 
 	"github.com/pocket-id/pocket-id/backend/internal/model"
 )
 
-const (
-	// requestTimeout bounds each notification POST, so one unreachable client cannot stall the others
-	requestTimeout = 10 * time.Second
-
-	// concurrency caps the parallel notification POSTs, so revoking access for many users still finishes in reasonable time without flooding clients
-	concurrency = 4
-)
+// requestTimeout bounds each notification POST, so one unreachable client cannot stall the others
+const requestTimeout = 10 * time.Second
 
 // TokenSigner mints the logout tokens delivered to clients
 type TokenSigner interface {
@@ -29,31 +25,47 @@ type TokenSigner interface {
 }
 
 // Service sends OIDC Back-Channel Logout 1.0 tokens to clients when a user's access is revoked
-// Delivery is best effort: failures are logged and never retried
+// Deliveries are scheduled as durable jobs, so they survive a restart and failed attempts are retried a capped number of times before giving up
 type Service struct {
 	db          *gorm.DB
 	tokenSigner TokenSigner
 	httpClient  *http.Client
+	actors      *actor.Service
 }
 
-func NewService(db *gorm.DB, tokenSigner TokenSigner, httpClient *http.Client) *Service {
-	if httpClient == nil {
-		httpClient = http.DefaultClient
+func NewService(db *gorm.DB, tokenSigner TokenSigner, httpClient *http.Client, actorsHost *local.Host) (*Service, error) {
+	s := &Service{
+		db:          db,
+		tokenSigner: tokenSigner,
+		httpClient:  newHTTPClient(httpClient),
+		actors:      actorsHost.Service(),
 	}
 
-	// Refuse to follow redirects, as Go would turn the POST into a body-less GET and the logout token would be silently dropped
-	// Returning the redirect response instead makes the delivery fail loudly on the status check
-	httpClient = &http.Client{
-		Transport: httpClient.Transport,
+	err := actorsHost.RegisterActor(
+		ActorType,
+		s.newNotifierActor,
+		local.WithConcurrencyLimit(deliveryConcurrency),
+		local.WithMaxAttempts(deliveryMaxAttempts),
+	)
+	if err != nil {
+		return nil, fmt.Errorf("error registering the %s actor: %w", ActorType, err)
+	}
+
+	return s, nil
+}
+
+// newHTTPClient refuses to follow redirects, as Go would turn the POST into a body-less GET and the logout token would be silently dropped
+// Returning the redirect response instead makes the delivery fail loudly on the status check
+func newHTTPClient(source *http.Client) *http.Client {
+	if source == nil {
+		source = http.DefaultClient
+	}
+
+	return &http.Client{
+		Transport: source.Transport,
 		CheckRedirect: func(_ *http.Request, _ []*http.Request) error {
 			return http.ErrUseLastResponse
 		},
-	}
-
-	return &Service{
-		db:          db,
-		tokenSigner: tokenSigner,
-		httpClient:  httpClient,
 	}
 }
 
@@ -209,42 +221,21 @@ func (s *Service) notifyLostGroupAccess(ctx context.Context, userIDs []string, c
 	s.notifyClients(ctx, targets)
 }
 
-// notifyClients delivers logout tokens to the given clients in the background, so callers are never blocked on slow or unreachable clients
+// notifyClients schedules a durable delivery job for each of the given clients, so callers are never blocked on slow or unreachable clients
 // It must be called after the change that revoked the user's access has been committed
 func (s *Service) notifyClients(ctx context.Context, targets []target) {
-	if len(targets) == 0 {
-		return
-	}
-
-	// The caller's request context ends with its HTTP response, so delivery detaches from its cancellation while keeping its values
-	go s.notifyClientsSync(context.WithoutCancel(ctx), targets)
-}
-
-func (s *Service) notifyClientsSync(ctx context.Context, targets []target) {
-	semaphore := make(chan struct{}, concurrency)
-	var waitGroup sync.WaitGroup
-
 	for _, t := range targets {
-		semaphore <- struct{}{}
-
-		waitGroup.Go(func() {
-			defer func() {
-				<-semaphore
-			}()
-
-			err := s.sendLogoutToken(ctx, t)
-			if err != nil {
-				slog.ErrorContext(ctx, "Failed to deliver back-channel logout token",
-					slog.String("clientId", t.ClientID),
-					slog.String("userId", t.UserID),
-					slog.String("logoutUrl", t.LogoutURL),
-					slog.Any("error", err),
-				)
-			}
-		})
+		// One actor per authorization keeps deliveries for the same user and client serialized, while the actor type's concurrency limit caps the parallel POSTs
+		actorID := t.ClientID + ":" + t.UserID
+		_, err := s.actors.Dispatch(ctx, ActorType, actorID, methodDeliver, t)
+		if err != nil {
+			slog.ErrorContext(ctx, "Failed to schedule back-channel logout notification",
+				slog.String("clientId", t.ClientID),
+				slog.String("userId", t.UserID),
+				slog.Any("error", err),
+			)
+		}
 	}
-
-	waitGroup.Wait()
 }
 
 func (s *Service) sendLogoutToken(parentCtx context.Context, t target) error {

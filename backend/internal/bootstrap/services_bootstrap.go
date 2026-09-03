@@ -175,7 +175,10 @@ func initServices(
 		return nil, fmt.Errorf("failed to create OIDC module: %w", err)
 	}
 
-	backchannelLogoutService := backchannellogout.NewService(db, svc.jwtService, httpClient)
+	backchannelLogoutService, err := backchannellogout.NewService(db, svc.jwtService, httpClient, actors)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create back-channel logout service: %w", err)
+	}
 
 	svc.oidcService, err = service.NewOidcService(db, svc.jwtService, svc.oidcModule.Preview, svc.oidcModule, svc.scimSyncModule, backchannelLogoutService, httpClient, fileStorage)
 	if err != nil {
