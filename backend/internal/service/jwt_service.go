@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"log/slog"
 	"time"
 	"uuid"
 
@@ -15,6 +16,7 @@ import (
 
 	"github.com/pocket-id/pocket-id/backend/internal/common"
 	"github.com/pocket-id/pocket-id/backend/internal/model"
+	"github.com/pocket-id/pocket-id/backend/internal/utils"
 	jwkutils "github.com/pocket-id/pocket-id/backend/internal/utils/jwk"
 )
 
@@ -43,9 +45,12 @@ const (
 )
 
 type JwtService struct {
-	db          *gorm.DB
-	envConfig   *common.EnvConfigSchema
-	privateKey  jwk.Key
+	db        *gorm.DB
+	envConfig *common.EnvConfigSchema
+	// privateKey signs tokens that are consumed externally, such as ID tokens and access tokens for apps
+	privateKey jwk.Key
+	// sessionKey is the symmetric key that signs Pocket ID's own session tokens
+	sessionKey  jwk.Key
 	keyId       string
 	instanceID  string
 	jwksEncoded []byte
@@ -71,7 +76,46 @@ func (s *JwtService) init(ctx context.Context, db *gorm.DB, instanceID string, e
 	return s.LoadOrGenerateKey(ctx)
 }
 
+// LoadOrGenerateKey loads the signing keys from the database, generating and persisting them if they don't exist yet
 func (s *JwtService) LoadOrGenerateKey(ctx context.Context) error {
+	// Load the key used for tokens that are consumed externally, such as ID tokens and access tokens for apps
+	err := retryKeyStorage(ctx, s.loadOrGenerateSigningKey)
+	if err != nil {
+		return fmt.Errorf("error loading signing key: %w", err)
+	}
+
+	// Load the key used for Pocket ID's own sessions, which is symmetric
+	err = retryKeyStorage(ctx, s.loadOrGenerateSessionKey)
+	if err != nil {
+		return fmt.Errorf("error loading session key: %w", err)
+	}
+
+	return nil
+}
+
+func retryKeyStorage(ctx context.Context, loadOrGenerate func(context.Context) error) error {
+	for retries := 0; ; retries++ {
+		// Run the full load and store sequence so a key written by another replica takes precedence
+		err := loadOrGenerate(ctx)
+		if !errors.Is(err, jwkutils.ErrRetryKeyStorage) {
+			return err
+		}
+
+		// Return the last conflict after the configured number of retries has been exhausted
+		if retries == 3 {
+			return err
+		}
+
+		// Wait briefly before reloading so the competing database transaction has time to finish
+		slog.WarnContext(ctx, "Failed to store key, retrying", slog.Int("retry", retries+1), slog.Any("error", err))
+		err = utils.SleepWithContext(ctx, 200*time.Millisecond)
+		if err != nil {
+			return err
+		}
+	}
+}
+
+func (s *JwtService) loadOrGenerateSigningKey(ctx context.Context) error {
 	// Get the key provider
 	keyProvider, err := jwkutils.GetKeyProvider(s.db, s.envConfig, s.instanceID)
 	if err != nil {
@@ -103,6 +147,49 @@ func (s *JwtService) LoadOrGenerateKey(ctx context.Context) error {
 	err = keyProvider.SaveKey(ctx, s.privateKey)
 	if err != nil {
 		return fmt.Errorf("failed to save private key: %w", err)
+	}
+
+	return nil
+}
+
+func (s *JwtService) loadOrGenerateSessionKey(ctx context.Context) error {
+	// Get the key provider for the session key
+	keyProvider, err := jwkutils.GetSessionKeyProvider(s.db, s.envConfig, s.instanceID)
+	if err != nil {
+		return fmt.Errorf("failed to get session key provider: %w", err)
+	}
+
+	// Try loading a key
+	key, err := keyProvider.LoadKey(ctx)
+	if err != nil {
+		return fmt.Errorf("failed to load session key: %w", err)
+	}
+
+	// If we have a key, store it in the object and we're done
+	if key != nil {
+		err = s.SetSessionKey(key)
+		if err != nil {
+			return fmt.Errorf("failed to set session key: %w", err)
+		}
+		return nil
+	}
+
+	// If we are here, we need to generate a new key
+	key, err = jwkutils.GenerateSessionKey()
+	if err != nil {
+		return fmt.Errorf("failed to generate session key: %w", err)
+	}
+
+	// Set the key in the object, which also validates it
+	err = s.SetSessionKey(key)
+	if err != nil {
+		return fmt.Errorf("failed to set session key: %w", err)
+	}
+
+	// Save the newly-generated key
+	err = keyProvider.SaveKey(ctx, key)
+	if err != nil {
+		return fmt.Errorf("failed to save session key: %w", err)
 	}
 
 	return nil
@@ -147,6 +234,34 @@ func ValidateKey(privateKey jwk.Key) error {
 	return nil
 }
 
+// ValidateSessionKey validates the symmetric key used to sign session tokens
+func ValidateSessionKey(sessionKey jwk.Key) error {
+	// Validate the loaded key
+	err := sessionKey.Validate()
+	if err != nil {
+		return fmt.Errorf("key object is invalid: %w", err)
+	}
+	if sessionKey.KeyType() != jwa.OctetSeq() {
+		return errors.New("key object is not a symmetric key")
+	}
+	keyID, ok := sessionKey.KeyID()
+	if !ok || keyID == "" {
+		return errors.New("key object does not contain a key ID")
+	}
+	usage, ok := sessionKey.KeyUsage()
+	if !ok || usage != KeyUsageSigning {
+		return errors.New("key object is not valid for signing")
+	}
+
+	// Session tokens are always signed with the same algorithm, so a key for anything else can't be used
+	alg, ok := sessionKey.Algorithm()
+	if !ok || alg == nil || alg.String() != jwkutils.SessionKeyAlg().String() {
+		return fmt.Errorf("key object is not valid for the %s algorithm", jwkutils.SessionKeyAlg().String())
+	}
+
+	return nil
+}
+
 func (s *JwtService) SetKey(privateKey jwk.Key) error {
 	// Validate the loaded key
 	err := ValidateKey(privateKey)
@@ -181,7 +296,24 @@ func (s *JwtService) SetKey(privateKey jwk.Key) error {
 	return nil
 }
 
+// SetSessionKey sets the symmetric key used to sign session tokens
+// This key is never published in the JWKS, since it's a shared secret that only Pocket ID needs
+func (s *JwtService) SetSessionKey(sessionKey jwk.Key) error {
+	err := ValidateSessionKey(sessionKey)
+	if err != nil {
+		return fmt.Errorf("session key is not valid: %w", err)
+	}
+
+	s.sessionKey = sessionKey
+
+	return nil
+}
+
 func (s *JwtService) GenerateAccessToken(user model.User, authenticationMethod string, sessionDuration time.Duration) (string, error) {
+	if s.sessionKey == nil {
+		return "", errors.New("session key is not initialized")
+	}
+
 	now := time.Now()
 	token, err := jwt.NewBuilder().
 		Subject(user.ID).
@@ -214,8 +346,8 @@ func (s *JwtService) GenerateAccessToken(user model.User, authenticationMethod s
 		return "", fmt.Errorf("failed to set '%s' claim in token: %w", common.AuthenticationMethodsClaim, err)
 	}
 
-	alg, _ := s.privateKey.Algorithm()
-	signed, err := jwt.Sign(token, jwt.WithKey(alg, s.privateKey))
+	// Session tokens are signed with the symmetric session key
+	signed, err := jwt.Sign(token, jwt.WithKey(jwkutils.SessionKeyAlg(), s.sessionKey))
 	if err != nil {
 		return "", fmt.Errorf("failed to sign token: %w", err)
 	}
@@ -224,11 +356,14 @@ func (s *JwtService) GenerateAccessToken(user model.User, authenticationMethod s
 }
 
 func (s *JwtService) VerifyAccessToken(tokenString string) (jwt.Token, error) {
-	alg, _ := s.privateKey.Algorithm()
+	if s.sessionKey == nil {
+		return nil, errors.New("session key is not initialized")
+	}
+
 	token, err := jwt.ParseString(
 		tokenString,
 		jwt.WithValidate(true),
-		jwt.WithKey(alg, s.privateKey),
+		jwt.WithKey(jwkutils.SessionKeyAlg(), s.sessionKey),
 		jwt.WithAcceptableSkew(clockSkew),
 		jwt.WithAudience(s.envConfig.AppURL),
 		jwt.WithIssuer(s.envConfig.AppURL),

@@ -6,6 +6,7 @@ import (
 	"crypto/elliptic"
 	"crypto/rand"
 	"crypto/rsa"
+	"crypto/sha256"
 	"encoding/hex"
 	"testing"
 
@@ -154,6 +155,40 @@ func TestGenerateKey(t *testing.T) {
 	}
 }
 
+func TestGenerateSessionKey(t *testing.T) {
+	key, err := GenerateSessionKey()
+	require.NoError(t, err)
+	require.NotNil(t, key)
+
+	// The session key must be a symmetric key for HS256
+	assert.Equal(t, jwa.OctetSeq(), key.KeyType())
+	alg, ok := key.Algorithm()
+	_ = assert.True(t, ok, "algorithm should be set in the key") &&
+		assert.Equal(t, jwa.HS256().String(), alg.String())
+
+	// Verify other required fields are set
+	kid, ok := key.KeyID()
+	_ = assert.True(t, ok, "key ID should be set") &&
+		assert.NotEmpty(t, kid, "key ID should not be empty")
+
+	usage, ok := key.KeyUsage()
+	_ = assert.True(t, ok, "key usage should be set") &&
+		assert.Equal(t, KeyUsageSigning, usage)
+
+	// Verify the key material has the expected length
+	rawKey, err := jwk.Export[[]byte](key)
+	require.NoError(t, err)
+	assert.Len(t, rawKey, sha256.Size)
+
+	// Each invocation must return a different key
+	otherKey, err := GenerateSessionKey()
+	require.NoError(t, err)
+
+	otherRawKey, err := jwk.Export[[]byte](otherKey)
+	require.NoError(t, err)
+	assert.NotEqual(t, rawKey, otherRawKey, "each generated session key should be different")
+}
+
 func TestEnsureAlgInKey(t *testing.T) {
 	// Generate an RSA-2048 key
 	rsaKey, err := rsa.GenerateKey(rand.Reader, 2048)
@@ -281,6 +316,16 @@ func TestEnsureAlgInKey(t *testing.T) {
 				},
 				expectedAlg: jwa.EdDSA(),
 				expectedCrv: jwa.Ed25519().String(),
+			},
+			{
+				name: "Symmetric key defaults to HS256",
+				keyGen: func() (any, error) {
+					rawKey := make([]byte, sha256.Size)
+					_, err := rand.Read(rawKey)
+					return rawKey, err
+				},
+				expectedAlg: jwa.HS256(),
+				expectedCrv: "",
 			},
 		}
 

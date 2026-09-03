@@ -5,11 +5,13 @@ import (
 	"crypto/elliptic"
 	"crypto/rand"
 	"encoding/base64"
+	"errors"
 	"testing"
 
 	"github.com/lestrrat-go/jwx/v4/jwk"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"gorm.io/gorm"
 
 	"github.com/pocket-id/pocket-id/backend/internal/model"
 	cryptoutils "github.com/pocket-id/pocket-id/backend/internal/utils/crypto"
@@ -256,6 +258,164 @@ func TestKeyProviderDatabase_SaveKey(t *testing.T) {
 		require.NoError(t, err)
 
 		assert.Equal(t, keyBytes, parsedKeyBytes, "Expected saved key to match original key")
+	})
+
+	t.Run("SaveKey returns the database error without the retry sentinel", func(t *testing.T) {
+		db := testutils.NewDatabaseForTest(t)
+		kek := generateTestKEK(t)
+		storeErr := errors.New("test database error")
+
+		err = db.Callback().Create().Before("gorm:create").Register("fail_key_storage", func(tx *gorm.DB) {
+			_ = tx.AddError(storeErr)
+		})
+		require.NoError(t, err)
+
+		provider := &KeyProviderDatabase{}
+		err = provider.Init(KeyProviderOpts{
+			DB:  db,
+			Kek: kek,
+		})
+		require.NoError(t, err)
+
+		err = provider.SaveKey(t.Context(), key)
+		require.ErrorIs(t, err, storeErr)
+		require.NotErrorIs(t, err, ErrRetryKeyStorage)
+		require.ErrorContains(t, err, "failed to store key in database")
+	})
+
+	t.Run("SaveKey keeps the first key when the row already exists", func(t *testing.T) {
+		// Initialize a provider backed by an empty database
+		db := testutils.NewDatabaseForTest(t)
+		provider := &KeyProviderDatabase{}
+		err := provider.Init(KeyProviderOpts{
+			DB:  db,
+			Kek: generateTestKEK(t),
+		})
+		require.NoError(t, err)
+
+		// Store the key that should win the conflict
+		err = provider.SaveKey(t.Context(), key)
+		require.NoError(t, err)
+
+		// Try storing a second key and verify the caller is told to reload
+		replacementKey, err := GenerateKey("ES256", "")
+		require.NoError(t, err)
+		err = provider.SaveKey(t.Context(), replacementKey)
+		require.ErrorIs(t, err, ErrRetryKeyStorage)
+
+		// Reload the row and verify the first key was not overwritten
+		loadedKey, err := provider.LoadKey(t.Context())
+		require.NoError(t, err)
+		loadedKeyBytes, err := EncodeJWKBytes(loadedKey)
+		require.NoError(t, err)
+		keyBytes, err := EncodeJWKBytes(key)
+		require.NoError(t, err)
+		assert.Equal(t, keyBytes, loadedKeyBytes)
+	})
+}
+
+func TestKeyProviderDatabase_ReplaceKey(t *testing.T) {
+	// Initialize a provider and store the original key
+	db := testutils.NewDatabaseForTest(t)
+	provider := &KeyProviderDatabase{}
+	err := provider.Init(KeyProviderOpts{
+		DB:  db,
+		Kek: generateTestKEK(t),
+	})
+	require.NoError(t, err)
+
+	originalKey, err := GenerateKey("ES256", "")
+	require.NoError(t, err)
+	err = provider.SaveKey(t.Context(), originalKey)
+	require.NoError(t, err)
+
+	// Explicitly replace the stored key
+	replacementKey, err := GenerateKey("ES256", "")
+	require.NoError(t, err)
+	err = provider.ReplaceKey(t.Context(), replacementKey)
+	require.NoError(t, err)
+
+	// Reload the row and verify the replacement was persisted
+	loadedKey, err := provider.LoadKey(t.Context())
+	require.NoError(t, err)
+	loadedKeyBytes, err := EncodeJWKBytes(loadedKey)
+	require.NoError(t, err)
+	replacementKeyBytes, err := EncodeJWKBytes(replacementKey)
+	require.NoError(t, err)
+	assert.Equal(t, replacementKeyBytes, loadedKeyBytes)
+}
+
+func TestKeyProviderDatabase_DBKey(t *testing.T) {
+	t.Run("keys stored under different rows do not overwrite each other", func(t *testing.T) {
+		db := testutils.NewDatabaseForTest(t)
+		kek := generateTestKEK(t)
+
+		signingKeyProvider := &KeyProviderDatabase{}
+		err := signingKeyProvider.Init(KeyProviderOpts{
+			DB:    db,
+			Kek:   kek,
+			DBKey: PrivateKeyDBKey,
+		})
+		require.NoError(t, err)
+
+		sessionKeyProvider := &KeyProviderDatabase{}
+		err = sessionKeyProvider.Init(KeyProviderOpts{
+			DB:    db,
+			Kek:   kek,
+			DBKey: SessionKeyDBKey,
+		})
+		require.NoError(t, err)
+
+		// Save a different key with each provider
+		signingKey, err := GenerateKey("ES256", "")
+		require.NoError(t, err)
+		err = signingKeyProvider.SaveKey(t.Context(), signingKey)
+		require.NoError(t, err)
+
+		sessionKey, err := GenerateSessionKey()
+		require.NoError(t, err)
+		err = sessionKeyProvider.SaveKey(t.Context(), sessionKey)
+		require.NoError(t, err)
+
+		// Each provider must load back the key it saved
+		loadedSigningKey, err := signingKeyProvider.LoadKey(t.Context())
+		require.NoError(t, err)
+		require.NotNil(t, loadedSigningKey)
+		signingKid, _ := signingKey.KeyID()
+		loadedSigningKid, _ := loadedSigningKey.KeyID()
+		assert.Equal(t, signingKid, loadedSigningKid)
+
+		loadedSessionKey, err := sessionKeyProvider.LoadKey(t.Context())
+		require.NoError(t, err)
+		require.NotNil(t, loadedSessionKey)
+		sessionKid, _ := sessionKey.KeyID()
+		loadedSessionKid, _ := loadedSessionKey.KeyID()
+		assert.Equal(t, sessionKid, loadedSessionKid)
+
+		// Both rows must exist in the database
+		var count int64
+		err = db.Model(&model.KV{}).Where("key IN ?", []string{PrivateKeyDBKey, SessionKeyDBKey}).Count(&count).Error
+		require.NoError(t, err)
+		assert.Equal(t, int64(2), count)
+	})
+
+	t.Run("defaults to the token signing key row when not set", func(t *testing.T) {
+		db := testutils.NewDatabaseForTest(t)
+		kek := generateTestKEK(t)
+
+		provider := &KeyProviderDatabase{}
+		require.NoError(t, provider.Init(KeyProviderOpts{
+			DB:  db,
+			Kek: kek,
+		}))
+
+		key, err := GenerateKey("ES256", "")
+		require.NoError(t, err)
+		require.NoError(t, provider.SaveKey(t.Context(), key))
+
+		var kv model.KV
+		err = db.Where("key = ?", PrivateKeyDBKey).First(&kv).Error
+		require.NoError(t, err, "Expected the key to be stored in the token signing key row")
 	})
 }
 
