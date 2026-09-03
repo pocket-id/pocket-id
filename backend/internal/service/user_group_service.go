@@ -12,6 +12,7 @@ import (
 	"gorm.io/gorm"
 
 	"github.com/pocket-id/pocket-id/backend/internal/apperror"
+	"github.com/pocket-id/pocket-id/backend/internal/backchannellogout"
 	"github.com/pocket-id/pocket-id/backend/internal/dto"
 	"github.com/pocket-id/pocket-id/backend/internal/model"
 	"github.com/pocket-id/pocket-id/backend/internal/utils"
@@ -20,10 +21,10 @@ import (
 type UserGroupService struct {
 	db                *gorm.DB
 	scimSyncScheduler ScimSyncScheduler
-	backchannelLogout *BackchannelLogoutService
+	backchannelLogout *backchannellogout.Service
 }
 
-func NewUserGroupService(db *gorm.DB, scimSyncScheduler ScimSyncScheduler, backchannelLogout *BackchannelLogoutService) *UserGroupService {
+func NewUserGroupService(db *gorm.DB, scimSyncScheduler ScimSyncScheduler, backchannelLogout *backchannellogout.Service) *UserGroupService {
 	return &UserGroupService{db: db, scimSyncScheduler: scimSyncScheduler, backchannelLogout: backchannelLogout}
 }
 

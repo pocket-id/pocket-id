@@ -1,12 +1,10 @@
-package service
+package backchannellogout
 
 import (
 	"net/http"
 	"net/http/httptest"
 	"testing"
 
-	"github.com/lestrrat-go/jwx/v4/jws"
-	"github.com/lestrrat-go/jwx/v4/jwt"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"gorm.io/gorm"
@@ -15,47 +13,15 @@ import (
 	testutils "github.com/pocket-id/pocket-id/backend/internal/utils/testing"
 )
 
-func TestGenerateLogoutToken(t *testing.T) {
-	db := testutils.NewDatabaseForTest(t)
-	envConfig := newTestEnvConfig()
-	jwtService := initJwtService(t, db, newInstanceID(t, db), nil, envConfig)
+// stubSigner returns a recognizable token so delivery tests can assert what was posted without a real key
+// Logout token contents are covered by the JWT service's own tests
+type stubSigner struct{}
 
-	signed, err := jwtService.GenerateLogoutToken("user-id", "client-id")
-	require.NoError(t, err)
-
-	// The token must carry the "logout+jwt" typ header required by the spec
-	message, err := jws.Parse([]byte(signed))
-	require.NoError(t, err)
-	require.Len(t, message.Signatures(), 1)
-	typ, ok := message.Signatures()[0].ProtectedHeaders().Type()
-	require.True(t, ok)
-	assert.Equal(t, LogoutTokenJWTTyp, typ)
-
-	alg, err := jwtService.GetKeyAlg()
-	require.NoError(t, err)
-	publicKey, err := jwtService.GetPublicJWK()
-	require.NoError(t, err)
-	token, err := jwt.ParseString(signed, jwt.WithValidate(true), jwt.WithKey(alg, publicKey))
-	require.NoError(t, err)
-
-	subject, _ := token.Subject()
-	assert.Equal(t, "user-id", subject)
-	audience, _ := token.Audience()
-	assert.Equal(t, []string{"client-id"}, audience)
-	issuer, _ := token.Issuer()
-	assert.Equal(t, envConfig.AppURL, issuer)
-	jti, _ := token.JwtID()
-	assert.Regexp(t, uuidRegexPattern, jti)
-
-	events, err := jwt.Get[map[string]any](token, "events")
-	require.NoError(t, err)
-	assert.Contains(t, events, BackchannelLogoutEvent)
-
-	// The spec forbids a nonce claim in logout tokens
-	assert.False(t, token.Has("nonce"))
+func (stubSigner) GenerateLogoutToken(userID string, clientID string) (string, error) {
+	return "logout-token-" + userID + "-" + clientID, nil
 }
 
-func seedBackchannelLogoutFixtures(t *testing.T, db *gorm.DB) {
+func seedFixtures(t *testing.T, db *gorm.DB) {
 	t.Helper()
 
 	require.NoError(t, db.Create(&model.User{Base: model.Base{ID: "user-1"}, Username: "user1"}).Error)
@@ -69,7 +35,7 @@ func seedBackchannelLogoutFixtures(t *testing.T, db *gorm.DB) {
 	require.NoError(t, db.Create(&model.OidcClient{
 		Base:                 model.Base{ID: "client-open"},
 		Name:                 "Open Client",
-		BackchannelLogoutURL: new("https://open.example.com/logout"),
+		BackchannelLogoutURL: "https://open.example.com/logout",
 	}).Error)
 
 	// An unrestricted client without a back-channel logout URL
@@ -83,7 +49,7 @@ func seedBackchannelLogoutFixtures(t *testing.T, db *gorm.DB) {
 		Base:                 model.Base{ID: "client-restricted"},
 		Name:                 "Restricted Client",
 		IsGroupRestricted:    true,
-		BackchannelLogoutURL: new("https://restricted.example.com/logout"),
+		BackchannelLogoutURL: "https://restricted.example.com/logout",
 	}
 	require.NoError(t, db.Create(&restricted).Error)
 	require.NoError(t, db.Model(&restricted).Association("AllowedUserGroups").Append(&model.UserGroup{Base: model.Base{ID: "group-1"}}))
@@ -94,29 +60,29 @@ func seedBackchannelLogoutFixtures(t *testing.T, db *gorm.DB) {
 	require.NoError(t, db.Create(&model.UserAuthorizedOidcClient{UserID: "user-2", ClientID: "client-restricted"}).Error)
 }
 
-func TestBackchannelLogoutService_TargetsForUsers(t *testing.T) {
+func TestService_TargetsForUsers(t *testing.T) {
 	db := testutils.NewDatabaseForTest(t)
-	seedBackchannelLogoutFixtures(t, db)
-	s := NewBackchannelLogoutService(db, nil, nil)
+	seedFixtures(t, db)
+	s := NewService(db, stubSigner{}, nil)
 
 	targets, err := s.targetsForUsers(t.Context(), db, []string{"user-1"})
 	require.NoError(t, err)
 
 	// The client without a back-channel logout URL must not be returned
 	require.Len(t, targets, 2)
-	byClient := map[string]backchannelLogoutTarget{}
-	for _, target := range targets {
-		byClient[target.ClientID] = target
+	byClient := map[string]target{}
+	for _, tgt := range targets {
+		byClient[tgt.ClientID] = tgt
 	}
 	assert.Equal(t, "https://open.example.com/logout", byClient["client-open"].LogoutURL)
 	assert.Equal(t, "https://restricted.example.com/logout", byClient["client-restricted"].LogoutURL)
 	assert.Equal(t, "user-1", byClient["client-open"].UserID)
 }
 
-func TestBackchannelLogoutService_TargetsForAuthorization(t *testing.T) {
+func TestService_TargetsForAuthorization(t *testing.T) {
 	db := testutils.NewDatabaseForTest(t)
-	seedBackchannelLogoutFixtures(t, db)
-	s := NewBackchannelLogoutService(db, nil, nil)
+	seedFixtures(t, db)
+	s := NewService(db, stubSigner{}, nil)
 
 	t.Run("returns the authorized client", func(t *testing.T) {
 		targets, err := s.targetsForAuthorization(t.Context(), db, "user-1", "client-open")
@@ -139,10 +105,10 @@ func TestBackchannelLogoutService_TargetsForAuthorization(t *testing.T) {
 	})
 }
 
-func TestBackchannelLogoutService_TargetsForClient(t *testing.T) {
+func TestService_TargetsForClient(t *testing.T) {
 	db := testutils.NewDatabaseForTest(t)
-	seedBackchannelLogoutFixtures(t, db)
-	s := NewBackchannelLogoutService(db, nil, nil)
+	seedFixtures(t, db)
+	s := NewService(db, stubSigner{}, nil)
 
 	t.Run("returns every user who authorized the client", func(t *testing.T) {
 		targets, err := s.targetsForClient(t.Context(), db, "client-restricted")
@@ -160,10 +126,10 @@ func TestBackchannelLogoutService_TargetsForClient(t *testing.T) {
 	})
 }
 
-func TestBackchannelLogoutService_TargetsForLostGroupAccess(t *testing.T) {
+func TestService_TargetsForLostGroupAccess(t *testing.T) {
 	db := testutils.NewDatabaseForTest(t)
-	seedBackchannelLogoutFixtures(t, db)
-	s := NewBackchannelLogoutService(db, nil, nil)
+	seedFixtures(t, db)
+	s := NewService(db, stubSigner{}, nil)
 
 	t.Run("member of an allowed group is not returned", func(t *testing.T) {
 		targets, err := s.targetsForLostGroupAccess(t.Context(), db, []string{"user-1"}, "")
@@ -202,10 +168,10 @@ func TestBackchannelLogoutService_TargetsForLostGroupAccess(t *testing.T) {
 	})
 }
 
-func TestBackchannelLogoutService_PrepareUserNotifications(t *testing.T) {
+func TestService_PrepareUserNotifications(t *testing.T) {
 	db := testutils.NewDatabaseForTest(t)
-	seedBackchannelLogoutFixtures(t, db)
-	s := NewBackchannelLogoutService(db, nil, nil)
+	seedFixtures(t, db)
+	s := NewService(db, stubSigner{}, nil)
 
 	t.Run("returns a notify function for a user with targets", func(t *testing.T) {
 		notify, err := s.PrepareUserNotifications(t.Context(), db, []string{"user-1"})
@@ -219,15 +185,13 @@ func TestBackchannelLogoutService_PrepareUserNotifications(t *testing.T) {
 		require.NoError(t, err)
 		require.NotNil(t, notify)
 
-		// There is nothing to send, so the delivery must not reach the nil JWT service the test constructed the service with
+		// There is nothing to send, so calling the function must be a no-op
 		assert.NotPanics(t, notify)
 	})
 }
 
-func TestBackchannelLogoutService_sendLogoutToken_refusesRedirects(t *testing.T) {
+func TestService_sendLogoutToken_refusesRedirects(t *testing.T) {
 	db := testutils.NewDatabaseForTest(t)
-	envConfig := newTestEnvConfig()
-	jwtService := initJwtService(t, db, newInstanceID(t, db), nil, envConfig)
 
 	// Following the redirect would turn the POST into a GET without the logout token, so it must be reported as a failure
 	var redirectTargetHit bool
@@ -241,16 +205,14 @@ func TestBackchannelLogoutService_sendLogoutToken_refusesRedirects(t *testing.T)
 	}))
 	t.Cleanup(redirecting.Close)
 
-	s := NewBackchannelLogoutService(db, jwtService, redirecting.Client())
-	err := s.sendLogoutToken(t.Context(), backchannelLogoutTarget{UserID: "user-1", ClientID: "client-1", LogoutURL: redirecting.URL})
+	s := NewService(db, stubSigner{}, redirecting.Client())
+	err := s.sendLogoutToken(t.Context(), target{UserID: "user-1", ClientID: "client-1", LogoutURL: redirecting.URL})
 	require.ErrorContains(t, err, "302")
 	assert.False(t, redirectTargetHit)
 }
 
-func TestBackchannelLogoutService_notifyClientsSync(t *testing.T) {
+func TestService_notifyClientsSync(t *testing.T) {
 	db := testutils.NewDatabaseForTest(t)
-	envConfig := newTestEnvConfig()
-	jwtService := initJwtService(t, db, newInstanceID(t, db), nil, envConfig)
 
 	received := make(chan string, 2)
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -262,7 +224,7 @@ func TestBackchannelLogoutService_notifyClientsSync(t *testing.T) {
 	}))
 	t.Cleanup(server.Close)
 
-	s := NewBackchannelLogoutService(db, jwtService, server.Client())
+	s := NewService(db, stubSigner{}, server.Client())
 
 	// A failing target must not prevent delivery to the remaining targets
 	failingServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -270,24 +232,11 @@ func TestBackchannelLogoutService_notifyClientsSync(t *testing.T) {
 	}))
 	t.Cleanup(failingServer.Close)
 
-	s.notifyClientsSync(t.Context(), []backchannelLogoutTarget{
+	s.notifyClientsSync(t.Context(), []target{
 		{UserID: "user-1", ClientID: "client-fail", LogoutURL: failingServer.URL},
 		{UserID: "user-1", ClientID: "client-ok", LogoutURL: server.URL},
 	})
 
 	require.Len(t, received, 1)
-	logoutToken := <-received
-	require.NotEmpty(t, logoutToken)
-
-	alg, err := jwtService.GetKeyAlg()
-	require.NoError(t, err)
-	publicKey, err := jwtService.GetPublicJWK()
-	require.NoError(t, err)
-	token, err := jwt.ParseString(logoutToken, jwt.WithValidate(true), jwt.WithKey(alg, publicKey))
-	require.NoError(t, err)
-
-	subject, _ := token.Subject()
-	assert.Equal(t, "user-1", subject)
-	audience, _ := token.Audience()
-	assert.Equal(t, []string{"client-ok"}, audience)
+	assert.Equal(t, "logout-token-user-1-client-ok", <-received)
 }

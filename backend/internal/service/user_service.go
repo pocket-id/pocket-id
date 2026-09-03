@@ -19,6 +19,7 @@ import (
 
 	"github.com/pocket-id/pocket-id/backend/internal/appconfig"
 	"github.com/pocket-id/pocket-id/backend/internal/apperror"
+	"github.com/pocket-id/pocket-id/backend/internal/backchannellogout"
 	"github.com/pocket-id/pocket-id/backend/internal/dto"
 	"github.com/pocket-id/pocket-id/backend/internal/model"
 	datatype "github.com/pocket-id/pocket-id/backend/internal/model/types"
@@ -34,11 +35,11 @@ type UserService struct {
 	customClaimService *CustomClaimService
 	appImagesService   *AppImagesService
 	scimSyncScheduler  ScimSyncScheduler
-	backchannelLogout  *BackchannelLogoutService
+	backchannelLogout  *backchannellogout.Service
 	fileStorage        storage.FileStorage
 }
 
-func NewUserService(db *gorm.DB, jwtService *JwtService, auditLogService *AuditLogService, customClaimService *CustomClaimService, appImagesService *AppImagesService, scimSyncScheduler ScimSyncScheduler, backchannelLogout *BackchannelLogoutService, fileStorage storage.FileStorage) *UserService {
+func NewUserService(db *gorm.DB, jwtService *JwtService, auditLogService *AuditLogService, customClaimService *CustomClaimService, appImagesService *AppImagesService, scimSyncScheduler ScimSyncScheduler, backchannelLogout *backchannellogout.Service, fileStorage storage.FileStorage) *UserService {
 	return &UserService{
 		db:                 db,
 		jwtService:         jwtService,
@@ -203,11 +204,11 @@ func (s *UserService) DeleteUser(ctx context.Context, dbConfig *appconfig.AppCon
 	notifyLogout := func() {}
 	err := s.db.Transaction(func(tx *gorm.DB) error {
 		if s.backchannelLogout != nil {
-			var err error
-			notifyLogout, err = s.backchannelLogout.PrepareUserNotifications(ctx, tx, []string{userID})
-			if err != nil {
+			var prepareErr error
+			notifyLogout, prepareErr = s.backchannelLogout.PrepareUserNotifications(ctx, tx, []string{userID})
+			if prepareErr != nil {
 				// Notifications are best effort and must never block the deletion itself
-				slog.ErrorContext(ctx, "Failed to prepare back-channel logout notifications for user", slog.String("userId", userID), slog.Any("error", err))
+				slog.ErrorContext(ctx, "Failed to prepare back-channel logout notifications for user", slog.String("userId", userID), slog.Any("error", prepareErr))
 			}
 		}
 

@@ -78,7 +78,7 @@
 		description: z.string().max(150),
 		callbackURLs: z.array(callbackUrlSchema).default([]),
 		logoutCallbackURLs: z.array(callbackUrlSchema).default([]),
-		backchannelLogoutURL: optionalUrl,
+		backchannelLogoutURL: z.url().or(z.literal('')),
 		isPublic: z.boolean(),
 		pkceEnabled: z.boolean(),
 		requiresReauthentication: z.boolean(),

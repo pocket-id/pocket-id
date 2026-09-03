@@ -20,6 +20,7 @@ import (
 	"gorm.io/gorm/clause"
 
 	"github.com/pocket-id/pocket-id/backend/internal/apperror"
+	"github.com/pocket-id/pocket-id/backend/internal/backchannellogout"
 	"github.com/pocket-id/pocket-id/backend/internal/dto"
 	"github.com/pocket-id/pocket-id/backend/internal/model"
 	datatype "github.com/pocket-id/pocket-id/backend/internal/model/types"
@@ -46,7 +47,7 @@ type OidcService struct {
 	previewBuilder    oidcClientPreviewBuilder
 	metadataRefresher metadataRefresher
 	scimSyncScheduler ScimSyncScheduler
-	backchannelLogout *BackchannelLogoutService
+	backchannelLogout *backchannellogout.Service
 
 	httpClient  *http.Client
 	fileStorage storage.FileStorage
@@ -66,7 +67,7 @@ func NewOidcService(
 	previewBuilder oidcClientPreviewBuilder,
 	metadataRefresher metadataRefresher,
 	scimSyncScheduler ScimSyncScheduler,
-	backchannelLogout *BackchannelLogoutService,
+	backchannelLogout *backchannellogout.Service,
 	httpClient *http.Client,
 	fileStorage storage.FileStorage,
 ) (s *OidcService, err error) {
@@ -333,11 +334,11 @@ func (s *OidcService) DeleteClient(ctx context.Context, clientID string) error {
 	// The authorizations cascade away with the client, so the users to notify must be resolved inside the transaction
 	notifyLogout := func() {}
 	if s.backchannelLogout != nil {
-		var err error
-		notifyLogout, err = s.backchannelLogout.PrepareClientNotifications(ctx, tx, clientID)
-		if err != nil {
+		var prepareErr error
+		notifyLogout, prepareErr = s.backchannelLogout.PrepareClientNotifications(ctx, tx, clientID)
+		if prepareErr != nil {
 			// Notifications are best effort and must never block the deletion itself
-			slog.ErrorContext(ctx, "Failed to prepare back-channel logout notifications for client", slog.String("clientId", clientID), slog.Any("error", err))
+			slog.ErrorContext(ctx, "Failed to prepare back-channel logout notifications for client", slog.String("clientId", clientID), slog.Any("error", prepareErr))
 		}
 	}
 
