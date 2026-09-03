@@ -122,6 +122,8 @@ func (wkc *WellKnownController) computeServerMetadata() ([]byte, error) {
 		"token_endpoint_auth_methods_supported":          []string{"client_secret_basic", "client_secret_post", "none"},
 		"pushed_authorization_request_endpoint":          internalAppUrl + "/api/oidc/par",
 		"require_pushed_authorization_requests":          false,
+		"backchannel_logout_supported":                   true,
+		"backchannel_logout_session_supported":           false,
 		"client_id_metadata_document_supported":          cimdSupported,
 		"service_documentation":                          "https://pocket-id.org/docs",
 	}

@@ -12,6 +12,7 @@ import (
 
 	"github.com/lestrrat-go/jwx/v4/jwa"
 	"github.com/lestrrat-go/jwx/v4/jwk"
+	"github.com/lestrrat-go/jwx/v4/jws"
 	"github.com/lestrrat-go/jwx/v4/jwt"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -610,4 +611,44 @@ func createEdDSAKeyJWK(t *testing.T, db *gorm.DB, instanceID string, envConfig *
 
 	// Import as JWK and save it
 	return importKey(t, db, instanceID, envConfig, appConfig, privateKeyRaw)
+}
+
+func TestGenerateLogoutToken(t *testing.T) {
+	db := testutils.NewDatabaseForTest(t)
+	envConfig := newTestEnvConfig()
+	jwtService := initJwtService(t, db, newInstanceID(t, db), nil, envConfig)
+
+	signed, err := jwtService.GenerateLogoutToken("user-id", "client-id")
+	require.NoError(t, err)
+
+	// The token must carry the "logout+jwt" typ header required by the spec
+	message, err := jws.Parse([]byte(signed))
+	require.NoError(t, err)
+	require.Len(t, message.Signatures(), 1)
+	typ, ok := message.Signatures()[0].ProtectedHeaders().Type()
+	require.True(t, ok)
+	assert.Equal(t, LogoutTokenJWTTyp, typ)
+
+	alg, err := jwtService.GetKeyAlg()
+	require.NoError(t, err)
+	publicKey, err := jwtService.GetPublicJWK()
+	require.NoError(t, err)
+	token, err := jwt.ParseString(signed, jwt.WithValidate(true), jwt.WithKey(alg, publicKey))
+	require.NoError(t, err)
+
+	subject, _ := token.Subject()
+	assert.Equal(t, "user-id", subject)
+	audience, _ := token.Audience()
+	assert.Equal(t, []string{"client-id"}, audience)
+	issuer, _ := token.Issuer()
+	assert.Equal(t, envConfig.AppURL, issuer)
+	jti, _ := token.JwtID()
+	assert.Regexp(t, uuidRegexPattern, jti)
+
+	events, err := jwt.Get[map[string]any](token, "events")
+	require.NoError(t, err)
+	assert.Contains(t, events, BackchannelLogoutEvent)
+
+	// The spec forbids a nonce claim in logout tokens
+	assert.False(t, token.Has("nonce"))
 }

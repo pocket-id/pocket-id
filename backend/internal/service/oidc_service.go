@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"log/slog"
 	"mime/multipart"
 	"net/http"
 	"net/url"
@@ -19,6 +20,7 @@ import (
 	"gorm.io/gorm/clause"
 
 	"github.com/pocket-id/pocket-id/backend/internal/apperror"
+	"github.com/pocket-id/pocket-id/backend/internal/backchannellogout"
 	"github.com/pocket-id/pocket-id/backend/internal/dto"
 	"github.com/pocket-id/pocket-id/backend/internal/model"
 	datatype "github.com/pocket-id/pocket-id/backend/internal/model/types"
@@ -45,6 +47,7 @@ type OidcService struct {
 	previewBuilder    oidcClientPreviewBuilder
 	metadataRefresher metadataRefresher
 	scimSyncScheduler ScimSyncScheduler
+	backchannelLogout *backchannellogout.Service
 
 	httpClient  *http.Client
 	fileStorage storage.FileStorage
@@ -64,6 +67,7 @@ func NewOidcService(
 	previewBuilder oidcClientPreviewBuilder,
 	metadataRefresher metadataRefresher,
 	scimSyncScheduler ScimSyncScheduler,
+	backchannelLogout *backchannellogout.Service,
 	httpClient *http.Client,
 	fileStorage storage.FileStorage,
 ) (s *OidcService, err error) {
@@ -73,6 +77,7 @@ func NewOidcService(
 		previewBuilder:    previewBuilder,
 		metadataRefresher: metadataRefresher,
 		scimSyncScheduler: scimSyncScheduler,
+		backchannelLogout: backchannelLogout,
 		httpClient:        httpClient,
 		fileStorage:       fileStorage,
 	}
@@ -198,6 +203,7 @@ func (s *OidcService) UpdateClient(ctx context.Context, clientID string, input d
 	if err != nil {
 		return model.OidcClient{}, err
 	}
+	wasGroupRestricted := client.IsGroupRestricted
 
 	err = updateOIDCClientModelFromDto(&client, &input)
 	if err != nil {
@@ -237,6 +243,11 @@ func (s *OidcService) UpdateClient(ctx context.Context, clientID string, input d
 	err = tx.Commit().Error
 	if err != nil {
 		return model.OidcClient{}, err
+	}
+
+	// Turning on the group restriction revokes access for every authorized user until groups are assigned, so tell their clients to end the sessions
+	if s.backchannelLogout != nil && !wasGroupRestricted && client.IsGroupRestricted {
+		s.backchannelLogout.NotifyClientLostGroupAccess(ctx, client.ID)
 	}
 
 	// All storage operations must be executed outside of a transaction
@@ -279,6 +290,7 @@ func updateOIDCClientModelFromDto(client *model.OidcClient, input *dto.OidcClien
 	client.Name = input.Name
 	client.CallbackURLs = input.CallbackURLs
 	client.LogoutCallbackURLs = input.LogoutCallbackURLs
+	client.BackchannelLogoutURL = input.BackchannelLogoutURL
 	client.IsPublic = input.IsPublic
 	// PKCE is required for public clients
 	client.PkceEnabled = input.IsPublic || input.PkceEnabled
@@ -314,8 +326,24 @@ func updateOIDCClientModelFromDto(client *model.OidcClient, input *dto.OidcClien
 }
 
 func (s *OidcService) DeleteClient(ctx context.Context, clientID string) error {
+	tx := s.db.Begin()
+	defer func() {
+		tx.Rollback()
+	}()
+
+	// The authorizations cascade away with the client, so the users to notify must be resolved inside the transaction
+	notifyLogout := func() {}
+	if s.backchannelLogout != nil {
+		var prepareErr error
+		notifyLogout, prepareErr = s.backchannelLogout.PrepareClientNotifications(ctx, tx, clientID)
+		if prepareErr != nil {
+			// Notifications are best effort and must never block the deletion itself
+			slog.ErrorContext(ctx, "Failed to prepare back-channel logout notifications for client", slog.String("clientId", clientID), slog.Any("error", prepareErr))
+		}
+	}
+
 	var client model.OidcClient
-	result := s.db.
+	result := tx.
 		WithContext(ctx).
 		Where("id = ?", clientID).
 		Clauses(clause.Returning{}).
@@ -326,6 +354,14 @@ func (s *OidcService) DeleteClient(ctx context.Context, clientID string) error {
 	if result.RowsAffected == 0 {
 		return apperror.NotFound("OIDC client")
 	}
+
+	err := tx.Commit().Error
+	if err != nil {
+		return err
+	}
+
+	// The deleted client keeps serving its signed-in users, so tell it to end their sessions
+	notifyLogout()
 
 	// Delete images if present
 	// Note that storage operations must be done outside of a transaction
@@ -646,6 +682,12 @@ func (s *OidcService) UpdateAllowedUserGroups(ctx context.Context, id string, in
 	if s.scimSyncScheduler != nil {
 		s.scimSyncScheduler.ScheduleSync(ctx)
 	}
+
+	// Notify users who authorized this client but are no longer in any allowed group
+	if s.backchannelLogout != nil && client.IsGroupRestricted {
+		s.backchannelLogout.NotifyClientLostGroupAccess(ctx, client.ID)
+	}
+
 	return client, nil
 }
 
@@ -708,6 +750,16 @@ func (s *OidcService) RevokeAuthorizedClient(ctx context.Context, userID string,
 		return err
 	}
 
+	// The authorization is gone after the delete, so the client to notify must be resolved inside the transaction
+	notifyLogout := func() {}
+	if s.backchannelLogout != nil {
+		notifyLogout, err = s.backchannelLogout.PrepareAuthorizationNotification(ctx, tx, userID, clientID)
+		if err != nil {
+			// Notifications are best effort and must never block the revocation itself
+			slog.ErrorContext(ctx, "Failed to prepare back-channel logout notification for authorization", slog.String("userId", userID), slog.String("clientId", clientID), slog.Any("error", err))
+		}
+	}
+
 	err = tx.WithContext(ctx).Delete(&authorizedClient).Error
 	if err != nil {
 		return err
@@ -721,6 +773,9 @@ func (s *OidcService) RevokeAuthorizedClient(ctx context.Context, userID string,
 	if err != nil {
 		return err
 	}
+
+	// Tell the client to end the user's session there as well
+	notifyLogout()
 
 	return nil
 }
