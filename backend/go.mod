@@ -22,9 +22,9 @@ require (
 	github.com/go-playground/validator/v10 v10.30.3
 	github.com/go-webauthn/webauthn v0.17.4
 	github.com/golang-migrate/migrate/v4 v4.19.1
-	github.com/italypaleale/francis v0.1.0-rc.2
-	github.com/italypaleale/go-kit v1.0.0
-	github.com/italypaleale/go-sql-utils v0.3.6
+	github.com/italypaleale/francis v0.1.0-rc.5
+	github.com/italypaleale/go-kit v1.1.0
+	github.com/italypaleale/go-sql-utils v0.3.7
 	github.com/jackc/pgx/v5 v5.10.0
 	github.com/jinzhu/copier v0.4.0
 	github.com/joho/godotenv v1.5.1
@@ -59,7 +59,7 @@ require (
 	gorm.io/driver/postgres v1.6.2
 	gorm.io/gorm v1.31.2
 	gorm.io/plugin/opentelemetry v0.1.16
-	modernc.org/sqlite v1.57.0
+	modernc.org/sqlite v1.58.0
 )
 
 require (
@@ -209,22 +209,22 @@ require (
 	go.uber.org/mock v0.6.0 // indirect
 	go.yaml.in/yaml/v3 v3.0.5 // indirect
 	golang.org/x/arch v0.29.0 // indirect
-	golang.org/x/exp v0.0.0-20260718201538-764159d718ef // indirect
-	golang.org/x/mod v0.38.0 // indirect
-	golang.org/x/net v0.57.0 // indirect
+	golang.org/x/exp v0.0.0-20260820142414-ca536658362e // indirect
+	golang.org/x/mod v0.39.0 // indirect
+	golang.org/x/net v0.58.0 // indirect
 	golang.org/x/oauth2 v0.36.0 // indirect
 	golang.org/x/sys v0.47.0 // indirect
 	golang.org/x/time v0.15.0 // indirect
-	golang.org/x/tools v0.48.0 // indirect
+	golang.org/x/tools v0.49.0 // indirect
 	google.golang.org/genproto/googleapis/api v0.0.0-20260803160001-6ac0973c030d // indirect
 	google.golang.org/genproto/googleapis/rpc v0.0.0-20260803160001-6ac0973c030d // indirect
-	google.golang.org/grpc v1.83.0 // indirect
+	google.golang.org/grpc v1.83.1 // indirect
 	google.golang.org/protobuf v1.36.11 // indirect
 	gopkg.in/yaml.v2 v2.4.0 // indirect
 	k8s.io/utils v0.0.0-20260707023825-cf1189d6abe3 // indirect
-	modernc.org/libc v1.74.4 // indirect
+	modernc.org/libc v1.75.7 // indirect
 	modernc.org/mathutil v1.7.1 // indirect
-	modernc.org/memory v1.11.0 // indirect
+	modernc.org/memory v1.12.1 // indirect
 )
 
 replace github.com/ory/fosite => github.com/pocket-id/fosite v1.3.0
