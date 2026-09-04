@@ -23,7 +23,7 @@ RUN --mount=type=cache,target=/build/frontend/node_modules/.vite \
   BUILD_OUTPUT_PATH=dist pnpm --filter pocket-id-frontend run build
 
 # Stage 2: Build Backend
-FROM golang:1.27.0-alpine AS backend-builder
+FROM golang:1.27.1-alpine AS backend-builder
 ARG BUILD_TAGS
 WORKDIR /build
 COPY ./backend/go.mod ./backend/go.sum ./
