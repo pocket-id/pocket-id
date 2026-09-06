@@ -300,7 +300,7 @@
 	"callback_urls": "Visszahívási URL-ek",
 	"logout_callback_urls": "Kijelentkezési visszahívási URL-ek",
 	"public_client": "Nyilvános kliens",
-	"public_clients_description": "A nyilvános klienseknek nincs kliens-titkuk. Olyan mobil-, webes és natív alkalmazásokhoz valók, ahol a titkos adatok nem tárolhatók biztonságosan.",
+	"public_clients_description": "A nyilvános klienseknek nincs titkos kliens kulcsuk. Olyan mobil-, webes és natív alkalmazásokhoz valók, ahol a titkos adatok nem tárolhatók biztonságosan.",
 	"pkce": "PKCE",
 	"proof_key_code_exchange_is_a_security_feature_to_prevent_csrf_and_authorization_code_interception_attacks": "A Proof Key for Code Exchange olyan biztonsági funkció, amely megakadályozza a CSRF-támadásokat és az engedélyezési kód elfogását.",
 	"requires_reauthentication": "Újrahitelesítést igényel",
