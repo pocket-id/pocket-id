@@ -121,6 +121,88 @@ func testKeyRotateWithDatabaseStorage(t *testing.T, flags keyRotateFlags, wantEr
 	}
 }
 
+func TestKeyRotateSessionKey(t *testing.T) {
+	envConfig := &common.EnvConfigSchema{
+		EncryptionKey: []byte("test-encryption-key-characters-long"),
+	}
+
+	db := testingutils.NewDatabaseForTest(t)
+
+	instanceID, err := instanceid.Load(t.Context(), db)
+	require.NoError(t, err)
+
+	// Seed both keys so we can check that only the session key is replaced
+	keyProvider, err := jwkutils.GetKeyProvider(db, envConfig, instanceID)
+	require.NoError(t, err)
+	signingKey, err := jwkutils.GenerateKey("ES256", "")
+	require.NoError(t, err)
+	err = keyProvider.SaveKey(t.Context(), signingKey)
+	require.NoError(t, err)
+
+	sessionKeyProvider, err := jwkutils.GetSessionKeyProvider(db, envConfig, instanceID)
+	require.NoError(t, err)
+	originalSessionKey, err := jwkutils.GenerateSessionKey()
+	require.NoError(t, err)
+	err = sessionKeyProvider.SaveKey(t.Context(), originalSessionKey)
+	require.NoError(t, err)
+
+	// Rotate the session key
+	err = keyRotate(t.Context(), keyRotateFlags{SessionKey: true, Yes: true}, db, instanceID, envConfig)
+	require.NoError(t, err)
+
+	// The session key must have been replaced with a new HS256 key
+	rotatedSessionKey, err := sessionKeyProvider.LoadKey(t.Context())
+	require.NoError(t, err)
+	require.NotNil(t, rotatedSessionKey)
+
+	alg, ok := rotatedSessionKey.Algorithm()
+	_ = assert.True(t, ok) &&
+		assert.Equal(t, "HS256", alg.String())
+
+	originalKeyID, _ := originalSessionKey.KeyID()
+	rotatedKeyID, _ := rotatedSessionKey.KeyID()
+	assert.NotEqual(t, originalKeyID, rotatedKeyID, "Session key should have been replaced")
+
+	// The token signing key must be left untouched
+	unchangedSigningKey, err := keyProvider.LoadKey(t.Context())
+	require.NoError(t, err)
+	require.NotNil(t, unchangedSigningKey)
+
+	signingKeyID, _ := signingKey.KeyID()
+	unchangedSigningKeyID, _ := unchangedSigningKey.KeyID()
+	assert.Equal(t, signingKeyID, unchangedSigningKeyID, "Token signing key should not have been rotated")
+}
+
+func TestKeyRotateDoesNotChangeSessionKey(t *testing.T) {
+	envConfig := &common.EnvConfigSchema{
+		EncryptionKey: []byte("test-encryption-key-characters-long"),
+	}
+
+	db := testingutils.NewDatabaseForTest(t)
+
+	instanceID, err := instanceid.Load(t.Context(), db)
+	require.NoError(t, err)
+
+	sessionKeyProvider, err := jwkutils.GetSessionKeyProvider(db, envConfig, instanceID)
+	require.NoError(t, err)
+	originalSessionKey, err := jwkutils.GenerateSessionKey()
+	require.NoError(t, err)
+	err = sessionKeyProvider.SaveKey(t.Context(), originalSessionKey)
+	require.NoError(t, err)
+
+	// Rotating the token signing key must leave existing sessions valid
+	err = keyRotate(t.Context(), keyRotateFlags{Alg: "ES256", Yes: true}, db, instanceID, envConfig)
+	require.NoError(t, err)
+
+	sessionKey, err := sessionKeyProvider.LoadKey(t.Context())
+	require.NoError(t, err)
+	require.NotNil(t, sessionKey)
+
+	originalKeyID, _ := originalSessionKey.KeyID()
+	sessionKeyID, _ := sessionKey.KeyID()
+	assert.Equal(t, originalKeyID, sessionKeyID, "Session key should not have been rotated")
+}
+
 func TestKeyRotateMultipleAlgorithms(t *testing.T) {
 	algorithms := []struct {
 		alg string
