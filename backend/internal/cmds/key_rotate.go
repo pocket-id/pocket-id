@@ -19,9 +19,10 @@ import (
 )
 
 type keyRotateFlags struct {
-	Alg string
-	Crv string
-	Yes bool
+	Alg        string
+	Crv        string
+	SessionKey bool
+	Yes        bool
 }
 
 func init() {
@@ -29,8 +30,13 @@ func init() {
 
 	keyRotateCmd := &cobra.Command{
 		Use:   "key-rotate",
-		Short: "Generates a new token signing key and replaces the current one",
+		Short: "Generates a new signing key and replaces the current one",
 		RunE: func(cmd *cobra.Command, args []string) error {
+			// The session key is always a symmetric HS256 key, so the algorithm flags don't apply to it
+			if flags.SessionKey && (cmd.Flags().Changed("alg") || cmd.Flags().Changed("crv")) {
+				return errors.New("the --alg and --crv flags cannot be used together with --session-key")
+			}
+
 			db, _, err := bootstrap.NewDatabase(cmd.Context())
 			if err != nil {
 				return err
@@ -47,12 +53,18 @@ func init() {
 
 	keyRotateCmd.Flags().StringVarP(&flags.Alg, "alg", "a", "RS256", "Key algorithm. Supported values: RS256, RS384, RS512, ES256, ES384, ES512, EdDSA")
 	keyRotateCmd.Flags().StringVarP(&flags.Crv, "crv", "c", "", "Curve name when using EdDSA keys. Supported values: Ed25519")
+	keyRotateCmd.Flags().BoolVar(&flags.SessionKey, "session-key", false, "Rotate the key used to sign session tokens instead of the token signing key")
 	keyRotateCmd.Flags().BoolVarP(&flags.Yes, "yes", "y", false, "Do not prompt for confirmation")
 
 	rootCmd.AddCommand(keyRotateCmd)
 }
 
 func keyRotate(ctx context.Context, flags keyRotateFlags, db *gorm.DB, instanceID string, envConfig *common.EnvConfigSchema) error {
+	// The session key is a separate key, generated with a fixed algorithm, so it's rotated on its own
+	if flags.SessionKey {
+		return sessionKeyRotate(ctx, flags, db, instanceID, envConfig)
+	}
+
 	// Validate the flags
 	switch strings.ToUpper(flags.Alg) {
 	case jwa.RS256().String(), jwa.RS384().String(), jwa.RS512().String(),
@@ -101,12 +113,49 @@ func keyRotate(ctx context.Context, flags keyRotateFlags, db *gorm.DB, instanceI
 	}
 
 	// Save the key
-	err = keyProvider.SaveKey(ctx, key)
+	err = keyProvider.ReplaceKey(ctx, key)
 	if err != nil {
 		return fmt.Errorf("failed to store new key: %w", err)
 	}
 
 	fmt.Println("Key rotated successfully")
+	fmt.Println("Note: if pocket-id is running, you will need to restart it for the new key to be loaded")
+
+	return nil
+}
+
+func sessionKeyRotate(ctx context.Context, flags keyRotateFlags, db *gorm.DB, instanceID string, envConfig *common.EnvConfigSchema) error {
+	if !flags.Yes {
+		fmt.Println("WARNING: Rotating the session key will invalidate all existing sessions, and all users will need to sign in again. Tokens issued to client applications are not affected.")
+		ok, err := utils.PromptForConfirmation("Confirm")
+		if err != nil {
+			return err
+		}
+		if !ok {
+			fmt.Println("Aborted")
+			os.Exit(1)
+		}
+	}
+
+	// Get the key provider for the session key
+	keyProvider, err := jwkutils.GetSessionKeyProvider(db, envConfig, instanceID)
+	if err != nil {
+		return fmt.Errorf("failed to get session key provider: %w", err)
+	}
+
+	// Generate a new key
+	key, err := jwkutils.GenerateSessionKey()
+	if err != nil {
+		return fmt.Errorf("failed to generate session key: %w", err)
+	}
+
+	// Save the key
+	err = keyProvider.ReplaceKey(ctx, key)
+	if err != nil {
+		return fmt.Errorf("failed to store new session key: %w", err)
+	}
+
+	fmt.Println("Session key rotated successfully")
 	fmt.Println("Note: if pocket-id is running, you will need to restart it for the new key to be loaded")
 
 	return nil
