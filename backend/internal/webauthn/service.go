@@ -99,7 +99,7 @@ func (s *Service) BeginRegistration(ctx context.Context, dbConfig *appconfig.App
 		}),
 		gowebauthn.WithResidentKeyRequirement(protocol.ResidentKeyRequirementRequired),
 		gowebauthn.WithExclusions(user.WebAuthnCredentialDescriptors()),
-		gowebauthn.WithExtensions(map[string]any{"credProps": true}), // Required for Firefox Android to properly save the key in Google password manager
+		gowebauthn.WithExtensions(gowebauthn.WithExtensionCredProps()), // Required for Firefox Android to properly save the key in Google password manager
 	)
 	if err != nil {
 		return nil, fmt.Errorf("failed to begin WebAuthn registration: %w", err)
