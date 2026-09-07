@@ -126,6 +126,11 @@ function compareExports(dir1: string, dir2: string): void {
 	const expectedData = loadJSON(path.join(dir1, 'database.json'));
 	const actualData = loadJSON(path.join(dir2, 'database.json'));
 
+	// Legacy exports gain empty session extensions when migrated to the current schema
+	for (const session of expectedData.tables.webauthn_sessions) {
+		session.extensions ??= '{}';
+	}
+
 	// Check special fields
 	validateSpecialFields(actualData);
 
@@ -137,7 +142,7 @@ function compareExports(dir1: string, dir2: string): void {
 	// Compare francis.bin contents
 	const file1 = path.join(dir1, 'francis.bin');
 	const file2 = path.join(dir2, 'francis.bin');
-	 
+
 	for (const filePath of [file1, file2]) {
 		expect(fs.existsSync(filePath), `${filePath} should exist`).toBe(true);
 
@@ -167,7 +172,6 @@ function archiveExampleExport(outputPath: string): Buffer {
 	fs.writeFileSync(outputPath, buffer);
 	return buffer;
 }
-
 
 // Helper to load JSON files
 function loadJSON(path: string) {

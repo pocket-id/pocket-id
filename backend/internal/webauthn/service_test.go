@@ -202,6 +202,15 @@ func TestBeginCeremoniesUseRequestConfig(t *testing.T) {
 			assert.Equal(t, tc.wantAuthenticator, registration.Response.AuthenticatorSelection.AuthenticatorAttachment)
 			assert.Equal(t, protocol.ResidentKeyRequirementRequired, registration.Response.AuthenticatorSelection.ResidentKey)
 
+			// Preserve requested extensions so browser outputs remain valid after loading the session
+			var session WebauthnSession
+			require.NoError(t, db.First(&session, "id = ?", registration.SessionID).Error)
+			assert.Contains(t, session.Extensions.Requested, protocol.ExtensionCredProps)
+			outputs := protocol.AuthenticationExtensionsClientOutputs{
+				CredProps: &protocol.CredentialPropertiesOutput{RK: new(true)},
+			}
+			require.NoError(t, outputs.Verify(session.Extensions, protocol.CreateCeremony, protocol.UnsolicitedOutputPolicyReject))
+
 			login, err := service.BeginLogin(t.Context(), dbConfig)
 			require.NoError(t, err)
 			assert.Equal(t, tc.wantUserVerification, login.Response.UserVerification)
