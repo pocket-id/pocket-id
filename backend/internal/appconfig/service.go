@@ -217,31 +217,28 @@ func (s *AppConfigService) loadDbConfigFromEnv() (*AppConfigModel, error) {
 			return nil, fmt.Errorf("app configuration field %s is missing its environment variable name", field.Name)
 		}
 
-		// Set the value if it's set
+		// Sensitive values can also be loaded from a file, using the variable with the "_FILE" suffix (files have precedence over the env var)
+		if field.Tag.Get("sensitive") == "true" {
+			value, ok, err := common.LoadStringEnvVarFromFile(envVarName)
+			if err != nil {
+				return nil, err
+			}
+			if ok {
+				rv.Field(i).SetString(value)
+				continue
+			}
+		}
+
+		// Set the value from the environment variable if it's set
 		value, ok := os.LookupEnv(envVarName)
 		if ok {
 			rv.Field(i).SetString(value)
-			continue
-		}
-
-		// If it's sensitive, we also allow reading from file
-		if field.Tag.Get("sensitive") == "true" {
-			fileName := os.Getenv(envVarName + "_FILE")
-			if fileName != "" {
-				// #nosec G703 - Value is provided by admin
-				b, err := os.ReadFile(fileName)
-				if err != nil {
-					return nil, fmt.Errorf("failed to read secret '%s' from file '%s': %w", envVarName, fileName, err)
-				}
-
-				rv.Field(i).SetString(string(b))
-				continue
-			}
 		}
 	}
 
 	// Validate the resolved configuration before exposing values to the rest of the application
-	if err := validateEnvConfig(dest); err != nil {
+	err := validateEnvConfig(dest)
+	if err != nil {
 		return nil, err
 	}
 
@@ -252,12 +249,13 @@ func (s *AppConfigService) loadDbConfigFromEnv() (*AppConfigModel, error) {
 func validateEnvConfig(config *AppConfigModel) error {
 	// Map the resolved model to the canonical update DTO so both configuration paths share validation rules
 	var input dto.AppConfigUpdateDto
-	if err := dto.MapStruct(config, &input); err != nil {
+	err := dto.MapStruct(config, &input)
+	if err != nil {
 		return fmt.Errorf("failed to prepare environment app configuration for validation: %w", err)
 	}
 
 	// Collect every invalid environment variable
-	err := input.Validate()
+	err = input.Validate()
 	if err != nil {
 		validationErrors, ok := errors.AsType[validator.ValidationErrors](err)
 		if !ok {
