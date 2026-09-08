@@ -390,35 +390,29 @@ func resolveFileBasedEnvVariable(field reflect.Value, fieldType reflect.StructFi
 		return nil
 	}
 
-	// Only process fields with the "env" tag
-	envTag := fieldType.Tag.Get("env")
-	if envTag == "" {
+	// Only process fields with the "env" tag, ignoring any option that follows the name of the variable
+	envVarName, _, _ := strings.Cut(fieldType.Tag.Get("env"), ",")
+	if envVarName == "" {
 		return nil
 	}
 
-	envVarName := envTag
-	if commaIndex := len(envTag); commaIndex > 0 {
-		envVarName = envTag[:commaIndex]
-	}
-
-	// If the file environment variable is not set, skip
-	envVarFileName := envVarName + "_FILE"
-	envVarFileValue := os.Getenv(envVarFileName)
-	if envVarFileValue == "" {
-		return nil
-	}
-
-	// #nosec G703 - Path is passed by the admin
-	fileContent, err := os.ReadFile(envVarFileValue)
-	if err != nil {
-		return fmt.Errorf("failed to read file for env var %s: %w", envVarFileName, err)
-	}
-
+	// Load the value from the file referenced by the "_FILE" variable, keeping the value parsed from the environment if that variable is not set
 	if isString {
-		field.SetString(strings.TrimSpace(string(fileContent)))
-	} else {
-		field.SetBytes(fileContent)
+		value, ok, err := LoadStringEnvVarFromFile(envVarName)
+		if err != nil || !ok {
+			return err
+		}
+
+		field.SetString(value)
+		return nil
 	}
+
+	value, ok, err := LoadEnvVarFromFile(envVarName)
+	if err != nil || !ok {
+		return err
+	}
+
+	field.SetBytes(value)
 
 	return nil
 }

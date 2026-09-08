@@ -41,6 +41,19 @@ func TestEncryptionKeyRotate(t *testing.T) {
 	require.NoError(t, err)
 	require.NoError(t, oldProvider.SaveKey(t.Context(), signingKey))
 
+	oldSessionKeyProvider := &jwkutils.KeyProviderDatabase{}
+	err = oldSessionKeyProvider.Init(jwkutils.KeyProviderOpts{
+		DB:    db,
+		Kek:   oldKek,
+		DBKey: jwkutils.SessionKeyDBKey,
+	})
+	require.NoError(t, err)
+
+	sessionKey, err := jwkutils.GenerateSessionKey()
+	require.NoError(t, err)
+	err = oldSessionKeyProvider.SaveKey(t.Context(), sessionKey)
+	require.NoError(t, err)
+
 	oldEncKey, err := datatype.DeriveEncryptedStringKey(oldKey)
 	require.NoError(t, err)
 	encToken, err := datatype.EncryptEncryptedStringWithKey(oldEncKey, []byte("scim-token-123"))
@@ -75,6 +88,23 @@ func TestEncryptionKeyRotate(t *testing.T) {
 	rotatedKey, err := newProvider.LoadKey(t.Context())
 	require.NoError(t, err)
 	require.NotNil(t, rotatedKey)
+
+	// The session key must be re-encrypted with the new encryption key too, so sessions survive the rotation
+	newSessionKeyProvider := &jwkutils.KeyProviderDatabase{}
+	err = newSessionKeyProvider.Init(jwkutils.KeyProviderOpts{
+		DB:    db,
+		Kek:   newKek,
+		DBKey: jwkutils.SessionKeyDBKey,
+	})
+	require.NoError(t, err)
+
+	rotatedSessionKey, err := newSessionKeyProvider.LoadKey(t.Context())
+	require.NoError(t, err)
+	require.NotNil(t, rotatedSessionKey)
+
+	sessionKeyID, _ := sessionKey.KeyID()
+	rotatedSessionKeyID, _ := rotatedSessionKey.KeyID()
+	assert.Equal(t, sessionKeyID, rotatedSessionKeyID, "The session key should be unchanged, only re-encrypted")
 
 	var storedToken string
 	err = db.Model(&scimsync.ServiceProvider{}).

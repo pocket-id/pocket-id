@@ -20,6 +20,7 @@ type WebauthnSession struct {
 	ExpiresAt        datatype.DateTime
 	UserVerification string
 	CredentialParams CredentialParameters
+	Extensions       protocol.SessionExtensions `gorm:"serializer:json"`
 }
 
 // ReauthenticationToken is a short-lived token proving a user recently re-verified themselves

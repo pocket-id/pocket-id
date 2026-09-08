@@ -2,6 +2,8 @@ package appconfig
 
 import (
 	"encoding/json"
+	"os"
+	"path/filepath"
 	"testing"
 	"time"
 
@@ -456,5 +458,71 @@ func TestService_CIMDURLAllowlist(t *testing.T) {
 
 		require.NoError(t, svc.UpdateAppConfigValues(t.Context(), "cimdUrlAllowlist", "not-json"))
 		assert.Empty(t, svc.GetCIMDURLAllowlist())
+	})
+}
+
+func TestService_LoadDbConfigFromEnv(t *testing.T) {
+	// writeSecretFile writes content to a file in a temporary directory that is removed when the test ends, returning its path
+	writeSecretFile := func(t *testing.T, content string) string {
+		t.Helper()
+
+		fileName := filepath.Join(t.TempDir(), "secret.txt")
+		err := os.WriteFile(fileName, []byte(content), 0600)
+		require.NoError(t, err)
+
+		return fileName
+	}
+
+	t.Run("loads a sensitive value from a file", func(t *testing.T) {
+		t.Setenv("LDAP_BIND_PASSWORD_FILE", writeSecretFile(t, "my-ldap-password"))
+
+		svc := &AppConfigService{}
+		cfg, err := svc.loadDbConfigFromEnv()
+		require.NoError(t, err)
+
+		assert.Equal(t, AppConfigValue("my-ldap-password"), cfg.LdapBindPassword)
+	})
+
+	t.Run("trims whitespace from values loaded from a file", func(t *testing.T) {
+		// Files containing secrets normally end with a trailing newline, which must not be part of the value
+		t.Setenv("LDAP_BIND_PASSWORD_FILE", writeSecretFile(t, "my-ldap-password\n"))
+		t.Setenv("SMTP_PASSWORD_FILE", writeSecretFile(t, "  my-smtp-password  \r\n"))
+
+		svc := &AppConfigService{}
+		cfg, err := svc.loadDbConfigFromEnv()
+		require.NoError(t, err)
+
+		assert.Equal(t, AppConfigValue("my-ldap-password"), cfg.LdapBindPassword)
+		assert.Equal(t, AppConfigValue("my-smtp-password"), cfg.SmtpPassword)
+	})
+
+	t.Run("the file takes precedence over the environment variable", func(t *testing.T) {
+		t.Setenv("LDAP_BIND_PASSWORD", "from-env")
+		t.Setenv("LDAP_BIND_PASSWORD_FILE", writeSecretFile(t, "from-file\n"))
+
+		svc := &AppConfigService{}
+		cfg, err := svc.loadDbConfigFromEnv()
+		require.NoError(t, err)
+
+		assert.Equal(t, AppConfigValue("from-file"), cfg.LdapBindPassword)
+	})
+
+	t.Run("values that are not sensitive are not loaded from a file", func(t *testing.T) {
+		t.Setenv("LDAP_BIND_DN_FILE", writeSecretFile(t, "cn=from-file"))
+
+		svc := &AppConfigService{}
+		cfg, err := svc.loadDbConfigFromEnv()
+		require.NoError(t, err)
+
+		assert.Empty(t, cfg.LdapBindDn)
+	})
+
+	t.Run("returns an error when the file cannot be read", func(t *testing.T) {
+		t.Setenv("LDAP_BIND_PASSWORD_FILE", filepath.Join(t.TempDir(), "does-not-exist.txt"))
+
+		svc := &AppConfigService{}
+		_, err := svc.loadDbConfigFromEnv()
+		require.Error(t, err)
+		assert.ErrorContains(t, err, "LDAP_BIND_PASSWORD_FILE")
 	})
 }

@@ -99,7 +99,7 @@ func (s *Service) BeginRegistration(ctx context.Context, dbConfig *appconfig.App
 		}),
 		gowebauthn.WithResidentKeyRequirement(protocol.ResidentKeyRequirementRequired),
 		gowebauthn.WithExclusions(user.WebAuthnCredentialDescriptors()),
-		gowebauthn.WithExtensions(map[string]any{"credProps": true}), // Required for Firefox Android to properly save the key in Google password manager
+		gowebauthn.WithExtensions(gowebauthn.WithExtensionCredProps()), // Required for Firefox Android to properly save the key in Google password manager
 	)
 	if err != nil {
 		return nil, fmt.Errorf("failed to begin WebAuthn registration: %w", err)
@@ -110,6 +110,7 @@ func (s *Service) BeginRegistration(ctx context.Context, dbConfig *appconfig.App
 		Challenge:        session.Challenge,
 		CredentialParams: session.CredParams,
 		UserVerification: string(session.UserVerification),
+		Extensions:       session.Extensions,
 	}
 
 	err = tx.
@@ -156,6 +157,7 @@ func (s *Service) VerifyRegistration(ctx context.Context, dbConfig *appconfig.Ap
 		Expires:          storedSession.ExpiresAt.ToTime(),
 		CredParams:       storedSession.CredentialParams,
 		UserVerification: protocol.UserVerificationRequirement(storedSession.UserVerification),
+		Extensions:       storedSession.Extensions,
 		UserID:           []byte(userID),
 	}
 
@@ -233,6 +235,7 @@ func (s *Service) BeginLogin(ctx context.Context, dbConfig *appconfig.AppConfigM
 		ExpiresAt:        datatype.DateTime(session.Expires),
 		Challenge:        session.Challenge,
 		UserVerification: string(session.UserVerification),
+		Extensions:       session.Extensions,
 	}
 
 	err = s.db.
@@ -273,6 +276,7 @@ func (s *Service) VerifyLogin(ctx context.Context, dbConfig *appconfig.AppConfig
 		Challenge:        storedSession.Challenge,
 		Expires:          storedSession.ExpiresAt.ToTime(),
 		UserVerification: protocol.UserVerificationRequirement(storedSession.UserVerification),
+		Extensions:       storedSession.Extensions,
 		CredParams:       storedSession.CredentialParams,
 	}
 
@@ -526,6 +530,7 @@ func (s *Service) CreateReauthenticationTokenWithWebauthn(ctx context.Context, s
 		Challenge:        storedSession.Challenge,
 		Expires:          storedSession.ExpiresAt.ToTime(),
 		UserVerification: protocol.UserVerificationRequirement(storedSession.UserVerification),
+		Extensions:       storedSession.Extensions,
 		CredParams:       storedSession.CredentialParams,
 	}
 
