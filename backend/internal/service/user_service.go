@@ -646,7 +646,7 @@ func (s *UserService) UpdateUserGroups(ctx context.Context, id string, userGroup
 
 	// Losing a group can revoke access to group-restricted clients, so tell those clients to end the user's sessions
 	if s.backchannelLogout != nil && lostGroup {
-		s.backchannelLogout.NotifyUsersLostGroupAccess(ctx, []string{id})
+		s.backchannelLogout.NotifyLostGroupAccess(ctx, []string{id}, "")
 	}
 
 	return user, nil

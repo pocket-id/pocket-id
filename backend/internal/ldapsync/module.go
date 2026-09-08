@@ -46,8 +46,9 @@ type BackchannelLogoutNotifier interface {
 	// PrepareUserNotifications resolves the notifications within the sync transaction and returns a function that delivers them, which must only be called after the transaction has committed
 	PrepareUserNotifications(ctx context.Context, tx *gorm.DB, userIDs []string) (func(), error)
 
-	// NotifyUsersLostGroupAccess delivers logout tokens to group-restricted clients the given users can no longer access, and must be called after the transaction has committed
-	NotifyUsersLostGroupAccess(ctx context.Context, userIDs []string)
+	// NotifyLostGroupAccess delivers logout tokens to group-restricted clients the given users can no longer access, and must be called after the transaction has committed
+	// The sync passes an empty client ID, matching on the users alone
+	NotifyLostGroupAccess(ctx context.Context, userIDs []string, clientID string)
 }
 
 type Dependencies struct {

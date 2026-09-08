@@ -158,7 +158,7 @@ func (s *Service) SyncAll(ctx context.Context, dbConfig *appconfig.AppConfigMode
 	// Tell OIDC clients to end the sessions of users the sync deprovisioned or removed from a group, now that the transaction has committed
 	notifyLogout()
 	if s.backchannelLogout != nil {
-		s.backchannelLogout.NotifyUsersLostGroupAccess(ctx, usersRemovedFromGroups)
+		s.backchannelLogout.NotifyLostGroupAccess(ctx, usersRemovedFromGroups, "")
 	}
 
 	// Now that we've committed the transaction, we can perform operations on the storage layer

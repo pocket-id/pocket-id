@@ -200,19 +200,10 @@ func (s *Service) NotifyUser(ctx context.Context, userID string) {
 	s.notifyClients(ctx, targets)
 }
 
-// NotifyUsersLostGroupAccess delivers logout tokens for group-restricted clients that the given users can no longer access
-// It must be called after the group membership change has been committed, and logs instead of failing because delivery is best effort
-func (s *Service) NotifyUsersLostGroupAccess(ctx context.Context, userIDs []string) {
-	s.notifyLostGroupAccess(ctx, userIDs, "")
-}
-
-// NotifyClientLostGroupAccess delivers logout tokens for users who have authorized the given group-restricted client but are no longer in any of its allowed groups
-// It must be called after the allowed-group change has been committed, and logs instead of failing because delivery is best effort
-func (s *Service) NotifyClientLostGroupAccess(ctx context.Context, clientID string) {
-	s.notifyLostGroupAccess(ctx, nil, clientID)
-}
-
-func (s *Service) notifyLostGroupAccess(ctx context.Context, userIDs []string, clientID string) {
+// NotifyLostGroupAccess delivers logout tokens for group-restricted clients that the matched users can no longer access
+// Callers pass the users whose membership changed, the client whose allowed groups changed, or both to narrow the match
+// It must be called after the group change has been committed, and logs instead of failing because delivery is best effort
+func (s *Service) NotifyLostGroupAccess(ctx context.Context, userIDs []string, clientID string) {
 	targets, err := s.targetsForLostGroupAccess(ctx, s.db, userIDs, clientID)
 	if err != nil {
 		slog.ErrorContext(ctx, "Failed to find clients to notify for back-channel logout", slog.Any("error", err))

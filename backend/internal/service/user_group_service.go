@@ -122,7 +122,7 @@ func (s *UserGroupService) Delete(ctx context.Context, cfg *appconfig.AppConfigM
 
 	// Tell group-restricted clients that former members can no longer access to end their sessions
 	if s.backchannelLogout != nil {
-		s.backchannelLogout.NotifyUsersLostGroupAccess(ctx, memberIDs)
+		s.backchannelLogout.NotifyLostGroupAccess(ctx, memberIDs, "")
 	}
 
 	return nil
@@ -282,7 +282,7 @@ func (s *UserGroupService) UpdateUsers(ctx context.Context, id string, userIds [
 				removedUserIDs = append(removedUserIDs, memberID)
 			}
 		}
-		s.backchannelLogout.NotifyUsersLostGroupAccess(ctx, removedUserIDs)
+		s.backchannelLogout.NotifyLostGroupAccess(ctx, removedUserIDs, "")
 	}
 
 	return group, nil
@@ -426,7 +426,7 @@ func (s *UserGroupService) UpdateAllowedOidcClient(ctx context.Context, id strin
 
 	// Tell the clients that lost this group that the members who can no longer reach them should be signed out
 	for _, clientID := range removedClientIDs {
-		s.backchannelLogout.NotifyClientLostGroupAccess(ctx, clientID)
+		s.backchannelLogout.NotifyLostGroupAccess(ctx, nil, clientID)
 	}
 
 	return group, nil

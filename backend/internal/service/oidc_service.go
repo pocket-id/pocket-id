@@ -247,7 +247,7 @@ func (s *OidcService) UpdateClient(ctx context.Context, clientID string, input d
 
 	// Turning on the group restriction revokes access for every authorized user until groups are assigned, so tell their clients to end the sessions
 	if s.backchannelLogout != nil && !wasGroupRestricted && client.IsGroupRestricted {
-		s.backchannelLogout.NotifyClientLostGroupAccess(ctx, client.ID)
+		s.backchannelLogout.NotifyLostGroupAccess(ctx, nil, client.ID)
 	}
 
 	// All storage operations must be executed outside of a transaction
@@ -685,7 +685,7 @@ func (s *OidcService) UpdateAllowedUserGroups(ctx context.Context, id string, in
 
 	// Notify users who authorized this client but are no longer in any allowed group
 	if s.backchannelLogout != nil && client.IsGroupRestricted {
-		s.backchannelLogout.NotifyClientLostGroupAccess(ctx, client.ID)
+		s.backchannelLogout.NotifyLostGroupAccess(ctx, nil, client.ID)
 	}
 
 	return client, nil
