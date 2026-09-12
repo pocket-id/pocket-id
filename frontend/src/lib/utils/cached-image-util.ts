@@ -10,17 +10,17 @@ type CachableImage = {
 };
 
 export const cachedApplicationLogo: CachableImage = {
-	getUrl: (light = true) => {
-		const url = new URL('/api/application-images/logo', window.location.origin);
-		if (!light) url.searchParams.set('light', 'false');
-		return getCachedImageUrl(url);
-	},
-	bustCache: (light = true) => {
-		const url = new URL('/api/application-images/logo', window.location.origin);
-		if (!light) url.searchParams.set('light', 'false');
-		bustImageCache(url);
-	}
+	getUrl: (light = true) => getCachedImageUrl(applicationLogoUrl(light)),
+	bustCache: (light = true) => bustImageCache(applicationLogoUrl(light))
 };
+
+// The UI renders its own default logo, so the bundled logo is skipped to be able to tell whether a custom logo has been uploaded
+function applicationLogoUrl(light: boolean) {
+	const url = new URL('/api/application-images/logo', window.location.origin);
+	if (!light) url.searchParams.set('light', 'false');
+	url.searchParams.set('default', 'false');
+	return url;
+}
 
 export const cachedEmailLogo: CachableImage = {
 	getUrl: () => getCachedImageUrl(new URL('/api/application-images/email', window.location.origin)),

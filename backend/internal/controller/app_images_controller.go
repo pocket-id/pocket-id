@@ -49,9 +49,10 @@ type AppImagesController struct {
 
 // getLogoHandler godoc
 // @Summary Get logo image
-// @Description Get the logo image for the application
+// @Description Get the logo image for the application, or the logo bundled with Pocket ID if no custom logo has been uploaded
 // @Tags Application Images
 // @Param light query boolean false "Light mode logo (true) or dark mode logo (false)"
+// @Param default query boolean false "Return the bundled default logo if no custom logo is set (default true)"
 // @Produce image/png
 // @Produce image/jpeg
 // @Produce image/svg+xml
@@ -162,6 +163,13 @@ func logoImageName(ctx *gin.Context) string {
 	return "logoDark"
 }
 
+// useDefaultImage returns whether the image bundled with Pocket ID should be served if no custom image has been uploaded
+// Clients that need to know whether a custom image is set can opt out by requesting "default=false"
+func useDefaultImage(ctx *gin.Context) bool {
+	useDefault, err := strconv.ParseBool(ctx.DefaultQuery("default", "true"))
+	return err != nil || useDefault
+}
+
 // updateEmailLogoHandler godoc
 // @Summary Update email logo
 // @Description Update the email logo for use in emails
@@ -261,7 +269,12 @@ func (c *AppImagesController) updateFaviconHandler(ctx *gin.Context) error {
 }
 
 func (c *AppImagesController) getImage(ctx *gin.Context, name string) error {
-	reader, size, mimeType, err := c.appImagesService.GetImage(ctx.Request.Context(), name)
+	getImage := c.appImagesService.GetImage
+	if useDefaultImage(ctx) {
+		getImage = c.appImagesService.GetImageWithDefault
+	}
+
+	reader, size, mimeType, err := getImage(ctx.Request.Context(), name)
 	if err != nil {
 		return err
 	}

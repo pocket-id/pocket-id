@@ -10,6 +10,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"path"
+	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -34,6 +35,48 @@ func TestAppImagesService_GetImage(t *testing.T) {
 	require.Equal(t, []byte("data"), payload)
 	require.Equal(t, int64(len(payload)), size)
 	require.Equal(t, "image/webp", mimeType)
+}
+
+func TestAppImagesService_GetImageWithDefault(t *testing.T) {
+	store := newFilesystemStorageForTest(t)
+
+	require.NoError(t, store.Save(context.Background(), path.Join("application-images", "logoDark.png"), bytes.NewReader([]byte("custom"))))
+
+	service := NewAppImagesService(map[string]string{"logoDark": "png"}, store)
+
+	t.Run("returns the custom image if one is set", func(t *testing.T) {
+		reader, size, mimeType, err := service.GetImageWithDefault(context.Background(), "logoDark")
+		require.NoError(t, err)
+		defer reader.Close()
+		payload, err := io.ReadAll(reader)
+		require.NoError(t, err)
+		assert.Equal(t, []byte("custom"), payload)
+		assert.Equal(t, int64(len(payload)), size)
+		assert.Equal(t, "image/png", mimeType)
+	})
+
+	t.Run("returns the embedded image if no custom image is set", func(t *testing.T) {
+		reader, size, mimeType, err := service.GetImageWithDefault(context.Background(), "logoLight")
+		require.NoError(t, err)
+		defer reader.Close()
+		payload, err := io.ReadAll(reader)
+		require.NoError(t, err)
+		assert.Equal(t, int64(len(payload)), size)
+		assert.Equal(t, "image/svg+xml", mimeType)
+		assert.True(t, strings.HasPrefix(string(payload), "<svg"))
+	})
+
+	t.Run("returns not found if no embedded image exists", func(t *testing.T) {
+		_, _, _, err := service.GetImageWithDefault(context.Background(), "default-profile-picture")
+		require.Error(t, err)
+		assert.True(t, apperror.IsCode(err, apperror.CodeImageNotFound))
+	})
+
+	t.Run("GetImage doesn't return the embedded image", func(t *testing.T) {
+		_, _, _, err := service.GetImage(context.Background(), "logoLight")
+		require.Error(t, err)
+		assert.True(t, apperror.IsCode(err, apperror.CodeImageNotFound))
+	})
 }
 
 func TestAppImagesService_UpdateImage(t *testing.T) {

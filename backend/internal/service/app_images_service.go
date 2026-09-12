@@ -13,7 +13,15 @@ import (
 	"github.com/pocket-id/pocket-id/backend/internal/storage"
 	"github.com/pocket-id/pocket-id/backend/internal/utils"
 	imageutil "github.com/pocket-id/pocket-id/backend/internal/utils/image"
+	"github.com/pocket-id/pocket-id/backend/resources"
 )
+
+// defaultImages maps an image name to an image embedded in the binary, which is served when no custom image has been uploaded
+// Unlike the images in resources/images these are never copied to the file storage, so clients can still detect whether a custom image has been set
+var defaultImages = map[string]string{
+	"logoLight": "default-images/logoLight.svg",
+	"logoDark":  "default-images/logoDark.svg",
+}
 
 type AppImagesService struct {
 	mu         sync.RWMutex
@@ -45,6 +53,36 @@ func (s *AppImagesService) GetImage(ctx context.Context, name string) (io.ReadCl
 		return nil, 0, "", err
 	}
 	return reader, size, mimeType, nil
+}
+
+// GetImageWithDefault behaves like GetImage, but falls back to the image embedded in the binary if no custom image has been uploaded
+func (s *AppImagesService) GetImageWithDefault(ctx context.Context, name string) (io.ReadCloser, int64, string, error) {
+	reader, size, mimeType, err := s.GetImage(ctx, name)
+	if err == nil || !apperror.IsCode(err, apperror.CodeImageNotFound) {
+		return reader, size, mimeType, err
+	}
+
+	return getDefaultImage(name)
+}
+
+func getDefaultImage(name string) (io.ReadCloser, int64, string, error) {
+	imagePath, ok := defaultImages[name]
+	if !ok {
+		return nil, 0, "", apperror.ImageNotFound()
+	}
+
+	file, err := resources.FS.Open(imagePath)
+	if err != nil {
+		return nil, 0, "", fmt.Errorf("failed to open default image '%s': %w", name, err)
+	}
+
+	stat, err := file.Stat()
+	if err != nil {
+		file.Close()
+		return nil, 0, "", fmt.Errorf("failed to get size of default image '%s': %w", name, err)
+	}
+
+	return file, stat.Size(), utils.GetImageMimeType(utils.GetFileExtension(imagePath)), nil
 }
 
 func (s *AppImagesService) UpdateImage(ctx context.Context, file *multipart.FileHeader, imageName string) error {

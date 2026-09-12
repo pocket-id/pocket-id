@@ -243,11 +243,20 @@ test.describe('Update application images', () => {
 			'Images updated successfully. It may take a few minutes to update.'
 		);
 
+		// Without a custom logo the endpoint falls back to the logo bundled with Pocket ID
 		await page.request
 			.get('/api/application-images/logo?light=true')
-			.then((res) => expect.soft(res.status()).toBe(404));
+			.then((res) => expect.soft(res.status()).toBe(200));
 		await page.request
 			.get('/api/application-images/logo?light=false')
+			.then((res) => expect.soft(res.status()).toBe(200));
+
+		// The bundled logo can be skipped to check whether a custom logo is set
+		await page.request
+			.get('/api/application-images/logo?light=true&default=false')
+			.then((res) => expect.soft(res.status()).toBe(404));
+		await page.request
+			.get('/api/application-images/logo?light=false&default=false')
 			.then((res) => expect.soft(res.status()).toBe(404));
 	});
 
