@@ -54,6 +54,7 @@ export type OidcDiscoveryConfiguration = {
 export type OidcClient = OidcClientMetaData & {
 	callbackURLs: string[];
 	logoutCallbackURLs: string[];
+	backchannelLogoutURL: string;
 	isPublic: boolean;
 	pkceEnabled: boolean;
 	requiresReauthentication: boolean;

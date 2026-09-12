@@ -50,6 +50,7 @@ type OidcClient struct {
 	Description                         string
 	CallbackURLs                        datatype.StringList
 	LogoutCallbackURLs                  datatype.StringList
+	BackchannelLogoutURL                string
 	ImageType                           *string
 	DarkImageType                       *string
 	IsPublic                            bool

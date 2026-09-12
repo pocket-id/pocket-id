@@ -48,6 +48,7 @@
 		description: existingClient?.description || '',
 		callbackURLs: existingClient?.callbackURLs || [],
 		logoutCallbackURLs: existingClient?.logoutCallbackURLs || [],
+		backchannelLogoutURL: existingClient?.backchannelLogoutURL || '',
 		isPublic: existingClient?.isPublic || false,
 		pkceEnabled: existingClient?.pkceEnabled || false,
 		requiresReauthentication: existingClient?.requiresReauthentication || false,
@@ -77,6 +78,7 @@
 		description: z.string().max(150),
 		callbackURLs: z.array(callbackUrlSchema).default([]),
 		logoutCallbackURLs: z.array(callbackUrlSchema).default([]),
+		backchannelLogoutURL: z.url().or(z.literal('')),
 		isPublic: z.boolean(),
 		pkceEnabled: z.boolean(),
 		requiresReauthentication: z.boolean(),
@@ -316,15 +318,25 @@
 				description={m.requires_pushed_authorization_requests_description()}
 				bind:checked={$inputs.requiresPushedAuthorizationRequests.value}
 			/>
-			{#if mode == 'create'}
+			<div class="grid grid-cols-1 gap-x-3 gap-y-7 md:grid-cols-2">
 				<FormInput
-					label={m.client_id()}
-					placeholder={m.generated()}
-					class="w-full md:w-1/2"
-					description={m.custom_client_id_description()}
-					bind:input={$inputs.id}
+					label={m.backchannel_logout_url()}
+					description={m.backchannel_logout_url_description()}
+					class="w-full"
+					type="url"
+					bind:input={$inputs.backchannelLogoutURL}
+					disabled={isCIMDClient}
 				/>
-			{/if}
+				{#if mode == 'create'}
+					<FormInput
+						label={m.client_id()}
+						placeholder={m.generated()}
+						class="w-full"
+						description={m.custom_client_id_description()}
+						bind:input={$inputs.id}
+					/>
+				{/if}
+			</div>
 		</div>
 	{/if}
 
