@@ -1,9 +1,10 @@
 {
 	"provider": "sqlite",
-	"version": 20260929120000,
+	"version": 20261009120000,
 	"tableOrder": [
 		"users",
 		"user_groups",
+		"oidc_claim_mapping_policies",
 		"oidc_clients",
 		"oauth2_sessions",
 		"signup_tokens",
@@ -105,6 +106,15 @@
 				"value": "6puTIBpn0u2Y8FJQ9C4gxuzORTgMmac9Tz9B2epw212hlaepET06ca/CPnwdirCNNg/tLG1wXd2MNSEMgZAnl1cPkF9hPabrRW+SUYpFDLu4yE9w5uc6ns//9pphedK5vS190oXcE7FaWBoso789JuQ0yoicNEnjAAjBWExnp0dXXufmXzUZSnKQ"
 			}
 		],
+		"oidc_claim_mapping_policies": [
+			{
+				"id": "f383d02d-69e1-4a28-96f8-7c5410c8ac8d",
+				"created_at": "2025-11-25T12:39:02Z",
+				"name": "Standard Policy",
+				"is_default": true,
+				"claim_mappings": "W3siY2xhaW1OYW1lIjoic3ViIiwic291cmNlVHlwZSI6InVzZXJfZmllbGQiLCJzb3VyY2VWYWx1ZSI6ImlkIiwic2NvcGUiOlsib3BlbmlkIl0sImFjY2Vzc1Rva2VuIjp0cnVlLCJpZFRva2VuIjp0cnVlLCJ1c2VySW5mbyI6dHJ1ZX0seyJjbGFpbU5hbWUiOiJlbWFpbCIsInNvdXJjZVR5cGUiOiJ1c2VyX2ZpZWxkIiwic291cmNlVmFsdWUiOiJlbWFpbCIsInNjb3BlIjpbImVtYWlsIl0sImFjY2Vzc1Rva2VuIjpmYWxzZSwiaWRUb2tlbiI6dHJ1ZSwidXNlckluZm8iOnRydWV9LHsiY2xhaW1OYW1lIjoiZW1haWxfdmVyaWZpZWQiLCJzb3VyY2VUeXBlIjoidXNlcl9maWVsZCIsInNvdXJjZVZhbHVlIjoiZW1haWxfdmVyaWZpZWQiLCJzY29wZSI6WyJlbWFpbCJdLCJhY2Nlc3NUb2tlbiI6ZmFsc2UsImlkVG9rZW4iOnRydWUsInVzZXJJbmZvIjp0cnVlfSx7ImNsYWltTmFtZSI6ImdpdmVuX25hbWUiLCJzb3VyY2VUeXBlIjoidXNlcl9maWVsZCIsInNvdXJjZVZhbHVlIjoiZmlyc3RfbmFtZSIsInNjb3BlIjpbInByb2ZpbGUiXSwiYWNjZXNzVG9rZW4iOmZhbHNlLCJpZFRva2VuIjp0cnVlLCJ1c2VySW5mbyI6dHJ1ZX0seyJjbGFpbU5hbWUiOiJmYW1pbHlfbmFtZSIsInNvdXJjZVR5cGUiOiJ1c2VyX2ZpZWxkIiwic291cmNlVmFsdWUiOiJsYXN0X25hbWUiLCJzY29wZSI6WyJwcm9maWxlIl0sImFjY2Vzc1Rva2VuIjpmYWxzZSwiaWRUb2tlbiI6dHJ1ZSwidXNlckluZm8iOnRydWV9LHsiY2xhaW1OYW1lIjoibmFtZSIsInNvdXJjZVR5cGUiOiJ1c2VyX2ZpZWxkIiwic291cmNlVmFsdWUiOiJmdWxsX25hbWUiLCJzY29wZSI6WyJwcm9maWxlIl0sImFjY2Vzc1Rva2VuIjpmYWxzZSwiaWRUb2tlbiI6dHJ1ZSwidXNlckluZm8iOnRydWV9LHsiY2xhaW1OYW1lIjoiZGlzcGxheV9uYW1lIiwic291cmNlVHlwZSI6InVzZXJfZmllbGQiLCJzb3VyY2VWYWx1ZSI6ImRpc3BsYXlfbmFtZSIsInNjb3BlIjpbInByb2ZpbGUiXSwiYWNjZXNzVG9rZW4iOmZhbHNlLCJpZFRva2VuIjp0cnVlLCJ1c2VySW5mbyI6dHJ1ZX0seyJjbGFpbU5hbWUiOiJwcmVmZXJyZWRfdXNlcm5hbWUiLCJzb3VyY2VUeXBlIjoidXNlcl9maWVsZCIsInNvdXJjZVZhbHVlIjoidXNlcm5hbWUiLCJzY29wZSI6WyJwcm9maWxlIl0sImFjY2Vzc1Rva2VuIjpmYWxzZSwiaWRUb2tlbiI6dHJ1ZSwidXNlckluZm8iOnRydWV9LHsiY2xhaW1OYW1lIjoibG9jYWxlIiwic291cmNlVHlwZSI6InVzZXJfZmllbGQiLCJzb3VyY2VWYWx1ZSI6ImxvY2FsZSIsInNjb3BlIjpbInByb2ZpbGUiXSwiYWNjZXNzVG9rZW4iOmZhbHNlLCJpZFRva2VuIjp0cnVlLCJ1c2VySW5mbyI6dHJ1ZX0seyJjbGFpbU5hbWUiOiJwaWN0dXJlIiwic291cmNlVHlwZSI6InVzZXJfZmllbGQiLCJzb3VyY2VWYWx1ZSI6InBpY3R1cmUiLCJzY29wZSI6WyJwcm9maWxlIl0sImFjY2Vzc1Rva2VuIjpmYWxzZSwiaWRUb2tlbiI6dHJ1ZSwidXNlckluZm8iOnRydWV9LHsiY2xhaW1OYW1lIjoiZ3JvdXBzIiwic291cmNlVHlwZSI6InVzZXJfZmllbGQiLCJzb3VyY2VWYWx1ZSI6Imdyb3VwcyIsInNjb3BlIjpbImdyb3VwcyJdLCJhY2Nlc3NUb2tlbiI6ZmFsc2UsImlkVG9rZW4iOnRydWUsInVzZXJJbmZvIjp0cnVlfSx7ImNsYWltTmFtZSI6IioiLCJzb3VyY2VUeXBlIjoiY3VzdG9tX2NsYWltIiwic291cmNlVmFsdWUiOiIqIiwic2NvcGUiOlsicHJvZmlsZSJdLCJhY2Nlc3NUb2tlbiI6ZmFsc2UsImlkVG9rZW4iOnRydWUsInVzZXJJbmZvIjp0cnVlfV0="
+			}
+		],
 		"oidc_clients": [
 			{
 				"access_token_duration_minutes": 60,
@@ -130,7 +140,8 @@
 				"requires_pushed_authorization_requests": false,
 				"requires_reauthentication": false,
 				"refresh_token_duration_minutes": 43200,
-				"skip_consent": false
+				"skip_consent": false,
+				"claim_mapping_policy_id": null
 			},
 			{
 				"access_token_duration_minutes": 60,
@@ -156,7 +167,8 @@
 				"requires_pushed_authorization_requests": false,
 				"requires_reauthentication": false,
 				"refresh_token_duration_minutes": 43200,
-				"skip_consent": false
+				"skip_consent": false,
+				"claim_mapping_policy_id": null
 			},
 			{
 				"access_token_duration_minutes": 60,
@@ -182,7 +194,8 @@
 				"requires_pushed_authorization_requests": false,
 				"requires_reauthentication": false,
 				"refresh_token_duration_minutes": 43200,
-				"skip_consent": false
+				"skip_consent": false,
+				"claim_mapping_policy_id": null
 			},
 			{
 				"access_token_duration_minutes": 60,
@@ -208,7 +221,8 @@
 				"requires_pushed_authorization_requests": false,
 				"requires_reauthentication": false,
 				"refresh_token_duration_minutes": 43200,
-				"skip_consent": false
+				"skip_consent": false,
+				"claim_mapping_policy_id": null
 			},
 			{
 				"access_token_duration_minutes": 60,
@@ -234,7 +248,8 @@
 				"requires_reauthentication": false,
 				"refresh_token_duration_minutes": 43200,
 				"skip_consent": false,
-				"credentials": "eyJzZWNyZXRzIjpbeyJpZCI6IjJmMWI4ZjFhLTFkM2UtNGYwYy05YzFhLTAwMDAwMDAwMDAwNSIsImFsZyI6InNoYTI1NiIsImhhc2giOiJiZWM3ZjA4YTI4MDhlZmNkYmU2ZmIwYjFmM2EwZjFhMDFjNjYwMGQxMTc1MjYyOTNjMTlhOWRlZDNkOGVjMGZiIiwicHJlZml4IjoiblFiaSIsImNyZWF0ZWRBdCI6IjIwMjUtMTEtMjVUMTI6Mzk6MDJaIn1dfQ=="
+				"credentials": "eyJzZWNyZXRzIjpbeyJpZCI6IjJmMWI4ZjFhLTFkM2UtNGYwYy05YzFhLTAwMDAwMDAwMDAwNSIsImFsZyI6InNoYTI1NiIsImhhc2giOiJiZWM3ZjA4YTI4MDhlZmNkYmU2ZmIwYjFmM2EwZjFhMDFjNjYwMGQxMTc1MjYyOTNjMTlhOWRlZDNkOGVjMGZiIiwicHJlZml4IjoiblFiaSIsImNyZWF0ZWRBdCI6IjIwMjUtMTEtMjVUMTI6Mzk6MDJaIn1dfQ==",
+				"claim_mapping_policy_id": null
 			},
 			{
 				"access_token_duration_minutes": 60,
@@ -260,7 +275,8 @@
 				"requires_pushed_authorization_requests": false,
 				"requires_reauthentication": false,
 				"refresh_token_duration_minutes": 43200,
-				"skip_consent": false
+				"skip_consent": false,
+				"claim_mapping_policy_id": null
 			},
 			{
 				"access_token_duration_minutes": 60,
@@ -286,7 +302,8 @@
 				"requires_pushed_authorization_requests": false,
 				"requires_reauthentication": false,
 				"refresh_token_duration_minutes": 43200,
-				"skip_consent": true
+				"skip_consent": true,
+				"claim_mapping_policy_id": null
 			}
 		],
 		"oidc_clients_allowed_user_groups": [

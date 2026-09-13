@@ -193,6 +193,33 @@ func (s *TestService) SeedDatabase(baseURL string) error {
 			}
 		}
 
+		// The default claim mapping policy is inserted by a migration, so it has to be recreated after the database reset
+		// It mirrors the migration so clients without an assigned policy keep getting the standard claims
+		defaultClaimMappingPolicy := model.OidcClaimMappingPolicy{
+			Base: model.Base{
+				ID: "f383d02d-69e1-4a28-96f8-7c5410c8ac8d",
+			},
+			Name:      "Standard Policy",
+			IsDefault: true,
+			ClaimMappings: model.OidcClaimMappings{
+				{ClaimName: "sub", SourceType: model.MappingSourceUserField, SourceValue: "id", Scope: datatype.StringList{"openid"}, AccessToken: true, IDToken: true, UserInfo: true},
+				{ClaimName: "email", SourceType: model.MappingSourceUserField, SourceValue: "email", Scope: datatype.StringList{"email"}, IDToken: true, UserInfo: true},
+				{ClaimName: "email_verified", SourceType: model.MappingSourceUserField, SourceValue: "email_verified", Scope: datatype.StringList{"email"}, IDToken: true, UserInfo: true},
+				{ClaimName: "given_name", SourceType: model.MappingSourceUserField, SourceValue: "first_name", Scope: datatype.StringList{"profile"}, IDToken: true, UserInfo: true},
+				{ClaimName: "family_name", SourceType: model.MappingSourceUserField, SourceValue: "last_name", Scope: datatype.StringList{"profile"}, IDToken: true, UserInfo: true},
+				{ClaimName: "name", SourceType: model.MappingSourceUserField, SourceValue: "full_name", Scope: datatype.StringList{"profile"}, IDToken: true, UserInfo: true},
+				{ClaimName: "display_name", SourceType: model.MappingSourceUserField, SourceValue: "display_name", Scope: datatype.StringList{"profile"}, IDToken: true, UserInfo: true},
+				{ClaimName: "preferred_username", SourceType: model.MappingSourceUserField, SourceValue: "username", Scope: datatype.StringList{"profile"}, IDToken: true, UserInfo: true},
+				{ClaimName: "locale", SourceType: model.MappingSourceUserField, SourceValue: "locale", Scope: datatype.StringList{"profile"}, IDToken: true, UserInfo: true},
+				{ClaimName: "picture", SourceType: model.MappingSourceUserField, SourceValue: "picture", Scope: datatype.StringList{"profile"}, IDToken: true, UserInfo: true},
+				{ClaimName: "groups", SourceType: model.MappingSourceUserField, SourceValue: "groups", Scope: datatype.StringList{"groups"}, IDToken: true, UserInfo: true},
+				{ClaimName: "*", SourceType: model.MappingSourceCustomClaim, SourceValue: "*", Scope: datatype.StringList{"profile"}, IDToken: true, UserInfo: true},
+			},
+		}
+		if err := tx.Create(&defaultClaimMappingPolicy).Error; err != nil {
+			return err
+		}
+
 		oidcClients := []model.OidcClient{
 			{
 				Base: model.Base{
