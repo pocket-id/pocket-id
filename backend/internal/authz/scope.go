@@ -20,17 +20,19 @@ const (
 
 // Admin scopes cover other users' data and the instance configuration
 const (
-	UsersRead        Scope = "users:read"
-	UsersWrite       Scope = "users:write"
-	GroupsRead       Scope = "groups:read"
-	GroupsWrite      Scope = "groups:write"
-	OidcClientsRead  Scope = "oidc-clients:read"
-	OidcClientsWrite Scope = "oidc-clients:write"
-	APIsRead         Scope = "apis:read"
-	APIsWrite        Scope = "apis:write"
-	ConfigRead       Scope = "config:read"
-	ConfigWrite      Scope = "config:write"
-	AuditLogsRead    Scope = "audit-logs:read"
+	UsersRead                     Scope = "users:read"
+	UsersWrite                    Scope = "users:write"
+	GroupsRead                    Scope = "groups:read"
+	GroupsWrite                   Scope = "groups:write"
+	OidcClientsRead               Scope = "oidc-clients:read"
+	OidcClientsWrite              Scope = "oidc-clients:write"
+	OidcClaimMappingPoliciesRead  Scope = "oidc-claim-mapping-policies:read"
+	OidcClaimMappingPoliciesWrite Scope = "oidc-claim-mapping-policies:write"
+	APIsRead                      Scope = "apis:read"
+	APIsWrite                     Scope = "apis:write"
+	ConfigRead                    Scope = "config:read"
+	ConfigWrite                   Scope = "config:write"
+	AuditLogsRead                 Scope = "audit-logs:read"
 )
 
 // Category groups scopes by whose data they reach

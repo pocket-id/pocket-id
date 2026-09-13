@@ -37,19 +37,35 @@ func (b *ClientPreviewBuilder) BuildClientPreview(ctx context.Context, client mo
 		return nil, err
 	}
 
-	userInfo, err := b.claimsService.GetUserClaims(ctx, userID, scopeArgs)
+	claimMappingPolicy, err := b.claimsService.GetClaimMappingPolicyByClientID(ctx, client.ID)
+	if err != nil {
+		return nil, err
+	}
+
+	userInfo, err := b.claimsService.GetUserClaims(ctx, userID, scopeArgs, *claimMappingPolicy, UserInfoType)
 	if err != nil {
 		return nil, err
 	}
 
 	request := b.newPreviewRequest(ctx, client, userID, scopeArgs, authenticationMethod)
 	session := request.GetSession().(*Session)
-	applyUserClaimsToIDToken(session, userID, userInfo)
+
+	idTokenClaims, err := b.claimsService.GetUserClaims(ctx, userID, scopeArgs, *claimMappingPolicy, IDTokenType)
+	if err != nil {
+		return nil, err
+	}
+	applyUserClaimsToIDToken(session, userID, idTokenClaims)
 
 	idToken, err := b.strategies.idToken.GenerateIDToken(ctx, b.strategies.config.GetIDTokenLifespan(ctx), request)
 	if err != nil {
 		return nil, fmt.Errorf("failed to generate preview ID token: %w", err)
 	}
+
+	accessTokenClaims, err := b.claimsService.GetUserClaims(ctx, userID, scopeArgs, *claimMappingPolicy, AccessTokenType)
+	if err != nil {
+		return nil, err
+	}
+	applyUserClaimsToAccessToken(session, userID, accessTokenClaims)
 
 	accessToken, _, err := b.strategies.accessToken.GenerateAccessToken(ctx, request)
 	if err != nil {

@@ -44,7 +44,8 @@ func (h *tokenHandler) token(c *gin.Context) {
 		return
 	}
 
-	if client, ok := accessRequest.GetClient().(Client); ok {
+	client, ok := accessRequest.GetClient().(Client)
+	if ok {
 		// Re-validate the resource owner on every user-bound grant.
 		err := h.claimsService.ValidateUserAccess(ctx, requestSession.Subject, client)
 		if err != nil {
@@ -86,13 +87,24 @@ func (h *tokenHandler) token(c *gin.Context) {
 		}
 	}
 
-	err = h.claimsService.applyIDTokenClaims(ctx, requestSession, accessRequest.GetGrantedScopes())
+	claimMappingPolicy, err := h.claimsService.GetClaimMappingPolicyByClientID(ctx, client.GetID())
+	if err != nil {
+		slog.ErrorContext(ctx, "Failed to get claim mapping policy", "error", err)
+		h.provider.WriteAccessError(ctx, c.Writer, accessRequest, err)
+		return
+	}
+	err = h.claimsService.applyIDTokenClaims(ctx, requestSession, accessRequest.GetGrantedScopes(), *claimMappingPolicy)
 	if err != nil {
 		slog.ErrorContext(ctx, "Failed to apply ID token claims", "error", err)
 		h.provider.WriteAccessError(ctx, c.Writer, accessRequest, err)
 		return
 	}
-
+	err = h.claimsService.applyAccessTokenClaims(ctx, requestSession, accessRequest.GetGrantedScopes(), *claimMappingPolicy)
+	if err != nil {
+		slog.ErrorContext(ctx, "Failed to apply access token claims", "error", err)
+		h.provider.WriteAccessError(ctx, c.Writer, accessRequest, err)
+		return
+	}
 	// The client credentials grant has no resource owner, so no subject is ever set. Assign a
 	// stable synthetic subject so the issued JWT access token still carries a subclaim.
 	if requestSession.Subject == "" {

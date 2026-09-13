@@ -138,7 +138,14 @@ func (s *deviceService) acceptDeviceCode(ctx context.Context, userCode, userID, 
 		// Keep the lifetimes of the pending device authorization, so its codes and the OpenID Connect session created below still expire
 		copyDeviceCodeExpiry(request.GetSession(), session)
 
-		if err = s.claimsService.applyIDTokenClaims(ctx, session, request.GetGrantedScopes()); err != nil {
+		claimMappingPolicy, err := s.claimsService.GetClaimMappingPolicyByClientID(ctx, client.GetID())
+		if err != nil {
+			return err
+		}
+		if err = s.claimsService.applyIDTokenClaims(ctx, session, request.GetGrantedScopes(), *claimMappingPolicy); err != nil {
+			return err
+		}
+		if err = s.claimsService.applyAccessTokenClaims(ctx, session, request.GetGrantedScopes(), *claimMappingPolicy); err != nil {
 			return err
 		}
 		request.SetSession(session)

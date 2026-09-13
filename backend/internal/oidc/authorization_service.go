@@ -197,11 +197,18 @@ func (s *authorizationService) authorize(ctx context.Context, input authorizeInp
 		return result, nil
 	}
 
-	err = s.claimsService.applyIDTokenClaims(ctx, result.Session, input.requester.GetGrantedScopes())
+	claimMappingPolicy, err := s.claimsService.GetClaimMappingPolicyByClientID(ctx, client.GetID())
 	if err != nil {
 		return authorizationResult{}, err
 	}
-
+	err = s.claimsService.applyIDTokenClaims(ctx, result.Session, input.requester.GetGrantedScopes(), *claimMappingPolicy)
+	if err != nil {
+		return authorizationResult{}, err
+	}
+	err = s.claimsService.applyAccessTokenClaims(ctx, result.Session, input.requester.GetGrantedScopes(), *claimMappingPolicy)
+	if err != nil {
+		return authorizationResult{}, err
+	}
 	return result, nil
 }
 
