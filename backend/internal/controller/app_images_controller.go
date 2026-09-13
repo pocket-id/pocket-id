@@ -3,11 +3,11 @@ package controller
 import (
 	"net/http"
 	"slices"
-	"strconv"
 	"strings"
 	"time"
 
 	"github.com/gin-gonic/gin"
+	kitutils "github.com/italypaleale/go-kit/utils"
 
 	"github.com/pocket-id/pocket-id/backend/internal/apperror"
 	_ "github.com/pocket-id/pocket-id/backend/internal/dto"
@@ -52,6 +52,7 @@ type AppImagesController struct {
 // @Description Get the logo image for the application
 // @Tags Application Images
 // @Param light query boolean false "Light mode logo (true) or dark mode logo (false)"
+// @Param default query boolean false "Return the bundled default logo if no custom logo is set (default true)"
 // @Produce image/png
 // @Produce image/jpeg
 // @Produce image/svg+xml
@@ -155,7 +156,7 @@ func (c *AppImagesController) deleteLogoHandler(ctx *gin.Context) error {
 }
 
 func logoImageName(ctx *gin.Context) string {
-	lightLogo, _ := strconv.ParseBool(ctx.DefaultQuery("light", "true"))
+	lightLogo := kitutils.IsTruthy(ctx.DefaultQuery("light", "true"))
 	if lightLogo {
 		return "logoLight"
 	}
@@ -261,7 +262,12 @@ func (c *AppImagesController) updateFaviconHandler(ctx *gin.Context) error {
 }
 
 func (c *AppImagesController) getImage(ctx *gin.Context, name string) error {
-	reader, size, mimeType, err := c.appImagesService.GetImage(ctx.Request.Context(), name)
+	getImage := c.appImagesService.GetImage
+	if kitutils.IsTruthy(ctx.DefaultQuery("default", "true")) {
+		getImage = c.appImagesService.GetImageWithDefault
+	}
+
+	reader, size, mimeType, err := getImage(ctx.Request.Context(), name)
 	if err != nil {
 		return err
 	}
