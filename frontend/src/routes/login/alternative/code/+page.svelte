@@ -46,7 +46,7 @@
 			await userStore.setUser(user);
 
 			try {
-				goto(data.redirect);
+				await goto(data.redirect);
 			} catch {
 				error = m.invalid_redirect_url();
 			}
