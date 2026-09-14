@@ -13,6 +13,7 @@ import (
 	"github.com/pocket-id/pocket-id/backend/internal/storage"
 	"github.com/pocket-id/pocket-id/backend/internal/utils"
 	imageutil "github.com/pocket-id/pocket-id/backend/internal/utils/image"
+	"github.com/pocket-id/pocket-id/backend/resources"
 )
 
 type AppImagesService struct {
@@ -45,6 +46,42 @@ func (s *AppImagesService) GetImage(ctx context.Context, name string) (io.ReadCl
 		return nil, 0, "", err
 	}
 	return reader, size, mimeType, nil
+}
+
+// GetImageWithDefault behaves like GetImage, but falls back to the image embedded in the binary if no custom image has been uploaded
+func (s *AppImagesService) GetImageWithDefault(ctx context.Context, name string) (f io.ReadCloser, size int64, mimeType string, err error) {
+	f, size, mimeType, err = s.GetImage(ctx, name)
+	if err == nil || !apperror.IsCode(err, apperror.CodeImageNotFound) {
+		return f, size, mimeType, err
+	}
+
+	return getDefaultImage(name)
+}
+
+func getDefaultImage(name string) (io.ReadCloser, int64, string, error) {
+	// Map an image name to an image embedded in the binary
+	var imagePath string
+	switch name {
+	case "logoLight":
+		imagePath = "default-images/logoLight.svg"
+	case "logoDark":
+		imagePath = "default-images/logoDark.svg"
+	default:
+		return nil, 0, "", apperror.ImageNotFound()
+	}
+
+	file, err := resources.FS.Open(imagePath)
+	if err != nil {
+		return nil, 0, "", fmt.Errorf("failed to open default image '%s': %w", name, err)
+	}
+
+	stat, err := file.Stat()
+	if err != nil {
+		file.Close()
+		return nil, 0, "", fmt.Errorf("failed to get size of default image '%s': %w", name, err)
+	}
+
+	return file, stat.Size(), utils.GetImageMimeType(utils.GetFileExtension(imagePath)), nil
 }
 
 func (s *AppImagesService) UpdateImage(ctx context.Context, file *multipart.FileHeader, imageName string) error {
