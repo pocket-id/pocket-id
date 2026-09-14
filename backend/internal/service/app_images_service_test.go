@@ -2,7 +2,6 @@ package service
 
 import (
 	"bytes"
-	"context"
 	"encoding/binary"
 	"io"
 	"io/fs"
@@ -10,6 +9,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"path"
+	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -22,11 +22,12 @@ import (
 func TestAppImagesService_GetImage(t *testing.T) {
 	store := newFilesystemStorageForTest(t)
 
-	require.NoError(t, store.Save(context.Background(), path.Join("application-images", "background.webp"), bytes.NewReader([]byte("data"))))
+	err := store.Save(t.Context(), path.Join("application-images", "background.webp"), bytes.NewReader([]byte("data")))
+	require.NoError(t, err)
 
 	service := NewAppImagesService(map[string]string{"background": "webp"}, store)
 
-	reader, size, mimeType, err := service.GetImage(context.Background(), "background")
+	reader, size, mimeType, err := service.GetImage(t.Context(), "background")
 	require.NoError(t, err)
 	defer reader.Close()
 	payload, err := io.ReadAll(reader)
@@ -36,22 +37,67 @@ func TestAppImagesService_GetImage(t *testing.T) {
 	require.Equal(t, "image/webp", mimeType)
 }
 
+func TestAppImagesService_GetImageWithDefault(t *testing.T) {
+	store := newFilesystemStorageForTest(t)
+
+	err := store.Save(t.Context(), path.Join("application-images", "logoDark.png"), bytes.NewReader([]byte("custom")))
+	require.NoError(t, err)
+
+	service := NewAppImagesService(map[string]string{"logoDark": "png"}, store)
+
+	t.Run("returns the custom image if one is set", func(t *testing.T) {
+		reader, size, mimeType, err := service.GetImageWithDefault(t.Context(), "logoDark")
+		require.NoError(t, err)
+		defer reader.Close()
+		payload, err := io.ReadAll(reader)
+		require.NoError(t, err)
+		assert.Equal(t, []byte("custom"), payload)
+		assert.Equal(t, int64(len(payload)), size)
+		assert.Equal(t, "image/png", mimeType)
+	})
+
+	t.Run("returns the embedded image if no custom image is set", func(t *testing.T) {
+		reader, size, mimeType, err := service.GetImageWithDefault(t.Context(), "logoLight")
+		require.NoError(t, err)
+		defer reader.Close()
+		payload, err := io.ReadAll(reader)
+		require.NoError(t, err)
+		assert.Equal(t, int64(len(payload)), size)
+		assert.Equal(t, "image/svg+xml", mimeType)
+		assert.True(t, strings.HasPrefix(string(payload), "<svg"))
+	})
+
+	t.Run("returns not found if no embedded image exists", func(t *testing.T) {
+		_, _, _, err := service.GetImageWithDefault(t.Context(), "default-profile-picture")
+		require.Error(t, err)
+		assert.True(t, apperror.IsCode(err, apperror.CodeImageNotFound))
+	})
+
+	t.Run("GetImage doesn't return the embedded image", func(t *testing.T) {
+		_, _, _, err := service.GetImage(t.Context(), "logoLight")
+		require.Error(t, err)
+		assert.True(t, apperror.IsCode(err, apperror.CodeImageNotFound))
+	})
+}
+
 func TestAppImagesService_UpdateImage(t *testing.T) {
 	store := newFilesystemStorageForTest(t)
 
-	require.NoError(t, store.Save(context.Background(), path.Join("application-images", "logoLight.svg"), bytes.NewReader([]byte("old"))))
+	err := store.Save(t.Context(), path.Join("application-images", "logoLight.svg"), bytes.NewReader([]byte("old")))
+	require.NoError(t, err)
 
 	service := NewAppImagesService(map[string]string{"logoLight": "svg"}, store)
 
 	fileHeader := newFileHeader(t, "logoLight.png", []byte("new"))
 
-	require.NoError(t, service.UpdateImage(context.Background(), fileHeader, "logoLight"))
+	err = service.UpdateImage(t.Context(), fileHeader, "logoLight")
+	require.NoError(t, err)
 
-	reader, _, err := store.Open(context.Background(), path.Join("application-images", "logoLight.png"))
+	reader, _, err := store.Open(t.Context(), path.Join("application-images", "logoLight.png"))
 	require.NoError(t, err)
 	_ = reader.Close()
 
-	_, _, err = store.Open(context.Background(), path.Join("application-images", "logoLight.svg"))
+	_, _, err = store.Open(t.Context(), path.Join("application-images", "logoLight.svg"))
 	require.ErrorIs(t, err, fs.ErrNotExist)
 }
 
@@ -65,9 +111,10 @@ func TestAppImagesService_UpdateImageStripsMetadata(t *testing.T) {
 		webpChunk("EXIF", []byte("secret")),
 	))
 
-	require.NoError(t, service.UpdateImage(context.Background(), fileHeader, "logoLight"))
+	err := service.UpdateImage(t.Context(), fileHeader, "logoLight")
+	require.NoError(t, err)
 
-	reader, _, err := store.Open(context.Background(), path.Join("application-images", "logoLight.webp"))
+	reader, _, err := store.Open(t.Context(), path.Join("application-images", "logoLight.webp"))
 	require.NoError(t, err)
 	defer reader.Close()
 
@@ -83,34 +130,37 @@ func TestAppImagesService_ErrorsAndFlags(t *testing.T) {
 	service := NewAppImagesService(map[string]string{}, store)
 
 	t.Run("get missing image returns not found", func(t *testing.T) {
-		_, _, _, err := service.GetImage(context.Background(), "missing")
+		_, _, _, err := service.GetImage(t.Context(), "missing")
 		require.Error(t, err)
 		assert.True(t, apperror.IsCode(err, apperror.CodeImageNotFound))
 	})
 
 	t.Run("reject unsupported file types", func(t *testing.T) {
-		err := service.UpdateImage(context.Background(), newFileHeader(t, "logo.txt", []byte("nope")), "logo")
+		err := service.UpdateImage(t.Context(), newFileHeader(t, "logo.txt", []byte("nope")), "logo")
 		require.Error(t, err)
 		assert.True(t, apperror.IsCode(err, apperror.CodeFileTypeNotSupported))
 	})
 
 	t.Run("delete and extension tracking", func(t *testing.T) {
-		require.NoError(t, store.Save(context.Background(), path.Join("application-images", "default-profile-picture.png"), bytes.NewReader([]byte("img"))))
+		err := store.Save(t.Context(), path.Join("application-images", "default-profile-picture.png"), bytes.NewReader([]byte("img")))
+		require.NoError(t, err)
 		service.extensions["default-profile-picture"] = "png"
 
-		require.NoError(t, service.DeleteImage(context.Background(), "default-profile-picture"))
+		err = service.DeleteImage(t.Context(), "default-profile-picture")
+		require.NoError(t, err)
 		assert.False(t, service.IsDefaultProfilePictureSet())
-		reader, size, err := store.Open(context.Background(), deletedApplicationImagePath("default-profile-picture"))
+		reader, size, err := store.Open(t.Context(), deletedApplicationImagePath("default-profile-picture"))
 		require.NoError(t, err)
 		assert.Zero(t, size)
 		require.NoError(t, reader.Close())
 
-		err = service.DeleteImage(context.Background(), "default-profile-picture")
+		err = service.DeleteImage(t.Context(), "default-profile-picture")
 		require.Error(t, err)
 		assert.True(t, apperror.IsCode(err, apperror.CodeImageNotFound))
 
-		require.NoError(t, service.UpdateImage(context.Background(), newFileHeader(t, "default-profile-picture.png", []byte("new")), "default-profile-picture"))
-		_, _, err = store.Open(context.Background(), deletedApplicationImagePath("default-profile-picture"))
+		err = service.UpdateImage(t.Context(), newFileHeader(t, "default-profile-picture.png", []byte("new")), "default-profile-picture")
+		require.NoError(t, err)
+		_, _, err = store.Open(t.Context(), deletedApplicationImagePath("default-profile-picture"))
 		require.ErrorIs(t, err, fs.ErrNotExist)
 	})
 }
