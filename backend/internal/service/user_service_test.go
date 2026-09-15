@@ -30,9 +30,10 @@ func newTestUserService(t *testing.T) (*UserService, *UserGroupService) {
 		NewCustomClaimService(db),
 		NewAppImagesService(map[string]string{}, fileStorage),
 		nil,
+		nil,
 		fileStorage,
 	)
-	groupService := NewUserGroupService(db, nil)
+	groupService := NewUserGroupService(db, nil, nil)
 
 	return userService, groupService
 }

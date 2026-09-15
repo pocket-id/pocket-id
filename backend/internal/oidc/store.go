@@ -206,6 +206,8 @@ func (s *Store) StoreCIMDClient(ctx context.Context, resolved fosite.Client, _ *
 		}
 
 		// A security-relevant document change invalidates consent because it changes what the user previously approved
+		// No back-channel logout tokens are sent here, which is safe only because CIMD clients cannot register a backchannel_logout_url today
+		// If that URL is ever mapped from the metadata document, resolve the notifications before this delete removes the rows
 		if revokeConsent {
 			err := s.dbFor(ctx).
 				Where("client_id = ?", client.ID).
