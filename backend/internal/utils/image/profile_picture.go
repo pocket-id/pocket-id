@@ -8,8 +8,8 @@ import (
 	"image/color"
 	"io"
 
+	"github.com/boxes-ltd/imaging"
 	"github.com/disintegration/imageorient"
-	"github.com/disintegration/imaging"
 	"golang.org/x/image/font"
 	"golang.org/x/image/font/opentype"
 	"golang.org/x/image/math/fixed"
