@@ -3,6 +3,8 @@ package profilepicture
 import (
 	"bytes"
 	"encoding/binary"
+	"errors"
+	"fmt"
 	"io"
 	"strings"
 
@@ -21,13 +23,10 @@ func StripMetadata(file io.Reader, ext string) (*bytes.Reader, error) {
 	}
 
 	switch strings.ToLower(ext) {
-	case "jpg", "jpeg":
-		stripped, err := exifremove.Remove(data)
-		if err == nil {
-			return bytes.NewReader(stripped), nil
+	case "jpg", "jpeg", "png":
+		if err := rejectOversizedImage(data); err != nil {
+			return nil, err
 		}
-		return bytes.NewReader(data), nil
-	case "png":
 		stripped, err := exifremove.Remove(data)
 		if err == nil {
 			return bytes.NewReader(stripped), nil
@@ -38,6 +37,14 @@ func StripMetadata(file io.Reader, ext string) (*bytes.Reader, error) {
 	default:
 		return bytes.NewReader(data), nil
 	}
+}
+
+func rejectOversizedImage(data []byte) error {
+	err := validateImageDimensions(bytes.NewReader(data))
+	if errors.Is(err, errImageDimensionsTooLarge) {
+		return fmt.Errorf("%w: %w", ErrInvalidImage, err)
+	}
+	return nil
 }
 
 func stripWEBPMetadata(data []byte) []byte {

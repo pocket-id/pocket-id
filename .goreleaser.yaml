@@ -110,6 +110,9 @@ dockers_v2:
     platforms:
       - linux/amd64
       - linux/arm64
+    flags:
+      - "--pull=true"
+      - "--no-cache=true"
     labels:
       "org.opencontainers.image.authors": "Pocket ID"
       "org.opencontainers.image.url": "https://github.com/pocket-id/pocket-id"
