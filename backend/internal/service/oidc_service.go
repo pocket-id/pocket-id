@@ -515,6 +515,9 @@ func (s *OidcService) UpdateClientLogo(ctx context.Context, clientID string, fil
 	}
 	defer reader.Close()
 	strippedReader, err := imageutil.StripMetadata(reader, fileType)
+	if errors.Is(err, imageutil.ErrInvalidImage) {
+		return apperror.InvalidImage(err)
+	}
 	if err != nil {
 		return err
 	}

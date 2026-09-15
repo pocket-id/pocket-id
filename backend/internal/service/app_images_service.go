@@ -2,6 +2,7 @@ package service
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"io"
 	"mime/multipart"
@@ -104,6 +105,9 @@ func (s *AppImagesService) UpdateImage(ctx context.Context, file *multipart.File
 	defer fileReader.Close()
 
 	strippedReader, err := imageutil.StripMetadata(fileReader, fileType)
+	if errors.Is(err, imageutil.ErrInvalidImage) {
+		return apperror.InvalidImage(err)
+	}
 	if err != nil {
 		return err
 	}

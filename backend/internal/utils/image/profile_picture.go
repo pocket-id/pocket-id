@@ -24,6 +24,15 @@ var ErrInvalidImage = errors.New("invalid image")
 
 // CreateProfilePicture resizes the profile picture to a square and encodes it as PNG
 func CreateProfilePicture(file io.ReadSeeker) (io.ReadSeeker, error) {
+	// Reject an oversized pixel count before decoding can allocate a pixel buffer
+	validationErr := validateImageDimensions(file)
+	if _, err := file.Seek(0, io.SeekStart); err != nil {
+		return nil, fmt.Errorf("failed to seek file: %w", err)
+	}
+	if validationErr != nil {
+		return nil, fmt.Errorf("%w: %w", ErrInvalidImage, validationErr)
+	}
+
 	// Attempt standard formats first
 	img, _, err := imageorient.Decode(file)
 	if err != nil {
