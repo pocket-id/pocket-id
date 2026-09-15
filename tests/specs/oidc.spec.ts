@@ -193,6 +193,21 @@ test('Authorize new client shows Pocket ID error when user group not allowed', a
 	).toBeVisible();
 });
 
+test('Unknown authorize interaction shows the interaction error page', async ({
+	page
+}, testInfo) => {
+	const relyingPartyUrl = new URL('/client-return', testInfo.project.use.baseURL).toString();
+	await page.goto(`/interaction?interaction=${crypto.randomUUID()}`, { referer: relyingPartyUrl });
+
+	await expect(page).toHaveURL(/\/interaction\/error\?error=/);
+	await expect(page.getByRole('heading', { name: 'Error' })).toBeVisible();
+	await expect(page.getByText('OIDC interaction not found or expired')).toBeVisible();
+	await expect(page.getByRole('link', { name: 'Go back' })).toHaveAttribute(
+		'href',
+		relyingPartyUrl
+	);
+});
+
 function createUrlParams(oidcClient: { id: string; callbackUrl: string }) {
 	return new URLSearchParams({
 		client_id: oidcClient.id,
