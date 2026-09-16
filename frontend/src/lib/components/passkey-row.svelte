@@ -3,10 +3,19 @@
 	import * as Item from '$lib/components/ui/item/index.js';
 	import * as Tooltip from '$lib/components/ui/tooltip/index.js';
 	import { m } from '$lib/paraglide/messages';
-	import { LucideCalendar, LucidePencil, LucideTrash, type Icon as IconType } from '@lucide/svelte';
+	import { cn } from '$lib/utils/style';
+	import {
+		LucideCalendar,
+		LucideImage,
+		LucideImageOff,
+		LucidePencil,
+		LucideTrash,
+		type Icon as IconType
+	} from '@lucide/svelte';
 
 	let {
 		icon,
+		providerIcon,
 		onRename,
 		onDelete,
 		showRenameAction = true,
@@ -14,17 +23,39 @@
 		description
 	}: {
 		icon: typeof IconType;
+		providerIcon?: { url?: string; onToggleIcon?: () => void };
 		onRename?: () => void;
 		onDelete: () => void;
 		showRenameAction?: boolean;
 		description?: string;
 		label?: string;
 	} = $props();
+
+	let iconFailed = $state(false);
+
+	$effect(() => {
+		void providerIcon?.url;
+		iconFailed = false;
+	});
+
+	const showProviderIcon = $derived(!!providerIcon?.url && !iconFailed);
 </script>
 
 <Item.Root variant="transparent" class="hover:bg-muted transition-colors py-3 px-0 sm:px-4">
-	<Item.Media class="bg-primary/10 text-primary rounded-full p-3">
-		{#if icon}{@const Icon = icon}
+	<Item.Media
+		class={cn(
+			'size-11',
+			showProviderIcon ? 'bg-transparent' : 'bg-primary/10 text-primary rounded-full'
+		)}
+	>
+		{#if showProviderIcon}
+			<img
+				src={providerIcon?.url}
+				alt=""
+				class="size-full object-contain"
+				onerror={() => (iconFailed = true)}
+			/>
+		{:else if icon}{@const Icon = icon}
 			<Icon class="size-5" />
 		{/if}
 	</Item.Media>
@@ -38,6 +69,30 @@
 		{/if}
 	</Item.Content>
 	<Item.Actions>
+		{#if providerIcon?.onToggleIcon}
+			{@const toggleLabel = providerIcon.url ? m.clear_icon() : m.restore_icon()}
+			<Tooltip.Provider>
+				<Tooltip.Root>
+					<Tooltip.Trigger>
+						<Button
+							onclick={providerIcon.onToggleIcon}
+							size="icon"
+							variant="ghost"
+							class="size-8"
+							aria-label={toggleLabel}
+						>
+							{#if providerIcon.url}
+								<LucideImageOff class="size-4" />
+							{:else}
+								<LucideImage class="size-4" />
+							{/if}
+						</Button>
+					</Tooltip.Trigger>
+					<Tooltip.Content>{toggleLabel}</Tooltip.Content>
+				</Tooltip.Root>
+			</Tooltip.Provider>
+		{/if}
+
 		{#if showRenameAction && onRename}
 			<Tooltip.Provider>
 				<Tooltip.Root>

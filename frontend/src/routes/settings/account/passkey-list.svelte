@@ -5,8 +5,10 @@
 	import { m } from '$lib/paraglide/messages';
 	import WebauthnService from '$lib/services/webauthn-service';
 	import type { Passkey } from '$lib/types/passkey.type';
+	import { authenticatorIconUrl } from '$lib/utils/cached-image-util';
 	import { axiosErrorToast } from '$lib/utils/error-util';
 	import { LucideKeyRound } from '@lucide/svelte';
+	import { mode } from 'mode-watcher';
 	import { toast } from 'svelte-sonner';
 	import RenamePasskeyModal from './rename-passkey-modal.svelte';
 
@@ -15,6 +17,19 @@
 	const webauthnService = new WebauthnService();
 
 	let passkeyToRename: Passkey | null = $state(null);
+
+	const isLightMode = $derived(mode.current === 'light');
+
+	async function togglePasskeyIcon(passkey: Passkey) {
+		try {
+			await webauthnService.updateCredential(passkey.id, {
+				iconHidden: passkey.icon === 'shown'
+			});
+			passkeys = await webauthnService.listCredentials();
+		} catch (e) {
+			axiosErrorToast(e);
+		}
+	}
 
 	async function deletePasskey(passkey: Passkey) {
 		openConfirmDialog({
@@ -43,6 +58,15 @@
 			label={passkey.name}
 			description={m.added_on() + ' ' + new Date(passkey.createdAt).toLocaleDateString()}
 			icon={LucideKeyRound}
+			providerIcon={passkey.icon === 'none'
+				? undefined
+				: {
+						url:
+							passkey.icon === 'shown'
+								? authenticatorIconUrl(passkey.aaguid, isLightMode)
+								: undefined,
+						onToggleIcon: () => togglePasskeyIcon(passkey)
+					}}
 			onRename={() => (passkeyToRename = passkey)}
 			onDelete={() => deletePasskey(passkey)}
 		/>

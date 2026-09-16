@@ -26,8 +26,8 @@ class WebAuthnService extends APIService {
 		await this.api.delete(`/webauthn/credentials/${id}`);
 	};
 
-	updateCredentialName = async (id: string, name: string) => {
-		await this.api.patch(`/webauthn/credentials/${id}`, { name });
+	updateCredential = async (id: string, data: { name?: string; iconHidden?: boolean }) => {
+		await this.api.patch(`/webauthn/credentials/${id}`, data);
 	};
 
 	reauthenticate = async (body?: AuthenticationResponseJSON) => {

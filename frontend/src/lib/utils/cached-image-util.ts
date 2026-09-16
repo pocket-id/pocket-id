@@ -75,6 +75,15 @@ export const cachedOidcClientLogo: CachableImage = {
 	}
 };
 
+export function authenticatorIconUrl(aaguid: string, light = true) {
+	const url = new URL(
+		`/api/webauthn/authenticator-icons/${encodeURIComponent(aaguid)}`,
+		window.location.origin
+	);
+	if (!light) url.searchParams.set('light', 'false');
+	return url.pathname + (url.search ? `?${url.searchParams.toString()}` : '');
+}
+
 function getCachedImageUrl(url: URL) {
 	const baseKey = normalizeUrlForKey(url);
 	const skipCacheUntil = getSkipCacheUntil(baseKey);

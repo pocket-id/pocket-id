@@ -34,7 +34,7 @@
 
 	async function onSubmit() {
 		await webauthnService
-			.updateCredentialName(passkey!.id, name)
+			.updateCredential(passkey!.id, { name })
 			.then(() => {
 				passkey = null;
 				toast.success(m.passkey_name_updated_successfully());
