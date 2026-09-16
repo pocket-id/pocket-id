@@ -4,8 +4,10 @@
 	import { m } from '$lib/paraglide/messages';
 	import appConfigStore from '$lib/stores/application-configuration-store';
 	import type { UserGroupCreate } from '$lib/types/user-group.type';
+	import { axiosErrorToast } from '$lib/utils/error-util';
 	import { preventDefault } from '$lib/utils/event-util';
 	import { createForm } from '$lib/utils/form-util';
+	import { trackFormChanges } from '$lib/utils/unsaved-changes-util.svelte';
 	import { z } from 'zod/v4';
 
 	let {
@@ -13,7 +15,7 @@
 		existingUserGroup
 	}: {
 		existingUserGroup?: UserGroupCreate;
-		callback: (userGroup: UserGroupCreate) => Promise<boolean>;
+		callback: (userGroup: UserGroupCreate) => Promise<void>;
 	} = $props();
 
 	let isLoading = $state(false);
@@ -31,7 +33,8 @@
 	});
 	type FormSchema = typeof formSchema;
 
-	const { inputs, ...form } = createForm<FormSchema>(formSchema, userGroup);
+	const formStore = createForm<FormSchema>(formSchema, userGroup);
+	const { inputs } = formStore;
 
 	function onFriendlyNameInput(e: any) {
 		if (!hasManualNameEdit) {
@@ -43,17 +46,31 @@
 		hasManualNameEdit = true;
 	}
 
-	async function onSubmit() {
-		const data = form.validate();
-		if (!data) return;
-		isLoading = true;
-		const success = await callback(data);
+	async function saveUserGroup(data: z.infer<FormSchema>) {
+		await callback(data);
 		// Reset form if user group was successfully created
-		if (success && !existingUserGroup) {
-			form.reset();
+		if (!existingUserGroup) {
+			formStore.reset();
 			hasManualNameEdit = false;
 		}
-		isLoading = false;
+	}
+
+	// Create mode has its own Save button rather than going through the unsaved-changes bar.
+	async function onSubmit() {
+		const data = formStore.validate();
+		if (!data) return;
+		isLoading = true;
+		try {
+			await saveUserGroup(data);
+		} catch (e) {
+			axiosErrorToast(e);
+		} finally {
+			isLoading = false;
+		}
+	}
+
+	if (existingUserGroup) {
+		trackFormChanges(() => formStore, saveUserGroup);
 	}
 </script>
 
@@ -77,8 +94,10 @@
 				/>
 			</div>
 		</div>
-		<div class="mt-5 flex justify-end">
-			<Button {isLoading} type="submit">{m.save()}</Button>
-		</div>
+		{#if !existingUserGroup}
+			<div class="mt-5 flex justify-end">
+				<Button {isLoading} type="submit">{m.save()}</Button>
+			</div>
+		{/if}
 	</fieldset>
 </form>

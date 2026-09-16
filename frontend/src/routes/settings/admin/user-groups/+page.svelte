@@ -5,7 +5,6 @@
 	import { m } from '$lib/paraglide/messages';
 	import UserGroupService from '$lib/services/user-group-service';
 	import type { UserGroupCreate } from '$lib/types/user-group.type';
-	import { axiosErrorToast } from '$lib/utils/error-util';
 	import { LucideMinus, UserCog, UserPlus } from '@lucide/svelte';
 	import { toast } from 'svelte-sonner';
 	import { slide } from 'svelte/transition';
@@ -17,18 +16,9 @@
 	const userGroupService = new UserGroupService();
 
 	async function createUserGroup(userGroup: UserGroupCreate) {
-		let success = true;
-		await userGroupService
-			.create(userGroup)
-			.then((createdUserGroup) => {
-				toast.success(m.user_group_created_successfully());
-				goto(`/settings/admin/user-groups/${createdUserGroup.id}`);
-			})
-			.catch((e) => {
-				axiosErrorToast(e);
-				success = false;
-			});
-		return success;
+		const createdUserGroup = await userGroupService.create(userGroup);
+		toast.success(m.user_group_created_successfully());
+		goto(`/settings/admin/user-groups/${createdUserGroup.id}`);
 	}
 </script>
 

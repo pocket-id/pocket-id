@@ -1,15 +1,14 @@
 <script lang="ts">
 	import FormInput from '$lib/components/form/form-input.svelte';
 	import ProfilePictureSettings from '$lib/components/form/profile-picture-settings.svelte';
-	import { Button } from '$lib/components/ui/button';
 	import * as Field from '$lib/components/ui/field/index.js';
 	import { m } from '$lib/paraglide/messages';
 	import UserService from '$lib/services/user-service';
 	import appConfigStore from '$lib/stores/application-configuration-store';
 	import type { AccountUpdate } from '$lib/types/user.type';
 	import { axiosErrorToast } from '$lib/utils/error-util';
-	import { preventDefault } from '$lib/utils/event-util';
 	import { createForm } from '$lib/utils/form-util';
+	import { trackFormChanges } from '$lib/utils/unsaved-changes-util.svelte';
 	import { emptyToUndefined, usernameSchema } from '$lib/utils/zod-util';
 	import { toast } from 'svelte-sonner';
 	import { get } from 'svelte/store';
@@ -24,12 +23,11 @@
 	}: {
 		account: AccountUpdate;
 		userId: string;
-		callback: (user: AccountUpdate) => Promise<boolean>;
+		callback: (user: AccountUpdate) => Promise<void>;
 		isLdapUser?: boolean;
 		userInfoInputDisabled?: boolean;
 	} = $props();
 
-	let isLoading = $state(false);
 	let hasManualDisplayNameEdit = $state(!!account.displayName);
 
 	const userService = new UserService();
@@ -43,10 +41,11 @@
 	});
 	type FormSchema = typeof formSchema;
 
-	const { inputs, ...form } = createForm<FormSchema>(formSchema, {
+	const formStore = createForm<FormSchema>(formSchema, {
 		...account,
 		email: account.email || ''
 	});
+	const { inputs } = formStore;
 
 	function onNameInput() {
 		if (!hasManualDisplayNameEdit) {
@@ -56,13 +55,7 @@
 		}
 	}
 
-	async function onSubmit() {
-		const data = form.validate();
-		if (!data) return;
-		isLoading = true;
-		await callback(data);
-		isLoading = false;
-	}
+	trackFormChanges(() => formStore, callback);
 
 	async function updateProfilePicture(image: File) {
 		await userService
@@ -79,7 +72,7 @@
 	}
 </script>
 
-<form onsubmit={preventDefault(onSubmit)} class="space-y-6">
+<form class="space-y-6">
 	<ProfilePictureSettings
 		{userId}
 		{isLdapUser}
@@ -101,9 +94,5 @@
 				onInput={() => (hasManualDisplayNameEdit = true)}
 			/>
 		</Field.Group>
-
-		<div class="flex justify-end pt-4">
-			<Button {isLoading} type="submit">{m.save()}</Button>
-		</div>
 	</fieldset>
 </form>

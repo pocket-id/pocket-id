@@ -20,12 +20,15 @@
 	::file-selector-button {
 		border-color: var(--color-gray-200, currentcolor);
 	}
+
 	* {
 		@apply border-border outline-ring/50;
 	}
+
 	body {
 		@apply bg-background text-foreground;
 	}
+
 	html {
 		@apply font-sans;
 	}
@@ -221,4 +224,27 @@
 
 .animate-delayed-fade {
 	animation: delayed-fade 0.5s ease-out forwards;
+}
+
+@keyframes shake {
+	0%,
+	100% {
+		transform: translateX(0);
+	}
+
+	25% {
+		transform: translateX(-10px);
+	}
+
+	50% {
+		transform: translateX(10px);
+	}
+
+	75% {
+		transform: translateX(-10px);
+	}
+}
+
+.animate-shake {
+	animation: shake 0.5s ease-in-out;
 }

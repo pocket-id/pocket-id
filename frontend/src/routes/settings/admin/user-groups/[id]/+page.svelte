@@ -1,7 +1,6 @@
 <script lang="ts">
 	import CustomClaimsInput from '$lib/components/form/custom-claims-input.svelte';
 	import { Badge } from '$lib/components/ui/badge';
-	import { Button } from '$lib/components/ui/button';
 	import * as Card from '$lib/components/ui/card';
 	import * as Tabs from '$lib/components/ui/tabs';
 	import { m } from '$lib/paraglide/messages';
@@ -9,9 +8,8 @@
 	import UserGroupService from '$lib/services/user-group-service';
 	import appConfigStore from '$lib/stores/application-configuration-store';
 	import type { UserGroupCreate } from '$lib/types/user-group.type';
-	import { axiosErrorToast } from '$lib/utils/error-util';
+	import { trackUnsavedValue } from '$lib/utils/unsaved-changes-util.svelte';
 	import { LucideChevronLeft } from '@lucide/svelte';
-	import { toast } from 'svelte-sonner';
 	import { backNavigate } from '../../users/navigate-back-util';
 	import UserGroupForm from '../user-group-form.svelte';
 	import UserSelection from '../user-selection.svelte';
@@ -23,7 +21,6 @@
 		userIds: data.userGroup.users.map((u) => u.id),
 		allowedOidcClientIds: data.userGroup.allowedOidcClients.map((c) => c.id)
 	});
-
 	let oidcClientSelectionRef: OidcClientSelection;
 
 	const userGroupService = new UserGroupService();
@@ -31,47 +28,35 @@
 	const backNavigation = backNavigate('/settings/admin/user-groups');
 
 	async function updateUserGroup(updatedUserGroup: UserGroupCreate) {
-		let success = true;
-		await userGroupService
-			.update(userGroup.id, updatedUserGroup)
-			.then(() => toast.success(m.user_group_updated_successfully()))
-			.catch((e) => {
-				axiosErrorToast(e);
-				success = false;
-			});
-
-		return success;
+		await userGroupService.update(userGroup.id, updatedUserGroup);
 	}
 
-	async function updateUserGroupUsers(userIds: string[]) {
-		await userGroupService
-			.updateUsers(userGroup.id, userIds)
-			.then(() => toast.success(m.users_updated_successfully()))
-			.catch((e) => {
-				axiosErrorToast(e);
-			});
-	}
+	trackUnsavedValue(
+		() => userGroup.userIds,
+		(userIds) => {
+			userGroup.userIds = userIds;
+		},
+		(userIds) => userGroupService.updateUsers(userGroup.id, userIds)
+	);
 
-	async function updateCustomClaims() {
-		await customClaimService
-			.updateUserGroupCustomClaims(userGroup.id, userGroup.customClaims)
-			.then(() => toast.success(m.custom_claims_updated_successfully()))
-			.catch((e) => {
-				axiosErrorToast(e);
-			});
-	}
+	trackUnsavedValue(
+		() => userGroup.allowedOidcClientIds,
+		(clientIds) => {
+			userGroup.allowedOidcClientIds = clientIds;
+		},
+		async (clientIds) => {
+			await userGroupService.updateAllowedOidcClients(userGroup.id, clientIds);
+			oidcClientSelectionRef.refresh();
+		}
+	);
 
-	async function updateAllowedOidcClients(allowedClients: string[]) {
-		await userGroupService
-			.updateAllowedOidcClients(userGroup.id, allowedClients)
-			.then(() => {
-				toast.success(m.allowed_oidc_clients_updated_successfully());
-				oidcClientSelectionRef.refresh();
-			})
-			.catch((e) => {
-				axiosErrorToast(e);
-			});
-	}
+	trackUnsavedValue(
+		() => userGroup.customClaims,
+		(customClaims) => {
+			userGroup.customClaims = customClaims;
+		},
+		(customClaims) => customClaimService.updateUserGroupCustomClaims(userGroup.id, customClaims)
+	);
 </script>
 
 <svelte:head>
@@ -120,12 +105,6 @@
 					bind:selectedUserIds={userGroup.userIds}
 					selectionDisabled={!!userGroup.ldapId && $appConfigStore.ldapEnabled}
 				/>
-				<div class="mt-5 flex justify-end">
-					<Button
-						disabled={!!userGroup.ldapId && $appConfigStore.ldapEnabled}
-						onclick={() => updateUserGroupUsers(userGroup.userIds)}>{m.save()}</Button
-					>
-				</div>
 			</Card.Content>
 		</Card.Root>
 	</Tabs.Content>
@@ -141,11 +120,6 @@
 					bind:this={oidcClientSelectionRef}
 					bind:selectedGroupIds={userGroup.allowedOidcClientIds}
 				/>
-				<div class="mt-5 flex justify-end gap-3">
-					<Button onclick={() => updateAllowedOidcClients(userGroup.allowedOidcClientIds)}
-						>{m.save()}</Button
-					>
-				</div>
 			</Card.Content>
 		</Card.Root>
 	</Tabs.Content>
@@ -160,9 +134,6 @@
 			</Card.Header>
 			<Card.Content>
 				<CustomClaimsInput bind:customClaims={userGroup.customClaims} />
-				<div class="mt-5 flex justify-end">
-					<Button onclick={updateCustomClaims} type="submit">{m.save()}</Button>
-				</div>
 			</Card.Content>
 		</Card.Root>
 	</Tabs.Content>

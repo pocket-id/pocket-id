@@ -8,7 +8,6 @@
 	import clientSecretStore from '$lib/stores/client-secret-store';
 	import type { OidcClientCreateWithLogo } from '$lib/types/oidc.type';
 	import { encodeClientIdParam } from '$lib/utils/client-id-util';
-	import { axiosErrorToast } from '$lib/utils/error-util';
 	import { LucideMinus, ShieldCheck, ShieldPlus } from '@lucide/svelte';
 	import { toast } from 'svelte-sonner';
 	import { slide } from 'svelte/transition';
@@ -20,26 +19,20 @@
 	const oidcService = new OIDCService();
 
 	async function createOIDCClient(client: OidcClientCreateWithLogo) {
-		try {
-			clientSecretStore.clear();
-			const createdClient = await oidcService.createClient(client);
+		clientSecretStore.clear();
+		const createdClient = await oidcService.createClient(client);
 
-			const logoPromise = client.logo
-				? oidcService.updateClientLogo(createdClient, client.logo, true)
-				: Promise.resolve();
-			const darkLogoPromise = client.darkLogo
-				? oidcService.updateClientLogo(createdClient, client.darkLogo, false)
-				: Promise.resolve();
-			await Promise.all([logoPromise, darkLogoPromise]);
+		const logoPromise = client.logo
+			? oidcService.updateClientLogo(createdClient, client.logo, true)
+			: Promise.resolve();
+		const darkLogoPromise = client.darkLogo
+			? oidcService.updateClientLogo(createdClient, client.darkLogo, false)
+			: Promise.resolve();
+		await Promise.all([logoPromise, darkLogoPromise]);
 
-			// A new client starts without any secret: the admin creates the ones they need from the credentials tab
-			goto(`/settings/admin/oidc-clients/${encodeClientIdParam(createdClient.id)}`);
-			toast.success(m.oidc_client_created_successfully());
-			return true;
-		} catch (e) {
-			axiosErrorToast(e);
-			return false;
-		}
+		// A new client starts without any secret: the admin creates the ones they need from the credentials tab
+		goto(`/settings/admin/oidc-clients/${encodeClientIdParam(createdClient.id)}`);
+		toast.success(m.oidc_client_created_successfully());
 	}
 </script>
 

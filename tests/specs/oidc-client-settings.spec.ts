@@ -163,6 +163,31 @@ test('Update OIDC client token lifetimes', async ({ page }) => {
 	await expect(page.getByText('OIDC client updated successfully', { exact: true })).toBeVisible();
 });
 
+test('Save OIDC client details and token lifetimes together', async ({ page }) => {
+	const client = oidcClients.nextcloud;
+	await page.goto(`/settings/admin/oidc-clients/${client.id}`);
+
+	const name = page.getByLabel('Name');
+	const accessLifetime = page
+		.getByTestId('token-lifetimes-card')
+		.getByLabel('Access token lifetime', { exact: true });
+	await name.fill('Nextcloud with custom lifetime');
+	await accessLifetime.fill('2');
+	await page.getByRole('button', { name: 'Discard', exact: true }).click();
+	await expect(name).toHaveValue(client.name);
+	await expect(accessLifetime).toHaveValue('1');
+
+	await name.fill('Nextcloud with custom lifetime');
+	await accessLifetime.fill('2');
+
+	await page.getByRole('button', { name: 'Save', exact: true }).click();
+	await expect(page.getByText('Changes saved successfully', { exact: true })).toBeVisible();
+
+	await page.reload();
+	await expect(name).toHaveValue('Nextcloud with custom lifetime');
+	await expect(accessLifetime).toHaveValue('2');
+});
+
 test('Update OIDC client federated credentials', async ({ page }) => {
 	const client = oidcClients.nextcloud;
 	await page.goto(`/settings/admin/oidc-clients/${client.id}#credentials`);
@@ -185,6 +210,13 @@ test('Update OIDC client federated credentials', async ({ page }) => {
 	await expect(card.getByLabel('Issuer')).toHaveValue('https://issuer.example.com');
 	await expect(card.getByLabel('Subject')).toHaveValue('workload-client');
 	await expect(card.getByLabel('Audience')).toHaveValue('https://pocket-id.example.com');
+
+	await card.getByRole('radio', { name: 'Public keys' }).click();
+	await card.getByRole('button', { name: 'Add another federated client credential' }).click();
+	await expect(card.getByLabel('Issuer')).toHaveCount(2);
+	await page.getByRole('button', { name: 'Discard', exact: true }).click();
+	await expect(card.getByLabel('Issuer')).toHaveCount(1);
+	await expect(card.getByRole('radio', { name: 'JWKS URL' })).toBeChecked();
 
 	// Saving the main client form must preserve credentials managed by the separate card
 	await page.locator('[role="tab"][data-value="general"]').click();

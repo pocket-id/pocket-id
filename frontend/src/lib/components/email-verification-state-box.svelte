@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { replaceState } from '$app/navigation';
 	import { page } from '$app/state';
 	import * as Alert from '$lib/components/ui/alert';
 	import { Button } from '$lib/components/ui/button';
@@ -28,7 +29,7 @@
 	function onDismiss() {
 		const url = new URL(page.url);
 		url.searchParams.delete('emailVerificationState');
-		history.replaceState(null, '', url.toString());
+		replaceState(url, page.state);
 		emailVerificationState = null;
 	}
 

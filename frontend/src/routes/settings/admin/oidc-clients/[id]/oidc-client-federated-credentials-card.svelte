@@ -3,8 +3,8 @@
 	import * as Card from '$lib/components/ui/card';
 	import { m } from '$lib/paraglide/messages';
 	import type { OidcClient, OidcClientFederatedIdentity } from '$lib/types/oidc.type';
-	import { preventDefault } from '$lib/utils/event-util';
 	import { createForm } from '$lib/utils/form-util';
+	import { trackFormChanges } from '$lib/utils/unsaved-changes-util.svelte';
 	import { slide } from 'svelte/transition';
 	import { z } from 'zod/v4';
 	import FederatedIdentitiesInput from '../federated-identities-input.svelte';
@@ -14,10 +14,9 @@
 		callback
 	}: {
 		client: OidcClient;
-		callback: (federatedIdentities: OidcClientFederatedIdentity[]) => Promise<boolean>;
+		callback: (federatedIdentities: OidcClientFederatedIdentity[]) => Promise<void>;
 	} = $props();
 
-	let isLoading = $state(false);
 	const isCIMDClient = $derived(client.clientType === 'cimd');
 
 	const formSchema = z.object({
@@ -34,12 +33,16 @@
 			)
 		})
 	});
-	const { inputs, errors, ...form } = createForm(formSchema, {
+	const formStore = createForm(formSchema, {
 		credentials: {
 			federatedIdentities:
-				client.credentials?.federatedIdentities?.map((identity) => ({ ...identity })) ?? []
+				client.credentials?.federatedIdentities?.map((identity) => ({
+					...identity,
+					publicKeys: identity.publicKeys?.length ? identity.publicKeys : undefined
+				})) ?? []
 		}
 	});
+	const { inputs, errors } = formStore;
 
 	const hasFederatedIdentities = $derived($inputs.credentials.value.federatedIdentities.length > 0);
 
@@ -61,63 +64,54 @@
 				subject: '',
 				audience: '',
 				jwks: '',
-				publicKeys: [],
+				publicKeys: undefined,
 				replayProtection: true
 			}
 		];
 	}
 
-	async function onSubmit() {
-		if (isCIMDClient) return;
-
-		const data = form.validate();
-		if (!data) return;
-
-		isLoading = true;
-		await callback(data.credentials.federatedIdentities).finally(() => (isLoading = false));
+	// Metadata document clients manage their own credentials, so there is nothing to save here.
+	if (!isCIMDClient) {
+		trackFormChanges(
+			() => formStore,
+			(data) => callback(data.credentials.federatedIdentities)
+		);
 	}
 </script>
 
-<form novalidate onsubmit={preventDefault(onSubmit)}>
-	<Card.Root data-testid="federated-credentials-card">
-		<Card.Header>
-			<div class="flex items-center justify-between gap-4">
-				<div>
-					<Card.Title>{m.federated_client_credentials()}</Card.Title>
-					<Card.Description>
-						{m.federated_client_credentials_description()}
-						<a
-							class="underline underline-offset-4"
-							href="https://pocket-id.org/docs/guides/oidc-client-authentication"
-							target="_blank"
-							rel="noreferrer"
-						>
-							{m.docs()}
-						</a>
-					</Card.Description>
-				</div>
-				{#if !hasFederatedIdentities}
-					<Button disabled={isCIMDClient} onclick={addFederatedIdentity}>
-						{m.create()}
-					</Button>
-				{/if}
+<Card.Root data-testid="federated-credentials-card">
+	<Card.Header>
+		<div class="flex items-center justify-between gap-4">
+			<div>
+				<Card.Title>{m.federated_client_credentials()}</Card.Title>
+				<Card.Description>
+					{m.federated_client_credentials_description()}
+					<a
+						class="underline underline-offset-4"
+						href="https://pocket-id.org/docs/guides/oidc-client-authentication"
+						target="_blank"
+						rel="noreferrer"
+					>
+						{m.docs()}
+					</a>
+				</Card.Description>
 			</div>
-		</Card.Header>
-		{#if hasFederatedIdentities}
-			<div transition:slide>
-				<Card.Content>
-					<FederatedIdentitiesInput
-						bind:federatedIdentities={$inputs.credentials.value.federatedIdentities}
-						errors={getFederatedIdentityErrors($errors)}
-						disabled={isCIMDClient}
-					/>
-				</Card.Content>
-			</div>
-		{/if}
-		{#if !isCIMDClient && hasFederatedIdentities}
-			<Card.Footer class="justify-end">
-				<Button type="submit" disabled={isLoading}>{m.save()}</Button>
-			</Card.Footer>
-		{/if}
-	</Card.Root>
-</form>
+			{#if !hasFederatedIdentities}
+				<Button disabled={isCIMDClient} onclick={addFederatedIdentity}>
+					{m.create()}
+				</Button>
+			{/if}
+		</div>
+	</Card.Header>
+	{#if hasFederatedIdentities}
+		<div transition:slide>
+			<Card.Content>
+				<FederatedIdentitiesInput
+					bind:federatedIdentities={$inputs.credentials.value.federatedIdentities}
+					errors={getFederatedIdentityErrors($errors)}
+					disabled={isCIMDClient}
+				/>
+			</Card.Content>
+		</div>
+	{/if}
+</Card.Root>

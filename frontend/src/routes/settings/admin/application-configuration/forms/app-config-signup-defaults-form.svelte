@@ -1,14 +1,12 @@
 <script lang="ts">
 	import CustomClaimsInput from '$lib/components/form/custom-claims-input.svelte';
 	import UserGroupInput from '$lib/components/form/user-group-input.svelte';
-	import { Button } from '$lib/components/ui/button';
 	import * as Field from '$lib/components/ui/field';
 	import * as Select from '$lib/components/ui/select';
 	import { m } from '$lib/paraglide/messages';
 	import appConfigStore from '$lib/stores/application-configuration-store';
 	import type { AllAppConfig } from '$lib/types/application-configuration.type';
-	import { preventDefault } from '$lib/utils/event-util';
-	import { toast } from 'svelte-sonner';
+	import { trackUnsavedValue } from '$lib/utils/unsaved-changes-util.svelte';
 
 	let {
 		appConfig,
@@ -18,10 +16,9 @@
 		callback: (updatedConfig: Partial<AllAppConfig>) => Promise<void>;
 	} = $props();
 
-	let selectedGroupIds = $state<string[]>(appConfig.signupDefaultUserGroupIDs || []);
-	let customClaims = $state(appConfig.signupDefaultCustomClaims || []);
+	let selectedGroupIds = $state<string[]>(appConfig.signupDefaultUserGroupIDs ?? []);
+	let customClaims = $state(appConfig.signupDefaultCustomClaims ?? []);
 	let allowUserSignups = $state(appConfig.allowUserSignups);
-	let isLoading = $state(false);
 
 	const signupOptions = {
 		disabled: {
@@ -38,97 +35,89 @@
 		}
 	};
 
-	async function onSubmit() {
-		isLoading = true;
-		await callback({
-			allowUserSignups: allowUserSignups,
+	trackUnsavedValue(
+		() => ({
+			allowUserSignups,
 			signupDefaultUserGroupIDs: selectedGroupIds,
 			signupDefaultCustomClaims: customClaims
-		});
-		toast.success(m.user_creation_updated_successfully());
-		isLoading = false;
-	}
-
-	$effect(() => {
-		customClaims = appConfig.signupDefaultCustomClaims || [];
-		allowUserSignups = appConfig.allowUserSignups;
-	});
+		}),
+		(value) => {
+			allowUserSignups = value.allowUserSignups;
+			selectedGroupIds = value.signupDefaultUserGroupIDs;
+			customClaims = value.signupDefaultCustomClaims;
+		},
+		callback
+	);
 </script>
 
-<form onsubmit={preventDefault(onSubmit)}>
-	<fieldset class="flex flex-col gap-5" disabled={$appConfigStore.uiConfigDisabled}>
-		<div class="grid gap-2">
-			<Field.Field>
-				<div>
-					<Field.Label for="enable-user-signup">{m.enable_user_signups()}</Field.Label>
-					<Field.Description>
-						{m.enable_user_signups_description()}
-					</Field.Description>
-				</div>
-				<Select.Root
-					type="single"
-					value={allowUserSignups}
-					onValueChange={(v) => (allowUserSignups = v as typeof allowUserSignups)}
+<fieldset class="flex flex-col gap-5" disabled={$appConfigStore.uiConfigDisabled}>
+	<div class="grid gap-2">
+		<Field.Field>
+			<div>
+				<Field.Label for="enable-user-signup">{m.enable_user_signups()}</Field.Label>
+				<Field.Description>
+					{m.enable_user_signups_description()}
+				</Field.Description>
+			</div>
+			<Select.Root
+				type="single"
+				value={allowUserSignups}
+				onValueChange={(v) => (allowUserSignups = v as typeof allowUserSignups)}
+			>
+				<Select.Trigger
+					id="enable-user-signup"
+					class="w-full"
+					aria-label={m.enable_user_signups()}
+					placeholder={m.enable_user_signups()}
 				>
-					<Select.Trigger
-						id="enable-user-signup"
-						class="w-full"
-						aria-label={m.enable_user_signups()}
-						placeholder={m.enable_user_signups()}
-					>
-						{signupOptions[allowUserSignups]?.label}
-					</Select.Trigger>
-					<Select.Content>
-						<Select.Item value="disabled">
-							<div class="flex flex-col items-start gap-1">
-								<span class="font-medium">{signupOptions.disabled.label}</span>
-								<span class="text-muted-foreground text-xs">
-									{signupOptions.disabled.description}
-								</span>
-							</div>
-						</Select.Item>
-						<Select.Item value="withToken">
-							<div class="flex flex-col items-start gap-1">
-								<span class="font-medium">{signupOptions.withToken.label}</span>
-								<span class="text-muted-foreground text-xs">
-									{signupOptions.withToken.description}
-								</span>
-							</div>
-						</Select.Item>
-						<Select.Item value="open">
-							<div class="flex flex-col items-start gap-1">
-								<span class="font-medium">{signupOptions.open.label}</span>
-								<span class="text-muted-foreground text-xs">
-									{signupOptions.open.description}
-								</span>
-							</div>
-						</Select.Item>
-					</Select.Content>
-				</Select.Root>
-			</Field.Field>
-		</div>
-
-		<Field.Field>
-			<div>
-				<Field.Label for="default-groups">{m.user_groups()}</Field.Label>
-				<Field.Description>
-					{m.user_creation_groups_description()}
-				</Field.Description>
-			</div>
-			<UserGroupInput bind:selectedGroupIds />
+					{signupOptions[allowUserSignups]?.label}
+				</Select.Trigger>
+				<Select.Content>
+					<Select.Item value="disabled">
+						<div class="flex flex-col items-start gap-1">
+							<span class="font-medium">{signupOptions.disabled.label}</span>
+							<span class="text-muted-foreground text-xs">
+								{signupOptions.disabled.description}
+							</span>
+						</div>
+					</Select.Item>
+					<Select.Item value="withToken">
+						<div class="flex flex-col items-start gap-1">
+							<span class="font-medium">{signupOptions.withToken.label}</span>
+							<span class="text-muted-foreground text-xs">
+								{signupOptions.withToken.description}
+							</span>
+						</div>
+					</Select.Item>
+					<Select.Item value="open">
+						<div class="flex flex-col items-start gap-1">
+							<span class="font-medium">{signupOptions.open.label}</span>
+							<span class="text-muted-foreground text-xs">
+								{signupOptions.open.description}
+							</span>
+						</div>
+					</Select.Item>
+				</Select.Content>
+			</Select.Root>
 		</Field.Field>
-		<Field.Field>
-			<div>
-				<Field.Label>{m.custom_claims()}</Field.Label>
-				<Field.Description>
-					{m.user_creation_claims_description()}
-				</Field.Description>
-			</div>
-			<CustomClaimsInput bind:customClaims />
-		</Field.Field>
+	</div>
 
-		<div class="flex justify-end pt-2">
-			<Button {isLoading} type="submit">{m.save()}</Button>
+	<Field.Field>
+		<div>
+			<Field.Label for="default-groups">{m.user_groups()}</Field.Label>
+			<Field.Description>
+				{m.user_creation_groups_description()}
+			</Field.Description>
 		</div>
-	</fieldset>
-</form>
+		<UserGroupInput bind:selectedGroupIds />
+	</Field.Field>
+	<Field.Field>
+		<div>
+			<Field.Label>{m.custom_claims()}</Field.Label>
+			<Field.Description>
+				{m.user_creation_claims_description()}
+			</Field.Description>
+		</div>
+		<CustomClaimsInput bind:customClaims />
+	</Field.Field>
+</fieldset>
