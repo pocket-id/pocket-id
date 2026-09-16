@@ -3,6 +3,7 @@ import { emailVerificationTokens, users } from '../data';
 import authUtil from '../utils/auth.util';
 import { cleanupBackend } from '../utils/cleanup.util';
 import passkeyUtil from '../utils/passkey.util';
+import { saveUnsavedChanges } from '../utils/unsaved-changes.util';
 
 test.beforeEach(async () => await cleanupBackend());
 
@@ -15,11 +16,7 @@ test('Update account details', async ({ page }) => {
 	await page.getByLabel('Display Name').fill('Timothy Apple');
 	await page.getByLabel('Email').fill('timothy.apple@test.com');
 	await page.getByLabel('Username').fill('timothy');
-	await page.getByRole('button', { name: 'Save' }).click();
-
-	await expect(page.locator('[data-type="success"]')).toHaveText(
-		'Account details updated successfully'
-	);
+	await saveUnsavedChanges(page);
 });
 
 test('Update account details fails with already taken email', async ({ page }) => {
@@ -27,9 +24,9 @@ test('Update account details fails with already taken email', async ({ page }) =
 
 	await page.getByLabel('Email').fill(users.craig.email);
 
-	await page.getByRole('button', { name: 'Save' }).click();
+	await page.getByRole('button', { name: 'Save', exact: true }).click();
 
-	await expect(page.locator('[data-type="error"]')).toHaveText('Email is already in use');
+	await expect(page.getByText('Email is already in use', { exact: true })).toBeVisible();
 });
 
 test('Update account details fails with already taken username', async ({ page }) => {
@@ -37,9 +34,9 @@ test('Update account details fails with already taken username', async ({ page }
 
 	await page.getByLabel('Username').fill(users.craig.username);
 
-	await page.getByRole('button', { name: 'Save' }).click();
+	await page.getByRole('button', { name: 'Save', exact: true }).click();
 
-	await expect(page.locator('[data-type="error"]')).toHaveText('Username is already in use');
+	await expect(page.getByText('Username is already in use', { exact: true })).toBeVisible();
 });
 
 test('Update account details fails with already taken username in different casing', async ({
@@ -49,9 +46,9 @@ test('Update account details fails with already taken username in different casi
 
 	await page.getByLabel('Username').fill(users.craig.username.toUpperCase());
 
-	await page.getByRole('button', { name: 'Save' }).click();
+	await page.getByRole('button', { name: 'Save', exact: true }).click();
 
-	await expect(page.locator('[data-type="error"]')).toHaveText('Username is already in use');
+	await expect(page.getByText('Username is already in use', { exact: true })).toBeVisible();
 });
 
 test('Change Locale', async ({ page }) => {

@@ -2,6 +2,7 @@ import test, { expect, type Page } from '@playwright/test';
 import { signupTokens, userGroups, users } from '../data';
 import { cleanupBackend } from '../utils/cleanup.util';
 import passkeyUtil from '../utils/passkey.util';
+import { saveUnsavedChanges } from '../utils/unsaved-changes.util';
 
 async function setSignupMode(
 	page: Page,
@@ -11,13 +12,12 @@ async function setSignupMode(
 	await page.goto('/settings/admin/application-configuration');
 
 	await page.getByRole('tab', { name: 'User Creation' }).click();
-	await page.getByRole('button', { name: 'Enable User Signups' }).click();
-	await page.getByRole('option', { name: mode }).click();
-	await page.getByRole('button', { name: 'Save' }).click();
-
-	await expect(page.locator('[data-type="success"]').last()).toHaveText(
-		'User creation settings updated successfully.'
-	);
+	const signupMode = page.getByRole('button', { name: 'Enable User Signups' });
+	if (!(await signupMode.textContent())?.includes(mode)) {
+		await signupMode.click();
+		await page.getByRole('option', { name: mode }).click();
+		await saveUnsavedChanges(page);
+	}
 
 	if (signout) {
 		await page.context().clearCookies();

@@ -1,6 +1,7 @@
 import test, { expect, type Page } from '@playwright/test';
 import { cleanupBackend, cleanupScimServiceProvider } from 'utils/cleanup.util';
 import { oidcClients, userGroups, users } from '../data';
+import { saveUnsavedChanges } from '../utils/unsaved-changes.util';
 
 async function configureOidcClient(page: Page) {
 	await page.goto(`/settings/admin/oidc-clients/${oidcClients.scim.id}`);
@@ -60,11 +61,7 @@ test.describe('SCIM Configuration', () => {
 		await page.getByLabel('SCIM Endpoint').fill('http://new.scim.provider/api');
 		await page.getByLabel('SCIM Token').fill('evenmoresecrettoken');
 
-		await page.getByRole('button', { name: 'Save' }).click();
-
-		await expect(page.locator('[data-type="success"]')).toHaveText(
-			'SCIM configuration updated successfully.'
-		);
+		await saveUnsavedChanges(page);
 
 		await page.reload();
 
@@ -140,10 +137,7 @@ test.describe('SCIM Sync', () => {
 		await developersCheckbox.click();
 		await expect(developersCheckbox).toHaveAttribute('data-state', 'unchecked');
 
-		await page.getByRole('button', { name: 'Save' }).click();
-		await expect(
-			page.getByText('Allowed user groups updated successfully', { exact: true })
-		).toBeVisible();
+		await saveUnsavedChanges(page);
 
 		await syncScimServiceProvider(page);
 

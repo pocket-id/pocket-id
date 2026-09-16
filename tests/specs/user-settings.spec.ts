@@ -2,6 +2,7 @@ import test, { expect } from '@playwright/test';
 import { userGroups, users } from '../data';
 import authUtil from '../utils/auth.util';
 import { cleanupBackend } from '../utils/cleanup.util';
+import { saveUnsavedChanges } from '../utils/unsaved-changes.util';
 
 test.beforeEach(async () => await cleanupBackend());
 
@@ -128,9 +129,7 @@ test('Update user', async ({ page }) => {
 	await page.getByLabel('Display Name').fill('Crack Apple');
 	await page.getByLabel('Email').fill('crack.apple@test.com');
 	await page.getByLabel('Username').fill('crack');
-	await page.getByRole('button', { name: 'Save' }).first().click();
-
-	await expect(page.locator('[data-type="success"]')).toHaveText('User updated successfully');
+	await saveUnsavedChanges(page);
 });
 
 test('Update user fails with already taken email', async ({ page }) => {
@@ -145,9 +144,9 @@ test('Update user fails with already taken email', async ({ page }) => {
 	await page.getByRole('menuitem', { name: 'Edit' }).click();
 
 	await page.getByLabel('Email').fill(users.tim.email);
-	await page.getByRole('button', { name: 'Save' }).first().click();
+	await page.getByRole('button', { name: 'Save', exact: true }).click();
 
-	await expect(page.locator('[data-type="error"]')).toHaveText('Email is already in use');
+	await expect(page.getByText('Email is already in use', { exact: true })).toBeVisible();
 });
 
 test('Update user fails with already taken username', async ({ page }) => {
@@ -162,9 +161,9 @@ test('Update user fails with already taken username', async ({ page }) => {
 	await page.getByRole('menuitem', { name: 'Edit' }).click();
 
 	await page.getByLabel('Username').fill(users.tim.username);
-	await page.getByRole('button', { name: 'Save' }).first().click();
+	await page.getByRole('button', { name: 'Save', exact: true }).click();
 
-	await expect(page.locator('[data-type="error"]')).toHaveText('Username is already in use');
+	await expect(page.getByText('Username is already in use', { exact: true })).toBeVisible();
 });
 
 test('Update user fails with already taken username in different casing', async ({ page }) => {
@@ -179,9 +178,9 @@ test('Update user fails with already taken username in different casing', async 
 	await page.getByRole('menuitem', { name: 'Edit' }).click();
 
 	await page.getByLabel('Username').fill(users.tim.username.toUpperCase());
-	await page.getByRole('button', { name: 'Save' }).first().click();
+	await page.getByRole('button', { name: 'Save', exact: true }).click();
 
-	await expect(page.locator('[data-type="error"]')).toHaveText('Username is already in use');
+	await expect(page.getByText('Username is already in use', { exact: true })).toBeVisible();
 });
 
 test('Update user custom claims', async ({ page }) => {
@@ -199,11 +198,7 @@ test('Update user custom claims', async ({ page }) => {
 	await page.getByPlaceholder('Key').nth(1).fill('customClaim2');
 	await page.getByPlaceholder('Value').nth(1).fill('customClaim2_value');
 
-	await page.getByRole('button', { name: 'Save' }).click();
-
-	await expect(page.locator('[data-type="success"]')).toHaveText(
-		'Custom claims updated successfully'
-	);
+	await saveUnsavedChanges(page);
 
 	await page.reload();
 
@@ -215,11 +210,7 @@ test('Update user custom claims', async ({ page }) => {
 
 	// Remove one custom claim
 	await page.getByLabel('Remove custom claim').first().click();
-	await page.getByRole('button', { name: 'Save' }).click();
-
-	await expect(page.locator('[data-type="success"]')).toHaveText(
-		'Custom claims updated successfully'
-	);
+	await saveUnsavedChanges(page);
 
 	await page.reload();
 
@@ -237,11 +228,7 @@ test('Update user group assignments', async ({ page }) => {
 	await page.getByRole('row', { name: userGroups.developers.name }).getByRole('checkbox').click();
 	await page.getByRole('row', { name: userGroups.designers.name }).getByRole('checkbox').click();
 
-	await page.getByRole('button', { name: 'Save' }).click();
-
-	await expect(page.locator('[data-type="success"]')).toHaveText(
-		'User groups updated successfully'
-	);
+	await saveUnsavedChanges(page);
 
 	await page.reload();
 

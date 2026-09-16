@@ -1,5 +1,6 @@
 import { expect, test } from '@playwright/test';
 import { cleanupBackend } from '../utils/cleanup.util';
+import { saveUnsavedChanges } from '../utils/unsaved-changes.util';
 
 test.beforeEach(async ({ page }) => {
 	await cleanupBackend();
@@ -13,11 +14,7 @@ test('Update general configuration', async ({ page }) => {
 	await page.getByRole('button', { name: 'Home Page' }).click();
 	await page.getByRole('option', { name: 'My Apps' }).click();
 
-	await page.getByRole('button', { name: 'Save' }).first().click();
-
-	await expect(page.locator('[data-type="success"]')).toHaveText(
-		'Application configuration updated successfully'
-	);
+	await saveUnsavedChanges(page);
 
 	await page.reload();
 
@@ -43,8 +40,7 @@ test('Save configuration from every editable tab together', async ({ page }) => 
 	await page.getByRole('tab', { name: 'OIDC' }).click();
 	await page.getByRole('textbox').fill('https://combined.example.com/*');
 
-	await page.getByRole('button', { name: 'Save', exact: true }).click();
-	await expect(page.getByText('Changes saved successfully', { exact: true })).toBeVisible();
+	await saveUnsavedChanges(page);
 
 	await page.getByRole('tab', { name: 'General' }).click();
 	await expect(page.getByLabel('Application Name', { exact: true })).toHaveValue(
@@ -86,11 +82,7 @@ test.describe('Update user creation configuration', () => {
 		await page.getByRole('button', { name: 'Enable User Signups' }).click();
 		await page.getByRole('option', { name: 'Open Signup' }).click();
 
-		await page.getByRole('button', { name: 'Save' }).click();
-
-		await expect(page.locator('[data-type="success"]').last()).toHaveText(
-			'User creation settings updated successfully.'
-		);
+		await saveUnsavedChanges(page);
 
 		await page.reload();
 
@@ -108,11 +100,7 @@ test.describe('Update user creation configuration', () => {
 		await expect(designersOption).toBeChecked();
 		await page.keyboard.press('Escape');
 
-		await page.getByRole('button', { name: 'Save' }).click();
-
-		await expect(page.locator('[data-type="success"]').last()).toHaveText(
-			'User creation settings updated successfully.'
-		);
+		await saveUnsavedChanges(page);
 
 		await page.reload();
 
@@ -130,11 +118,7 @@ test.describe('Update user creation configuration', () => {
 		await page.getByPlaceholder('Key').nth(1).fill('another-claim');
 		await page.getByPlaceholder('Value').nth(1).fill('another-value');
 
-		await page.getByRole('button', { name: 'Save' }).click();
-
-		await expect(page.locator('[data-type="success"]').last()).toHaveText(
-			'User creation settings updated successfully.'
-		);
+		await saveUnsavedChanges(page);
 
 		await page.reload();
 
@@ -163,10 +147,7 @@ test('Update passkey configuration', async ({ page }) => {
 	await expect(allowSyncedPasskeys).toBeChecked();
 	await allowSyncedPasskeys.click();
 
-	await page.getByRole('button', { name: 'Save', exact: true }).click();
-	await expect(page.locator('[data-type="success"]')).toHaveText(
-		'Passkey configuration updated successfully'
-	);
+	await saveUnsavedChanges(page);
 
 	const registrationResponse = await page.request.get('/api/webauthn/register/start');
 	expect(registrationResponse.ok()).toBeTruthy();
@@ -206,11 +187,7 @@ test('Update email configuration', async ({ page }) => {
 	await page.getByLabel('Email Login Code from Admin').click();
 	await page.getByLabel('API Key Expiration').click();
 
-	await page.getByRole('button', { name: 'Save' }).click();
-
-	await expect(page.locator('[data-type="success"]')).toHaveText(
-		'Email configuration updated successfully'
-	);
+	await saveUnsavedChanges(page);
 
 	await page.reload();
 
@@ -243,8 +220,7 @@ test('Save LDAP configuration while LDAP remains disabled', async ({ page }) => 
 	await expect(softDeleteUsers).toBeChecked({ checked: originalValue });
 
 	await softDeleteUsers.click();
-	await page.getByRole('button', { name: 'Save', exact: true }).click();
-	await expect(page.getByText('Changes saved successfully', { exact: true })).toBeVisible();
+	await saveUnsavedChanges(page);
 
 	await page.reload();
 	await page.getByRole('tab', { name: 'LDAP' }).click();
@@ -259,8 +235,7 @@ test.describe('Update application images', () => {
 		await page
 			.getByLabel('Background Image', { exact: true })
 			.setInputFiles('resources/images/clouds.jpg');
-		await page.getByRole('button', { name: 'Save', exact: true }).click();
-		await expect(page.getByText('Changes saved successfully', { exact: true })).toBeVisible();
+		await saveUnsavedChanges(page);
 
 		await page
 			.getByRole('button', { name: 'Reset to default Background Image', exact: true })
@@ -292,11 +267,7 @@ test.describe('Update application images', () => {
 		await page
 			.getByLabel('Background Image', { exact: true })
 			.setInputFiles('resources/images/clouds.jpg');
-		await page.getByRole('button', { name: 'Save', exact: true }).nth(1).click();
-
-		await expect(page.locator('[data-type="success"]')).toHaveText(
-			'Images updated successfully. It may take a few minutes to update.'
-		);
+		await saveUnsavedChanges(page);
 
 		await page.request
 			.get('/api/application-images/favicon')
@@ -330,14 +301,10 @@ test.describe('Update application images', () => {
 				);
 			})
 		);
-		await page.getByRole('button', { name: 'Save', exact: true }).nth(1).click();
+		await saveUnsavedChanges(page);
 		for (const response of await Promise.all(logoDeleteResponses)) {
 			expect(response.status()).toBe(204);
 		}
-
-		await expect(page.locator('[data-type="success"]')).toHaveText(
-			'Images updated successfully. It may take a few minutes to update.'
-		);
 
 		// Without a custom logo the endpoint falls back to the logo bundled with Pocket ID
 		await page.request
@@ -360,10 +327,8 @@ test.describe('Update application images', () => {
 		const emailLogoInput = page.getByLabel('Email Logo', { exact: true });
 
 		await emailLogoInput.setInputFiles('resources/images/cloud-logo.svg');
-		await page.getByRole('button', { name: 'Save', exact: true }).nth(1).click();
+		await page.getByRole('button', { name: 'Save', exact: true }).click();
 
-		await expect(page.locator('[data-type="error"]')).toHaveText(
-			'File must be of type PNG or JPEG'
-		);
+		await expect(page.getByText('File must be of type PNG or JPEG', { exact: true })).toBeVisible();
 	});
 });

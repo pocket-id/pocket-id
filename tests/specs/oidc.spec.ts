@@ -4,6 +4,7 @@ import { cleanupBackend } from '../utils/cleanup.util';
 import { generateIdToken } from '../utils/jwt.util';
 import * as oidcUtil from '../utils/oidc.util';
 import passkeyUtil from '../utils/passkey.util';
+import { saveUnsavedChanges } from '../utils/unsaved-changes.util';
 
 test.beforeEach(async () => await cleanupBackend());
 
@@ -1529,8 +1530,7 @@ test.describe('Pushed Authorization Requests (PAR)', () => {
 			await parToggle.click();
 		}
 
-		await page.getByRole('button', { name: 'Save', exact: true }).first().click();
-		await expect(page.getByText('OIDC client updated successfully', { exact: true })).toBeVisible();
+		await saveUnsavedChanges(page);
 		await page.reload();
 
 		await page.getByRole('button', { name: 'Show Advanced Options' }).click();
@@ -1579,9 +1579,7 @@ test.describe('OIDC skip consent', () => {
 		// Disabling it and saving must persist across a reload
 		await toggle.click();
 		await expect(toggle).not.toBeChecked();
-		const clientForm = toggle.locator('xpath=ancestor::form');
-		await clientForm.getByRole('button', { name: 'Save', exact: true }).click();
-		await expect(page.getByText('OIDC client updated successfully', { exact: true })).toBeVisible();
+		await saveUnsavedChanges(page);
 		await page.reload();
 
 		await expect(page.getByRole('switch', { name: 'Skip Consent Screen' })).not.toBeChecked();

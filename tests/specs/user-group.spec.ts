@@ -1,6 +1,7 @@
 import test, { expect } from '@playwright/test';
 import { oidcClients, userGroups, users } from '../data';
 import { cleanupBackend } from '../utils/cleanup.util';
+import { saveUnsavedChanges } from '../utils/unsaved-changes.util';
 
 test.beforeEach(async () => await cleanupBackend());
 
@@ -34,9 +35,7 @@ test('Edit user group', async ({ page }) => {
 
 	await page.getByLabel('Name', { exact: true }).fill('developers_updated');
 
-	await page.getByRole('button', { name: 'Save' }).nth(0).click();
-
-	await expect(page.locator('[data-type="success"]')).toHaveText('User group updated successfully');
+	await saveUnsavedChanges(page);
 	await expect(page.getByLabel('Friendly Name')).toHaveValue('Developers updated');
 	await expect(page.getByLabel('Name', { exact: true })).toHaveValue('developers_updated');
 });
@@ -49,9 +48,7 @@ test('Update user group users', async ({ page }) => {
 	await page.getByRole('row', { name: users.tim.username }).getByRole('checkbox').click();
 	await page.getByRole('row', { name: users.craig.username }).getByRole('checkbox').click();
 
-	await page.getByRole('button', { name: 'Save' }).click();
-
-	await expect(page.locator('[data-type="success"]')).toHaveText('Users updated successfully');
+	await saveUnsavedChanges(page);
 
 	await page.reload();
 
@@ -90,11 +87,7 @@ test('Update user group custom claims', async ({ page }) => {
 	await page.getByPlaceholder('Key').nth(1).fill('customClaim2');
 	await page.getByPlaceholder('Value').nth(1).fill('customClaim2_value');
 
-	await page.getByRole('button', { name: 'Save' }).click();
-
-	await expect(page.locator('[data-type="success"]')).toHaveText(
-		'Custom claims updated successfully'
-	);
+	await saveUnsavedChanges(page);
 
 	await page.reload();
 	await page.waitForLoadState('networkidle');
@@ -107,11 +100,7 @@ test('Update user group custom claims', async ({ page }) => {
 
 	// Remove one custom claim
 	await page.getByLabel('Remove custom claim').first().click();
-	await page.getByRole('button', { name: 'Save' }).click();
-
-	await expect(page.locator('[data-type="success"]')).toHaveText(
-		'Custom claims updated successfully'
-	);
+	await saveUnsavedChanges(page);
 
 	await page.reload();
 	await page.waitForLoadState('networkidle');
@@ -136,11 +125,7 @@ test('Update user group allowed user groups', async ({ page }) => {
 	await page.getByRole('row', { name: oidcClients.tailscale.name }).getByRole('checkbox').click();
 	await page.getByRole('row', { name: oidcClients.immich.name }).getByRole('checkbox').click();
 
-	await page.getByRole('button', { name: 'Save' }).click();
-
-	await expect(page.locator('[data-type="success"]')).toHaveText(
-		'Allowed OIDC clients updated successfully'
-	);
+	await saveUnsavedChanges(page);
 
 	await page.reload();
 
