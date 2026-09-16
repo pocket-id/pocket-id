@@ -1,8 +1,12 @@
 package webauthn
 
 import (
+	"errors"
 	"fmt"
 	"net/http"
+	"os"
+	"strconv"
+	"time"
 
 	"github.com/gin-gonic/gin"
 	"github.com/go-webauthn/webauthn/protocol"
@@ -11,6 +15,7 @@ import (
 	"github.com/pocket-id/pocket-id/backend/internal/apperror"
 	"github.com/pocket-id/pocket-id/backend/internal/dto"
 	"github.com/pocket-id/pocket-id/backend/internal/httpserver"
+	"github.com/pocket-id/pocket-id/backend/internal/utils"
 	"github.com/pocket-id/pocket-id/backend/internal/utils/cookie"
 )
 
@@ -158,7 +163,7 @@ func (h *handler) updateCredential(c *gin.Context) error {
 		return err
 	}
 
-	credential, err := h.service.UpdateCredential(c.Request.Context(), userID, credentialID, input.Name)
+	credential, err := h.service.UpdateCredential(c.Request.Context(), userID, credentialID, input)
 	if err != nil {
 		return err
 	}
@@ -204,5 +209,26 @@ func (h *handler) reauthenticate(c *gin.Context) error {
 
 	cookie.AddReauthenticationTokenCookie(c, token)
 	c.Status(http.StatusNoContent)
+	return nil
+}
+
+func (h *handler) getAuthenticatorIcon(c *gin.Context) error {
+	light, _ := strconv.ParseBool(c.DefaultQuery("light", "true"))
+
+	file, size, err := utils.OpenAuthenticatorIcon(c.Param("aaguid"), light)
+	if errors.Is(err, os.ErrNotExist) {
+		return apperror.ImageNotFound()
+	}
+	if err != nil {
+		return err
+	}
+	defer file.Close()
+
+	utils.SetCacheControlHeader(c, 24*time.Hour, 7*24*time.Hour)
+
+	c.Header("X-Content-Type-Options", "nosniff")
+	c.Header("Content-Security-Policy", "default-src 'none'; style-src 'unsafe-inline'; sandbox")
+
+	c.DataFromReader(http.StatusOK, size, "image/svg+xml", file, nil)
 	return nil
 }

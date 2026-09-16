@@ -20,7 +20,29 @@ type WebauthnCredential struct {
 	BackupEligible bool `json:"backupEligible"`
 	BackupState    bool `json:"backupState"`
 
+	AAGUID     string `gorm:"column:aaguid"`
+	IconHidden bool
+
 	UserID string
+}
+
+type WebauthnIconState string
+
+const (
+	WebauthnIconNone   WebauthnIconState = "none"
+	WebauthnIconShown  WebauthnIconState = "shown"
+	WebauthnIconHidden WebauthnIconState = "hidden"
+)
+
+func (c WebauthnCredential) Icon() WebauthnIconState {
+	switch {
+	case !utils.HasAuthenticatorIcon(c.AAGUID):
+		return WebauthnIconNone
+	case c.IconHidden:
+		return WebauthnIconHidden
+	default:
+		return WebauthnIconShown
+	}
 }
 
 type AuthenticatorTransportList []protocol.AuthenticatorTransport //nolint:recvcheck

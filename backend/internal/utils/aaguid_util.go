@@ -4,19 +4,34 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
+	"io/fs"
 	"log/slog"
+	"os"
+	"path"
+	"strings"
 	"sync"
 
 	"github.com/pocket-id/pocket-id/backend/resources"
 )
 
+const aaguidIconsDir = "aaguid-icons"
+
 var (
 	aaguidMap     map[string]string
 	aaguidMapOnce *sync.Once
+
+	aaguidIcons     map[string]authenticatorIcon
+	aaguidIconsOnce *sync.Once
 )
+
+type authenticatorIcon struct {
+	lightPath string
+	darkPath  string
+}
 
 func init() {
 	aaguidMapOnce = &sync.Once{}
+	aaguidIconsOnce = &sync.Once{}
 }
 
 // FormatAAGUID converts an AAGUID byte slice to UUID string format
@@ -65,5 +80,71 @@ func loadAAGUIDsFromFile() {
 	if err != nil {
 		slog.Error("Error unmarshalling AAGUID data", slog.Any("error", err))
 		return
+	}
+}
+
+func HasAuthenticatorIcon(aaguid string) bool {
+	aaguidIconsOnce.Do(loadAAGUIDIconsFromFS)
+
+	_, ok := aaguidIcons[aaguid]
+	return ok
+}
+
+func OpenAuthenticatorIcon(aaguid string, light bool) (fs.File, int64, error) {
+	aaguidIconsOnce.Do(loadAAGUIDIconsFromFS)
+
+	icon, ok := aaguidIcons[aaguid]
+	if !ok {
+		return nil, 0, os.ErrNotExist
+	}
+
+	name := icon.lightPath
+	if !light && icon.darkPath != "" {
+		name = icon.darkPath
+	}
+
+	file, err := resources.FS.Open(path.Join(aaguidIconsDir, name))
+	if err != nil {
+		return nil, 0, err
+	}
+
+	stat, err := file.Stat()
+	if err != nil {
+		_ = file.Close()
+		return nil, 0, err
+	}
+
+	return file, stat.Size(), nil
+}
+
+func loadAAGUIDIconsFromFS() {
+	entries, err := fs.ReadDir(resources.FS, aaguidIconsDir)
+	if err != nil {
+		slog.Error("Error reading embedded AAGUID icons", slog.Any("error", err))
+		return
+	}
+
+	aaguidIcons = make(map[string]authenticatorIcon, len(entries))
+	for _, entry := range entries {
+		name := entry.Name()
+
+		switch {
+		case strings.HasSuffix(name, ".dark.svg"):
+			aaguid := strings.TrimSuffix(name, ".dark.svg")
+			icon := aaguidIcons[aaguid]
+			icon.darkPath = name
+			aaguidIcons[aaguid] = icon
+		case strings.HasSuffix(name, ".svg"):
+			aaguid := strings.TrimSuffix(name, ".svg")
+			icon := aaguidIcons[aaguid]
+			icon.lightPath = name
+			aaguidIcons[aaguid] = icon
+		}
+	}
+
+	for aaguid, icon := range aaguidIcons {
+		if icon.lightPath == "" {
+			delete(aaguidIcons, aaguid)
+		}
 	}
 }
