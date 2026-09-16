@@ -15,6 +15,7 @@ import (
 	"github.com/pocket-id/pocket-id/backend/internal/appconfig"
 	"github.com/pocket-id/pocket-id/backend/internal/apperror"
 	"github.com/pocket-id/pocket-id/backend/internal/common"
+	"github.com/pocket-id/pocket-id/backend/internal/dto"
 	"github.com/pocket-id/pocket-id/backend/internal/model"
 	datatype "github.com/pocket-id/pocket-id/backend/internal/model/types"
 	"github.com/pocket-id/pocket-id/backend/internal/utils"
@@ -273,7 +274,7 @@ func TestWebAuthnManagementOperationsReturnSpecificNotFoundErrors(t *testing.T) 
 	_, err = service.BeginRegistration(t.Context(), &appconfig.AppConfigModel{}, "missing-user")
 	require.True(t, apperror.IsCode(err, apperror.CodeUserNotFound))
 
-	_, err = service.UpdateCredential(t.Context(), "missing-user", "missing-passkey", "New name")
+	_, err = service.UpdateCredential(t.Context(), "missing-user", "missing-passkey", dto.WebauthnCredentialUpdateDto{Name: utils.PtrOrNil("New name")})
 	require.True(t, apperror.IsCode(err, apperror.CodeNotFound))
 
 	err = service.DeleteCredential(t.Context(), "missing-user", "missing-passkey", "", "", "")
@@ -374,4 +375,48 @@ func TestConsumeReauthenticationTokenReturnsTokenCreationTime(t *testing.T) {
 	require.NoError(t, tx.Commit().Error)
 
 	require.Equal(t, storedToken.CreatedAt.UTC(), reauthenticatedAt)
+}
+
+func TestUpdateCredentialAppliesPartialUpdates(t *testing.T) {
+	const (
+		userID = "icon-user"
+		aaguid = "bada5566-a7aa-401f-bd96-45619a55120d"
+	)
+
+	db := testutils.NewDatabaseForTest(t)
+	require.NoError(t, db.Create(&model.User{
+		Base:     model.Base{ID: userID},
+		Username: userID,
+	}).Error)
+
+	credential := model.WebauthnCredential{
+		Name:         "Original name",
+		CredentialID: []byte("test-credential"),
+		PublicKey:    []byte("test-public-key"),
+		UserID:       userID,
+		AAGUID:       aaguid,
+	}
+	require.NoError(t, db.Create(&credential).Error)
+
+	service := &Service{db: db}
+
+	updated, err := service.UpdateCredential(t.Context(), userID, credential.ID, dto.WebauthnCredentialUpdateDto{
+		Name: utils.PtrOrNil("New name"),
+	})
+	require.NoError(t, err)
+	assert.Equal(t, "New name", updated.Name)
+	assert.Equal(t, aaguid, updated.AAGUID)
+	assert.False(t, updated.IconHidden)
+
+	updated, err = service.UpdateCredential(t.Context(), userID, credential.ID, dto.WebauthnCredentialUpdateDto{
+		IconHidden: utils.PtrOrNil(true),
+	})
+	require.NoError(t, err)
+	assert.Equal(t, "New name", updated.Name)
+	assert.True(t, updated.IconHidden)
+
+	var stored model.WebauthnCredential
+	require.NoError(t, db.First(&stored, "id = ?", credential.ID).Error)
+	assert.Equal(t, aaguid, stored.AAGUID)
+	assert.True(t, stored.IconHidden)
 }

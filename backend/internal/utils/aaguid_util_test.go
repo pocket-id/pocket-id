@@ -2,8 +2,12 @@ package utils
 
 import (
 	"encoding/hex"
+	"io"
+	"os"
 	"sync"
 	"testing"
+
+	"github.com/stretchr/testify/require"
 )
 
 func TestFormatAAGUID(t *testing.T) {
@@ -123,4 +127,69 @@ func mustDecodeHex(s string) []byte {
 		panic("invalid hex in test: " + err.Error())
 	}
 	return bytes
+}
+
+func TestAuthenticatorIcons(t *testing.T) {
+	aaguidIconsOnce.Do(loadAAGUIDIconsFromFS)
+	if len(aaguidIcons) == 0 {
+		t.Skip("no authenticator icons are embedded")
+	}
+
+	var withDark, withoutDark string
+	for aaguid, icon := range aaguidIcons {
+		require.NotEmpty(t, icon.lightPath, "icon %q has no light variant", aaguid)
+
+		if icon.darkPath != "" && withDark == "" {
+			withDark = aaguid
+		}
+		if icon.darkPath == "" && withoutDark == "" {
+			withoutDark = aaguid
+		}
+	}
+	require.NotEmpty(t, withDark, "expected at least one authenticator with a separate dark icon")
+	require.NotEmpty(t, withoutDark, "expected at least one authenticator with a single icon")
+
+	readIcon := func(t *testing.T, aaguid string, light bool) []byte {
+		t.Helper()
+
+		file, size, err := OpenAuthenticatorIcon(aaguid, light)
+		require.NoError(t, err)
+		defer file.Close()
+
+		data, err := io.ReadAll(file)
+		require.NoError(t, err)
+		require.EqualValues(t, size, len(data))
+		require.Contains(t, string(data), "<svg")
+
+		return data
+	}
+
+	t.Run("known AAGUID", func(t *testing.T) {
+		require.True(t, HasAuthenticatorIcon(withDark))
+		require.NotEqual(t, readIcon(t, withDark, true), readIcon(t, withDark, false))
+	})
+
+	t.Run("dark falls back to the light icon", func(t *testing.T) {
+		require.Equal(t, readIcon(t, withoutDark, true), readIcon(t, withoutDark, false))
+	})
+
+	t.Run("unknown AAGUID", func(t *testing.T) {
+		tests := []string{
+			"",
+			"ffffffff-ffff-ffff-ffff-ffffffffffff",
+			"../aaguids.json",
+			"..%2faaguids.json",
+			"a/b",
+			".",
+		}
+
+		for _, aaguid := range tests {
+			t.Run(aaguid, func(t *testing.T) {
+				require.False(t, HasAuthenticatorIcon(aaguid))
+
+				_, _, err := OpenAuthenticatorIcon(aaguid, true)
+				require.ErrorIs(t, err, os.ErrNotExist)
+			})
+		}
+	})
 }
