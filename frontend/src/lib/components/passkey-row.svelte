@@ -3,7 +3,6 @@
 	import * as Item from '$lib/components/ui/item/index.js';
 	import * as Tooltip from '$lib/components/ui/tooltip/index.js';
 	import { m } from '$lib/paraglide/messages';
-	import { cn } from '$lib/utils/style';
 	import {
 		LucideCalendar,
 		LucideImage,
@@ -42,21 +41,16 @@
 </script>
 
 <Item.Root variant="transparent" class="hover:bg-muted transition-colors py-3 px-0 sm:px-4">
-	<Item.Media
-		class={cn(
-			'size-11',
-			showProviderIcon ? 'bg-transparent' : 'bg-primary/10 text-primary rounded-full'
-		)}
-	>
+	<Item.Media class="bg-muted text-muted-foreground size-11 rounded-xl">
 		{#if showProviderIcon}
 			<img
 				src={providerIcon?.url}
 				alt=""
-				class="size-full object-contain"
+				class="size-7 object-contain"
 				onerror={() => (iconFailed = true)}
 			/>
 		{:else if icon}{@const Icon = icon}
-			<Icon class="size-5" />
+			<Icon class="size-6" />
 		{/if}
 	</Item.Media>
 	<Item.Content class="gap-0.5">
