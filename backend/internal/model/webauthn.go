@@ -20,7 +20,7 @@ type WebauthnCredential struct {
 	BackupEligible bool `json:"backupEligible"`
 	BackupState    bool `json:"backupState"`
 
-	AAGUID     string `gorm:"column:aaguid"`
+	AAGUID     string `gorm:"column:aaguid;default:00000000-0000-0000-0000-000000000000"`
 	IconHidden bool
 
 	UserID string

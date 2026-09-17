@@ -17,7 +17,7 @@ func TestWebauthnCredentialDto_iconFields(t *testing.T) {
 		{Name: "With icon", AAGUID: withIcon},
 		{Name: "Icon cleared", AAGUID: withIcon, IconHidden: true},
 		{Name: "Unknown authenticator", AAGUID: "ffffffff-ffff-ffff-ffff-ffffffffffff"},
-		{Name: "Registered before the AAGUID was stored"},
+		{Name: "Authenticator that does not identify itself", AAGUID: utils.ZeroAAGUID},
 	}
 
 	var dtos []WebauthnCredentialDto
@@ -31,7 +31,7 @@ func TestWebauthnCredentialDto_iconFields(t *testing.T) {
 
 	require.Equal(t, model.WebauthnIconNone, dtos[2].Icon)
 
-	require.Empty(t, dtos[3].AAGUID)
+	require.Equal(t, utils.ZeroAAGUID, dtos[3].AAGUID)
 	require.Equal(t, model.WebauthnIconNone, dtos[3].Icon)
 
 	var cleared []WebauthnCredentialDto

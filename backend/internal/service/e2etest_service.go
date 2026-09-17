@@ -473,7 +473,6 @@ func (s *TestService) SeedDatabase(baseURL string) error {
 				AttestationType: "none",
 				Transport:       model.AuthenticatorTransportList{protocol.Internal},
 				UserID:          users[0].ID,
-				AAGUID:          "bada5566-a7aa-401f-bd96-45619a55120d",
 			},
 			{
 				Name:            "Passkey 2",

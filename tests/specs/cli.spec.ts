@@ -131,6 +131,12 @@ function compareExports(dir1: string, dir2: string): void {
 		session.extensions ??= '{}';
 	}
 
+	// Legacy exports gain the zero AAGUID when migrated to the current schema
+	for (const credential of expectedData.tables.webauthn_credentials) {
+		credential.aaguid ??= '00000000-0000-0000-0000-000000000000';
+		credential.icon_hidden ??= false;
+	}
+
 	// Check special fields
 	validateSpecialFields(actualData);
 

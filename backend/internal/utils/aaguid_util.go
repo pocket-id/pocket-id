@@ -16,6 +16,10 @@ import (
 
 const aaguidIconsDir = "aaguid-icons"
 
+// ZeroAAGUID is authenticators that don't want to be identified and is the
+// default value.
+const ZeroAAGUID = "00000000-0000-0000-0000-000000000000"
+
 var (
 	aaguidMap     map[string]string
 	aaguidMapOnce *sync.Once
