@@ -226,9 +226,6 @@ func (h *handler) getAuthenticatorIcon(c *gin.Context) error {
 
 	utils.SetCacheControlHeader(c, 24*time.Hour, 7*24*time.Hour)
 
-	c.Header("X-Content-Type-Options", "nosniff")
-	c.Header("Content-Security-Policy", "default-src 'none'; style-src 'unsafe-inline'; sandbox")
-
 	c.DataFromReader(http.StatusOK, size, "image/svg+xml", file, nil)
 	return nil
 }

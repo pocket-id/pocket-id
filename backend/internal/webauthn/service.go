@@ -405,9 +405,7 @@ func (s *Service) UpdateCredential(ctx context.Context, userID, credentialID str
 		return credential, err
 	}
 
-	if input.Name != nil {
-		credential.Name = *input.Name
-	}
+	credential.Name = input.Name
 	if input.IconHidden != nil {
 		credential.IconHidden = *input.IconHidden
 	}

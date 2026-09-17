@@ -274,7 +274,7 @@ func TestWebAuthnManagementOperationsReturnSpecificNotFoundErrors(t *testing.T) 
 	_, err = service.BeginRegistration(t.Context(), &appconfig.AppConfigModel{}, "missing-user")
 	require.True(t, apperror.IsCode(err, apperror.CodeUserNotFound))
 
-	_, err = service.UpdateCredential(t.Context(), "missing-user", "missing-passkey", dto.WebauthnCredentialUpdateDto{Name: utils.PtrOrNil("New name")})
+	_, err = service.UpdateCredential(t.Context(), "missing-user", "missing-passkey", dto.WebauthnCredentialUpdateDto{Name: "New name"})
 	require.True(t, apperror.IsCode(err, apperror.CodeNotFound))
 
 	err = service.DeleteCredential(t.Context(), "missing-user", "missing-passkey", "", "", "")
@@ -401,7 +401,7 @@ func TestUpdateCredentialAppliesPartialUpdates(t *testing.T) {
 	service := &Service{db: db}
 
 	updated, err := service.UpdateCredential(t.Context(), userID, credential.ID, dto.WebauthnCredentialUpdateDto{
-		Name: utils.PtrOrNil("New name"),
+		Name: "New name",
 	})
 	require.NoError(t, err)
 	assert.Equal(t, "New name", updated.Name)
@@ -409,6 +409,7 @@ func TestUpdateCredentialAppliesPartialUpdates(t *testing.T) {
 	assert.False(t, updated.IconHidden)
 
 	updated, err = service.UpdateCredential(t.Context(), userID, credential.ID, dto.WebauthnCredentialUpdateDto{
+		Name:       "New name",
 		IconHidden: utils.PtrOrNil(true),
 	})
 	require.NoError(t, err)
