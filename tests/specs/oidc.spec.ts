@@ -709,6 +709,7 @@ test('Authorize new client with device authorization flow', async ({ page }) => 
 	const userCode = await oidcUtil.getUserCode(page, client.id, client.secret);
 
 	await page.goto(`/device?user_code=${userCode}`);
+	await page.getByRole('button', { name: 'Authorize' }).click();
 
 	await expectScopes(page, ['Email', 'Profile']);
 
@@ -740,16 +741,94 @@ test('Authorize new client with device authorization flow while not signed in', 
 	).toBeVisible();
 });
 
-test('Authorize existing client with device authorization flow', async ({ page }) => {
-	const client = oidcClients.nextcloud;
-	const userCode = await oidcUtil.getUserCode(page, client.id, client.secret);
+for (const scenario of [
+	{ name: 'new client', client: oidcClients.immich, consentRequired: true },
+	{ name: 'previously authorized client', client: oidcClients.nextcloud, consentRequired: false },
+	{ name: 'skip-consent client', client: oidcClients.skipConsent, consentRequired: false },
+	{
+		name: 'public skip-consent client',
+		client: oidcClients.skipConsent,
+		consentRequired: false,
+		isPublic: true
+	}
+]) {
+	for (const decision of ['authorize', 'cancel'] as const) {
+		test(`Device authorization requires code confirmation for ${scenario.name}: ${decision}`, async ({
+			page,
+			request
+		}) => {
+			test.setTimeout(30000);
+			const client = scenario.client;
+			if (scenario.isPublic) {
+				const response = await request.put(`/api/oidc/clients/${client.id}`, {
+					data: {
+						name: client.name,
+						callbackURLs: [client.callbackUrl],
+						isPublic: true,
+						pkceEnabled: true,
+						skipConsent: true
+					}
+				});
+				expect(response.ok()).toBe(true);
+			}
 
-	await page.goto(`/device?user_code=${userCode}`);
+			const credentials: Record<string, string> = { client_id: client.id };
+			if (!scenario.isPublic) credentials.client_secret = client.secret;
+			const response = await request.post('/api/oidc/device/authorize', {
+				form: { ...credentials, scope: 'openid profile email' }
+			});
+			expect(response.ok()).toBe(true);
+			const device = await response.json();
+			const tokenRequest = {
+				...credentials,
+				grant_type: 'urn:ietf:params:oauth:grant-type:device_code',
+				device_code: device.device_code
+			};
+			const approvals: Request[] = [];
+			page.on('request', (request) => {
+				if (new URL(request.url()).pathname === '/api/oidc/device/verify') approvals.push(request);
+			});
 
-	await expect(
-		page.getByRole('paragraph').filter({ hasText: 'The device has been authorized.' })
-	).toBeVisible();
-});
+			await page.goto(device.verification_uri_complete);
+			await expect(page.getByRole('textbox', { name: 'Code' })).toHaveValue(device.user_code);
+			await expect(page.getByRole('button', { name: 'Authorize', exact: true })).toBeEnabled();
+			expect(approvals).toHaveLength(0);
+			expect(await oidcUtil.exchangeCode(page, tokenRequest)).toMatchObject({
+				error: 'authorization_pending'
+			});
+
+			if (decision === 'cancel') {
+				await page.getByRole('link', { name: 'Cancel', exact: true }).click();
+				await expect(page).not.toHaveURL(/\/device/);
+			} else {
+				await page.getByRole('button', { name: 'Authorize', exact: true }).click();
+				if (scenario.consentRequired) {
+					await expectScopes(page, ['Email', 'Profile']);
+					await page.getByRole('button', { name: 'Authorize', exact: true }).click();
+				}
+				await expect(
+					page.getByText('The device has been authorized.', { exact: true })
+				).toBeVisible();
+			}
+
+			// Respect the device polling interval before checking the result of the user's decision
+			await page.waitForTimeout(device.interval * 1000 + 100);
+			const token = await oidcUtil.exchangeCode(page, tokenRequest);
+			if (decision === 'cancel') {
+				expect(approvals).toHaveLength(0);
+				expect(token).toMatchObject({ error: 'authorization_pending' });
+				expect(token.access_token).toBeUndefined();
+			} else {
+				expect(approvals).toHaveLength(1);
+				expect(token.access_token).toBeTruthy();
+				const userinfo = await request.get('/api/oidc/userinfo', {
+					headers: { Authorization: `Bearer ${token.access_token}` }
+				});
+				expect(await userinfo.json()).toMatchObject({ sub: users.tim.id });
+			}
+		});
+	}
+}
 
 test('Authorize existing client with device authorization flow while not signed in', async ({
 	page
@@ -766,6 +845,22 @@ test('Authorize existing client with device authorization flow while not signed 
 	await expect(
 		page.getByRole('paragraph').filter({ hasText: 'The device has been authorized.' })
 	).toBeVisible();
+});
+
+test('Device authorization submits manually entered codes with Enter', async ({ page }) => {
+	const client = oidcClients.nextcloud;
+	const userCode = await oidcUtil.getUserCode(page, client.id, client.secret);
+	const approvals: Request[] = [];
+	page.on('request', (request) => {
+		if (new URL(request.url()).pathname === '/api/oidc/device/verify') approvals.push(request);
+	});
+
+	await page.goto('/device');
+	await page.getByRole('textbox', { name: 'Code' }).fill(userCode);
+	expect(approvals).toHaveLength(0);
+	await page.getByRole('textbox', { name: 'Code' }).press('Enter');
+	await expect(page.getByText('The device has been authorized.', { exact: true })).toBeVisible();
+	expect(approvals).toHaveLength(1);
 });
 
 test('Device authorization flow forces reauthentication when client requires it', async ({
@@ -804,6 +899,7 @@ test('Device authorization flow forces reauthentication when client requires it'
 	await (await passkeyUtil.init(page)).addPasskey();
 
 	await page.goto(`/device?user_code=${userCode}`);
+	await page.getByRole('button', { name: 'Authorize' }).click();
 	await expect(page.getByText('Do you want to sign in to Nextcloud')).toBeVisible();
 
 	await page.getByRole('button', { name: 'Authorize' }).click();
@@ -815,7 +911,8 @@ test('Device authorization flow forces reauthentication when client requires it'
 });
 
 test('Authorize client with device authorization flow with invalid code', async ({ page }) => {
-	await page.goto('/device?user_code=invalid-code');
+	await page.goto('/device?user_code=E0000000');
+	await page.getByRole('button', { name: 'Authorize' }).click();
 
 	await expect(
 		page.getByRole('paragraph').filter({ hasText: 'Device code is invalid. Please try again.' })
