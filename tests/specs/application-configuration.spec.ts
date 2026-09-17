@@ -73,6 +73,47 @@ test('Save configuration from every editable tab together', async ({ page }) => 
 	await expect(page.getByRole('textbox')).toHaveValue('https://combined.example.com/*');
 });
 
+test('Invalid hidden configuration prevents every section from being saved', async ({ page }) => {
+	let updateRequests = 0;
+	page.on('request', (request) => {
+		if (
+			request.method() === 'PUT' &&
+			new URL(request.url()).pathname === '/api/application-configuration'
+		) {
+			updateRequests++;
+		}
+	});
+
+	await page.getByLabel('Application Name', { exact: true }).fill('Validated Together');
+	await page.getByRole('tab', { name: 'Email' }).click();
+	await page.getByLabel('SMTP Host').fill('smtp.validation.test');
+	await page.getByLabel('SMTP From').fill('validation@example.com');
+	await page.getByRole('tab', { name: 'General' }).click();
+
+	await page.getByRole('button', { name: 'Save', exact: true }).click();
+
+	const emailTab = page.getByRole('tab', { name: 'Email' });
+	const smtpPort = page.getByLabel('SMTP Port');
+	await expect(page.getByText('Please fix the highlighted errors before saving')).toBeVisible();
+	await expect(emailTab).toHaveAttribute('aria-selected', 'true');
+	await expect(smtpPort).toHaveAttribute('aria-invalid', 'true');
+	await expect(smtpPort).toBeFocused();
+	expect(updateRequests).toBe(0);
+
+	await smtpPort.fill('587');
+	await saveUnsavedChanges(page);
+
+	await page.reload();
+	await page.getByRole('tab', { name: 'General' }).click();
+	await expect(page.getByLabel('Application Name', { exact: true })).toHaveValue(
+		'Validated Together'
+	);
+	await page.getByRole('tab', { name: 'Email' }).click();
+	await expect(page.getByLabel('SMTP Host')).toHaveValue('smtp.validation.test');
+	await expect(page.getByLabel('SMTP Port')).toHaveValue('587');
+	await expect(page.getByLabel('SMTP From')).toHaveValue('validation@example.com');
+});
+
 test.describe('Update user creation configuration', () => {
 	test.beforeEach(async ({ page }) => {
 		await page.getByRole('tab', { name: 'User Creation' }).click();

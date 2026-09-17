@@ -19,6 +19,37 @@ test('Update account details', async ({ page }) => {
 	await saveUnsavedChanges(page);
 });
 
+test('Failed account update remains dirty and can be retried', async ({ page }) => {
+	await page.goto('/settings/account');
+
+	let failedUpdates = 0;
+	await page.route('**/api/users/me', async (route) => {
+		if (route.request().method() !== 'PUT' || failedUpdates > 0) {
+			await route.fallback();
+			return;
+		}
+
+		failedUpdates++;
+		await route.fulfill({
+			status: 500,
+			contentType: 'application/json',
+			body: JSON.stringify({ error: 'Temporary account update failure' })
+		});
+	});
+
+	const displayName = page.getByLabel('Display Name');
+	await displayName.fill('Retryable Account');
+	await page.getByRole('button', { name: 'Save', exact: true }).click();
+
+	await expect(page.getByText('Temporary account update failure', { exact: true })).toBeVisible();
+	await expect(page.getByRole('button', { name: 'Save', exact: true })).toBeVisible();
+	expect(failedUpdates).toBe(1);
+
+	await saveUnsavedChanges(page);
+	await page.reload();
+	await expect(page.getByLabel('Display Name')).toHaveValue('Retryable Account');
+});
+
 test('Update account details fails with already taken email', async ({ page }) => {
 	await page.goto('/settings/account');
 
