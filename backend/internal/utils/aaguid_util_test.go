@@ -158,7 +158,7 @@ func TestAuthenticatorIcons(t *testing.T) {
 
 		data, err := io.ReadAll(file)
 		require.NoError(t, err)
-		require.EqualValues(t, size, len(data))
+		require.Len(t, data, int(size))
 		require.Contains(t, string(data), "<svg")
 
 		return data
