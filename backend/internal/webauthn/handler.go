@@ -163,7 +163,7 @@ func (h *handler) updateCredential(c *gin.Context) error {
 		return err
 	}
 
-	credential, err := h.service.UpdateCredential(c.Request.Context(), userID, credentialID, input)
+	credential, err := h.service.UpdateCredential(c.Request.Context(), userID, credentialID, input.Name)
 	if err != nil {
 		return err
 	}

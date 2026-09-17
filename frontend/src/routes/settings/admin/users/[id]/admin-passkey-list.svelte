@@ -54,8 +54,8 @@
 			label={passkey.name}
 			description={m.added_on() + ' ' + new Date(passkey.createdAt).toLocaleDateString()}
 			icon={LucideKeyRound}
-			providerIcon={passkey.icon === 'shown'
-				? { url: authenticatorIconUrl(passkey.aaguid, isLightMode) }
+			providerIconUrl={passkey.hasIcon
+				? authenticatorIconUrl(passkey.aaguid, isLightMode)
 				: undefined}
 			showRenameAction={false}
 			onDelete={() => deletePasskey(passkey)}

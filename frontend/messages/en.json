@@ -153,8 +153,6 @@
 	"or_visit": "or visit",
 	"added_on": "Added on",
 	"rename": "Rename",
-	"clear_icon": "Clear icon",
-	"restore_icon": "Restore icon",
 	"delete": "Delete",
 	"are_you_sure_you_want_to_delete_this_passkey": "Are you sure you want to delete this passkey?",
 	"passkey_deleted_successfully": "Passkey deleted successfully",

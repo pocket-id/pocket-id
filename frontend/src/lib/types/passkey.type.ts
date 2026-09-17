@@ -3,5 +3,5 @@ export type Passkey = {
 	name: string;
 	createdAt: string;
 	aaguid: string;
-	icon: 'none' | 'shown' | 'hidden';
+	hasIcon: boolean;
 };

@@ -15,7 +15,6 @@ func TestWebauthnCredentialDto_iconFields(t *testing.T) {
 
 	credentials := []model.WebauthnCredential{
 		{Name: "With icon", AAGUID: withIcon},
-		{Name: "Icon cleared", AAGUID: withIcon, IconHidden: true},
 		{Name: "Unknown authenticator", AAGUID: "ffffffff-ffff-ffff-ffff-ffffffffffff"},
 		{Name: "Authenticator that does not identify itself", AAGUID: utils.ZeroAAGUID},
 	}
@@ -25,20 +24,12 @@ func TestWebauthnCredentialDto_iconFields(t *testing.T) {
 	require.Len(t, dtos, len(credentials))
 
 	require.Equal(t, withIcon, dtos[0].AAGUID)
-	require.Equal(t, model.WebauthnIconShown, dtos[0].Icon)
+	require.True(t, dtos[0].HasIcon)
 
-	require.Equal(t, model.WebauthnIconHidden, dtos[1].Icon)
+	require.False(t, dtos[1].HasIcon)
 
-	require.Equal(t, model.WebauthnIconNone, dtos[2].Icon)
-
-	require.Equal(t, utils.ZeroAAGUID, dtos[3].AAGUID)
-	require.Equal(t, model.WebauthnIconNone, dtos[3].Icon)
-
-	var cleared []WebauthnCredentialDto
-	require.NoError(t, MapStructList([]model.WebauthnCredential{
-		{Name: "Hidden but unknown authenticator", AAGUID: "ffffffff-ffff-ffff-ffff-ffffffffffff", IconHidden: true},
-	}, &cleared))
-	require.Equal(t, model.WebauthnIconNone, cleared[0].Icon)
+	require.Equal(t, utils.ZeroAAGUID, dtos[2].AAGUID)
+	require.False(t, dtos[2].HasIcon)
 }
 
 func anyAAGUIDWithIcon(t *testing.T) string {

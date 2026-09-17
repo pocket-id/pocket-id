@@ -20,17 +20,6 @@
 
 	const isLightMode = $derived(mode.current === 'light');
 
-	async function togglePasskeyIcon(passkey: Passkey) {
-		try {
-			await webauthnService.updateCredential(passkey.id, {
-				iconHidden: passkey.icon === 'shown'
-			});
-			passkeys = await webauthnService.listCredentials();
-		} catch (e) {
-			axiosErrorToast(e);
-		}
-	}
-
 	async function deletePasskey(passkey: Passkey) {
 		openConfirmDialog({
 			title: m.delete_passkey_name({ passkeyName: passkey.name }),
@@ -58,15 +47,9 @@
 			label={passkey.name}
 			description={m.added_on() + ' ' + new Date(passkey.createdAt).toLocaleDateString()}
 			icon={LucideKeyRound}
-			providerIcon={passkey.icon === 'none'
-				? undefined
-				: {
-						url:
-							passkey.icon === 'shown'
-								? authenticatorIconUrl(passkey.aaguid, isLightMode)
-								: undefined,
-						onToggleIcon: () => togglePasskeyIcon(passkey)
-					}}
+			providerIconUrl={passkey.hasIcon
+				? authenticatorIconUrl(passkey.aaguid, isLightMode)
+				: undefined}
 			onRename={() => (passkeyToRename = passkey)}
 			onDelete={() => deletePasskey(passkey)}
 		/>

@@ -15,7 +15,6 @@ import (
 
 	"github.com/pocket-id/pocket-id/backend/internal/appconfig"
 	"github.com/pocket-id/pocket-id/backend/internal/apperror"
-	"github.com/pocket-id/pocket-id/backend/internal/dto"
 	"github.com/pocket-id/pocket-id/backend/internal/model"
 	datatype "github.com/pocket-id/pocket-id/backend/internal/model/types"
 	"github.com/pocket-id/pocket-id/backend/internal/utils"
@@ -382,7 +381,7 @@ func (s *Service) DeleteCredential(ctx context.Context, userID string, credentia
 	return nil
 }
 
-func (s *Service) UpdateCredential(ctx context.Context, userID, credentialID string, input dto.WebauthnCredentialUpdateDto) (model.WebauthnCredential, error) {
+func (s *Service) UpdateCredential(ctx context.Context, userID, credentialID, name string) (model.WebauthnCredential, error) {
 	tx := s.db.Begin()
 	defer func() {
 		tx.Rollback()
@@ -401,10 +400,7 @@ func (s *Service) UpdateCredential(ctx context.Context, userID, credentialID str
 		return credential, err
 	}
 
-	credential.Name = input.Name
-	if input.IconHidden != nil {
-		credential.IconHidden = *input.IconHidden
-	}
+	credential.Name = name
 
 	err = tx.
 		WithContext(ctx).
