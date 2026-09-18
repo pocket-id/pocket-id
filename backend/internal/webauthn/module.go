@@ -92,7 +92,7 @@ func (m *Module) RegisterRoutes(apiGroup *gin.RouterGroup, userAuth, browserAuth
 	apiGroup.PATCH("/webauthn/credentials/:id", userAuth, httpserver.Handle(m.handler.updateCredential))
 	apiGroup.DELETE("/webauthn/credentials/:id", userAuth, httpserver.Handle(m.handler.deleteCredential))
 
-	apiGroup.GET("/webauthn/authenticator-icons/:aaguid", httpserver.Handle(m.handler.getAuthenticatorIcon))
+	apiGroup.GET("/webauthn/authenticator-icons/:aaguid", httpserver.Handle(m.handler.getThemedAuthenticatorIcon))
 }
 
 // ConsumeReauthenticationToken implements the OIDC module's ReauthenticationTokenConsumer interface

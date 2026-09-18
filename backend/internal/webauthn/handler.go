@@ -212,7 +212,7 @@ func (h *handler) reauthenticate(c *gin.Context) error {
 	return nil
 }
 
-func (h *handler) getAuthenticatorIcon(c *gin.Context) error {
+func (h *handler) getThemedAuthenticatorIcon(c *gin.Context) error {
 	light, _ := strconv.ParseBool(c.DefaultQuery("light", "true"))
 
 	file, size, err := utils.OpenAuthenticatorIcon(c.Param("aaguid"), light)

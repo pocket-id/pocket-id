@@ -10,6 +10,7 @@ import (
 	"path"
 	"strings"
 	"sync"
+	"uuid"
 
 	"github.com/pocket-id/pocket-id/backend/resources"
 )
@@ -18,7 +19,7 @@ const aaguidIconsDir = "aaguid-icons"
 
 // ZeroAAGUID is authenticators that don't want to be identified and is the
 // default value.
-const ZeroAAGUID = "00000000-0000-0000-0000-000000000000"
+var ZeroAAGUID = uuid.Nil().String()
 
 var (
 	aaguidMap     map[string]string
