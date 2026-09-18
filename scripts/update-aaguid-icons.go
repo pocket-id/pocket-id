@@ -22,6 +22,8 @@ const (
 	svgDataPrefix = "data:image/svg+xml;base64,"
 )
 
+// authenticator is the subset of an upstream entry this script cares about
+// The icons are data URIs rather than links, so nothing beyond the combined JSON has to be fetched
 type authenticator struct {
 	Name      string `json:"name"`
 	IconLight string `json:"icon_light"`
@@ -34,6 +36,7 @@ func main() {
 	}
 }
 
+// run writes both the names and the icons from a single upstream snapshot so the two never describe different revisions of the list
 func run() error {
 	authenticators, err := fetchAuthenticators(sourceURL)
 	if err != nil {
@@ -51,6 +54,7 @@ func run() error {
 	return nil
 }
 
+// fetchAuthenticators downloads the upstream authenticator list keyed by AAGUID
 func fetchAuthenticators(url string) (map[string]authenticator, error) {
 	resp, err := http.Get(url)
 	if err != nil {
@@ -72,7 +76,9 @@ func fetchAuthenticators(url string) (map[string]authenticator, error) {
 	return authenticators, nil
 }
 
+// writeAuthenticatorNames writes the AAGUID to display name lookup that the backend embeds
 func writeAuthenticatorNames(authenticators map[string]authenticator) error {
+	// Only the name is kept because the icons live in their own files rather than inline in the JSON
 	names := map[string]string{}
 	for aaguid, a := range authenticators {
 		names[aaguid] = a.Name
@@ -109,6 +115,7 @@ func writeIcons(authenticators map[string]authenticator) error {
 		}
 	}
 
+	// The AAGUIDs are sorted so that reruns without upstream changes produce no diff
 	for _, aaguid := range slices.Sorted(maps.Keys(authenticators)) {
 		a := authenticators[aaguid]
 
@@ -122,6 +129,7 @@ func writeIcons(authenticators map[string]authenticator) error {
 			return fmt.Errorf("failed to write light SVG for %s: %w", aaguid, err)
 		}
 
+		// A dark icon identical to the light one is not written, since the backend already falls back to the light icon
 		darkContent := svgPayload(a.IconDark)
 		if darkContent == "" || darkContent == lightContent {
 			continue
@@ -135,6 +143,7 @@ func writeIcons(authenticators map[string]authenticator) error {
 	return nil
 }
 
+// writeIcon decodes a base64 icon payload and stores it as an SVG file in the icon directory
 func writeIcon(name, payload string) error {
 	svg, err := base64.StdEncoding.DecodeString(payload)
 	if err != nil {
@@ -148,6 +157,7 @@ func writeIcon(name, payload string) error {
 	return nil
 }
 
+// svgPayload returns the base64 body of an SVG data URI, or an empty string for an entry with no icon or an icon in another format
 func svgPayload(dataURI string) string {
 	payload, ok := strings.CutPrefix(dataURI, svgDataPrefix)
 	if !ok {

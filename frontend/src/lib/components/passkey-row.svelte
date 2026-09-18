@@ -23,8 +23,10 @@
 		label?: string;
 	} = $props();
 
+	// Falls back to the generic icon when the authenticator icon cannot be loaded
 	let iconFailed = $state(false);
 
+	// The row is reused across passkeys and themes, so a previous failure must not hide an icon that is now a different URL
 	$effect(() => {
 		void providerIconUrl;
 		iconFailed = false;

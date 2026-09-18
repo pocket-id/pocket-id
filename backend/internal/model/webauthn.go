@@ -25,6 +25,8 @@ type WebauthnCredential struct {
 	UserID string
 }
 
+// HasIcon reports whether an icon is embedded for this credential's authenticator
+// It is mapped onto the DTO so the frontend knows upfront whether an icon is worth requesting
 func (c WebauthnCredential) HasIcon() bool {
 	return utils.HasAuthenticatorIcon(c.AAGUID)
 }
