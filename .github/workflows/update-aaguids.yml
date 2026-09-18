@@ -17,63 +17,13 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v6
 
-      - name: Fetch JSON data
-        run: |
-          curl -o data.json https://raw.githubusercontent.com/pocket-id/passkey-aaguids/refs/heads/main/combined_aaguid.json
+      - name: Set up Go
+        uses: actions/setup-go@v6
+        with:
+          go-version: stable
 
-      - name: Process JSON data
-        run: |
-          mkdir -p backend/resources
-          jq -c 'map_values(.name)' data.json > backend/resources/aaguids.json
-
-      - name: Extract authenticator icons
-        env:
-          ICON_DIR: backend/resources/aaguid-icons
-          MAX_ICON_BYTES: "65536"
-        run: |
-          mkdir -p "$ICON_DIR"
-          rm -f "$ICON_DIR"/*.svg
-
-          written=0
-          while IFS=$'\t' read -r aaguid variant payload; do
-            if [ "$variant" = "dark" ]; then
-              file="$ICON_DIR/$aaguid.dark.svg"
-            else
-              file="$ICON_DIR/$aaguid.svg"
-            fi
-
-            printf '%s' "$payload" | base64 -d > "$file"
-
-            size=$(stat -c %s "$file")
-            if [ "$size" -gt "$MAX_ICON_BYTES" ]; then
-              echo "Skipping $aaguid ($variant): $size bytes exceeds $MAX_ICON_BYTES"
-              rm -f "$file"
-              continue
-            fi
-
-            if grep -qiE '<script|<foreignObject|\son[a-z]+=|(xlink:)?href="[^#]' "$file"; then
-              echo "Skipping $aaguid ($variant): the SVG contains a script, an event handler or an external reference"
-              rm -f "$file"
-              continue
-            fi
-
-            written=$((written + 1))
-          done < <(jq -r '
-            def svg: if startswith("data:image/svg+xml;base64,") then ltrimstr("data:image/svg+xml;base64,") else "" end;
-            to_entries[]
-            | .key as $aaguid
-            | ((.value.icon_light // "") | svg) as $light
-            | ((.value.icon_dark // "") | svg) as $dark
-            | select($light != "")
-            | [
-                [$aaguid, "light", $light],
-                (if $dark != "" and $dark != $light then [$aaguid, "dark", $dark] else empty end)
-              ][]
-            | @tsv
-          ' data.json)
-
-          echo "Extracted $written icons"
-          rm data.json
+      - name: Update AAGUIDs and authenticator icons
+        run: go run scripts/update-aaguid-icons.go
 
       - name: Create Pull Request
         uses: peter-evans/create-pull-request@v7
