@@ -19,7 +19,8 @@ let saving = $state(false);
 let status = $state<{ type: 'success' | 'error'; message: string } | null>(null);
 let statusTimeout: ReturnType<typeof setTimeout> | undefined;
 
-const hasChanges = $derived([...sections].some((section) => section.dirty));
+const dirtyCount = $derived([...sections].filter((section) => section.dirty).length);
+const hasChanges = $derived(dirtyCount > 0);
 
 function register(section: UnsavedSection) {
 	sections.add(section);
@@ -86,6 +87,9 @@ function discardAll() {
 export default {
 	get hasChanges() {
 		return hasChanges;
+	},
+	get dirtyCount() {
+		return dirtyCount;
 	},
 	get saving() {
 		return saving;
