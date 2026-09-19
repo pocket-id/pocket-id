@@ -11,7 +11,13 @@ import (
 	"github.com/pocket-id/pocket-id/backend/internal/common"
 )
 
-var localIPv6Ranges []*net.IPNet
+var (
+	localIPv6Ranges []*net.IPNet
+
+	trustedLogoIPNets []*net.IPNet
+	trustedLogoIPs    []net.IP
+	trustedLogoHosts  []string
+)
 
 var localhostIPNets = []*net.IPNet{
 	{IP: net.IPv4(127, 0, 0, 0), Mask: net.CIDRMask(8, 32)}, // 127.0.0.0/8
@@ -84,14 +90,40 @@ func IsURLPrivate(ctx context.Context, u *url.URL) (bool, error) {
 		return false, errors.New("cannot resolve hostname")
 	}
 
-	// Prevents SSRF by allowing only public IPs
+	// Prevents SSRF by allowing only public IPs or explicitly trusted logo hosts
 	for _, addr := range ips {
 		if IsPrivateIP(addr.IP) {
+			if isTrustedLogoHost(u.Hostname(), addr.IP) {
+				continue
+			}
 			return true, nil
 		}
 	}
 
 	return false, nil
+}
+
+func isTrustedLogoHost(hostname string, ip net.IP) bool {
+	hostname = strings.ToLower(hostname)
+	for _, host := range trustedLogoHosts {
+		if hostname == host {
+			return true
+		}
+	}
+
+	for _, trustedIP := range trustedLogoIPs {
+		if trustedIP.Equal(ip) {
+			return true
+		}
+	}
+
+	for _, ipNet := range trustedLogoIPNets {
+		if ipNet.Contains(ip) {
+			return true
+		}
+	}
+
+	return false
 }
 
 func listContainsIP(ipNets []*net.IPNet, ip net.IP) bool {
@@ -120,6 +152,37 @@ func loadLocalIPv6Ranges() {
 	}
 }
 
+// LoadTrustedLogoHosts compiles the configured TRUSTED_LOGO_HOSTS into IP nets, IP addresses, and hostnames
+func LoadTrustedLogoHosts() {
+	trustedLogoIPNets = nil
+	trustedLogoIPs = nil
+	trustedLogoHosts = nil
+
+	for _, entry := range common.EnvConfig.TrustedLogoHosts {
+		entry = strings.TrimSpace(entry)
+		if entry == "" {
+			continue
+		}
+
+		if ip := net.ParseIP(entry); ip != nil {
+			if ipv4 := ip.To4(); ipv4 != nil {
+				trustedLogoIPs = append(trustedLogoIPs, ipv4)
+			} else {
+				trustedLogoIPs = append(trustedLogoIPs, ip)
+			}
+			continue
+		}
+
+		if _, ipNet, err := net.ParseCIDR(entry); err == nil {
+			trustedLogoIPNets = append(trustedLogoIPNets, ipNet)
+			continue
+		}
+
+		trustedLogoHosts = append(trustedLogoHosts, strings.ToLower(entry))
+	}
+}
+
 func init() {
 	loadLocalIPv6Ranges()
+	LoadTrustedLogoHosts()
 }

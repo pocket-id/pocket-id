@@ -12,6 +12,7 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/pocket-id/pocket-id/backend/internal/apperror"
+	"github.com/pocket-id/pocket-id/backend/internal/common"
 	"github.com/pocket-id/pocket-id/backend/internal/dto"
 	"github.com/pocket-id/pocket-id/backend/internal/model"
 	datatype "github.com/pocket-id/pocket-id/backend/internal/model/types"
@@ -515,6 +516,60 @@ func TestOidcService_downloadAndSaveLogoFromURL(t *testing.T) {
 		err := s.downloadAndSaveLogoFromURL(t.Context(), "non-existent-client-id", publicLogoHost+"/logo.png", true)
 		require.Error(t, err)
 		require.True(t, apperror.IsCode(err, apperror.CodeNotFound))
+	})
+
+	t.Run("Rejects downloading logo from private IP without TRUSTED_LOGO_HOSTS", func(t *testing.T) {
+		const privateLogoHost = "http://192.168.1.50"
+		httpClient := &http.Client{
+			Transport: &testutils.MockRoundTripper{
+				Responses: map[string]*http.Response{},
+			},
+		}
+
+		s := &OidcService{
+			db:          db,
+			fileStorage: dbStorage,
+			httpClient:  httpClient,
+		}
+
+		err := s.downloadAndSaveLogoFromURL(t.Context(), client.ID, privateLogoHost+"/logo.png", true)
+		require.Error(t, err)
+		assert.ErrorContains(t, err, "private IP addresses are not allowed")
+	})
+
+	t.Run("Successfully downloads and saves logo from private IP when permitted by TRUSTED_LOGO_HOSTS", func(t *testing.T) {
+		origHosts := common.EnvConfig.TrustedLogoHosts
+		defer func() {
+			common.EnvConfig.TrustedLogoHosts = origHosts
+			utils.LoadTrustedLogoHosts()
+		}()
+
+		common.EnvConfig.TrustedLogoHosts = common.TrustedLogoHostsConfig{"192.168.1.0/24"}
+		utils.LoadTrustedLogoHosts()
+
+		const privateLogoHost = "http://192.168.1.50"
+		pngContent := []byte("fake-private-png-content")
+		//nolint:bodyclose
+		pngResponse := testutils.NewMockResponse(http.StatusOK, string(pngContent))
+		pngResponse.Header.Set("Content-Type", "image/png")
+
+		httpClient := &http.Client{
+			Transport: &testutils.MockRoundTripper{
+				Responses: map[string]*http.Response{
+					//nolint:bodyclose
+					privateLogoHost + "/logo.png": pngResponse,
+				},
+			},
+		}
+
+		s := &OidcService{
+			db:          db,
+			fileStorage: dbStorage,
+			httpClient:  httpClient,
+		}
+
+		err := s.downloadAndSaveLogoFromURL(t.Context(), client.ID, privateLogoHost+"/logo.png", true)
+		require.NoError(t, err)
 	})
 }
 

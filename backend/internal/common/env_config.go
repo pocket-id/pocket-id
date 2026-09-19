@@ -20,6 +20,7 @@ type (
 	AppEnv                            string
 	DbProvider                        string
 	TrustProxyConfig                  []string
+	TrustedLogoHostsConfig            []string
 	DismissSQLiteStorageWarningConfig bool
 )
 
@@ -50,9 +51,10 @@ type EnvConfigSchema struct {
 	AppURL                    string `env:"APP_URL" options:"toLower,trimTrailingSlash"`
 	DbProvider                DbProvider
 	DbConnectionString        string           `env:"DB_CONNECTION_STRING" options:"file"`
-	TrustProxy                TrustProxyConfig `env:"TRUST_PROXY"`
-	ProxyProtocol             TrustProxyConfig `env:"PROXY_PROTOCOL"`
-	TrustedPlatform           string           `env:"TRUSTED_PLATFORM"`
+	TrustProxy                TrustProxyConfig       `env:"TRUST_PROXY"`
+	ProxyProtocol             TrustProxyConfig       `env:"PROXY_PROTOCOL"`
+	TrustedLogoHosts          TrustedLogoHostsConfig `env:"TRUSTED_LOGO_HOSTS"`
+	TrustedPlatform           string                 `env:"TRUSTED_PLATFORM"`
 	AuditLogRetentionDays     int              `env:"AUDIT_LOG_RETENTION_DAYS"`
 	AnalyticsDisabled         bool             `env:"ANALYTICS_DISABLED"`
 	AllowDowngrade            bool             `env:"ALLOW_DOWNGRADE"`
@@ -463,4 +465,69 @@ func (config *TrustProxyConfig) UnmarshalText(text []byte) error {
 
 	*config = proxies
 	return nil
+}
+
+func (config *TrustedLogoHostsConfig) UnmarshalText(text []byte) error {
+	value := strings.TrimSpace(string(text))
+	if value == "" {
+		*config = nil
+		return nil
+	}
+
+	// Support boolean values for completely enabling or disabling (allow all or none)
+	enabled, err := strconv.ParseBool(value)
+	if err == nil {
+		if enabled {
+			*config = TrustedLogoHostsConfig{"0.0.0.0/0", "::/0"}
+		} else {
+			*config = nil
+		}
+
+		return nil
+	}
+
+	rawHosts := strings.Split(value, ",")
+	var hosts []string
+	for _, host := range rawHosts {
+		host = strings.TrimSpace(host)
+		if host == "" {
+			continue
+		}
+		if net.ParseIP(host) == nil {
+			if _, _, err := net.ParseCIDR(host); err != nil {
+				if !isValidHostname(host) {
+					return fmt.Errorf("invalid trusted logo host %q: must be an IP address, CIDR, or hostname", host)
+				}
+				host = strings.ToLower(host)
+			}
+		}
+		hosts = append(hosts, host)
+	}
+
+	*config = hosts
+	return nil
+}
+
+func isValidHostname(host string) bool {
+	if len(host) == 0 || len(host) > 253 {
+		return false
+	}
+	if strings.ContainsAny(host, " /:\\") {
+		return false
+	}
+	labels := strings.Split(host, ".")
+	for _, label := range labels {
+		if len(label) == 0 || len(label) > 63 {
+			return false
+		}
+		if label[0] == '-' || label[len(label)-1] == '-' {
+			return false
+		}
+		for _, r := range label {
+			if !((r >= 'a' && r <= 'z') || (r >= 'A' && r <= 'Z') || (r >= '0' && r <= '9') || r == '-' || r == '_') {
+				return false
+			}
+		}
+	}
+	return true
 }

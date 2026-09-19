@@ -149,6 +149,42 @@ func TestParseEnvConfig(t *testing.T) {
 		assert.Nil(t, EnvConfig.TrustProxy)
 	})
 
+	t.Run("should parse trusted logo hosts with IP, CIDR, and hostname", func(t *testing.T) {
+		EnvConfig = defaultConfig()
+		t.Setenv("TRUSTED_LOGO_HOSTS", "10.0.0.0/8, 192.168.1.50, ::1, icons.lan, my-nas.home.arpa")
+
+		err := parseAndValidateEnvConfig(t)
+		require.NoError(t, err)
+		assert.Equal(t, TrustedLogoHostsConfig{"10.0.0.0/8", "192.168.1.50", "::1", "icons.lan", "my-nas.home.arpa"}, EnvConfig.TrustedLogoHosts)
+	})
+
+	t.Run("should enable all trusted logo hosts when set to true", func(t *testing.T) {
+		EnvConfig = defaultConfig()
+		t.Setenv("TRUSTED_LOGO_HOSTS", "true")
+
+		err := parseAndValidateEnvConfig(t)
+		require.NoError(t, err)
+		assert.Equal(t, TrustedLogoHostsConfig{"0.0.0.0/0", "::/0"}, EnvConfig.TrustedLogoHosts)
+	})
+
+	t.Run("should disable trusted logo hosts when set to false", func(t *testing.T) {
+		EnvConfig = defaultConfig()
+		t.Setenv("TRUSTED_LOGO_HOSTS", "false")
+
+		err := parseAndValidateEnvConfig(t)
+		require.NoError(t, err)
+		assert.Nil(t, EnvConfig.TrustedLogoHosts)
+	})
+
+	t.Run("should reject an invalid trusted logo host", func(t *testing.T) {
+		EnvConfig = defaultConfig()
+		t.Setenv("TRUSTED_LOGO_HOSTS", "invalid host with spaces")
+
+		err := parseAndValidateEnvConfig(t)
+		require.Error(t, err)
+		assert.ErrorContains(t, err, "invalid trusted logo host")
+	})
+
 	t.Run("should parse PROXY protocol trusted proxy IP addresses and CIDR ranges", func(t *testing.T) {
 		EnvConfig = defaultConfig()
 		t.Setenv("PROXY_PROTOCOL", "10.0.0.0/8, 192.168.1.10, ::1/128")

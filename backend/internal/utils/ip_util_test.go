@@ -378,3 +378,89 @@ func TestIsURLPrivate_ContextCancellation(t *testing.T) {
 	_, err = IsURLPrivate(ctx, u)
 	assert.Error(t, err, "IsURLPrivate with cancelled context expected error but got none")
 }
+
+func TestIsURLPrivate_TrustedLogoHosts(t *testing.T) {
+	origHosts := common.EnvConfig.TrustedLogoHosts
+	defer func() {
+		common.EnvConfig.TrustedLogoHosts = origHosts
+		LoadTrustedLogoHosts()
+	}()
+
+	ctx := t.Context()
+
+	t.Run("allows private IP matching CIDR in TRUSTED_LOGO_HOSTS while keeping others private", func(t *testing.T) {
+		common.EnvConfig.TrustedLogoHosts = common.TrustedLogoHostsConfig{"192.168.1.0/24"}
+		LoadTrustedLogoHosts()
+
+		// Allowed by CIDR
+		uAllowed, err := url.Parse("http://192.168.1.50/logo.png")
+		require.NoError(t, err)
+		isPriv, err := IsURLPrivate(ctx, uAllowed)
+		require.NoError(t, err)
+		assert.False(t, isPriv, "expected 192.168.1.50 to be allowed by CIDR")
+
+		// Other private IPs remain blocked
+		uBlocked1, err := url.Parse("http://10.0.0.1/logo.png")
+		require.NoError(t, err)
+		isPriv, err = IsURLPrivate(ctx, uBlocked1)
+		require.NoError(t, err)
+		assert.True(t, isPriv, "expected 10.0.0.1 to remain blocked")
+
+		uBlocked2, err := url.Parse("http://127.0.0.1:8080/logo.png")
+		require.NoError(t, err)
+		isPriv, err = IsURLPrivate(ctx, uBlocked2)
+		require.NoError(t, err)
+		assert.True(t, isPriv, "expected 127.0.0.1 to remain blocked")
+	})
+
+	t.Run("allows specific IP in TRUSTED_LOGO_HOSTS", func(t *testing.T) {
+		common.EnvConfig.TrustedLogoHosts = common.TrustedLogoHostsConfig{"10.0.0.5"}
+		LoadTrustedLogoHosts()
+
+		uAllowed, err := url.Parse("http://10.0.0.5/logo.png")
+		require.NoError(t, err)
+		isPriv, err := IsURLPrivate(ctx, uAllowed)
+		require.NoError(t, err)
+		assert.False(t, isPriv, "expected 10.0.0.5 to be allowed")
+
+		uBlocked, err := url.Parse("http://10.0.0.6/logo.png")
+		require.NoError(t, err)
+		isPriv, err = IsURLPrivate(ctx, uBlocked)
+		require.NoError(t, err)
+		assert.True(t, isPriv, "expected 10.0.0.6 to remain blocked")
+	})
+
+	t.Run("allows hostname in TRUSTED_LOGO_HOSTS", func(t *testing.T) {
+		common.EnvConfig.TrustedLogoHosts = common.TrustedLogoHostsConfig{"localhost"}
+		LoadTrustedLogoHosts()
+
+		uAllowed, err := url.Parse("http://localhost:8080/logo.png")
+		require.NoError(t, err)
+		isPriv, err := IsURLPrivate(ctx, uAllowed)
+		require.NoError(t, err)
+		assert.False(t, isPriv, "expected localhost to be allowed")
+
+		uBlocked, err := url.Parse("http://10.0.0.1/logo.png")
+		require.NoError(t, err)
+		isPriv, err = IsURLPrivate(ctx, uBlocked)
+		require.NoError(t, err)
+		assert.True(t, isPriv, "expected 10.0.0.1 to remain blocked")
+	})
+
+	t.Run("allows all private IPs when TRUSTED_LOGO_HOSTS is wildcard/true", func(t *testing.T) {
+		common.EnvConfig.TrustedLogoHosts = common.TrustedLogoHostsConfig{"0.0.0.0/0", "::/0"}
+		LoadTrustedLogoHosts()
+
+		u1, err := url.Parse("http://192.168.1.1/logo.png")
+		require.NoError(t, err)
+		isPriv, err := IsURLPrivate(ctx, u1)
+		require.NoError(t, err)
+		assert.False(t, isPriv)
+
+		u2, err := url.Parse("http://10.0.0.1/logo.png")
+		require.NoError(t, err)
+		isPriv, err = IsURLPrivate(ctx, u2)
+		require.NoError(t, err)
+		assert.False(t, isPriv)
+	})
+}
