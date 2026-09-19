@@ -226,3 +226,30 @@ func newTestRequester(requestID, clientID, subject, idTokenJTI string) fosite.Re
 		Session:      session,
 	}
 }
+
+func TestStoreGetClient_Disabled(t *testing.T) {
+	db := testutils.NewDatabaseForTest(t)
+	store := NewStore(db, nil)
+
+	enabledClient := model.OidcClient{
+		Base:     model.Base{ID: "client-enabled"},
+		Name:     "Enabled Client",
+		Disabled: false,
+	}
+	disabledClient := model.OidcClient{
+		Base:     model.Base{ID: "client-disabled"},
+		Name:     "Disabled Client",
+		Disabled: true,
+	}
+	require.NoError(t, db.Create(&enabledClient).Error)
+	require.NoError(t, db.Create(&disabledClient).Error)
+
+	client, err := store.GetClient(t.Context(), "client-enabled")
+	require.NoError(t, err)
+	require.Equal(t, "client-enabled", client.GetID())
+
+	_, err = store.GetClient(t.Context(), "client-disabled")
+	require.Error(t, err)
+	require.ErrorIs(t, err, fosite.ErrInvalidClient)
+}
+

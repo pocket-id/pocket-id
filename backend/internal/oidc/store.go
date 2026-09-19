@@ -103,6 +103,10 @@ func (s *Store) GetClient(ctx context.Context, id string) (fosite.Client, error)
 		return nil, err
 	}
 
+	if clientModel.Disabled {
+		return nil, fosite.ErrInvalidClient.WithHint("The requested client is disabled.")
+	}
+
 	client := Client{OidcClient: clientModel}
 
 	// Populate the custom-API scopes and audiences the client may request only when the API feature is wired

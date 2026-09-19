@@ -223,6 +223,7 @@ func (s *OidcService) UpdateClient(ctx context.Context, clientID string, input d
 				"SkipConsent",
 				"LaunchURL",
 				"IsGroupRestricted",
+				"Disabled",
 				"AccessTokenDurationMinutes",
 				"RefreshTokenDurationMinutes",
 			).
@@ -265,6 +266,7 @@ func updateOIDCClientModelFromDto(client *model.OidcClient, input *dto.OidcClien
 	client.SkipConsent = input.SkipConsent
 	client.LaunchURL = input.LaunchURL
 	client.IsGroupRestricted = input.IsGroupRestricted
+	client.Disabled = input.Disabled
 
 	// Token lifetimes are optional, so a zero value falls back to the default
 	client.AccessTokenDurationMinutes = cmp.Or(input.AccessTokenDurationMinutes, model.DefaultAccessTokenDurationMinutes)
@@ -760,7 +762,8 @@ func (s *OidcService) ListAccessibleOidcClients(ctx context.Context, userID stri
 		Where(`oidc_clients.is_group_restricted = ? OR EXISTS (
 			SELECT 1 FROM oidc_clients_allowed_user_groups
 			WHERE oidc_clients_allowed_user_groups.oidc_client_id = oidc_clients.id
-			AND oidc_clients_allowed_user_groups.user_group_id IN (?))`, false, userGroupIDs)
+			AND oidc_clients_allowed_user_groups.user_group_id IN (?))`, false, userGroupIDs).
+		Where("oidc_clients.disabled = ?", false)
 
 	// Apply the launch URL filter before pagination so the app launcher never contains empty pages
 	if hasLaunchURL, ok := getHasLaunchURLFilter(listRequestOptions); ok {

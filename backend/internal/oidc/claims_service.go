@@ -57,6 +57,10 @@ func (s *ClaimsService) ValidateUserAccess(ctx context.Context, userID string, c
 		return fosite.ErrInvalidGrant.WithHint("The user account is disabled.")
 	}
 
+	if client.OidcClient.Disabled {
+		return fosite.ErrAccessDenied.WithHint("This service is currently disabled.")
+	}
+
 	if !IsUserGroupAllowedToAuthorize(user, client.OidcClient) {
 		return fosite.ErrAccessDenied.WithHint("You are not allowed to access this service.")
 	}

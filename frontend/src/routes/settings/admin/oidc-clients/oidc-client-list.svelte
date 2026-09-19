@@ -12,10 +12,17 @@
 		CreateAdvancedTableActions
 	} from '$lib/types/advanced-table.type';
 	import type { OidcClient, OidcClientWithAllowedGroups } from '$lib/types/oidc.type';
+	import { Badge } from '$lib/components/ui/badge';
 	import { cachedOidcClientLogo } from '$lib/utils/cached-image-util';
 	import { encodeClientIdParam } from '$lib/utils/client-id-util';
 	import { axiosErrorToast } from '$lib/utils/error-util';
-	import { LucidePencil, LucideRefreshCcw, LucideTrash } from '@lucide/svelte';
+	import {
+		LucideBan,
+		LucideCheck,
+		LucidePencil,
+		LucideRefreshCcw,
+		LucideTrash
+	} from '@lucide/svelte';
 	import { mode } from 'mode-watcher';
 	import { toast } from 'svelte-sonner';
 
@@ -42,6 +49,23 @@
 		{ label: 'ID', column: 'id', hidden: true },
 		{ label: m.logo(), key: 'logo', cell: LogoCell },
 		{ label: m.name(), column: 'name', sortable: true },
+		{
+			label: m.status(),
+			column: 'disabled',
+			cell: DisabledCell,
+			sortable: true,
+			value: (item) => (item.disabled ? m.disabled() : m.enabled()),
+			filterableValues: [
+				{
+					label: m.enabled(),
+					value: false
+				},
+				{
+					label: m.disabled(),
+					value: true
+				}
+			]
+		},
 		{
 			label: m.oidc_allowed_group_count(),
 			column: 'allowedUserGroups',
@@ -103,6 +127,11 @@
 			onClick: (client) => goto(`/settings/admin/oidc-clients/${encodeClientIdParam(client.id)}`)
 		},
 		{
+			label: client.disabled ? m.enable() : m.disable(),
+			icon: client.disabled ? LucideCheck : LucideBan,
+			onClick: (client) => toggleClientDisabled(client)
+		},
+		{
 			label: m.refresh(),
 			icon: LucideRefreshCcw,
 			hidden: client.clientType !== 'cimd',
@@ -145,7 +174,30 @@
 			}
 		});
 	}
+
+	async function toggleClientDisabled(client: OidcClientWithAllowedGroups) {
+		try {
+			await oidcService.updateClient(client.id, {
+				...client,
+				disabled: !client.disabled
+			});
+			await refresh();
+			if (!client.disabled) {
+				toast.success(m.oidc_client_disabled_successfully());
+			} else {
+				toast.success(m.oidc_client_enabled_successfully());
+			}
+		} catch (e) {
+			axiosErrorToast(e);
+		}
+	}
 </script>
+
+{#snippet DisabledCell({ item }: { item: OidcClientWithAllowedGroups })}
+	<Badge class="rounded-full" variant={item.disabled ? 'destructive' : 'default'}>
+		{item.disabled ? m.disabled() : m.enabled()}
+	</Badge>
+{/snippet}
 
 {#snippet AllowedGroupCountCell({ item }: { item: OidcClientWithAllowedGroups })}
 	{#if !item.isGroupRestricted}

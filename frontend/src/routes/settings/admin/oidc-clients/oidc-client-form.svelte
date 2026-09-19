@@ -55,6 +55,7 @@
 			existingClient?.requiresPushedAuthorizationRequests || false,
 		skipConsent: existingClient?.skipConsent || false,
 		launchURL: existingClient?.launchURL || '',
+		disabled: existingClient?.disabled || false,
 		logoUrl: '',
 		darkLogoUrl: '',
 		pkceSupported: existingClient?.pkceSupported || false,
@@ -82,6 +83,7 @@
 		requiresReauthentication: z.boolean(),
 		requiresPushedAuthorizationRequests: z.boolean(),
 		skipConsent: z.boolean(),
+		disabled: z.boolean(),
 		launchURL: optionalUrl,
 		logoUrl: optionalUrl,
 		darkLogoUrl: optionalUrl,
@@ -261,6 +263,12 @@
 			label={m.skip_consent()}
 			description={m.skip_consent_description()}
 			bind:checked={$inputs.skipConsent.value}
+		/>
+		<SwitchWithLabel
+			id="client-disabled"
+			label={m.client_disabled()}
+			description={m.disabled_oidc_client_description()}
+			bind:checked={$inputs.disabled.value}
 		/>
 	</div>
 	<div class="mt-7 w-full md:w-1/2">

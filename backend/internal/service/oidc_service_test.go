@@ -1032,3 +1032,58 @@ func accessibleClientNames(clients []dto.AccessibleOidcClientDto) []string {
 	}
 	return names
 }
+
+func TestOidcService_DisabledClient(t *testing.T) {
+	db := testutils.NewDatabaseForTest(t)
+	s, err := NewOidcService(db, nil, nil, nil, nil, nil, nil)
+	require.NoError(t, err)
+
+	createDto := dto.OidcClientCreateDto{
+		OidcClientUpdateDto: dto.OidcClientUpdateDto{
+			Name:         "Disabled Client",
+			CallbackURLs: []string{"https://example.com/callback"},
+			Disabled:     true,
+		},
+	}
+	client, err := s.CreateClient(t.Context(), createDto, "user-id")
+	require.NoError(t, err)
+	assert.True(t, client.Disabled)
+
+	var fetched model.OidcClient
+	require.NoError(t, db.First(&fetched, "id = ?", client.ID).Error)
+	assert.True(t, fetched.Disabled)
+
+	updateDto := dto.OidcClientUpdateDto{
+		Name:         "Now Enabled Client",
+		CallbackURLs: []string{"https://example.com/callback"},
+		Disabled:     false,
+	}
+	updated, err := s.UpdateClient(t.Context(), client.ID, updateDto)
+	require.NoError(t, err)
+	assert.False(t, updated.Disabled)
+
+	require.NoError(t, db.First(&fetched, "id = ?", client.ID).Error)
+	assert.False(t, fetched.Disabled)
+}
+
+func TestOidcService_ListAccessibleOidcClients_ExcludesDisabled(t *testing.T) {
+	db := testutils.NewDatabaseForTest(t)
+	s, err := NewOidcService(db, nil, nil, nil, nil, nil, nil)
+	require.NoError(t, err)
+
+	user := model.User{Base: model.Base{ID: "test-user"}, Username: "tester"}
+	require.NoError(t, db.Create(&user).Error)
+
+	launchURL := "https://launchable.example.com"
+	enabledClient := model.OidcClient{Base: model.Base{ID: "client-enabled"}, Name: "Enabled App", LaunchURL: &launchURL, Disabled: false}
+	disabledClient := model.OidcClient{Base: model.Base{ID: "client-disabled"}, Name: "Disabled App", LaunchURL: &launchURL, Disabled: true}
+	require.NoError(t, db.Create(&enabledClient).Error)
+	require.NoError(t, db.Create(&disabledClient).Error)
+
+	accessible, pagination, err := s.ListAccessibleOidcClients(t.Context(), user.ID, utils.ListRequestOptions{})
+	require.NoError(t, err)
+	assert.Equal(t, int64(1), pagination.TotalItems)
+	require.Len(t, accessible, 1)
+	assert.Equal(t, "Enabled App", accessible[0].Name)
+}
+
