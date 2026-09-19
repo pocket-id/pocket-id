@@ -8,24 +8,20 @@ Before starting to work on a new feature, please open an issue first, or comment
 
 ### AI Usage Policy
 
-We have nothing against using AI tools to assist your development. But we've seen a growing number of pull requests that appear to be fully or largely AI-generated and submitted without genuine human review. These are difficult and time-consuming for maintainers to review, and they often waste everyone's time.
+We have nothing against using AI tools to assist your development. However, AI must not replace the human contribution behind a new feature. **Simply copying a feature request into an AI tool, generating code, and submitting the result as a pull request is not accepted.** Maintainers can already do that themselves, so this workflow provides no meaningful advantage to the project.
 
-To keep contributions reviewable and high-quality, please follow these guidelines when using AI tools.
+This restriction applies to new features, not bug fixes. For feature contributions, we expect meaningful human involvement such as thoughtfully prompting and iterating, making implementation decisions and reviewing and reflecting the output.
 
 #### Guidelines for Using AI Tools
 
-1. **Understand every line.** You must be able to explain what your code does and why, in your own words. "The AI wrote it" is not an acceptable answer to a reviewer's question.
-2. **Test before submitting.** Review and test all code manually, as a human, before opening a PR. Don't trust the AI's claim that it works.
-3. **Write your own words.** Don't paste AI-generated text into issues, comments, or PR descriptions. Walls of generated text make discussions harder, not easier.
-4. **Disclose your usage.** Note in the PR description how you used AI (see below).
+To keep contributions reviewable and high-quality, please follow these guidelines when using AI tools:
 
-PRs that appear to be low effort AI output may be closed without a detailed review.
+1. **Do not submit prompt-only feature implementations.** A new feature must include meaningful human input beyond passing the feature request to an AI tool and submitting its output. This restriction does not apply to bug fixes.
+2. **Understand every line.** You must be able to explain what your code does and why, in your own words. "The AI wrote it" is not an acceptable answer to a reviewer's question.
+3. **Test before submitting.** Review and test all code manually, as a human, before opening a PR. Don't trust the AI's claim that it works.
+4. **Write your own words.** Don't paste AI-generated text into issues, comments, or PR descriptions. Walls of generated text make discussions harder, not easier.
 
-#### Example disclosure
-
-> Used GitHub Copilot for autocomplete, and asked an LLM to help draft the test cases in `parser_test.go`. I reviewed, edited, and tested everything myself and understand how it works.
-
-> Used an LLM to generate the initial implementation of the new API endpoint, but I manually reviewed and tested it before submitting.
+Feature PRs that appear to be low-effort AI output may be closed without a detailed review.
 
 ## Getting started
 
