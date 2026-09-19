@@ -51,8 +51,7 @@ RUN --mount=type=cache,target=/go/pkg/mod \
 FROM alpine:3.24.1
 WORKDIR /app
 
-RUN apk upgrade --no-cache && \
-  apk add --no-cache su-exec
+RUN apk add --no-cache su-exec
 
 COPY --from=backend-builder /build/pocket-id /app/pocket-id
 COPY ./scripts/docker /app/docker
