@@ -11,7 +11,7 @@
 	import userStore from '$lib/stores/user-store';
 	import type { Passkey } from '$lib/types/passkey.type';
 	import type { AccountUpdate } from '$lib/types/user.type';
-	import { axiosErrorToast, getWebauthnErrorMessage } from '$lib/utils/error-util';
+	import { getWebauthnErrorMessage } from '$lib/utils/error-util';
 	import { KeyRound, Languages, LucideAlertTriangle, UserCog } from '@lucide/svelte';
 	import { startRegistration } from '@simplewebauthn/browser';
 	import { toast } from 'svelte-sonner';
@@ -32,19 +32,7 @@
 	);
 
 	async function updateAccount(user: AccountUpdate) {
-		let success = true;
-		await userService
-			.updateCurrent(user)
-			.then((user) => {
-				toast.success(m.account_details_updated_successfully());
-				userStore.setUser(user);
-			})
-			.catch((e) => {
-				axiosErrorToast(e);
-				success = false;
-			});
-
-		return success;
+		userStore.setUser(await userService.updateCurrent(user));
 	}
 
 	async function createPasskey() {

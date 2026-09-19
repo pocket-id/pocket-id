@@ -85,7 +85,15 @@
 			{@render children()}
 		{:else if input}
 			{#if type === 'date'}
-				<DatePicker {id} bind:value={input.value as Date} />
+				<DatePicker
+					{id}
+					bind:value={
+						() => input.value as Date | undefined,
+						(value) => {
+							input.value = value;
+						}
+					}
+				/>
 			{:else}
 				<Input
 					aria-invalid={!!input.error}
@@ -93,7 +101,12 @@
 					{id}
 					{placeholder}
 					{type}
-					bind:value={input.value}
+					bind:value={
+						() => input.value as string | number | undefined,
+						(value) => {
+							input.value = value;
+						}
+					}
 					{disabled}
 					oninput={(e) => onInput?.(e)}
 					{readonly}

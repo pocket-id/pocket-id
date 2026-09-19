@@ -10,7 +10,10 @@
 	let {
 		api,
 		onCimdAccessSave
-	}: { api: Api; onCimdAccessSave: (update: ApiCimdAccessUpdate) => Promise<void> } = $props();
+	}: {
+		api: Api;
+		onCimdAccessSave: (update: ApiCimdAccessUpdate) => Promise<void>;
+	} = $props();
 
 	let clientsTab = $state<ApiClientsTab>();
 	let tab = $state('clients');

@@ -8,8 +8,10 @@
 	import { m } from '$lib/paraglide/messages';
 	import appConfigStore from '$lib/stores/application-configuration-store';
 	import type { User, UserCreate } from '$lib/types/user.type';
+	import { axiosErrorToast } from '$lib/utils/error-util';
 	import { preventDefault } from '$lib/utils/event-util';
 	import { createForm } from '$lib/utils/form-util';
+	import { trackFormChanges } from '$lib/utils/unsaved-changes-util.svelte';
 	import { emptyToUndefined, usernameSchema } from '$lib/utils/zod-util';
 	import { LucideMailCheck, LucideMailWarning } from '@lucide/svelte';
 	import { get } from 'svelte/store';
@@ -22,7 +24,7 @@
 	}: {
 		existingUser?: User;
 		emailsVerifiedPerDefault?: boolean;
-		callback: (user: UserCreate) => Promise<boolean>;
+		callback: (user: UserCreate) => Promise<void>;
 	} = $props();
 
 	let isLoading = $state(false);
@@ -54,15 +56,27 @@
 	});
 	type FormSchema = typeof formSchema;
 
-	const { inputs, ...form } = createForm<FormSchema>(formSchema, user);
+	const formStore = createForm<FormSchema>(formSchema, user);
+	const { inputs } = formStore;
+
+	async function saveUser(data: z.infer<FormSchema>) {
+		await callback(data);
+		// Reset form if user was successfully created
+		if (!existingUser) formStore.reset();
+	}
+
+	// Create mode has its own Save button rather than going through the unsaved-changes bar.
 	async function onSubmit() {
-		const data = form.validate();
+		const data = formStore.validate();
 		if (!data) return;
 		isLoading = true;
-		const success = await callback(data);
-		// Reset form if user was successfully created
-		if (success && !existingUser) form.reset();
-		isLoading = false;
+		try {
+			await saveUser(data);
+		} catch (e) {
+			axiosErrorToast(e);
+		} finally {
+			isLoading = false;
+		}
 	}
 	function onNameInput() {
 		if (!hasManualDisplayNameEdit) {
@@ -70,6 +84,10 @@
 				$inputs.lastName?.value ? ' ' + $inputs.lastName.value : ''
 			}`.trim();
 		}
+	}
+
+	if (existingUser) {
+		trackFormChanges(() => formStore, saveUser);
 	}
 </script>
 
@@ -130,8 +148,10 @@
 				bind:checked={$inputs.disabled.value}
 			/>
 		</div>
-		<div class="mt-5 flex justify-end">
-			<Button {isLoading} type="submit">{m.save()}</Button>
-		</div>
+		{#if !existingUser}
+			<div class="mt-5 flex justify-end">
+				<Button {isLoading} type="submit">{m.save()}</Button>
+			</div>
+		{/if}
 	</fieldset>
 </form>

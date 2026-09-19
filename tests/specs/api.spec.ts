@@ -3,6 +3,7 @@ import * as jose from 'jose';
 import { apis, oidcClients } from '../data';
 import { cleanupBackend } from '../utils/cleanup.util';
 import * as oidcUtil from '../utils/oidc.util';
+import { saveUnsavedChanges } from '../utils/unsaved-changes.util';
 
 test.beforeEach(async () => await cleanupBackend());
 
@@ -69,9 +70,7 @@ test('Edit the name of an API', async ({ page }) => {
 	await page.goto(`/settings/admin/apis/${apis.orders.id}`);
 
 	await page.getByLabel('Name', { exact: true }).fill('Orders API renamed');
-	await page.getByRole('button', { name: 'Save' }).nth(0).click();
-
-	await expect(page.locator('[data-type="success"]')).toHaveText('API updated successfully');
+	await saveUnsavedChanges(page);
 
 	await page.reload();
 	await expect(page.getByLabel('Name', { exact: true })).toHaveValue('Orders API renamed');
@@ -84,11 +83,7 @@ test('Add a permission to an API', async ({ page }) => {
 	await page.getByRole('button', { name: 'Add another' }).click();
 	await page.getByPlaceholder('Permission', { exact: true }).last().fill('ship:orders');
 	await page.getByPlaceholder('Name', { exact: true }).last().fill('Ship orders');
-	await page.getByRole('button', { name: 'Save' }).nth(1).click();
-
-	await expect(page.locator('[data-type="success"]')).toHaveText(
-		'Permissions updated successfully'
-	);
+	await saveUnsavedChanges(page);
 
 	await page.reload();
 	// The two seeded permissions plus the newly added one
@@ -259,9 +254,7 @@ test('Allow all metadata document clients for an API', async ({ page }) => {
 	await page.getByRole('tab', { name: 'Metadata document clients' }).click();
 	await page.getByLabel('Allow all metadata document clients').click();
 	await page.getByLabel(apis.orders.permissions.readOrders.name, { exact: true }).click();
-	await page.getByRole('button', { name: 'Save' }).nth(2).click();
-
-	await expect(page.locator('[data-type="success"]')).toHaveText('API access updated successfully');
+	await saveUnsavedChanges(page);
 
 	await page.reload();
 	await page.getByRole('tab', { name: 'Metadata document clients' }).click();

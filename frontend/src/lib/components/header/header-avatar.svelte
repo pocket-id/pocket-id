@@ -4,6 +4,7 @@
 	import * as DropdownMenu from '$lib/components/ui/dropdown-menu';
 	import { m } from '$lib/paraglide/messages';
 	import WebAuthnService from '$lib/services/webauthn-service';
+	import unsavedChangesStoreSvelte from '$lib/stores/unsaved-changes-store.svelte';
 	import userStore from '$lib/stores/user-store';
 	import { cachedProfilePicture } from '$lib/utils/cached-image-util';
 	import { LucideLogOut, LucideUser } from '@lucide/svelte';
@@ -11,7 +12,12 @@
 	const webauthnService = new WebAuthnService();
 
 	async function logout() {
-		await webauthnService.logout();
+		if (!unsavedChangesStoreSvelte.hasChanges) {
+			await webauthnService.logout();
+		}
+
+		// Navigate regardless of unsaved changes status
+		// If there are unsaved changes, the save changes bar will shake and navigation will be canceled
 		goto('/login');
 	}
 </script>

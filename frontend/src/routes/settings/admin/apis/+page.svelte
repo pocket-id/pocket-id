@@ -6,7 +6,6 @@
 	import { m } from '$lib/paraglide/messages';
 	import ApisService from '$lib/services/apis-service';
 	import type { ApiCreate } from '$lib/types/api.type';
-	import { axiosErrorToast } from '$lib/utils/error-util';
 	import { LucideMinus, LucidePlus, LucideServer } from '@lucide/svelte';
 	import { toast } from 'svelte-sonner';
 	import { slide } from 'svelte/transition';
@@ -18,18 +17,9 @@
 	const apisService = new ApisService();
 
 	async function createApi(api: ApiCreate) {
-		let success = true;
-		await apisService
-			.create(api)
-			.then((createdApi) => {
-				toast.success(m.api_created_successfully());
-				goto(`/settings/admin/apis/${createdApi.id}`);
-			})
-			.catch((e) => {
-				axiosErrorToast(e);
-				success = false;
-			});
-		return success;
+		const createdApi = await apisService.create(api);
+		toast.success(m.api_created_successfully());
+		goto(`/settings/admin/apis/${createdApi.id}`);
 	}
 </script>
 

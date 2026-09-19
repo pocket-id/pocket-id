@@ -1,11 +1,12 @@
 <script lang="ts">
+	import { beforeNavigate } from '$app/navigation';
 	import ConfirmDialog from '$lib/components/confirm-dialog/confirm-dialog.svelte';
 	import Error from '$lib/components/error.svelte';
 	import Header from '$lib/components/header/header.svelte';
 	import { Toaster } from '$lib/components/ui/sonner';
+	import UnsavedChangesBar from '$lib/components/unsaved-changes-bar.svelte';
 	import { m } from '$lib/paraglide/messages';
 	import { startPageTrace } from '$lib/utils/tracing-util';
-	import { beforeNavigate } from '$app/navigation';
 	import { ModeWatcher } from 'mode-watcher';
 	import { type Snippet } from 'svelte';
 	import '../app.css';
@@ -44,4 +45,5 @@
 	}}
 />
 <ConfirmDialog />
+<UnsavedChangesBar />
 <ModeWatcher disableTransitions={false} />

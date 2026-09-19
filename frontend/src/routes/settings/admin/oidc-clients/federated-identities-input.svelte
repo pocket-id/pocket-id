@@ -30,11 +30,9 @@
 		children?: Snippet;
 	} = $props();
 
-	// The source can't be derived from the identity alone: it stays on "Public keys" while no key has been added yet
-	let keySources = $state<KeySource[]>([]);
-
-	function keySourceFor(index: number, identity: OidcClientFederatedIdentity): KeySource {
-		return keySources[index] ?? (identity.publicKeys?.length ? 'publicKeys' : 'jwks');
+	// An empty publicKeys array records that Public keys is selected before the first key is added
+	function keySourceFor(identity: OidcClientFederatedIdentity): KeySource {
+		return identity.publicKeys === undefined ? 'jwks' : 'publicKeys';
 	}
 
 	function addFederatedIdentity() {
@@ -45,7 +43,7 @@
 				subject: '',
 				audience: '',
 				jwks: '',
-				publicKeys: [],
+				publicKeys: undefined,
 				replayProtection: true
 			}
 		];
@@ -53,7 +51,6 @@
 
 	function removeFederatedIdentity(index: number) {
 		federatedIdentities = federatedIdentities.filter((_, i) => i !== index);
-		keySources = keySources.filter((_, i) => i !== index);
 	}
 
 	function updateFederatedIdentity<K extends keyof OidcClientFederatedIdentity>(
@@ -69,15 +66,12 @@
 
 	// Only one of the two sources is ever submitted, so the one that is not selected is cleared
 	function updateKeySource(index: number, source: KeySource) {
-		// The list is rebuilt in full so it stays aligned with the identities when one of them is removed
-		keySources = federatedIdentities.map((identity, i) =>
-			i === index ? source : keySourceFor(i, identity)
-		);
-		if (source === 'jwks') {
-			updateFederatedIdentity(index, 'publicKeys', []);
-		} else {
-			updateFederatedIdentity(index, 'jwks', '');
-		}
+		const identity = federatedIdentities[index];
+		federatedIdentities[index] = {
+			...identity,
+			jwks: source === 'jwks' ? identity.jwks : '',
+			publicKeys: source === 'publicKeys' ? (identity.publicKeys ?? []) : undefined
+		};
 	}
 
 	function getFieldError(index: number, field: keyof OidcClientFederatedIdentity): string | null {
@@ -157,7 +151,7 @@
 							<Field.Label>{m.signing_keys()}</Field.Label>
 							<RadioGroup.Root
 								class="flex flex-wrap gap-x-6 gap-y-3"
-								value={keySourceFor(i, identity)}
+								value={keySourceFor(identity)}
 								onValueChange={(value) => updateKeySource(i, value as KeySource)}
 								{disabled}
 							>
@@ -173,7 +167,7 @@
 								</div>
 							</RadioGroup.Root>
 
-							{#if keySourceFor(i, identity) === 'publicKeys'}
+							{#if keySourceFor(identity) === 'publicKeys'}
 								<FederatedIdentityKeysInput
 									id="public-keys-{i}"
 									publicKeys={identity.publicKeys ?? []}

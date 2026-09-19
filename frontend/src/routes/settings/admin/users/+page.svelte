@@ -9,7 +9,6 @@
 	import UserService from '$lib/services/user-service';
 	import appConfigStore from '$lib/stores/application-configuration-store';
 	import type { UserCreate } from '$lib/types/user.type';
-	import { axiosErrorToast } from '$lib/utils/error-util';
 	import { ChevronDown, LucideMinus, UserPen, UserPlus } from '@lucide/svelte';
 	import { toast } from 'svelte-sonner';
 	import { slide } from 'svelte/transition';
@@ -28,17 +27,12 @@
 	const userService = new UserService();
 
 	async function createUser(user: UserCreate) {
-		let success = true;
-		await userService
-			.create(user)
-			.then(() => toast.success(m.user_created_successfully()))
-			.catch((e) => {
-				axiosErrorToast(e);
-				success = false;
-			});
-
-		await userListRef.refresh();
-		return success;
+		try {
+			await userService.create(user);
+			toast.success(m.user_created_successfully());
+		} finally {
+			await userListRef.refresh();
+		}
 	}
 </script>
 
