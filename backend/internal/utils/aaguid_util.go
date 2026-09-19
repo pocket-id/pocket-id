@@ -8,37 +8,35 @@ import (
 	"log/slog"
 	"os"
 	"path"
-	"strings"
 	"sync"
 	"uuid"
 
 	"github.com/pocket-id/pocket-id/backend/resources"
 )
 
-const aaguidIconsDir = "aaguid-icons"
+const (
+	aaguidIconsDir             = "aaguid-icons"
+	authenticatorIconHashBytes = 8
+)
 
 // ZeroAAGUID is the AAGUID reported by authenticators that do not want to identify themselves, and it is also the column default for credentials that were registered before AAGUIDs were tracked
 var ZeroAAGUID = uuid.Nil().String()
 
 var (
-	aaguidMap     map[string]string
-	aaguidMapOnce *sync.Once
-
-	// aaguidIcons is an index of the embedded icon directory, keyed by AAGUID and built lazily on first use
-	aaguidIcons     map[string]authenticatorIcon
-	aaguidIconsOnce *sync.Once
+	aaguidMetadata     map[string]authenticatorMetadata
+	aaguidMetadataOnce *sync.Once
 )
 
-// authenticatorIcon records the embedded file names of an authenticator's icon
-// darkPath is empty when the authenticator only ships a single icon that is expected to work in both themes
-type authenticatorIcon struct {
-	lightPath string
-	darkPath  string
+// authenticatorMetadata records the display name and content-addressed icon files for an AAGUID
+// IconDark is empty when the authenticator uses its light icon in both themes
+type authenticatorMetadata struct {
+	Name      string `json:"name"`
+	IconLight string `json:"icon_light"`
+	IconDark  string `json:"icon_dark"`
 }
 
 func init() {
-	aaguidMapOnce = &sync.Once{}
-	aaguidIconsOnce = &sync.Once{}
+	aaguidMetadataOnce = &sync.Once{}
 }
 
 // FormatAAGUID converts an AAGUID byte slice to UUID string format
@@ -64,18 +62,18 @@ func GetAuthenticatorName(aaguid []byte) string {
 		return ""
 	}
 
-	// Then check JSON-sourced map
-	aaguidMapOnce.Do(loadAAGUIDsFromFile)
+	// Then check the embedded metadata manifest
+	aaguidMetadataOnce.Do(loadAAGUIDMetadataFromFile)
 
-	if name, ok := aaguidMap[aaguidStr]; ok {
-		return name + " Passkey"
+	if metadata, ok := aaguidMetadata[aaguidStr]; ok && metadata.Name != "" {
+		return metadata.Name + " Passkey"
 	}
 
 	return ""
 }
 
-// loadAAGUIDsFromFile loads AAGUID data from the embedded file system
-func loadAAGUIDsFromFile() {
+// loadAAGUIDMetadataFromFile loads AAGUID names and icon references from the embedded manifest
+func loadAAGUIDMetadataFromFile() {
 	// Read from embedded file system
 	data, err := resources.FS.ReadFile("aaguids.json")
 	if err != nil {
@@ -83,7 +81,7 @@ func loadAAGUIDsFromFile() {
 		return
 	}
 
-	err = json.Unmarshal(data, &aaguidMap)
+	err = json.Unmarshal(data, &aaguidMetadata)
 	if err != nil {
 		slog.Error("Error unmarshalling AAGUID data", slog.Any("error", err))
 		return
@@ -93,27 +91,27 @@ func loadAAGUIDsFromFile() {
 // HasAuthenticatorIcon reports whether an icon is embedded for the given AAGUID
 // Callers use this to avoid pointing clients at an icon endpoint that would only answer with a 404
 func HasAuthenticatorIcon(aaguid string) bool {
-	aaguidIconsOnce.Do(loadAAGUIDIconsFromFS)
+	aaguidMetadataOnce.Do(loadAAGUIDMetadataFromFile)
 
-	_, ok := aaguidIcons[aaguid]
-	return ok
+	metadata, ok := aaguidMetadata[aaguid]
+	return ok && validAuthenticatorIconName(metadata.IconLight)
 }
 
 // OpenAuthenticatorIcon opens the embedded icon for the given AAGUID and returns it together with its size
 // It returns os.ErrNotExist for every AAGUID without an icon, which is also what keeps caller-controlled input from ever reaching the embedded file system
 func OpenAuthenticatorIcon(aaguid string, light bool) (fs.File, int64, error) {
-	aaguidIconsOnce.Do(loadAAGUIDIconsFromFS)
+	aaguidMetadataOnce.Do(loadAAGUIDMetadataFromFile)
 
-	// Only AAGUIDs present in the index are served, so the file name below comes from the index and never from the caller
-	icon, ok := aaguidIcons[aaguid]
-	if !ok {
+	// Only AAGUIDs with a valid generated light reference are served, so caller input never becomes an embedded file path
+	metadata, ok := aaguidMetadata[aaguid]
+	if !ok || !validAuthenticatorIconName(metadata.IconLight) {
 		return nil, 0, os.ErrNotExist
 	}
 
 	// Fall back to the light icon when the authenticator does not ship a dark variant
-	name := icon.lightPath
-	if !light && icon.darkPath != "" {
-		name = icon.darkPath
+	name := metadata.IconLight
+	if !light && validAuthenticatorIconName(metadata.IconDark) {
+		name = metadata.IconDark
 	}
 
 	file, err := resources.FS.Open(path.Join(aaguidIconsDir, name))
@@ -131,37 +129,13 @@ func OpenAuthenticatorIcon(aaguid string, light bool) (fs.File, int64, error) {
 	return file, stat.Size(), nil
 }
 
-// loadAAGUIDIconsFromFS indexes the embedded icon directory so later lookups do not have to touch the file system
-func loadAAGUIDIconsFromFS() {
-	entries, err := fs.ReadDir(resources.FS, aaguidIconsDir)
-	if err != nil {
-		slog.Error("Error reading embedded AAGUID icons", slog.Any("error", err))
-		return
+// validAuthenticatorIconName accepts only the truncated SHA-256 file names emitted by the updater
+func validAuthenticatorIconName(name string) bool {
+	const extension = ".svg"
+	if len(name) != authenticatorIconHashBytes*2+len(extension) || name[len(name)-len(extension):] != extension {
+		return false
 	}
 
-	// Icons are named <aaguid>.svg, with an optional <aaguid>.dark.svg companion for authenticators that need a separate dark variant
-	aaguidIcons = make(map[string]authenticatorIcon, len(entries))
-	for _, entry := range entries {
-		name := entry.Name()
-
-		switch {
-		case strings.HasSuffix(name, ".dark.svg"):
-			aaguid := strings.TrimSuffix(name, ".dark.svg")
-			icon := aaguidIcons[aaguid]
-			icon.darkPath = name
-			aaguidIcons[aaguid] = icon
-		case strings.HasSuffix(name, ".svg"):
-			aaguid := strings.TrimSuffix(name, ".svg")
-			icon := aaguidIcons[aaguid]
-			icon.lightPath = name
-			aaguidIcons[aaguid] = icon
-		}
-	}
-
-	// Drop authenticators that only have a dark icon because there would be nothing to serve in light mode
-	for aaguid, icon := range aaguidIcons {
-		if icon.lightPath == "" {
-			delete(aaguidIcons, aaguid)
-		}
-	}
+	_, err := hex.DecodeString(name[:authenticatorIconHashBytes*2])
+	return err == nil
 }

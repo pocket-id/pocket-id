@@ -1,6 +1,7 @@
 package dto
 
 import (
+	"encoding/json"
 	"os"
 	"testing"
 
@@ -35,12 +36,16 @@ func TestWebauthnCredentialDto_iconFields(t *testing.T) {
 func anyAAGUIDWithIcon(t *testing.T) string {
 	t.Helper()
 
-	entries, err := os.ReadDir("../../resources/aaguid-icons")
+	data, err := os.ReadFile("../../resources/aaguids.json")
 	require.NoError(t, err)
 
-	for _, entry := range entries {
-		aaguid := entry.Name()[:len(entry.Name())-len(".svg")]
-		if utils.HasAuthenticatorIcon(aaguid) {
+	var metadata map[string]struct {
+		IconLight string `json:"icon_light"`
+	}
+	require.NoError(t, json.Unmarshal(data, &metadata))
+
+	for aaguid, entry := range metadata {
+		if entry.IconLight != "" && utils.HasAuthenticatorIcon(aaguid) {
 			return aaguid
 		}
 	}
