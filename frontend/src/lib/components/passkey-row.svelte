@@ -3,7 +3,7 @@
 	import * as Item from '$lib/components/ui/item/index.js';
 	import * as Tooltip from '$lib/components/ui/tooltip/index.js';
 	import { m } from '$lib/paraglide/messages';
-	import { LucideCalendar, LucidePencil, LucideTrash, type Icon as IconType } from '@lucide/svelte';
+	import { LucideCalendar, LucidePencil, LucideTrash, type LucideIcon } from '@lucide/svelte';
 
 	let {
 		icon,
@@ -13,7 +13,7 @@
 		label,
 		description
 	}: {
-		icon: typeof IconType;
+		icon: LucideIcon;
 		onRename?: () => void;
 		onDelete: () => void;
 		showRenameAction?: boolean;
