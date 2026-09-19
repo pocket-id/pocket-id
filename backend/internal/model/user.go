@@ -91,10 +91,11 @@ func (u User) FullName() string {
 func (u User) Initials() string {
 	first := utils.GetFirstCharacter(u.FirstName)
 	last := utils.GetFirstCharacter(u.LastName)
-	if first == "" && last == "" && len(u.Username) >= 2 {
-		return strings.ToUpper(u.Username[:2])
+	if first != "" || last != "" {
+		return strings.ToUpper(first + last)
 	}
-	return strings.ToUpper(first + last)
+
+	return strings.ToUpper(utils.GetFirstCharacter(u.Username))
 }
 
 func (u User) LastModified() time.Time {
