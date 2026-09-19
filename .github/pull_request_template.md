@@ -1,8 +1,8 @@
-## What does this PR do?
+## What and why
+
+## Related issue
 
 ## Screenshots
-
-## AI Usage
 
 ## Contributing Guidelines
 
