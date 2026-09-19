@@ -1,9 +1,18 @@
 package utils
 
 import (
+	"crypto/sha256"
 	"encoding/hex"
+	"fmt"
+	"io"
+	"os"
+	"path"
 	"sync"
 	"testing"
+
+	"github.com/stretchr/testify/require"
+
+	"github.com/pocket-id/pocket-id/backend/resources"
 )
 
 func TestFormatAAGUID(t *testing.T) {
@@ -45,21 +54,21 @@ func TestFormatAAGUID(t *testing.T) {
 }
 
 func TestGetAuthenticatorName(t *testing.T) {
-	// Reset the aaguidMap for testing
-	originalMap := aaguidMap
-	originalOnce := aaguidMapOnce
+	// Preserve the package-level metadata cache so this test does not affect other tests
+	originalMetadata := aaguidMetadata
+	originalOnce := aaguidMetadataOnce
 	defer func() {
-		aaguidMap = originalMap
-		aaguidMapOnce = originalOnce
+		aaguidMetadata = originalMetadata
+		aaguidMetadataOnce = originalOnce
 	}()
 
-	// Inject a test AAGUID map
-	aaguidMap = map[string]string{
-		"adce0002-35bc-c60a-648b-0b25f1f05503": "Test Authenticator",
-		"00000000-0000-0000-0000-000000000000": "Zero Authenticator",
+	// Inject test metadata without loading the embedded manifest
+	aaguidMetadata = map[string]authenticatorMetadata{
+		"adce0002-35bc-c60a-648b-0b25f1f05503": {Name: "Test Authenticator"},
+		"00000000-0000-0000-0000-000000000000": {Name: "Zero Authenticator"},
 	}
-	aaguidMapOnce = &sync.Once{}
-	aaguidMapOnce.Do(func() {}) // Mark as done to avoid loading from file
+	aaguidMetadataOnce = &sync.Once{}
+	aaguidMetadataOnce.Do(func() {})
 
 	tests := []struct {
 		name   string
@@ -98,29 +107,118 @@ func TestGetAuthenticatorName(t *testing.T) {
 	}
 }
 
-func TestLoadAAGUIDsFromFile(t *testing.T) {
-	// Reset the map and once flag for clean testing
-	aaguidMap = nil
-	aaguidMapOnce = &sync.Once{}
+func TestLoadAAGUIDMetadataFromFile(t *testing.T) {
+	// Reset the metadata cache so this test exercises the embedded manifest
+	aaguidMetadata = nil
+	aaguidMetadataOnce = &sync.Once{}
 
-	// Trigger loading of AAGUIDs by calling GetAuthenticatorName
+	// Trigger loading by resolving an arbitrary AAGUID
 	GetAuthenticatorName([]byte{0x01, 0x02, 0x03, 0x04})
 
-	if len(aaguidMap) == 0 {
-		t.Error("loadAAGUIDsFromFile() failed to populate aaguidMap")
+	if len(aaguidMetadata) == 0 {
+		t.Error("loadAAGUIDMetadataFromFile() failed to populate aaguidMetadata")
 	}
 
-	// Check for a few known entries that should be in the embedded file
-	// This test will be more brittle as it depends on the content of aaguids.json,
-	// but it helps verify that the loading actually worked
-	t.Log("AAGUID map loaded with", len(aaguidMap), "entries")
+	t.Log("AAGUID metadata loaded with", len(aaguidMetadata), "entries")
 }
 
-// Helper function to convert hex string to bytes
+// mustDecodeHex keeps the table fixtures readable
 func mustDecodeHex(s string) []byte {
 	bytes, err := hex.DecodeString(s)
 	if err != nil {
 		panic("invalid hex in test: " + err.Error())
 	}
 	return bytes
+}
+
+func TestAuthenticatorIcons(t *testing.T) {
+	aaguidMetadataOnce.Do(loadAAGUIDMetadataFromFile)
+	if len(aaguidMetadata) == 0 {
+		t.Skip("no authenticator icons are embedded")
+	}
+
+	var withDark, withoutDark string
+	referencedIcons := make(map[string]struct{})
+	for aaguid, metadata := range aaguidMetadata {
+		if metadata.IconLight == "" {
+			continue
+		}
+
+		require.True(t, validAuthenticatorIconName(metadata.IconLight), "icon %q has an invalid light reference", aaguid)
+		referencedIcons[metadata.IconLight] = struct{}{}
+
+		if metadata.IconDark != "" {
+			require.True(t, validAuthenticatorIconName(metadata.IconDark), "icon %q has an invalid dark reference", aaguid)
+			referencedIcons[metadata.IconDark] = struct{}{}
+		}
+
+		if metadata.IconDark != "" && withDark == "" {
+			withDark = aaguid
+		}
+		if metadata.IconDark == "" && withoutDark == "" {
+			withoutDark = aaguid
+		}
+	}
+	require.NotEmpty(t, withDark, "expected at least one authenticator with a separate dark icon")
+	require.NotEmpty(t, withoutDark, "expected at least one authenticator with a single icon")
+
+	readIcon := func(t *testing.T, aaguid string, light bool) []byte {
+		t.Helper()
+
+		file, size, err := OpenAuthenticatorIcon(aaguid, light)
+		require.NoError(t, err)
+		defer file.Close()
+
+		data, err := io.ReadAll(file)
+		require.NoError(t, err)
+		require.Len(t, data, int(size))
+		require.Contains(t, string(data), "<svg")
+
+		return data
+	}
+
+	t.Run("known AAGUID", func(t *testing.T) {
+		require.True(t, HasAuthenticatorIcon(withDark))
+		require.NotEqual(t, readIcon(t, withDark, true), readIcon(t, withDark, false))
+	})
+
+	t.Run("dark falls back to the light icon", func(t *testing.T) {
+		require.Equal(t, readIcon(t, withoutDark, true), readIcon(t, withoutDark, false))
+	})
+
+	t.Run("unknown AAGUID", func(t *testing.T) {
+		tests := []string{
+			"",
+			"ffffffff-ffff-ffff-ffff-ffffffffffff",
+			"../aaguids.json",
+			"..%2faaguids.json",
+			"a/b",
+			".",
+		}
+
+		for _, aaguid := range tests {
+			t.Run(aaguid, func(t *testing.T) {
+				require.False(t, HasAuthenticatorIcon(aaguid))
+
+				_, _, err := OpenAuthenticatorIcon(aaguid, true)
+				require.ErrorIs(t, err, os.ErrNotExist)
+			})
+		}
+	})
+
+	t.Run("manifest references every content-addressed icon", func(t *testing.T) {
+		entries, err := resources.FS.ReadDir(aaguidIconsDir)
+		require.NoError(t, err)
+		require.Len(t, entries, len(referencedIcons))
+
+		for _, entry := range entries {
+			name := entry.Name()
+			require.Contains(t, referencedIcons, name)
+
+			data, err := resources.FS.ReadFile(path.Join(aaguidIconsDir, name))
+			require.NoError(t, err)
+			digest := sha256.Sum256(data)
+			require.Equal(t, fmt.Sprintf("%x.svg", digest[:authenticatorIconHashBytes]), name)
+		}
+	})
 }

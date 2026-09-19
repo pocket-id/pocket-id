@@ -17,15 +17,13 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v6
 
-      - name: Fetch JSON data
-        run: |
-          curl -o data.json https://raw.githubusercontent.com/pocket-id/passkey-aaguids/refs/heads/main/combined_aaguid.json
+      - name: Set up Go
+        uses: actions/setup-go@v6
+        with:
+          go-version: stable
 
-      - name: Process JSON data
-        run: |
-          mkdir -p backend/resources
-          jq -c 'map_values(.name)' data.json > backend/resources/aaguids.json
-          rm data.json
+      - name: Update AAGUIDs and authenticator icons
+        run: go run scripts/update-aaguids.go
 
       - name: Create Pull Request
         uses: peter-evans/create-pull-request@v7
@@ -33,7 +31,7 @@ jobs:
           commit-message: "chore: update AAGUIDs"
           title: "chore: update AAGUIDs"
           body: |
-            This PR updates the AAGUIDs file with the latest data from the [passkey-aaguids](https://github.com/pocket-id/passkey-aaguids) repository.
+            This PR updates the AAGUID metadata and authenticator icons with the latest data from the [passkey-aaguids](https://github.com/pocket-id/passkey-aaguids) repository.
           branch: update-aaguids
           base: main
           delete-branch: true

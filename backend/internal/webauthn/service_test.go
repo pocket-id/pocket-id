@@ -375,3 +375,37 @@ func TestConsumeReauthenticationTokenReturnsTokenCreationTime(t *testing.T) {
 
 	require.Equal(t, storedToken.CreatedAt.UTC(), reauthenticatedAt)
 }
+
+func TestUpdateCredentialKeepsAAGUID(t *testing.T) {
+	const (
+		userID = "icon-user"
+		aaguid = "bada5566-a7aa-401f-bd96-45619a55120d"
+	)
+
+	db := testutils.NewDatabaseForTest(t)
+	require.NoError(t, db.Create(&model.User{
+		Base:     model.Base{ID: userID},
+		Username: userID,
+	}).Error)
+
+	credential := model.WebauthnCredential{
+		Name:         "Original name",
+		CredentialID: []byte("test-credential"),
+		PublicKey:    []byte("test-public-key"),
+		UserID:       userID,
+		AAGUID:       aaguid,
+	}
+	require.NoError(t, db.Create(&credential).Error)
+
+	service := &Service{db: db}
+
+	updated, err := service.UpdateCredential(t.Context(), userID, credential.ID, "New name")
+	require.NoError(t, err)
+	assert.Equal(t, "New name", updated.Name)
+	assert.Equal(t, aaguid, updated.AAGUID)
+
+	var stored model.WebauthnCredential
+	require.NoError(t, db.First(&stored, "id = ?", credential.ID).Error)
+	assert.Equal(t, "New name", stored.Name)
+	assert.Equal(t, aaguid, stored.AAGUID)
+}

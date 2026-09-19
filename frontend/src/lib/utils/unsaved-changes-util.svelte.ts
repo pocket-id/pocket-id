@@ -5,7 +5,7 @@ import { untrack } from 'svelte';
 import { fromStore, type Readable } from 'svelte/store';
 
 /**
- * Registers a section of a page (e.g. a card) with the unsaved-changes bar. 
+ * Registers a section of a page (e.g. a card) with the unsaved-changes bar.
  * The section is unregistered when the calling component is destroyed.
  */
 export function trackUnsavedSection(

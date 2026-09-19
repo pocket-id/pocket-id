@@ -1,8 +1,12 @@
 package webauthn
 
 import (
+	"errors"
 	"fmt"
 	"net/http"
+	"os"
+	"strconv"
+	"time"
 
 	"github.com/gin-gonic/gin"
 	"github.com/go-webauthn/webauthn/protocol"
@@ -11,6 +15,7 @@ import (
 	"github.com/pocket-id/pocket-id/backend/internal/apperror"
 	"github.com/pocket-id/pocket-id/backend/internal/dto"
 	"github.com/pocket-id/pocket-id/backend/internal/httpserver"
+	"github.com/pocket-id/pocket-id/backend/internal/utils"
 	"github.com/pocket-id/pocket-id/backend/internal/utils/cookie"
 )
 
@@ -204,5 +209,27 @@ func (h *handler) reauthenticate(c *gin.Context) error {
 
 	cookie.AddReauthenticationTokenCookie(c, token)
 	c.Status(http.StatusNoContent)
+	return nil
+}
+
+// getThemedAuthenticatorIcon serves the embedded icon of the authenticator behind an AAGUID
+// The route needs no authentication because the icons are static vendor branding that ships with the binary and reveals nothing about the instance or its users
+func (h *handler) getThemedAuthenticatorIcon(c *gin.Context) error {
+	// An unparsable light parameter falls back to the light icon, which every authenticator with an icon has
+	light, _ := strconv.ParseBool(c.DefaultQuery("light", "true"))
+
+	file, size, err := utils.OpenAuthenticatorIcon(c.Param("aaguid"), light)
+	if errors.Is(err, os.ErrNotExist) {
+		return apperror.ImageNotFound()
+	}
+	if err != nil {
+		return err
+	}
+	defer file.Close()
+
+	// Icons only change when a new version is deployed, so they can be cached aggressively
+	utils.SetCacheControlHeader(c, 24*time.Hour, 7*24*time.Hour)
+
+	c.DataFromReader(http.StatusOK, size, "image/svg+xml", file, nil)
 	return nil
 }

@@ -75,6 +75,17 @@ export const cachedOidcClientLogo: CachableImage = {
 	}
 };
 
+// Builds the URL of an authenticator icon
+// Unlike the images above these are static assets that only change with a new release, so they skip the cache busting helper and rely on the backend's cache headers
+export function authenticatorIconUrl(aaguid: string, light = true) {
+	const url = new URL(
+		`/api/webauthn/authenticator-icons/${encodeURIComponent(aaguid)}`,
+		window.location.origin
+	);
+	if (!light) url.searchParams.set('light', 'false');
+	return url.pathname + (url.search ? `?${url.searchParams.toString()}` : '');
+}
+
 function getCachedImageUrl(url: URL) {
 	const baseKey = normalizeUrlForKey(url);
 	const skipCacheUntil = getSkipCacheUntil(baseKey);

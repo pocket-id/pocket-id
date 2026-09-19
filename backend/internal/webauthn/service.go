@@ -183,6 +183,7 @@ func (s *Service) VerifyRegistration(ctx context.Context, dbConfig *appconfig.Ap
 
 	// Determine passkey name using AAGUID and User-Agent
 	passkeyName := s.determinePasskeyName(credential.Authenticator.AAGUID)
+	aaguid := utils.FormatAAGUID(credential.Authenticator.AAGUID)
 
 	credentialToStore := model.WebauthnCredential{
 		Name:            passkeyName,
@@ -193,6 +194,7 @@ func (s *Service) VerifyRegistration(ctx context.Context, dbConfig *appconfig.Ap
 		UserID:          user.ID,
 		BackupEligible:  credential.Flags.BackupEligible,
 		BackupState:     credential.Flags.BackupState,
+		AAGUID:          aaguid,
 	}
 	err = tx.
 		WithContext(ctx).
