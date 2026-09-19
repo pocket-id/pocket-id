@@ -7,7 +7,7 @@ if [ ! -f .version ] || [ ! -f frontend/package.json ] || [ ! -f CHANGELOG.md ];
 fi
 
 # Check if git cliff is installed
-if ! command -v git cliff &>/dev/null; then
+if ! command -v git-cliff &>/dev/null; then
     echo "Error: git cliff is not installed. Please install it from https://git-cliff.org/docs/installation."
     exit 1
 fi
@@ -30,28 +30,6 @@ if [ "$(git rev-parse --abbrev-ref HEAD)" != "main" ]; then
     exit 1
 fi
 
-# Read the current version from .version
-VERSION=$(cat .version)
-
-# Function to increment the version
-increment_version() {
-    local version=$1
-    local part=$2
-
-    IFS='.' read -r -a parts <<<"$version"
-    if [ "$part" == "major" ]; then
-        parts[0]=$((parts[0] + 1))
-        parts[1]=0
-        parts[2]=0
-    elif [ "$part" == "minor" ]; then
-        parts[1]=$((parts[1] + 1))
-        parts[2]=0
-    elif [ "$part" == "patch" ]; then
-        parts[2]=$((parts[2] + 1))
-    fi
-    echo "${parts[0]}.${parts[1]}.${parts[2]}"
-}
-
 # Parse command line arguments
 FORCE_MAJOR=false
 for arg in "$@"; do
@@ -66,22 +44,21 @@ for arg in "$@"; do
     esac
 done
 
-# Determine the release type
+BUMP_ARGUMENTS=(--bumped-version --unreleased --offline)
 if [ "$FORCE_MAJOR" == true ]; then
-    RELEASE_TYPE="major"
-else
-    # Get the latest tag
-    LATEST_TAG=$(git describe --tags --abbrev=0)
+    BUMP_ARGUMENTS+=(--bump major)
+fi
 
-    # Check for "feat" or "fix" in the commit messages since the latest tag
-    if git log "$LATEST_TAG"..HEAD --oneline | grep -q "feat"; then
-        RELEASE_TYPE="minor"
-    elif git log "$LATEST_TAG"..HEAD --oneline | grep -q "fix"; then
-        RELEASE_TYPE="patch"
-    else
-        echo "No 'fix' or 'feat' commits found since the latest release. No new release will be created."
-        exit 0
-    fi
+# Calculate the next version from the unreleased conventional commits
+if ! NEW_VERSION=$(git cliff "${BUMP_ARGUMENTS[@]}"); then
+    echo "Error: Could not calculate the next version."
+    exit 1
+fi
+NEW_VERSION=${NEW_VERSION#v}
+
+if [ "$NEW_VERSION" == "$(cat .version)" ]; then
+    echo "No commits requiring a version bump found since the latest release. No new release will be created."
+    exit 0
 fi
 
 echo "Running Snyk dependency scan..."
@@ -90,23 +67,8 @@ if ! snyk test --all-projects --dev --detection-depth=3 --strict-out-of-sync=fal
     exit 1
 fi
 
-# Increment the version based on the release type
-if [ "$RELEASE_TYPE" == "major" ]; then
-    echo "Performing major release..."
-    NEW_VERSION=$(increment_version $VERSION major)
-elif [ "$RELEASE_TYPE" == "minor" ]; then
-    echo "Performing minor release..."
-    NEW_VERSION=$(increment_version $VERSION minor)
-elif [ "$RELEASE_TYPE" == "patch" ]; then
-    echo "Performing patch release..."
-    NEW_VERSION=$(increment_version $VERSION patch)
-else
-    echo "Invalid release type. Please enter either 'major', 'minor', or 'patch'."
-    exit 1
-fi
-
 # Confirm release creation
-read -p "This will create a new $RELEASE_TYPE release with version $NEW_VERSION. Do you want to proceed? (y/n) " CONFIRM
+read -p "This will create a new release with version $NEW_VERSION. Do you want to proceed? (y/n) " CONFIRM
 if [[ "$CONFIRM" != "y" ]]; then
     echo "Release process canceled."
     exit 1

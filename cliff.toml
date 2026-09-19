@@ -20,15 +20,19 @@ commit_parsers = [
 ]
 filter_commits = false
 
+[bump]
+no_increment_regex = "^(chore|ci|docs|refactor|style|test)"
+
 [changelog]
+format = true
 trim = true
 body = """
 ## {{ version | default(value="Unknown Version") }}
-{% for group, commits in commits | group_by(attribute="group") %}
-### {{ group | title }}
-{% for commit in commits %}
+{% for entry in commits | commit_groups(groups=commit_parsers_groups) %}
+### {{ entry.group | title }}
+{% for commit in entry.commits %}
   - {{ commit.message | trim }} \
-    {%- if commit.remote.pr_number %} ([#{{ commit.remote.pr_number }}]({{ self::remote_url() }}/pull/{{ commit.remote.pr_number }}) by @{{ commit.remote.username | default(value=commit.author.name) }}){%- else %} ([{{ commit.id | truncate(length=7, end="") }}]({{ self::remote_url() }}/commit/{{ commit.id }}) by @{{ commit.remote.username | default(value=commit.author.name) }}){%- endif -%}
+    {%- if commit.remote.pr_number %} ([#{{ commit.remote.pr_number }}]({{ self::remote_url() }}/pull/{{ commit.remote.pr_number }}) by @{{ commit.remote.pr_author | default(value=commit.remote.username) | default(value=commit.author.name) }}){%- else %} ([{{ commit.id | truncate(length=7, end="") }}]({{ self::remote_url() }}/commit/{{ commit.id }}) by @{{ commit.remote.username | default(value=commit.author.name) }}){%- endif -%}
 {% endfor %}
 {% endfor %}
 {% if version -%}
