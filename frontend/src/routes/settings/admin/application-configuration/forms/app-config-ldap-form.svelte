@@ -7,8 +7,8 @@
 	import appConfigStore from '$lib/stores/application-configuration-store';
 	import type { AllAppConfig } from '$lib/types/application-configuration.type';
 	import { axiosErrorToast } from '$lib/utils/error-util';
-	import { preventDefault } from '$lib/utils/event-util';
-	import { createForm } from '$lib/utils/form-util';
+	import { createForm, pickSchemaValues } from '$lib/utils/form-util';
+	import { trackFormChanges } from '$lib/utils/unsaved-changes-util.svelte';
 	import { toast } from 'svelte-sonner';
 	import { z } from 'zod/v4';
 
@@ -47,18 +47,17 @@
 		ldapSoftDeleteUsers: z.boolean()
 	});
 
-	let { inputs, ...form } = $derived(createForm(formSchema, appConfig));
+	const formStore = createForm(formSchema, pickSchemaValues(formSchema, appConfig));
+	const inputs = formStore.inputs;
 
-	async function onSubmit() {
-		const data = form.validate();
-		if (!data) return false;
-		await callback({
-			...data,
-			ldapEnabled: true
-		});
-		toast.success(m.ldap_configuration_updated_successfully());
-		return true;
+	async function saveLdap(data: z.infer<typeof formSchema>, enable: boolean) {
+		await callback({ ...data, ldapEnabled: enable });
 	}
+
+	trackFormChanges(
+		() => formStore,
+		(data) => saveLdap(data, ldapEnabled)
+	);
 
 	async function onDisable() {
 		ldapEnabled = false;
@@ -67,8 +66,15 @@
 	}
 
 	async function onEnable() {
-		if (await onSubmit()) {
+		const data = formStore.validate();
+		if (!data) return;
+		try {
+			await saveLdap(data, true);
+			formStore.commit(data);
 			ldapEnabled = true;
+			toast.success(m.ldap_configuration_updated_successfully());
+		} catch (e) {
+			axiosErrorToast(e);
 		}
 	}
 
@@ -83,7 +89,7 @@
 	}
 </script>
 
-<form onsubmit={preventDefault(onSubmit)}>
+<div>
 	<h4 class="text-lg font-semibold">{m.client_configuration()}</h4>
 	<fieldset disabled={$appConfigStore.uiConfigDisabled}>
 		<div class="mt-4 grid grid-cols-1 items-start gap-5 md:grid-cols-2">
@@ -204,9 +210,8 @@
 				>{m.disable()}</Button
 			>
 			<Button variant="secondary" onclick={syncLdap} isLoading={ldapSyncing}>{m.sync_now()}</Button>
-			<Button type="submit" disabled={$appConfigStore.uiConfigDisabled}>{m.save()}</Button>
 		{:else}
 			<Button onclick={onEnable} disabled={$appConfigStore.uiConfigDisabled}>{m.enable()}</Button>
 		{/if}
 	</div>
-</form>
+</div>

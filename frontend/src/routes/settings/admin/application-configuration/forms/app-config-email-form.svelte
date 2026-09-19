@@ -9,8 +9,9 @@
 	import AppConfigService from '$lib/services/app-config-service';
 	import appConfigStore from '$lib/stores/application-configuration-store';
 	import type { AllAppConfig } from '$lib/types/application-configuration.type';
-	import { preventDefault } from '$lib/utils/event-util';
-	import { createForm } from '$lib/utils/form-util';
+	import { axiosErrorToast } from '$lib/utils/error-util';
+	import { createForm, pickSchemaValues } from '$lib/utils/form-util';
+	import { trackFormChanges } from '$lib/utils/unsaved-changes-util.svelte';
 	import { toast } from 'svelte-sonner';
 	import { z } from 'zod/v4';
 
@@ -87,23 +88,32 @@
 			requireFieldsWhen(emailEnabled, m.smtp_field_required_when_email_enabled());
 		});
 
-	let { inputs, ...form } = $derived(createForm(formSchema, appConfig));
+	const formStore = createForm(formSchema, pickSchemaValues(formSchema, appConfig));
+	const inputs = formStore.inputs;
 
-	async function onSubmit() {
-		const data = form.validate();
-		if (!data) return false;
+	async function saveEmailConfig(data: z.infer<typeof formSchema>) {
 		await callback(data);
-
-		// Update the app config to don't display the unsaved changes warning
-		Object.assign(appConfig, data);
-
-		toast.success(m.email_configuration_updated_successfully());
-		return true;
 	}
+
+	// Saving from the "send test email" prompt is outside the unsaved-changes bar, so it
+	// reports failures itself rather than letting them reach the bar.
+	async function saveForTestEmail() {
+		const data = formStore.validate();
+		if (!data) return false;
+		try {
+			await saveEmailConfig(data);
+			formStore.commit(data);
+			return true;
+		} catch (e) {
+			axiosErrorToast(e);
+			return false;
+		}
+	}
+
+	trackFormChanges(() => formStore, saveEmailConfig);
+
 	async function onTestEmail() {
-		const hasChanges = Object.entries($inputs).some(
-			([key, input]) => input.value !== appConfig[key as keyof AllAppConfig]
-		);
+		const hasChanges = formStore.isDirty();
 
 		if (hasChanges) {
 			openConfirmDialog({
@@ -113,8 +123,7 @@
 				confirm: {
 					label: m.save_and_send(),
 					action: async () => {
-						const saved = await onSubmit();
-						if (saved) {
+						if (await saveForTestEmail()) {
 							sendTestEmail();
 						}
 					}
@@ -135,7 +144,7 @@
 	}
 </script>
 
-<form onsubmit={preventDefault(onSubmit)}>
+<div>
 	<fieldset disabled={$appConfigStore.uiConfigDisabled}>
 		<h4 class="mb-4 text-lg font-semibold">{m.general()}</h4>
 		<div class="flex flex-col gap-5">
@@ -221,6 +230,5 @@
 		<Button isLoading={isSendingTestEmail} variant="secondary" onclick={onTestEmail}
 			>{m.send_test_email()}</Button
 		>
-		<Button type="submit" disabled={$appConfigStore.uiConfigDisabled}>{m.save()}</Button>
 	</div>
-</form>
+</div>

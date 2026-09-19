@@ -27,9 +27,14 @@
 	let isCustomColor = $derived(!accentColors.some((c) => c.color === selectedColor));
 	let isPreviousColorCustom = $derived(!accentColors.some((c) => c.color === previousColor));
 
+	// Applies the selection as a live preview. Because it re-runs whenever the bound value
+	// changes, it also restores the saved colour when the selection is discarded.
+	$effect(() => {
+		applyAccentColor(selectedColor);
+	});
+
 	function handleAccentColorChange(accentValue: string) {
 		selectedColor = accentValue;
-		applyAccentColor(accentValue);
 	}
 </script>
 

@@ -11,8 +11,10 @@
 		OidcClientUpdateWithLogo
 	} from '$lib/types/oidc.type';
 	import { cachedOidcClientLogo } from '$lib/utils/cached-image-util';
+	import { axiosErrorToast } from '$lib/utils/error-util';
 	import { preventDefault } from '$lib/utils/event-util';
 	import { createForm } from '$lib/utils/form-util';
+	import { trackFormChanges } from '$lib/utils/unsaved-changes-util.svelte';
 	import { cn } from '$lib/utils/style';
 	import { callbackUrlSchema, emptyToUndefined, optionalUrl } from '$lib/utils/zod-util';
 	import { LucideChevronDown, LucideMoon, LucideSun } from '@lucide/svelte';
@@ -27,20 +29,27 @@
 		mode
 	}: {
 		existingClient?: OidcClient;
-		callback: (client: OidcClientCreateWithLogo | OidcClientUpdateWithLogo) => Promise<boolean>;
+		callback: (client: OidcClientCreateWithLogo | OidcClientUpdateWithLogo) => Promise<void>;
 		mode: 'create' | 'update';
 	} = $props();
 	let isLoading = $state(false);
 	let showAdvancedOptions = $state(false);
 	let logo = $state<File | null | undefined>();
 	let darkLogo = $state<File | null | undefined>();
-	let logoDataURL: string | null = $state(
-		existingClient?.hasLogo ? cachedOidcClientLogo.getUrl(existingClient!.id) : null
-	);
-	let darkLogoDataURL: string | null = $state(
-		existingClient?.hasDarkLogo ? cachedOidcClientLogo.getUrl(existingClient!.id, false) : null
-	);
+	// What discarding restores the previews to; moves forward whenever a logo is saved.
+	let savedLogoDataURL = existingClient?.hasLogo
+		? cachedOidcClientLogo.getUrl(existingClient!.id)
+		: null;
+	let savedDarkLogoDataURL = existingClient?.hasDarkLogo
+		? cachedOidcClientLogo.getUrl(existingClient!.id, false)
+		: null;
+	let logoDataURL: string | null = $state(savedLogoDataURL);
+	let darkLogoDataURL: string | null = $state(savedDarkLogoDataURL);
 	const isCIMDClient = $derived(existingClient?.clientType === 'cimd');
+
+	// Defaults for new clients; existing clients keep the lifetimes edited in their own card.
+	const DEFAULT_ACCESS_TOKEN_DURATION_MINUTES = 60;
+	const DEFAULT_REFRESH_TOKEN_DURATION_MINUTES = 30 * 24 * 60;
 
 	const client = {
 		id: '',
@@ -57,9 +66,7 @@
 		launchURL: existingClient?.launchURL || '',
 		logoUrl: '',
 		darkLogoUrl: '',
-		pkceSupported: existingClient?.pkceSupported || false,
-		accessTokenDurationMinutes: existingClient?.accessTokenDurationMinutes ?? 60,
-		refreshTokenDurationMinutes: existingClient?.refreshTokenDurationMinutes ?? 30 * 24 * 60
+		pkceSupported: existingClient?.pkceSupported || false
 	};
 
 	const formSchema = z.object({
@@ -84,58 +91,83 @@
 		skipConsent: z.boolean(),
 		launchURL: optionalUrl,
 		logoUrl: optionalUrl,
-		darkLogoUrl: optionalUrl,
-		accessTokenDurationMinutes: z
-			.number()
-			.min(1)
-			.max(365 * 24 * 60)
-			.int(),
-		refreshTokenDurationMinutes: z
-			.number()
-			.min(1)
-			.max(365 * 24 * 60)
-			.int()
+		darkLogoUrl: optionalUrl
 	});
 
 	type FormSchema = typeof formSchema;
-	const { inputs, ...form } = createForm<FormSchema>(formSchema, client);
+	const formStore = createForm<FormSchema>(formSchema, client);
+	const { inputs } = formStore;
 
 	const pkcePromptNeeded = $derived(!$inputs.pkceEnabled.value && client.pkceSupported);
 
-	async function onSubmit() {
-		const data = form.validate();
-		if (!data) return;
-		isLoading = true;
-
-		const success = await callback({
+	async function saveClient(data: z.infer<FormSchema>) {
+		await callback({
 			...data,
 			credentials: existingClient?.credentials ?? { federatedIdentities: [], secrets: [] },
 			logo: $inputs.logoUrl?.value ? undefined : logo,
 			logoUrl: $inputs.logoUrl?.value,
 			darkLogo: $inputs.darkLogoUrl?.value ? undefined : darkLogo,
 			darkLogoUrl: $inputs.darkLogoUrl?.value,
-			isGroupRestricted: existingClient?.isGroupRestricted ?? true
+			isGroupRestricted: existingClient?.isGroupRestricted ?? true,
+			// The token lifetimes are edited in their own card. The current values are sent along
+			// because the backend falls back to the defaults for missing ones.
+			accessTokenDurationMinutes:
+				existingClient?.accessTokenDurationMinutes ?? DEFAULT_ACCESS_TOKEN_DURATION_MINUTES,
+			refreshTokenDurationMinutes:
+				existingClient?.refreshTokenDurationMinutes ?? DEFAULT_REFRESH_TOKEN_DURATION_MINUTES
 		});
 
 		const hasLogo = logo != null || !!$inputs.logoUrl?.value;
 		const hasDarkLogo = darkLogo != null || !!$inputs.darkLogoUrl?.value;
-		if (success && existingClient) {
+		if (existingClient) {
 			if (hasLogo) {
 				logoDataURL = cachedOidcClientLogo.getUrl(existingClient.id);
 			}
 			if (hasDarkLogo) {
 				darkLogoDataURL = cachedOidcClientLogo.getUrl(existingClient.id, false);
 			}
+			savedLogoDataURL = logoDataURL;
+			savedDarkLogoDataURL = darkLogoDataURL;
+			// The uploaded file has been persisted, so it's no longer "pending" for dirty-tracking.
+			logo = undefined;
+			darkLogo = undefined;
+		} else {
+			formStore.reset();
 		}
+	}
 
-		if (success && !existingClient) form.reset();
-		isLoading = false;
+	// Create mode has its own Save button rather than going through the unsaved-changes bar.
+	async function onSubmit() {
+		const data = formStore.validate();
+		if (!data) return;
+		isLoading = true;
+		try {
+			await saveClient(data);
+		} catch (e) {
+			axiosErrorToast(e);
+		} finally {
+			isLoading = false;
+		}
+	}
+
+	function discardLogoChanges() {
+		logo = undefined;
+		darkLogo = undefined;
+		logoDataURL = savedLogoDataURL;
+		darkLogoDataURL = savedDarkLogoDataURL;
+	}
+
+	if (mode === 'update') {
+		trackFormChanges(() => formStore, saveClient, {
+			dirty: () => logo !== undefined || darkLogo !== undefined,
+			discard: discardLogoChanges
+		});
 	}
 
 	function onLogoChange(input: File | string | null, light: boolean = true) {
 		if (input == null) return;
 
-		const logoUrlInput = light ? $inputs.logoUrl : $inputs.darkLogoUrl;
+		const logoUrlKey = light ? 'logoUrl' : 'darkLogoUrl';
 
 		if (typeof input === 'string') {
 			if (light) {
@@ -145,7 +177,7 @@
 				darkLogo = null;
 				darkLogoDataURL = input || null;
 			}
-			logoUrlInput!.value = input;
+			formStore.setValue(logoUrlKey, input);
 		} else {
 			if (light) {
 				logo = input;
@@ -154,9 +186,7 @@
 				darkLogo = input;
 				darkLogoDataURL = URL.createObjectURL(input);
 			}
-			if (logoUrlInput) {
-				logoUrlInput.value = '';
-			}
+			formStore.setValue(logoUrlKey, '');
 		}
 	}
 
@@ -342,6 +372,8 @@
 				)}
 			/>
 		</Button>
-		<Button {isLoading} type="submit" class="absolute right-0">{m.save()}</Button>
+		{#if mode === 'create'}
+			<Button {isLoading} type="submit" class="absolute right-0">{m.save()}</Button>
+		{/if}
 	</div>
 </form>

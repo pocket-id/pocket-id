@@ -40,10 +40,25 @@
 
 	let unit = $state<DurationUnit>(preferredUnit(input.value));
 	let amount = $state(formatAmount(input.value / minutesPerUnit[unit]));
+	// The minutes that `amount` and `unit` currently represent. Only a value that arrives from
+	// outside (e.g. after discarding changes) re-derives them, so that switching the unit isn't
+	// undone by the rounding of the displayed amount.
+	let displayedMinutes = input.value;
+
+	$effect(() => {
+		const minutes = input.value;
+		if (Object.is(minutes, displayedMinutes)) return;
+
+		displayedMinutes = minutes;
+		if (!Number.isFinite(minutes)) return;
+		unit = preferredUnit(minutes);
+		amount = formatAmount(minutes / minutesPerUnit[unit]);
+	});
 
 	function updateAmount(event: Event) {
 		amount = (event.currentTarget as HTMLInputElement).value;
-		input.value = amount === '' ? Number.NaN : Number(amount) * minutesPerUnit[unit];
+		displayedMinutes = amount === '' ? Number.NaN : Number(amount) * minutesPerUnit[unit];
+		input.value = displayedMinutes;
 	}
 
 	function updateUnit(value: string | undefined) {

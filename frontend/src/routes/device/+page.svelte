@@ -51,7 +51,8 @@
 	);
 
 	onMount(() => {
-		if (data.code && $userStore) {
+		// Device login codes always show a confirmation before approval
+		if (data.code && normalizedUserCode.startsWith('P') && $userStore) {
 			authorize();
 		}
 	});
