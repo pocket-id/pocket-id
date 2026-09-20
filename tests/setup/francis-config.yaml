@@ -1,0 +1,26 @@
+# Configuration for the standalone Francis runtime used by the "remote Francis" E2E variant.
+# In that variant Pocket ID does not embed the actor runtime: it connects to this one instead, which owns the actor state, placement, and alarms.
+# These secrets are fixed test values and must match the FRANCIS_HOST_PSK passed to Pocket ID in docker-compose-francis.yml.
+
+# The WebTransport server runs over HTTP/3, so this port is UDP
+bind: "0.0.0.0:7400"
+
+# The runtime PSKs derive the cluster CA that signs every workload certificate
+runtimePSKs:
+  - "e2e-runtime-psk-0123456789abcdef"
+
+# Hosts prove they may join by presenting this pre-shared key
+bootstrap:
+  method: psk
+  hostPSK: "e2e-host-bootstrap-psk-0123456789"
+
+# The runtime owns its own SQLite store, which is separate from Pocket ID's database
+# It lives on a volume because the image runs as a non-root user that cannot write to the image filesystem
+provider:
+  connectionString: "/data/francis.db"
+
+# A single Pocket ID replica joins the cluster, matching the cap the embedded runtime applies when HA is off
+maxHosts: 1
+
+log:
+  level: debug
