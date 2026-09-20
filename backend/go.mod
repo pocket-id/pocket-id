@@ -22,7 +22,7 @@ require (
 	github.com/go-playground/validator/v10 v10.30.4
 	github.com/go-webauthn/webauthn v0.18.2
 	github.com/golang-migrate/migrate/v4 v4.20.1
-	github.com/italypaleale/francis v0.1.0-rc.7
+	github.com/italypaleale/francis v0.1.0-rc.8
 	github.com/italypaleale/go-kit v1.2.3
 	github.com/italypaleale/go-sql-utils v0.3.8
 	github.com/jackc/pgx/v5 v5.11.0
