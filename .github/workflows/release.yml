@@ -119,7 +119,7 @@ jobs:
           # Attribute the release commit to the app and authenticate the push with its installation token
           bot_name="$APP_SLUG[bot]"
           bot_id=$(gh api "users/$bot_name" --jq .id)
-          git config user.name "$bot_name"
+          git config user.name "Pocket ID Bot"
           git config user.email "$bot_id+$bot_name@users.noreply.github.com"
           gh auth setup-git
 
