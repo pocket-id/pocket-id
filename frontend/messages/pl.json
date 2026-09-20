@@ -654,10 +654,10 @@
 	"delete_client_secret": "Usuń sekret klienta",
 	"are_you_sure_you_want_to_delete_this_client_secret": "Jesteś pewien, że chcesz usunąć ten sekret klienta? Aplikacje, które go używają, nie będą już mogły się uwierzytelnić.",
 	"client_secret_deleted_successfully": "Sekret klienta został pomyślnie usunięty",
-	"you_have_unsaved_changes": "You have unsaved changes",
-	"changes_saved_successfully": "Changes saved successfully",
-	"discard": "Discard",
-	"discard_unsaved_changes": "Discard unsaved changes?",
-	"discard_unsaved_changes_confirm": "You have unsaved changes on this page. Are you sure you want to discard them?",
-	"please_fix_the_errors_before_saving": "Please fix the highlighted errors before saving"
+	"you_have_unsaved_changes": "Masz niezapisane zmiany",
+	"changes_saved_successfully": "Zmiany zostały zapisane pomyślnie",
+	"discard": "Odrzuć",
+	"discard_unsaved_changes": "Czy chcesz odrzucić niezapisane zmiany?",
+	"discard_unsaved_changes_confirm": "Na tej stronie znajdują się niezapisane zmiany. Czy na pewno chcesz je odrzucić?",
+	"please_fix_the_errors_before_saving": "Przed zapisaniem napraw proszę zaznaczone błędy"
 }
