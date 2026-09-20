@@ -1,3 +1,23 @@
+## v2.16.0
+
+### Features
+
+- update the design of the email templates ([3249b0d](https://github.com/pocket-id/pocket-id/commit/3249b0dc8c00220b74e1008f94812cc02f6313c1) by @stonith404)
+
+### Bug Fixes
+
+- loading indicator not visible ([4ba2899](https://github.com/pocket-id/pocket-id/commit/4ba28992ff496caa20b6abe6f614eeb1fa777469) by @stonith404)
+- login with Yubikey not working in some Safari browsers ([4858db3](https://github.com/pocket-id/pocket-id/commit/4858db3bb4cf6619cad8682da61f0e793f24874c) by @stonith404)
+
+### Other
+
+- upgrade git cliff version ([98f9e39](https://github.com/pocket-id/pocket-id/commit/98f9e39785ae913d65ab3ad3523feaf907d3686e) by @stonith404)
+- update francis to rc7 ([\#1769](https://github.com/pocket-id/pocket-id/pull/1769) by @ItalyPaleAle)
+- include frontend dependencies in SBOM ([5a1c6f0](https://github.com/pocket-id/pocket-id/commit/5a1c6f0547f779175107d31ea13d4f24000a1a65) by @stonith404)
+- include SBOMs for binaries ([8fe53ed](https://github.com/pocket-id/pocket-id/commit/8fe53ed42c522717c8c69612cc700e195b8ab2ea) by @stonith404)
+- replace local release script with action ([ba246e6](https://github.com/pocket-id/pocket-id/commit/ba246e61465378bc11571fcc77ca01c936fda174) by @stonith404)
+
+**Full Changelog**: https://github.com/pocket-id/pocket-id/compare/v2.15.0...v2.16.0
 ## v2.15.0
 
 ### Bug Fixes

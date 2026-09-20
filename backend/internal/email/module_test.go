@@ -67,7 +67,7 @@ func TestModuleSendsEveryEmailType(t *testing.T) {
 		{
 			name:         "email verification",
 			subject:      "Verify your Pocket ID Test email address",
-			bodyContains: []string{"EMAIL VERIFICATION", "Hello Test User", "https://id.example.test/verify-token"},
+			bodyContains: []string{"VERIFY YOUR EMAIL ADDRESS", "Hello Test User", "https://id.example.test/verify-token"},
 			send: func(ctx context.Context, config *appconfig.AppConfigModel) error {
 				return module.SendEmailVerification(ctx, config, user.FullName(), userEmail, "https://id.example.test/verify-token")
 			},

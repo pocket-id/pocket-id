@@ -1,11 +1,9 @@
-{{define "root"}}{{.AppName}}
+{{define "root"}}YOUR LOGIN CODE
 
+Use the code below to sign in to {{.AppName}}. It expires in {{.Data.ExpirationString}}.
 
-YOUR LOGIN CODE
+{{.Data.Code}}
 
-Click the button below to sign in to {{.AppName}} with a login code.
-Or visit {{.Data.LoginLink}} and enter the code {{.Data.Code}}.
+Sign in {{.Data.LoginLinkWithCode}}
 
-This code expires in {{.Data.ExpirationString}}.
-
-Sign In {{.Data.LoginLinkWithCode}}{{end}}
+Or open {{.Data.LoginLink}} and enter the code manually.{{end}}

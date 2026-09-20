@@ -281,6 +281,7 @@ func (s *Service) VerifyLogin(ctx context.Context, dbConfig *appconfig.AppConfig
 		Extensions:       storedSession.Extensions,
 		CredParams:       storedSession.CredentialParams,
 	}
+	discardUnrequestedFalseAppIDOutput(session.Extensions, credentialAssertionData)
 
 	var user *model.User
 	_, err := s.webAuthn.ValidateDiscoverableLogin(func(_, userHandle []byte) (gowebauthn.User, error) {
@@ -535,6 +536,7 @@ func (s *Service) CreateReauthenticationTokenWithWebauthn(ctx context.Context, s
 		Extensions:       storedSession.Extensions,
 		CredParams:       storedSession.CredentialParams,
 	}
+	discardUnrequestedFalseAppIDOutput(session.Extensions, credentialAssertionData)
 
 	// Validate the credential assertion
 	var user *model.User
@@ -587,6 +589,21 @@ func classifyPasskeyError(err error, fallback func(error) *apperror.Error) *appe
 	}
 
 	return fallback(err)
+}
+
+func discardUnrequestedFalseAppIDOutput(session protocol.SessionExtensions, credential *protocol.ParsedCredentialAssertionData) {
+	if credential == nil || credential.ClientExtensionResults.AppID == nil || *credential.ClientExtensionResults.AppID {
+		return
+	}
+
+	for _, requested := range session.Requested {
+		if requested == protocol.ExtensionAppID {
+			return
+		}
+	}
+
+	// Safari reports appid=false for security keys even when the relying party did not request the legacy extension
+	credential.ClientExtensionResults.AppID = nil
 }
 
 func (s *Service) ConsumeReauthenticationToken(ctx context.Context, tx *gorm.DB, token string, userID string) (time.Time, error) {

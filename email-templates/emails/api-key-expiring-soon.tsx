@@ -1,7 +1,11 @@
-import { Text } from "@react-email/components";
 import { BaseTemplate } from "../components/base-template";
 import CardHeader from "../components/card-header";
-import { sharedPreviewProps, sharedTemplateProps } from "../props";
+import { Muted, Paragraph } from "../components/text";
+import {
+  type SharedProps,
+  sharedPreviewProps,
+  sharedTemplateProps,
+} from "../props";
 
 interface ApiKeyExpiringData {
   name: string;
@@ -9,28 +13,30 @@ interface ApiKeyExpiringData {
   expiresAt: string;
 }
 
-interface ApiKeyExpiringEmailProps {
-  logoURL: string;
-  appName: string;
+interface ApiKeyExpiringEmailProps extends SharedProps {
   data: ApiKeyExpiringData;
 }
 
 export const ApiKeyExpiringEmail = ({
-  logoURL,
-  appName,
   data,
+  ...props
 }: ApiKeyExpiringEmailProps) => (
-  <BaseTemplate logoURL={logoURL} appName={appName}>
-    <CardHeader title="API Key Expiring Soon" warning />
-    <Text>
-      Hello {data.name}, <br />
-      This is a reminder that your API key <strong>
-        {data.apiKeyName}
-      </strong>{" "}
-      will expire on <strong>{data.expiresAt}</strong>.
-    </Text>
+  <BaseTemplate
+    {...props}
+    preview={`Your API key ${data.apiKeyName} expires on ${data.expiresAt}`}
+  >
+    <CardHeader title="API key expiring soon" />
+    <Paragraph>Hello {data.name},</Paragraph>
+    <Paragraph>
+      Your API key <strong>{data.apiKeyName}</strong> will expire on{" "}
+      <strong>{data.expiresAt}</strong>. Anything that uses this key will stop
+      working once it expires.
+    </Paragraph>
 
-    <Text>Please generate a new API key if you need continued access.</Text>
+    <Muted>
+      To keep access, create a new API key in your {props.appName} account
+      settings before then.
+    </Muted>
   </BaseTemplate>
 );
 
@@ -48,8 +54,8 @@ ApiKeyExpiringEmail.TemplateProps = {
 ApiKeyExpiringEmail.PreviewProps = {
   ...sharedPreviewProps,
   data: {
-    name: "Elias Schneider",
-    apiKeyName: "My API Key",
-    expiresAt: "September 30, 2024",
+    name: "Elias",
+    apiKeyName: "CI deploy key",
+    expiresAt: "2026-01-30 12:00:00 UTC",
   },
 };
