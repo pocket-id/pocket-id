@@ -94,6 +94,23 @@ archives:
 checksum:
   name_template: checksums.txt
 
+sboms:
+  - id: binaries
+    artifacts: binary
+    disable: '{{ if index .Env "BUILD_NEXT" }}true{{ end }}'
+    documents:
+      - "pocket-id_{{ .Version }}_{{ .Os }}_{{ .Arch }}{{ targetVariant . }}.sbom.spdx.json"
+    cmd: sh
+    args:
+      - ../scripts/development/generate-binary-sbom.sh
+      - $artifact
+      - $document
+      - "pocket-id_{{ .Os }}_{{ .Arch }}{{ targetVariant . }}"
+      - "{{ .Version }}"
+    env:
+      - SYFT_CHECK_FOR_APP_UPDATE=false
+      - SYFT_CACHE_DIR=
+
 docker_digest:
   name_template: digests.txt
 

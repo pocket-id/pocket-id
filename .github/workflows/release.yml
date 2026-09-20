@@ -39,6 +39,11 @@ jobs:
           go-version-file: backend/go.mod
           cache-dependency-path: backend/go.sum
 
+      - name: Setup Syft
+        uses: anchore/sbom-action/download-syft@v0.24.2
+        with:
+          syft-version: v1.52.0
+
       - name: Set up Depot CLI
         uses: depot/setup-action@v1
 
