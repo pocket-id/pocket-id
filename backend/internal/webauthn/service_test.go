@@ -263,6 +263,66 @@ func TestClassifyPasskeyErrorPreservesStructuredLookupFailure(t *testing.T) {
 	require.ErrorIs(t, err, cause)
 }
 
+func TestDiscardUnrequestedFalseAppIDOutput(t *testing.T) {
+	tests := []struct {
+		name      string
+		requested []string
+		appID     bool
+		extra     map[string]any
+		wantAppID *bool
+		wantError string
+	}{
+		{
+			name:      "unrequested false appid is discarded",
+			appID:     false,
+			wantAppID: nil,
+		},
+		{
+			name:      "requested false appid is preserved",
+			requested: []string{protocol.ExtensionAppID},
+			appID:     false,
+			wantAppID: new(false),
+		},
+		{
+			name:      "unrequested true appid is rejected",
+			appID:     true,
+			wantAppID: new(true),
+			wantError: "appid",
+		},
+		{
+			name:      "other unsolicited output is rejected",
+			appID:     false,
+			extra:     map[string]any{"example": true},
+			wantAppID: nil,
+			wantError: "example",
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			credential := &protocol.ParsedCredentialAssertionData{
+				ParsedPublicKeyCredential: protocol.ParsedPublicKeyCredential{
+					ClientExtensionResults: protocol.AuthenticationExtensionsClientOutputs{
+						AppID: new(tc.appID),
+						Extra: tc.extra,
+					},
+				},
+			}
+			session := protocol.SessionExtensions{Requested: tc.requested}
+
+			discardUnrequestedFalseAppIDOutput(session, credential)
+
+			assert.Equal(t, tc.wantAppID, credential.ClientExtensionResults.AppID)
+			err := credential.ClientExtensionResults.Verify(session, protocol.AssertCeremony, protocol.UnsolicitedOutputPolicyReject)
+			if tc.wantError == "" {
+				require.NoError(t, err)
+			} else {
+				require.ErrorContains(t, err, tc.wantError)
+			}
+		})
+	}
+}
+
 func TestWebAuthnManagementOperationsReturnSpecificNotFoundErrors(t *testing.T) {
 	service, err := newService(Dependencies{
 		DB:     testutils.NewDatabaseForTest(t),
