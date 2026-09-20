@@ -15,9 +15,10 @@ bootstrap:
   hostPSK: "e2e-host-bootstrap-psk-0123456789"
 
 # The runtime owns its own SQLite store, which is separate from Pocket ID's database
-# It lives on a volume because the image runs as a non-root user that cannot write to the image filesystem
+# It lives in /tmp because the image runs as a non-root user (uid 65532) and that is the only world-writable directory in it
+# The store only has to survive as long as the containers do, so there is nothing to persist beyond the test run
 provider:
-  connectionString: "/data/francis.db"
+  connectionString: "/tmp/francis.db"
 
 # A single Pocket ID replica joins the cluster, matching the cap the embedded runtime applies when HA is off
 maxHosts: 1

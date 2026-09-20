@@ -15,7 +15,6 @@ services:
     image: ghcr.io/italypaleale/francis:${FRANCIS_VERSION:?run ./francis-version.sh to set it, see CONTRIBUTING.md}
     volumes:
       - ./francis-config.yaml:/etc/francis/config.yaml:ro
-      - francis-test-data:/data
     # The image ships its own HEALTHCHECK, which probes the runtime over the loopback
     # It's repeated here so Pocket ID can wait on it, and so a runtime that never comes up fails fast instead of after the default retries
     healthcheck:
@@ -47,4 +46,3 @@ services:
 
 volumes:
   pocket-id-test-data:
-  francis-test-data:
