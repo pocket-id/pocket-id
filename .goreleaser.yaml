@@ -9,6 +9,9 @@ before:
   hooks:
     - pnpm install --frozen-lockfile
     - pnpm -C frontend build
+    - mkdir -p .tmp
+    - mv backend/frontend/dist/cyclonedx/frontend.cdx.json .tmp/frontend.cdx.json
+    - rm -r backend/frontend/dist/cyclonedx
 
 builds:
   - id: pocket-id
@@ -124,6 +127,7 @@ dockers_v2:
     sbom: true
     extra_files:
       - scripts/docker
+      - .tmp/frontend.cdx.json
 
   - id: pocket-id-distroless
     ids:
@@ -152,6 +156,8 @@ dockers_v2:
       "org.opencontainers.image.title": "Pocket ID"
     disable: '{{ if index .Env "BUILD_NEXT" }}true{{ end }}'
     sbom: true
+    extra_files:
+      - .tmp/frontend.cdx.json
 
   - id: pocket-id-next
     ids:
@@ -179,6 +185,7 @@ dockers_v2:
     sbom: true
     extra_files:
       - scripts/docker
+      - .tmp/frontend.cdx.json
 
   - id: pocket-id-next-distroless
     ids:
@@ -204,6 +211,8 @@ dockers_v2:
       "org.opencontainers.image.title": "Pocket ID"
     disable: '{{ if not (index .Env "BUILD_NEXT") }}true{{ end }}'
     sbom: true
+    extra_files:
+      - .tmp/frontend.cdx.json
 
 notarize:
   macos:
