@@ -1,38 +1,24 @@
-import { Column, Heading, Row, Text } from "@react-email/components";
+import { Heading } from "react-email";
+import { colors, fonts } from "./theme";
 
-export default function CardHeader({
-  title,
-  warning,
-}: {
+interface CardHeaderProps {
   title: string;
-  warning?: boolean;
-}) {
+}
+
+export default function CardHeader({ title }: CardHeaderProps) {
   return (
-    <Row>
-      <Column>
-        <Heading as="h1" style={titleStyle}>
-          {title}
-        </Heading>
-      </Column>
-      <Column align="right">
-        {warning && <Text style={warningStyle}>Warning</Text>}
-      </Column>
-    </Row>
+    <Heading as="h1" style={titleStyle}>
+      {title}
+    </Heading>
   );
 }
 
 const titleStyle = {
-  fontSize: "20px",
-  fontWeight: "bold" as const,
-  margin: 0,
-};
-
-const warningStyle = {
-  backgroundColor: "#ffd966",
-  color: "#7f6000",
-  padding: "1px 12px",
-  borderRadius: "50px",
-  fontSize: "12px",
-  display: "inline-block",
-  margin: 0,
+  margin: "0 0 16px 0",
+  fontFamily: fonts.serif,
+  fontSize: "26px",
+  lineHeight: "32px",
+  fontWeight: 400,
+  letterSpacing: "-0.01em",
+  color: colors.foreground,
 };

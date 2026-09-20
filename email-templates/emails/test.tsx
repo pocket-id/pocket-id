@@ -1,17 +1,16 @@
-import { Text } from "@react-email/components";
 import { BaseTemplate } from "../components/base-template";
 import CardHeader from "../components/card-header";
-import { sharedPreviewProps, sharedTemplateProps } from "../props";
+import { Paragraph } from "../components/text";
+import {
+  type SharedProps,
+  sharedPreviewProps,
+  sharedTemplateProps,
+} from "../props";
 
-interface TestEmailProps {
-  logoURL: string;
-  appName: string;
-}
-
-export const TestEmail = ({ logoURL, appName }: TestEmailProps) => (
-  <BaseTemplate logoURL={logoURL} appName={appName}>
-    <CardHeader title="Test Email" />
-    <Text>Your email setup is working correctly!</Text>
+export const TestEmail = (props: SharedProps) => (
+  <BaseTemplate {...props} preview="Your email setup is working correctly">
+    <CardHeader title="Test email" />
+    <Paragraph>Your email setup is working correctly!</Paragraph>
   </BaseTemplate>
 );
 

@@ -1,4 +1,4 @@
-import { render } from "@react-email/components";
+import { render } from "react-email";
 import * as fs from "node:fs";
 import * as path from "node:path";
 
@@ -17,9 +17,10 @@ async function buildTemplateFile(
   templateName: string,
   isPlainText: boolean
 ) {
-  const rendered = await render(Component(Component.TemplateProps), {
-    plainText: isPlainText,
-  });
+  const rendered = await render(
+    Component(Component.TemplateProps),
+    isPlainText ? { plainText: true } : {},
+  );
 
   // Normalize quotes
   const normalized = rendered.replace(/&quot;/g, '"');

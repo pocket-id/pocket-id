@@ -5,77 +5,115 @@ import {
   Head,
   Html,
   Img,
+  Link,
+  Preview,
   Row,
   Section,
-  Text,
-} from "@react-email/components";
+} from "react-email";
+import type { SharedProps } from "../props";
+import { colors, fonts, radius } from "./theme";
 
-interface BaseTemplateProps {
-  logoURL?: string;
-  appName: string;
+interface BaseTemplateProps extends SharedProps {
+  preview?: string;
   children: React.ReactNode;
 }
 
 export const BaseTemplate = ({
   logoURL,
   appName,
+  appURL,
+  preview,
   children,
-}: BaseTemplateProps) => {
-  return (
-    <Html>
-      <Head />
-      <Body style={mainStyle}>
-        <Container style={{ width: "500px", margin: "0 auto" }}>
-          <Section>
-            <Row
-              align="left"
-              style={{
-                marginBottom: "16px",
-              }}
-            >
-              <Column style={{ width: "50px" }}>
+}: BaseTemplateProps) => (
+  <Html lang="en">
+    <Head>
+      <meta name="color-scheme" content="light" />
+      <meta name="supported-color-schemes" content="light" />
+      <style dangerouslySetInnerHTML={{ __html: fontFaceCss(appURL) }} />
+    </Head>
+    {preview && <Preview>{preview}</Preview>}
+    <Body style={bodyStyle}>
+      <Container style={containerStyle}>
+        <Section style={headerStyle} data-skip-in-text="true">
+          <Row>
+            <Column style={logoColumnStyle}>
+              <Link href={appURL}>
                 <Img
                   src={logoURL}
-                  width="32"
-                  height="32"
+                  width="28"
+                  height="28"
                   alt={appName}
                   style={logoStyle}
                 />
-              </Column>
-              <Column>
-                <Text style={titleStyle}>{appName}</Text>
-              </Column>
-            </Row>
-          </Section>
-          <div style={content}>{children}</div>
-        </Container>
-      </Body>
-    </Html>
-  );
+              </Link>
+            </Column>
+            <Column>
+              <Link href={appURL} style={appNameStyle}>
+                {appName}
+              </Link>
+            </Column>
+          </Row>
+        </Section>
+
+        <Section>
+          <Row>
+            <Column style={cardStyle}>{children}</Column>
+          </Row>
+        </Section>
+
+      </Container>
+    </Body>
+  </Html>
+);
+
+// The heading font is self-hosted by the app, so it loads from the same origin as the logo and works without third-party requests
+// Clients without web font support fall back to the serif stack declared on the headings
+const fontFaceCss = (appURL: string) =>
+  `@font-face{font-family:'Gloock';font-style:normal;font-weight:400;mso-font-alt:'Georgia';src:url(${appURL}/fonts/Gloock-Regular.woff) format('woff');}`;
+
+const bodyStyle = {
+  margin: 0,
+  padding: "32px 16px",
+  backgroundColor: colors.background,
+  fontFamily: fonts.sans,
+  color: colors.text,
 };
 
-const mainStyle = {
-  padding: "50px",
-  backgroundColor: "#FBFBFB",
-  fontFamily: "Arial, sans-serif",
+const containerStyle = {
+  width: "100%",
+  maxWidth: "480px",
+  margin: "0 auto",
 };
 
-const logoStyle = {
-  width: "32px",
-  height: "32px",
+const headerStyle = {
+  marginBottom: "20px",
+};
+
+const logoColumnStyle = {
+  width: "36px",
   verticalAlign: "middle",
 };
 
-const titleStyle = {
-  fontSize: "23px",
-  fontWeight: "bold",
-  margin: "0",
-  padding: "0",
+const logoStyle = {
+  display: "block",
+  width: "28px",
+  height: "28px",
+  borderRadius: "6px",
 };
 
-const content = {
-  backgroundColor: "white",
-  padding: "24px",
-  borderRadius: "10px",
-  boxShadow: "0 1px 4px 0px rgba(0, 0, 0, 0.1)",
+const appNameStyle = {
+  fontFamily: fonts.serif,
+  fontSize: "20px",
+  lineHeight: "28px",
+  color: colors.foreground,
+  textDecoration: "none",
 };
+
+const cardStyle = {
+  backgroundColor: colors.card,
+  border: `1px solid ${colors.border}`,
+  borderRadius: radius.card,
+  padding: "32px",
+  textAlign: "left" as const,
+};
+

@@ -1,26 +1,17 @@
-{{define "root"}}{{.AppName}}
+{{define "root"}}NEW SIGN-IN DETECTED
 
+Your {{.AppName}} account was recently accessed from a new IP address or browser. If this was you, no further action is needed.
 
-NEW SIGN-IN DETECTED
-
-Warning
-
-Your {{.AppName}} account was recently accessed from a new IP address or browser. If you recognize this activity, no further action is required.
-
-DETAILS
-
-Approximate Location
-
+Approximate location
 {{if and .Data.City .Data.Country}}{{.Data.City}}, {{.Data.Country}}{{else if .Data.Country}}{{.Data.Country}}{{else}}Unknown{{end}}
 
-IP Address
-
+IP address
 {{.Data.IPAddress}}
 
 Device
-
 {{.Data.Device}}
 
-Sign-In Time
+Time
+{{.Data.DateTime.Format "January 2, 2006 at 3:04 PM MST"}}
 
-{{.Data.DateTime.Format "January 2, 2006 at 3:04 PM MST"}}{{end}}
+If you don't recognize this activity, review the passkeys in your {{.AppName}} account settings and remove any you don't recognize.{{end}}

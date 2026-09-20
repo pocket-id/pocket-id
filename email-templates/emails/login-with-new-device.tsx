@@ -1,7 +1,12 @@
-import { Column, Heading, Row, Text } from "@react-email/components";
 import { BaseTemplate } from "../components/base-template";
 import CardHeader from "../components/card-header";
-import { sharedPreviewProps, sharedTemplateProps } from "../props";
+import { DetailsList } from "../components/details-list";
+import { Muted, Paragraph } from "../components/text";
+import {
+  type SharedProps,
+  sharedPreviewProps,
+  sharedTemplateProps,
+} from "../props";
 
 interface SignInData {
   location: string;
@@ -10,78 +15,44 @@ interface SignInData {
   dateTime: string;
 }
 
-interface NewSignInEmailProps {
-  logoURL: string;
-  appName: string;
+interface NewSignInEmailProps extends SharedProps {
   data: SignInData;
 }
 
-export const NewSignInEmail = ({
-  logoURL,
-  appName,
-  data,
-}: NewSignInEmailProps) => (
-  <BaseTemplate logoURL={logoURL} appName={appName}>
-    <CardHeader title="New Sign-In Detected" warning />
-    <Text>
-      Your {appName} account was recently accessed from a new IP address or
-      browser. If you recognize this activity, no further action is required.
-    </Text>
-    <Heading
-      style={{
-        fontSize: "1rem",
-        fontWeight: "bold",
-        margin: "30px 0 10px 0",
-      }}
-      as="h4"
-    >
-      Details
-    </Heading>
+export const NewSignInEmail = ({ data, ...props }: NewSignInEmailProps) => (
+  <BaseTemplate
+    {...props}
+    preview={`A new sign-in to your ${props.appName} account was detected`}
+  >
+    <CardHeader title="New sign-in detected" />
+    <Paragraph>
+      Your {props.appName} account was recently accessed from a new IP address
+      or browser. If this was you, no further action is needed.
+    </Paragraph>
 
-    <Row>
-      <Column style={detailsBoxStyle}>
-        <Text style={detailsLabelStyle}>Approximate Location</Text>
-        <Text style={detailsBoxValueStyle}>{data.location}</Text>
-      </Column>
-      <Column style={detailsBoxStyle}>
-        <Text style={detailsLabelStyle}>IP Address</Text>
-        <Text style={detailsBoxValueStyle}>{data.ipAddress}</Text>
-      </Column>
-    </Row>
+    <DetailsList
+      items={[
+        { label: "Approximate location", value: data.location },
+        { label: "IP address", value: data.ipAddress },
+        { label: "Device", value: data.device },
+        { label: "Time", value: data.dateTime },
+      ]}
+    />
 
-    <Row style={{ marginTop: "10px" }}>
-      <Column style={detailsBoxStyle}>
-        <Text style={detailsLabelStyle}>Device</Text>
-        <Text style={detailsBoxValueStyle}>{data.device}</Text>
-      </Column>
-      <Column style={detailsBoxStyle}>
-        <Text style={detailsLabelStyle}>Sign-In Time</Text>
-        <Text style={detailsBoxValueStyle}>{data.dateTime}</Text>
-      </Column>
-    </Row>
+    <Muted>
+      If you don't recognize this activity, review the passkeys in your{" "}
+      {props.appName} account settings and remove any you don't recognize.
+    </Muted>
   </BaseTemplate>
 );
 
 export default NewSignInEmail;
 
-const detailsBoxStyle = {
-  width: "225px",
-};
-
-const detailsLabelStyle = {
-  margin: 0,
-  fontSize: "12px",
-  color: "gray",
-};
-
-const detailsBoxValueStyle = {
-  margin: 0,
-};
-
 NewSignInEmail.TemplateProps = {
   ...sharedTemplateProps,
   data: {
-    location: "{{if and .Data.City .Data.Country}}{{.Data.City}}, {{.Data.Country}}{{else if .Data.Country}}{{.Data.Country}}{{else}}Unknown{{end}}",
+    location:
+      "{{if and .Data.City .Data.Country}}{{.Data.City}}, {{.Data.Country}}{{else if .Data.Country}}{{.Data.Country}}{{else}}Unknown{{end}}",
     ipAddress: "{{.Data.IPAddress}}",
     device: "{{.Data.Device}}",
     dateTime: '{{.Data.DateTime.Format "January 2, 2006 at 3:04 PM MST"}}',
@@ -92,8 +63,8 @@ NewSignInEmail.PreviewProps = {
   ...sharedPreviewProps,
   data: {
     location: "San Francisco, USA",
-    ipAddress: "127.0.0.1",
+    ipAddress: "203.0.113.42",
     device: "Chrome on macOS",
-    dateTime: "2024-01-01 12:00 PM UTC",
+    dateTime: "January 2, 2026 at 3:04 PM UTC",
   },
 };
