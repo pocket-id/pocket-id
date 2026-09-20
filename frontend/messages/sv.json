@@ -415,7 +415,7 @@
 	"preview_the_oidc_data_that_would_be_sent_for_different_users": "Förhandsgranska OIDC-data som skulle skickas för olika användare",
 	"id_token": "ID-token",
 	"access_token": "Åtkomsttoken",
-	"token_lifetimes": "Tokeners livslängd",
+	"token_lifetimes": "Token-livslängd",
 	"token_lifetimes_description": "Ändra giltighetstiden för åtkomst- och uppdateringstoken som utfärdats till denna klient. En kortare giltighetstid förbättrar säkerheten, men kan innebära att användarna måste autentisera sig på nytt oftare.",
 	"access_token_lifetime": "Giltighetstid för åtkomsttoken",
 	"access_token_lifetime_description": "Styr hur länge applikationens autentiseringsuppgifter förblir giltiga. Uppdateringstoken kan hålla applikationssessionen aktiv.",
@@ -654,10 +654,10 @@
 	"delete_client_secret": "Ta bort klienthemligheten",
 	"are_you_sure_you_want_to_delete_this_client_secret": "Är du säker på att du vill ta bort den här klienthemligheten? Appar som använder den kommer inte längre att kunna autentisera sig.",
 	"client_secret_deleted_successfully": "Klienthemligheten har raderats utan problem",
-	"you_have_unsaved_changes": "You have unsaved changes",
-	"changes_saved_successfully": "Changes saved successfully",
-	"discard": "Discard",
-	"discard_unsaved_changes": "Discard unsaved changes?",
-	"discard_unsaved_changes_confirm": "You have unsaved changes on this page. Are you sure you want to discard them?",
-	"please_fix_the_errors_before_saving": "Please fix the highlighted errors before saving"
+	"you_have_unsaved_changes": "Du har osparade ändringar",
+	"changes_saved_successfully": "Ändringarna har sparats",
+	"discard": "Kasta bort",
+	"discard_unsaved_changes": "Kasta osparade ändringar?",
+	"discard_unsaved_changes_confirm": "Du har osparade ändringar på den här sidan. Är du säker på att du vill kasta dem?",
+	"please_fix_the_errors_before_saving": "Fixa de markerade felen innan du sparar"
 }
