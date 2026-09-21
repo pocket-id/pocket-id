@@ -565,6 +565,9 @@
     "name": "YubiKey Bio Series - Multi-protocol Edition (Enterprise Profile)",
     "icon_light": "7db3534fd5258565.svg"
   },
+  "6f706c75-7366-6964-6f2d-70732d303031": {
+    "name": "OPPO FIDO2 Authenticator"
+  },
   "70617373-7761-6c6c-6669-646f32303236": {
     "name": "Passwall"
   },
@@ -898,6 +901,9 @@
   "b12eac35-586c-4809-a4b1-d81af6c305cf": {
     "name": "Deepnet SafeKey/Classic (NFC)"
   },
+  "b2647539-a130-4aee-8c34-9e4b52339123": {
+    "name": "ZTPass SmartAuth"
+  },
   "b267239b-954f-4041-a01b-ee4f33c145b6": {
     "name": "authenton1 - CTAP2.1"
   },
@@ -995,6 +1001,9 @@
   },
   "c1288a5c-d66b-495c-a68f-4e81f9ec5b53": {
     "name": "Deepnet SafeKey/Classic (FP) XF"
+  },
+  "c1bee13f-f347-4f53-9cd4-e8a2f98ee008": {
+    "name": "ZTPass SmartAuth FIPS"
   },
   "c1f9a0bc-1dd2-404a-b27f-8e29047a43fd": {
     "name": "YubiKey 5 FIPS Series with NFC"
