@@ -1,4 +1,6 @@
 <script lang="ts" generics="T extends {id:string}">
+	import { replaceState } from '$app/navigation';
+	import { page as currentPage } from '$app/state';
 	import Checkbox from '$lib/components/ui/checkbox/checkbox.svelte';
 	import * as Pagination from '$lib/components/ui/pagination';
 	import * as Select from '$lib/components/ui/select';
@@ -151,7 +153,7 @@
 	function changePageState(page: number) {
 		const url = new URL(window.location.href);
 		url.searchParams.set(`${id}-page`, page.toString());
-		history.replaceState(history.state, '', url.toString());
+		replaceState(url, currentPage.state);
 		requestOptions.pagination!.page = page;
 	}
 

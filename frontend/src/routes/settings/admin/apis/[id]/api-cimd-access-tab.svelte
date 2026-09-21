@@ -1,31 +1,28 @@
 <script lang="ts">
 	import FormInput from '$lib/components/form/form-input.svelte';
 	import SwitchWithLabel from '$lib/components/form/switch-with-label.svelte';
-	import { Button } from '$lib/components/ui/button';
 	import Checkbox from '$lib/components/ui/checkbox/checkbox.svelte';
 	import { Label } from '$lib/components/ui/label';
 	import { m } from '$lib/paraglide/messages';
 	import type { Api, ApiCimdAccessUpdate } from '$lib/types/api.type';
-	import { preventDefault } from '$lib/utils/event-util';
 	import { createForm } from '$lib/utils/form-util';
+	import { trackFormChanges } from '$lib/utils/unsaved-changes-util.svelte';
 	import { z } from 'zod/v4';
 
 	let { api, onSave }: { api: Api; onSave: (update: ApiCimdAccessUpdate) => Promise<void> } =
 		$props();
 
 	const formSchema = z.object({ enabled: z.boolean(), permissionIds: z.array(z.string()) });
-	const { inputs, ...form } = createForm(formSchema, {
+	const formStore = createForm(formSchema, {
 		enabled: api.allowCimdClients,
 		permissionIds: api.permissions.filter((p) => p.allowedForCimdClients).map((p) => p.id)
 	});
+	const { inputs } = formStore;
 
-	async function save() {
-		const data = form.validate();
-		if (data) await onSave(data);
-	}
+	trackFormChanges(() => formStore, onSave);
 </script>
 
-<form novalidate onsubmit={preventDefault(save)}>
+<div>
 	<FormInput bind:input={$inputs.enabled} class="my-5">
 		<SwitchWithLabel
 			id="allow-cimd-clients"
@@ -48,7 +45,7 @@
 									class="mt-0.5"
 									checked={$inputs.permissionIds.value.includes(permission.id)}
 									onCheckedChange={(checked: boolean) =>
-										form.setValue(
+										formStore.setValue(
 											'permissionIds',
 											checked
 												? [...$inputs.permissionIds.value, permission.id]
@@ -71,8 +68,4 @@
 			{/if}
 		</div>
 	{/if}
-
-	<div class="mt-5 flex justify-end">
-		<Button type="submit" usePromiseLoading>{m.save()}</Button>
-	</div>
-</form>
+</div>

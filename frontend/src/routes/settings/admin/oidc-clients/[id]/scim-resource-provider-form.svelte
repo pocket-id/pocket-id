@@ -5,8 +5,10 @@
 	import { m } from '$lib/paraglide/messages';
 	import ScimService from '$lib/services/scim-service';
 	import type { ScimServiceProvider, ScimServiceProviderCreate } from '$lib/types/scim.type';
+	import { axiosErrorToast } from '$lib/utils/error-util';
 	import { preventDefault } from '$lib/utils/event-util';
 	import { createForm } from '$lib/utils/form-util';
+	import { trackFormChanges } from '$lib/utils/unsaved-changes-util.svelte';
 	import { emptyToUndefined } from '$lib/utils/zod-util';
 	import { toast } from 'svelte-sonner';
 	import { z } from 'zod/v4';
@@ -17,7 +19,7 @@
 		oidcClientId
 	}: {
 		existingProvider?: ScimServiceProvider;
-		onSave: (provider: ScimServiceProviderCreate | null) => Promise<boolean>;
+		onSave: (provider: ScimServiceProviderCreate | null) => Promise<void>;
 		oidcClientId: string;
 	} = $props();
 
@@ -36,16 +38,38 @@
 	});
 	type FormSchema = typeof formSchema;
 
-	const { inputs, ...form } = createForm<FormSchema>(formSchema, serviceProvider);
+	const formStore = createForm<FormSchema>(formSchema, serviceProvider);
+	const { inputs } = formStore;
 
-	async function onSubmit() {
-		const data = form.validate();
-		if (!data) return false;
-		return await onSave({
+	async function saveProvider(data: z.infer<FormSchema>) {
+		await onSave({
 			...data,
 			oidcClientId
 		});
 	}
+
+	// Enable/disable/sync have their own buttons rather than going through the unsaved-changes
+	// bar, so they report their outcome themselves.
+	async function trySaveProvider() {
+		const data = formStore.validate();
+		if (!data) return false;
+		try {
+			await saveProvider(data);
+			formStore.commit(data);
+			return true;
+		} catch (e) {
+			axiosErrorToast(e);
+			return false;
+		}
+	}
+
+	async function onEnable() {
+		if (await trySaveProvider()) toast.success(m.scim_enabled_successfully());
+	}
+
+	// Tracked by the unsaved-changes bar once the provider exists; until then the Enable button
+	// saves it.
+	trackFormChanges(() => formStore, saveProvider, { enabled: () => !!existingProvider });
 
 	async function onDisable() {
 		openConfirmDialog({
@@ -58,9 +82,17 @@
 				label: m.disable(),
 				destructive: true,
 				action: async () => {
-					await onSave(null);
-					form.setValue('endpoint', '');
-					form.setValue('token', '');
+					try {
+						await onSave(null);
+						toast.success(m.scim_disabled_successfully());
+					} catch (e) {
+						axiosErrorToast(e);
+						return;
+					}
+					formStore.setValue('endpoint', '');
+					formStore.setValue('token', '');
+					// The cleared fields are the saved state now, so they aren't unsaved changes.
+					formStore.commit({ endpoint: '', token: undefined });
 				}
 			}
 		});
@@ -78,8 +110,7 @@
 				confirm: {
 					label: m.save_and_sync(),
 					action: async () => {
-						const saved = await onSubmit();
-						if (saved) {
+						if (await trySaveProvider()) {
 							syncProvider();
 						}
 					}
@@ -106,7 +137,7 @@
 	}
 </script>
 
-<form onsubmit={preventDefault(onSubmit)}>
+<form onsubmit={preventDefault(onEnable)}>
 	<div class="flex flex-col gap-3 sm:flex-row">
 		<div class="w-full">
 			<FormInput
@@ -137,8 +168,9 @@
 			{#if existingProvider}
 				<Button variant="destructive" onclick={onDisable}>{m.disable()}</Button>
 				<Button variant="secondary" isLoading={isSyncing} onclick={onSync}>{m.sync_now()}</Button>
+			{:else}
+				<Button type="submit">{m.enable()}</Button>
 			{/if}
-			<Button type="submit">{existingProvider ? m.save() : m.enable()}</Button>
 		</div>
 	</div>
 </form>

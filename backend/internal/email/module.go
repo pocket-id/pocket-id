@@ -36,6 +36,7 @@ type template[V any] struct {
 type templateData[V any] struct {
 	AppName string
 	LogoURL string
+	AppURL  string
 	Data    *V
 }
 
@@ -138,6 +139,7 @@ func send[V any](ctx context.Context, module *Module, dbConfig *appconfig.AppCon
 	templateData := &templateData[V]{
 		AppName: dbConfig.AppName.String(),
 		LogoURL: common.EnvConfig.AppURL + "/api/application-images/email",
+		AppURL:  common.EnvConfig.AppURL,
 		Data:    data,
 	}
 

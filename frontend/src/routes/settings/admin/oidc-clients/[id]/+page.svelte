@@ -1,5 +1,4 @@
 <script lang="ts">
-	import { beforeNavigate } from '$app/navigation';
 	import { openConfirmDialog } from '$lib/components/confirm-dialog';
 	import CopyToClipboard from '$lib/components/copy-to-clipboard.svelte';
 	import FormattedMessage from '$lib/components/formatted-message.svelte';
@@ -23,7 +22,9 @@
 	import type { ScimServiceProviderCreate } from '$lib/types/scim.type';
 	import { cachedOidcClientLogo } from '$lib/utils/cached-image-util';
 	import { axiosErrorToast } from '$lib/utils/error-util';
+	import { trackUnsavedValue } from '$lib/utils/unsaved-changes-util.svelte';
 	import { LucideChevronLeft, LucideInfo, LucideTriangleAlert } from '@lucide/svelte';
+	import { onDestroy } from 'svelte';
 	import { toast } from 'svelte-sonner';
 	import { slide } from 'svelte/transition';
 	import { backNavigate } from '../../users/navigate-back-util';
@@ -40,7 +41,6 @@
 		...data.client,
 		allowedUserGroupIds: data.client.allowedUserGroups.map((g) => g.id)
 	});
-
 	// Secrets are managed by their own endpoints, so they are kept out of the client object that the forms below submit
 	let clientSecrets = $state<OidcClientSecret[]>(data.client.credentials?.secrets ?? []);
 
@@ -51,6 +51,14 @@
 	const oidcService = new OidcService();
 	const scimService = new ScimService();
 	const backNavigation = backNavigate('/settings/admin/oidc-clients');
+
+	const allowedUserGroups = trackUnsavedValue(
+		() => client.allowedUserGroupIds,
+		(allowedUserGroupIds) => {
+			client.allowedUserGroupIds = allowedUserGroupIds;
+		},
+		(allowedUserGroupIds) => oidcService.updateAllowedUserGroups(client.id, allowedUserGroupIds)
+	);
 
 	const setupDetails = $state({
 		[m.issuer_url()]: data.oidcConfiguration.issuer,
@@ -64,7 +72,6 @@
 	});
 
 	async function updateClient(updatedClient: OidcClientCreateWithLogo) {
-		let success = true;
 		const dataPromise = oidcService.updateClient(client.id, updatedClient);
 		const imagePromise =
 			updatedClient.logo !== undefined
@@ -82,54 +89,41 @@
 			? m.enabled()
 			: m.disabled();
 
-		await Promise.all([dataPromise, imagePromise, darkImagePromise])
-			.then(() => {
-				setupDetails[m.requires_pushed_authorization_requests()] =
-					updatedClient.requiresPushedAuthorizationRequests ? m.enabled() : m.disabled();
-				if (updatedClient.logoUrl) {
-					cachedOidcClientLogo.bustCache(client.id, true);
-				}
-				if (updatedClient.darkLogoUrl) {
-					cachedOidcClientLogo.bustCache(client.id, false);
-				}
+		const [savedClient] = await Promise.all([dataPromise, imagePromise, darkImagePromise]);
+		Object.assign(client, savedClient);
 
-				// Update the hasLogo and hasDarkLogo flags after successful upload
-				if (updatedClient.logo !== undefined || updatedClient.logoUrl !== undefined) {
-					client.hasLogo = updatedClient.logo !== null || !!updatedClient.logoUrl;
-				}
-				if (updatedClient.darkLogo !== undefined || updatedClient.darkLogoUrl !== undefined) {
-					client.hasDarkLogo = updatedClient.darkLogo !== null || !!updatedClient.darkLogoUrl;
-				}
-				if (updatedClient.pkceEnabled) {
-					client.pkceEnabled = updatedClient.pkceEnabled;
-				}
-				toast.success(m.oidc_client_updated_successfully());
-			})
-			.catch((e) => {
-				axiosErrorToast(e);
-				success = false;
-			});
+		setupDetails[m.requires_pushed_authorization_requests()] =
+			updatedClient.requiresPushedAuthorizationRequests ? m.enabled() : m.disabled();
+		if (updatedClient.logoUrl) {
+			cachedOidcClientLogo.bustCache(client.id, true);
+		}
+		if (updatedClient.darkLogoUrl) {
+			cachedOidcClientLogo.bustCache(client.id, false);
+		}
 
-		return success;
+		// Update the hasLogo and hasDarkLogo flags after successful upload
+		if (updatedClient.logo !== undefined || updatedClient.logoUrl !== undefined) {
+			client.hasLogo = updatedClient.logo !== null || !!updatedClient.logoUrl;
+		}
+		if (updatedClient.darkLogo !== undefined || updatedClient.darkLogoUrl !== undefined) {
+			client.hasDarkLogo = updatedClient.darkLogo !== null || !!updatedClient.darkLogoUrl;
+		}
+		if (updatedClient.pkceEnabled) {
+			client.pkceEnabled = updatedClient.pkceEnabled;
+		}
 	}
 
 	async function updateTokenLifetimes(lifetimes: OidcClientTokenLifetimes) {
-		const success = await updateClient({ ...client, ...lifetimes });
-		if (success) {
-			client.accessTokenDurationMinutes = lifetimes.accessTokenDurationMinutes;
-			client.refreshTokenDurationMinutes = lifetimes.refreshTokenDurationMinutes;
-		}
-		return success;
+		await updateClient({ ...client, ...lifetimes });
+		client.accessTokenDurationMinutes = lifetimes.accessTokenDurationMinutes;
+		client.refreshTokenDurationMinutes = lifetimes.refreshTokenDurationMinutes;
 	}
 
 	async function updateFederatedCredentials(federatedIdentities: OidcClientFederatedIdentity[]) {
 		// Secrets are read-only in this request, but they are carried over so the client object keeps matching what the server has
 		const credentials: OidcClientCredentials = { federatedIdentities, secrets: clientSecrets };
-		const success = await updateClient({ ...client, credentials });
-		if (success) {
-			client.credentials = credentials;
-		}
-		return success;
+		await updateClient({ ...client, credentials });
+		client.credentials = credentials;
 	}
 
 	async function enableGroupRestriction() {
@@ -165,6 +159,7 @@
 						.then(() => {
 							toast.success(m.user_groups_restriction_updated_successfully());
 							client.allowedUserGroupIds = [];
+							allowedUserGroups.markSaved();
 							client.isGroupRestricted = false;
 						})
 						.catch(axiosErrorToast);
@@ -173,44 +168,18 @@
 		});
 	}
 
-	async function updateUserGroupClients(allowedGroups: string[]) {
-		await oidcService
-			.updateAllowedUserGroups(client.id, allowedGroups)
-			.then(() => {
-				toast.success(m.allowed_user_groups_updated_successfully());
-			})
-			.catch((e) => {
-				axiosErrorToast(e);
-			});
-	}
-
 	async function saveScimServiceProvider(provider: ScimServiceProviderCreate | null) {
-		try {
-			if (!provider) {
-				await scimService.deleteServiceProvider(scimServiceProvider!.id);
-				scimServiceProvider = undefined;
-				toast.success(m.scim_disabled_successfully());
-				return true;
-			}
-			let createdProvider;
-			if (scimServiceProvider) {
-				createdProvider = await scimService.updateServiceProvider(scimServiceProvider.id, provider);
-				toast.success(m.scim_configuration_updated_successfully());
-			} else {
-				createdProvider = await scimService.createServiceProvider(provider);
-				toast.success(m.scim_enabled_successfully());
-			}
-			scimServiceProvider = createdProvider;
-			return true;
-		} catch (e) {
-			axiosErrorToast(e);
-			return false;
+		if (!provider) {
+			await scimService.deleteServiceProvider(scimServiceProvider!.id);
+			scimServiceProvider = undefined;
+			return;
 		}
+		scimServiceProvider = scimServiceProvider
+			? await scimService.updateServiceProvider(scimServiceProvider.id, provider)
+			: await scimService.createServiceProvider(provider);
 	}
 
-	beforeNavigate(() => {
-		clientSecretStore.clear();
-	});
+	onDestroy(() => clientSecretStore.clear());
 </script>
 
 <svelte:head>
@@ -343,11 +312,6 @@
 					<UserGroupSelection bind:selectedGroupIds={client.allowedUserGroupIds} />
 					<div class="mt-5 flex justify-end gap-3">
 						<Button onclick={disableGroupRestriction} variant="secondary">{m.unrestrict()}</Button>
-
-						<Button
-							usePromiseLoading
-							onclick={() => updateUserGroupClients(client.allowedUserGroupIds)}>{m.save()}</Button
-						>
 					</div>
 				</Card.Content>
 			{/if}

@@ -18,9 +18,6 @@
 		disabled?: boolean;
 	} = $props();
 
-	// The list is owned by this component: the identity it belongs to lives in a store, whose
-	// updates don't propagate back down to this input
-	let keys = $state<Jwk[]>(publicKeys);
 	let pastedKey = $state('');
 	let error = $state<string | null>(null);
 
@@ -33,29 +30,27 @@
 
 		// A JWKS may repeat a key that was already added, and duplicate key IDs would make the key
 		// to verify an assertion with ambiguous
-		const existingKeyIds = new Set(keys.map(getJwkKeyId));
+		const existingKeyIds = new Set(publicKeys.map(getJwkKeyId));
 		const duplicate = result.keys.find((key) => existingKeyIds.has(getJwkKeyId(key)));
 		if (duplicate) {
 			error = m.public_key_already_added({ keyId: getJwkKeyId(duplicate) });
 			return;
 		}
 
-		keys = [...keys, ...result.keys];
-		onChange(keys);
+		onChange([...publicKeys, ...result.keys]);
 		pastedKey = '';
 		error = null;
 	}
 
 	function removeKey(index: number) {
-		keys = keys.filter((_, i) => i !== index);
-		onChange(keys);
+		onChange(publicKeys.filter((_, i) => i !== index));
 	}
 </script>
 
 <div class="flex flex-col gap-3">
-	{#if keys.length > 0}
+	{#if publicKeys.length > 0}
 		<ul class="flex flex-col gap-2" data-testid="federated-identity-public-keys">
-			{#each keys as key, i (getJwkKeyId(key))}
+			{#each publicKeys as key, i (getJwkKeyId(key))}
 				<li
 					class="bg-muted/40 flex items-center justify-between gap-3 rounded-2xl px-4 py-2"
 					data-testid="federated-identity-public-key"

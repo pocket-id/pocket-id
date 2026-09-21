@@ -2,7 +2,6 @@
 	import CustomClaimsInput from '$lib/components/form/custom-claims-input.svelte';
 	import ProfilePictureSettings from '$lib/components/form/profile-picture-settings.svelte';
 	import Badge from '$lib/components/ui/badge/badge.svelte';
-	import { Button } from '$lib/components/ui/button';
 	import * as Card from '$lib/components/ui/card';
 	import * as Item from '$lib/components/ui/item/index.js';
 	import * as Tabs from '$lib/components/ui/tabs';
@@ -14,6 +13,7 @@
 	import type { Passkey } from '$lib/types/passkey.type';
 	import type { UserCreate } from '$lib/types/user.type';
 	import { axiosErrorToast } from '$lib/utils/error-util';
+	import { trackUnsavedValue } from '$lib/utils/unsaved-changes-util.svelte';
 	import { KeyRound, LucideChevronLeft } from '@lucide/svelte';
 	import { toast } from 'svelte-sonner';
 	import { backNavigate } from '../navigate-back-util';
@@ -31,36 +31,25 @@
 	const customClaimService = new CustomClaimService();
 	const backNavigation = backNavigate('/settings/admin/users');
 
-	async function updateUserGroups(userIds: string[]) {
-		await userService
-			.updateUserGroups(user.id, userIds)
-			.then(() => toast.success(m.user_groups_updated_successfully()))
-			.catch((e) => {
-				axiosErrorToast(e);
-			});
-	}
-
 	async function updateUser(updatedUser: UserCreate) {
-		let success = true;
-		await userService
-			.update(user.id, updatedUser)
-			.then(() => toast.success(m.user_updated_successfully()))
-			.catch((e) => {
-				axiosErrorToast(e);
-				success = false;
-			});
-
-		return success;
+		await userService.update(user.id, updatedUser);
 	}
 
-	async function updateCustomClaims() {
-		await customClaimService
-			.updateUserCustomClaims(user.id, user.customClaims)
-			.then(() => toast.success(m.custom_claims_updated_successfully()))
-			.catch((e) => {
-				axiosErrorToast(e);
-			});
-	}
+	trackUnsavedValue(
+		() => user.userGroupIds,
+		(userGroupIds) => {
+			user.userGroupIds = userGroupIds;
+		},
+		(userGroupIds) => userService.updateUserGroups(user.id, userGroupIds)
+	);
+
+	trackUnsavedValue(
+		() => user.customClaims,
+		(customClaims) => {
+			user.customClaims = customClaims;
+		},
+		(customClaims) => customClaimService.updateUserCustomClaims(user.id, customClaims)
+	);
 
 	async function updateProfilePicture(image: File) {
 		await userService
@@ -137,13 +126,6 @@
 					bind:selectedGroupIds={user.userGroupIds}
 					selectionDisabled={!!user.ldapId && $appConfigStore.ldapEnabled}
 				/>
-				<div class="mt-5 flex justify-end">
-					<Button
-						onclick={() => updateUserGroups(user.userGroupIds)}
-						disabled={!!user.ldapId && $appConfigStore.ldapEnabled}
-						type="submit">{m.save()}</Button
-					>
-				</div>
 			</Card.Content>
 		</Card.Root>
 	</Tabs.Content>
@@ -179,9 +161,6 @@
 			</Card.Header>
 			<Card.Content>
 				<CustomClaimsInput bind:customClaims={user.customClaims} />
-				<div class="mt-5 flex justify-end">
-					<Button onclick={updateCustomClaims} type="submit">{m.save()}</Button>
-				</div>
 			</Card.Content>
 		</Card.Root>
 	</Tabs.Content>

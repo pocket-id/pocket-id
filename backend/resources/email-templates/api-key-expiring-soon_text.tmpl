@@ -1,11 +1,7 @@
-{{define "root"}}{{.AppName}}
-
-
-API KEY EXPIRING SOON
-
-Warning
+{{define "root"}}API KEY EXPIRING SOON
 
 Hello {{.Data.Name}},
-This is a reminder that your API key {{.Data.ApiKeyName}} will expire on {{.Data.ExpiresAt.Format "2006-01-02 15:04:05 MST"}}.
 
-Please generate a new API key if you need continued access.{{end}}
+Your API key {{.Data.ApiKeyName}} will expire on {{.Data.ExpiresAt.Format "2006-01-02 15:04:05 MST"}}. Anything that uses this key will stop working once it expires.
+
+To keep access, create a new API key in your {{.AppName}} account settings before then.{{end}}

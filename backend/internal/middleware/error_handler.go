@@ -194,6 +194,22 @@ func writeErrorResponse(c *gin.Context, classified classifiedError, requestID st
 
 func logRequestError(c *gin.Context, err error, classified classifiedError, requestID string) {
 	if classified.status < http.StatusInternalServerError {
+		cause := errors.Unwrap(err)
+		if cause == nil {
+			return
+		}
+
+		slog.DebugContext(c.Request.Context(), "Request rejected",
+			slog.String("error_code", string(classified.code)),
+			slog.String("error_type", errorTypeName(err)),
+			slog.String("cause_type", errorTypeName(cause)),
+			slog.Int("http_status", classified.status),
+			slog.String("request_id", requestID),
+			slog.String("http_method", c.Request.Method),
+			slog.String("http_path", c.Request.URL.Path),
+			slog.Any("error", err),
+			slog.Any("cause", cause),
+		)
 		return
 	}
 

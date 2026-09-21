@@ -1,40 +1,58 @@
-import { Text } from "@react-email/components";
+import { Link } from "react-email";
 import { BaseTemplate } from "../components/base-template";
 import { Button } from "../components/button";
 import CardHeader from "../components/card-header";
-import { sharedPreviewProps, sharedTemplateProps } from "../props";
+import { Muted, Paragraph } from "../components/text";
+import { colors } from "../components/theme";
+import {
+  type SharedProps,
+  sharedPreviewProps,
+  sharedTemplateProps,
+} from "../props";
 
 interface EmailVerificationData {
   userFullName: string;
   verificationLink: string;
 }
 
-interface EmailVerificationProps {
-  logoURL: string;
-  appName: string;
+interface EmailVerificationProps extends SharedProps {
   data: EmailVerificationData;
 }
 
 export const EmailVerification = ({
-  logoURL,
-  appName,
   data,
+  ...props
 }: EmailVerificationProps) => (
-  <BaseTemplate logoURL={logoURL} appName={appName}>
-    <CardHeader title="Email Verification" />
+  <BaseTemplate
+    {...props}
+    preview={`Confirm the email address for your ${props.appName} account`}
+  >
+    <CardHeader title="Verify your email address" />
+    <Paragraph>Hello {data.userFullName},</Paragraph>
+    <Paragraph>
+      Click the button below to confirm the email address for your{" "}
+      {props.appName} account. This link expires in 24 hours.
+    </Paragraph>
 
-    <Text>
-      Hello {data.userFullName}, <br />
-      Click the button below to verify your email address for {appName}. This
-      link will expire in 24 hours.
+    <Button href={data.verificationLink}>Verify email address</Button>
+
+    <Muted style={{ marginTop: "32px" }}>
+      Or if you don't like clicking buttons, open this link:
       <br />
-    </Text>
-
-    <Button href={data.verificationLink}>Verify</Button>
+      <Link href={data.verificationLink} style={linkStyle}>
+        {data.verificationLink}
+      </Link>
+    </Muted>
   </BaseTemplate>
 );
 
 export default EmailVerification;
+
+const linkStyle = {
+  color: colors.mutedForeground,
+  textDecoration: "underline",
+  wordBreak: "break-all" as const,
+};
 
 EmailVerification.TemplateProps = {
   ...sharedTemplateProps,
@@ -49,6 +67,6 @@ EmailVerification.PreviewProps = {
   data: {
     userFullName: "Tim Cook",
     verificationLink:
-      "https://localhost:1411/user/verify-email?code=abcdefg12345",
+      "https://id.example.com/user/verify-email?code=abcdefg12345",
   },
 };

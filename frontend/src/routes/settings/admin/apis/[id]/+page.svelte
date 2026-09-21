@@ -1,13 +1,11 @@
 <script lang="ts">
 	import CollapsibleCard from '$lib/components/collapsible-card.svelte';
-	import { Button } from '$lib/components/ui/button';
 	import * as Card from '$lib/components/ui/card';
 	import { m } from '$lib/paraglide/messages';
 	import ApisService from '$lib/services/apis-service';
 	import type { ApiCimdAccessUpdate, ApiCreate, ApiPermissionInput } from '$lib/types/api.type';
-	import { axiosErrorToast } from '$lib/utils/error-util';
+	import { trackUnsavedValue } from '$lib/utils/unsaved-changes-util.svelte';
 	import { LucideChevronLeft } from '@lucide/svelte';
-	import { toast } from 'svelte-sonner';
 	import { backNavigate } from '../../users/navigate-back-util';
 	import ApiForm from '../api-form.svelte';
 	import ApiAccessCard from './api-access-card.svelte';
@@ -17,7 +15,9 @@
 	let api = $state(data.api);
 	let permissions = $state<ApiPermissionInput[]>(toPermissionInputs(data.api.permissions));
 
-	function toPermissionInputs(apiPermissions: typeof data.api.permissions): ApiPermissionInput[] {
+	function toPermissionInputs(
+		apiPermissions: { key: string; name: string; description?: string }[]
+	): ApiPermissionInput[] {
 		const inputs = apiPermissions.map((p) => ({
 			key: p.key,
 			name: p.name,
@@ -37,47 +37,32 @@
 	let accessCard = $state<ApiAccessCard>();
 
 	async function updateApi(updated: ApiCreate) {
-		let success = true;
-		await apisService
-			.update(api.id, { name: updated.name })
-			.then((res) => {
-				api = { ...api, ...res };
-				toast.success(m.api_updated_successfully());
-			})
-			.catch((e) => {
-				axiosErrorToast(e);
-				success = false;
-			});
-		return success;
+		api = { ...api, ...(await apisService.update(api.id, { name: updated.name })) };
 	}
 
-	async function updatePermissions() {
-		await apisService
-			.updatePermissions(
-				api.id,
-				permissions.filter((p) => !isEmptyPermission(p))
-			)
-			.then((res) => {
-				api = res;
-				permissions = toPermissionInputs(res.permissions);
-				toast.success(m.api_permissions_updated_successfully());
-			})
-			.catch(axiosErrorToast);
-
-		// A removed permission takes the client grants that referenced it with it
-		await accessCard?.refresh();
+	async function updatePermissions(updatedPermissions: ApiPermissionInput[]) {
+		try {
+			const res = await apisService.updatePermissions(api.id, updatedPermissions);
+			api = res;
+			permissions = toPermissionInputs(res.permissions);
+		} finally {
+			// A removed permission takes the client grants that referenced it with it
+			await accessCard?.refresh();
+		}
 	}
+
+	trackUnsavedValue(
+		() => permissions.filter((p) => !isEmptyPermission(p)),
+		(savedPermissions) => (permissions = toPermissionInputs(savedPermissions)),
+		updatePermissions
+	);
 
 	async function updateCimdAccess(update: ApiCimdAccessUpdate) {
-		await apisService
-			.updateCimdAccess(api.id, update)
-			.then((res) => {
-				api = res;
-				toast.success(m.api_access_updated_successfully());
-			})
-			.catch(axiosErrorToast);
-
-		await accessCard?.refresh();
+		try {
+			api = await apisService.updateCimdAccess(api.id, update);
+		} finally {
+			await accessCard?.refresh();
+		}
 	}
 </script>
 
@@ -108,9 +93,6 @@
 	defaultExpanded={true}
 >
 	<ApiPermissionsInput bind:permissions />
-	<div class="mt-5 flex justify-end">
-		<Button usePromiseLoading onclick={updatePermissions}>{m.save()}</Button>
-	</div>
 </CollapsibleCard>
 
 <ApiAccessCard bind:this={accessCard} {api} onCimdAccessSave={updateCimdAccess} />

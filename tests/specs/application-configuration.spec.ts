@@ -1,5 +1,6 @@
 import { expect, test } from '@playwright/test';
 import { cleanupBackend } from '../utils/cleanup.util';
+import { saveUnsavedChanges } from '../utils/unsaved-changes.util';
 
 test.beforeEach(async ({ page }) => {
 	await cleanupBackend();
@@ -13,11 +14,7 @@ test('Update general configuration', async ({ page }) => {
 	await page.getByRole('button', { name: 'Home Page' }).click();
 	await page.getByRole('option', { name: 'My Apps' }).click();
 
-	await page.getByRole('button', { name: 'Save' }).first().click();
-
-	await expect(page.locator('[data-type="success"]')).toHaveText(
-		'Application configuration updated successfully'
-	);
+	await saveUnsavedChanges(page);
 
 	await page.reload();
 
@@ -26,6 +23,95 @@ test('Update general configuration', async ({ page }) => {
 
 	await page.getByRole('link', { name: 'Logo' }).click();
 	await page.waitForURL('/settings/apps');
+});
+
+test('Save configuration from every editable tab together', async ({ page }) => {
+	await page.getByLabel('Application Name', { exact: true }).fill('Combined Settings');
+	await page.getByRole('tab', { name: 'User Creation' }).click();
+	await page.getByRole('button', { name: 'Enable User Signups' }).click();
+	await page.getByRole('option', { name: 'Open Signup' }).click();
+	await page.getByRole('tab', { name: 'Passkeys' }).click();
+	await page.getByRole('button', { name: 'User verification' }).click();
+	await page.getByRole('option', { name: 'Preferred' }).click();
+	await page.getByRole('tab', { name: 'Email' }).click();
+	await page.getByLabel('SMTP Host').fill('smtp.combined.test');
+	await page.getByLabel('SMTP Port').fill('587');
+	await page.getByLabel('SMTP From').fill('combined@example.com');
+	await page.getByRole('tab', { name: 'OIDC' }).click();
+	await page.getByRole('textbox').fill('https://combined.example.com/*');
+
+	await saveUnsavedChanges(page);
+
+	await page.getByRole('tab', { name: 'General' }).click();
+	await expect(page.getByLabel('Application Name', { exact: true })).toHaveValue(
+		'Combined Settings'
+	);
+	await page.getByRole('tab', { name: 'Email' }).click();
+	await expect(page.getByLabel('SMTP Host')).toHaveValue('smtp.combined.test');
+	await page.getByRole('tab', { name: 'Passkeys' }).click();
+	await expect(page.getByRole('button', { name: 'User verification' })).toContainText('Preferred');
+	await page.getByRole('tab', { name: 'OIDC' }).click();
+	await expect(page.getByRole('textbox')).toHaveValue('https://combined.example.com/*');
+
+	await page.reload();
+	await page.getByRole('tab', { name: 'General' }).click();
+	await expect(page.getByLabel('Application Name', { exact: true })).toHaveValue(
+		'Combined Settings'
+	);
+	await page.getByRole('tab', { name: 'User Creation' }).click();
+	await page.getByRole('button', { name: 'Enable User Signups' }).click();
+	await expect(page.getByRole('option', { name: 'Open Signup' })).toHaveAttribute(
+		'aria-selected',
+		'true'
+	);
+	await page.keyboard.press('Escape');
+	await page.getByRole('tab', { name: 'Email' }).click();
+	await expect(page.getByLabel('SMTP Host')).toHaveValue('smtp.combined.test');
+	await page.getByRole('tab', { name: 'Passkeys' }).click();
+	await expect(page.getByRole('button', { name: 'User verification' })).toContainText('Preferred');
+	await page.getByRole('tab', { name: 'OIDC' }).click();
+	await expect(page.getByRole('textbox')).toHaveValue('https://combined.example.com/*');
+});
+
+test('Invalid hidden configuration prevents every section from being saved', async ({ page }) => {
+	let updateRequests = 0;
+	page.on('request', (request) => {
+		if (
+			request.method() === 'PUT' &&
+			new URL(request.url()).pathname === '/api/application-configuration'
+		) {
+			updateRequests++;
+		}
+	});
+
+	await page.getByLabel('Application Name', { exact: true }).fill('Validated Together');
+	await page.getByRole('tab', { name: 'Email' }).click();
+	await page.getByLabel('SMTP Host').fill('smtp.validation.test');
+	await page.getByLabel('SMTP From').fill('validation@example.com');
+	await page.getByRole('tab', { name: 'General' }).click();
+
+	await page.getByRole('button', { name: 'Save', exact: true }).click();
+
+	const emailTab = page.getByRole('tab', { name: 'Email' });
+	const smtpPort = page.getByLabel('SMTP Port');
+	await expect(page.getByText('Please fix the highlighted errors before saving')).toBeVisible();
+	await expect(emailTab).toHaveAttribute('aria-selected', 'true');
+	await expect(smtpPort).toHaveAttribute('aria-invalid', 'true');
+	await expect(smtpPort).toBeFocused();
+	expect(updateRequests).toBe(0);
+
+	await smtpPort.fill('587');
+	await saveUnsavedChanges(page);
+
+	await page.reload();
+	await page.getByRole('tab', { name: 'General' }).click();
+	await expect(page.getByLabel('Application Name', { exact: true })).toHaveValue(
+		'Validated Together'
+	);
+	await page.getByRole('tab', { name: 'Email' }).click();
+	await expect(page.getByLabel('SMTP Host')).toHaveValue('smtp.validation.test');
+	await expect(page.getByLabel('SMTP Port')).toHaveValue('587');
+	await expect(page.getByLabel('SMTP From')).toHaveValue('validation@example.com');
 });
 
 test.describe('Update user creation configuration', () => {
@@ -37,11 +123,7 @@ test.describe('Update user creation configuration', () => {
 		await page.getByRole('button', { name: 'Enable User Signups' }).click();
 		await page.getByRole('option', { name: 'Open Signup' }).click();
 
-		await page.getByRole('button', { name: 'Save' }).click();
-
-		await expect(page.locator('[data-type="success"]').last()).toHaveText(
-			'User creation settings updated successfully.'
-		);
+		await saveUnsavedChanges(page);
 
 		await page.reload();
 
@@ -59,11 +141,7 @@ test.describe('Update user creation configuration', () => {
 		await expect(designersOption).toBeChecked();
 		await page.keyboard.press('Escape');
 
-		await page.getByRole('button', { name: 'Save' }).click();
-
-		await expect(page.locator('[data-type="success"]').last()).toHaveText(
-			'User creation settings updated successfully.'
-		);
+		await saveUnsavedChanges(page);
 
 		await page.reload();
 
@@ -81,11 +159,7 @@ test.describe('Update user creation configuration', () => {
 		await page.getByPlaceholder('Key').nth(1).fill('another-claim');
 		await page.getByPlaceholder('Value').nth(1).fill('another-value');
 
-		await page.getByRole('button', { name: 'Save' }).click();
-
-		await expect(page.locator('[data-type="success"]').last()).toHaveText(
-			'User creation settings updated successfully.'
-		);
+		await saveUnsavedChanges(page);
 
 		await page.reload();
 
@@ -114,10 +188,7 @@ test('Update passkey configuration', async ({ page }) => {
 	await expect(allowSyncedPasskeys).toBeChecked();
 	await allowSyncedPasskeys.click();
 
-	await page.getByRole('button', { name: 'Save', exact: true }).click();
-	await expect(page.locator('[data-type="success"]')).toHaveText(
-		'Passkey configuration updated successfully'
-	);
+	await saveUnsavedChanges(page);
 
 	const registrationResponse = await page.request.get('/api/webauthn/register/start');
 	expect(registrationResponse.ok()).toBeTruthy();
@@ -157,11 +228,7 @@ test('Update email configuration', async ({ page }) => {
 	await page.getByLabel('Email Login Code from Admin').click();
 	await page.getByLabel('API Key Expiration').click();
 
-	await page.getByRole('button', { name: 'Save' }).click();
-
-	await expect(page.locator('[data-type="success"]')).toHaveText(
-		'Email configuration updated successfully'
-	);
+	await saveUnsavedChanges(page);
 
 	await page.reload();
 
@@ -176,7 +243,52 @@ test('Update email configuration', async ({ page }) => {
 	await expect(page.getByLabel('API Key Expiration')).toBeChecked();
 });
 
+test('Save LDAP configuration while LDAP remains disabled', async ({ page }) => {
+	await page.getByRole('tab', { name: 'LDAP' }).click();
+
+	const disableButton = page.getByRole('button', { name: 'Disable', exact: true });
+	if (await disableButton.isVisible()) {
+		await disableButton.click();
+		await expect(page.getByRole('button', { name: 'Enable', exact: true })).toBeVisible();
+	}
+
+	const softDeleteUsers = page.getByRole('switch', { name: 'Keep disabled users from LDAP' });
+	const originalValue = await softDeleteUsers.isChecked();
+	await softDeleteUsers.click();
+	await expect(page.getByText('You have unsaved changes', { exact: true })).toBeVisible();
+
+	await page.getByRole('button', { name: 'Discard', exact: true }).click();
+	await expect(softDeleteUsers).toBeChecked({ checked: originalValue });
+
+	await softDeleteUsers.click();
+	await saveUnsavedChanges(page);
+
+	await page.reload();
+	await page.getByRole('tab', { name: 'LDAP' }).click();
+	await expect(page.getByRole('button', { name: 'Enable', exact: true })).toBeVisible();
+	await expect(page.getByRole('switch', { name: 'Keep disabled users from LDAP' })).toBeChecked({
+		checked: !originalValue
+	});
+});
+
 test.describe('Update application images', () => {
+	test('should detect image resets as unsaved changes', async ({ page }) => {
+		await page
+			.getByLabel('Background Image', { exact: true })
+			.setInputFiles('resources/images/clouds.jpg');
+		await saveUnsavedChanges(page);
+
+		await page
+			.getByRole('button', { name: 'Reset to default Background Image', exact: true })
+			.click();
+		await expect(page.getByText('You have unsaved changes', { exact: true })).toBeVisible();
+
+		await page.getByRole('button', { name: 'Discard', exact: true }).click();
+		await expect(
+			page.getByRole('button', { name: 'Reset to default Background Image', exact: true })
+		).toBeVisible();
+	});
+
 	test('should upload images and reset custom logos', async ({ page }) => {
 		await page
 			.getByLabel('Favicon', { exact: true })
@@ -196,11 +308,7 @@ test.describe('Update application images', () => {
 		await page
 			.getByLabel('Background Image', { exact: true })
 			.setInputFiles('resources/images/clouds.jpg');
-		await page.getByRole('button', { name: 'Save', exact: true }).nth(1).click();
-
-		await expect(page.locator('[data-type="success"]')).toHaveText(
-			'Images updated successfully. It may take a few minutes to update.'
-		);
+		await saveUnsavedChanges(page);
 
 		await page.request
 			.get('/api/application-images/favicon')
@@ -234,14 +342,10 @@ test.describe('Update application images', () => {
 				);
 			})
 		);
-		await page.getByRole('button', { name: 'Save', exact: true }).nth(1).click();
+		await saveUnsavedChanges(page);
 		for (const response of await Promise.all(logoDeleteResponses)) {
 			expect(response.status()).toBe(204);
 		}
-
-		await expect(page.locator('[data-type="success"]')).toHaveText(
-			'Images updated successfully. It may take a few minutes to update.'
-		);
 
 		// Without a custom logo the endpoint falls back to the logo bundled with Pocket ID
 		await page.request
@@ -264,10 +368,8 @@ test.describe('Update application images', () => {
 		const emailLogoInput = page.getByLabel('Email Logo', { exact: true });
 
 		await emailLogoInput.setInputFiles('resources/images/cloud-logo.svg');
-		await page.getByRole('button', { name: 'Save', exact: true }).nth(1).click();
+		await page.getByRole('button', { name: 'Save', exact: true }).click();
 
-		await expect(page.locator('[data-type="error"]')).toHaveText(
-			'File must be of type PNG or JPEG'
-		);
+		await expect(page.getByText('File must be of type PNG or JPEG', { exact: true })).toBeVisible();
 	});
 });

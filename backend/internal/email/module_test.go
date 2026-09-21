@@ -7,6 +7,7 @@ import (
 	"context"
 	"io"
 	"net"
+	"net/mail"
 	"net/url"
 	"strings"
 	"testing"
@@ -66,7 +67,7 @@ func TestModuleSendsEveryEmailType(t *testing.T) {
 		{
 			name:         "email verification",
 			subject:      "Verify your Pocket ID Test email address",
-			bodyContains: []string{"EMAIL VERIFICATION", "Hello Test User", "https://id.example.test/verify-token"},
+			bodyContains: []string{"VERIFY YOUR EMAIL ADDRESS", "Hello Test User", "https://id.example.test/verify-token"},
 			send: func(ctx context.Context, config *appconfig.AppConfigModel) error {
 				return module.SendEmailVerification(ctx, config, user.FullName(), userEmail, "https://id.example.test/verify-token")
 			},
@@ -109,9 +110,19 @@ func TestModuleSendsEveryEmailType(t *testing.T) {
 			require.NoError(t, sessionErr)
 			assert.Equal(t, "<sender@example.test>", session.mailFrom)
 			assert.Equal(t, "<recipient@example.test>", session.rcptTo)
-			assert.Contains(t, session.message, "From: Pocket ID Test <sender@example.test>\r\n")
-			assert.Contains(t, session.message, "To: Test User <recipient@example.test>\r\n")
-			assert.Contains(t, session.message, "Subject: "+test.subject+"\r\n")
+
+			message, err := mail.ReadMessage(strings.NewReader(session.message))
+			require.NoError(t, err)
+			from, err := mail.ParseAddress(message.Header.Get("From"))
+			require.NoError(t, err)
+			assert.Equal(t, "Pocket ID Test", from.Name)
+			assert.Equal(t, "sender@example.test", from.Address)
+			to, err := mail.ParseAddress(message.Header.Get("To"))
+			require.NoError(t, err)
+			assert.Equal(t, "Test User", to.Name)
+			assert.Equal(t, "recipient@example.test", to.Address)
+			assert.Equal(t, test.subject, message.Header.Get("Subject"))
+
 			assert.Contains(t, session.message, "Content-Type: multipart/alternative; boundary=")
 			assert.Contains(t, session.message, "Content-Type: text/plain; charset=UTF-8")
 			assert.Contains(t, session.message, "Content-Type: text/html; charset=UTF-8")

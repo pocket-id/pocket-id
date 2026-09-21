@@ -7,7 +7,7 @@ import (
 	"time"
 
 	"github.com/gin-gonic/gin"
-	"github.com/italypaleale/francis/host/local"
+	francishost "github.com/italypaleale/francis/host"
 	"github.com/lestrrat-go/jwx/v4/jwt"
 	"gorm.io/gorm"
 
@@ -29,7 +29,7 @@ type AuditLogger interface {
 
 type Dependencies struct {
 	DB     *gorm.DB
-	Actors *local.Host
+	Actors francishost.Host
 	AppURL string
 
 	Signer    TokenService
@@ -91,6 +91,8 @@ func (m *Module) RegisterRoutes(apiGroup *gin.RouterGroup, userAuth, browserAuth
 	apiGroup.GET("/webauthn/credentials", userAuth, httpserver.Handle(m.handler.listCredentials))
 	apiGroup.PATCH("/webauthn/credentials/:id", userAuth, httpserver.Handle(m.handler.updateCredential))
 	apiGroup.DELETE("/webauthn/credentials/:id", userAuth, httpserver.Handle(m.handler.deleteCredential))
+
+	apiGroup.GET("/webauthn/authenticator-icons/:aaguid", httpserver.Handle(m.handler.getThemedAuthenticatorIcon))
 }
 
 // ConsumeReauthenticationToken implements the OIDC module's ReauthenticationTokenConsumer interface

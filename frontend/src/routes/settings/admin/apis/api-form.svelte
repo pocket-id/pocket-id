@@ -3,8 +3,10 @@
 	import { Button } from '$lib/components/ui/button';
 	import { m } from '$lib/paraglide/messages';
 	import type { Api, ApiCreate } from '$lib/types/api.type';
+	import { axiosErrorToast } from '$lib/utils/error-util';
 	import { preventDefault } from '$lib/utils/event-util';
 	import { createForm } from '$lib/utils/form-util';
+	import { trackFormChanges } from '$lib/utils/unsaved-changes-util.svelte';
 	import { z } from 'zod/v4';
 
 	let {
@@ -12,7 +14,7 @@
 		existingApi
 	}: {
 		existingApi?: Api;
-		callback: (api: ApiCreate) => Promise<boolean>;
+		callback: (api: ApiCreate) => Promise<void>;
 	} = $props();
 
 	let isLoading = $state(false);
@@ -35,17 +37,30 @@
 	});
 	type FormSchema = typeof formSchema;
 
-	const { inputs, ...form } = createForm<FormSchema>(formSchema, api);
+	const formStore = createForm<FormSchema>(formSchema, api);
+	const { inputs } = formStore;
 
+	async function saveApi(data: z.infer<FormSchema>) {
+		await callback(data);
+		if (!existingApi) formStore.reset();
+	}
+
+	// Create mode has its own Save button rather than going through the unsaved-changes bar.
 	async function onSubmit() {
-		const data = form.validate();
+		const data = formStore.validate();
 		if (!data) return;
 		isLoading = true;
-		const success = await callback(data);
-		if (success && !existingApi) {
-			form.reset();
+		try {
+			await saveApi(data);
+		} catch (e) {
+			axiosErrorToast(e);
+		} finally {
+			isLoading = false;
 		}
-		isLoading = false;
+	}
+
+	if (isEdit) {
+		trackFormChanges(() => formStore, saveApi);
 	}
 </script>
 
@@ -59,7 +74,9 @@
 			readonly={isEdit}
 		/>
 	</div>
-	<div class="mt-5 flex justify-end">
-		<Button {isLoading} type="submit">{m.save()}</Button>
-	</div>
+	{#if !isEdit}
+		<div class="mt-5 flex justify-end">
+			<Button {isLoading} type="submit">{m.save()}</Button>
+		</div>
+	{/if}
 </form>

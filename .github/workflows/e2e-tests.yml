@@ -28,14 +28,22 @@ jobs:
         include:
           - db: sqlite
             storage: filesystem
+            francis: embedded
           - db: postgres
             storage: filesystem
+            francis: embedded
           - db: sqlite
             storage: s3
+            francis: embedded
           - db: sqlite
             storage: database
+            francis: embedded
           - db: postgres
             storage: database
+            francis: embedded
+          - db: sqlite
+            storage: filesystem
+            francis: remote
 
     steps:
       - name: Checkout code
@@ -57,14 +65,14 @@ jobs:
         run: depot configure-docker
 
       - name: Cache Playwright Browsers
-        uses: actions/cache@v5
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         id: playwright-cache
         with:
           path: ~/.cache/ms-playwright
           key: ${{ runner.os }}-playwright-${{ hashFiles('pnpm-lock.yaml') }}
 
       - name: Cache PostgreSQL Docker image
-        uses: actions/cache@v5
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         id: postgres-cache
         with:
           path: /tmp/postgres-image.tar
@@ -79,7 +87,7 @@ jobs:
         run: docker load < /tmp/postgres-image.tar
 
       - name: Cache SCIM Test Server Docker image
-        uses: actions/cache@v5
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         id: scim-cache
         with:
           path: /tmp/scim-test-server-image.tar
@@ -95,7 +103,7 @@ jobs:
 
       - name: Cache Localstack S3 Docker image
         if: matrix.storage == 's3'
-        uses: actions/cache@v5
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         id: s3-cache
         with:
           path: /tmp/localstack-s3-image.tar
@@ -108,6 +116,31 @@ jobs:
       - name: Load Localstack S3 image
         if: matrix.storage == 's3' && steps.s3-cache.outputs.cache-hit == 'true'
         run: docker load < /tmp/localstack-s3-image.tar
+
+      - name: Resolve Francis runtime image
+        id: francis-image
+        working-directory: ./tests/setup
+        run: |
+          # Read the version of Francis from backend/go.mod and use that runtime
+          VERSION=$(./francis-version.sh)
+          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+          echo "image=ghcr.io/italypaleale/francis:$VERSION" >> "$GITHUB_OUTPUT"
+          echo "key=francis-$VERSION" >> "$GITHUB_OUTPUT"
+      - name: Cache Francis runtime Docker image
+        if: matrix.francis == 'remote'
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        id: francis-cache
+        with:
+          path: /tmp/francis-image.tar
+          key: ${{ steps.francis-image.outputs.key }}-${{ runner.os }}
+      - name: Pull and save Francis runtime image
+        if: matrix.francis == 'remote' && steps.francis-cache.outputs.cache-hit != 'true'
+        run: |
+          docker pull "${{ steps.francis-image.outputs.image }}"
+          docker save "${{ steps.francis-image.outputs.image }}" > /tmp/francis-image.tar
+      - name: Load Francis runtime image
+        if: matrix.francis == 'remote' && steps.francis-cache.outputs.cache-hit == 'true'
+        run: docker load < /tmp/francis-image.tar
 
       - name: Install test dependencies
         run: pnpm --filter pocket-id-tests install --frozen-lockfile
@@ -124,11 +157,14 @@ jobs:
 
           cat > .env <<EOF
           FILE_BACKEND=${{ matrix.storage }}
+          FRANCIS_VERSION=${{ steps.francis-image.outputs.version }}
           SCIM_SERVICE_PROVIDER_URL=http://localhost:18123/v2
           SCIM_SERVICE_PROVIDER_URL_INTERNAL=http://scim-test-server:8080/v2
           EOF
 
-          if [ "${{ matrix.db }}" = "postgres" ]; then
+          if [ "${{ matrix.francis }}" = "remote" ]; then
+            DOCKER_COMPOSE_FILE=docker-compose-francis.yml
+          elif [ "${{ matrix.db }}" = "postgres" ]; then
             DOCKER_COMPOSE_FILE=docker-compose-postgres.yml
           elif [ "${{ matrix.storage }}" = "s3" ]; then
             DOCKER_COMPOSE_FILE=docker-compose-s3.yml
@@ -150,24 +186,37 @@ jobs:
             done
           } &
 
+          if [ "${{ matrix.francis }}" = "remote" ]; then
+            docker compose -f "$DOCKER_COMPOSE_FILE" logs -f --no-log-prefix francis-runtime > /tmp/francis-runtime.log 2>&1 &
+          fi
+
       - name: Run Playwright tests
         working-directory: ./tests
         run: pnpm exec playwright test
 
       - name: Upload Test Report
-        uses: actions/upload-artifact@v7
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         if: always() && github.event.pull_request.head.ref != 'i18n_crowdin'
         with:
-          name: playwright-report-${{ matrix.db }}-${{ matrix.storage }}
+          name: playwright-report-${{ matrix.db }}-${{ matrix.storage }}-francis-${{ matrix.francis }}
           path: tests/.report
           include-hidden-files: true
           retention-days: 15
 
       - name: Upload Backend Test Report
-        uses: actions/upload-artifact@v7
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         if: always() && github.event.pull_request.head.ref != 'i18n_crowdin'
         with:
-          name: backend-${{ matrix.db }}-${{ matrix.storage }}
+          name: backend-${{ matrix.db }}-${{ matrix.storage }}-francis-${{ matrix.francis }}
           path: /tmp/backend.log
+          include-hidden-files: true
+          retention-days: 15
+
+      - name: Upload Francis Runtime Report
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        if: always() && matrix.francis == 'remote' && github.event.pull_request.head.ref != 'i18n_crowdin'
+        with:
+          name: francis-runtime-${{ matrix.db }}-${{ matrix.storage }}
+          path: /tmp/francis-runtime.log
           include-hidden-files: true
           retention-days: 15

@@ -1,26 +1,179 @@
 name: Release
 
 on:
-  push:
-    tags:
-      - "v*.*.*"
+  workflow_dispatch:
+    inputs:
+      bump:
+        description: Version bump (auto uses conventional commits)
+        type: choice
+        default: auto
+        options:
+          - auto
+          - major
+          - minor
+          - patch
+
+concurrency:
+  group: release
+  cancel-in-progress: false
 
 permissions:
-  contents: write
-  packages: write
-  id-token: write
-  attestations: write
-  artifact-metadata: write
+  contents: read
+
+defaults:
+  run:
+    shell: bash
 
 jobs:
-  release:
+  prepare:
+    name: Prepare release
+    runs-on: depot-ubuntu-latest
+    outputs:
+      tag: ${{ steps.version.outputs.tag }}
+      commit: ${{ steps.commit.outputs.commit }}
+
+    steps:
+      - name: Require the main branch
+        run: |
+          if [[ "$GITHUB_REF" != refs/heads/main ]]; then
+            echo "::error::Releases must be triggered from main."
+            exit 1
+          fi
+
+      - name: Checkout release source
+        uses: actions/checkout@v6
+        with:
+          ref: ${{ github.sha }}
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Setup git-cliff
+        uses: taiki-e/install-action@v2
+        with:
+          tool: git-cliff@2.14.2
+
+      - name: Calculate next version
+        id: version
+        env:
+          BUMP: ${{ inputs.bump }}
+        run: |
+          version=$(git cliff --bumped-version --unreleased --offline --bump "$BUMP")
+          version=${version#v}
+          if [[ "$version" == "$(cat .version)" ]]; then
+            echo "No commits requiring a version bump; no release created." >> "$GITHUB_STEP_SUMMARY"
+            exit 0
+          fi
+
+          echo "version=$version" >> "$GITHUB_OUTPUT"
+          echo "tag=v$version" >> "$GITHUB_OUTPUT"
+          echo "Preparing release v$version from $GITHUB_SHA." >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Setup pnpm
+        if: steps.version.outputs.tag != ''
+        uses: pnpm/action-setup@v6
+        with:
+          run_install: false
+
+      - name: Setup Node.js
+        if: steps.version.outputs.tag != ''
+        uses: actions/setup-node@v6.5.0
+        with:
+          node-version: 24
+          cache: pnpm
+
+      - name: Install dependencies
+        if: steps.version.outputs.tag != ''
+        run: pnpm install --frozen-lockfile
+
+      - name: Update version and changelog
+        if: steps.version.outputs.tag != ''
+        env:
+          VERSION: ${{ steps.version.outputs.version }}
+          RELEASE_TAG: ${{ steps.version.outputs.tag }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          printf '%s\n' "$VERSION" > .version
+          jq --arg version "$VERSION" '.version = $version' frontend/package.json > "$RUNNER_TEMP/package.json"
+          mv "$RUNNER_TEMP/package.json" frontend/package.json
+          pnpm --dir frontend exec prettier --write package.json
+          git cliff --prepend CHANGELOG.md --tag "$RELEASE_TAG" --unreleased
+
+      - name: Create bot app token
+        if: steps.version.outputs.tag != ''
+        id: app-token
+        uses: actions/create-github-app-token@v3
+        with:
+          client-id: ${{ vars.BOT_APP_CLIENT_ID }}
+          private-key: ${{ secrets.BOT_APP_PRIVATE_KEY }}
+          permission-contents: write
+
+      - name: Commit and tag release
+        if: steps.version.outputs.tag != ''
+        id: commit
+        env:
+          VERSION: ${{ steps.version.outputs.version }}
+          RELEASE_TAG: ${{ steps.version.outputs.tag }}
+          GH_TOKEN: ${{ steps.app-token.outputs.token }}
+          APP_SLUG: ${{ steps.app-token.outputs.app-slug }}
+        run: |
+          # Attribute the release commit to the app and authenticate the push with its installation token
+          bot_name="$APP_SLUG[bot]"
+          bot_id=$(gh api "users/$bot_name" --jq .id)
+          git config user.name "Pocket ID Bot"
+          git config user.email "$bot_id+$bot_name@users.noreply.github.com"
+          gh auth setup-git
+
+          git add .version frontend/package.json CHANGELOG.md
+          git commit -m "release: $VERSION"
+          git tag "$RELEASE_TAG"
+
+          # Publish both refs together so a concurrent main update cannot leave an orphaned release tag
+          git push --atomic origin HEAD:refs/heads/main "refs/tags/$RELEASE_TAG"
+          echo "commit=$(git rev-parse HEAD)" >> "$GITHUB_OUTPUT"
+
+  build:
+    name: Build and attest
+    needs: prepare
+    if: needs.prepare.outputs.tag != ''
     runs-on: depot-ubuntu-24.04-16
+    permissions:
+      contents: write
+      packages: write
+      id-token: write
+      attestations: write
+      artifact-metadata: write
+    env:
+      RELEASE_TAG: ${{ needs.prepare.outputs.tag }}
 
     steps:
       - name: Checkout code
         uses: actions/checkout@v6
         with:
+          ref: ${{ needs.prepare.outputs.commit }}
           fetch-depth: 0
+
+      - name: Create bot app token
+        id: app-token
+        uses: actions/create-github-app-token@v3
+        with:
+          client-id: ${{ vars.BOT_APP_CLIENT_ID }}
+          private-key: ${{ secrets.BOT_APP_PRIVATE_KEY }}
+          permission-contents: write
+
+      - name: Create draft release
+        env:
+          GH_TOKEN: ${{ steps.app-token.outputs.token }}
+        run: |
+          # Reuse the draft when retrying a failed build
+          if is_draft=$(gh release view "$RELEASE_TAG" --json isDraft --jq .isDraft); then
+            if [[ "$is_draft" != true ]]; then
+              echo "::error::Release $RELEASE_TAG is already published."
+              exit 1
+            fi
+          else
+            awk '/^## v[0-9]/ { if (found) exit; found=1; next } found' CHANGELOG.md > "$RUNNER_TEMP/release-notes.md"
+            gh release create "$RELEASE_TAG" --verify-tag --title "$RELEASE_TAG" --notes-file "$RUNNER_TEMP/release-notes.md" --draft
+          fi
 
       - name: Setup pnpm
         uses: pnpm/action-setup@v6
@@ -38,6 +191,11 @@ jobs:
         with:
           go-version-file: backend/go.mod
           cache-dependency-path: backend/go.sum
+
+      - name: Setup Syft
+        uses: anchore/sbom-action/download-syft@v0.24.2
+        with:
+          syft-version: v1.52.0
 
       - name: Set up Depot CLI
         uses: depot/setup-action@v1
@@ -85,7 +243,25 @@ jobs:
         with:
           subject-checksums: ./dist/digests.txt
 
+  publish:
+    name: Publish release
+    needs: [prepare, build]
+    runs-on: depot-ubuntu-latest
+
+    steps:
+      - name: Create bot app token
+        id: app-token
+        uses: actions/create-github-app-token@v3
+        with:
+          client-id: ${{ vars.BOT_APP_CLIENT_ID }}
+          private-key: ${{ secrets.BOT_APP_PRIVATE_KEY }}
+          permission-contents: write
+
       - name: Publish release
         env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: gh release edit ${{ github.ref_name }} --draft=false
+          GH_TOKEN: ${{ steps.app-token.outputs.token }}
+          GH_REPO: ${{ github.repository }}
+          RELEASE_TAG: ${{ needs.prepare.outputs.tag }}
+        run: |
+          gh release edit "$RELEASE_TAG" --draft=false
+          echo "Published [$RELEASE_TAG](https://github.com/$GH_REPO/releases/tag/$RELEASE_TAG)." >> "$GITHUB_STEP_SUMMARY"

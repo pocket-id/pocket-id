@@ -263,6 +263,66 @@ func TestClassifyPasskeyErrorPreservesStructuredLookupFailure(t *testing.T) {
 	require.ErrorIs(t, err, cause)
 }
 
+func TestDiscardUnrequestedFalseAppIDOutput(t *testing.T) {
+	tests := []struct {
+		name      string
+		requested []string
+		appID     bool
+		extra     map[string]any
+		wantAppID *bool
+		wantError string
+	}{
+		{
+			name:      "unrequested false appid is discarded",
+			appID:     false,
+			wantAppID: nil,
+		},
+		{
+			name:      "requested false appid is preserved",
+			requested: []string{protocol.ExtensionAppID},
+			appID:     false,
+			wantAppID: new(false),
+		},
+		{
+			name:      "unrequested true appid is rejected",
+			appID:     true,
+			wantAppID: new(true),
+			wantError: "appid",
+		},
+		{
+			name:      "other unsolicited output is rejected",
+			appID:     false,
+			extra:     map[string]any{"example": true},
+			wantAppID: nil,
+			wantError: "example",
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			credential := &protocol.ParsedCredentialAssertionData{
+				ParsedPublicKeyCredential: protocol.ParsedPublicKeyCredential{
+					ClientExtensionResults: protocol.AuthenticationExtensionsClientOutputs{
+						AppID: new(tc.appID),
+						Extra: tc.extra,
+					},
+				},
+			}
+			session := protocol.SessionExtensions{Requested: tc.requested}
+
+			discardUnrequestedFalseAppIDOutput(session, credential)
+
+			assert.Equal(t, tc.wantAppID, credential.ClientExtensionResults.AppID)
+			err := credential.ClientExtensionResults.Verify(session, protocol.AssertCeremony, protocol.UnsolicitedOutputPolicyReject)
+			if tc.wantError == "" {
+				require.NoError(t, err)
+			} else {
+				require.ErrorContains(t, err, tc.wantError)
+			}
+		})
+	}
+}
+
 func TestWebAuthnManagementOperationsReturnSpecificNotFoundErrors(t *testing.T) {
 	service, err := newService(Dependencies{
 		DB:     testutils.NewDatabaseForTest(t),
@@ -374,4 +434,38 @@ func TestConsumeReauthenticationTokenReturnsTokenCreationTime(t *testing.T) {
 	require.NoError(t, tx.Commit().Error)
 
 	require.Equal(t, storedToken.CreatedAt.UTC(), reauthenticatedAt)
+}
+
+func TestUpdateCredentialKeepsAAGUID(t *testing.T) {
+	const (
+		userID = "icon-user"
+		aaguid = "bada5566-a7aa-401f-bd96-45619a55120d"
+	)
+
+	db := testutils.NewDatabaseForTest(t)
+	require.NoError(t, db.Create(&model.User{
+		Base:     model.Base{ID: userID},
+		Username: userID,
+	}).Error)
+
+	credential := model.WebauthnCredential{
+		Name:         "Original name",
+		CredentialID: []byte("test-credential"),
+		PublicKey:    []byte("test-public-key"),
+		UserID:       userID,
+		AAGUID:       aaguid,
+	}
+	require.NoError(t, db.Create(&credential).Error)
+
+	service := &Service{db: db}
+
+	updated, err := service.UpdateCredential(t.Context(), userID, credential.ID, "New name")
+	require.NoError(t, err)
+	assert.Equal(t, "New name", updated.Name)
+	assert.Equal(t, aaguid, updated.AAGUID)
+
+	var stored model.WebauthnCredential
+	require.NoError(t, db.First(&stored, "id = ?", credential.ID).Error)
+	assert.Equal(t, "New name", stored.Name)
+	assert.Equal(t, aaguid, stored.AAGUID)
 }

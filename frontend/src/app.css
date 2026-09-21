@@ -20,12 +20,15 @@
 	::file-selector-button {
 		border-color: var(--color-gray-200, currentcolor);
 	}
+
 	* {
 		@apply border-border outline-ring/50;
 	}
+
 	body {
 		@apply bg-background text-foreground;
 	}
+
 	html {
 		@apply font-sans;
 	}
@@ -221,4 +224,106 @@
 
 .animate-delayed-fade {
 	animation: delayed-fade 0.5s ease-out forwards;
+}
+
+@keyframes shake {
+	0%,
+	100% {
+		transform: translateX(0);
+	}
+
+	25% {
+		transform: translateX(-10px);
+	}
+
+	50% {
+		transform: translateX(10px);
+	}
+
+	75% {
+		transform: translateX(-10px);
+	}
+}
+
+.animate-shake {
+	animation: shake 0.5s ease-in-out;
+}
+
+/* The bar shares its surface token with the cards it floats over, so it needs an elevation of its own */
+.shadow-raised {
+	box-shadow:
+		inset 0 1px 0 rgb(255 255 255 / 0.5),
+		0 1px 2px rgb(0 0 0 / 0.08),
+		0 12px 32px -10px rgb(0 0 0 / 0.25);
+}
+
+.dark .shadow-raised {
+	box-shadow:
+		inset 0 1px 0 rgb(255 255 255 / 0.07),
+		0 1px 2px rgb(0 0 0 / 0.6),
+		0 16px 40px -12px rgb(0 0 0 / 0.9);
+}
+
+/* Marks a moment: the bar arriving, a save settling, a blocked navigation */
+@keyframes bloom {
+	0% {
+		opacity: 0;
+	}
+
+	30% {
+		opacity: 1;
+	}
+
+	100% {
+		opacity: 0;
+	}
+}
+
+.animate-bloom {
+	animation: bloom 1.5s ease-out forwards;
+}
+
+/* Dark mode has glow headroom: a luminous colour over a near-black pill reads as light spilling out of it */
+/* Light mode has none, so the same gradient washes out to almost nothing there */
+/* The light values keep the same origin below the pill, so the bloom rises the same way in both, but spread wider and carry more colour to register against white */
+.bloom-pending {
+	background: radial-gradient(150% 260% at 50% 140%, rgb(217 119 6 / 0.26), transparent 72%);
+}
+
+/* Waits out the bar's 380ms motion so it blooms after the pill settles */
+/* `both` keeps it hidden during that wait */
+.bloom-success {
+	background: radial-gradient(150% 260% at 50% 140%, rgb(22 163 74 / 0.3), transparent 72%);
+	animation-delay: 380ms;
+	animation-fill-mode: both;
+}
+
+.bloom-error {
+	background: radial-gradient(
+		150% 260% at 50% 140%,
+		color-mix(in oklab, var(--destructive) 28%, transparent),
+		transparent 72%
+	);
+}
+
+.dark .bloom-pending {
+	background: radial-gradient(130% 150% at 50% 130%, rgb(251 191 36 / 0.24), transparent 70%);
+}
+
+.dark .bloom-success {
+	background: radial-gradient(130% 150% at 50% 130%, rgb(34 197 94 / 0.24), transparent 70%);
+}
+
+.dark .bloom-error {
+	background: radial-gradient(
+		130% 150% at 50% 130%,
+		color-mix(in oklab, var(--destructive) 26%, transparent),
+		transparent 70%
+	);
+}
+
+@media (prefers-reduced-motion: reduce) {
+	.animate-bloom {
+		animation: none;
+	}
 }

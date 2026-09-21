@@ -5,8 +5,10 @@
 	import { m } from '$lib/paraglide/messages';
 	import UserService from '$lib/services/user-service';
 	import type { Passkey } from '$lib/types/passkey.type';
+	import { authenticatorIconUrl } from '$lib/utils/cached-image-util';
 	import { axiosErrorToast } from '$lib/utils/error-util';
 	import { LucideKeyRound } from '@lucide/svelte';
+	import { mode } from 'mode-watcher';
 	import { toast } from 'svelte-sonner';
 
 	let {
@@ -18,6 +20,8 @@
 	} = $props();
 
 	const userService = new UserService();
+
+	const isLightMode = $derived(mode.current === 'light');
 
 	async function refreshPasskeys() {
 		passkeys = await userService.listUserPasskeys(userId);
@@ -50,6 +54,9 @@
 			label={passkey.name}
 			description={m.added_on() + ' ' + new Date(passkey.createdAt).toLocaleDateString()}
 			icon={LucideKeyRound}
+			providerIconUrl={passkey.hasIcon
+				? authenticatorIconUrl(passkey.aaguid, isLightMode)
+				: undefined}
 			showRenameAction={false}
 			onDelete={() => deletePasskey(passkey)}
 		/>

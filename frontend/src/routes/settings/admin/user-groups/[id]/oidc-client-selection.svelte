@@ -18,6 +18,15 @@
 	const oidcClientService = new OidcService();
 
 	let tableRef: AdvancedTable<OidcClientWithAllowedGroups>;
+	let unrestrictedClientIds = $state<string[]>([]);
+
+	function getTableSelectedIds() {
+		return [...new Set([...selectedGroupIds, ...unrestrictedClientIds])];
+	}
+
+	function setTableSelectedIds(clientIds: string[]) {
+		selectedGroupIds = clientIds.filter((id) => !unrestrictedClientIds.includes(id));
+	}
 
 	export function refresh() {
 		return tableRef?.refresh();
@@ -56,8 +65,7 @@
 
 	async function fetchCallback(requestOptions: ListRequestOptions) {
 		const clients = await oidcClientService.listClients(requestOptions);
-		const unrestrictedClientIds = clients.data.filter((c) => !c.isGroupRestricted).map((c) => c.id);
-		selectedGroupIds = [...new Set([...selectedGroupIds, ...unrestrictedClientIds])];
+		unrestrictedClientIds = clients.data.filter((c) => !c.isGroupRestricted).map((c) => c.id);
 
 		return clients;
 	}
@@ -82,7 +90,7 @@
 	id="oidc-client-selection"
 	{fetchCallback}
 	defaultSort={{ column: 'name', direction: 'asc' }}
-	bind:selectedIds={selectedGroupIds}
+	bind:selectedIds={getTableSelectedIds, setTableSelectedIds}
 	rowSelectionDisabled={(item) => !item.isGroupRestricted}
 	{columns}
 />

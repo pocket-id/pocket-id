@@ -1,0 +1,12 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32">
+  <defs>
+    <linearGradient id="ipassDark" x1="8" y1="2" x2="24" y2="30" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#5EC8FF"/>
+      <stop offset="1" stop-color="#4B7CFF"/>
+    </linearGradient>
+  </defs>
+  <rect width="32" height="32" rx="8" fill="#0B1220"/>
+  <path fill="url(#ipassDark)" d="M16 4.8c4.1 1.6 7.8 1.9 9.7 1.9.4 0 .8.3.8.8v9.4c0 5.3-3.5 9.1-10.5 12.3C8.9 26 5.5 22.2 5.5 16.9V7.5c0-.5.4-.8.8-.8 1.9 0 5.6-.3 9.7-1.9z"/>
+  <circle cx="16" cy="12.15" r="1.65" fill="#0B1220"/>
+  <path fill="#0B1220" d="M14.55 14.3h2.9c.4 0 .75.35.75.75v5.5c0 .8-.45 1.5-1.15 1.85l-.3.14c-.6.26-1.3.26-1.9 0l-.3-.14c-.7-.35-1.15-1.05-1.15-1.85v-5.5c0-.4.35-.75.75-.75z"/>
+</svg>

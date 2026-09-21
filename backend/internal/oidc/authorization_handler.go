@@ -55,10 +55,15 @@ func (h *authorizationHandler) authorize(c *gin.Context) {
 		c.Request.URL.RawQuery = query.Encode()
 	}
 
-	// Treat the request as a pushed authorization request only when the request_uri carries the
-	// PAR prefix. Without this, a client required to use PAR could bypass that requirement by
-	// sending an arbitrary (non-prefixed) request_uri, which fosite silently ignores.
-	hasPushedAuthorizationRequest := strings.HasPrefix(c.Query("request_uri"), parRequestURIPrefix)
+	// Match Fosite's form parsing so the PAR check uses the same request_uri even when query and body values conflict
+	err := c.Request.ParseMultipartForm(1 << 20)
+	if err != nil && !errors.Is(err, http.ErrNotMultipart) {
+		h.writeAuthorizeError(ctx, c, fosite.NewAuthorizeRequest(), fosite.ErrInvalidRequest.WithHint("Unable to parse HTTP body, make sure to send a properly formatted form request body.").WithWrap(err))
+		return
+	}
+
+	// Capture the PAR URI before Fosite merges request object parameters and validates the referenced PAR session
+	hasPushedAuthorizationRequest := strings.HasPrefix(c.Request.Form.Get("request_uri"), parRequestURIPrefix)
 
 	ar, err := h.provider.NewAuthorizeRequest(ctx, c.Request)
 	if err != nil {

@@ -1,3 +1,80 @@
+## v2.16.0
+
+### Features
+
+- update the design of the email templates ([3249b0d](https://github.com/pocket-id/pocket-id/commit/3249b0dc8c00220b74e1008f94812cc02f6313c1) by @stonith404)
+
+### Bug Fixes
+
+- loading indicator not visible ([4ba2899](https://github.com/pocket-id/pocket-id/commit/4ba28992ff496caa20b6abe6f614eeb1fa777469) by @stonith404)
+- login with Yubikey not working in some Safari browsers ([4858db3](https://github.com/pocket-id/pocket-id/commit/4858db3bb4cf6619cad8682da61f0e793f24874c) by @stonith404)
+
+### Other
+
+- upgrade git cliff version ([98f9e39](https://github.com/pocket-id/pocket-id/commit/98f9e39785ae913d65ab3ad3523feaf907d3686e) by @stonith404)
+- update francis to rc7 ([\#1769](https://github.com/pocket-id/pocket-id/pull/1769) by @ItalyPaleAle)
+- include frontend dependencies in SBOM ([5a1c6f0](https://github.com/pocket-id/pocket-id/commit/5a1c6f0547f779175107d31ea13d4f24000a1a65) by @stonith404)
+- include SBOMs for binaries ([8fe53ed](https://github.com/pocket-id/pocket-id/commit/8fe53ed42c522717c8c69612cc700e195b8ab2ea) by @stonith404)
+- replace local release script with action ([ba246e6](https://github.com/pocket-id/pocket-id/commit/ba246e61465378bc11571fcc77ca01c936fda174) by @stonith404)
+
+**Full Changelog**: https://github.com/pocket-id/pocket-id/compare/v2.15.0...v2.16.0
+## v2.15.0
+
+### Bug Fixes
+
+- Update de.json Translation ([#1705](https://github.com/pocket-id/pocket-id/pull/1705) by @tw-)
+- show long login code button regardless where the user is coming from ([059d45d](https://github.com/pocket-id/pocket-id/commit/059d45d50ed9e6b1229295ab9ccb9d566d3910fe) by @stonith404)
+- make sorting of strings case insensitive ([3657012](https://github.com/pocket-id/pocket-id/commit/3657012f93e442327bdf11a36bd31acc26410803) by @stonith404)
+- trim values loaded from _FILE env vars in AppConfig ([#1741](https://github.com/pocket-id/pocket-id/pull/1741) by @ItalyPaleAle)
+- serve bundled logo if no custom logo is set ([#1748](https://github.com/pocket-id/pocket-id/pull/1748) by @ItalyPaleAle)
+- add missing `await` to catch redirect invalid URL errors ([fd99a6b](https://github.com/pocket-id/pocket-id/commit/fd99a6b74207d1291bfd975c33d632d2f5ed9fd0) by @stonith404)
+- limit JPG and PNG pixels to prevent decompression bomb ([5cbacd8](https://github.com/pocket-id/pocket-id/commit/5cbacd81e67f8bb7340f01d0416524f4d48adb78) by @stonith404)
+- show more user friendly error page for authorize interaction failures ([81cb290](https://github.com/pocket-id/pocket-id/commit/81cb290bed57b7fc84b9102262ff3192ce9fae3e) by @stonith404)
+- don't auto submit OAuth device codes ([43c0b79](https://github.com/pocket-id/pocket-id/commit/43c0b797fd7f3914b759a173a4518bed399e8de7) by @stonith404)
+- prevent PAR requirement bypass via conflicting request parameters ([2084dff](https://github.com/pocket-id/pocket-id/commit/2084dffd8d4a569d86f058376a1caa72a8755571) by @stonith404)
+- German translations for client secrets ([#1759](https://github.com/pocket-id/pocket-id/pull/1759) by @darioackermann)
+- preserve AAGUID icon hashes on Windows ([b816360](https://github.com/pocket-id/pocket-id/commit/b8163605acbdcf08772dc77582fcb48be1158906) by @stonith404)
+- default profile picture empty if username contains only one char ([4edfaf6](https://github.com/pocket-id/pocket-id/commit/4edfaf622a8f7c05b19f3fb4cc07cbe6984c7df9) by @stonith404)
+
+### Documentation
+
+- update AI Usage Policy ([d9e9df9](https://github.com/pocket-id/pocket-id/commit/d9e9df9960714f588ec65201afdde1cef26b0b9a) by @stonith404)
+- update PR template ([cad8b68](https://github.com/pocket-id/pocket-id/commit/cad8b68abc3eecd56a22a84aa897fe54c8deae66) by @stonith404)
+
+### Features
+
+- show admin UI warning for SQLite on networked filesystem ([#1713](https://github.com/pocket-id/pocket-id/pull/1713) by @ItalyPaleAle)
+- list allowed groups when hovering over allowed group count ([#1671](https://github.com/pocket-id/pocket-id/pull/1671) by @kmendell)
+- add explicit public keys for federated client credentials ([#1702](https://github.com/pocket-id/pocket-id/pull/1702) by @ItalyPaleAle)
+- use HS256 for Pocket ID's own session tokens + fixes ([#1733](https://github.com/pocket-id/pocket-id/pull/1733) by @ItalyPaleAle)
+- replace individual save buttons with single "unsaved changes bar" ([#1757](https://github.com/pocket-id/pocket-id/pull/1757) by @stonith404)
+- include passkey icons based on AAGUID ([#1756](https://github.com/pocket-id/pocket-id/pull/1756) by @michaelbeaumont)
+
+### Other
+
+- Bump the "all-dependencies" group with 2 updates across multiple ecosystems ([#1711](https://github.com/pocket-id/pocket-id/pull/1711) by @dependabot[bot])
+- add Hungarian language files ([dd2fc67](https://github.com/pocket-id/pocket-id/commit/dd2fc67c87c098632e7b915b6079b202df5d6f55) by @stonith404)
+- Bump the "all-dependencies" group with 3 updates across multiple ecosystems ([#1725](https://github.com/pocket-id/pocket-id/pull/1725) by @dependabot[bot])
+- update Go to `v1.27.0` ([f235104](https://github.com/pocket-id/pocket-id/commit/f235104aed02ea5aa2ff3e05c03fc151b34e0191) by @stonith404)
+- update golangci-lint version ([6ff9a5b](https://github.com/pocket-id/pocket-id/commit/6ff9a5ba7eb995a8db166ebfb119799325085a8e) by @stonith404)
+- update Francis to rc.2 ([#1728](https://github.com/pocket-id/pocket-id/pull/1728) by @ItalyPaleAle)
+- upgrade jwx to v4 ([#1730](https://github.com/pocket-id/pocket-id/pull/1730) by @ItalyPaleAle)
+- Bump google.golang.org/grpc from 1.83.0 to 1.83.1 in /backend ([#1736](https://github.com/pocket-id/pocket-id/pull/1736) by @dependabot[bot])
+- update Francis to rc.5 ([#1738](https://github.com/pocket-id/pocket-id/pull/1738) by @ItalyPaleAle)
+- Bump the "all-dependencies" group with 3 updates across multiple ecosystems ([#1739](https://github.com/pocket-id/pocket-id/pull/1739) by @dependabot[bot])
+- update Francis to rc.6 ([#1745](https://github.com/pocket-id/pocket-id/pull/1745) by @ItalyPaleAle)
+- Bump adm-zip from 0.6.0 to 0.6.1 ([#1747](https://github.com/pocket-id/pocket-id/pull/1747) by @dependabot[bot])
+- update AAGUIDs ([#1751](https://github.com/pocket-id/pocket-id/pull/1751) by @github-actions[bot])
+- Bump the "all-dependencies" group with 2 updates across multiple ecosystems ([#1742](https://github.com/pocket-id/pocket-id/pull/1742) by @dependabot[bot])
+- update vulnerable packages ([1ee34fd](https://github.com/pocket-id/pocket-id/commit/1ee34fddea9bfe1f08709387ec3186a792707c29) by @stonith404)
+- upgrade alpine packages on image build ([d2c2cda](https://github.com/pocket-id/pocket-id/commit/d2c2cdaa5d7f87541dcee69d7f6c57ad22a8bf09) by @stonith404)
+- Bump the "all-dependencies" group with 2 updates across multiple ecosystems ([#1760](https://github.com/pocket-id/pocket-id/pull/1760) by @dependabot[bot])
+- fix type checks ([c22003f](https://github.com/pocket-id/pocket-id/commit/c22003f6deff96482192d055a5e1c96e5991fcad) by @stonith404)
+- Bump go.opentelemetry.io/otel/exporters/zipkin from 1.44.0 to 1.45.0 in /backend ([#1765](https://github.com/pocket-id/pocket-id/pull/1765) by @dependabot[bot])
+- update backend dependencies ([6060c6e](https://github.com/pocket-id/pocket-id/commit/6060c6e12e62bfe2474f78caace77a205f73d498) by @stonith404)
+
+**Full Changelog**: https://github.com/pocket-id/pocket-id/compare/v2.14.0...v2.15.0
+
 ## v2.14.0
 
 ### Bug Fixes

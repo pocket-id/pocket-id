@@ -15,6 +15,9 @@ type WebauthnCredentialDto struct {
 	BackupEligible bool `json:"backupEligible"`
 	BackupState    bool `json:"backupState"`
 
+	AAGUID  string `json:"aaguid"`
+	HasIcon bool   `json:"hasIcon"`
+
 	CreatedAt datatype.DateTime `json:"createdAt"`
 }
 

@@ -9,6 +9,9 @@ before:
   hooks:
     - pnpm install --frozen-lockfile
     - pnpm -C frontend build
+    - mkdir -p .tmp
+    - mv backend/frontend/dist/cyclonedx/frontend.cdx.json .tmp/frontend.cdx.json
+    - rm -r backend/frontend/dist/cyclonedx
 
 builds:
   - id: pocket-id
@@ -91,6 +94,23 @@ archives:
 checksum:
   name_template: checksums.txt
 
+sboms:
+  - id: binaries
+    artifacts: binary
+    disable: '{{ if index .Env "BUILD_NEXT" }}true{{ end }}'
+    documents:
+      - "pocket-id_{{ .Version }}_{{ .Os }}_{{ .Arch }}{{ targetVariant . }}.sbom.spdx.json"
+    cmd: sh
+    args:
+      - ../scripts/development/generate-binary-sbom.sh
+      - $artifact
+      - $document
+      - "pocket-id_{{ .Os }}_{{ .Arch }}{{ targetVariant . }}"
+      - "{{ .Version }}"
+    env:
+      - SYFT_CHECK_FOR_APP_UPDATE=false
+      - SYFT_CACHE_DIR=
+
 docker_digest:
   name_template: digests.txt
 
@@ -110,9 +130,6 @@ dockers_v2:
     platforms:
       - linux/amd64
       - linux/arm64
-    flags:
-      - "--pull=true"
-      - "--no-cache=true"
     labels:
       "org.opencontainers.image.authors": "Pocket ID"
       "org.opencontainers.image.url": "https://github.com/pocket-id/pocket-id"
@@ -127,6 +144,7 @@ dockers_v2:
     sbom: true
     extra_files:
       - scripts/docker
+      - .tmp/frontend.cdx.json
 
   - id: pocket-id-distroless
     ids:
@@ -155,6 +173,8 @@ dockers_v2:
       "org.opencontainers.image.title": "Pocket ID"
     disable: '{{ if index .Env "BUILD_NEXT" }}true{{ end }}'
     sbom: true
+    extra_files:
+      - .tmp/frontend.cdx.json
 
   - id: pocket-id-next
     ids:
@@ -182,6 +202,7 @@ dockers_v2:
     sbom: true
     extra_files:
       - scripts/docker
+      - .tmp/frontend.cdx.json
 
   - id: pocket-id-next-distroless
     ids:
@@ -207,6 +228,8 @@ dockers_v2:
       "org.opencontainers.image.title": "Pocket ID"
     disable: '{{ if not (index .Env "BUILD_NEXT") }}true{{ end }}'
     sbom: true
+    extra_files:
+      - .tmp/frontend.cdx.json
 
 notarize:
   macos:

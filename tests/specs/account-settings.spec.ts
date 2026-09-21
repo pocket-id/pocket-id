@@ -3,6 +3,7 @@ import { emailVerificationTokens, users } from '../data';
 import authUtil from '../utils/auth.util';
 import { cleanupBackend } from '../utils/cleanup.util';
 import passkeyUtil from '../utils/passkey.util';
+import { saveUnsavedChanges } from '../utils/unsaved-changes.util';
 
 test.beforeEach(async () => await cleanupBackend());
 
@@ -15,11 +16,38 @@ test('Update account details', async ({ page }) => {
 	await page.getByLabel('Display Name').fill('Timothy Apple');
 	await page.getByLabel('Email').fill('timothy.apple@test.com');
 	await page.getByLabel('Username').fill('timothy');
-	await page.getByRole('button', { name: 'Save' }).click();
+	await saveUnsavedChanges(page);
+});
 
-	await expect(page.locator('[data-type="success"]')).toHaveText(
-		'Account details updated successfully'
-	);
+test('Failed account update remains dirty and can be retried', async ({ page }) => {
+	await page.goto('/settings/account');
+
+	let failedUpdates = 0;
+	await page.route('**/api/users/me', async (route) => {
+		if (route.request().method() !== 'PUT' || failedUpdates > 0) {
+			await route.fallback();
+			return;
+		}
+
+		failedUpdates++;
+		await route.fulfill({
+			status: 500,
+			contentType: 'application/json',
+			body: JSON.stringify({ error: 'Temporary account update failure' })
+		});
+	});
+
+	const displayName = page.getByLabel('Display Name');
+	await displayName.fill('Retryable Account');
+	await page.getByRole('button', { name: 'Save', exact: true }).click();
+
+	await expect(page.getByText('Temporary account update failure', { exact: true })).toBeVisible();
+	await expect(page.getByRole('button', { name: 'Save', exact: true })).toBeVisible();
+	expect(failedUpdates).toBe(1);
+
+	await saveUnsavedChanges(page);
+	await page.reload();
+	await expect(page.getByLabel('Display Name')).toHaveValue('Retryable Account');
 });
 
 test('Update account details fails with already taken email', async ({ page }) => {
@@ -27,9 +55,9 @@ test('Update account details fails with already taken email', async ({ page }) =
 
 	await page.getByLabel('Email').fill(users.craig.email);
 
-	await page.getByRole('button', { name: 'Save' }).click();
+	await page.getByRole('button', { name: 'Save', exact: true }).click();
 
-	await expect(page.locator('[data-type="error"]')).toHaveText('Email is already in use');
+	await expect(page.getByText('Email is already in use', { exact: true })).toBeVisible();
 });
 
 test('Update account details fails with already taken username', async ({ page }) => {
@@ -37,9 +65,9 @@ test('Update account details fails with already taken username', async ({ page }
 
 	await page.getByLabel('Username').fill(users.craig.username);
 
-	await page.getByRole('button', { name: 'Save' }).click();
+	await page.getByRole('button', { name: 'Save', exact: true }).click();
 
-	await expect(page.locator('[data-type="error"]')).toHaveText('Username is already in use');
+	await expect(page.getByText('Username is already in use', { exact: true })).toBeVisible();
 });
 
 test('Update account details fails with already taken username in different casing', async ({
@@ -49,9 +77,9 @@ test('Update account details fails with already taken username in different casi
 
 	await page.getByLabel('Username').fill(users.craig.username.toUpperCase());
 
-	await page.getByRole('button', { name: 'Save' }).click();
+	await page.getByRole('button', { name: 'Save', exact: true }).click();
 
-	await expect(page.locator('[data-type="error"]')).toHaveText('Username is already in use');
+	await expect(page.getByText('Username is already in use', { exact: true })).toBeVisible();
 });
 
 test('Change Locale', async ({ page }) => {

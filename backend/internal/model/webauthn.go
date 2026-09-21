@@ -20,7 +20,15 @@ type WebauthnCredential struct {
 	BackupEligible bool `json:"backupEligible"`
 	BackupState    bool `json:"backupState"`
 
+	AAGUID string `gorm:"column:aaguid;default:00000000-0000-0000-0000-000000000000"`
+
 	UserID string
+}
+
+// HasIcon reports whether an icon is embedded for this credential's authenticator
+// It is mapped onto the DTO so the frontend knows upfront whether an icon is worth requesting
+func (c WebauthnCredential) HasIcon() bool {
+	return utils.HasAuthenticatorIcon(c.AAGUID)
 }
 
 type AuthenticatorTransportList []protocol.AuthenticatorTransport //nolint:recvcheck

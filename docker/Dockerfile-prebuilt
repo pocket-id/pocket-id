@@ -9,11 +9,11 @@ ARG TARGETVARIANT
 
 WORKDIR /app
 
-RUN apk upgrade --no-cache && \
-  apk add --no-cache su-exec
+RUN apk add --no-cache su-exec
 
 COPY linux/${TARGETARCH}/${TARGETVARIANT}/pocket-id /app/pocket-id
 COPY ./scripts/docker /app/docker
+COPY ./.tmp/frontend.cdx.json /usr/share/doc/pocket-id/frontend.cdx.json
 
 EXPOSE 1411
 ENV APP_ENV=production
