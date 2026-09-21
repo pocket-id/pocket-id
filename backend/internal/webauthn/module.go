@@ -7,7 +7,7 @@ import (
 	"time"
 
 	"github.com/gin-gonic/gin"
-	"github.com/italypaleale/francis/host/local"
+	francishost "github.com/italypaleale/francis/host"
 	"github.com/lestrrat-go/jwx/v4/jwt"
 	"gorm.io/gorm"
 
@@ -29,7 +29,7 @@ type AuditLogger interface {
 
 type Dependencies struct {
 	DB     *gorm.DB
-	Actors *local.Host
+	Actors francishost.Host
 	AppURL string
 
 	Signer    TokenService
