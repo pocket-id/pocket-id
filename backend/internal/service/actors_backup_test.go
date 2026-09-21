@@ -45,7 +45,7 @@ func TestExportActorsBackup(t *testing.T) {
 
 		files := writeActorsBackupZip(t, NewExportService(nil, nil, actors))
 
-		require.Equal(t, map[string][]byte{actorsBackupFileName: actors.backupData}, files)
+		require.Equal(t, map[string][]byte{ActorsBackupFileName: actors.backupData}, files)
 	})
 
 	t.Run("adds nothing without a provider", func(t *testing.T) {
@@ -69,7 +69,7 @@ func TestImportActorsBackup(t *testing.T) {
 		actors := &stubActorsBackupProvider{}
 		files := readZip(t, buildZip(t, map[string][]byte{
 			"database.json":      []byte("{}"),
-			actorsBackupFileName: []byte("francis-backup-payload"),
+			ActorsBackupFileName: []byte("francis-backup-payload"),
 		}))
 
 		err := NewImportService(nil, nil, actors).importActorsBackup(t.Context(), files)
@@ -92,7 +92,7 @@ func TestImportActorsBackup(t *testing.T) {
 
 	t.Run("surfaces restore errors", func(t *testing.T) {
 		actors := &stubActorsBackupProvider{restoreErr: errors.New("a host is still connected")}
-		files := readZip(t, buildZip(t, map[string][]byte{actorsBackupFileName: []byte("francis-backup-payload")}))
+		files := readZip(t, buildZip(t, map[string][]byte{ActorsBackupFileName: []byte("francis-backup-payload")}))
 
 		err := NewImportService(nil, nil, actors).importActorsBackup(t.Context(), files)
 
