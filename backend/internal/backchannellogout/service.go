@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"github.com/italypaleale/francis/actor"
+	francishost "github.com/italypaleale/francis/host"
 	"github.com/italypaleale/francis/host/local"
 	"gorm.io/gorm"
 
@@ -33,7 +34,7 @@ type Service struct {
 	actors      *actor.Service
 }
 
-func NewService(db *gorm.DB, tokenSigner TokenSigner, httpClient *http.Client, actorsHost *local.Host) (*Service, error) {
+func NewService(db *gorm.DB, tokenSigner TokenSigner, httpClient *http.Client, actorsHost francishost.Host) (*Service, error) {
 	s := &Service{
 		db:          db,
 		tokenSigner: tokenSigner,
@@ -218,7 +219,7 @@ func (s *Service) notifyClients(ctx context.Context, targets []target) {
 	for _, t := range targets {
 		// One actor per authorization keeps deliveries for the same user and client serialized, while the actor type's concurrency limit caps the parallel POSTs
 		actorID := t.ClientID + ":" + t.UserID
-		_, err := s.actors.Dispatch(ctx, ActorType, actorID, methodDeliver, t)
+		_, _, err := s.actors.Dispatch(ctx, ActorType, actorID, methodDeliver, t)
 		if err != nil {
 			slog.ErrorContext(ctx, "Failed to schedule back-channel logout notification",
 				slog.String("clientId", t.ClientID),
