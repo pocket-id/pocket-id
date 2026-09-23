@@ -45,7 +45,7 @@ func NewService(db *gorm.DB, tokenSigner TokenSigner, httpClient *http.Client, a
 	err := actorsHost.RegisterActor(
 		ActorType,
 		s.newNotifierActor,
-		local.WithConcurrencyLimit(deliveryConcurrency),
+		local.WithCapacityGroup(ActorType, deliveryConcurrency),
 		local.WithMaxAttempts(deliveryMaxAttempts),
 	)
 	if err != nil {
@@ -217,7 +217,7 @@ func (s *Service) NotifyLostGroupAccess(ctx context.Context, userIDs []string, c
 // It must be called after the change that revoked the user's access has been committed
 func (s *Service) notifyClients(ctx context.Context, targets []target) {
 	for _, t := range targets {
-		// One actor per authorization keeps deliveries for the same user and client serialized, while the actor type's concurrency limit caps the parallel POSTs
+		// One actor per authorization serializes its deliveries, while the capacity group limits running jobs without counting idle actors
 		actorID := t.ClientID + ":" + t.UserID
 		_, _, err := s.actors.Dispatch(ctx, ActorType, actorID, methodDeliver, t)
 		if err != nil {
@@ -242,7 +242,7 @@ func (s *Service) sendLogoutToken(parentCtx context.Context, t target) error {
 	body := url.Values{"logout_token": []string{logoutToken}}
 	req, err := http.NewRequestWithContext(ctx, http.MethodPost, t.LogoutURL, strings.NewReader(body.Encode()))
 	if err != nil {
-		return err
+		return fmt.Errorf("%w: invalid logout request: %w", actor.ErrJobPermanentFailure, err)
 	}
 	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
 
@@ -253,6 +253,10 @@ func (s *Service) sendLogoutToken(parentCtx context.Context, t target) error {
 	defer res.Body.Close()
 
 	if res.StatusCode < 200 || res.StatusCode > 299 {
+		// Only retry responses that indicate a potentially temporary failure at the client
+		if res.StatusCode != http.StatusRequestTimeout && res.StatusCode != http.StatusTooManyRequests && res.StatusCode < http.StatusInternalServerError {
+			return fmt.Errorf("%w: client responded with status %d", actor.ErrJobPermanentFailure, res.StatusCode)
+		}
 		return fmt.Errorf("client responded with status %d", res.StatusCode)
 	}
 	return nil

@@ -15,7 +15,7 @@ const ActorType = "BackchannelLogoutNotifier"
 const methodDeliver = "deliver"
 
 const (
-	// deliveryConcurrency caps the notifier actors active at once, so revoking access for many users still finishes in reasonable time without flooding clients
+	// deliveryConcurrency caps running delivery jobs per host without letting idle actors hold the available capacity
 	deliveryConcurrency = 4
 
 	// deliveryMaxAttempts caps the delivery attempts for one notification, so an unreachable client is not retried forever
