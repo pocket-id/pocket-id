@@ -66,7 +66,8 @@ type AppConfigModel struct {
 	WebauthnAllowSyncedPasskeys     AppConfigValue `json:"webauthnAllowSyncedPasskeys" env:"WEBAUTHN_ALLOW_SYNCED_PASSKEYS" type:"bool"`
 	WebauthnAuthenticatorAttachment AppConfigValue `json:"webauthnAuthenticatorAttachment" env:"WEBAUTHN_AUTHENTICATOR_ATTACHMENT"`
 	// OIDC
-	CIMDURLAllowlist AppConfigValue `json:"cimdUrlAllowlist" env:"CIMD_URL_ALLOWLIST"` // JSON-encoded array of strings
+	CIMDURLAllowlist           AppConfigValue `json:"cimdUrlAllowlist" env:"CIMD_URL_ALLOWLIST"` // JSON-encoded array of strings
+	AutoCreateOIDCClientSecret AppConfigValue `json:"autoCreateOidcClientSecret" env:"AUTO_CREATE_OIDC_CLIENT_SECRET" type:"bool"`
 }
 
 // appConfigEnvName returns the explicit environment variable name for a JSON configuration field
@@ -171,7 +172,8 @@ func getDefaultConfig() *AppConfigModel {
 		WebauthnAllowSyncedPasskeys:     "true",
 		WebauthnAuthenticatorAttachment: "any",
 		// OIDC
-		CIMDURLAllowlist: "[]",
+		CIMDURLAllowlist:           "[]",
+		AutoCreateOIDCClientSecret: "true",
 	}
 }
 

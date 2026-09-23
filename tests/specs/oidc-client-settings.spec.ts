@@ -40,6 +40,13 @@ test.describe('Create OIDC client', () => {
 		);
 
 		const resolvedClientId = (await page.getByTestId('client-id').innerText()).trim();
+		const createdSecret = (
+			await page
+				.getByRole('tabpanel', { name: 'General', exact: true })
+				.getByTestId('client-secret')
+				.innerText()
+		).trim();
+		expect(createdSecret).toMatch(/^\w{32}$/);
 
 		if (clientId) {
 			expect(resolvedClientId).toBe(clientId);
@@ -55,6 +62,15 @@ test.describe('Create OIDC client', () => {
 
 		const res = await page.request.get(`/api/oidc/clients/${resolvedClientId}/logo`);
 		expect(res.ok()).toBeTruthy();
+
+		// The generated value is available on the creation page and is forgotten after a reload
+		await page.reload();
+		await expect(page.getByText(createdSecret, { exact: true })).toHaveCount(0);
+		await page.getByRole('tab', { name: 'Credentials' }).click();
+		await expect(page.getByTestId('client-secret-row')).toHaveCount(1);
+		await expect(page.getByTestId('client-secret')).toHaveText(
+			`${createdSecret.slice(0, 4)}••••••••`
+		);
 	}
 
 	test('with auto-generated client ID', async ({ page }) => {

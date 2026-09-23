@@ -7,6 +7,7 @@ import type {
 	InteractionStep,
 	OidcClient,
 	OidcClientCreate,
+	OidcClientCreated,
 	OidcClientMetaData,
 	OidcClientSecret,
 	OidcClientSecretCreated,
@@ -42,7 +43,7 @@ class OidcService extends APIService {
 	};
 
 	createClient = async (client: OidcClientCreate) =>
-		(await this.api.post('/oidc/clients', client)).data as OidcClient;
+		(await this.api.post('/oidc/clients', client)).data as OidcClientCreated;
 
 	removeClient = async (id: string) => {
 		await this.api.delete(`/oidc/clients/${encodeClientIdParam(id)}`);

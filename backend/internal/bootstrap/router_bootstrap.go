@@ -167,7 +167,7 @@ func registerRoutes(r *gin.Engine, db *gorm.DB, svc *services, rateLimitServices
 		rateLimitMiddleware.Add(middleware.RateLimitDeviceLoginExchange),
 		rateLimitMiddleware.Add(middleware.RateLimitDeviceLoginVerification),
 	)
-	controller.NewOidcController(apiGroup, authMiddleware, fileSizeLimitMiddleware, svc.oidcService)
+	controller.NewOidcController(apiGroup, authMiddleware, fileSizeLimitMiddleware, svc.oidcService, svc.appConfigService)
 	controller.NewUserController(apiGroup, authMiddleware, svc.appConfigService, svc.userService, svc.webauthnModule)
 	controller.NewAppConfigController(apiGroup, authMiddleware, svc.appConfigService, svc.emailModule)
 	svc.ldapSyncModule.RegisterRoutes(apiGroup, authMiddleware.Add())

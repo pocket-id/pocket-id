@@ -68,6 +68,10 @@ export type OidcClient = OidcClientMetaData & {
 	refreshTokenDurationMinutes: number;
 };
 
+export type OidcClientCreated = OidcClient & {
+	createdSecret?: OidcClientSecretCreated;
+};
+
 export type OidcClientTokenLifetimes = Pick<
 	OidcClient,
 	'accessTokenDurationMinutes' | 'refreshTokenDurationMinutes'

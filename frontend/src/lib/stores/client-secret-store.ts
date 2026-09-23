@@ -3,6 +3,7 @@ import { writable } from 'svelte/store';
 // Holds the clear-text value of the client secrets created during the current page visit, keyed by secret ID.
 // The server never returns those values again, so they are shown until the user navigates away and then forgotten.
 const clientSecretStore = writable<Record<string, string>>({});
+export const autoCreatedSecretId = writable<string | null>(null);
 
 const set = (secretId: string, secret: string) => {
 	clientSecretStore.update((secrets) => ({ ...secrets, [secretId]: secret }));
@@ -18,11 +19,18 @@ const remove = (secretId: string) => {
 
 const clear = () => {
 	clientSecretStore.set({});
+	autoCreatedSecretId.set(null);
+};
+
+const setAutoCreated = (secretId: string, secret: string) => {
+	set(secretId, secret);
+	autoCreatedSecretId.set(secretId);
 };
 
 export default {
 	subscribe: clientSecretStore.subscribe,
 	set,
+	setAutoCreated,
 	remove,
 	clear
 };

@@ -533,7 +533,7 @@ func TestOidcService_CreateClient_withDescription(t *testing.T) {
 		},
 	}
 
-	client, err := s.CreateClient(t.Context(), input, "user-id")
+	client, _, err := s.CreateClient(t.Context(), input, "user-id", true)
 	require.NoError(t, err)
 
 	var fetched model.OidcClient
@@ -556,13 +556,55 @@ func TestOidcService_CreateClient_withoutDescription(t *testing.T) {
 		},
 	}
 
-	client, err := s.CreateClient(t.Context(), input, "user-id")
+	client, _, err := s.CreateClient(t.Context(), input, "user-id", true)
 	require.NoError(t, err)
 
 	var fetched model.OidcClient
 	err = db.First(&fetched, "id = ?", client.ID).Error
 	require.NoError(t, err)
 	assert.Empty(t, fetched.Description)
+}
+
+func TestOidcService_CreateClient_initialSecret(t *testing.T) {
+	for _, test := range []struct {
+		name             string
+		isPublic         bool
+		autoCreateSecret bool
+		wantSecret       bool
+	}{
+		{name: "confidential client gets a secret", autoCreateSecret: true, wantSecret: true},
+		{name: "automatic creation disabled", autoCreateSecret: false},
+		{name: "public client never gets a secret", isPublic: true, autoCreateSecret: true},
+	} {
+		t.Run(test.name, func(t *testing.T) {
+			db := testutils.NewDatabaseForTest(t)
+			s := &OidcService{db: db}
+			input := dto.OidcClientCreateDto{
+				OidcClientUpdateDto: dto.OidcClientUpdateDto{
+					Name:     "Test Client",
+					IsPublic: test.isPublic,
+				},
+			}
+
+			client, value, err := s.CreateClient(t.Context(), input, "user-id", test.autoCreateSecret)
+			require.NoError(t, err)
+
+			var fetched model.OidcClient
+			require.NoError(t, db.First(&fetched, "id = ?", client.ID).Error)
+			if !test.wantSecret {
+				assert.Empty(t, value)
+				assert.Empty(t, fetched.Credentials.Secrets)
+				return
+			}
+
+			require.Len(t, fetched.Credentials.Secrets, 1)
+			require.Len(t, client.Credentials.Secrets, 1)
+			assert.Len(t, value, 32)
+			assert.Equal(t, utils.CreateSha256Hash(value), fetched.Credentials.Secrets[0].Hash)
+			assert.Equal(t, value[:model.OidcClientSecretPrefixLength], fetched.Credentials.Secrets[0].Prefix)
+			assert.Nil(t, fetched.Credentials.Secrets[0].ExpiresAt)
+		})
+	}
 }
 
 func TestOidcService_CreateClient_tokenLifetimes(t *testing.T) {
@@ -607,7 +649,7 @@ func TestOidcService_CreateClient_tokenLifetimes(t *testing.T) {
 				},
 			}
 
-			client, err := s.CreateClient(t.Context(), input, "user-id")
+			client, _, err := s.CreateClient(t.Context(), input, "user-id", true)
 			require.NoError(t, err)
 
 			var fetched model.OidcClient

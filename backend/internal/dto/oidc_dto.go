@@ -38,6 +38,12 @@ type OidcClientWithAllowedUserGroupsDto struct {
 	AllowedUserGroups []UserGroupMinimalDto `json:"allowedUserGroups"`
 }
 
+// OidcClientCreatedDto reveals the automatically generated secret only in the create response
+type OidcClientCreatedDto struct {
+	OidcClientWithAllowedUserGroupsDto
+	CreatedSecret *OidcClientSecretCreatedDto `json:"createdSecret,omitempty"`
+}
+
 type OidcClientWithAllowedGroupsDto struct {
 	OidcClientDto
 	AllowedUserGroups []UserGroupMinimalDto `json:"allowedUserGroups"`

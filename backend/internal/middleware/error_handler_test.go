@@ -229,6 +229,7 @@ func TestValidationResponseUsesAppConfigTypeMessages(t *testing.T) {
 		EmailLoginNotificationEnabled:              "false",
 		EmailApiKeyExpirationEnabled:               "false",
 		EmailVerificationEnabled:                   "false",
+		AutoCreateOIDCClientSecret:                 "true",
 	}
 	payload, err := json.Marshal(input)
 	require.NoError(t, err)

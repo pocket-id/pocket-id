@@ -21,6 +21,12 @@
 	async function createOIDCClient(client: OidcClientCreateWithLogo) {
 		clientSecretStore.clear();
 		const createdClient = await oidcService.createClient(client);
+		if (createdClient.createdSecret) {
+			clientSecretStore.setAutoCreated(
+				createdClient.createdSecret.id,
+				createdClient.createdSecret.secret
+			);
+		}
 
 		const logoPromise = client.logo
 			? oidcService.updateClientLogo(createdClient, client.logo, true)
@@ -30,7 +36,6 @@
 			: Promise.resolve();
 		await Promise.all([logoPromise, darkLogoPromise]);
 
-		// A new client starts without any secret: the admin creates the ones they need from the credentials tab
 		goto(`/settings/admin/oidc-clients/${encodeClientIdParam(createdClient.id)}`);
 		toast.success(m.oidc_client_created_successfully());
 	}

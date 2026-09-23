@@ -152,7 +152,7 @@ func (s *OidcService) ListClients(ctx context.Context, name string, listRequestO
 	return clients, response, err
 }
 
-func (s *OidcService) CreateClient(ctx context.Context, input dto.OidcClientCreateDto, userID string) (model.OidcClient, error) {
+func (s *OidcService) CreateClient(ctx context.Context, input dto.OidcClientCreateDto, userID string, autoCreateSecret bool) (model.OidcClient, string, error) {
 	client := model.OidcClient{
 		Base: model.Base{
 			ID: input.ID,
@@ -161,7 +161,18 @@ func (s *OidcService) CreateClient(ctx context.Context, input dto.OidcClientCrea
 	}
 	err := updateOIDCClientModelFromDto(&client, &input.OidcClientUpdateDto)
 	if err != nil {
-		return model.OidcClient{}, err
+		return model.OidcClient{}, "", err
+	}
+
+	// Generate the initial credential before saving so a failed generation cannot leave a client without its expected secret
+	var createdSecret string
+	if autoCreateSecret && !client.IsPublic {
+		secret, value, err := newOIDCClientSecret(dto.OidcClientSecretCreateDto{})
+		if err != nil {
+			return model.OidcClient{}, "", err
+		}
+		client.Credentials.Secrets = append(client.Credentials.Secrets, secret)
+		createdSecret = value
 	}
 
 	err = s.db.
@@ -170,27 +181,27 @@ func (s *OidcService) CreateClient(ctx context.Context, input dto.OidcClientCrea
 		Error
 	if err != nil {
 		if errors.Is(err, gorm.ErrDuplicatedKey) {
-			return model.OidcClient{}, apperror.ClientIDAlreadyExists()
+			return model.OidcClient{}, "", apperror.ClientIDAlreadyExists()
 		}
-		return model.OidcClient{}, err
+		return model.OidcClient{}, "", err
 	}
 
 	// All storage operations must be executed outside of a transaction
 	if input.LogoURL != nil {
 		err = s.downloadAndSaveLogoFromURL(ctx, client.ID, *input.LogoURL, true)
 		if err != nil {
-			return model.OidcClient{}, fmt.Errorf("failed to download logo: %w", err)
+			return model.OidcClient{}, "", fmt.Errorf("failed to download logo: %w", err)
 		}
 	}
 
 	if input.DarkLogoURL != nil {
 		err = s.downloadAndSaveLogoFromURL(ctx, client.ID, *input.DarkLogoURL, false)
 		if err != nil {
-			return model.OidcClient{}, fmt.Errorf("failed to download dark logo: %w", err)
+			return model.OidcClient{}, "", fmt.Errorf("failed to download dark logo: %w", err)
 		}
 	}
 
-	return client, nil
+	return client, createdSecret, nil
 }
 
 func (s *OidcService) UpdateClient(ctx context.Context, clientID string, input dto.OidcClientUpdateDto) (model.OidcClient, error) {
@@ -412,23 +423,9 @@ func (s *OidcService) CreateClientSecret(ctx context.Context, clientID string, i
 		return model.OidcClientSecret{}, "", apperror.ValidationMessage(fmt.Sprintf("A client cannot have more than %d secrets", model.MaxOidcClientSecrets))
 	}
 
-	// Callers may supply their own value, otherwise one with enough entropy is generated here
-	clientSecret := input.Secret
-	if clientSecret == "" {
-		clientSecret, err = utils.GenerateRandomAlphanumericString(32)
-		if err != nil {
-			return model.OidcClientSecret{}, "", fmt.Errorf("failed to generate client secret: %w", err)
-		}
-	}
-
-	// Only the hash and a short prefix are persisted, so this is the last time the value is available
-	secret := model.OidcClientSecret{
-		ID:        uuid.NewV4().String(),
-		Algorithm: model.OidcClientSecretHashSHA256,
-		Hash:      utils.CreateSha256Hash(clientSecret),
-		Prefix:    clientSecretPrefix(clientSecret),
-		CreatedAt: datatype.DateTime(time.Now()),
-		ExpiresAt: input.ExpiresAt,
+	secret, clientSecret, err := newOIDCClientSecret(input)
+	if err != nil {
+		return model.OidcClientSecret{}, "", err
 	}
 	client.Credentials.Secrets = append(client.Credentials.Secrets, secret)
 
@@ -447,6 +444,28 @@ func (s *OidcService) CreateClientSecret(ctx context.Context, clientID string, i
 		return model.OidcClientSecret{}, "", fmt.Errorf("failed to commit transaction: %w", err)
 	}
 
+	return secret, clientSecret, nil
+}
+
+// newOIDCClientSecret keeps the generated value transient while persisting only its hash and prefix
+func newOIDCClientSecret(input dto.OidcClientSecretCreateDto) (model.OidcClientSecret, string, error) {
+	clientSecret := input.Secret
+	if clientSecret == "" {
+		var err error
+		clientSecret, err = utils.GenerateRandomAlphanumericString(32)
+		if err != nil {
+			return model.OidcClientSecret{}, "", fmt.Errorf("failed to generate client secret: %w", err)
+		}
+	}
+
+	secret := model.OidcClientSecret{
+		ID:        uuid.NewV4().String(),
+		Algorithm: model.OidcClientSecretHashSHA256,
+		Hash:      utils.CreateSha256Hash(clientSecret),
+		Prefix:    clientSecretPrefix(clientSecret),
+		CreatedAt: datatype.DateTime(time.Now()),
+		ExpiresAt: input.ExpiresAt,
+	}
 	return secret, clientSecret, nil
 }
 

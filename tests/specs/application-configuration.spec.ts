@@ -25,6 +25,28 @@ test('Update general configuration', async ({ page }) => {
 	await page.waitForURL('/settings/apps');
 });
 
+test('Disable automatic client secret creation', async ({ page }) => {
+	await page.getByRole('tab', { name: 'OIDC' }).click();
+	const autoCreateSecret = page.getByRole('switch', {
+		name: 'Automatically create client secrets'
+	});
+	await expect(autoCreateSecret).toBeChecked();
+	await autoCreateSecret.click();
+	await saveUnsavedChanges(page);
+
+	await page.reload();
+	await page.getByRole('tab', { name: 'OIDC' }).click();
+	await expect(autoCreateSecret).not.toBeChecked();
+
+	const response = await page.request.post('/api/oidc/clients', {
+		data: { name: 'No Automatic Secret' }
+	});
+	expect(response.status()).toBe(201);
+	const createdClient = await response.json();
+	expect(createdClient.createdSecret).toBeUndefined();
+	expect(createdClient.credentials.secrets ?? []).toHaveLength(0);
+});
+
 test('Save configuration from every editable tab together', async ({ page }) => {
 	await page.getByLabel('Application Name', { exact: true }).fill('Combined Settings');
 	await page.getByRole('tab', { name: 'User Creation' }).click();

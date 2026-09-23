@@ -11,7 +11,7 @@
 	import { m } from '$lib/paraglide/messages';
 	import OidcService from '$lib/services/oidc-service';
 	import ScimService from '$lib/services/scim-service';
-	import clientSecretStore from '$lib/stores/client-secret-store';
+	import clientSecretStore, { autoCreatedSecretId } from '$lib/stores/client-secret-store';
 	import type {
 		OidcClientCreateWithLogo,
 		OidcClientCredentials,
@@ -251,6 +251,16 @@
 							</span>
 						</CopyToClipboard>
 					</div>
+					{#if $autoCreatedSecretId && clientSecrets.some((secret) => secret.id === $autoCreatedSecretId) && $clientSecretStore[$autoCreatedSecretId]}
+						<div class="mb-2 flex flex-col sm:flex-row sm:items-center">
+							<Field.Label class="w-52">{m.client_secret()}</Field.Label>
+							<CopyToClipboard value={$clientSecretStore[$autoCreatedSecretId]}>
+								<span class="text-muted-foreground text-sm break-all" data-testid="client-secret">
+									{$clientSecretStore[$autoCreatedSecretId]}
+								</span>
+							</CopyToClipboard>
+						</div>
+					{/if}
 					{#if showAllDetails}
 						<div transition:slide>
 							{#each Object.entries(setupDetails) as [key, value] (key)}

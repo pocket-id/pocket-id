@@ -8,6 +8,7 @@ import (
 
 	"github.com/gin-gonic/gin"
 
+	"github.com/pocket-id/pocket-id/backend/internal/appconfig"
 	"github.com/pocket-id/pocket-id/backend/internal/apperror"
 	"github.com/pocket-id/pocket-id/backend/internal/dto"
 	"github.com/pocket-id/pocket-id/backend/internal/httpserver"
@@ -20,9 +21,10 @@ import (
 // @Summary OIDC controller
 // @Description Initializes all OIDC-related API endpoints for authentication and client management
 // @Tags OIDC
-func NewOidcController(group *gin.RouterGroup, authMiddleware *middleware.AuthMiddleware, fileSizeLimitMiddleware *middleware.FileSizeLimitMiddleware, oidcService *service.OidcService) {
+func NewOidcController(group *gin.RouterGroup, authMiddleware *middleware.AuthMiddleware, fileSizeLimitMiddleware *middleware.FileSizeLimitMiddleware, oidcService *service.OidcService, appConfigService appconfig.AppConfigResolver) {
 	oc := &OidcController{
-		oidcService: oidcService,
+		oidcService:      oidcService,
+		appConfigService: appConfigService,
 	}
 
 	group.GET("/oidc/clients", authMiddleware.Add(), httpserver.Handle(oc.listClientsHandler))
@@ -54,7 +56,8 @@ func NewOidcController(group *gin.RouterGroup, authMiddleware *middleware.AuthMi
 }
 
 type OidcController struct {
-	oidcService *service.OidcService
+	oidcService      *service.OidcService
+	appConfigService appconfig.AppConfigResolver
 }
 
 // getClientMetaDataHandler godoc
@@ -155,7 +158,7 @@ func (oc *OidcController) listClientsHandler(c *gin.Context) error {
 // @Accept json
 // @Produce json
 // @Param client body dto.OidcClientCreateDto true "Client information"
-// @Success 201 {object} dto.OidcClientWithAllowedUserGroupsDto "Created client"
+// @Success 201 {object} dto.OidcClientCreatedDto "Created client"
 // @Failure default {object} dto.ErrorDto "Error"
 // @Router /api/oidc/clients [post]
 func (oc *OidcController) createClientHandler(c *gin.Context) error {
@@ -165,15 +168,28 @@ func (oc *OidcController) createClientHandler(c *gin.Context) error {
 		return err
 	}
 
-	client, err := oc.oidcService.CreateClient(c.Request.Context(), input, c.GetString("userID"))
+	config, err := oc.appConfigService.GetConfig(c.Request.Context())
 	if err != nil {
 		return err
 	}
 
-	var clientDto dto.OidcClientWithAllowedUserGroupsDto
+	client, createdSecret, err := oc.oidcService.CreateClient(c.Request.Context(), input, c.GetString("userID"), config.AutoCreateOIDCClientSecret.IsTrue())
+	if err != nil {
+		return err
+	}
+
+	var clientDto dto.OidcClientCreatedDto
 	err = dto.MapStruct(client, &clientDto)
 	if err != nil {
 		return err
+	}
+	if createdSecret != "" {
+		var secretDto dto.OidcClientSecretCreatedDto
+		if err := dto.MapStruct(client.Credentials.Secrets[0], &secretDto); err != nil {
+			return err
+		}
+		secretDto.Secret = createdSecret
+		clientDto.CreatedSecret = &secretDto
 	}
 
 	c.JSON(http.StatusCreated, clientDto)
