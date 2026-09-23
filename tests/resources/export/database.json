@@ -108,7 +108,7 @@
 		"oidc_clients": [
 			{
 				"access_token_duration_minutes": 60,
-				"backchannel_logout_url": "",
+				"backchannel_logout_url": "http://host.docker.internal:18124/nextcloud",
 				"callback_urls": "WyJodHRwOi8vbmV4dGNsb3VkLmxvY2FsaG9zdC9hdXRoL2NhbGxiYWNrIl0=",
 				"client_type": "standard",
 				"created_at": "2025-11-25T12:39:02Z",
@@ -160,7 +160,7 @@
 			},
 			{
 				"access_token_duration_minutes": 60,
-				"backchannel_logout_url": "",
+				"backchannel_logout_url": "http://host.docker.internal:18124/tailscale",
 				"callback_urls": "WyJodHRwOi8vdGFpbHNjYWxlLmxvY2FsaG9zdC9hdXRoL2NhbGxiYWNrIl0=",
 				"client_type": "standard",
 				"created_at": "2025-11-25T12:39:02Z",

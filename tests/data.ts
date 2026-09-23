@@ -30,6 +30,7 @@ export const oidcClients = {
 		name: 'Nextcloud',
 		callbackUrl: 'http://nextcloud.localhost/auth/callback',
 		logoutCallbackUrl: 'http://nextcloud.localhost/auth/logout/callback',
+		backchannelLogoutURL: 'http://host.docker.internal:18124/nextcloud',
 		secret: 'w2mUeZISmEvIDMEDvpY0PnxQIpj1m3zY',
 		launchURL: 'https://nextcloud.local'
 	},
@@ -44,6 +45,7 @@ export const oidcClients = {
 		id: '7c21a609-96b5-4011-9900-272b8d31a9d1',
 		name: 'Tailscale',
 		callbackUrl: 'http://tailscale.localhost/auth/callback',
+		backchannelLogoutURL: 'http://host.docker.internal:18124/tailscale',
 		secret: 'n4VfQeXlTzA6yKpWbR9uJcMdSx2qH0Lo'
 	},
 	federated: {
