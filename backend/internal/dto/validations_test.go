@@ -230,3 +230,37 @@ func TestValidateCallbackURLPattern(t *testing.T) {
 		})
 	}
 }
+
+func TestBackchannelLogoutURLValidation(t *testing.T) {
+	for _, test := range []struct {
+		name     string
+		url      string
+		isPublic bool
+		wantErr  bool
+	}{
+		{name: "omitted for confidential client"},
+		{name: "omitted for public client", isPublic: true},
+		{name: "HTTPS for confidential client", url: "https://rp.example/logout"},
+		{name: "HTTPS for public client", url: "https://rp.example/logout", isPublic: true},
+		{name: "HTTP for confidential client", url: "http://rp.example:8080/logout?tenant=test"},
+		{name: "HTTP for public client", url: "http://rp.example/logout", isPublic: true, wantErr: true},
+		{name: "fragment", url: "https://rp.example/logout#fragment", wantErr: true},
+		{name: "empty fragment", url: "https://rp.example/logout#", wantErr: true},
+		{name: "encoded hash in query", url: "https://rp.example/logout?tenant=%23test", isPublic: true},
+		{name: "relative URL", url: "/logout", wantErr: true},
+		{name: "missing host", url: "https:///logout", wantErr: true},
+		{name: "unsupported scheme", url: "ftp://rp.example/logout", wantErr: true},
+	} {
+		t.Run(test.name, func(t *testing.T) {
+			input := OidcClientUpdateDto{Name: "Test Client", BackchannelLogoutURL: test.url, IsPublic: test.isPublic}
+			for _, dto := range []any{input, OidcClientCreateDto{OidcClientUpdateDto: input}} {
+				err := binding.Validator.ValidateStruct(dto)
+				if test.wantErr {
+					require.Error(t, err)
+				} else {
+					require.NoError(t, err)
+				}
+			}
+		})
+	}
+}
