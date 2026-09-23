@@ -1,11 +1,14 @@
 package backchannellogout
 
 import (
+	"errors"
 	"net/http"
 	"net/http/httptest"
+	"strconv"
 	"testing"
 	"time"
 
+	"github.com/italypaleale/francis/actor"
 	"github.com/italypaleale/francis/host/local"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -214,7 +217,8 @@ func TestService_sendLogoutToken_refusesRedirects(t *testing.T) {
 func TestService_notifyClients(t *testing.T) {
 	db := testutils.NewDatabaseForTest(t)
 
-	received := make(chan string, 2)
+	const clientCount = 8
+	received := make(chan string, clientCount)
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		assert.Equal(t, http.MethodPost, r.Method)
 		assert.Equal(t, "application/x-www-form-urlencoded", r.Header.Get("Content-Type"))
@@ -237,16 +241,78 @@ func TestService_notifyClients(t *testing.T) {
 		require.NoError(t, err)
 	})
 
-	s.notifyClients(t.Context(), []target{
-		{UserID: "user-1", ClientID: "client-fail", LogoutURL: failingServer.URL},
-		{UserID: "user-1", ClientID: "client-ok", LogoutURL: server.URL},
-	})
-
-	// The jobs are executed asynchronously by the actor runtime
-	select {
-	case logoutToken := <-received:
-		assert.Equal(t, "logout-token-user-1-client-ok", logoutToken)
-	case <-time.After(10 * time.Second):
-		t.Fatal("timed out waiting for the logout token to be delivered")
+	// Exceed the capacity group so idle actors cannot prevent later clients from receiving logout
+	targets := []target{{UserID: "user-1", ClientID: "client-fail", LogoutURL: failingServer.URL}}
+	expected := make([]string, 0, clientCount)
+	for i := range clientCount {
+		clientID := "client-" + strconv.Itoa(i)
+		targets = append(targets, target{UserID: "user-1", ClientID: clientID, LogoutURL: server.URL})
+		expected = append(expected, "logout-token-user-1-"+clientID)
 	}
+	s.notifyClients(t.Context(), targets)
+
+	// All recipients must receive their own token before the actors' idle timeout can release capacity
+	timeout := time.NewTimer(10 * time.Second)
+	defer timeout.Stop()
+	actual := make([]string, 0, clientCount)
+	for range clientCount {
+		select {
+		case logoutToken := <-received:
+			actual = append(actual, logoutToken)
+		case <-timeout.C:
+			t.Fatalf("received %d of %d logout tokens", len(actual), clientCount)
+		}
+	}
+	assert.ElementsMatch(t, expected, actual)
+}
+
+func TestService_sendLogoutToken_responseClassification(t *testing.T) {
+	for _, test := range []struct {
+		status    int
+		permanent bool
+	}{
+		{status: http.StatusOK},
+		{status: http.StatusNoContent},
+		{status: http.StatusFound, permanent: true},
+		{status: http.StatusBadRequest, permanent: true},
+		{status: http.StatusUnauthorized, permanent: true},
+		{status: http.StatusForbidden, permanent: true},
+		{status: http.StatusNotFound, permanent: true},
+		{status: http.StatusRequestTimeout},
+		{status: http.StatusTooManyRequests},
+		{status: http.StatusInternalServerError},
+		{status: http.StatusBadGateway},
+		{status: http.StatusServiceUnavailable},
+		{status: http.StatusGatewayTimeout},
+	} {
+		t.Run(strconv.Itoa(test.status), func(t *testing.T) {
+			server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				w.WriteHeader(test.status)
+			}))
+			t.Cleanup(server.Close)
+			s := &Service{tokenSigner: stubSigner{}, httpClient: newHTTPClient(server.Client())}
+
+			err := s.sendLogoutToken(t.Context(), target{UserID: "user-1", ClientID: "client-1", LogoutURL: server.URL})
+			if test.status >= 200 && test.status < 300 {
+				require.NoError(t, err)
+				return
+			}
+			require.Error(t, err)
+			assert.Equal(t, test.permanent, errors.Is(err, actor.ErrJobPermanentFailure))
+		})
+	}
+}
+
+func TestService_sendLogoutToken_networkFailureIsRetryable(t *testing.T) {
+	transportErr := errors.New("connection reset")
+	s := &Service{
+		tokenSigner: stubSigner{},
+		httpClient: newHTTPClient(&http.Client{
+			Transport: &testutils.MockRoundTripper{Err: transportErr},
+		}),
+	}
+
+	err := s.sendLogoutToken(t.Context(), target{UserID: "user-1", ClientID: "client-1", LogoutURL: "https://rp.example/logout"})
+	require.ErrorIs(t, err, transportErr)
+	assert.NotErrorIs(t, err, actor.ErrJobPermanentFailure)
 }

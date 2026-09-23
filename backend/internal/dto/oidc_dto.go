@@ -48,7 +48,7 @@ type OidcClientUpdateDto struct {
 	Description                         string                   `json:"description" binding:"omitempty,max=150" unorm:"nfc"`
 	CallbackURLs                        []string                 `json:"callbackURLs" binding:"omitempty,dive,callback_url_pattern"`
 	LogoutCallbackURLs                  []string                 `json:"logoutCallbackURLs" binding:"omitempty,dive,callback_url_pattern"`
-	BackchannelLogoutURL                string                   `json:"backchannelLogoutURL" binding:"omitempty,http_url"`
+	BackchannelLogoutURL                string                   `json:"backchannelLogoutURL" binding:"omitempty,http_url,backchannel_logout_url"`
 	IsPublic                            bool                     `json:"isPublic"`
 	PkceEnabled                         bool                     `json:"pkceEnabled"`
 	RequiresReauthentication            bool                     `json:"requiresReauthentication"`

@@ -62,6 +62,15 @@ func init() {
 		"callback_url_pattern": func(fl validator.FieldLevel) bool {
 			return ValidateCallbackURLPattern(fl.Field().String())
 		},
+		"backchannel_logout_url": func(fl validator.FieldLevel) bool {
+			// Back-Channel Logout §2.2 forbids fragments and permits HTTP only for confidential clients
+			raw := fl.Field().String()
+			u, err := url.Parse(raw)
+			if err != nil || strings.Contains(raw, "#") {
+				return false
+			}
+			return u.Scheme == "https" || !fl.Parent().FieldByName("IsPublic").Bool()
+		},
 		"resource_uri": func(fl validator.FieldLevel) bool {
 			return ValidateResourceURI(fl.Field().String())
 		},
@@ -157,6 +166,8 @@ func ValidationErrorDetails(validationError validator.FieldError) (string, strin
 		return "invalid_format", "must be a valid URL"
 	case "resource_uri":
 		return "invalid_format", "must be an absolute URI without whitespace or a fragment"
+	case "backchannel_logout_url":
+		return "invalid_format", "must not contain a fragment and must use HTTPS for public clients"
 	case "min":
 		return "too_short", fmt.Sprintf("must be at least %s characters long", validationError.Param())
 	case "max":
