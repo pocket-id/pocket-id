@@ -1,6 +1,6 @@
 {
 	"provider": "sqlite",
-	"version": 20260901120000,
+	"version": 20260923183637,
 	"tableOrder": [
 		"users",
 		"user_groups",
