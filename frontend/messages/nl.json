@@ -658,10 +658,10 @@
 	"delete_client_secret": "Clientgeheim verwijderen",
 	"are_you_sure_you_want_to_delete_this_client_secret": "Weet je zeker dat je dit clientgeheim wilt verwijderen? Apps die hiervan gebruikmaken, kunnen zich dan niet meer authenticeren.",
 	"client_secret_deleted_successfully": "Het clientgeheim is succesvol verwijderd",
-	"you_have_unsaved_changes": "You have unsaved changes",
-	"changes_saved_successfully": "Changes saved successfully",
-	"discard": "Discard",
-	"discard_unsaved_changes": "Discard unsaved changes?",
-	"discard_unsaved_changes_confirm": "You have unsaved changes on this page. Are you sure you want to discard them?",
-	"please_fix_the_errors_before_saving": "Please fix the highlighted errors before saving"
+	"you_have_unsaved_changes": "Je hebt niet opgeslagen wijzigingen",
+	"changes_saved_successfully": "Wijzigingen met succes opgeslagen",
+	"discard": "Weggooien",
+	"discard_unsaved_changes": "Niet opgeslagen wijzigingen verwijderen?",
+	"discard_unsaved_changes_confirm": "Je hebt nog niet-opgeslagen wijzigingen op deze pagina. Weet je zeker dat je ze wilt verwijderen?",
+	"please_fix_the_errors_before_saving": "Los de gemarkeerde fouten op voordat je opslaat"
 }
