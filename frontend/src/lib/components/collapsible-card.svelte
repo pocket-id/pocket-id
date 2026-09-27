@@ -30,14 +30,14 @@
 	let expanded = $state(defaultExpanded);
 
 	function loadExpandedState() {
-		const state = JSON.parse(localStorage.getItem('collapsible-cards-expanded') || '{}');
+		const state = JSON.parse(localStorage?.getItem('collapsible-cards-expanded') || '{}');
 		expanded = state[id] || false;
 	}
 
 	function saveExpandedState() {
-		const state = JSON.parse(localStorage.getItem('collapsible-cards-expanded') || '{}');
+		const state = JSON.parse(localStorage?.getItem('collapsible-cards-expanded') || '{}');
 		state[id] = expanded;
-		localStorage.setItem('collapsible-cards-expanded', JSON.stringify(state));
+		localStorage?.setItem('collapsible-cards-expanded', JSON.stringify(state));
 	}
 
 	function toggleExpanded() {

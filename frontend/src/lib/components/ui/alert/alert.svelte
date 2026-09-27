@@ -46,7 +46,7 @@
 
 	onMount(() => {
 		if (dismissibleId) {
-			const dismissedAlerts = JSON.parse(localStorage.getItem('dismissed-alerts') || '[]');
+			const dismissedAlerts = JSON.parse(localStorage?.getItem('dismissed-alerts') || '[]');
 			isVisible = !dismissedAlerts.includes(dismissibleId);
 		}
 	});
@@ -54,8 +54,8 @@
 	function dismiss() {
 		onDismiss?.();
 		if (dismissibleId) {
-			const dismissedAlerts = JSON.parse(localStorage.getItem('dismissed-alerts') || '[]');
-			localStorage.setItem('dismissed-alerts', JSON.stringify([...dismissedAlerts, dismissibleId]));
+			const dismissedAlerts = JSON.parse(localStorage?.getItem('dismissed-alerts') || '[]');
+			localStorage?.setItem('dismissed-alerts', JSON.stringify([...dismissedAlerts, dismissibleId]));
 			isVisible = false;
 		}
 	}

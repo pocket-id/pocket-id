@@ -103,13 +103,13 @@ function bustImageCache(url: URL) {
 	const key = normalizeUrlForKey(url);
 	const expiresAt = Date.now() + 1000 * 60 * 15;
 
-	const store: SkipCacheUntil = JSON.parse(localStorage.getItem('skip-cache-until') ?? '{}');
+	const store: SkipCacheUntil = JSON.parse(localStorage?.getItem('skip-cache-until') ?? '{}');
 	store[key] = expiresAt;
-	localStorage.setItem('skip-cache-until', JSON.stringify(store));
+	localStorage?.setItem('skip-cache-until', JSON.stringify(store));
 }
 
 function getSkipCacheUntil(key: string): number {
-	const store: SkipCacheUntil = JSON.parse(localStorage.getItem('skip-cache-until') ?? '{}');
+	const store: SkipCacheUntil = JSON.parse(localStorage?.getItem('skip-cache-until') ?? '{}');
 	return store[key] ?? 0;
 }
 
