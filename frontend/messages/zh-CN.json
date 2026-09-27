@@ -58,7 +58,7 @@
 	"account_selection_signin_confirmation": "您是否要使用以下账户继续 {#b}{name}{/b}？",
 	"use_a_different_account": "请使用另一个账户",
 	"client_wants_to_access_the_following_information": "{#b}{client}{/b} 希望访问以下信息：",
-	"do_you_want_to_sign_in_to_client_with_your_app_name_account": "您是否希望使用您的 {appName} 账户登录到 {#b}{client}{/b}？",
+	"do_you_want_to_sign_in_to_client_with_your_app_name_account": "要使用你的 {appName} 账户登录 {#b}{client}{/b} 吗？",
 	"email": "电子邮件",
 	"view_your_email_address": "查看您的电子邮件地址",
 	"profile": "个人资料",
