@@ -525,6 +525,10 @@
   "69700f79-d1fb-472e-bd9b-a3a3b9a9eda0": {
     "name": "Pone Biometrics OFFPAD Authenticator"
   },
+  "69840def-9dcf-4632-bf87-6ac2e451b4f5": {
+    "name": "Keyholm",
+    "icon_light": "fb699585e6b50a44.svg"
+  },
   "6999180d-630c-442d-b8f7-424b90a43fae": {
     "name": "Hyper FIDO Pro (CTAP2.1, CTAP2.0, U2F)"
   },
@@ -793,6 +797,11 @@
     "name": "KeePassPasskey",
     "icon_light": "7fd2cfb58273936e.svg",
     "icon_dark": "a8a6898e204a3630.svg"
+  },
+  "9c1f2b6e-4d3a-4f7c-8b21-5e6a7d8c9f01": {
+    "name": "Idira",
+    "icon_light": "25993c48736fd51c.svg",
+    "icon_dark": "cfa94c9d844226f2.svg"
   },
   "9c835346-796b-4c27-8898-d6032f515cc5": {
     "name": "Cryptnox FIDO2"
