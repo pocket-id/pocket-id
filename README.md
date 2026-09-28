@@ -1,5 +1,7 @@
 # <div align="center"><img  src="https://github.com/user-attachments/assets/d906ac59-9269-4aa0-8c0d-e9619d0de04c" width="100"/> </br>Pocket ID</div>
 
+
+
 Pocket ID is an easy-to-use OpenID Connect Certified™ and OAuth 2.0 provider that lets users sign in to your applications with passkeys.
 
 → Try out the [Demo](https://demo.pocket-id.org)
@@ -23,3 +25,11 @@ Visit the [documentation](https://docs.pocket-id.org) for the setup guide and mo
 ## Contribute
 
 You're very welcome to contribute to Pocket ID! Please follow the [contribution guide](/CONTRIBUTING.md) to get started.
+
+<div align="center">
+<br />
+<br />
+<a href="https://vercel.com/open-source-program">
+  <img alt="Vercel OSS Program" src="https://vercel.com/oss/program-badge-2026.svg" />
+</a>
+</div>
