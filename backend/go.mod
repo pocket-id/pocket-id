@@ -19,12 +19,12 @@ require (
 	github.com/gin-gonic/gin v1.12.0
 	github.com/go-jose/go-jose/v4 v4.1.5
 	github.com/go-ldap/ldap/v3 v3.4.14
-	github.com/go-playground/validator/v10 v10.30.4
+	github.com/go-playground/validator/v10 v10.30.5
 	github.com/go-webauthn/webauthn v0.18.2
 	github.com/golang-migrate/migrate/v4 v4.20.1
-	github.com/italypaleale/francis v0.1.0-rc.8
-	github.com/italypaleale/go-kit v1.2.3
-	github.com/italypaleale/go-sql-utils v0.3.8
+	github.com/italypaleale/francis v0.1.0
+	github.com/italypaleale/go-kit v1.2.4
+	github.com/italypaleale/go-sql-utils v0.3.9
 	github.com/jackc/pgx/v5 v5.11.0
 	github.com/jinzhu/copier v0.4.0
 	github.com/joho/godotenv v1.5.1
@@ -38,7 +38,7 @@ require (
 	github.com/ory/fosite v0.49.1-0.20250703093431-a5f0b09bf31c
 	github.com/oschwald/maxminddb-golang/v2 v2.6.0
 	github.com/pires/go-proxyproto v0.15.0
-	github.com/quic-go/quic-go v0.62.0
+	github.com/quic-go/quic-go v0.63.0
 	github.com/spf13/cobra v1.10.2
 	github.com/stretchr/testify v1.12.1
 	github.com/zitadel/exifremove v0.1.0
@@ -108,7 +108,7 @@ require (
 	github.com/go-logr/logr v1.4.4 // indirect
 	github.com/go-logr/stdr v1.2.2 // indirect
 	github.com/go-playground/locales v0.14.1 // indirect
-	github.com/go-playground/universal-translator v0.18.1 // indirect
+	github.com/go-playground/universal-translator v0.18.2 // indirect
 	github.com/go-viper/mapstructure/v2 v2.5.0 // indirect
 	github.com/go-webauthn/x v0.3.1 // indirect
 	github.com/go-xmlfmt/xmlfmt v1.1.3 // indirect
@@ -222,7 +222,7 @@ require (
 	google.golang.org/protobuf v1.36.12 // indirect
 	gopkg.in/yaml.v2 v2.4.0 // indirect
 	k8s.io/utils v0.0.0-20260707023825-cf1189d6abe3 // indirect
-	modernc.org/libc v1.77.0 // indirect
+	modernc.org/libc v1.77.1 // indirect
 	modernc.org/mathutil v1.7.1 // indirect
 	modernc.org/memory v1.12.1 // indirect
 )
