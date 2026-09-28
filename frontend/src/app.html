@@ -9,7 +9,7 @@
 		<link rel="apple-touch-icon" href="/img/static-logo-512.png" />
 		<script>
 			try {
-				const mode = localStorage.getItem('mode-watcher-mode') || 'system';
+				const mode = localStorage?.getItem('mode-watcher-mode') || 'system';
 				const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
 				const isDark = mode === 'dark' || (mode === 'system' && prefersDark);
 
