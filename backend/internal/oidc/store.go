@@ -31,6 +31,7 @@ const (
 	sessionKindPAR           = "par"
 	sessionKindDeviceCode    = "device_code"
 	sessionKindUserCode      = "user_code"
+	refreshTokenGracePeriod  = time.Minute
 )
 
 var (
@@ -364,11 +365,16 @@ func (s *Store) CreateRefreshTokenSession(ctx context.Context, signature string,
 }
 
 func (s *Store) GetRefreshTokenSession(ctx context.Context, signature string, _ fosite.Session) (fosite.Requester, error) {
-	request, active, err := s.getRequesterSession(ctx, sessionKindRefreshToken, signature)
+	session, err := s.getSession(ctx, sessionKindRefreshToken, signature)
 	if err != nil {
 		return nil, err
 	}
-	if !active {
+	request, err := s.decodeRequester(ctx, session.RequestData)
+	if err != nil {
+		return nil, err
+	}
+	// Allow retries briefly after rotation while keeping explicitly revoked tokens inactive
+	if !session.Active && (session.RotatedAt == nil || !time.Now().UTC().Before(session.RotatedAt.ToTime().Add(refreshTokenGracePeriod))) {
 		return request, fosite.ErrInactiveToken
 	}
 	return request, nil
@@ -379,10 +385,29 @@ func (s *Store) DeleteRefreshTokenSession(ctx context.Context, signature string)
 }
 
 func (s *Store) RotateRefreshToken(ctx context.Context, requestID string, refreshTokenSignature string) error {
-	if err := s.deactivateSession(ctx, sessionKindRefreshToken, refreshTokenSignature); err != nil {
+	// Atomically start the grace period once so parallel refreshes cannot extend it or revive revoked tokens
+	now := time.Now().UTC()
+	result := s.dbFor(ctx).
+		Model(&OAuth2Session{}).
+		Where("kind = ? AND key = ? AND request_id = ?", sessionKindRefreshToken, refreshTokenSignature, requestID).
+		Where("active = ? OR rotated_at > ?", true, datatype.DateTime(now.Add(-refreshTokenGracePeriod))).
+		Updates(map[string]any{
+			"active":     false,
+			"rotated_at": gorm.Expr("COALESCE(rotated_at, ?)", datatype.DateTime(now)),
+		})
+	if result.Error != nil {
+		return result.Error
+	}
+	if result.RowsAffected == 0 {
+		return fosite.ErrInactiveToken
+	}
+
+	// Revoke only the access token paired with this refresh token so concurrent refreshes keep their access tokens
+	session, err := s.getSession(ctx, sessionKindRefreshToken, refreshTokenSignature)
+	if err != nil {
 		return err
 	}
-	return s.RevokeAccessToken(ctx, requestID)
+	return s.DeleteAccessTokenSession(ctx, session.AccessTokenSignature)
 }
 
 // Satisfies fositeoauth2.TokenRevocationStorage
@@ -391,7 +416,7 @@ func (s *Store) RevokeRefreshToken(ctx context.Context, requestID string) error 
 	return s.dbFor(ctx).
 		Model(&OAuth2Session{}).
 		Where("kind = ? AND request_id = ?", sessionKindRefreshToken, requestID).
-		Update("active", false).
+		Updates(map[string]any{"active": false, "rotated_at": nil}).
 		Error
 }
 
@@ -403,7 +428,7 @@ func (s *Store) RevokeAccessToken(ctx context.Context, requestID string) error {
 }
 
 func (s *Store) RevokeSessionsByIDTokenHint(ctx context.Context, userID, clientID, idTokenJTI string) error {
-	_, jtiMatches, err := s.findActiveRefreshTokenRequestIDsForUserClient(ctx, userID, clientID, idTokenJTI)
+	_, jtiMatches, err := s.findRefreshTokenRequestIDsForUserClient(ctx, userID, clientID, idTokenJTI)
 	if err != nil {
 		return err
 	}
@@ -413,19 +438,20 @@ func (s *Store) RevokeSessionsByIDTokenHint(ctx context.Context, userID, clientI
 
 func RevokeUserClientSessions(ctx context.Context, db *gorm.DB, userID, clientID string) error {
 	s := NewStore(db, nil)
-	requestIDs, _, err := s.findActiveRefreshTokenRequestIDsForUserClient(ctx, userID, clientID, "")
+	requestIDs, _, err := s.findRefreshTokenRequestIDsForUserClient(ctx, userID, clientID, "")
 	if err != nil {
 		return err
 	}
 	return s.revokeRequestIDs(ctx, requestIDs)
 }
 
-// findActiveRefreshTokenRequestIDsForUserClient returns request IDs for active refresh-token sessions belonging to the user and client, plus the subset matching the optional ID token JTI
-func (s *Store) findActiveRefreshTokenRequestIDsForUserClient(ctx context.Context, userID, clientID, idTokenJTI string) (candidates []string, jtiMatches []string, err error) {
+// findRefreshTokenRequestIDsForUserClient returns request IDs for usable refresh-token sessions belonging to the user and client, plus the subset matching the optional ID token JTI
+func (s *Store) findRefreshTokenRequestIDsForUserClient(ctx context.Context, userID, clientID, idTokenJTI string) (candidates []string, jtiMatches []string, err error) {
 	var sessions []OAuth2Session
 	query := s.dbFor(ctx).
 		Select("request_id", "request_data").
-		Where("kind = ? AND active = ? AND client_id = ?", sessionKindRefreshToken, true, clientID)
+		Where("kind = ? AND client_id = ?", sessionKindRefreshToken, clientID).
+		Where("active = ? OR rotated_at > ?", true, datatype.DateTime(time.Now().UTC().Add(-refreshTokenGracePeriod)))
 
 	// Filter by the user ID stored in the JSON request data
 	switch query.Name() {
@@ -472,7 +498,7 @@ func (s *Store) revokeRequestIDs(ctx context.Context, requestIDs []string) error
 	if err := s.dbFor(ctx).
 		Model(&OAuth2Session{}).
 		Where("kind = ? AND request_id IN ?", sessionKindRefreshToken, requestIDs).
-		Update("active", false).
+		Updates(map[string]any{"active": false, "rotated_at": nil}).
 		Error; err != nil {
 		return err
 	}

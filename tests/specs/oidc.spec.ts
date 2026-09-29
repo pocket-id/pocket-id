@@ -409,49 +409,6 @@ test('Refresh token fails when used for the wrong user', async ({ request }) => 
 	expect(refreshResponse.status()).toBe(400);
 });
 
-test('Using refresh token invalidates it for future use', async ({ request }) => {
-	const { token, clientId, userId } = refreshTokens.filter((token) => !token.expired)[0];
-	const clientSecret = 'w2mUeZISmEvIDMEDvpY0PnxQIpj1m3zY';
-
-	// Sign the refresh token
-	const refreshToken = await request
-		.post('/api/test/refreshtoken', {
-			data: {
-				rt: token,
-				client: clientId,
-				user: userId
-			}
-		})
-		.then((r) => r.text());
-
-	// Perform the exchange
-	await request.post('/api/oidc/token', {
-		headers: {
-			'Content-Type': 'application/x-www-form-urlencoded'
-		},
-		form: {
-			grant_type: 'refresh_token',
-			client_id: clientId,
-			refresh_token: refreshToken,
-			client_secret: clientSecret
-		}
-	});
-
-	// Try again
-	const refreshResponse = await request.post('/api/oidc/token', {
-		headers: {
-			'Content-Type': 'application/x-www-form-urlencoded'
-		},
-		form: {
-			grant_type: 'refresh_token',
-			client_id: clientId,
-			refresh_token: refreshToken,
-			client_secret: clientSecret
-		}
-	});
-	expect(refreshResponse.status()).toBe(400);
-});
-
 test.describe('Introspection endpoint', () => {
 	test('fails without client credentials', async ({ request }) => {
 		const validAccessToken = await generateSeededOauthAccessToken(

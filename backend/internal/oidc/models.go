@@ -22,6 +22,7 @@ type OAuth2Session struct {
 	Active               bool
 	RequestData          string
 	ExpiresAt            *datatype.DateTime
+	RotatedAt            *datatype.DateTime
 }
 
 func (OAuth2Session) TableName() string {
