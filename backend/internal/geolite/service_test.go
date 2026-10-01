@@ -20,12 +20,12 @@ func TestServiceGetLocationByIPPrivateRanges(t *testing.T) {
 		city      string
 	}{
 		{name: "empty address", ipAddress: ""},
-		{name: "private LAN IPv4", ipAddress: "192.168.1.20", country: internalNetworkCountry, city: "LAN"},
-		{name: "private LAN IPv4 in the 10/8 range", ipAddress: "10.4.5.6", country: internalNetworkCountry, city: "LAN"},
-		{name: "Tailscale IPv4", ipAddress: "100.101.102.103", country: internalNetworkCountry, city: "Tailscale"},
-		{name: "IPv6 unique local address", ipAddress: "fd00::1", country: internalNetworkCountry, city: "LAN"},
-		{name: "IPv4 loopback", ipAddress: "127.0.0.1", country: internalNetworkCountry, city: "LAN"},
-		{name: "IPv6 loopback", ipAddress: "::1", country: internalNetworkCountry, city: "LAN"},
+		{name: "private LAN IPv4", ipAddress: "192.168.1.20", country: "Internal Network", city: "LAN"},
+		{name: "private LAN IPv4 in the 10/8 range", ipAddress: "10.4.5.6", country: "Internal Network", city: "LAN"},
+		{name: "Tailscale IPv4", ipAddress: "100.101.102.103", country: "Internal Network", city: "Tailscale"},
+		{name: "IPv6 unique local address", ipAddress: "fd00::1", country: "Internal Network", city: "LAN"},
+		{name: "IPv4 loopback", ipAddress: "127.0.0.1", country: "Internal Network", city: "LAN"},
+		{name: "IPv6 loopback", ipAddress: "::1", country: "Internal Network", city: "LAN"},
 	}
 
 	for _, tt := range tests {

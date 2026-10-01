@@ -124,6 +124,9 @@ func shouldTraceRequest(r *http.Request) bool {
 }
 
 func registerGlobalMiddleware(r *gin.Engine) {
+	if common.EnvConfig.CloudflareLocationHeaders {
+		r.Use(middleware.CloudflareLocationMiddleware())
+	}
 	r.Use(middleware.HeadMiddleware())
 	r.Use(middleware.NewCacheControlMiddleware().Add())
 	r.Use(middleware.NewCorsMiddleware().Add())

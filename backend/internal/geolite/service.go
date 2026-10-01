@@ -11,16 +11,13 @@ import (
 
 	"github.com/oschwald/maxminddb-golang/v2"
 
-	"github.com/pocket-id/pocket-id/backend/internal/utils"
+	"github.com/pocket-id/pocket-id/backend/internal/iplocation"
 )
 
 // The GeoLite2 City database is kept on disk and memory-mapped (the format is optimized for random access)
 //
 // The database file is considered cache, not state: it is a copy of a public artifact that any replica can rebuild on its own, so nothing is lost when a node goes away, and every replica keeps its own without needing to replicate anything
 // It is also the supported way to supply a database by hand, which is what air-gapped deployments do: the file is watched, so replacing it takes effect without a restart
-
-// internalNetworkCountry is reported for addresses that aren't routable on the public Internet
-const internalNetworkCountry = "Internal Network"
 
 // Service resolves IP addresses to locations, against a memory-mapped GeoLite2 City database
 type Service struct {
@@ -51,19 +48,9 @@ func (s *Service) GetLocationByIP(_ context.Context, ipAddress string) (country 
 		return "", "", nil
 	}
 
-	// Check the IP address against known private IP ranges, which can be short-circuited
-	ip := net.ParseIP(ipAddress)
-	if ip != nil {
-		switch {
-		case utils.IsLocalIPv6(ip):
-			return internalNetworkCountry, "LAN", nil
-		case utils.IsTailscaleIP(ip):
-			return internalNetworkCountry, "Tailscale", nil
-		case utils.IsPrivateIP(ip):
-			return internalNetworkCountry, "LAN", nil
-		case utils.IsLocalhostIP(ip):
-			return internalNetworkCountry, "localhost", nil
-		}
+	// Keep local network labels consistent across location providers
+	if country, city := iplocation.LocalLocation(net.ParseIP(ipAddress)); country != "" {
+		return country, city, nil
 	}
 
 	addr, err := netip.ParseAddr(ipAddress)

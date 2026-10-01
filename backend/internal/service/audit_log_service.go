@@ -8,6 +8,7 @@ import (
 
 	userAgentParser "github.com/mileusna/useragent"
 	"github.com/pocket-id/pocket-id/backend/internal/appconfig"
+	"github.com/pocket-id/pocket-id/backend/internal/iplocation"
 	"github.com/pocket-id/pocket-id/backend/internal/model"
 	"github.com/pocket-id/pocket-id/backend/internal/utils"
 	"gorm.io/gorm"
@@ -17,18 +18,14 @@ type NewLoginEmailSender interface {
 	SendNewLogin(ctx context.Context, dbConfig *appconfig.AppConfigModel, userFullName, userEmail, ipAddress, country, city, device string, dateTime time.Time) error
 }
 
-type IPLocationResolver interface {
-	GetLocationByIP(ctx context.Context, ipAddress string) (country string, city string, err error)
-}
-
 type AuditLogService struct {
 	db               *gorm.DB
 	emailSender      NewLoginEmailSender
-	ipLocator        IPLocationResolver
+	ipLocator        iplocation.Resolver
 	appConfigService *appconfig.AppConfigService
 }
 
-func NewAuditLogService(db *gorm.DB, emailSender NewLoginEmailSender, ipLocator IPLocationResolver, appConfigService *appconfig.AppConfigService) *AuditLogService {
+func NewAuditLogService(db *gorm.DB, emailSender NewLoginEmailSender, ipLocator iplocation.Resolver, appConfigService *appconfig.AppConfigService) *AuditLogService {
 	return &AuditLogService{
 		db:               db,
 		emailSender:      emailSender,

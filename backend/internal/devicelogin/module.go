@@ -11,6 +11,7 @@ import (
 
 	"github.com/pocket-id/pocket-id/backend/internal/appconfig"
 	"github.com/pocket-id/pocket-id/backend/internal/httpserver"
+	"github.com/pocket-id/pocket-id/backend/internal/iplocation"
 	"github.com/pocket-id/pocket-id/backend/internal/model"
 )
 
@@ -27,10 +28,6 @@ type AuditLogger interface {
 	DeviceStringFromUserAgent(userAgent string) string
 }
 
-type IPLocationResolver interface {
-	GetLocationByIP(ctx context.Context, ipAddress string) (country string, city string, err error)
-}
-
 type Dependencies struct {
 	DB      *gorm.DB
 	Actors  francishost.Host
@@ -39,7 +36,7 @@ type Dependencies struct {
 	Signer    TokenService
 	Reauth    ReauthenticationTokenConsumer
 	AuditLog  AuditLogger
-	IPLocator IPLocationResolver
+	IPLocator iplocation.Resolver
 	AppConfig appconfig.AppConfigResolver
 }
 

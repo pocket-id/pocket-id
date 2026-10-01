@@ -21,9 +21,69 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"github.com/pocket-id/pocket-id/backend/internal/apperror"
+	"github.com/pocket-id/pocket-id/backend/internal/common"
+	"github.com/pocket-id/pocket-id/backend/internal/geolite"
+	"github.com/pocket-id/pocket-id/backend/internal/iplocation"
 	"github.com/pocket-id/pocket-id/backend/internal/middleware"
 	"github.com/stretchr/testify/require"
 )
+
+func TestCloudflareLocationMiddlewareOnlyWhenEnabled(t *testing.T) {
+	previousConfig := common.EnvConfig
+	t.Cleanup(func() { common.EnvConfig = previousConfig })
+	gin.SetMode(gin.TestMode)
+
+	for _, enabled := range []bool{false, true} {
+		name := "disabled"
+		if enabled {
+			name = "enabled"
+		}
+		t.Run(name, func(t *testing.T) {
+			common.EnvConfig.CloudflareLocationHeaders = enabled
+			locator, geoLiteModule, err := initIPLocationResolver(t.Context(), nil, &common.EnvConfigSchema{
+				GeoLiteDBPath:             filepath.Join(t.TempDir(), "missing.mmdb"),
+				CloudflareLocationHeaders: enabled,
+			})
+			require.NoError(t, err)
+			if enabled {
+				require.IsType(t, iplocation.NewCloudflareResolver(), locator)
+				require.Nil(t, geoLiteModule)
+			} else {
+				require.IsType(t, &geolite.Module{}, locator)
+				require.Same(t, geoLiteModule, locator)
+			}
+
+			// Exercise the real global middleware with a Cloudflare client IP instead of the proxy's IP
+			router := gin.New()
+			router.TrustedPlatform = "CF-Connecting-IP"
+			registerGlobalMiddleware(router)
+			router.GET("/api/test", func(c *gin.Context) {
+				country, city, err := locator.GetLocationByIP(c.Request.Context(), c.ClientIP())
+				require.NoError(t, err)
+				c.JSON(http.StatusOK, gin.H{"ip": c.ClientIP(), "country": country, "city": city})
+			})
+			request := httptest.NewRequestWithContext(t.Context(), http.MethodGet, "/api/test", nil)
+			request.RemoteAddr = "192.168.1.1:1234"
+			request.Header.Set("cf-connecting-ip", "81.2.69.142")
+			request.Header.Set("cf-ipcountry", "CH")
+			request.Header.Set("cf-ipcity", "Zürich")
+			recorder := httptest.NewRecorder()
+			router.ServeHTTP(recorder, request)
+			require.Equal(t, http.StatusOK, recorder.Code)
+
+			var location map[string]string
+			require.NoError(t, json.Unmarshal(recorder.Body.Bytes(), &location))
+			require.Equal(t, "81.2.69.142", location["ip"])
+			if enabled {
+				require.Equal(t, "Switzerland", location["country"])
+				require.Equal(t, "Zürich", location["city"])
+			} else {
+				require.Empty(t, location["country"])
+				require.Empty(t, location["city"])
+			}
+		})
+	}
+}
 
 func TestRequestLoggerUsesStructuredErrorMetadata(t *testing.T) {
 	gin.SetMode(gin.TestMode)

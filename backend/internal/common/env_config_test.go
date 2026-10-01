@@ -121,6 +121,7 @@ func TestParseEnvConfig(t *testing.T) {
 		t.Setenv("PROXY_PROTOCOL", "true")
 		t.Setenv("ANALYTICS_DISABLED", "false")
 		t.Setenv("ALLOW_INSECURE_CALLBACK_URLS", "false")
+		t.Setenv("CLOUDFLARE_LOCATION_HEADERS", "true")
 
 		err := parseAndValidateEnvConfig(t)
 		require.NoError(t, err)
@@ -129,6 +130,7 @@ func TestParseEnvConfig(t *testing.T) {
 		assert.Equal(t, TrustProxyConfig{"0.0.0.0/0", "::/0"}, EnvConfig.ProxyProtocol)
 		assert.False(t, EnvConfig.AnalyticsDisabled)
 		assert.False(t, EnvConfig.AllowInsecureCallbackURLs)
+		assert.True(t, EnvConfig.CloudflareLocationHeaders)
 	})
 
 	t.Run("should parse trusted proxy IP addresses and CIDR ranges", func(t *testing.T) {

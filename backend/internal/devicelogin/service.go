@@ -13,6 +13,7 @@ import (
 
 	"github.com/pocket-id/pocket-id/backend/internal/apperror"
 	"github.com/pocket-id/pocket-id/backend/internal/dto"
+	"github.com/pocket-id/pocket-id/backend/internal/iplocation"
 	"github.com/pocket-id/pocket-id/backend/internal/model"
 	datatype "github.com/pocket-id/pocket-id/backend/internal/model/types"
 	"github.com/pocket-id/pocket-id/backend/internal/utils"
@@ -36,7 +37,7 @@ type Service struct {
 	signer     TokenService
 	reauth     ReauthenticationTokenConsumer
 	auditLog   AuditLogger
-	ipLocator  IPLocationResolver
+	ipLocator  iplocation.Resolver
 }
 
 type VerificationInfo struct {
@@ -48,7 +49,7 @@ type VerificationInfo struct {
 	ExpiresAt datatype.DateTime
 }
 
-func NewService(actService *actor.Service, db *gorm.DB, signer TokenService, reauth ReauthenticationTokenConsumer, auditLog AuditLogger, ipLocator IPLocationResolver) *Service {
+func NewService(actService *actor.Service, db *gorm.DB, signer TokenService, reauth ReauthenticationTokenConsumer, auditLog AuditLogger, ipLocator iplocation.Resolver) *Service {
 	return &Service{
 		actService: actService,
 		db:         db,

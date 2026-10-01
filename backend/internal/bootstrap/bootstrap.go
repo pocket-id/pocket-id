@@ -103,8 +103,8 @@ func Bootstrap(ctx context.Context) error {
 	// Migrate the pre-actor signup tokens into their actors, once the actor host is ready
 	services = append(services, actorsReady.Await(svc.userSignUpModule.RunSignupTokenMigration))
 
-	// These services are only registered in non-test mode
-	if common.EnvConfig.AppEnv != "test" {
+	// Only the GeoLite provider needs a background database refresher
+	if !common.EnvConfig.AppEnv.IsTest() && svc.geoLiteModule != nil {
 		// Refresh the GeoLite database (this is cached per each replica)
 		services = append(services, svc.geoLiteModule.Run)
 	}

@@ -17,6 +17,7 @@ import (
 	"github.com/pocket-id/pocket-id/backend/internal/emailverification"
 	"github.com/pocket-id/pocket-id/backend/internal/environment"
 	"github.com/pocket-id/pocket-id/backend/internal/geolite"
+	"github.com/pocket-id/pocket-id/backend/internal/iplocation"
 	"github.com/pocket-id/pocket-id/backend/internal/ldapsync"
 	"github.com/pocket-id/pocket-id/backend/internal/oidc"
 	"github.com/pocket-id/pocket-id/backend/internal/onetimeaccess"
@@ -33,6 +34,7 @@ type services struct {
 	appImagesService   *service.AppImagesService
 	emailModule        *email.Module
 	geoLiteModule      *geolite.Module
+	ipLocator          iplocation.Resolver
 	auditLogService    *service.AuditLogService
 	jwtService         *service.JwtService
 	userService        *service.UserService
@@ -84,17 +86,13 @@ func initServices(
 		return nil, fmt.Errorf("failed to create email module: %w", err)
 	}
 
-	svc.geoLiteModule, err = geolite.New(ctx, geolite.Dependencies{
-		HTTPClient:  httpClient,
-		DBPath:      common.EnvConfig.GeoLiteDBPath,
-		DownloadURL: common.EnvConfig.GeoLiteDBUrl,
-		LicenseKey:  common.EnvConfig.MaxMindLicenseKey,
-	})
+	// Select the location provider once so all consumers use the configured implementation
+	svc.ipLocator, svc.geoLiteModule, err = initIPLocationResolver(ctx, httpClient, &common.EnvConfig)
 	if err != nil {
-		return nil, fmt.Errorf("failed to create GeoLite module: %w", err)
+		return nil, fmt.Errorf("failed to create IP location resolver: %w", err)
 	}
 
-	svc.auditLogService = service.NewAuditLogService(db, svc.emailModule, svc.geoLiteModule, svc.appConfigService)
+	svc.auditLogService = service.NewAuditLogService(db, svc.emailModule, svc.ipLocator, svc.appConfigService)
 	svc.auditLogsModule, err = auditlogs.New(auditlogs.Dependencies{
 		DB:            db,
 		Actors:        actors,
@@ -132,7 +130,7 @@ func initServices(
 		Signer:    svc.jwtService,
 		Reauth:    svc.webauthnModule,
 		AuditLog:  svc.auditLogService,
-		IPLocator: svc.geoLiteModule,
+		IPLocator: svc.ipLocator,
 		AppConfig: svc.appConfigService,
 	})
 	if err != nil {
@@ -261,4 +259,22 @@ func initServices(
 	})
 
 	return svc, nil
+}
+
+func initIPLocationResolver(ctx context.Context, httpClient *http.Client, config *common.EnvConfigSchema) (iplocation.Resolver, *geolite.Module, error) {
+	// Cloudflare locations need no database initialization or background refresh
+	if config.CloudflareLocationHeaders {
+		return iplocation.NewCloudflareResolver(), nil, nil
+	}
+
+	module, err := geolite.New(ctx, geolite.Dependencies{
+		HTTPClient:  httpClient,
+		DBPath:      config.GeoLiteDBPath,
+		DownloadURL: config.GeoLiteDBUrl,
+		LicenseKey:  config.MaxMindLicenseKey,
+	})
+	if err != nil {
+		return nil, nil, err
+	}
+	return module, module, nil
 }

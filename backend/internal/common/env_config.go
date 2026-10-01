@@ -95,6 +95,8 @@ type EnvConfigSchema struct {
 	MaxMindLicenseKey string `env:"MAXMIND_LICENSE_KEY" options:"file"`
 	GeoLiteDBPath     string `env:"GEOLITE_DB_PATH"`
 	GeoLiteDBUrl      string `env:"GEOLITE_DB_URL"`
+	// CloudflareLocationHeaders trusts location headers supplied by a Cloudflare proxy instead of using GeoLite
+	CloudflareLocationHeaders bool `env:"CLOUDFLARE_LOCATION_HEADERS"`
 
 	ActorsPort string `env:"ACTORS_PORT"`
 	ActorsHost string `env:"ACTORS_HOST" options:"toLower"`
