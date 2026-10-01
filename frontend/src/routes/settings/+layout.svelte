@@ -1,10 +1,11 @@
 <script lang="ts">
+	import { onNavigate } from '$app/navigation';
 	import EmailVerificationStateBox from '$lib/components/email-verification-state-box.svelte';
-	import FadeWrapper from '$lib/components/fade-wrapper.svelte';
 	import FormattedMessage from '$lib/components/formatted-message.svelte';
 	import Sidebar from '$lib/components/sidebar.svelte';
 	import * as Alert from '$lib/components/ui/alert';
 	import { m } from '$lib/paraglide/messages';
+	import appConfigStore from '$lib/stores/application-configuration-store';
 	import userStore from '$lib/stores/user-store';
 	import { LucideTriangleAlert } from '@lucide/svelte';
 	import type { Snippet } from 'svelte';
@@ -48,6 +49,26 @@
 	if (user?.isAdmin || $userStore?.isAdmin) {
 		items.push({ label: m.administration(), children: adminChildren });
 	}
+
+	onNavigate((navigation) => {
+		if (
+			!document.startViewTransition ||
+			$appConfigStore.disableAnimations ||
+			window.matchMedia('(prefers-reduced-motion: reduce)').matches ||
+			!navigation.to?.url.pathname.startsWith('/settings/') ||
+			navigation.from?.url.pathname === navigation.to.url.pathname
+		) {
+			return;
+		}
+
+		// onNavigate runs after the load functions resolved, so the transition never delays the new page
+		return new Promise((resolve) => {
+			document.startViewTransition(async () => {
+				resolve();
+				await navigation.complete;
+			});
+		});
+	});
 </script>
 
 <section>
@@ -69,19 +90,17 @@
 				</div>
 			</div>
 
-			<div class="flex w-full flex-col gap-4 overflow-hidden pb-2 px-2">
-				<FadeWrapper>
-					{#if sqliteStorageWarning && ($userStore?.isAdmin || user?.isAdmin)}
-						<Alert.Root variant="destructive">
-							<LucideTriangleAlert />
-							<Alert.Description>
-								<FormattedMessage message={m.sqlite_storage_warning} />
-							</Alert.Description>
-						</Alert.Root>
-					{/if}
-					<EmailVerificationStateBox />
-					{@render children()}
-				</FadeWrapper>
+			<div class="settings-content flex w-full flex-col gap-4 overflow-hidden pb-2 px-2">
+				{#if sqliteStorageWarning && ($userStore?.isAdmin || user?.isAdmin)}
+					<Alert.Root variant="destructive">
+						<LucideTriangleAlert />
+						<Alert.Description>
+							<FormattedMessage message={m.sqlite_storage_warning} />
+						</Alert.Description>
+					</Alert.Root>
+				{/if}
+				<EmailVerificationStateBox />
+				{@render children()}
 			</div>
 		</main>
 		<div class="animate-fade-in flex flex-col items-center" style="animation-delay: 400ms;">

@@ -3,6 +3,7 @@
 	import ConfirmDialog from '$lib/components/confirm-dialog/confirm-dialog.svelte';
 	import Error from '$lib/components/error.svelte';
 	import Header from '$lib/components/header/header.svelte';
+	import NavigationProgress from '$lib/components/navigation-progress.svelte';
 	import { Toaster } from '$lib/components/ui/sonner';
 	import UnsavedChangesBar from '$lib/components/unsaved-changes-bar.svelte';
 	import { m } from '$lib/paraglide/messages';
@@ -44,6 +45,7 @@
 		}
 	}}
 />
+<NavigationProgress />
 <ConfirmDialog />
 <UnsavedChangesBar />
 <ModeWatcher disableTransitions={false} />

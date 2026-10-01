@@ -195,6 +195,39 @@
 	}
 }
 
+.settings-content {
+	view-transition-name: settings-content;
+}
+
+::view-transition-old(root),
+::view-transition-new(root) {
+	animation: none;
+}
+
+::view-transition-group(settings-content) {
+	animation: none;
+}
+
+::view-transition-old(settings-content) {
+	animation: 120ms ease-out both vt-fade-out;
+}
+
+::view-transition-new(settings-content) {
+	animation: 180ms ease-out both vt-fade-in;
+}
+
+@keyframes vt-fade-out {
+	to {
+		opacity: 0;
+	}
+}
+
+@keyframes vt-fade-in {
+	from {
+		opacity: 0;
+	}
+}
+
 @keyframes bg-zoom {
 	0% {
 		transform: scale(1.3);
