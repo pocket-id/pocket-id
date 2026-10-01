@@ -1,3 +1,38 @@
+## v2.17.0
+
+### Features
+
+- add FRANCIS_HOST to connect to a standalone Francis runtime ([\#1768](https://github.com/pocket-id/pocket-id/pull/1768) by @ItalyPaleAle)
+- add OIDC back-channel logout ([\#1734](https://github.com/pocket-id/pocket-id/pull/1734) by @alecrubin)
+- restore old behavior of automatically creating client secret ([d259a15](https://github.com/pocket-id/pocket-id/commit/d259a151318bc4a126d3433386afab591f65f778) by @stonith404)
+- redesign OIDC client details page ([e588e3f](https://github.com/pocket-id/pocket-id/commit/e588e3fc5dcbdd666b15e4017bae40602148cd65) by @stonith404)
+- add support Cloudflare location headers ([1a91eaa](https://github.com/pocket-id/pocket-id/commit/1a91eaa98c9f6839770c54a93f5f5d0eafb1f290) by @stonith404)
+- update authorization animation slightly ([1f67bb7](https://github.com/pocket-id/pocket-id/commit/1f67bb749313d482ff902eabf8b997e1167c97c8) by @stonith404)
+- make page transitions smoother and faster ([9c926bd](https://github.com/pocket-id/pocket-id/commit/9c926bd66f96b7667f9c3f78fe8d036504bfa99a) by @stonith404)
+
+### Bug Fixes
+
+- typo in fallback error message in interaction error page ([\#1776](https://github.com/pocket-id/pocket-id/pull/1776) by @samuelQUANSAH)
+- handle localStorage not enabled gracefully ([\#1786](https://github.com/pocket-id/pocket-id/pull/1786) by @ItalyPaleAle)
+- add 1min grace period to refresh token invalidation ([b2d4fae](https://github.com/pocket-id/pocket-id/commit/b2d4faebf703756f0afdc26cf910b58f9c2557fe) by @stonith404)
+- use URI validation message for API resources ([0235984](https://github.com/pocket-id/pocket-id/commit/02359840f21b7c4ee0293fd2125b5bff1a117560) by @stonith404)
+
+### Documentation
+
+- add missing swaggertype ([77a597d](https://github.com/pocket-id/pocket-id/commit/77a597dc4c45da23f783785642f1ad5b56865841) by @stonith404)
+
+### Other
+
+- use Pocket ID as identity for automated commits ([5086ece](https://github.com/pocket-id/pocket-id/commit/5086ece8db13c89f8dba838aa16e7e83c00af8e1) by @stonith404)
+- update AAGUIDs ([\#1771](https://github.com/pocket-id/pocket-id/pull/1771) by @pocket-id-bot\[bot\])
+- pin all GH Actions to a specific SHA ([\#1772](https://github.com/pocket-id/pocket-id/pull/1772) by @ItalyPaleAle)
+- Bump the "all-dependencies" group with 1 update across multiple ecosystems ([\#1780](https://github.com/pocket-id/pocket-id/pull/1780) by @dependabot\[bot\])
+- update AAGUIDs ([\#1788](https://github.com/pocket-id/pocket-id/pull/1788) by @pocket-id-bot\[bot\])
+- upgrade Francis to 0.1.0 ([\#1787](https://github.com/pocket-id/pocket-id/pull/1787) by @ItalyPaleAle)
+- add Vercel OSS Program badge ([fd478ff](https://github.com/pocket-id/pocket-id/commit/fd478ffa81d41e79ead46dfb8a23a4780f52f5c7) by @kmendell)
+- bring `database.json` up-to-date ([642ccc8](https://github.com/pocket-id/pocket-id/commit/642ccc80d399af1100bbcf334f29f893a3270f87) by @stonith404)
+
+**Full Changelog**: https://github.com/pocket-id/pocket-id/compare/v2.16.0...v2.17.0
 ## v2.16.0
 
 ### Features
