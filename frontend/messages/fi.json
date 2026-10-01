@@ -511,7 +511,7 @@
 	"ui_config_disabled_info_description": "Käyttöliittymän asetukset on poistettu käytöstä, koska sovelluksen asetuksia hallitaan ympäristömuuttujien avulla. Joitakin asetuksia ei ehkä voi muokata.",
 	"logo_from_url_description": "Liitä suora kuvan URL-osoite (svg, png, webp). Löydät kuvakkeita osoitteesta {#link href=|https://selfh.st/icons|}Selfh.st Icons{/link} tai {#link href=|https://dashboardicons.com|}Dashboard Icons{/link}.",
 	"invalid_url": "Virheellinen URL-osoite",
-	"invalid_uri": "Invalid URI",
+	"invalid_uri": "Virheellinen URI",
 	"require_user_email": "Vaadi sähköpostiosoite",
 	"require_user_email_description": "Vaatii käyttäjiltä sähköpostiosoitteen. Jos tämä asetus on pois käytöstä, käyttäjät, joilla ei ole sähköpostiosoitetta, eivät voi käyttää ominaisuuksia, jotka edellyttävät sähköpostiosoitetta.",
 	"view": "Näytä",
