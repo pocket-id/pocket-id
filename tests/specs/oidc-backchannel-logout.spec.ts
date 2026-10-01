@@ -109,11 +109,9 @@ test('Saving a logout URL and revoking an app sends a verifiable logout token', 
 	const client = oidcClients.nextcloud;
 	const logoutURL = `${receiver.url}/logout?tenant=test`;
 	await page.goto(`/settings/admin/oidc-clients/${client.id}`);
-	await page.getByRole('button', { name: 'Show Advanced Options' }).click();
 	await page.getByLabel('Back-Channel Logout URL', { exact: true }).fill(logoutURL);
 	await saveUnsavedChanges(page);
 	await page.reload();
-	await page.getByRole('button', { name: 'Show Advanced Options' }).click();
 	await expect(page.getByLabel('Back-Channel Logout URL', { exact: true })).toHaveValue(logoutURL);
 
 	await page.goto('/settings/apps');

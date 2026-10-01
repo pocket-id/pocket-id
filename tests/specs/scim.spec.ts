@@ -129,7 +129,7 @@ test.describe('SCIM Sync', () => {
 	test('Remove allowed group and sync', async ({ page }) => {
 		await syncScimServiceProvider(page);
 
-		await page.getByRole('tab', { name: 'Allowed user groups' }).click();
+		await page.getByRole('tab', { name: 'Access', exact: true }).click();
 
 		const developersCheckbox = page
 			.getByRole('row', { name: userGroups.developers.name })
@@ -155,10 +155,10 @@ test.describe('SCIM Sync', () => {
 	test('Remove group restrictions and sync', async ({ page }) => {
 		await syncScimServiceProvider(page);
 
-		await page.getByRole('tab', { name: 'Allowed user groups' }).click();
+		await page.getByRole('tab', { name: 'Access', exact: true }).click();
 
-		await page.getByRole('button', { name: 'Unrestrict' }).click();
-		await page.getByRole('button', { name: 'Unrestrict' }).nth(1).click();
+		await page.getByRole('radio', { name: 'All users' }).click();
+		await page.getByRole('alertdialog').getByRole('button', { name: 'Unrestrict' }).click();
 		await expect(
 			page.getByText('User groups restriction updated successfully', { exact: true })
 		).toBeVisible();

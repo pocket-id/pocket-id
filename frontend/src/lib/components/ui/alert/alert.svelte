@@ -55,7 +55,10 @@
 		onDismiss?.();
 		if (dismissibleId) {
 			const dismissedAlerts = JSON.parse(localStorage?.getItem('dismissed-alerts') || '[]');
-			localStorage?.setItem('dismissed-alerts', JSON.stringify([...dismissedAlerts, dismissibleId]));
+			localStorage?.setItem(
+				'dismissed-alerts',
+				JSON.stringify([...dismissedAlerts, dismissibleId])
+			);
 			isVisible = false;
 		}
 	}

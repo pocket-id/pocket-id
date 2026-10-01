@@ -2,7 +2,7 @@
 	import CopyToClipboard from '$lib/components/copy-to-clipboard.svelte';
 	import MultiSelect from '$lib/components/form/multi-select.svelte';
 	import SearchableSelect from '$lib/components/form/searchable-select.svelte';
-	import * as Alert from '$lib/components/ui/alert';
+	import { Badge } from '$lib/components/ui/badge';
 	import { Button } from '$lib/components/ui/button';
 	import * as Dialog from '$lib/components/ui/dialog';
 	import * as Field from '$lib/components/ui/field';
@@ -14,8 +14,10 @@
 	import type { User } from '$lib/types/user.type';
 	import { debounced } from '$lib/utils/debounce-util';
 	import { getAxiosErrorMessage } from '$lib/utils/error-util';
-	import { LucideAlertTriangle } from '@lucide/svelte';
-	import { onMount } from 'svelte';
+	import { cn } from '$lib/utils/style';
+	import { LucideBraces, LucideCopy, LucideList } from '@lucide/svelte';
+
+	type Claims = Record<string, unknown>;
 
 	let {
 		open = $bindable(),
@@ -28,29 +30,40 @@
 	const oidcService = new OidcService();
 	const userService = new UserService();
 
-	let previewData = $state<{
-		idToken?: any;
-		accessToken?: any;
-		userInfo?: any;
-	} | null>(null);
-	let loadingPreview = $state(false);
+	// Claims holding a Unix timestamp, which are shown with a readable date next to them
+	const TIMESTAMP_CLAIMS = new Set(['exp', 'iat', 'nbf', 'auth_time', 'updated_at']);
+
+	let previewData = $state<{ idToken?: Claims; accessToken?: Claims; userInfo?: Claims } | null>(
+		null
+	);
+	let isLoading = $state(false);
 	let isUserSearchLoading = $state(false);
 	let user: User | null = $state(null);
 	let users: User[] = $state([]);
 	let scopes: string[] = $state(['openid', 'email', 'profile']);
 	let errorMessage: string | null = $state(null);
+	let view = $state<'claims' | 'json'>('claims');
+	let activeTab = $state<'idToken' | 'accessToken' | 'userInfo'>('idToken');
 
-	async function loadPreviewData() {
+	// Each request gets a number so that responses arriving out of order don't overwrite newer ones
+	let latestRequest = 0;
+
+	const activeData = $derived(previewData?.[activeTab] ?? {});
+
+	async function loadPreviewData(userId: string, scope: string) {
+		const request = ++latestRequest;
+		isLoading = true;
 		errorMessage = null;
 
 		try {
-			previewData = await oidcService.getClientPreview(clientId, user!.id, scopes.join(' '));
+			const data = await oidcService.getClientPreview(clientId, userId, scope);
+			if (request === latestRequest) previewData = data;
 		} catch (e) {
-			const error = getAxiosErrorMessage(e);
-			errorMessage = error;
+			if (request !== latestRequest) return;
+			errorMessage = getAxiosErrorMessage(e);
 			previewData = null;
 		} finally {
-			loadingPreview = false;
+			if (request === latestRequest) isLoading = false;
 		}
 	}
 
@@ -62,19 +75,7 @@
 			})
 		).data;
 		if (!user) {
-			user = users[0];
-		}
-	}
-
-	async function onOpenChange(open: boolean) {
-		if (!open) {
-			previewData = null;
-			errorMessage = null;
-		} else {
-			loadingPreview = true;
-			await loadPreviewData().finally(() => {
-				loadingPreview = false;
-			});
+			user = users[0] ?? null;
 		}
 	}
 
@@ -84,126 +85,168 @@
 		(loading) => (isUserSearchLoading = loading)
 	);
 
+	// Timestamps arrive either as Unix seconds or as ISO strings depending on the claim, so both are accepted
+	function formatTimestamp(value: unknown) {
+		const date =
+			typeof value === 'number'
+				? new Date(value * 1000)
+				: typeof value === 'string'
+					? new Date(value)
+					: null;
+		return date && !isNaN(date.getTime()) ? date.toLocaleString() : null;
+	}
+
+	// The user list is only needed once the dialog is opened
 	$effect(() => {
-		if (open) {
-			loadPreviewData();
+		if (open && users.length === 0) {
+			loadUsers();
 		}
 	});
 
-	onMount(() => {
-		loadUsers();
+	// Reload the preview whenever the selected user or the scopes change
+	$effect(() => {
+		if (open && user) {
+			loadPreviewData(user.id, scopes.join(' '));
+		}
 	});
 </script>
 
-<Dialog.Root bind:open {onOpenChange}>
-	<Dialog.Content class="sm-min-w[500px] max-h-[90vh] min-w-[90vw] overflow-auto lg:min-w-[1000px]">
+{#snippet claimValue(key: string, value: unknown)}
+	{#if Array.isArray(value) && value.every((item) => typeof item !== 'object')}
+		<div class="flex flex-wrap gap-1.5">
+			{#each value as item, i (i)}
+				<Badge variant="secondary" class="h-auto max-w-full font-mono break-all whitespace-normal"
+					>{String(item)}</Badge
+				>
+			{:else}
+				<span class="text-muted-foreground font-mono text-xs">[]</span>
+			{/each}
+		</div>
+	{:else if value !== null && typeof value === 'object'}
+		<pre class="font-mono text-xs whitespace-pre-wrap break-all">{JSON.stringify(
+				value,
+				null,
+				2
+			)}</pre>
+	{:else if value === '' || value === null}
+		<span class="text-muted-foreground font-mono text-xs">{value === null ? 'null' : '""'}</span>
+	{:else}
+		{@const formattedDate = TIMESTAMP_CLAIMS.has(key) ? formatTimestamp(value) : null}
+		<CopyToClipboard value={String(value)}>
+			<span class="font-mono text-xs break-all">{String(value)}</span>
+		</CopyToClipboard>
+		{#if formattedDate}
+			<span class="text-muted-foreground ml-2 text-xs">{formattedDate}</span>
+		{/if}
+	{/if}
+{/snippet}
+
+<Dialog.Root bind:open>
+	<Dialog.Content class="flex h-[min(90vh,46rem)] flex-col sm:max-w-4xl">
 		<Dialog.Header>
 			<Dialog.Title>{m.oidc_data_preview()}</Dialog.Title>
 			<Dialog.Description>
-				{#if user}
-					{m.preview_for_user({ name: user.displayName })}
-				{:else}
-					{m.preview_the_oidc_data_that_would_be_sent_for_this_user()}
-				{/if}
+				{m.preview_the_oidc_data_that_would_be_sent_for_different_users()}
 			</Dialog.Description>
 		</Dialog.Header>
 
-		<div class="overflow-auto px-4">
-			{#if loadingPreview}
-				<div class="flex items-center justify-center py-12">
-					<Spinner class="size-8" />
-				</div>
-			{/if}
+		<div class="grid gap-3 sm:grid-cols-2">
+			<Field.Field>
+				<Field.Label>{m.user()}</Field.Label>
+				<SearchableSelect
+					class="w-full"
+					selectText={m.select_user()}
+					isLoading={isUserSearchLoading}
+					items={users.map((user) => ({
+						value: user.id,
+						label: user.username
+					}))}
+					value={user?.id || ''}
+					oninput={(e) => onUserSearch(e.currentTarget.value)}
+					onSelect={(value) => (user = users.find((u) => u.id === value) || null)}
+				/>
+			</Field.Field>
+			<Field.Field>
+				<Field.Label>{m.scopes()}</Field.Label>
+				<MultiSelect
+					items={[
+						{ value: 'openid', label: 'openid' },
+						{ value: 'email', label: 'email' },
+						{ value: 'profile', label: 'profile' },
+						{ value: 'groups', label: 'groups' }
+					]}
+					bind:selectedItems={scopes}
+				/>
+			</Field.Field>
+		</div>
 
-			<div class="flex flex-col sm:flex-row justify-start gap-3">
-				<Field.Field class="w-auto min-w-48">
-					<Field.Label>{m.users()}</Field.Label>
-					<SearchableSelect
-						selectText={m.select_user()}
-						isLoading={isUserSearchLoading}
-						items={Object.values(users).map((user) => ({
-							value: user.id,
-							label: user.username
-						}))}
-						value={user?.id || ''}
-						oninput={(e) => onUserSearch(e.currentTarget.value)}
-						onSelect={(value) => {
-							user = users.find((u) => u.id === value) || null;
-							loadPreviewData();
-						}}
-					/>
-				</Field.Field>
-				<Field.Field class="w-auto">
-					<Field.Label>{m.scopes()}</Field.Label>
-					<MultiSelect
-						items={[
-							{ value: 'openid', label: 'openid' },
-							{ value: 'email', label: 'email' },
-							{ value: 'profile', label: 'profile' },
-							{ value: 'groups', label: 'groups' }
-						]}
-						bind:selectedItems={scopes}
-					/>
-				</Field.Field>
+		<div class="flex min-h-0 flex-1 flex-col gap-3">
+			<div class="flex items-center justify-between gap-3 border-b">
+				<!-- The token tabs scroll on narrow screens so the view toggle and copy button stay inside the dialog -->
+				<Tabs.Root bind:value={activeTab} class="min-w-0 overflow-x-auto [scrollbar-width:none]">
+					<Tabs.List variant="line">
+						<Tabs.Trigger value="idToken">{m.id_token()}</Tabs.Trigger>
+						<Tabs.Trigger value="accessToken">{m.access_token()}</Tabs.Trigger>
+						<Tabs.Trigger value="userInfo">{m.userinfo()}</Tabs.Trigger>
+					</Tabs.List>
+				</Tabs.Root>
+				<div class="flex shrink-0 items-center gap-1 pb-1">
+					<Tabs.Root bind:value={view}>
+						<Tabs.List class="h-8">
+							<Tabs.Trigger value="claims" class="px-2" aria-label={m.claims()}>
+								<LucideList class="size-3.5" />
+							</Tabs.Trigger>
+							<Tabs.Trigger value="json" class="px-2" aria-label="JSON">
+								<LucideBraces class="size-3.5" />
+							</Tabs.Trigger>
+						</Tabs.List>
+					</Tabs.Root>
+					<CopyToClipboard value={JSON.stringify(activeData, null, 2)}>
+						<Button
+							size="icon-sm"
+							variant="ghost"
+							aria-label={m.copy_all()}
+							disabled={!previewData}
+						>
+							<LucideCopy class="size-3.5" />
+						</Button>
+					</CopyToClipboard>
+				</div>
 			</div>
 
-			{#if errorMessage && !loadingPreview}
-				<Alert.Root variant="destructive" class="mt-5 mb-6">
-					<LucideAlertTriangle class="h-4 w-4" />
-					<Alert.Title>{m.error()}</Alert.Title>
-					<Alert.Description>
-						{errorMessage}
-					</Alert.Description>
-				</Alert.Root>
-			{/if}
-
-			{#if previewData && !loadingPreview}
-				<Tabs.Root value="id-token" class="mt-5 w-full">
-					<Tabs.List class="mb-6 grid w-full grid-cols-3">
-						<Tabs.Trigger value="id-token">{m.id_token()}</Tabs.Trigger>
-						<Tabs.Trigger value="access-token">{m.access_token()}</Tabs.Trigger>
-						<Tabs.Trigger value="userinfo">{m.userinfo()}</Tabs.Trigger>
-					</Tabs.List>
-					<Tabs.Content value="id-token">
-						{@render tabContent(previewData.idToken, m.id_token_payload())}
-					</Tabs.Content>
-
-					<Tabs.Content value="access-token" class="mt-4">
-						{@render tabContent(previewData.accessToken, m.access_token_payload())}
-					</Tabs.Content>
-
-					<Tabs.Content value="userinfo" class="mt-4">
-						{@render tabContent(previewData.userInfo, m.userinfo_endpoint_response())}
-					</Tabs.Content>
-				</Tabs.Root>
-			{/if}
+			<!-- The frame has a fixed size so the dialog doesn't jump in height between tabs, views and reloads -->
+			<div
+				class={cn(
+					'min-h-0 flex-1 overflow-y-auto rounded-2xl border transition-opacity',
+					isLoading && previewData && 'opacity-50'
+				)}
+			>
+				{#if errorMessage && !isLoading}
+					<div class="flex h-full flex-col items-center justify-center p-6 text-center">
+						<p class="font-medium">{m.error()}</p>
+						<p class="text-muted-foreground max-w-sm">{errorMessage}</p>
+					</div>
+				{:else if !previewData}
+					<div class="flex h-full items-center justify-center">
+						<Spinner class="size-6" />
+					</div>
+				{:else if view === 'json'}
+					<pre class="p-4 font-mono text-xs whitespace-pre-wrap break-all">{JSON.stringify(
+							activeData,
+							null,
+							2
+						)}</pre>
+				{:else}
+					<dl class="divide-y" data-testid="preview-claims">
+						{#each Object.entries(activeData) as [key, value] (key)}
+							<div class="grid gap-1 px-4 py-2.5 sm:grid-cols-[11rem_minmax(0,1fr)] sm:gap-4">
+								<dt class="text-muted-foreground font-mono text-xs leading-5">{key}</dt>
+								<dd class="min-w-0 leading-5">{@render claimValue(key, value)}</dd>
+							</div>
+						{/each}
+					</dl>
+				{/if}
+			</div>
 		</div>
 	</Dialog.Content>
 </Dialog.Root>
-
-{#snippet tabContent(data: any, title: string)}
-	<div class="space-y-4">
-		<div class="mb-6 flex items-center justify-between">
-			<span class="text-lg font-semibold">{title}</span>
-			<CopyToClipboard value={JSON.stringify(data, null, 2)}>
-				<Button size="sm" variant="outline">{m.copy_all()}</Button>
-			</CopyToClipboard>
-		</div>
-		<div class="space-y-3">
-			{#each Object.entries(data || {}) as [key, value] (key)}
-				<div class="grid grid-cols-1 items-start gap-4 border-b pb-3 md:grid-cols-[200px_1fr]">
-					<Field.Label class="pt-1">{key}</Field.Label>
-					<div class="min-w-0">
-						<CopyToClipboard value={typeof value === 'string' ? value : JSON.stringify(value)}>
-							<div
-								class="text-muted-foreground bg-muted/30 hover:bg-muted/50 cursor-pointer rounded px-3 py-2 font-mono text-sm"
-							>
-								{typeof value === 'object' ? JSON.stringify(value, null, 2) : value}
-							</div>
-						</CopyToClipboard>
-					</div>
-				</div>
-			{/each}
-		</div>
-	</div>
-{/snippet}

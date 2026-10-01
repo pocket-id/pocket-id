@@ -33,6 +33,7 @@
 		labelFor,
 		readonly = false,
 		inputClass,
+		class: className,
 		...restProps
 	}: HTMLAttributes<HTMLDivElement> &
 		(WithChildren | WithoutChildren) & {
@@ -52,7 +53,7 @@
 
 <Field.Field
 	data-disabled={disabled}
-	class={cn('flex flex-col justify-between', restProps.class)}
+	class={cn('flex flex-col justify-between', className)}
 	{...restProps}
 >
 	<div>

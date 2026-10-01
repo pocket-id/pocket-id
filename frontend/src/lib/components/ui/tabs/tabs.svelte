@@ -3,7 +3,6 @@
 	import { page } from '$app/state';
 	import { cn } from '$lib/utils/style.js';
 	import { Tabs as TabsPrimitive } from 'bits-ui';
-	import { onMount } from 'svelte';
 
 	let {
 		ref = $bindable(null),
@@ -15,7 +14,8 @@
 		useHash?: boolean;
 	} = $props();
 
-	onMount(() => {
+	// Follows the hash on load and on later hash changes, so that links like `#credentials` elsewhere on the page can switch the tab
+	$effect(() => {
 		if (useHash && page.url.hash) {
 			value = page.url.hash.substring(1);
 		}

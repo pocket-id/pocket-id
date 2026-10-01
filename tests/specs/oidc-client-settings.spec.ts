@@ -14,38 +14,26 @@ test.describe('Create OIDC client', () => {
 		await page.getByRole('button', { name: 'Add OIDC Client' }).click();
 
 		await page.getByLabel('Name').fill(oidcClient.name);
-		await page.getByLabel('Description').fill(oidcClient.description);
-		await page.getByLabel('Client Launch URL').fill(oidcClient.launchURL);
 
-		await page.getByRole('button', { name: 'Add' }).first().click();
+		await page.getByRole('button', { name: 'Add callback URL' }).click();
 		await page.getByTestId('callback-url-1').fill(oidcClient.callbackUrl);
 
-		await page.getByRole('button', { name: 'Add another' }).click();
+		await page.getByRole('button', { name: 'Add callback URL' }).click();
 		await page.getByTestId('callback-url-2').fill(oidcClient.secondCallbackUrl);
 
-		await page.locator('[role="tab"][data-value="light-logo"]').first().click();
-		await page.setInputFiles('#oidc-client-logo-light', 'resources/images/pingvin-share-logo.png');
-		await page.locator('[role="tab"][data-value="dark-logo"]').first().click();
-		await page.setInputFiles('#oidc-client-logo-dark', 'resources/images/pingvin-share-logo.png');
-
 		if (clientId) {
-			await page.getByRole('button', { name: 'Show Advanced Options' }).click();
+			await page.getByRole('button', { name: 'Set custom client ID' }).click();
 			await page.getByLabel('Client ID').fill(clientId);
 		}
 
-		await page.getByRole('button', { name: 'Save' }).click();
+		await page.getByRole('button', { name: 'Create', exact: true }).click();
 
 		await expect(page.locator('[data-type="success"]')).toHaveText(
 			'OIDC client created successfully'
 		);
 
 		const resolvedClientId = (await page.getByTestId('client-id').innerText()).trim();
-		const createdSecret = (
-			await page
-				.getByRole('tabpanel', { name: 'General', exact: true })
-				.getByTestId('client-secret')
-				.innerText()
-		).trim();
+		const createdSecret = (await page.getByTestId('created-client-secret').innerText()).trim();
 		expect(createdSecret).toMatch(/^\w{32}$/);
 
 		if (clientId) {
@@ -55,13 +43,8 @@ test.describe('Create OIDC client', () => {
 		}
 
 		await expect(page.getByLabel('Name')).toHaveValue(oidcClient.name);
-		await expect(page.getByLabel('Description')).toHaveValue(oidcClient.description);
 		await expect(page.getByTestId('callback-url-1')).toHaveValue(oidcClient.callbackUrl);
 		await expect(page.getByTestId('callback-url-2')).toHaveValue(oidcClient.secondCallbackUrl);
-		await expect(page.getByRole('img', { name: `${oidcClient.name} logo` }).first()).toBeVisible();
-
-		const res = await page.request.get(`/api/oidc/clients/${resolvedClientId}/logo`);
-		expect(res.ok()).toBeTruthy();
 
 		// The generated value is available on the creation page and is forgotten after a reload
 		await page.reload();
@@ -495,9 +478,9 @@ test('Filter OIDC clients by PAR requirement', async ({ page, request }) => {
 
 test('Update OIDC client allowed user groups', async ({ page }) => {
 	await page.goto(`/settings/admin/oidc-clients/${oidcClients.nextcloud.id}`);
-	await page.getByRole('tab', { name: 'Allowed user groups' }).click();
+	await page.getByRole('tab', { name: 'Access', exact: true }).click();
 
-	await page.getByRole('button', { name: 'Restrict' }).click();
+	await page.getByRole('radio', { name: 'Selected user groups' }).click();
 
 	await page.getByRole('row', { name: userGroups.designers.name }).getByRole('checkbox').click();
 	await page.getByRole('row', { name: userGroups.developers.name }).getByRole('checkbox').click();

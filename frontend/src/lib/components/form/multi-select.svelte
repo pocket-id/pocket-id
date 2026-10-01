@@ -1,5 +1,7 @@
 <script lang="ts">
 	import * as DropdownMenu from '$lib/components/ui/dropdown-menu';
+	import { m } from '$lib/paraglide/messages';
+	import { cn } from '$lib/utils/style';
 	import { LucideChevronDown } from '@lucide/svelte';
 	import { Badge } from '../ui/badge';
 	import { Button } from '../ui/button';
@@ -8,7 +10,9 @@
 		items,
 		selectedItems = $bindable(),
 		onSelect,
-		autoClose = false
+		autoClose = false,
+		placeholder = m.select_an_option(),
+		class: className
 	}: {
 		items: {
 			value: string;
@@ -17,7 +21,11 @@
 		selectedItems: string[];
 		onSelect?: (value: string) => void;
 		autoClose?: boolean;
+		placeholder?: string;
+		class?: string;
 	} = $props();
+
+	const selected = $derived(items.filter((item) => selectedItems.includes(item.value)));
 
 	function handleItemSelect(value: string) {
 		if (selectedItems.includes(value)) {
@@ -32,13 +40,19 @@
 <DropdownMenu.Root>
 	<DropdownMenu.Trigger>
 		{#snippet child({ props })}
-			<Button {...props} variant="outline">
-				{#each items.filter((item) => selectedItems.includes(item.value)) as item (item.value)}
-					<Badge variant="secondary">
-						{item.label}
-					</Badge>
-				{/each}
-				<LucideChevronDown class="text-muted-foreground ml-2 size-4" />
+			<Button {...props} variant="outline" class={cn('w-full px-3 font-normal', className)}>
+				<!-- Button centers its content in an inner span, so this one spreads the badges and the chevron apart -->
+				<span class="flex w-full min-w-0 items-center justify-between gap-2">
+					<!-- The badges stay on one line and are clipped so the trigger keeps the height of the other inputs -->
+					<span class="flex min-w-0 gap-1 overflow-hidden">
+						{#each selected as item (item.value)}
+							<Badge variant="secondary">{item.label}</Badge>
+						{:else}
+							<span class="text-muted-foreground">{placeholder}</span>
+						{/each}
+					</span>
+					<LucideChevronDown class="size-4 shrink-0 opacity-50" />
+				</span>
 			</Button>
 		{/snippet}
 	</DropdownMenu.Trigger>

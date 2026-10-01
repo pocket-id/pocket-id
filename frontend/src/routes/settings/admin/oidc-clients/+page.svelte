@@ -6,19 +6,19 @@
 	import OIDCService from '$lib/services/oidc-service';
 	import appConfigStore from '$lib/stores/application-configuration-store';
 	import clientSecretStore from '$lib/stores/client-secret-store';
-	import type { OidcClientCreateWithLogo } from '$lib/types/oidc.type';
+	import type { OidcClientCreate } from '$lib/types/oidc.type';
 	import { encodeClientIdParam } from '$lib/utils/client-id-util';
 	import { LucideMinus, ShieldCheck, ShieldPlus } from '@lucide/svelte';
 	import { toast } from 'svelte-sonner';
 	import { slide } from 'svelte/transition';
-	import OIDCClientForm from './oidc-client-form.svelte';
+	import OidcClientCreateForm from './oidc-client-create-form.svelte';
 	import OIDCClientList from './oidc-client-list.svelte';
 
 	let expandAddClient = $state(false);
 
 	const oidcService = new OIDCService();
 
-	async function createOIDCClient(client: OidcClientCreateWithLogo) {
+	async function createOIDCClient(client: OidcClientCreate) {
 		clientSecretStore.clear();
 		const createdClient = await oidcService.createClient(client);
 		if (createdClient.createdSecret) {
@@ -27,14 +27,6 @@
 				createdClient.createdSecret.secret
 			);
 		}
-
-		const logoPromise = client.logo
-			? oidcService.updateClientLogo(createdClient, client.logo, true)
-			: Promise.resolve();
-		const darkLogoPromise = client.darkLogo
-			? oidcService.updateClientLogo(createdClient, client.darkLogo, false)
-			: Promise.resolve();
-		await Promise.all([logoPromise, darkLogoPromise]);
 
 		goto(`/settings/admin/oidc-clients/${encodeClientIdParam(createdClient.id)}`);
 		toast.success(m.oidc_client_created_successfully());
@@ -74,7 +66,7 @@
 		{#if expandAddClient}
 			<div transition:slide>
 				<Card.Content>
-					<OIDCClientForm mode="create" callback={createOIDCClient} />
+					<OidcClientCreateForm callback={createOIDCClient} />
 				</Card.Content>
 			</div>
 		{/if}

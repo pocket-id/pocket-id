@@ -1576,8 +1576,6 @@ test.describe('Pushed Authorization Requests (PAR)', () => {
 	test('Admin UI: PAR toggle persists after save', async ({ page }) => {
 		await page.goto(`/settings/admin/oidc-clients/${client.id}`);
 
-		await page.getByRole('button', { name: 'Show Advanced Options' }).click();
-
 		// Enable the PAR toggle
 		const parToggle = page.getByRole('switch', { name: 'Requires Pushed Authorization' });
 		if (!(await parToggle.isChecked())) {
@@ -1587,7 +1585,6 @@ test.describe('Pushed Authorization Requests (PAR)', () => {
 		await saveUnsavedChanges(page);
 		await page.reload();
 
-		await page.getByRole('button', { name: 'Show Advanced Options' }).click();
 		const savedToggle = page.getByRole('switch', { name: 'Requires Pushed Authorization' });
 		await expect(savedToggle).toBeChecked();
 	});

@@ -150,9 +150,10 @@ export function createForm<T extends z.ZodType<any, any>>(schema: T, initialValu
 		}
 
 		// Handle unions
+		// A union that accepts an empty string, like `z.url().or(z.literal(''))`, can be left blank as well
 		if (fieldSchema instanceof z.ZodUnion) {
 			return !fieldSchema.def.options.some((o: any) => {
-				return o.def.type == 'optional';
+				return o.def.type == 'optional' || (o instanceof z.ZodLiteral && o.def.values.includes(''));
 			});
 		}
 
