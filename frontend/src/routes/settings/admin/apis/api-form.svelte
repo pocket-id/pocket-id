@@ -28,7 +28,7 @@
 	const formSchema = z.object({
 		name: z.string().min(1).max(50),
 		resource: z
-			.url()
+			.url({ error: () => m.invalid_uri() })
 			.min(1)
 			.max(350)
 			.refine((value) => !/[#\s]/.test(value), {
