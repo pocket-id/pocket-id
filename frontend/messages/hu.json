@@ -511,7 +511,7 @@
 	"ui_config_disabled_info_description": "A felhasználói felület konfigurációja le van tiltva, mert az alkalmazás konfigurációs beállításait környezeti változók kezelik. Előfordulhat, hogy egyes beállítások nem szerkeszthetők.",
 	"logo_from_url_description": "Illessz be közvetlen kép-URL-t (SVG, PNG vagy WebP). Ikonokat a {#link href=|https://selfh.st/icons|}Selfh.st Icons{/link} vagy a {#link href=|https://dashboardicons.com|}Dashboard Icons{/link} webhelyen találsz.",
 	"invalid_url": "Érvénytelen URL",
-	"invalid_uri": "Invalid URI",
+	"invalid_uri": "Érvénytelen URI",
 	"require_user_email": "E-mail-cím megkövetelése",
 	"require_user_email_description": "A felhasználóknak e-mail-címmel kell rendelkezniük. Ha ez a beállítás ki van kapcsolva, az e-mail-cím nélküli felhasználók nem használhatják az e-mail-címet igénylő funkciókat.",
 	"view": "Megtekintés",
