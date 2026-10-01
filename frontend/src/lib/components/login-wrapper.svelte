@@ -69,7 +69,7 @@
 					<div class="mb-4 flex items-center justify-center">
 						<a
 							href={alternativeSignInButton.href}
-							class="text-muted-foreground text-xs transition-colors hover:underline"
+							class="text-muted-foreground rounded-full text-xs outline-none transition-colors hover:underline focus-visible:ring-3 focus-visible:ring-ring/30 focus-visible:underline"
 						>
 							{alternativeSignInButton.label}
 						</a>
@@ -111,7 +111,7 @@
 				{#if showAlternativeSignInMethodButton}
 					<a
 						href={alternativeSignInButton.href}
-						class="text-muted-foreground mt-7 flex justify-center text-xs transition-colors hover:underline"
+						class="text-muted-foreground mt-7 flex justify-center rounded-full text-xs outline-none transition-colors hover:underline focus-visible:ring-3 focus-visible:ring-ring/30 focus-visible:underline"
 					>
 						{alternativeSignInButton.label}
 					</a>

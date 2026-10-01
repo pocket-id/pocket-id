@@ -28,6 +28,7 @@
 	let isLoading = $state(false);
 	let success = $state(false);
 	let errorMessage: string | null = $state(null);
+	let signInButton: HTMLButtonElement | null = $state(null);
 	let currentStep = $derived(interactionSession.currentStep);
 
 	const fullName = $derived.by(() => {
@@ -45,9 +46,11 @@
 
 	async function useDifferentAccount() {
 		await webauthnService.logout();
-		await completeInteraction('select_account', true);
 		userStore.clearUser();
 		await invalidateAll();
+		// The button that had focus is removed with the account selection, so move focus
+		// back to the primary action instead of dropping it on <body>
+		signInButton?.focus();
 	}
 
 	async function handlePipeline() {
@@ -166,7 +169,7 @@
 			<div class="mb-10 flex justify-center">
 				<button
 					type="button"
-					class="text-muted-foreground text-xs transition-colors hover:underline"
+					class="text-muted-foreground rounded-full text-xs outline-none transition-colors hover:underline focus-visible:ring-3 focus-visible:ring-ring/30 focus-visible:underline"
 					onclick={useDifferentAccount}
 				>
 					{m.use_a_different_account()}
@@ -196,7 +199,13 @@
 		</div>
 	{/if}
 	<div class="flex w-full max-w-md flex-row-reverse gap-2">
-		<Button class="flex-1" {isLoading} onclick={handlePipeline} autofocus={true}>
+		<Button
+			class="flex-1"
+			{isLoading}
+			onclick={handlePipeline}
+			autofocus={true}
+			bind:ref={signInButton}
+		>
 			{errorMessage ? m.try_again() : m.sign_in()}
 		</Button>
 		<Button class="flex-1" variant="secondary" href={document.referrer || '/'}>

@@ -46,7 +46,7 @@
 			{#if !isAuthPage}
 				<ModeSwitcher />
 			{/if}
-			{#if $userStore?.id}
+			{#if !isAuthPage && $userStore?.id}
 				<HeaderAvatar />
 			{/if}
 		</div>
