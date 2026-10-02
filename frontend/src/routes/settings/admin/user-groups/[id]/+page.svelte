@@ -1,14 +1,14 @@
 <script lang="ts">
-	import CustomClaimsInput from '$lib/components/form/custom-claims-input.svelte';
-	import { Badge } from '$lib/components/ui/badge';
-	import * as Card from '$lib/components/ui/card';
-	import * as Tabs from '$lib/components/ui/tabs';
-	import { m } from '$lib/paraglide/messages';
-	import CustomClaimService from '$lib/services/custom-claim-service';
-	import UserGroupService from '$lib/services/user-group-service';
-	import appConfigStore from '$lib/stores/application-configuration-store';
-	import type { UserGroupCreate } from '$lib/types/user-group.type';
-	import { trackUnsavedValue } from '$lib/utils/unsaved-changes-util.svelte';
+	import CustomClaimsInput from '#lib/components/form/custom-claims-input.svelte';
+	import { Badge } from '#lib/components/ui/badge/index.ts';
+	import * as Card from '#lib/components/ui/card/index.ts';
+	import * as Tabs from '#lib/components/ui/tabs/index.ts';
+	import { m } from '#lib/paraglide/messages.js';
+	import CustomClaimService from '#lib/services/custom-claim-service.ts';
+	import UserGroupService from '#lib/services/user-group-service.ts';
+	import appConfigStore from '#lib/stores/application-configuration-store.ts';
+	import type { UserGroupCreate } from '#lib/types/user-group.type.ts';
+	import { trackUnsavedValue } from '#lib/utils/unsaved-changes-util.svelte.ts';
 	import { LucideChevronLeft } from '@lucide/svelte';
 	import { backNavigate } from '../../users/navigate-back-util';
 	import UserGroupForm from '../user-group-form.svelte';

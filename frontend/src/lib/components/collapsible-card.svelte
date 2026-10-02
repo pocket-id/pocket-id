@@ -1,6 +1,6 @@
 <script lang="ts">
-	import { m } from '$lib/paraglide/messages';
-	import { cn } from '$lib/utils/style';
+	import { m } from '#lib/paraglide/messages.js';
+	import { cn } from '#lib/utils/style.ts';
 	import { LucideChevronDown, type LucideIcon } from '@lucide/svelte';
 	import { onMount, type Snippet } from 'svelte';
 	import { slide } from 'svelte/transition';

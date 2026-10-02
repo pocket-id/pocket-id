@@ -8,9 +8,9 @@ import type {
 	ApiPermissionInput,
 	ApiUpdate,
 	ClientApiGrant
-} from '$lib/types/api.type';
-import type { ListRequestOptions, Paginated } from '$lib/types/list-request.type';
-import { encodeClientIdParam } from '$lib/utils/client-id-util';
+} from '#lib/types/api.type.ts';
+import type { ListRequestOptions, Paginated } from '#lib/types/list-request.type.ts';
+import { encodeClientIdParam } from '#lib/utils/client-id-util.ts';
 import APIService from './api-service';
 
 export default class ApisService extends APIService {

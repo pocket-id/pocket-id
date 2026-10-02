@@ -1,5 +1,5 @@
-import UserService from '$lib/services/user-service';
-import { getAxiosErrorMessage } from '$lib/utils/error-util';
+import UserService from '#lib/services/user-service.ts';
+import { getAxiosErrorMessage } from '#lib/utils/error-util.ts';
 import { redirect } from '@sveltejs/kit';
 import type { PageLoad } from './$types';
 

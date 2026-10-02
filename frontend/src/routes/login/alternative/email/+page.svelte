@@ -1,12 +1,12 @@
 <script lang="ts">
 	import { page } from '$app/state';
-	import SignInWrapper from '$lib/components/login-wrapper.svelte';
-	import { Button } from '$lib/components/ui/button';
-	import Input from '$lib/components/ui/input/input.svelte';
-	import { m } from '$lib/paraglide/messages';
-	import UserService from '$lib/services/user-service';
-	import { preventDefault } from '$lib/utils/event-util';
-	import { getAxiosErrorMessage } from '$lib/utils/error-util';
+	import SignInWrapper from '#lib/components/login-wrapper.svelte';
+	import { Button } from '#lib/components/ui/button/index.ts';
+	import Input from '#lib/components/ui/input/input.svelte';
+	import { m } from '#lib/paraglide/messages.js';
+	import UserService from '#lib/services/user-service.ts';
+	import { preventDefault } from '#lib/utils/event-util.ts';
+	import { getAxiosErrorMessage } from '#lib/utils/error-util.ts';
 	import { fade } from 'svelte/transition';
 	import LoginLogoErrorSuccessIndicator from '../../components/login-logo-error-success-indicator.svelte';
 

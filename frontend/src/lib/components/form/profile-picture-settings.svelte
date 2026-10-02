@@ -1,12 +1,12 @@
 <script lang="ts">
-	import FileInput from '$lib/components/form/file-input.svelte';
-	import * as Avatar from '$lib/components/ui/avatar';
-	import Button from '$lib/components/ui/button/button.svelte';
-	import { m } from '$lib/paraglide/messages';
-	import appConfigStore from '$lib/stores/application-configuration-store';
-	import { cachedProfilePicture } from '$lib/utils/cached-image-util';
+	import FileInput from '#lib/components/form/file-input.svelte';
+	import * as Avatar from '#lib/components/ui/avatar/index.ts';
+	import Button from '#lib/components/ui/button/button.svelte';
+	import { m } from '#lib/paraglide/messages.js';
+	import appConfigStore from '#lib/stores/application-configuration-store.ts';
+	import { cachedProfilePicture } from '#lib/utils/cached-image-util.ts';
 	import { LucideRefreshCw, LucideUpload } from '@lucide/svelte';
-	import { Spinner } from '$lib/components/ui/spinner';
+	import { Spinner } from '#lib/components/ui/spinner/index.ts';
 	import { onMount } from 'svelte';
 	import { openConfirmDialog } from '../confirm-dialog';
 

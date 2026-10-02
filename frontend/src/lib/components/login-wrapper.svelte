@@ -5,10 +5,10 @@
 <script lang="ts">
 	import { afterNavigate } from '$app/navigation';
 	import { page } from '$app/state';
-	import { m } from '$lib/paraglide/messages';
-	import appConfigStore from '$lib/stores/application-configuration-store';
-	import { cachedBackgroundImage } from '$lib/utils/cached-image-util';
-	import { cn } from '$lib/utils/style';
+	import { m } from '#lib/paraglide/messages.js';
+	import appConfigStore from '#lib/stores/application-configuration-store.ts';
+	import { cachedBackgroundImage } from '#lib/utils/cached-image-util.ts';
+	import { cn } from '#lib/utils/style.ts';
 	import { onMount, type Snippet } from 'svelte';
 	import { MediaQuery } from 'svelte/reactivity';
 	import { fade } from 'svelte/transition';
@@ -34,6 +34,7 @@
 	});
 
 	afterNavigate((e) => {
+		if (e.shallow) return;
 		isInitialLoad = !e?.from?.url;
 	});
 

@@ -1,20 +1,20 @@
 <script lang="ts">
-	import { invalidateAll } from '$app/navigation';
-	import FormattedMessage from '$lib/components/formatted-message.svelte';
-	import SignInWrapper from '$lib/components/login-wrapper.svelte';
-	import ScopeList from '$lib/components/scope-list.svelte';
-	import * as Avatar from '$lib/components/ui/avatar';
-	import { Button } from '$lib/components/ui/button';
-	import * as Card from '$lib/components/ui/card';
-	import { m } from '$lib/paraglide/messages';
-	import OidcService from '$lib/services/oidc-service';
-	import WebAuthnService from '$lib/services/webauthn-service';
-	import appConfigStore from '$lib/stores/application-configuration-store';
-	import userStore from '$lib/stores/user-store';
-	import type { InteractionStep } from '$lib/types/oidc.type';
-	import { cachedProfilePicture } from '$lib/utils/cached-image-util';
-	import { getClientIDHost } from '$lib/utils/client-id-util';
-	import { getWebauthnErrorMessage } from '$lib/utils/error-util';
+	import { refreshAll } from '$app/navigation';
+	import FormattedMessage from '#lib/components/formatted-message.svelte';
+	import SignInWrapper from '#lib/components/login-wrapper.svelte';
+	import ScopeList from '#lib/components/scope-list.svelte';
+	import * as Avatar from '#lib/components/ui/avatar/index.ts';
+	import { Button } from '#lib/components/ui/button/index.ts';
+	import * as Card from '#lib/components/ui/card/index.ts';
+	import { m } from '#lib/paraglide/messages.js';
+	import OidcService from '#lib/services/oidc-service.ts';
+	import WebAuthnService from '#lib/services/webauthn-service.ts';
+	import appConfigStore from '#lib/stores/application-configuration-store.ts';
+	import userStore from '#lib/stores/user-store.ts';
+	import type { InteractionStep } from '#lib/types/oidc.type.ts';
+	import { cachedProfilePicture } from '#lib/utils/cached-image-util.ts';
+	import { getClientIDHost } from '#lib/utils/client-id-util.ts';
+	import { getWebauthnErrorMessage } from '#lib/utils/error-util.ts';
 	import { startAuthentication } from '@simplewebauthn/browser';
 	import { slide } from 'svelte/transition';
 	import ClientProviderImages from '../authorize/components/client-provider-images.svelte';
@@ -47,7 +47,7 @@
 		await webauthnService.logout();
 		await completeInteraction('select_account', true);
 		userStore.clearUser();
-		await invalidateAll();
+		await refreshAll();
 	}
 
 	async function handlePipeline() {
@@ -76,7 +76,7 @@
 		const authResponse = await startAuthentication({ optionsJSON: loginOptions });
 		const user = await webauthnService.finishLogin(authResponse);
 		await userStore.setUser(user);
-		await invalidateAll();
+		await refreshAll();
 	}
 
 	async function reauthenticate() {

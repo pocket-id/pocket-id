@@ -1,4 +1,4 @@
-import type { ListRequestOptions, Paginated } from '$lib/types/list-request.type';
+import type { ListRequestOptions, Paginated } from '#lib/types/list-request.type.ts';
 import type {
 	AccessibleOidcClient,
 	AuthorizedOidcClient,
@@ -15,10 +15,10 @@ import type {
 	OidcClientWithAllowedGroups,
 	OidcClientWithAllowedUserGroups,
 	OidcDeviceCodeInfo
-} from '$lib/types/oidc.type';
-import type { ScimServiceProvider } from '$lib/types/scim.type';
-import { cachedOidcClientLogo } from '$lib/utils/cached-image-util';
-import { encodeClientIdParam } from '$lib/utils/client-id-util';
+} from '#lib/types/oidc.type.ts';
+import type { ScimServiceProvider } from '#lib/types/scim.type.ts';
+import { cachedOidcClientLogo } from '#lib/utils/cached-image-util.ts';
+import { encodeClientIdParam } from '#lib/utils/client-id-util.ts';
 import APIService from './api-service';
 
 class OidcService extends APIService {

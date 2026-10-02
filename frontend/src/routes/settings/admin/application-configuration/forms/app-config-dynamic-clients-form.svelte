@@ -1,11 +1,11 @@
 <script lang="ts">
-	import FormInput from '$lib/components/form/form-input.svelte';
-	import UrlListInput from '$lib/components/form/url-list-input.svelte';
-	import FormattedMessage from '$lib/components/formatted-message.svelte';
-	import { m } from '$lib/paraglide/messages';
-	import appConfigStore from '$lib/stores/application-configuration-store';
-	import type { AllAppConfig } from '$lib/types/application-configuration.type';
-	import { trackUnsavedValue } from '$lib/utils/unsaved-changes-util.svelte';
+	import FormInput from '#lib/components/form/form-input.svelte';
+	import UrlListInput from '#lib/components/form/url-list-input.svelte';
+	import FormattedMessage from '#lib/components/formatted-message.svelte';
+	import { m } from '#lib/paraglide/messages.js';
+	import appConfigStore from '#lib/stores/application-configuration-store.ts';
+	import type { AllAppConfig } from '#lib/types/application-configuration.type.ts';
+	import { trackUnsavedValue } from '#lib/utils/unsaved-changes-util.svelte.ts';
 
 	let {
 		appConfig,

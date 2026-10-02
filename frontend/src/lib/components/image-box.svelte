@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { cn } from '$lib/utils/style';
+	import { cn } from '#lib/utils/style.ts';
 	import { LucideImageOff } from '@lucide/svelte';
 	import type { HTMLImgAttributes } from 'svelte/elements';
 

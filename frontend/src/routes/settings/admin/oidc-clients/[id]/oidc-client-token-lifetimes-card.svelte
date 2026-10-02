@@ -1,10 +1,10 @@
 <script lang="ts">
-	import DurationInput from '$lib/components/form/duration-input.svelte';
-	import * as Card from '$lib/components/ui/card';
-	import { m } from '$lib/paraglide/messages';
-	import type { OidcClient, OidcClientTokenLifetimes } from '$lib/types/oidc.type';
-	import { createForm } from '$lib/utils/form-util';
-	import { trackFormChanges } from '$lib/utils/unsaved-changes-util.svelte';
+	import DurationInput from '#lib/components/form/duration-input.svelte';
+	import * as Card from '#lib/components/ui/card/index.ts';
+	import { m } from '#lib/paraglide/messages.js';
+	import type { OidcClient, OidcClientTokenLifetimes } from '#lib/types/oidc.type.ts';
+	import { createForm } from '#lib/utils/form-util.ts';
+	import { trackFormChanges } from '#lib/utils/unsaved-changes-util.svelte.ts';
 	import { z } from 'zod/v4';
 
 	let {

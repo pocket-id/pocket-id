@@ -1,13 +1,13 @@
 <script lang="ts">
 	import { goto } from '$app/navigation';
-	import { Button } from '$lib/components/ui/button';
-	import * as Card from '$lib/components/ui/card';
-	import { m } from '$lib/paraglide/messages';
-	import OIDCService from '$lib/services/oidc-service';
-	import appConfigStore from '$lib/stores/application-configuration-store';
-	import clientSecretStore from '$lib/stores/client-secret-store';
-	import type { OidcClientCreate } from '$lib/types/oidc.type';
-	import { encodeClientIdParam } from '$lib/utils/client-id-util';
+	import { Button } from '#lib/components/ui/button/index.ts';
+	import * as Card from '#lib/components/ui/card/index.ts';
+	import { m } from '#lib/paraglide/messages.js';
+	import OIDCService from '#lib/services/oidc-service.ts';
+	import appConfigStore from '#lib/stores/application-configuration-store.ts';
+	import clientSecretStore from '#lib/stores/client-secret-store.ts';
+	import type { OidcClientCreate } from '#lib/types/oidc.type.ts';
+	import { encodeClientIdParam } from '#lib/utils/client-id-util.ts';
 	import { LucideMinus, ShieldCheck, ShieldPlus } from '@lucide/svelte';
 	import { toast } from 'svelte-sonner';
 	import { slide } from 'svelte/transition';

@@ -1,12 +1,12 @@
 <script lang="ts">
-	import * as Field from '$lib/components/ui/field';
-	import * as Select from '$lib/components/ui/select';
-	import { Switch } from '$lib/components/ui/switch';
-	import { m } from '$lib/paraglide/messages';
-	import appConfigStore from '$lib/stores/application-configuration-store';
-	import type { AllAppConfig } from '$lib/types/application-configuration.type';
-	import { createForm } from '$lib/utils/form-util';
-	import { trackFormChanges } from '$lib/utils/unsaved-changes-util.svelte';
+	import * as Field from '#lib/components/ui/field/index.ts';
+	import * as Select from '#lib/components/ui/select/index.ts';
+	import { Switch } from '#lib/components/ui/switch/index.ts';
+	import { m } from '#lib/paraglide/messages.js';
+	import appConfigStore from '#lib/stores/application-configuration-store.ts';
+	import type { AllAppConfig } from '#lib/types/application-configuration.type.ts';
+	import { createForm } from '#lib/utils/form-util.ts';
+	import { trackFormChanges } from '#lib/utils/unsaved-changes-util.svelte.ts';
 	import { z } from 'zod/v4';
 
 	let {

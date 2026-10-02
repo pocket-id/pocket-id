@@ -1,11 +1,11 @@
 <script lang="ts">
-	import FormInput from '$lib/components/form/form-input.svelte';
-	import { m } from '$lib/paraglide/messages';
-	import appConfigStore from '$lib/stores/application-configuration-store';
-	import type { UserSignUp } from '$lib/types/user.type';
-	import { preventDefault } from '$lib/utils/event-util';
-	import { createForm } from '$lib/utils/form-util';
-	import { emptyToUndefined, usernameSchema } from '$lib/utils/zod-util';
+	import FormInput from '#lib/components/form/form-input.svelte';
+	import { m } from '#lib/paraglide/messages.js';
+	import appConfigStore from '#lib/stores/application-configuration-store.ts';
+	import type { UserSignUp } from '#lib/types/user.type.ts';
+	import { preventDefault } from '#lib/utils/event-util.ts';
+	import { createForm } from '#lib/utils/form-util.ts';
+	import { emptyToUndefined, usernameSchema } from '#lib/utils/zod-util.ts';
 	import { get } from 'svelte/store';
 	import { z } from 'zod/v4';
 

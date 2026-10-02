@@ -1,8 +1,8 @@
 <script lang="ts">
-	import { Button } from '$lib/components/ui/button';
-	import * as Item from '$lib/components/ui/item/index.js';
-	import * as Tooltip from '$lib/components/ui/tooltip/index.js';
-	import { m } from '$lib/paraglide/messages';
+	import { Button } from '#lib/components/ui/button/index.ts';
+	import * as Item from '#lib/components/ui/item/index.js';
+	import * as Tooltip from '#lib/components/ui/tooltip/index.js';
+	import { m } from '#lib/paraglide/messages.js';
 	import { LucideCalendar, LucidePencil, LucideTrash, type LucideIcon } from '@lucide/svelte';
 
 	let {

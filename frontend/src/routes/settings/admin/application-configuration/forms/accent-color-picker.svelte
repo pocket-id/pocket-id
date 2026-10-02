@@ -1,7 +1,7 @@
 <script lang="ts">
-	import { Label } from '$lib/components/ui/label/index.js';
-	import * as RadioGroup from '$lib/components/ui/radio-group/index.js';
-	import { applyAccentColor } from '$lib/utils/accent-color-util';
+	import { Label } from '#lib/components/ui/label/index.js';
+	import * as RadioGroup from '#lib/components/ui/radio-group/index.js';
+	import { applyAccentColor } from '#lib/utils/accent-color-util.ts';
 	import { Check, Plus } from '@lucide/svelte';
 	import CustomColorDialog from './custom-accent-color-dialog.svelte';
 

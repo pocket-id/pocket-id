@@ -13,6 +13,7 @@ async function configureOidcClient(page: Page) {
 		.fill(process.env.SCIM_SERVICE_PROVIDER_URL_INTERNAL || 'http://scim.provider/api');
 
 	await page.getByRole('button', { name: 'Enable' }).click();
+	await expect(page.locator('[data-type="success"]')).toHaveText('SCIM enabled successfully.');
 }
 
 async function syncScimServiceProvider(page: Page) {

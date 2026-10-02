@@ -1,13 +1,13 @@
 <script lang="ts">
-	import Logo from '$lib/components/logo.svelte';
-	import { m } from '$lib/paraglide/messages';
+	import Logo from '#lib/components/logo.svelte';
+	import { m } from '#lib/paraglide/messages.js';
 	import {
 		cachedApplicationLogo,
 		cachedBackgroundImage,
 		cachedDefaultProfilePicture,
 		cachedEmailLogo
-	} from '$lib/utils/cached-image-util';
-	import { trackUnsavedSection } from '$lib/utils/unsaved-changes-util.svelte';
+	} from '#lib/utils/cached-image-util.ts';
+	import { trackUnsavedSection } from '#lib/utils/unsaved-changes-util.svelte.ts';
 	import ApplicationImage from './application-image.svelte';
 
 	let {

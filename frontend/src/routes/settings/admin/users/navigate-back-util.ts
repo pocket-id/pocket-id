@@ -3,8 +3,8 @@ import { afterNavigate, goto } from '$app/navigation';
 export const backNavigate = (defaultRoute: string) => {
 	let previousUrl: URL | undefined;
 	afterNavigate((e) => {
-		if (e.from) {
-			previousUrl = e.from.url;
+		if (e.from && !e.shallow) {
+			previousUrl = new URL(e.from.url.href);
 		}
 	});
 

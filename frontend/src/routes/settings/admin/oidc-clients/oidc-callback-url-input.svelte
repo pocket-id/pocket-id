@@ -1,7 +1,7 @@
 <script lang="ts">
-	import FormInput from '$lib/components/form/form-input.svelte';
-	import UrlListInput from '$lib/components/form/url-list-input.svelte';
-	import * as Field from '$lib/components/ui/field';
+	import FormInput from '#lib/components/form/form-input.svelte';
+	import UrlListInput from '#lib/components/form/url-list-input.svelte';
+	import * as Field from '#lib/components/ui/field/index.ts';
 	import type { Snippet } from 'svelte';
 	import type { HTMLAttributes } from 'svelte/elements';
 

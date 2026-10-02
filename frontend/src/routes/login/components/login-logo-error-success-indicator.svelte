@@ -1,7 +1,7 @@
 <script lang="ts">
-	import Logo from '$lib/components/logo.svelte';
-	import CheckmarkAnimated from '$lib/icons/checkmark-animated.svelte';
-	import CrossAnimated from '$lib/icons/cross-animated.svelte';
+	import Logo from '#lib/components/logo.svelte';
+	import CheckmarkAnimated from '#lib/icons/checkmark-animated.svelte';
+	import CrossAnimated from '#lib/icons/cross-animated.svelte';
 	import { fade } from 'svelte/transition';
 
 	const {

@@ -1,15 +1,15 @@
 <script lang="ts">
-	import CopyToClipboard from '$lib/components/copy-to-clipboard.svelte';
-	import { Button } from '$lib/components/ui/button';
-	import * as Card from '$lib/components/ui/card';
-	import { m } from '$lib/paraglide/messages';
-	import clientSecretStore, { autoCreatedSecretId } from '$lib/stores/client-secret-store';
+	import CopyToClipboard from '#lib/components/copy-to-clipboard.svelte';
+	import { Button } from '#lib/components/ui/button/index.ts';
+	import * as Card from '#lib/components/ui/card/index.ts';
+	import { m } from '#lib/paraglide/messages.js';
+	import clientSecretStore, { autoCreatedSecretId } from '#lib/stores/client-secret-store.ts';
 	import type {
 		OidcClient,
 		OidcClientSecret,
 		OidcDiscoveryConfiguration
-	} from '$lib/types/oidc.type';
-	import { cn } from '$lib/utils/style';
+	} from '#lib/types/oidc.type.ts';
+	import { cn } from '#lib/utils/style.ts';
 	import { LucideChevronDown } from '@lucide/svelte';
 	import { slide } from 'svelte/transition';
 

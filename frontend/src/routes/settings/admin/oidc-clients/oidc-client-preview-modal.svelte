@@ -1,20 +1,20 @@
 <script lang="ts">
-	import CopyToClipboard from '$lib/components/copy-to-clipboard.svelte';
-	import MultiSelect from '$lib/components/form/multi-select.svelte';
-	import SearchableSelect from '$lib/components/form/searchable-select.svelte';
-	import { Badge } from '$lib/components/ui/badge';
-	import { Button } from '$lib/components/ui/button';
-	import * as Dialog from '$lib/components/ui/dialog';
-	import * as Field from '$lib/components/ui/field';
-	import { Spinner } from '$lib/components/ui/spinner';
-	import * as Tabs from '$lib/components/ui/tabs';
-	import { m } from '$lib/paraglide/messages';
-	import OidcService from '$lib/services/oidc-service';
-	import UserService from '$lib/services/user-service';
-	import type { User } from '$lib/types/user.type';
-	import { debounced } from '$lib/utils/debounce-util';
-	import { getAxiosErrorMessage } from '$lib/utils/error-util';
-	import { cn } from '$lib/utils/style';
+	import CopyToClipboard from '#lib/components/copy-to-clipboard.svelte';
+	import MultiSelect from '#lib/components/form/multi-select.svelte';
+	import SearchableSelect from '#lib/components/form/searchable-select.svelte';
+	import { Badge } from '#lib/components/ui/badge/index.ts';
+	import { Button } from '#lib/components/ui/button/index.ts';
+	import * as Dialog from '#lib/components/ui/dialog/index.ts';
+	import * as Field from '#lib/components/ui/field/index.ts';
+	import { Spinner } from '#lib/components/ui/spinner/index.ts';
+	import * as Tabs from '#lib/components/ui/tabs/index.ts';
+	import { m } from '#lib/paraglide/messages.js';
+	import OidcService from '#lib/services/oidc-service.ts';
+	import UserService from '#lib/services/user-service.ts';
+	import type { User } from '#lib/types/user.type.ts';
+	import { debounced } from '#lib/utils/debounce-util.ts';
+	import { getAxiosErrorMessage } from '#lib/utils/error-util.ts';
+	import { cn } from '#lib/utils/style.ts';
 	import { LucideBraces, LucideCopy, LucideList } from '@lucide/svelte';
 
 	type Claims = Record<string, unknown>;

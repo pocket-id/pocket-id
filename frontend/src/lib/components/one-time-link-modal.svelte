@@ -1,16 +1,16 @@
 <script lang="ts">
 	import { page } from '$app/state';
-	import CopyToClipboard from '$lib/components/copy-to-clipboard.svelte';
-	import Qrcode from '$lib/components/qrcode/qrcode.svelte';
-	import { Button } from '$lib/components/ui/button';
-	import * as Dialog from '$lib/components/ui/dialog';
-	import * as Field from '$lib/components/ui/field';
-	import * as Select from '$lib/components/ui/select/index.js';
-	import { Separator } from '$lib/components/ui/separator';
-	import { m } from '$lib/paraglide/messages';
-	import UserService from '$lib/services/user-service';
-	import appConfigStore from '$lib/stores/application-configuration-store';
-	import { axiosErrorToast } from '$lib/utils/error-util';
+	import CopyToClipboard from '#lib/components/copy-to-clipboard.svelte';
+	import Qrcode from '#lib/components/qrcode/qrcode.svelte';
+	import { Button } from '#lib/components/ui/button/index.ts';
+	import * as Dialog from '#lib/components/ui/dialog/index.ts';
+	import * as Field from '#lib/components/ui/field/index.ts';
+	import * as Select from '#lib/components/ui/select/index.js';
+	import { Separator } from '#lib/components/ui/separator/index.ts';
+	import { m } from '#lib/paraglide/messages.js';
+	import UserService from '#lib/services/user-service.ts';
+	import appConfigStore from '#lib/stores/application-configuration-store.ts';
+	import { axiosErrorToast } from '#lib/utils/error-util.ts';
 	import { mode } from 'mode-watcher';
 	import { toast } from 'svelte-sonner';
 

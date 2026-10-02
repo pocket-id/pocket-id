@@ -1,8 +1,8 @@
 <script lang="ts" generics="TData extends Record<string, any>">
-	import { buttonVariants } from '$lib/components/ui/button/index.js';
-	import * as DropdownMenu from '$lib/components/ui/dropdown-menu/index.js';
-	import { m } from '$lib/paraglide/messages';
-	import type { AdvancedTableColumn } from '$lib/types/advanced-table.type';
+	import { buttonVariants } from '#lib/components/ui/button/index.js';
+	import * as DropdownMenu from '#lib/components/ui/dropdown-menu/index.js';
+	import { m } from '#lib/paraglide/messages.js';
+	import type { AdvancedTableColumn } from '#lib/types/advanced-table.type.ts';
 	import Settings2Icon from '@lucide/svelte/icons/settings-2';
 
 	let {

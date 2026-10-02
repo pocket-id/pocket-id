@@ -1,8 +1,8 @@
 <script lang="ts">
 	import { Calendar as CalendarPrimitive } from 'bits-ui';
 	import * as Calendar from './index.js';
-	import { cn, type WithoutChildrenOrChild } from '$lib/utils/style.js';
-	import { getLocale } from '$lib/paraglide/runtime';
+	import { cn, type WithoutChildrenOrChild } from '#lib/utils/style.js';
+	import { getLocale } from '#lib/paraglide/runtime.js';
 	import type { ButtonVariant } from '../button/button.svelte';
 	import { isEqualMonth, type DateValue } from '@internationalized/date';
 	import type { Snippet } from 'svelte';

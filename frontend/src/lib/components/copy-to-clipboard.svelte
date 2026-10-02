@@ -1,6 +1,6 @@
 <script lang="ts">
-	import * as Tooltip from '$lib/components/ui/tooltip';
-	import { m } from '$lib/paraglide/messages';
+	import * as Tooltip from '#lib/components/ui/tooltip/index.ts';
+	import { m } from '#lib/paraglide/messages.js';
 	import { LucideCheck } from '@lucide/svelte';
 	import type { Snippet } from 'svelte';
 

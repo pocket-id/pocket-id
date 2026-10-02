@@ -1,17 +1,17 @@
 <script lang="ts">
 	import { goto } from '$app/navigation';
-	import { openConfirmDialog } from '$lib/components/confirm-dialog/';
-	import AdvancedTable from '$lib/components/table/advanced-table.svelte';
-	import { Badge } from '$lib/components/ui/badge/index';
-	import { m } from '$lib/paraglide/messages';
-	import UserGroupService from '$lib/services/user-group-service';
-	import appConfigStore from '$lib/stores/application-configuration-store';
+	import { openConfirmDialog } from '#lib/components/confirm-dialog/index.ts';
+	import AdvancedTable from '#lib/components/table/advanced-table.svelte';
+	import { Badge } from '#lib/components/ui/badge/index.ts';
+	import { m } from '#lib/paraglide/messages.js';
+	import UserGroupService from '#lib/services/user-group-service.ts';
+	import appConfigStore from '#lib/stores/application-configuration-store.ts';
 	import type {
 		AdvancedTableColumn,
 		CreateAdvancedTableActions
-	} from '$lib/types/advanced-table.type';
-	import type { UserGroupMinimal } from '$lib/types/user-group.type';
-	import { axiosErrorToast } from '$lib/utils/error-util';
+	} from '#lib/types/advanced-table.type.ts';
+	import type { UserGroupMinimal } from '#lib/types/user-group.type.ts';
+	import { axiosErrorToast } from '#lib/utils/error-util.ts';
 	import { LucidePencil, LucideTrash } from '@lucide/svelte';
 	import { toast } from 'svelte-sonner';
 

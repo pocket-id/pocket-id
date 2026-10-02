@@ -1,14 +1,14 @@
 <script lang="ts">
-	import { openConfirmDialog } from '$lib/components/confirm-dialog';
-	import * as Card from '$lib/components/ui/card';
-	import * as Field from '$lib/components/ui/field';
-	import * as RadioGroup from '$lib/components/ui/radio-group';
-	import UserGroupSelection from '$lib/components/user-group-selection.svelte';
-	import { m } from '$lib/paraglide/messages';
-	import OidcService from '$lib/services/oidc-service';
-	import type { OidcClient } from '$lib/types/oidc.type';
-	import { axiosErrorToast } from '$lib/utils/error-util';
-	import { trackUnsavedValue } from '$lib/utils/unsaved-changes-util.svelte';
+	import { openConfirmDialog } from '#lib/components/confirm-dialog/index.ts';
+	import * as Card from '#lib/components/ui/card/index.ts';
+	import * as Field from '#lib/components/ui/field/index.ts';
+	import * as RadioGroup from '#lib/components/ui/radio-group/index.ts';
+	import UserGroupSelection from '#lib/components/user-group-selection.svelte';
+	import { m } from '#lib/paraglide/messages.js';
+	import OidcService from '#lib/services/oidc-service.ts';
+	import type { OidcClient } from '#lib/types/oidc.type.ts';
+	import { axiosErrorToast } from '#lib/utils/error-util.ts';
+	import { trackUnsavedValue } from '#lib/utils/unsaved-changes-util.svelte.ts';
 	import { toast } from 'svelte-sonner';
 	import { slide } from 'svelte/transition';
 

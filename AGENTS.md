@@ -54,10 +54,9 @@ cd ../.. && pnpm test                            # = playwright test in tests/
 ## Frontend (SvelteKit)
 
 - **Svelte 5 runes only:** `$state`, `$derived`, `$props`, `$bindable`. No `export let`. Event
-  modifiers are gone — use `preventDefault` from `$lib/utils/event-util` (`onsubmit={preventDefault(fn)}`).
-- **Forms:** use the custom `createForm(schema, initial)` from `$lib/utils/form-util.ts` with
-  `form-input.svelte`. The vendored shadcn formsnap/superforms wrappers exist but app forms don't
-  use them — match the surrounding file. Import zod as `import { z } from 'zod/v4'`.
+  modifiers are gone — use `preventDefault` from `#lib/utils/event-util.ts` (`onsubmit={preventDefault(fn)}`).
+- **Forms:** use the custom `createForm(schema, initial)` from `#lib/utils/form-util.ts` with
+  `form-input.svelte` — match the surrounding file. Import zod as `import { z } from 'zod/v4'`.
 
 ## Coding Style Guidelines
 

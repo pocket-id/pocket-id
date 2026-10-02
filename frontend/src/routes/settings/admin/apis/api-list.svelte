@@ -1,15 +1,15 @@
 <script lang="ts">
 	import { goto } from '$app/navigation';
-	import { openConfirmDialog } from '$lib/components/confirm-dialog/';
-	import AdvancedTable from '$lib/components/table/advanced-table.svelte';
-	import { m } from '$lib/paraglide/messages';
-	import ApisService from '$lib/services/apis-service';
+	import { openConfirmDialog } from '#lib/components/confirm-dialog/index.ts';
+	import AdvancedTable from '#lib/components/table/advanced-table.svelte';
+	import { m } from '#lib/paraglide/messages.js';
+	import ApisService from '#lib/services/apis-service.ts';
 	import type {
 		AdvancedTableColumn,
 		CreateAdvancedTableActions
-	} from '$lib/types/advanced-table.type';
-	import type { Api } from '$lib/types/api.type';
-	import { axiosErrorToast } from '$lib/utils/error-util';
+	} from '#lib/types/advanced-table.type.ts';
+	import type { Api } from '#lib/types/api.type.ts';
+	import { axiosErrorToast } from '#lib/utils/error-util.ts';
 	import { LucidePencil, LucideTrash } from '@lucide/svelte';
 	import { toast } from 'svelte-sonner';
 

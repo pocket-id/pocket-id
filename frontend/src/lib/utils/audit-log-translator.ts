@@ -1,4 +1,4 @@
-import { m } from '$lib/paraglide/messages';
+import { m } from '#lib/paraglide/messages.js';
 
 export const eventTypes: Record<string, string> = {
 	SIGN_IN: m.sign_in(),

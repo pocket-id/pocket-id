@@ -1,17 +1,17 @@
 <script lang="ts">
-	import { openConfirmDialog } from '$lib/components/confirm-dialog';
-	import FormInput from '$lib/components/form/form-input.svelte';
-	import SwitchWithLabel from '$lib/components/form/switch-with-label.svelte';
-	import { Button } from '$lib/components/ui/button';
-	import * as Field from '$lib/components/ui/field';
-	import * as Select from '$lib/components/ui/select';
-	import { m } from '$lib/paraglide/messages';
-	import AppConfigService from '$lib/services/app-config-service';
-	import appConfigStore from '$lib/stores/application-configuration-store';
-	import type { AllAppConfig } from '$lib/types/application-configuration.type';
-	import { axiosErrorToast } from '$lib/utils/error-util';
-	import { createForm, pickSchemaValues } from '$lib/utils/form-util';
-	import { trackFormChanges } from '$lib/utils/unsaved-changes-util.svelte';
+	import { openConfirmDialog } from '#lib/components/confirm-dialog/index.ts';
+	import FormInput from '#lib/components/form/form-input.svelte';
+	import SwitchWithLabel from '#lib/components/form/switch-with-label.svelte';
+	import { Button } from '#lib/components/ui/button/index.ts';
+	import * as Field from '#lib/components/ui/field/index.ts';
+	import * as Select from '#lib/components/ui/select/index.ts';
+	import { m } from '#lib/paraglide/messages.js';
+	import AppConfigService from '#lib/services/app-config-service.ts';
+	import appConfigStore from '#lib/stores/application-configuration-store.ts';
+	import type { AllAppConfig } from '#lib/types/application-configuration.type.ts';
+	import { axiosErrorToast } from '#lib/utils/error-util.ts';
+	import { createForm, pickSchemaValues } from '#lib/utils/form-util.ts';
+	import { trackFormChanges } from '#lib/utils/unsaved-changes-util.svelte.ts';
 	import { toast } from 'svelte-sonner';
 	import { z } from 'zod/v4';
 

@@ -1,14 +1,14 @@
 <script lang="ts">
-	import { openConfirmDialog } from '$lib/components/confirm-dialog';
-	import AdvancedTable from '$lib/components/table/advanced-table.svelte';
-	import { m } from '$lib/paraglide/messages';
-	import ApiKeyService from '$lib/services/api-key-service';
+	import { openConfirmDialog } from '#lib/components/confirm-dialog/index.ts';
+	import AdvancedTable from '#lib/components/table/advanced-table.svelte';
+	import { m } from '#lib/paraglide/messages.js';
+	import ApiKeyService from '#lib/services/api-key-service.ts';
 	import type {
 		AdvancedTableColumn,
 		CreateAdvancedTableActions
-	} from '$lib/types/advanced-table.type';
-	import type { ApiKey, ApiKeyResponse } from '$lib/types/api-key.type';
-	import { axiosErrorToast } from '$lib/utils/error-util';
+	} from '#lib/types/advanced-table.type.ts';
+	import type { ApiKey, ApiKeyResponse } from '#lib/types/api-key.type.ts';
+	import { axiosErrorToast } from '#lib/utils/error-util.ts';
 	import { LucideBan, LucideRefreshCcw, LucideTriangleAlert } from '@lucide/svelte';
 	import { toast } from 'svelte-sonner';
 	import ApiKeyDialog from './api-key-dialog.svelte';

@@ -1,6 +1,6 @@
 <script lang="ts">
-	import Input from '$lib/components/ui/input/input.svelte';
-	import * as Popover from '$lib/components/ui/popover/index.js';
+	import Input from '#lib/components/ui/input/input.svelte';
+	import * as Popover from '#lib/components/ui/popover/index.js';
 
 	let {
 		value = $bindable(''),

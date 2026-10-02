@@ -1,15 +1,15 @@
 <script lang="ts">
-	import FormInput from '$lib/components/form/form-input.svelte';
-	import ProfilePictureSettings from '$lib/components/form/profile-picture-settings.svelte';
-	import * as Field from '$lib/components/ui/field/index.js';
-	import { m } from '$lib/paraglide/messages';
-	import UserService from '$lib/services/user-service';
-	import appConfigStore from '$lib/stores/application-configuration-store';
-	import type { AccountUpdate } from '$lib/types/user.type';
-	import { axiosErrorToast } from '$lib/utils/error-util';
-	import { createForm } from '$lib/utils/form-util';
-	import { trackFormChanges } from '$lib/utils/unsaved-changes-util.svelte';
-	import { emptyToUndefined, usernameSchema } from '$lib/utils/zod-util';
+	import FormInput from '#lib/components/form/form-input.svelte';
+	import ProfilePictureSettings from '#lib/components/form/profile-picture-settings.svelte';
+	import * as Field from '#lib/components/ui/field/index.js';
+	import { m } from '#lib/paraglide/messages.js';
+	import UserService from '#lib/services/user-service.ts';
+	import appConfigStore from '#lib/stores/application-configuration-store.ts';
+	import type { AccountUpdate } from '#lib/types/user.type.ts';
+	import { axiosErrorToast } from '#lib/utils/error-util.ts';
+	import { createForm } from '#lib/utils/form-util.ts';
+	import { trackFormChanges } from '#lib/utils/unsaved-changes-util.svelte.ts';
+	import { emptyToUndefined, usernameSchema } from '#lib/utils/zod-util.ts';
 	import { toast } from 'svelte-sonner';
 	import { get } from 'svelte/store';
 	import { z } from 'zod/v4';

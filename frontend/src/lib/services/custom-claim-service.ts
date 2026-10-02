@@ -1,4 +1,4 @@
-import type { CustomClaim } from '$lib/types/custom-claim.type';
+import type { CustomClaim } from '#lib/types/custom-claim.type.ts';
 import APIService from './api-service';
 
 export default class CustomClaimService extends APIService {

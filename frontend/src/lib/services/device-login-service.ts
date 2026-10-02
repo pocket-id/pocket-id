@@ -3,7 +3,7 @@ import type {
 	DeviceLoginExchangeResult,
 	DeviceLoginRequest,
 	DeviceLoginVerificationInfo
-} from '$lib/types/device-login.type';
+} from '#lib/types/device-login.type.ts';
 import APIService from './api-service';
 
 export default class DeviceLoginService extends APIService {

@@ -1,5 +1,5 @@
 import { error } from '@sveltejs/kit';
-import UserService from '$lib/services/user-service';
+import UserService from '#lib/services/user-service.ts';
 import { AxiosError } from 'axios';
 import type { PageLoad } from './$types';
 

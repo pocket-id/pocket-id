@@ -1,16 +1,16 @@
 <script lang="ts">
 	import { goto } from '$app/navigation';
-	import ImageBox from '$lib/components/image-box.svelte';
-	import Logo from '$lib/components/logo.svelte';
-	import { Button } from '$lib/components/ui/button';
-	import * as Card from '$lib/components/ui/card';
-	import * as DropdownMenu from '$lib/components/ui/dropdown-menu';
-	import * as Tooltip from '$lib/components/ui/tooltip';
-	import { m } from '$lib/paraglide/messages';
-	import userStore from '$lib/stores/user-store';
-	import type { AccessibleOidcClient, OidcClientMetaData } from '$lib/types/oidc.type';
-	import { cachedOidcClientLogo } from '$lib/utils/cached-image-util';
-	import { encodeClientIdParam } from '$lib/utils/client-id-util';
+	import ImageBox from '#lib/components/image-box.svelte';
+	import Logo from '#lib/components/logo.svelte';
+	import { Button } from '#lib/components/ui/button/index.ts';
+	import * as Card from '#lib/components/ui/card/index.ts';
+	import * as DropdownMenu from '#lib/components/ui/dropdown-menu/index.ts';
+	import * as Tooltip from '#lib/components/ui/tooltip/index.ts';
+	import { m } from '#lib/paraglide/messages.js';
+	import userStore from '#lib/stores/user-store.ts';
+	import type { AccessibleOidcClient, OidcClientMetaData } from '#lib/types/oidc.type.ts';
+	import { cachedOidcClientLogo } from '#lib/utils/cached-image-util.ts';
+	import { encodeClientIdParam } from '#lib/utils/client-id-util.ts';
 	import {
 		LucideBan,
 		LucideEllipsisVertical,

@@ -1,4 +1,4 @@
-import type { ScimServiceProvider, ScimServiceProviderCreate } from '$lib/types/scim.type';
+import type { ScimServiceProvider, ScimServiceProviderCreate } from '#lib/types/scim.type.ts';
 import APIService from './api-service';
 
 class ScimService extends APIService {

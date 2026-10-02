@@ -1,7 +1,7 @@
 <script lang="ts">
-	import * as DropdownMenu from '$lib/components/ui/dropdown-menu';
-	import { m } from '$lib/paraglide/messages';
-	import { cn } from '$lib/utils/style';
+	import * as DropdownMenu from '#lib/components/ui/dropdown-menu/index.ts';
+	import { m } from '#lib/paraglide/messages.js';
+	import { cn } from '#lib/utils/style.ts';
 	import { LucideChevronDown } from '@lucide/svelte';
 	import { Badge } from '../ui/badge';
 	import { Button } from '../ui/button';

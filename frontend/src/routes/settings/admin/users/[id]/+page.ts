@@ -1,4 +1,4 @@
-import UserService from '$lib/services/user-service';
+import UserService from '#lib/services/user-service.ts';
 import type { PageLoad } from './$types';
 
 export const load: PageLoad = async ({ params }) => {

@@ -1,9 +1,9 @@
 <script lang="ts">
-	import { Button } from '$lib/components/ui/button';
-	import * as Card from '$lib/components/ui/card';
-	import * as Tabs from '$lib/components/ui/tabs';
-	import { m } from '$lib/paraglide/messages';
-	import type { Api, ApiCimdAccessUpdate } from '$lib/types/api.type';
+	import { Button } from '#lib/components/ui/button/index.ts';
+	import * as Card from '#lib/components/ui/card/index.ts';
+	import * as Tabs from '#lib/components/ui/tabs/index.ts';
+	import { m } from '#lib/paraglide/messages.js';
+	import type { Api, ApiCimdAccessUpdate } from '#lib/types/api.type.ts';
 	import ApiCimdAccessTab from './api-cimd-access-tab.svelte';
 	import ApiClientsTab from './api-clients-tab.svelte';
 

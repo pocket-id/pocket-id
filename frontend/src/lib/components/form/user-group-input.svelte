@@ -1,7 +1,7 @@
 <script lang="ts">
-	import SearchableMultiSelect from '$lib/components/form/searchable-multi-select.svelte';
-	import UserGroupService from '$lib/services/user-group-service';
-	import { debounced } from '$lib/utils/debounce-util';
+	import SearchableMultiSelect from '#lib/components/form/searchable-multi-select.svelte';
+	import UserGroupService from '#lib/services/user-group-service.ts';
+	import { debounced } from '#lib/utils/debounce-util.ts';
 	import { onMount } from 'svelte';
 
 	let {

@@ -1,12 +1,12 @@
 <script lang="ts">
-	import FormInput from '$lib/components/form/form-input.svelte';
-	import SwitchWithLabel from '$lib/components/form/switch-with-label.svelte';
-	import Checkbox from '$lib/components/ui/checkbox/checkbox.svelte';
-	import { Label } from '$lib/components/ui/label';
-	import { m } from '$lib/paraglide/messages';
-	import type { Api, ApiCimdAccessUpdate } from '$lib/types/api.type';
-	import { createForm } from '$lib/utils/form-util';
-	import { trackFormChanges } from '$lib/utils/unsaved-changes-util.svelte';
+	import FormInput from '#lib/components/form/form-input.svelte';
+	import SwitchWithLabel from '#lib/components/form/switch-with-label.svelte';
+	import Checkbox from '#lib/components/ui/checkbox/checkbox.svelte';
+	import { Label } from '#lib/components/ui/label/index.ts';
+	import { m } from '#lib/paraglide/messages.js';
+	import type { Api, ApiCimdAccessUpdate } from '#lib/types/api.type.ts';
+	import { createForm } from '#lib/utils/form-util.ts';
+	import { trackFormChanges } from '#lib/utils/unsaved-changes-util.svelte.ts';
 	import { z } from 'zod/v4';
 
 	let { api, onSave }: { api: Api; onSave: (update: ApiCimdAccessUpdate) => Promise<void> } =

@@ -1,5 +1,5 @@
-import type { AuditLog } from '$lib/types/audit-log.type';
-import type { ListRequestOptions, Paginated } from '$lib/types/list-request.type';
+import type { AuditLog } from '#lib/types/audit-log.type.ts';
+import type { ListRequestOptions, Paginated } from '#lib/types/list-request.type.ts';
 import APIService from './api-service';
 
 export default class AuditLogService extends APIService {

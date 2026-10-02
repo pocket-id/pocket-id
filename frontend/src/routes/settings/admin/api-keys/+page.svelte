@@ -1,11 +1,11 @@
 <script lang="ts">
-	import FormattedMessage from '$lib/components/formatted-message.svelte';
-	import { Button } from '$lib/components/ui/button';
-	import * as Card from '$lib/components/ui/card';
-	import { m } from '$lib/paraglide/messages';
-	import ApiKeyService from '$lib/services/api-key-service';
-	import type { ApiKeyCreate, ApiKeyResponse } from '$lib/types/api-key.type';
-	import { axiosErrorToast } from '$lib/utils/error-util';
+	import FormattedMessage from '#lib/components/formatted-message.svelte';
+	import { Button } from '#lib/components/ui/button/index.ts';
+	import * as Card from '#lib/components/ui/card/index.ts';
+	import { m } from '#lib/paraglide/messages.js';
+	import ApiKeyService from '#lib/services/api-key-service.ts';
+	import type { ApiKeyCreate, ApiKeyResponse } from '#lib/types/api-key.type.ts';
+	import { axiosErrorToast } from '#lib/utils/error-util.ts';
 	import { LucideMinus, ShieldEllipsis, ShieldPlus } from '@lucide/svelte';
 	import { slide } from 'svelte/transition';
 	import ApiKeyDialog from './api-key-dialog.svelte';

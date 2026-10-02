@@ -1,9 +1,9 @@
 <script lang="ts">
-	import { Button } from '$lib/components/ui/button';
-	import * as Field from '$lib/components/ui/field';
-	import { Textarea } from '$lib/components/ui/textarea';
-	import { m } from '$lib/paraglide/messages';
-	import { describeJwk, getJwkKeyId, parseJwkInput, type Jwk } from '$lib/utils/jwk-util';
+	import { Button } from '#lib/components/ui/button/index.ts';
+	import * as Field from '#lib/components/ui/field/index.ts';
+	import { Textarea } from '#lib/components/ui/textarea/index.ts';
+	import { m } from '#lib/paraglide/messages.js';
+	import { describeJwk, getJwkKeyId, parseJwkInput, type Jwk } from '#lib/utils/jwk-util.ts';
 	import { LucideTrash2 } from '@lucide/svelte';
 
 	let {

@@ -2,9 +2,9 @@
 	import MoonIcon from '@lucide/svelte/icons/moon';
 	import SunIcon from '@lucide/svelte/icons/sun';
 
-	import { buttonVariants } from '$lib/components/ui/button/index.js';
-	import * as DropdownMenu from '$lib/components/ui/dropdown-menu/index.js';
-	import { m } from '$lib/paraglide/messages';
+	import { buttonVariants } from '#lib/components/ui/button/index.js';
+	import * as DropdownMenu from '#lib/components/ui/dropdown-menu/index.js';
+	import { m } from '#lib/paraglide/messages.js';
 	import { mode, resetMode, setMode } from 'mode-watcher';
 
 	const isDark = $derived(mode.current === 'dark');

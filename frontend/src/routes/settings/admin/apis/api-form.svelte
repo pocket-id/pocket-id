@@ -1,12 +1,12 @@
 <script lang="ts">
-	import FormInput from '$lib/components/form/form-input.svelte';
-	import { Button } from '$lib/components/ui/button';
-	import { m } from '$lib/paraglide/messages';
-	import type { Api, ApiCreate } from '$lib/types/api.type';
-	import { axiosErrorToast } from '$lib/utils/error-util';
-	import { preventDefault } from '$lib/utils/event-util';
-	import { createForm } from '$lib/utils/form-util';
-	import { trackFormChanges } from '$lib/utils/unsaved-changes-util.svelte';
+	import FormInput from '#lib/components/form/form-input.svelte';
+	import { Button } from '#lib/components/ui/button/index.ts';
+	import { m } from '#lib/paraglide/messages.js';
+	import type { Api, ApiCreate } from '#lib/types/api.type.ts';
+	import { axiosErrorToast } from '#lib/utils/error-util.ts';
+	import { preventDefault } from '#lib/utils/event-util.ts';
+	import { createForm } from '#lib/utils/form-util.ts';
+	import { trackFormChanges } from '#lib/utils/unsaved-changes-util.svelte.ts';
 	import { z } from 'zod/v4';
 
 	let {

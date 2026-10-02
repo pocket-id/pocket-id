@@ -1,11 +1,11 @@
 <script lang="ts">
-	import * as Alert from '$lib/components/ui/alert';
-	import * as Card from '$lib/components/ui/card';
-	import * as Tabs from '$lib/components/ui/tabs';
-	import { m } from '$lib/paraglide/messages';
-	import AppConfigService from '$lib/services/app-config-service';
-	import appConfigStore from '$lib/stores/application-configuration-store';
-	import type { AllAppConfig } from '$lib/types/application-configuration.type';
+	import * as Alert from '#lib/components/ui/alert/index.ts';
+	import * as Card from '#lib/components/ui/card/index.ts';
+	import * as Tabs from '#lib/components/ui/tabs/index.ts';
+	import { m } from '#lib/paraglide/messages.js';
+	import AppConfigService from '#lib/services/app-config-service.ts';
+	import appConfigStore from '#lib/stores/application-configuration-store.ts';
+	import type { AllAppConfig } from '#lib/types/application-configuration.type.ts';
 	import { LucideInfo } from '@lucide/svelte';
 	import AppConfigDynamicClientsForm from './forms/app-config-dynamic-clients-form.svelte';
 	import AppConfigClientSecretsForm from './forms/app-config-client-secrets-form.svelte';

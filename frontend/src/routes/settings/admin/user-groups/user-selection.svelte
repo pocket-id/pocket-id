@@ -1,12 +1,12 @@
 <script lang="ts">
-	import AdvancedTable from '$lib/components/table/advanced-table.svelte';
-	import * as Avatar from '$lib/components/ui/avatar/index';
-	import { Badge } from '$lib/components/ui/badge';
-	import { m } from '$lib/paraglide/messages';
-	import UserService from '$lib/services/user-service';
-	import type { AdvancedTableColumn } from '$lib/types/advanced-table.type';
-	import type { User } from '$lib/types/user.type';
-	import { cachedProfilePicture } from '$lib/utils/cached-image-util';
+	import AdvancedTable from '#lib/components/table/advanced-table.svelte';
+	import * as Avatar from '#lib/components/ui/avatar/index.ts';
+	import { Badge } from '#lib/components/ui/badge/index.ts';
+	import { m } from '#lib/paraglide/messages.js';
+	import UserService from '#lib/services/user-service.ts';
+	import type { AdvancedTableColumn } from '#lib/types/advanced-table.type.ts';
+	import type { User } from '#lib/types/user.type.ts';
+	import { cachedProfilePicture } from '#lib/utils/cached-image-util.ts';
 
 	let {
 		selectionDisabled = false,

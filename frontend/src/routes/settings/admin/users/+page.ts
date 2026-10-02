@@ -1,4 +1,4 @@
-import AppConfigService from '$lib/services/app-config-service';
+import AppConfigService from '#lib/services/app-config-service.ts';
 import type { PageLoad } from './$types';
 
 export const load: PageLoad = async () => {

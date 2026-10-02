@@ -1,6 +1,7 @@
 <script lang="ts">
-	import { page } from '$app/state';
-	import Error from '$lib/components/error.svelte';
+	import Error from '#lib/components/error.svelte';
+
+	let { error } = $props();
 </script>
 
-<Error message={page.error!.message} />
+<Error message={error.message} />

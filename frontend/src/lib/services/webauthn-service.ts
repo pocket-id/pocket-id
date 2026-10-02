@@ -1,6 +1,6 @@
-import userStore from '$lib/stores/user-store';
-import type { Passkey } from '$lib/types/passkey.type';
-import type { User } from '$lib/types/user.type';
+import userStore from '#lib/stores/user-store.ts';
+import type { Passkey } from '#lib/types/passkey.type.ts';
+import type { User } from '#lib/types/user.type.ts';
 import type { AuthenticationResponseJSON, RegistrationResponseJSON } from '@simplewebauthn/browser';
 import APIService from './api-service';
 

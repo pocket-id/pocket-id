@@ -1,13 +1,13 @@
 <script lang="ts">
-	import DatePicker from '$lib/components/form/date-picker.svelte';
-	import * as Field from '$lib/components/ui/field';
-	import { Input, type FormInputEvent } from '$lib/components/ui/input';
-	import { m } from '$lib/paraglide/messages';
-	import type { FormInput } from '$lib/utils/form-util';
+	import DatePicker from '#lib/components/form/date-picker.svelte';
+	import * as Field from '#lib/components/ui/field/index.ts';
+	import { Input, type FormInputEvent } from '#lib/components/ui/input/index.ts';
+	import { m } from '#lib/paraglide/messages.js';
+	import type { FormInput } from '#lib/utils/form-util.ts';
 	import { LucideExternalLink } from '@lucide/svelte';
 	import type { Snippet } from 'svelte';
 	import type { HTMLAttributes } from 'svelte/elements';
-	import { cn } from '$lib/utils/style';
+	import { cn } from '#lib/utils/style.ts';
 
 	type WithoutChildren = {
 		children?: undefined;

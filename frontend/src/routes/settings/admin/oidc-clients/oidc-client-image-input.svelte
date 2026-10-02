@@ -1,13 +1,13 @@
 <script lang="ts">
-	import FileInput from '$lib/components/form/file-input.svelte';
-	import FormattedMessage from '$lib/components/formatted-message.svelte';
-	import ImageBox from '$lib/components/image-box.svelte';
-	import { Button, buttonVariants } from '$lib/components/ui/button';
-	import { Input } from '$lib/components/ui/input';
-	import { Label } from '$lib/components/ui/label';
-	import * as Popover from '$lib/components/ui/popover';
-	import { m } from '$lib/paraglide/messages';
-	import { cn } from '$lib/utils/style';
+	import FileInput from '#lib/components/form/file-input.svelte';
+	import FormattedMessage from '#lib/components/formatted-message.svelte';
+	import ImageBox from '#lib/components/image-box.svelte';
+	import { Button, buttonVariants } from '#lib/components/ui/button/index.ts';
+	import { Input } from '#lib/components/ui/input/index.ts';
+	import { Label } from '#lib/components/ui/label/index.ts';
+	import * as Popover from '#lib/components/ui/popover/index.ts';
+	import { m } from '#lib/paraglide/messages.js';
+	import { cn } from '#lib/utils/style.ts';
 	import { LucideLink, LucideUpload, LucideX } from '@lucide/svelte';
 	import type { Snippet } from 'svelte';
 

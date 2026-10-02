@@ -1,12 +1,12 @@
 <script lang="ts">
-	import CustomClaimsInput from '$lib/components/form/custom-claims-input.svelte';
-	import UserGroupInput from '$lib/components/form/user-group-input.svelte';
-	import * as Field from '$lib/components/ui/field';
-	import * as Select from '$lib/components/ui/select';
-	import { m } from '$lib/paraglide/messages';
-	import appConfigStore from '$lib/stores/application-configuration-store';
-	import type { AllAppConfig } from '$lib/types/application-configuration.type';
-	import { trackUnsavedValue } from '$lib/utils/unsaved-changes-util.svelte';
+	import CustomClaimsInput from '#lib/components/form/custom-claims-input.svelte';
+	import UserGroupInput from '#lib/components/form/user-group-input.svelte';
+	import * as Field from '#lib/components/ui/field/index.ts';
+	import * as Select from '#lib/components/ui/select/index.ts';
+	import { m } from '#lib/paraglide/messages.js';
+	import appConfigStore from '#lib/stores/application-configuration-store.ts';
+	import type { AllAppConfig } from '#lib/types/application-configuration.type.ts';
+	import { trackUnsavedValue } from '#lib/utils/unsaved-changes-util.svelte.ts';
 
 	let {
 		appConfig,

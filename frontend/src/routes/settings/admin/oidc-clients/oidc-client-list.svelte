@@ -1,20 +1,20 @@
 <script lang="ts">
 	import { goto } from '$app/navigation';
-	import { openConfirmDialog } from '$lib/components/confirm-dialog/';
-	import ImageBox from '$lib/components/image-box.svelte';
-	import AdvancedTable from '$lib/components/table/advanced-table.svelte';
-	import { ScrollArea } from '$lib/components/ui/scroll-area';
-	import * as Tooltip from '$lib/components/ui/tooltip';
-	import { m } from '$lib/paraglide/messages';
-	import OIDCService from '$lib/services/oidc-service';
+	import { openConfirmDialog } from '#lib/components/confirm-dialog/index.ts';
+	import ImageBox from '#lib/components/image-box.svelte';
+	import AdvancedTable from '#lib/components/table/advanced-table.svelte';
+	import { ScrollArea } from '#lib/components/ui/scroll-area/index.ts';
+	import * as Tooltip from '#lib/components/ui/tooltip/index.ts';
+	import { m } from '#lib/paraglide/messages.js';
+	import OIDCService from '#lib/services/oidc-service.ts';
 	import type {
 		AdvancedTableColumn,
 		CreateAdvancedTableActions
-	} from '$lib/types/advanced-table.type';
-	import type { OidcClient, OidcClientWithAllowedGroups } from '$lib/types/oidc.type';
-	import { cachedOidcClientLogo } from '$lib/utils/cached-image-util';
-	import { encodeClientIdParam } from '$lib/utils/client-id-util';
-	import { axiosErrorToast } from '$lib/utils/error-util';
+	} from '#lib/types/advanced-table.type.ts';
+	import type { OidcClient, OidcClientWithAllowedGroups } from '#lib/types/oidc.type.ts';
+	import { cachedOidcClientLogo } from '#lib/utils/cached-image-util.ts';
+	import { encodeClientIdParam } from '#lib/utils/client-id-util.ts';
+	import { axiosErrorToast } from '#lib/utils/error-util.ts';
 	import { LucidePencil, LucideRefreshCcw, LucideTrash } from '@lucide/svelte';
 	import { mode } from 'mode-watcher';
 	import { toast } from 'svelte-sonner';

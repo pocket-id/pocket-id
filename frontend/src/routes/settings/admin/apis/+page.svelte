@@ -1,11 +1,11 @@
 <script lang="ts">
 	import { goto } from '$app/navigation';
-	import FormattedMessage from '$lib/components/formatted-message.svelte';
-	import { Button } from '$lib/components/ui/button';
-	import * as Card from '$lib/components/ui/card';
-	import { m } from '$lib/paraglide/messages';
-	import ApisService from '$lib/services/apis-service';
-	import type { ApiCreate } from '$lib/types/api.type';
+	import FormattedMessage from '#lib/components/formatted-message.svelte';
+	import { Button } from '#lib/components/ui/button/index.ts';
+	import * as Card from '#lib/components/ui/card/index.ts';
+	import { m } from '#lib/paraglide/messages.js';
+	import ApisService from '#lib/services/apis-service.ts';
+	import type { ApiCreate } from '#lib/types/api.type.ts';
 	import { LucideMinus, LucidePlus, LucideServer } from '@lucide/svelte';
 	import { toast } from 'svelte-sonner';
 	import { slide } from 'svelte/transition';

@@ -1,11 +1,11 @@
 <script lang="ts">
-	import FormInput from '$lib/components/form/form-input.svelte';
-	import { Button } from '$lib/components/ui/button';
-	import { m } from '$lib/paraglide/messages';
-	import type { ApiKeyCreate } from '$lib/types/api-key.type';
-	import { preventDefault } from '$lib/utils/event-util';
-	import { createForm } from '$lib/utils/form-util';
-	import { emptyToUndefined } from '$lib/utils/zod-util';
+	import FormInput from '#lib/components/form/form-input.svelte';
+	import { Button } from '#lib/components/ui/button/index.ts';
+	import { m } from '#lib/paraglide/messages.js';
+	import type { ApiKeyCreate } from '#lib/types/api-key.type.ts';
+	import { preventDefault } from '#lib/utils/event-util.ts';
+	import { createForm } from '#lib/utils/form-util.ts';
+	import { emptyToUndefined } from '#lib/utils/zod-util.ts';
 	import { SvelteDate } from 'svelte/reactivity';
 	import { z } from 'zod/v4';
 

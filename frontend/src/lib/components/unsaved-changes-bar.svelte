@@ -1,10 +1,10 @@
 <script lang="ts">
 	import { beforeNavigate } from '$app/navigation';
-	import { Button } from '$lib/components/ui/button';
-	import { m } from '$lib/paraglide/messages';
-	import appConfigStore from '$lib/stores/application-configuration-store';
-	import unsavedChanges from '$lib/stores/unsaved-changes-store.svelte';
-	import { cn } from '$lib/utils/style';
+	import { Button } from '#lib/components/ui/button/index.ts';
+	import { m } from '#lib/paraglide/messages.js';
+	import appConfigStore from '#lib/stores/application-configuration-store.ts';
+	import unsavedChanges from '#lib/stores/unsaved-changes-store.svelte.ts';
+	import { cn } from '#lib/utils/style.ts';
 	import { LucideCircleAlert } from '@lucide/svelte';
 	import { tick } from 'svelte';
 	import { cubicOut } from 'svelte/easing';
@@ -91,7 +91,7 @@
 	}
 
 	beforeNavigate((nav) => {
-		if (!unsavedChanges.hasChanges) return;
+		if (nav.shallow || !unsavedChanges.hasChanges) return;
 
 		// Cancelling a full page unload makes the browser show its own "leave site?" prompt.
 		nav.cancel();

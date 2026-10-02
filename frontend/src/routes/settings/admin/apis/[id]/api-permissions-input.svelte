@@ -1,8 +1,8 @@
 <script lang="ts">
-	import { Button } from '$lib/components/ui/button';
-	import { Input } from '$lib/components/ui/input';
-	import { m } from '$lib/paraglide/messages';
-	import type { ApiPermissionInput } from '$lib/types/api.type';
+	import { Button } from '#lib/components/ui/button/index.ts';
+	import { Input } from '#lib/components/ui/input/index.ts';
+	import { m } from '#lib/paraglide/messages.js';
+	import type { ApiPermissionInput } from '#lib/types/api.type.ts';
 	import { LucideMinus, LucidePlus } from '@lucide/svelte';
 
 	let { permissions = $bindable() }: { permissions: ApiPermissionInput[] } = $props();

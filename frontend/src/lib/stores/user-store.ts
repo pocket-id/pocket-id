@@ -1,5 +1,5 @@
-import type { User } from '$lib/types/user.type';
-import { setLocale } from '$lib/utils/locale.util';
+import type { User } from '#lib/types/user.type.ts';
+import { setLocale } from '#lib/utils/locale.util.ts';
 import { writable } from 'svelte/store';
 
 const userStore = writable<User | null>(null);

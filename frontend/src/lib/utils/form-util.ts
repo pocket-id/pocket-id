@@ -1,4 +1,4 @@
-import { reactiveState } from '$lib/utils/reactive-state.svelte';
+import { reactiveState } from '#lib/utils/reactive-state.svelte.ts';
 import { get, writable } from 'svelte/store';
 import { z } from 'zod/v4';
 

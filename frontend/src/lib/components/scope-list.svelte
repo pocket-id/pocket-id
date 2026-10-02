@@ -1,7 +1,7 @@
 <script lang="ts">
-	import * as Item from '$lib/components/ui/item/index.js';
-	import { m } from '$lib/paraglide/messages';
-	import type { InteractionScopeInfo } from '$lib/types/oidc.type';
+	import * as Item from '#lib/components/ui/item/index.js';
+	import { m } from '#lib/paraglide/messages.js';
+	import type { InteractionScopeInfo } from '#lib/types/oidc.type.ts';
 	import { LucideKeyRound, LucideMail, LucideUser, LucideUsers } from '@lucide/svelte';
 	import ScopeItem from './scope-item.svelte';
 

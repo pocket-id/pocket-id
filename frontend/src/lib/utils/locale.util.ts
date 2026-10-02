@@ -2,7 +2,7 @@ import {
 	extractLocaleFromCookie,
 	setLocale as setParaglideLocale,
 	type Locale
-} from '$lib/paraglide/runtime';
+} from '#lib/paraglide/runtime.js';
 import { setDefaultOptions } from 'date-fns';
 import { z } from 'zod/v4';
 

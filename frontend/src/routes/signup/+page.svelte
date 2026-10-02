@@ -1,15 +1,15 @@
 <script lang="ts">
 	import { goto } from '$app/navigation';
-	import SignInWrapper from '$lib/components/login-wrapper.svelte';
-	import SignupForm from '$lib/components/signup/signup-form.svelte';
-	import { Button } from '$lib/components/ui/button';
-	import { m } from '$lib/paraglide/messages';
-	import UserService from '$lib/services/user-service';
-	import appConfigStore from '$lib/stores/application-configuration-store';
-	import userStore from '$lib/stores/user-store';
-	import type { UserSignUp } from '$lib/types/user.type';
-	import { getAxiosErrorMessage } from '$lib/utils/error-util';
-	import { tryCatch } from '$lib/utils/try-catch-util';
+	import SignInWrapper from '#lib/components/login-wrapper.svelte';
+	import SignupForm from '#lib/components/signup/signup-form.svelte';
+	import { Button } from '#lib/components/ui/button/index.ts';
+	import { m } from '#lib/paraglide/messages.js';
+	import UserService from '#lib/services/user-service.ts';
+	import appConfigStore from '#lib/stores/application-configuration-store.ts';
+	import userStore from '#lib/stores/user-store.ts';
+	import type { UserSignUp } from '#lib/types/user.type.ts';
+	import { getAxiosErrorMessage } from '#lib/utils/error-util.ts';
+	import { tryCatch } from '#lib/utils/try-catch-util.ts';
 	import { LucideChevronLeft } from '@lucide/svelte';
 	import { onMount } from 'svelte';
 	import { fade } from 'svelte/transition';

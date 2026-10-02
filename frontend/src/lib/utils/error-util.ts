@@ -1,4 +1,4 @@
-import { m } from '$lib/paraglide/messages';
+import { m } from '#lib/paraglide/messages.js';
 import { WebAuthnError } from '@simplewebauthn/browser';
 import { isAxiosError } from 'axios';
 import { toast } from 'svelte-sonner';

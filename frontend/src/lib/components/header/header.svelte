@@ -1,7 +1,7 @@
 <script lang="ts">
 	import { page } from '$app/state';
-	import { m } from '$lib/paraglide/messages';
-	import userStore from '$lib/stores/user-store';
+	import { m } from '#lib/paraglide/messages.js';
+	import userStore from '#lib/stores/user-store.ts';
 	import Logo from '../logo.svelte';
 	import Separator from '../ui/separator/separator.svelte';
 	import HeaderAvatar from './header-avatar.svelte';

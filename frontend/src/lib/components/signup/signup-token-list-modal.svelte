@@ -1,18 +1,18 @@
 <script lang="ts">
 	import { page } from '$app/state';
-	import { openConfirmDialog } from '$lib/components/confirm-dialog/';
-	import AdvancedTable from '$lib/components/table/advanced-table.svelte';
-	import { Badge, type BadgeVariant } from '$lib/components/ui/badge';
-	import { Button } from '$lib/components/ui/button';
-	import * as Dialog from '$lib/components/ui/dialog';
-	import { m } from '$lib/paraglide/messages';
-	import UserService from '$lib/services/user-service';
+	import { openConfirmDialog } from '#lib/components/confirm-dialog/index.ts';
+	import AdvancedTable from '#lib/components/table/advanced-table.svelte';
+	import { Badge, type BadgeVariant } from '#lib/components/ui/badge/index.ts';
+	import { Button } from '#lib/components/ui/button/index.ts';
+	import * as Dialog from '#lib/components/ui/dialog/index.ts';
+	import { m } from '#lib/paraglide/messages.js';
+	import UserService from '#lib/services/user-service.ts';
 	import type {
 		AdvancedTableColumn,
 		CreateAdvancedTableActions
-	} from '$lib/types/advanced-table.type';
-	import type { SignupToken } from '$lib/types/signup-token.type';
-	import { axiosErrorToast } from '$lib/utils/error-util';
+	} from '#lib/types/advanced-table.type.ts';
+	import type { SignupToken } from '#lib/types/signup-token.type.ts';
+	import { axiosErrorToast } from '#lib/utils/error-util.ts';
 	import { Copy, Trash2 } from '@lucide/svelte';
 	import { toast } from 'svelte-sonner';
 

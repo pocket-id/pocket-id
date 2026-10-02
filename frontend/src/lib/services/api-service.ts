@@ -1,4 +1,4 @@
-import { endRequestSpan, startRequestSpan } from '$lib/utils/tracing-util';
+import { endRequestSpan, startRequestSpan } from '#lib/utils/tracing-util.ts';
 import axios, { AxiosError, type InternalAxiosRequestConfig } from 'axios';
 import type { Span } from '@opentelemetry/api';
 

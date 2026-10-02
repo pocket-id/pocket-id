@@ -1,12 +1,12 @@
 <script lang="ts">
 	import { onNavigate } from '$app/navigation';
-	import EmailVerificationStateBox from '$lib/components/email-verification-state-box.svelte';
-	import FormattedMessage from '$lib/components/formatted-message.svelte';
-	import Sidebar from '$lib/components/sidebar.svelte';
-	import * as Alert from '$lib/components/ui/alert';
-	import { m } from '$lib/paraglide/messages';
-	import appConfigStore from '$lib/stores/application-configuration-store';
-	import userStore from '$lib/stores/user-store';
+	import EmailVerificationStateBox from '#lib/components/email-verification-state-box.svelte';
+	import FormattedMessage from '#lib/components/formatted-message.svelte';
+	import Sidebar from '#lib/components/sidebar.svelte';
+	import * as Alert from '#lib/components/ui/alert/index.ts';
+	import { m } from '#lib/paraglide/messages.js';
+	import appConfigStore from '#lib/stores/application-configuration-store.ts';
+	import userStore from '#lib/stores/user-store.ts';
 	import { LucideTriangleAlert } from '@lucide/svelte';
 	import type { Snippet } from 'svelte';
 	import { fade, fly } from 'svelte/transition';
@@ -52,6 +52,7 @@
 
 	onNavigate((navigation) => {
 		if (
+			navigation.shallow ||
 			!document.startViewTransition ||
 			$appConfigStore.disableAnimations ||
 			window.matchMedia('(prefers-reduced-motion: reduce)').matches ||

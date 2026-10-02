@@ -1,10 +1,10 @@
 <script lang="ts">
-	import * as ButtonGroup from '$lib/components/ui/button-group';
-	import * as Field from '$lib/components/ui/field';
-	import { Input } from '$lib/components/ui/input';
-	import * as Select from '$lib/components/ui/select';
-	import { m } from '$lib/paraglide/messages';
-	import type { FormInput } from '$lib/utils/form-util';
+	import * as ButtonGroup from '#lib/components/ui/button-group/index.ts';
+	import * as Field from '#lib/components/ui/field/index.ts';
+	import { Input } from '#lib/components/ui/input/index.ts';
+	import * as Select from '#lib/components/ui/select/index.ts';
+	import { m } from '#lib/paraglide/messages.js';
+	import type { FormInput } from '#lib/utils/form-util.ts';
 
 	type DurationUnit = 'minutes' | 'hours' | 'days';
 

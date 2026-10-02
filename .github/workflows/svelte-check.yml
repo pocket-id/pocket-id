@@ -8,7 +8,7 @@ on:
       - ".github/svelte-check-matcher.json"
       - "frontend/package.json"
       - "frontend/tsconfig.json"
-      - "frontend/svelte.config.js"
+      - "frontend/vite.config.ts"
   pull_request:
     branches: [main, breaking/**]
     paths:
@@ -16,7 +16,7 @@ on:
       - ".github/svelte-check-matcher.json"
       - "frontend/package.json"
       - "frontend/tsconfig.json"
-      - "frontend/svelte.config.js"
+      - "frontend/vite.config.ts"
   workflow_dispatch:
 
 permissions:

@@ -1,10 +1,10 @@
 <script lang="ts">
 	import { page } from '$app/state';
-	import SignInWrapper from '$lib/components/login-wrapper.svelte';
-	import Logo from '$lib/components/logo.svelte';
-	import * as Item from '$lib/components/ui/item/index.js';
-	import { m } from '$lib/paraglide/messages';
-	import appConfigStore from '$lib/stores/application-configuration-store';
+	import SignInWrapper from '#lib/components/login-wrapper.svelte';
+	import Logo from '#lib/components/logo.svelte';
+	import * as Item from '#lib/components/ui/item/index.js';
+	import { m } from '#lib/paraglide/messages.js';
+	import appConfigStore from '#lib/stores/application-configuration-store.ts';
 	import {
 		LucideChevronRight,
 		LucideMail,

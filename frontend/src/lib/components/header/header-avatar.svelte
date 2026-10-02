@@ -1,12 +1,12 @@
 <script lang="ts">
 	import { goto } from '$app/navigation';
-	import * as Avatar from '$lib/components/ui/avatar';
-	import * as DropdownMenu from '$lib/components/ui/dropdown-menu';
-	import { m } from '$lib/paraglide/messages';
-	import WebAuthnService from '$lib/services/webauthn-service';
-	import unsavedChangesStoreSvelte from '$lib/stores/unsaved-changes-store.svelte';
-	import userStore from '$lib/stores/user-store';
-	import { cachedProfilePicture } from '$lib/utils/cached-image-util';
+	import * as Avatar from '#lib/components/ui/avatar/index.ts';
+	import * as DropdownMenu from '#lib/components/ui/dropdown-menu/index.ts';
+	import { m } from '#lib/paraglide/messages.js';
+	import WebAuthnService from '#lib/services/webauthn-service.ts';
+	import unsavedChangesStoreSvelte from '#lib/stores/unsaved-changes-store.svelte.ts';
+	import userStore from '#lib/stores/user-store.ts';
+	import { cachedProfilePicture } from '#lib/utils/cached-image-util.ts';
 	import { LucideLogOut, LucideUser } from '@lucide/svelte';
 
 	const webauthnService = new WebAuthnService();

@@ -1,11 +1,11 @@
 <script lang="ts">
-	import AdvancedTable from '$lib/components/table/advanced-table.svelte';
-	import * as Dialog from '$lib/components/ui/dialog';
-	import { m } from '$lib/paraglide/messages';
-	import ApisService from '$lib/services/apis-service';
-	import type { AdvancedTableColumn } from '$lib/types/advanced-table.type';
-	import type { Api } from '$lib/types/api.type';
-	import type { ListRequestOptions } from '$lib/types/list-request.type';
+	import AdvancedTable from '#lib/components/table/advanced-table.svelte';
+	import * as Dialog from '#lib/components/ui/dialog/index.ts';
+	import { m } from '#lib/paraglide/messages.js';
+	import ApisService from '#lib/services/apis-service.ts';
+	import type { AdvancedTableColumn } from '#lib/types/advanced-table.type.ts';
+	import type { Api } from '#lib/types/api.type.ts';
+	import type { ListRequestOptions } from '#lib/types/list-request.type.ts';
 
 	let {
 		open = $bindable(),

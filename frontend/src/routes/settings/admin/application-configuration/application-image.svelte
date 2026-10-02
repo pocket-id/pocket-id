@@ -1,9 +1,9 @@
 <script lang="ts">
-	import FileInput from '$lib/components/form/file-input.svelte';
-	import { Button } from '$lib/components/ui/button';
-	import * as Field from '$lib/components/ui/field';
-	import { m } from '$lib/paraglide/messages';
-	import { cn } from '$lib/utils/style';
+	import FileInput from '#lib/components/form/file-input.svelte';
+	import { Button } from '#lib/components/ui/button/index.ts';
+	import * as Field from '#lib/components/ui/field/index.ts';
+	import { m } from '#lib/paraglide/messages.js';
+	import { cn } from '#lib/utils/style.ts';
 	import { LucideImageOff, LucideUpload, LucideX } from '@lucide/svelte';
 	import type { Snippet } from 'svelte';
 	import type { HTMLAttributes } from 'svelte/elements';

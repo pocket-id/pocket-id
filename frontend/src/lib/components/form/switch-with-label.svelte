@@ -1,7 +1,7 @@
 <script lang="ts">
-	import { Label } from '$lib/components/ui/label';
-	import { Switch } from '$lib/components/ui/switch/index.js';
-	import { cn } from '$lib/utils/style';
+	import { Label } from '#lib/components/ui/label/index.ts';
+	import { Switch } from '#lib/components/ui/switch/index.js';
+	import { cn } from '#lib/utils/style.ts';
 
 	let {
 		id,

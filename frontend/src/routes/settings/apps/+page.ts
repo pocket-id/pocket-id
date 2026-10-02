@@ -1,5 +1,5 @@
-import OIDCService from '$lib/services/oidc-service';
-import type { ListRequestOptions } from '$lib/types/list-request.type';
+import OIDCService from '#lib/services/oidc-service.ts';
+import type { ListRequestOptions } from '#lib/types/list-request.type.ts';
 import type { PageLoad } from './$types';
 
 export const load: PageLoad = async () => {

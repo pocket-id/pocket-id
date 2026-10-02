@@ -1,9 +1,9 @@
 <script lang="ts">
-	import { Calendar } from '$lib/components/ui/calendar';
-	import * as Popover from '$lib/components/ui/popover';
-	import { m } from '$lib/paraglide/messages';
-	import { getLocale } from '$lib/paraglide/runtime';
-	import { cn } from '$lib/utils/style';
+	import { Calendar } from '#lib/components/ui/calendar/index.ts';
+	import * as Popover from '#lib/components/ui/popover/index.ts';
+	import { m } from '#lib/paraglide/messages.js';
+	import { getLocale } from '#lib/paraglide/runtime.js';
+	import { cn } from '#lib/utils/style.ts';
 	import {
 		CalendarDate,
 		DateFormatter,

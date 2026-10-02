@@ -1,14 +1,14 @@
 <script lang="ts">
-	import SwitchWithLabel from '$lib/components/form/switch-with-label.svelte';
-	import AdvancedTable from '$lib/components/table/advanced-table.svelte';
-	import { Button } from '$lib/components/ui/button';
-	import Checkbox from '$lib/components/ui/checkbox/checkbox.svelte';
-	import * as Dialog from '$lib/components/ui/dialog';
-	import { m } from '$lib/paraglide/messages';
-	import type { AdvancedTableColumn } from '$lib/types/advanced-table.type';
-	import type { Api, ApiClientGrant, ApiPermission } from '$lib/types/api.type';
-	import type { ListRequestOptions, Paginated } from '$lib/types/list-request.type';
-	import { axiosErrorToast } from '$lib/utils/error-util';
+	import SwitchWithLabel from '#lib/components/form/switch-with-label.svelte';
+	import AdvancedTable from '#lib/components/table/advanced-table.svelte';
+	import { Button } from '#lib/components/ui/button/index.ts';
+	import Checkbox from '#lib/components/ui/checkbox/checkbox.svelte';
+	import * as Dialog from '#lib/components/ui/dialog/index.ts';
+	import { m } from '#lib/paraglide/messages.js';
+	import type { AdvancedTableColumn } from '#lib/types/advanced-table.type.ts';
+	import type { Api, ApiClientGrant, ApiPermission } from '#lib/types/api.type.ts';
+	import type { ListRequestOptions, Paginated } from '#lib/types/list-request.type.ts';
+	import { axiosErrorToast } from '#lib/utils/error-util.ts';
 
 	let {
 		open = $bindable(),

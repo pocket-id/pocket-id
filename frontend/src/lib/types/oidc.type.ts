@@ -1,4 +1,4 @@
-import type { Jwk } from '$lib/utils/jwk-util';
+import type { Jwk } from '#lib/utils/jwk-util.ts';
 import type { UserGroup, UserGroupMinimal } from './user-group.type';
 
 export type OidcClientType = 'standard' | 'cimd';

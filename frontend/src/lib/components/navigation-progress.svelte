@@ -9,7 +9,7 @@
 	}
 </script>
 
-{#if navigating.to}
+{#if navigating.to && !navigating.shallow}
 	<div class="nav-progress" aria-hidden="true" out:fadeIfVisible></div>
 {/if}
 

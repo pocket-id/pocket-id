@@ -1,14 +1,14 @@
 <script lang="ts">
-	import SignupTokenListModal from '$lib/components/signup/signup-token-list-modal.svelte';
-	import SignupTokenModal from '$lib/components/signup/signup-token-modal.svelte';
-	import { Button } from '$lib/components/ui/button';
-	import * as ButtonGroup from '$lib/components/ui/button-group';
-	import * as Card from '$lib/components/ui/card';
-	import * as DropdownMenu from '$lib/components/ui/dropdown-menu';
-	import { m } from '$lib/paraglide/messages';
-	import UserService from '$lib/services/user-service';
-	import appConfigStore from '$lib/stores/application-configuration-store';
-	import type { UserCreate } from '$lib/types/user.type';
+	import SignupTokenListModal from '#lib/components/signup/signup-token-list-modal.svelte';
+	import SignupTokenModal from '#lib/components/signup/signup-token-modal.svelte';
+	import { Button } from '#lib/components/ui/button/index.ts';
+	import * as ButtonGroup from '#lib/components/ui/button-group/index.ts';
+	import * as Card from '#lib/components/ui/card/index.ts';
+	import * as DropdownMenu from '#lib/components/ui/dropdown-menu/index.ts';
+	import { m } from '#lib/paraglide/messages.js';
+	import UserService from '#lib/services/user-service.ts';
+	import appConfigStore from '#lib/stores/application-configuration-store.ts';
+	import type { UserCreate } from '#lib/types/user.type.ts';
 	import { ChevronDown, LucideMinus, UserPen, UserPlus } from '@lucide/svelte';
 	import { toast } from 'svelte-sonner';
 	import { slide } from 'svelte/transition';

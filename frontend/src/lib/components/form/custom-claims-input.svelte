@@ -1,14 +1,14 @@
 <script lang="ts">
-	import FormInput from '$lib/components/form/form-input.svelte';
-	import { Button } from '$lib/components/ui/button';
-	import { Input } from '$lib/components/ui/input';
-	import CustomClaimService from '$lib/services/custom-claim-service';
-	import type { CustomClaim } from '$lib/types/custom-claim.type';
+	import FormInput from '#lib/components/form/form-input.svelte';
+	import { Button } from '#lib/components/ui/button/index.ts';
+	import { Input } from '#lib/components/ui/input/index.ts';
+	import CustomClaimService from '#lib/services/custom-claim-service.ts';
+	import type { CustomClaim } from '#lib/types/custom-claim.type.ts';
 	import { LucideMinus, LucidePlus } from '@lucide/svelte';
 	import { onMount, type Snippet } from 'svelte';
 	import type { HTMLAttributes } from 'svelte/elements';
 	import AutoCompleteInput from './auto-complete-input.svelte';
-	import { m } from '$lib/paraglide/messages';
+	import { m } from '#lib/paraglide/messages.js';
 
 	let {
 		customClaims = $bindable(),

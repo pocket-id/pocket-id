@@ -1,17 +1,17 @@
 <script lang="ts">
-	import { openConfirmDialog } from '$lib/components/confirm-dialog';
-	import CopyToClipboard from '$lib/components/copy-to-clipboard.svelte';
-	import { Badge } from '$lib/components/ui/badge';
-	import { Button, buttonVariants } from '$lib/components/ui/button';
-	import * as Card from '$lib/components/ui/card';
-	import * as DropdownMenu from '$lib/components/ui/dropdown-menu';
-	import * as Select from '$lib/components/ui/select';
-	import * as Table from '$lib/components/ui/table';
-	import { m } from '$lib/paraglide/messages';
-	import OidcService from '$lib/services/oidc-service';
-	import clientSecretStore from '$lib/stores/client-secret-store';
-	import type { OidcClient, OidcClientSecret } from '$lib/types/oidc.type';
-	import { axiosErrorToast } from '$lib/utils/error-util';
+	import { openConfirmDialog } from '#lib/components/confirm-dialog/index.ts';
+	import CopyToClipboard from '#lib/components/copy-to-clipboard.svelte';
+	import { Badge } from '#lib/components/ui/badge/index.ts';
+	import { Button, buttonVariants } from '#lib/components/ui/button/index.ts';
+	import * as Card from '#lib/components/ui/card/index.ts';
+	import * as DropdownMenu from '#lib/components/ui/dropdown-menu/index.ts';
+	import * as Select from '#lib/components/ui/select/index.ts';
+	import * as Table from '#lib/components/ui/table/index.ts';
+	import { m } from '#lib/paraglide/messages.js';
+	import OidcService from '#lib/services/oidc-service.ts';
+	import clientSecretStore from '#lib/stores/client-secret-store.ts';
+	import type { OidcClient, OidcClientSecret } from '#lib/types/oidc.type.ts';
+	import { axiosErrorToast } from '#lib/utils/error-util.ts';
 	import { LucideEllipsis, LucidePlus, LucideTrash2 } from '@lucide/svelte';
 	import { toast } from 'svelte-sonner';
 

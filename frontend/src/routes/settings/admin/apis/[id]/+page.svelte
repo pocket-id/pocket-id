@@ -1,10 +1,10 @@
 <script lang="ts">
-	import CollapsibleCard from '$lib/components/collapsible-card.svelte';
-	import * as Card from '$lib/components/ui/card';
-	import { m } from '$lib/paraglide/messages';
-	import ApisService from '$lib/services/apis-service';
-	import type { ApiCimdAccessUpdate, ApiCreate, ApiPermissionInput } from '$lib/types/api.type';
-	import { trackUnsavedValue } from '$lib/utils/unsaved-changes-util.svelte';
+	import CollapsibleCard from '#lib/components/collapsible-card.svelte';
+	import * as Card from '#lib/components/ui/card/index.ts';
+	import { m } from '#lib/paraglide/messages.js';
+	import ApisService from '#lib/services/apis-service.ts';
+	import type { ApiCimdAccessUpdate, ApiCreate, ApiPermissionInput } from '#lib/types/api.type.ts';
+	import { trackUnsavedValue } from '#lib/utils/unsaved-changes-util.svelte.ts';
 	import { LucideChevronLeft } from '@lucide/svelte';
 	import { backNavigate } from '../../users/navigate-back-util';
 	import ApiForm from '../api-form.svelte';

@@ -1,5 +1,5 @@
-import { m } from '$lib/paraglide/messages';
-import { getAxiosErrorMessage } from '$lib/utils/error-util';
+import { m } from '#lib/paraglide/messages.js';
+import { getAxiosErrorMessage } from '#lib/utils/error-util.ts';
 import { isAxiosError } from 'axios';
 import { SvelteSet } from 'svelte/reactivity';
 

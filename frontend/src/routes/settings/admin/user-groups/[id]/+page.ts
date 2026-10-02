@@ -1,4 +1,4 @@
-import UserGroupService from '$lib/services/user-group-service';
+import UserGroupService from '#lib/services/user-group-service.ts';
 import type { PageLoad } from './$types';
 
 export const load: PageLoad = async ({ params }) => {

@@ -1,4 +1,4 @@
-import { version as currentVersion } from '$app/environment';
+import { version as currentVersion } from '$app/env';
 import APIService from './api-service';
 
 export default class VersionService extends APIService {

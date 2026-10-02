@@ -1,4 +1,4 @@
-import { m } from '$lib/paraglide/messages';
+import { m } from '#lib/paraglide/messages.js';
 import { z } from 'zod/v4';
 
 export const emptyToUndefined = <T>(validation: z.ZodType<T>) =>

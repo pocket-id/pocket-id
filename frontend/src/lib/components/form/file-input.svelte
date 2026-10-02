@@ -1,9 +1,9 @@
 <script lang="ts">
-	import { cn } from '$lib/utils/style';
+	import { cn } from '#lib/utils/style.ts';
 	import type { HTMLInputAttributes } from 'svelte/elements';
 	import type { VariantProps } from 'tailwind-variants';
-	import type { buttonVariants } from '$lib/components/ui/button';
-	import { m } from '$lib/paraglide/messages';
+	import type { buttonVariants } from '#lib/components/ui/button/index.ts';
+	import { m } from '#lib/paraglide/messages.js';
 
 	let {
 		id,

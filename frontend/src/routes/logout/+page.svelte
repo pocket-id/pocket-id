@@ -1,14 +1,14 @@
 <script lang="ts">
 	import { goto } from '$app/navigation';
-	import FormattedMessage from '$lib/components/formatted-message.svelte';
-	import SignInWrapper from '$lib/components/login-wrapper.svelte';
-	import Logo from '$lib/components/logo.svelte';
-	import { Button } from '$lib/components/ui/button';
-	import { m } from '$lib/paraglide/messages';
-	import WebAuthnService from '$lib/services/webauthn-service';
-	import appConfigStore from '$lib/stores/application-configuration-store';
-	import userStore from '$lib/stores/user-store.js';
-	import { axiosErrorToast } from '$lib/utils/error-util.js';
+	import FormattedMessage from '#lib/components/formatted-message.svelte';
+	import SignInWrapper from '#lib/components/login-wrapper.svelte';
+	import Logo from '#lib/components/logo.svelte';
+	import { Button } from '#lib/components/ui/button/index.ts';
+	import { m } from '#lib/paraglide/messages.js';
+	import WebAuthnService from '#lib/services/webauthn-service.ts';
+	import appConfigStore from '#lib/stores/application-configuration-store.ts';
+	import userStore from '#lib/stores/user-store.js';
+	import { axiosErrorToast } from '#lib/utils/error-util.js';
 
 	let isLoading = $state(false);
 

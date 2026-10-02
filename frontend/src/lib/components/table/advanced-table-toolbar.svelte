@@ -1,9 +1,9 @@
 <script lang="ts" generics="TData extends Record<string, any>">
-	import { Input } from '$lib/components/ui/input/index.js';
-	import { m } from '$lib/paraglide/messages';
-	import type { AdvancedTableColumn } from '$lib/types/advanced-table.type';
-	import type { ListRequestOptions } from '$lib/types/list-request.type';
-	import { debounced } from '$lib/utils/debounce-util';
+	import { Input } from '#lib/components/ui/input/index.js';
+	import { m } from '#lib/paraglide/messages.js';
+	import type { AdvancedTableColumn } from '#lib/types/advanced-table.type.ts';
+	import type { ListRequestOptions } from '#lib/types/list-request.type.ts';
+	import { debounced } from '#lib/utils/debounce-util.ts';
 	import AdvancedTableColumnSelection from './advanced-table-column-selection.svelte';
 	import AdvancedTableFilter from './advanced-table-filter.svelte';
 

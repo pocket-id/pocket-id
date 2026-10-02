@@ -1,10 +1,10 @@
-import userStore from '$lib/stores/user-store';
-import type { ListRequestOptions, Paginated } from '$lib/types/list-request.type';
-import type { Passkey } from '$lib/types/passkey.type';
-import type { SignupToken } from '$lib/types/signup-token.type';
-import type { UserGroup } from '$lib/types/user-group.type';
-import type { AccountUpdate, User, UserCreate, UserSignUp } from '$lib/types/user.type';
-import { cachedProfilePicture } from '$lib/utils/cached-image-util';
+import userStore from '#lib/stores/user-store.ts';
+import type { ListRequestOptions, Paginated } from '#lib/types/list-request.type.ts';
+import type { Passkey } from '#lib/types/passkey.type.ts';
+import type { SignupToken } from '#lib/types/signup-token.type.ts';
+import type { UserGroup } from '#lib/types/user-group.type.ts';
+import type { AccountUpdate, User, UserCreate, UserSignUp } from '#lib/types/user.type.ts';
+import { cachedProfilePicture } from '#lib/utils/cached-image-util.ts';
 import { get } from 'svelte/store';
 import APIService from './api-service';
 

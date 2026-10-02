@@ -1,9 +1,9 @@
 <script lang="ts">
-	import AdvancedTable from '$lib/components/table/advanced-table.svelte';
-	import { m } from '$lib/paraglide/messages';
-	import UserGroupService from '$lib/services/user-group-service';
-	import type { AdvancedTableColumn } from '$lib/types/advanced-table.type';
-	import type { UserGroupMinimal } from '$lib/types/user-group.type';
+	import AdvancedTable from '#lib/components/table/advanced-table.svelte';
+	import { m } from '#lib/paraglide/messages.js';
+	import UserGroupService from '#lib/services/user-group-service.ts';
+	import type { AdvancedTableColumn } from '#lib/types/advanced-table.type.ts';
+	import type { UserGroupMinimal } from '#lib/types/user-group.type.ts';
 
 	let {
 		selectionDisabled = false,

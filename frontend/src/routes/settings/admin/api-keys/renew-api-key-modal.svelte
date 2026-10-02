@@ -1,10 +1,10 @@
 <script lang="ts">
-	import DatePicker from '$lib/components/form/date-picker.svelte';
-	import { Button } from '$lib/components/ui/button';
-	import * as Dialog from '$lib/components/ui/dialog';
-	import * as Field from '$lib/components/ui/field/index.js';
-	import { m } from '$lib/paraglide/messages';
-	import type { ApiKey } from '$lib/types/api-key.type';
+	import DatePicker from '#lib/components/form/date-picker.svelte';
+	import { Button } from '#lib/components/ui/button/index.ts';
+	import * as Dialog from '#lib/components/ui/dialog/index.ts';
+	import * as Field from '#lib/components/ui/field/index.js';
+	import { m } from '#lib/paraglide/messages.js';
+	import type { ApiKey } from '#lib/types/api-key.type.ts';
 
 	let {
 		apiKey = $bindable(null),

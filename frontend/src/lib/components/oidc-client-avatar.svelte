@@ -1,8 +1,8 @@
 <script lang="ts">
-	import ImageBox from '$lib/components/image-box.svelte';
-	import { m } from '$lib/paraglide/messages';
-	import { cachedOidcClientLogo } from '$lib/utils/cached-image-util';
-	import { cn } from '$lib/utils/style';
+	import ImageBox from '#lib/components/image-box.svelte';
+	import { m } from '#lib/paraglide/messages.js';
+	import { cachedOidcClientLogo } from '#lib/utils/cached-image-util.ts';
+	import { cn } from '#lib/utils/style.ts';
 	import { mode } from 'mode-watcher';
 
 	let {

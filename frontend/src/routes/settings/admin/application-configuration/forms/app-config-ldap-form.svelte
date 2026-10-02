@@ -1,14 +1,14 @@
 <script lang="ts">
-	import FormInput from '$lib/components/form/form-input.svelte';
-	import SwitchWithLabel from '$lib/components/form/switch-with-label.svelte';
-	import { Button } from '$lib/components/ui/button';
-	import { m } from '$lib/paraglide/messages';
-	import AppConfigService from '$lib/services/app-config-service';
-	import appConfigStore from '$lib/stores/application-configuration-store';
-	import type { AllAppConfig } from '$lib/types/application-configuration.type';
-	import { axiosErrorToast } from '$lib/utils/error-util';
-	import { createForm, pickSchemaValues } from '$lib/utils/form-util';
-	import { trackFormChanges } from '$lib/utils/unsaved-changes-util.svelte';
+	import FormInput from '#lib/components/form/form-input.svelte';
+	import SwitchWithLabel from '#lib/components/form/switch-with-label.svelte';
+	import { Button } from '#lib/components/ui/button/index.ts';
+	import { m } from '#lib/paraglide/messages.js';
+	import AppConfigService from '#lib/services/app-config-service.ts';
+	import appConfigStore from '#lib/stores/application-configuration-store.ts';
+	import type { AllAppConfig } from '#lib/types/application-configuration.type.ts';
+	import { axiosErrorToast } from '#lib/utils/error-util.ts';
+	import { createForm, pickSchemaValues } from '#lib/utils/form-util.ts';
+	import { trackFormChanges } from '#lib/utils/unsaved-changes-util.svelte.ts';
 	import { toast } from 'svelte-sonner';
 	import { z } from 'zod/v4';
 

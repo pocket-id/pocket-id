@@ -1,5 +1,5 @@
-import type { ListRequestOptions, Paginated } from '$lib/types/list-request.type';
-import type { UserGroup, UserGroupCreate, UserGroupMinimal } from '$lib/types/user-group.type';
+import type { ListRequestOptions, Paginated } from '#lib/types/list-request.type.ts';
+import type { UserGroup, UserGroupCreate, UserGroupMinimal } from '#lib/types/user-group.type.ts';
 import APIService from './api-service';
 
 export default class UserGroupService extends APIService {

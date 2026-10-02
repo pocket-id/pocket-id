@@ -1,12 +1,12 @@
 <script lang="ts">
-	import AuditLogList from '$lib/components/audit-log-list.svelte';
-	import SearchableSelect from '$lib/components/form/searchable-select.svelte';
-	import * as Card from '$lib/components/ui/card';
-	import * as Select from '$lib/components/ui/select';
-	import { m } from '$lib/paraglide/messages';
-	import AuditLogService from '$lib/services/audit-log-service';
-	import type { AuditLogFilter } from '$lib/types/audit-log.type';
-	import { eventTypes as eventTranslations } from '$lib/utils/audit-log-translator';
+	import AuditLogList from '#lib/components/audit-log-list.svelte';
+	import SearchableSelect from '#lib/components/form/searchable-select.svelte';
+	import * as Card from '#lib/components/ui/card/index.ts';
+	import * as Select from '#lib/components/ui/select/index.ts';
+	import { m } from '#lib/paraglide/messages.js';
+	import AuditLogService from '#lib/services/audit-log-service.ts';
+	import type { AuditLogFilter } from '#lib/types/audit-log.type.ts';
+	import { eventTypes as eventTranslations } from '#lib/utils/audit-log-translator.ts';
 	import AuditLogSwitcher from '../audit-log-switcher.svelte';
 
 	const auditLogService = new AuditLogService();

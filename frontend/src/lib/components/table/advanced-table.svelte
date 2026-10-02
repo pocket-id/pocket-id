@@ -1,18 +1,18 @@
 <script lang="ts" generics="T extends {id:string}">
-	import { replaceState } from '$app/navigation';
+	import { goto } from '$app/navigation';
 	import { page as currentPage } from '$app/state';
-	import Checkbox from '$lib/components/ui/checkbox/checkbox.svelte';
-	import * as Pagination from '$lib/components/ui/pagination';
-	import * as Select from '$lib/components/ui/select';
-	import * as Table from '$lib/components/ui/table/index.js';
-	import Empty from '$lib/icons/empty.svelte';
-	import { m } from '$lib/paraglide/messages';
+	import Checkbox from '#lib/components/ui/checkbox/checkbox.svelte';
+	import * as Pagination from '#lib/components/ui/pagination/index.ts';
+	import * as Select from '#lib/components/ui/select/index.ts';
+	import * as Table from '#lib/components/ui/table/index.js';
+	import Empty from '#lib/icons/empty.svelte';
+	import { m } from '#lib/paraglide/messages.js';
 	import type {
 		AdvancedTableColumn,
 		CreateAdvancedTableActions
-	} from '$lib/types/advanced-table.type';
-	import type { ListRequestOptions, Paginated, SortRequest } from '$lib/types/list-request.type';
-	import { cn } from '$lib/utils/style';
+	} from '#lib/types/advanced-table.type.ts';
+	import type { ListRequestOptions, Paginated, SortRequest } from '#lib/types/list-request.type.ts';
+	import { cn } from '#lib/utils/style.ts';
 	import { ChevronDown, LucideEllipsis } from '@lucide/svelte';
 	import { PersistedState } from 'runed';
 	import { onMount } from 'svelte';
@@ -119,7 +119,7 @@
 	}
 
 	async function onPageChange(page: number) {
-		changePageState(page);
+		await changePageState(page);
 		await refresh();
 	}
 
@@ -150,10 +150,10 @@
 		await refresh();
 	}
 
-	function changePageState(page: number) {
+	async function changePageState(page: number) {
 		const url = new URL(window.location.href);
 		url.searchParams.set(`${id}-page`, page.toString());
-		replaceState(url, currentPage.state);
+		await goto(url, { shallow: true, replace: true, state: currentPage.state });
 		requestOptions.pagination!.page = page;
 	}
 
@@ -182,7 +182,7 @@
 
 	export async function refresh() {
 		items = await fetchCallback(requestOptions);
-		changePageState(items.pagination.currentPage);
+		await changePageState(items.pagination.currentPage);
 		updateListLength(items.pagination.totalItems);
 	}
 </script>

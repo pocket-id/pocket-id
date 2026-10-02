@@ -1,5 +1,5 @@
-import UserService from '$lib/services/user-service';
-import WebAuthnService from '$lib/services/webauthn-service';
+import UserService from '#lib/services/user-service.ts';
+import WebAuthnService from '#lib/services/webauthn-service.ts';
 import type { PageLoad } from './$types';
 
 export const load: PageLoad = async () => {

@@ -1,5 +1,5 @@
 <script lang="ts">
-	import * as Item from '$lib/components/ui/item/index.js';
+	import * as Item from '#lib/components/ui/item/index.js';
 	import type { LucideIcon } from '@lucide/svelte';
 
 	interface Props {

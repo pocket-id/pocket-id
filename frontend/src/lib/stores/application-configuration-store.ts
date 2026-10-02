@@ -1,6 +1,6 @@
-import AppConfigService from '$lib/services/app-config-service';
-import type { AppConfig } from '$lib/types/application-configuration.type';
-import { applyAccentColor } from '$lib/utils/accent-color-util';
+import AppConfigService from '#lib/services/app-config-service.ts';
+import type { AppConfig } from '#lib/types/application-configuration.type.ts';
+import { applyAccentColor } from '#lib/utils/accent-color-util.ts';
 import { writable } from 'svelte/store';
 
 const appConfigStore = writable<AppConfig>();

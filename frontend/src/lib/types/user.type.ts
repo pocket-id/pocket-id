@@ -1,4 +1,4 @@
-import type { Locale } from '$lib/paraglide/runtime';
+import type { Locale } from '#lib/paraglide/runtime.js';
 import type { CustomClaim } from './custom-claim.type';
 import type { UserGroup } from './user-group.type';
 

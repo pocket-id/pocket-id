@@ -1,9 +1,9 @@
 <script lang="ts">
-	import CopyToClipboard from '$lib/components/copy-to-clipboard.svelte';
-	import { Button } from '$lib/components/ui/button';
-	import * as Dialog from '$lib/components/ui/dialog';
-	import { m } from '$lib/paraglide/messages';
-	import type { ApiKeyResponse } from '$lib/types/api-key.type';
+	import CopyToClipboard from '#lib/components/copy-to-clipboard.svelte';
+	import { Button } from '#lib/components/ui/button/index.ts';
+	import * as Dialog from '#lib/components/ui/dialog/index.ts';
+	import { m } from '#lib/paraglide/messages.js';
+	import type { ApiKeyResponse } from '#lib/types/api-key.type.ts';
 
 	let {
 		title,

@@ -1,6 +1,6 @@
-import OidcService from '$lib/services/oidc-service';
-import type { OidcDiscoveryConfiguration } from '$lib/types/oidc.type';
-import { decodeClientIdParam } from '$lib/utils/client-id-util';
+import OidcService from '#lib/services/oidc-service.ts';
+import type { OidcDiscoveryConfiguration } from '#lib/types/oidc.type.ts';
+import { decodeClientIdParam } from '#lib/utils/client-id-util.ts';
 import type { PageLoad } from './$types';
 
 export const load: PageLoad = async ({ fetch, params }) => {

@@ -1,21 +1,22 @@
-import type { HandleClientError } from '@sveltejs/kit';
+import type { HandleClientError } from '@sveltejs/kit/hooks';
 import { isAxiosError } from 'axios';
-import { getAxiosErrorMessage, getAxiosErrorRequestId } from '$lib/utils/error-util';
+import { getAxiosErrorMessage, getAxiosErrorRequestId } from '#lib/utils/error-util.ts';
 
-export const handleError: HandleClientError = async ({ error, message, status }) => {
+export const handleError: HandleClientError = ({ kind, error }) => {
+	// Preserve safe application and framework errors, including their status codes
+	if (kind !== 'unknown') return error;
+
+	// Retain API error messages and request IDs for failed backend requests
 	if (isAxiosError(error)) {
-		message = getAxiosErrorMessage(error, message);
-		status = error.response?.status || status;
+		const message = getAxiosErrorMessage(error);
+		const status = error.response?.status || 500;
 		console.error(
 			`Axios error: ${error.request?.path ?? 'unknown path'} - ${getAxiosErrorMessage(error, error.message)}`,
 			{ requestId: getAxiosErrorRequestId(error) }
 		);
-	} else {
-		console.error(error);
+		return { message, status };
 	}
 
-	return {
-		message,
-		status
-	};
+	// Keep SvelteKit's generic response for unexpected errors while logging the cause
+	console.error(error);
 };

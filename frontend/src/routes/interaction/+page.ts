@@ -1,5 +1,5 @@
-import OidcService from '$lib/services/oidc-service';
-import { getAxiosErrorMessage } from '$lib/utils/error-util';
+import OidcService from '#lib/services/oidc-service.ts';
+import { getAxiosErrorMessage } from '#lib/utils/error-util.ts';
 import { redirect } from '@sveltejs/kit';
 import type { PageLoad } from './$types';
 

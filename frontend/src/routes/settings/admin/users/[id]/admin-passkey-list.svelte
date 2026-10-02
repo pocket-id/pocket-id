@@ -1,12 +1,12 @@
 <script lang="ts">
-	import { openConfirmDialog } from '$lib/components/confirm-dialog';
-	import PasskeyRow from '$lib/components/passkey-row.svelte';
-	import * as Item from '$lib/components/ui/item/index.js';
-	import { m } from '$lib/paraglide/messages';
-	import UserService from '$lib/services/user-service';
-	import type { Passkey } from '$lib/types/passkey.type';
-	import { authenticatorIconUrl } from '$lib/utils/cached-image-util';
-	import { axiosErrorToast } from '$lib/utils/error-util';
+	import { openConfirmDialog } from '#lib/components/confirm-dialog/index.ts';
+	import PasskeyRow from '#lib/components/passkey-row.svelte';
+	import * as Item from '#lib/components/ui/item/index.js';
+	import { m } from '#lib/paraglide/messages.js';
+	import UserService from '#lib/services/user-service.ts';
+	import type { Passkey } from '#lib/types/passkey.type.ts';
+	import { authenticatorIconUrl } from '#lib/utils/cached-image-util.ts';
+	import { axiosErrorToast } from '#lib/utils/error-util.ts';
 	import { LucideKeyRound } from '@lucide/svelte';
 	import { mode } from 'mode-watcher';
 	import { toast } from 'svelte-sonner';

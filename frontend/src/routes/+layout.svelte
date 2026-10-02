@@ -1,20 +1,22 @@
 <script lang="ts">
 	import { beforeNavigate } from '$app/navigation';
-	import ConfirmDialog from '$lib/components/confirm-dialog/confirm-dialog.svelte';
-	import Error from '$lib/components/error.svelte';
-	import Header from '$lib/components/header/header.svelte';
-	import NavigationProgress from '$lib/components/navigation-progress.svelte';
-	import { Toaster } from '$lib/components/ui/sonner';
-	import UnsavedChangesBar from '$lib/components/unsaved-changes-bar.svelte';
-	import { m } from '$lib/paraglide/messages';
-	import { startPageTrace } from '$lib/utils/tracing-util';
+	import ConfirmDialog from '#lib/components/confirm-dialog/confirm-dialog.svelte';
+	import Error from '#lib/components/error.svelte';
+	import Header from '#lib/components/header/header.svelte';
+	import NavigationProgress from '#lib/components/navigation-progress.svelte';
+	import { Toaster } from '#lib/components/ui/sonner/index.ts';
+	import UnsavedChangesBar from '#lib/components/unsaved-changes-bar.svelte';
+	import { m } from '#lib/paraglide/messages.js';
+	import { startPageTrace } from '#lib/utils/tracing-util.ts';
 	import { ModeWatcher } from 'mode-watcher';
 	import { type Snippet } from 'svelte';
 	import '../app.css';
 	import type { LayoutData } from './$types';
 
 	// Start a new page-level trace on each navigation so a page view and the API calls it triggers are correlated as a single trace.
-	beforeNavigate((nav) => startPageTrace(nav.to?.url.pathname));
+	beforeNavigate((nav) => {
+		if (!nav.shallow) startPageTrace(nav.to?.url.pathname);
+	});
 
 	let {
 		data,

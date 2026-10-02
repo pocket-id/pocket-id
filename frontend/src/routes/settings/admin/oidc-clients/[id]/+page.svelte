@@ -1,23 +1,23 @@
 <script lang="ts">
-	import FormattedMessage from '$lib/components/formatted-message.svelte';
-	import * as Alert from '$lib/components/ui/alert';
-	import { Badge } from '$lib/components/ui/badge';
-	import { Button } from '$lib/components/ui/button';
-	import * as Card from '$lib/components/ui/card';
-	import * as Tabs from '$lib/components/ui/tabs';
-	import { m } from '$lib/paraglide/messages';
-	import OidcService from '$lib/services/oidc-service';
-	import ScimService from '$lib/services/scim-service';
-	import clientSecretStore from '$lib/stores/client-secret-store';
+	import FormattedMessage from '#lib/components/formatted-message.svelte';
+	import * as Alert from '#lib/components/ui/alert/index.ts';
+	import { Badge } from '#lib/components/ui/badge/index.ts';
+	import { Button } from '#lib/components/ui/button/index.ts';
+	import * as Card from '#lib/components/ui/card/index.ts';
+	import * as Tabs from '#lib/components/ui/tabs/index.ts';
+	import { m } from '#lib/paraglide/messages.js';
+	import OidcService from '#lib/services/oidc-service.ts';
+	import ScimService from '#lib/services/scim-service.ts';
+	import clientSecretStore from '#lib/stores/client-secret-store.ts';
 	import type {
 		OidcClientCreateWithLogo,
 		OidcClientCredentials,
 		OidcClientFederatedIdentity,
 		OidcClientSecret,
 		OidcClientTokenLifetimes
-	} from '$lib/types/oidc.type';
-	import type { ScimServiceProviderCreate } from '$lib/types/scim.type';
-	import { cachedOidcClientLogo } from '$lib/utils/cached-image-util';
+	} from '#lib/types/oidc.type.ts';
+	import type { ScimServiceProviderCreate } from '#lib/types/scim.type.ts';
+	import { cachedOidcClientLogo } from '#lib/utils/cached-image-util.ts';
 	import { LucideChevronLeft, LucideEye, LucideInfo } from '@lucide/svelte';
 	import { onDestroy } from 'svelte';
 	import { backNavigate } from '../../users/navigate-back-util';

@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { cn } from '$lib/utils/style';
+	import { cn } from '#lib/utils/style.ts';
 	import QRCode from 'qrcode';
 	import { onMount } from 'svelte';
 	import type { HTMLAttributes } from 'svelte/elements';

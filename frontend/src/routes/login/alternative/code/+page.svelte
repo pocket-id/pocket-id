@@ -1,15 +1,15 @@
 <script lang="ts">
 	import { afterNavigate, goto } from '$app/navigation';
-	import SignInWrapper from '$lib/components/login-wrapper.svelte';
-	import { Button } from '$lib/components/ui/button';
-	import * as InputOTP from '$lib/components/ui/input-otp/index.js';
-	import Input from '$lib/components/ui/input/input.svelte';
-	import { m } from '$lib/paraglide/messages';
-	import UserService from '$lib/services/user-service';
-	import appConfigStore from '$lib/stores/application-configuration-store';
-	import userStore from '$lib/stores/user-store.js';
-	import { getAxiosErrorMessage } from '$lib/utils/error-util';
-	import { preventDefault } from '$lib/utils/event-util';
+	import SignInWrapper from '#lib/components/login-wrapper.svelte';
+	import { Button } from '#lib/components/ui/button/index.ts';
+	import * as InputOTP from '#lib/components/ui/input-otp/index.js';
+	import Input from '#lib/components/ui/input/input.svelte';
+	import { m } from '#lib/paraglide/messages.js';
+	import UserService from '#lib/services/user-service.ts';
+	import appConfigStore from '#lib/stores/application-configuration-store.ts';
+	import userStore from '#lib/stores/user-store.js';
+	import { getAxiosErrorMessage } from '#lib/utils/error-util.ts';
+	import { preventDefault } from '#lib/utils/event-util.ts';
 	import { onMount } from 'svelte';
 	import LoginLogoErrorSuccessIndicator from '../../components/login-logo-error-success-indicator.svelte';
 
@@ -32,7 +32,7 @@
 
 	// If the previous page is a Pocket ID page, go back there instead of the generic alternative login page
 	afterNavigate((e) => {
-		if (e.from?.url?.pathname) {
+		if (e.from?.url?.pathname && !e.shallow) {
 			backHref = e.from.url.pathname + e.from.url.search;
 		}
 	});

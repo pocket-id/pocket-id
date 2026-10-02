@@ -1,19 +1,19 @@
 <script lang="ts">
-	import { openConfirmDialog } from '$lib/components/confirm-dialog';
-	import { Button } from '$lib/components/ui/button';
-	import * as Empty from '$lib/components/ui/empty';
-	import * as Pagination from '$lib/components/ui/pagination';
-	import { Separator } from '$lib/components/ui/separator';
-	import { m } from '$lib/paraglide/messages';
-	import OIDCService from '$lib/services/oidc-service';
-	import type { ListRequestOptions, Paginated } from '$lib/types/list-request.type';
+	import { openConfirmDialog } from '#lib/components/confirm-dialog/index.ts';
+	import { Button } from '#lib/components/ui/button/index.ts';
+	import * as Empty from '#lib/components/ui/empty/index.ts';
+	import * as Pagination from '#lib/components/ui/pagination/index.ts';
+	import { Separator } from '#lib/components/ui/separator/index.ts';
+	import { m } from '#lib/paraglide/messages.js';
+	import OIDCService from '#lib/services/oidc-service.ts';
+	import type { ListRequestOptions, Paginated } from '#lib/types/list-request.type.ts';
 	import type {
 		AccessibleOidcClient,
 		AuthorizedOidcClient,
 		OidcClientMetaData
-	} from '$lib/types/oidc.type';
-	import { axiosErrorToast } from '$lib/utils/error-util';
-	import { cn } from '$lib/utils/style';
+	} from '#lib/types/oidc.type.ts';
+	import { axiosErrorToast } from '#lib/utils/error-util.ts';
+	import { cn } from '#lib/utils/style.ts';
 	import { ChevronDown, LayoutDashboard } from '@lucide/svelte';
 	import { toast } from 'svelte-sonner';
 	import { slide } from 'svelte/transition';

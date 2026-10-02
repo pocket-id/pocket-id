@@ -20,7 +20,7 @@
 <script lang="ts">
 	import { Tabs as TabsPrimitive } from 'bits-ui';
 	import { onMount } from 'svelte';
-	import { cn } from '$lib/utils/style.js';
+	import { cn } from '#lib/utils/style.js';
 
 	let {
 		ref = $bindable(null),

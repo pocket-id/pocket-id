@@ -1,5 +1,5 @@
 <script lang="ts">
-	import * as AlertDialog from '$lib/components/ui/alert-dialog';
+	import * as AlertDialog from '#lib/components/ui/alert-dialog/index.ts';
 	import { confirmDialogStore } from '.';
 	import FormattedMessage from '../formatted-message.svelte';
 	import Button from '../ui/button/button.svelte';

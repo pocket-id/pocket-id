@@ -1,7 +1,7 @@
 <script lang="ts">
-	import SignInWrapper from '$lib/components/login-wrapper.svelte';
-	import { Button } from '$lib/components/ui/button';
-	import { m } from '$lib/paraglide/messages';
+	import SignInWrapper from '#lib/components/login-wrapper.svelte';
+	import { Button } from '#lib/components/ui/button/index.ts';
+	import { m } from '#lib/paraglide/messages.js';
 	import ClientProviderImages from '../../authorize/components/client-provider-images.svelte';
 	import type { PageProps } from './$types';
 

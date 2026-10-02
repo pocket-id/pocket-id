@@ -1,12 +1,12 @@
-import AppConfigService from '$lib/services/app-config-service';
-import UserService from '$lib/services/user-service';
-import { m } from '$lib/paraglide/messages';
-import appConfigStore from '$lib/stores/application-configuration-store';
-import userStore from '$lib/stores/user-store';
-import { getAxiosErrorMessage, getAxiosErrorRequestId } from '$lib/utils/error-util';
-import { setLocaleForLibraries } from '$lib/utils/locale.util';
-import { getAuthRedirectPath } from '$lib/utils/redirection-util';
-import { setTracingEnabled } from '$lib/utils/tracing-util';
+import AppConfigService from '#lib/services/app-config-service.ts';
+import UserService from '#lib/services/user-service.ts';
+import { m } from '#lib/paraglide/messages.js';
+import appConfigStore from '#lib/stores/application-configuration-store.ts';
+import userStore from '#lib/stores/user-store.ts';
+import { getAxiosErrorMessage, getAxiosErrorRequestId } from '#lib/utils/error-util.ts';
+import { setLocaleForLibraries } from '#lib/utils/locale.util.ts';
+import { getAuthRedirectPath } from '#lib/utils/redirection-util.ts';
+import { setTracingEnabled } from '#lib/utils/tracing-util.ts';
 import { redirect } from '@sveltejs/kit';
 import type { LayoutLoad } from './$types';
 

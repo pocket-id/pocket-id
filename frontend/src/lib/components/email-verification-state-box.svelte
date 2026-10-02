@@ -1,13 +1,13 @@
 <script lang="ts">
-	import { replaceState } from '$app/navigation';
+	import { goto } from '$app/navigation';
 	import { page } from '$app/state';
-	import * as Alert from '$lib/components/ui/alert';
-	import { Button } from '$lib/components/ui/button';
-	import { m } from '$lib/paraglide/messages';
-	import UserService from '$lib/services/user-service';
-	import appConfigStore from '$lib/stores/application-configuration-store';
-	import userStore from '$lib/stores/user-store';
-	import { axiosErrorToast } from '$lib/utils/error-util';
+	import * as Alert from '#lib/components/ui/alert/index.ts';
+	import { Button } from '#lib/components/ui/button/index.ts';
+	import { m } from '#lib/paraglide/messages.js';
+	import UserService from '#lib/services/user-service.ts';
+	import appConfigStore from '#lib/stores/application-configuration-store.ts';
+	import userStore from '#lib/stores/user-store.ts';
+	import { axiosErrorToast } from '#lib/utils/error-util.ts';
 	import { LucideAlertTriangle, LucideCheckCircle2, LucideCircleX } from '@lucide/svelte';
 	import { onMount } from 'svelte';
 	import { toast } from 'svelte-sonner';
@@ -26,10 +26,10 @@
 			.catch(axiosErrorToast);
 	}
 
-	function onDismiss() {
-		const url = new URL(page.url);
+	async function onDismiss() {
+		const url = new URL(page.url.href);
 		url.searchParams.delete('emailVerificationState');
-		replaceState(url, page.state);
+		await goto(url, { shallow: true, replace: true, state: page.state });
 		emailVerificationState = null;
 	}
 

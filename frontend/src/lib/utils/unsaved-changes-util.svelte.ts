@@ -1,6 +1,6 @@
-import { m } from '$lib/paraglide/messages';
-import unsavedChanges, { type UnsavedSection } from '$lib/stores/unsaved-changes-store.svelte';
-import { deepCopy, deepEqual } from '$lib/utils/form-util';
+import { m } from '#lib/paraglide/messages.js';
+import unsavedChanges, { type UnsavedSection } from '#lib/stores/unsaved-changes-store.svelte.ts';
+import { deepCopy, deepEqual } from '#lib/utils/form-util.ts';
 import { untrack } from 'svelte';
 import { fromStore, type Readable } from 'svelte/store';
 

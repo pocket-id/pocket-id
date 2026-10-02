@@ -1,4 +1,4 @@
-import { m } from '$lib/paraglide/messages';
+import { m } from '#lib/paraglide/messages.js';
 import { writable } from 'svelte/store';
 import type { AnyFormattedMessage, AnyMessage, FormattedMessageProps } from '../formatted-message';
 import ConfirmDialog from './confirm-dialog.svelte';

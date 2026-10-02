@@ -9,7 +9,7 @@
 // The OpenTelemetry libraries are heavy, so they are only pulled in via dynamic `import()` once tracing is
 // enabled (see `setTracingEnabled`). When tracing is disabled they are never loaded and stay out of the main app bundle.
 
-import { browser, version } from '$app/environment';
+import { browser, version } from '$app/env';
 // Type-only imports are erased at build time, so they don't pull the OpenTelemetry libraries into the bundle.
 import type { Context, Span } from '@opentelemetry/api';
 

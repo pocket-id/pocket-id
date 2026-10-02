@@ -1,10 +1,10 @@
 <script lang="ts">
-	import { Button } from '$lib/components/ui/button';
-	import * as Command from '$lib/components/ui/command';
-	import * as Popover from '$lib/components/ui/popover';
-	import { Spinner } from '$lib/components/ui/spinner';
-	import { m } from '$lib/paraglide/messages';
-	import { cn } from '$lib/utils/style';
+	import { Button } from '#lib/components/ui/button/index.ts';
+	import * as Command from '#lib/components/ui/command/index.ts';
+	import * as Popover from '#lib/components/ui/popover/index.ts';
+	import { Spinner } from '#lib/components/ui/spinner/index.ts';
+	import { m } from '#lib/paraglide/messages.js';
+	import { cn } from '#lib/utils/style.ts';
 	import { LucideCheck, LucideChevronDown } from '@lucide/svelte';
 	import { tick } from 'svelte';
 	import type { FormEventHandler, HTMLAttributes } from 'svelte/elements';

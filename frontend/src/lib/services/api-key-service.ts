@@ -1,5 +1,5 @@
-import type { ApiKey, ApiKeyCreate, ApiKeyResponse } from '$lib/types/api-key.type';
-import type { ListRequestOptions, Paginated } from '$lib/types/list-request.type';
+import type { ApiKey, ApiKeyCreate, ApiKeyResponse } from '#lib/types/api-key.type.ts';
+import type { ListRequestOptions, Paginated } from '#lib/types/list-request.type.ts';
 import APIService from './api-service';
 
 export default class ApiKeyService extends APIService {

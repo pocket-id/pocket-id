@@ -1,6 +1,6 @@
-import StorageService from '$lib/services/storage-service';
-import VersionService from '$lib/services/version-service';
-import type { AppVersionInformation } from '$lib/types/application-configuration.type';
+import StorageService from '#lib/services/storage-service.ts';
+import VersionService from '#lib/services/version-service.ts';
+import type { AppVersionInformation } from '#lib/types/application-configuration.type.ts';
 import type { LayoutLoad } from './$types';
 
 export const load: LayoutLoad = async () => {

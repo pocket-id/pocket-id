@@ -1,11 +1,11 @@
 <script lang="ts">
-	import AdvancedTable from '$lib/components/table/advanced-table.svelte';
-	import { Badge } from '$lib/components/ui/badge';
-	import { m } from '$lib/paraglide/messages';
-	import AuditLogService from '$lib/services/audit-log-service';
-	import type { AdvancedTableColumn } from '$lib/types/advanced-table.type';
-	import type { AuditLog, AuditLogFilter } from '$lib/types/audit-log.type';
-	import { translateAuditLogEvent } from '$lib/utils/audit-log-translator';
+	import AdvancedTable from '#lib/components/table/advanced-table.svelte';
+	import { Badge } from '#lib/components/ui/badge/index.ts';
+	import { m } from '#lib/paraglide/messages.js';
+	import AuditLogService from '#lib/services/audit-log-service.ts';
+	import type { AdvancedTableColumn } from '#lib/types/advanced-table.type.ts';
+	import type { AuditLog, AuditLogFilter } from '#lib/types/audit-log.type.ts';
+	import { translateAuditLogEvent } from '#lib/utils/audit-log-translator.ts';
 	import { untrack } from 'svelte';
 
 	let {

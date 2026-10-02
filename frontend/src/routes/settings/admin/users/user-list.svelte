@@ -1,21 +1,21 @@
 <script lang="ts">
 	import { goto } from '$app/navigation';
-	import { openConfirmDialog } from '$lib/components/confirm-dialog/';
-	import OneTimeLinkModal from '$lib/components/one-time-link-modal.svelte';
-	import AdvancedTable from '$lib/components/table/advanced-table.svelte';
-	import * as Avatar from '$lib/components/ui/avatar/index';
-	import { Badge } from '$lib/components/ui/badge/index';
-	import { m } from '$lib/paraglide/messages';
-	import UserService from '$lib/services/user-service';
-	import appConfigStore from '$lib/stores/application-configuration-store';
-	import userStore from '$lib/stores/user-store';
+	import { openConfirmDialog } from '#lib/components/confirm-dialog/index.ts';
+	import OneTimeLinkModal from '#lib/components/one-time-link-modal.svelte';
+	import AdvancedTable from '#lib/components/table/advanced-table.svelte';
+	import * as Avatar from '#lib/components/ui/avatar/index.ts';
+	import { Badge } from '#lib/components/ui/badge/index.ts';
+	import { m } from '#lib/paraglide/messages.js';
+	import UserService from '#lib/services/user-service.ts';
+	import appConfigStore from '#lib/stores/application-configuration-store.ts';
+	import userStore from '#lib/stores/user-store.ts';
 	import type {
 		AdvancedTableColumn,
 		CreateAdvancedTableActions
-	} from '$lib/types/advanced-table.type';
-	import type { User } from '$lib/types/user.type';
-	import { cachedProfilePicture } from '$lib/utils/cached-image-util';
-	import { axiosErrorToast } from '$lib/utils/error-util';
+	} from '#lib/types/advanced-table.type.ts';
+	import type { User } from '#lib/types/user.type.ts';
+	import { cachedProfilePicture } from '#lib/utils/cached-image-util.ts';
+	import { axiosErrorToast } from '#lib/utils/error-util.ts';
 	import {
 		LucideLink,
 		LucidePencil,

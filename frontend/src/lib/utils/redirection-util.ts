@@ -1,4 +1,4 @@
-import type { User } from '$lib/types/user.type';
+import type { User } from '#lib/types/user.type.ts';
 
 // Returns the path to redirect to based on the current path and user authentication status
 // If no redirect is needed, it returns null

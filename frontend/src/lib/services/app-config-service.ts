@@ -1,12 +1,15 @@
-import userStore from '$lib/stores/user-store';
-import type { AllAppConfig, AppConfigRawResponse } from '$lib/types/application-configuration.type';
+import userStore from '#lib/stores/user-store.ts';
+import type {
+	AllAppConfig,
+	AppConfigRawResponse
+} from '#lib/types/application-configuration.type.ts';
 import {
 	cachedApplicationLogo,
 	cachedBackgroundImage,
 	cachedDefaultProfilePicture,
 	cachedEmailLogo,
 	cachedProfilePicture
-} from '$lib/utils/cached-image-util';
+} from '#lib/utils/cached-image-util.ts';
 import { get } from 'svelte/store';
 import APIService from './api-service';
 

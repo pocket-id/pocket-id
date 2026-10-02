@@ -1,15 +1,15 @@
 <script lang="ts">
-	import FormInput from '$lib/components/form/form-input.svelte';
-	import FormattedMessage from '$lib/components/formatted-message.svelte';
-	import { Button } from '$lib/components/ui/button';
-	import * as Field from '$lib/components/ui/field';
-	import * as RadioGroup from '$lib/components/ui/radio-group';
-	import { m } from '$lib/paraglide/messages';
-	import type { OidcClientCreate } from '$lib/types/oidc.type';
-	import { axiosErrorToast } from '$lib/utils/error-util';
-	import { preventDefault } from '$lib/utils/event-util';
-	import { createForm } from '$lib/utils/form-util';
-	import { callbackUrlSchema, emptyToUndefined } from '$lib/utils/zod-util';
+	import FormInput from '#lib/components/form/form-input.svelte';
+	import FormattedMessage from '#lib/components/formatted-message.svelte';
+	import { Button } from '#lib/components/ui/button/index.ts';
+	import * as Field from '#lib/components/ui/field/index.ts';
+	import * as RadioGroup from '#lib/components/ui/radio-group/index.ts';
+	import { m } from '#lib/paraglide/messages.js';
+	import type { OidcClientCreate } from '#lib/types/oidc.type.ts';
+	import { axiosErrorToast } from '#lib/utils/error-util.ts';
+	import { preventDefault } from '#lib/utils/event-util.ts';
+	import { createForm } from '#lib/utils/form-util.ts';
+	import { callbackUrlSchema, emptyToUndefined } from '#lib/utils/zod-util.ts';
 	import { z } from 'zod/v4';
 	import OidcCallbackUrlInput from './oidc-callback-url-input.svelte';
 

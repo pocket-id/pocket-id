@@ -1,12 +1,12 @@
 <script lang="ts">
-	import Logo from '$lib/components/logo.svelte';
-	import CheckmarkAnimated from '$lib/icons/checkmark-animated.svelte';
-	import ConnectArrow from '$lib/icons/connect-arrow.svelte';
-	import CrossAnimated from '$lib/icons/cross-animated.svelte';
-	import { m } from '$lib/paraglide/messages';
-	import appConfigStore from '$lib/stores/application-configuration-store';
-	import type { OidcClientMetaData } from '$lib/types/oidc.type';
-	import { cachedOidcClientLogo } from '$lib/utils/cached-image-util';
+	import Logo from '#lib/components/logo.svelte';
+	import CheckmarkAnimated from '#lib/icons/checkmark-animated.svelte';
+	import ConnectArrow from '#lib/icons/connect-arrow.svelte';
+	import CrossAnimated from '#lib/icons/cross-animated.svelte';
+	import { m } from '#lib/paraglide/messages.js';
+	import appConfigStore from '#lib/stores/application-configuration-store.ts';
+	import type { OidcClientMetaData } from '#lib/types/oidc.type.ts';
+	import { cachedOidcClientLogo } from '#lib/utils/cached-image-util.ts';
 	import { mode } from 'mode-watcher';
 	import { untrack } from 'svelte';
 	import { cubicIn, cubicOut } from 'svelte/easing';
