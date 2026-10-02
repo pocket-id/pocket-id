@@ -48,7 +48,7 @@ RUN --mount=type=cache,target=/go/pkg/mod \
     .
 
 # Stage 3: Production Image
-FROM alpine:3.24.1
+FROM alpine:3.24.2
 WORKDIR /app
 
 RUN apk add --no-cache su-exec
