@@ -8,8 +8,5 @@ allowBuilds:
   sharp: true
 
 overrides:
-  cookie: ">=0.7.0"
   esbuild@>=0.27.3 <0.28.1: ">=0.28.1"
-  joi: ">=17.13.6 <18.0.0"
-  next: ">=16.3.3"
-  sharp: ">=0.35.4"
+  next: ">=16.3.6"
