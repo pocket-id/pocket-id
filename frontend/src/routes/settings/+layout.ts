@@ -1,16 +1,21 @@
 import StorageService from '#lib/services/storage-service.ts';
 import VersionService from '#lib/services/version-service.ts';
+import WebAuthnService from '#lib/services/webauthn-service.ts';
 import type { AppVersionInformation } from '#lib/types/application-configuration.type.ts';
+import { redirect } from '@sveltejs/kit';
 import type { LayoutLoad } from './$types';
 
-export const load: LayoutLoad = async () => {
+export const load: LayoutLoad = async ({ url }) => {
 	const versionService = new VersionService();
 	const storageService = new StorageService();
+	const webauthnService = new WebAuthnService();
+
 	const currentVersion = versionService.getCurrentVersion();
 
-	const [newestVersion, sqliteStorageWarning] = await Promise.all([
+	const [newestVersion, sqliteStorageWarning, passkeys] = await Promise.all([
 		versionService.getNewestVersion().catch(() => null),
-		storageService.getSqliteStorageWarning().catch(() => false)
+		storageService.getSqliteStorageWarning().catch(() => false),
+		webauthnService.listCredentials()
 	]);
 
 	// If newestVersion is empty, it means the check is disabled or failed.
@@ -24,8 +29,16 @@ export const load: LayoutLoad = async () => {
 		isUpToDate
 	};
 
+	const skipPasskeySetup =
+		parseInt(localStorage.getItem('skip-passkey-setup-until') ?? '0') > Date.now();
+
+	if (!skipPasskeySetup && passkeys.length === 0 && url.pathname !== '/signup/add-passkey') {
+		redirect(303, '/signup/add-passkey');
+	}
+
 	return {
 		versionInformation,
-		sqliteStorageWarning
+		sqliteStorageWarning,
+		passkeys
 	};
 };

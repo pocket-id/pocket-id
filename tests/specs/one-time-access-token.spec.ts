@@ -2,6 +2,7 @@ import test, { expect, type Browser } from '@playwright/test';
 import { oneTimeAccessTokens } from '../data';
 import { cleanupBackend } from '../utils/cleanup.util';
 import { pathFromRoot } from '../utils/fs.util';
+import passkeyUtil from '../utils/passkey.util';
 
 test.beforeEach(async () => await cleanupBackend());
 
@@ -13,6 +14,30 @@ test('Sign in with login code', async ({ page }) => {
 	await page.goto(`/lc/${token.token}`);
 
 	await page.waitForURL('/settings/account');
+	await expect(page.getByRole('heading', { name: 'Set up your passkey' })).not.toBeVisible();
+});
+
+test('Sign in with login code without a passkey shows passkey setup', async ({ page }) => {
+	// Remove the existing passkey so the login code is the user's only way to sign in
+	await page.goto('/login');
+	await (await passkeyUtil.init(page)).addPasskey();
+	await page.getByRole('button', { name: 'Authenticate' }).click();
+	await page.waitForURL('/settings/account');
+	await page.getByLabel('Delete').first().click();
+	await page.getByLabel('Delete Passkey').getByRole('button', { name: 'Delete' }).click();
+	await expect(page.locator('[data-type="success"]')).toHaveText('Passkey deleted successfully');
+
+	// Sign in through the real login-code flow to verify the missing-passkey redirect
+	await page.context().clearCookies();
+	const token = oneTimeAccessTokens.find((t) => !t.expired)!;
+	await page.goto(`/lc/${token.token}`);
+	await page.waitForURL('/signup/add-passkey');
+	await expect(page.getByRole('heading', { name: 'Set up your passkey' })).toBeVisible();
+
+	// Opening another settings page must still require passkey setup
+	await page.goto('/settings/apps');
+	await expect(page).toHaveURL('/signup/add-passkey');
+	await expect(page.getByRole('heading', { name: 'Set up your passkey' })).toBeVisible();
 });
 
 test('Sign in with expired login code fails', async ({ page }) => {

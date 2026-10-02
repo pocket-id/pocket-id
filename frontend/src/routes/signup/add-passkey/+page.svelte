@@ -1,5 +1,4 @@
 <script lang="ts">
-	import { goto } from '$app/navigation';
 	import { openConfirmDialog } from '#lib/components/confirm-dialog/index.ts';
 	import SignInWrapper from '#lib/components/login-wrapper.svelte';
 	import { Button } from '#lib/components/ui/button/index.ts';
@@ -7,6 +6,7 @@
 	import WebAuthnService from '#lib/services/webauthn-service.ts';
 	import { getWebauthnErrorMessage } from '#lib/utils/error-util.ts';
 	import { tryCatch } from '#lib/utils/try-catch-util.ts';
+	import { goto } from '$app/navigation';
 	import { startRegistration } from '@simplewebauthn/browser';
 	import { fade } from 'svelte/transition';
 	import LoginLogoErrorSuccessIndicator from '../../login/components/login-logo-error-success-indicator.svelte';
@@ -41,6 +41,7 @@
 			return;
 		}
 
+		dismiss();
 		goto('/settings/account');
 		isLoading = false;
 	}
@@ -53,10 +54,16 @@
 				label: m.skip_for_now(),
 				destructive: true,
 				action: () => {
+					dismiss();
 					goto('/settings/account');
 				}
 			}
 		});
+	}
+
+	function dismiss() {
+		const inOneDay = Date.now() + 24 * 60 * 60 * 1000;
+		localStorage.setItem('skip-passkey-setup-until', inOneDay.toString());
 	}
 </script>
 

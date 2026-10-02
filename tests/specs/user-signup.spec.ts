@@ -78,7 +78,7 @@ test.describe('Initial User Signup', () => {
 		await page.getByLabel('Email').fill('jane.smith@test.com');
 		await page.getByRole('button', { name: 'Sign Up' }).click();
 		await page.waitForURL('/signup/add-passkey');
-		await expect(page.getByText('Set up your passkey')).toBeVisible();
+		await expect(page.getByRole('heading', { name: 'Set up your passkey' })).toBeVisible();
 	});
 
 	test('Initial Signup - concurrent requests create one administrator', async ({ request }) => {
@@ -145,7 +145,7 @@ test.describe('User Signup', () => {
 			await page.getByRole('button', { name: 'Sign Up' }).click();
 
 			await page.waitForURL('/signup/add-passkey');
-			await expect(page.getByText('Set up your passkey')).toBeVisible();
+			await expect(page.getByRole('heading', { name: 'Set up your passkey' })).toBeVisible();
 
 			const response = await page.request.get('/api/users/me').then((res) => res.json());
 			expect(response.userGroups.map((g) => g.id)).toContain(userGroups.developers.id);
@@ -189,7 +189,7 @@ test.describe('User Signup', () => {
 			await page.getByRole('button', { name: 'Sign Up' }).click();
 
 			await page.waitForURL('/signup/add-passkey');
-			await expect(page.getByText('Set up your passkey')).toBeVisible();
+			await expect(page.getByRole('heading', { name: 'Set up your passkey' })).toBeVisible();
 		});
 
 		test('Open signup - validation errors', async ({ page }) => {
@@ -251,7 +251,7 @@ test.describe('User Signup', () => {
 			await expect(page.getByText('Single Passkey Configured')).toBeVisible();
 		});
 
-		test('Skip passkey creation during signup', async ({ page }) => {
+		test('Dismiss passkey setup during signup for one day', async ({ page }) => {
 			await setSignupMode(page, 'Open Signup');
 
 			await page.goto('/signup');
@@ -262,14 +262,38 @@ test.describe('User Signup', () => {
 			await page.getByRole('button', { name: 'Sign Up' }).click();
 
 			await page.waitForURL('/signup/add-passkey');
+			await expect(page.getByRole('heading', { name: 'Set up your passkey' })).toBeVisible();
 
+			// Cancelling the confirmation must keep passkey setup open
 			await page.getByRole('button', { name: 'Skip for now' }).click();
+			const dialog = page.getByRole('alertdialog', { name: 'Skip Passkey Setup' });
+			await dialog.getByRole('button', { name: 'Cancel' }).click();
+			await page.reload();
+			await expect(page).toHaveURL('/signup/add-passkey');
+			await expect(page.getByRole('heading', { name: 'Set up your passkey' })).toBeVisible();
 
-			await expect(page.getByText('Skip Passkey Setup')).toBeVisible();
-			await page.getByRole('button', { name: 'Skip for now' }).nth(1).click();
+			// Confirming dismissal allows settings access without creating a passkey
+			const dismissedAt = Date.now();
+			await page.clock.setFixedTime(dismissedAt);
+			await page.getByRole('button', { name: 'Skip for now' }).click();
+			await dialog.getByRole('button', { name: 'Skip for now' }).click();
 
 			await page.waitForURL('/settings/account');
 			await expect(page.getByText('Passkey missing')).toBeVisible();
+			await page.reload();
+			await expect(page).toHaveURL('/settings/account');
+			await expect(page.getByText('Passkey missing')).toBeVisible();
+
+			// Dismissal persists across settings pages until the one-day grace period expires
+			await page.clock.setFixedTime(dismissedAt + 24 * 60 * 60 * 1000 - 1000);
+			await page.goto('/settings/apps');
+			await expect(page).toHaveURL('/settings/apps');
+			await expect(page.getByRole('heading', { name: 'Set up your passkey' })).not.toBeVisible();
+
+			await page.clock.setFixedTime(dismissedAt + 24 * 60 * 60 * 1000);
+			await page.reload();
+			await expect(page).toHaveURL('/signup/add-passkey');
+			await expect(page.getByRole('heading', { name: 'Set up your passkey' })).toBeVisible();
 		});
 
 		test('Token usage limit is enforced', async ({ page }) => {

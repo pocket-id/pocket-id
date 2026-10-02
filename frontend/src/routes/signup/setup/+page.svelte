@@ -1,5 +1,4 @@
 <script lang="ts">
-	import { goto } from '$app/navigation';
 	import SignInWrapper from '#lib/components/login-wrapper.svelte';
 	import SignupForm from '#lib/components/signup/signup-form.svelte';
 	import { Button } from '#lib/components/ui/button/index.ts';
@@ -10,6 +9,7 @@
 	import type { UserSignUp } from '#lib/types/user.type.ts';
 	import { getAxiosErrorMessage } from '#lib/utils/error-util.ts';
 	import { tryCatch } from '#lib/utils/try-catch-util.ts';
+	import { goto } from '$app/navigation';
 	import { fade } from 'svelte/transition';
 	import LoginLogoErrorSuccessIndicator from '../../login/components/login-logo-error-success-indicator.svelte';
 
@@ -27,7 +27,7 @@
 
 		await userStore.setUser(result.data);
 
-		goto('/signup/add-passkey');
+		goto('/');
 		return true;
 	}
 </script>
