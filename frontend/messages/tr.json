@@ -511,7 +511,7 @@
 	"ui_config_disabled_info_description": "Kullanıcı arayüzü yapılandırması devre dışı bırakıldı çünkü uygulama yapılandırma ayarları ortam değişkenleri aracılığıyla yönetiliyor. Bazı ayarlar düzenlenemeyebilir.",
 	"logo_from_url_description": "Doğrudan bir resim URL’si (svg, png, webp) yapıştırın. İkonları {#link href=|https://selfh.st/icons|}Selfh.st Icons{/link} veya {#link href=|https://dashboardicons.com|}Dashboard Icons{/link}adreslerinden bulabilirsiniz.",
 	"invalid_url": "Geçersiz URL",
-	"invalid_uri": "Invalid URI",
+	"invalid_uri": "Geçersiz URI",
 	"require_user_email": "E-posta Adresi Gerektir",
 	"require_user_email_description": "Kullanıcıların bir e-posta adresine sahip olmasını gerektirir. Devre dışı bırakılırsa, e-posta adresi olmayan kullanıcılar, bir e-posta adresi gerektiren özellikleri kullanamayacaktır.",
 	"view": "Görüntüle",

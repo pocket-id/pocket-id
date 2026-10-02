@@ -511,7 +511,7 @@
 	"ui_config_disabled_info_description": "UI-konfigurasjonen er deaktivert fordi applikasjonskonfigurasjonen styres via miljøvariabler. Noen innstillinger kan ikke redigeres.",
 	"logo_from_url_description": "Lim inn en direkte bilde-URL (svg, png, webp). Finn ikoner på {#link href=|https://selfh.st/icons|}Selfh.st Icons{/link} eller {#link href=|https://dashboardicons.com|}Dashboard Icons{/link}.",
 	"invalid_url": "Ugyldig URL",
-	"invalid_uri": "Invalid URI",
+	"invalid_uri": "Ugyldig URI",
 	"require_user_email": "Krev e-postadresse",
 	"require_user_email_description": "Krever at brukere har en e-postadresse. Hvis dette er deaktivert, vil brukere uten e-postadresse ikke kunne bruke funksjoner som krever e-postadresse.",
 	"view": "Vis",

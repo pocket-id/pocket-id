@@ -511,7 +511,7 @@
 	"ui_config_disabled_info_description": "Конфигурация пользовательского интерфейса отключена, потому что настройки приложения управляются через переменные среды. Некоторые настройки могут быть недоступны для редактирования.",
 	"logo_from_url_description": "Укажите прямой URL-адрес изображения (svg, png, webp). Значки можно найти на {#link href=|https://selfh.st/icons|}Selfh.st Icons{/link} или {#link href=|https://dashboardicons.com|}Dashboard Icons{/link}.",
 	"invalid_url": "Неверный URL-адрес",
-	"invalid_uri": "Invalid URI",
+	"invalid_uri": "Недопустимый URI",
 	"require_user_email": "Обязательный адрес электронной почты",
 	"require_user_email_description": "Требует наличия адреса электронной почты у пользователей. Если отключено, пользователи без адреса электронной почты не смогут использовать функции, требующие адреса электронной почты.",
 	"view": "Вид",

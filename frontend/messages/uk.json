@@ -511,7 +511,7 @@
 	"ui_config_disabled_info_description": "Налаштування через UI вимкнено, оскільки параметри конфігурації застосунку керуються через змінні середовища. Деякі налаштування можуть бути недоступні для редагування.",
 	"logo_from_url_description": "Вставте пряму URL-адресу зображення (svg, png, webp). Знайдіть іконки на {#link href=|https://selfh.st/icons|}Selfh.st Icons{/link} або {#link href=|https://dashboardicons.com|}Dashboard Icons{/link}.",
 	"invalid_url": "Недійсна URL-адреса",
-	"invalid_uri": "Invalid URI",
+	"invalid_uri": "Недійсний URI",
 	"require_user_email": "Потрібна адреса електронної пошти",
 	"require_user_email_description": "Вимагає наявності електронної адреси у користувачів. Якщо вимкнено, користувачі без електронної адреси не зможуть користуватися функціями, які її вимагають.",
 	"view": "Перегляд",

@@ -511,7 +511,7 @@
 	"ui_config_disabled_info_description": "A configuração da interface está desativada porque as configurações da aplicação são gerenciadas por variáveis de ambiente. Algumas configurações podem não ser editáveis.",
 	"logo_from_url_description": "Cola o URL direto da imagem (svg, png, webp). Encontra ícones em {#link href=|https://selfh.st/icons|}Ícones do Selfh.st{/link} ou {#link href=|https://dashboardicons.com|}Ícones do Dashboard{/link}.",
 	"invalid_url": "URL inválida",
-	"invalid_uri": "Invalid URI",
+	"invalid_uri": "URI inválido",
 	"require_user_email": "Exigir endereço de e-mail",
 	"require_user_email_description": "Exige que os usuários tenham um endereço de e-mail. Se desativado, os usuários sem endereço de e-mail não poderão usar recursos que exigem um endereço de e-mail.",
 	"view": "Ver",
