@@ -148,7 +148,7 @@
 </div>
 
 <Tabs.Root value="general" useHash class="gap-6">
-	<div class="overflow-x-auto border-b [scrollbar-width:none]">
+	<div class="[scrollbar-width:none] overflow-x-auto border-b">
 		<Tabs.List variant="line" class="min-w-max">
 			<Tabs.Trigger value="general">{m.general()}</Tabs.Trigger>
 			<Tabs.Trigger value="access">

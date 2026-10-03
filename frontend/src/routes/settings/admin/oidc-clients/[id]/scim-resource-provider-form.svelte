@@ -151,12 +151,12 @@
 		</div>
 	</div>
 	<div
-		class="mt-5 flex items-end flex-col sm:flex-row {existingProvider
+		class="mt-5 flex flex-col items-end sm:flex-row {existingProvider
 			? 'justify-between'
 			: 'justify-end'} "
 	>
 		{#if existingProvider}
-			<p class="text-muted-foreground text-xs self-start sm:self-auto">
+			<p class="text-muted-foreground self-start text-xs sm:self-auto">
 				{m.last_successful_sync_at({
 					time: existingProvider.lastSyncedAt
 						? new Date(existingProvider.lastSyncedAt).toLocaleString()

@@ -14,7 +14,7 @@
 	bind:this={ref}
 	data-slot="input-otp-group"
 	class={cn(
-		'gap-1.5 has-aria-invalid:ring-destructive/20 dark:has-aria-invalid:ring-destructive/40 has-aria-invalid:border-destructive rounded-3xl has-aria-invalid:ring-3 flex items-center',
+		'has-aria-invalid:ring-destructive/20 dark:has-aria-invalid:ring-destructive/40 has-aria-invalid:border-destructive flex items-center gap-1.5 rounded-3xl has-aria-invalid:ring-3',
 		className
 	)}
 	{...restProps}

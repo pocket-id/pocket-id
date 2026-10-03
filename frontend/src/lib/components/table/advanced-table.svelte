@@ -243,7 +243,7 @@
 										class="h-12 w-full justify-start px-4 font-medium hover:bg-transparent"
 										onclick={() => onSort(column.column)}
 									>
-										<span class="flex items-center w-full">
+										<span class="flex w-full items-center">
 											{column.label}
 											<ChevronDown
 												class={cn(

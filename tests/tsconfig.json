@@ -1,10 +1,9 @@
 {
 	"compilerOptions": {
-		"baseUrl": ".",
 		"lib": ["ES2022"],
 		"esModuleInterop": true,
 		"module": "es2022",
-		"moduleResolution": "node",
+		"moduleResolution": "bundler",
 		"target": "es2022"
 	}
 }

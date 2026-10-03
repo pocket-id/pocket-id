@@ -72,7 +72,7 @@
 				{...props}
 				class={restProps.class}
 			>
-				<span class="flex justify-between w-full">
+				<span class="flex w-full justify-between">
 					{items.find((item) => item.value === value)?.label || selectText}
 					<LucideChevronDown class="size-4 shrink-0 opacity-50" />
 				</span>

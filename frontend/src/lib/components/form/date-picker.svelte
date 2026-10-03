@@ -70,7 +70,7 @@
 				<button
 					{...props}
 					class={cn(
-						'w-full flex justify-start items-center font-normal h-9 bg-input/50 rounded-full p-3',
+						'bg-input/50 flex h-9 w-full items-center justify-start rounded-full p-3 font-normal',
 						!value && 'text-muted-foreground'
 					)}
 					aria-label={m.select_a_date()}

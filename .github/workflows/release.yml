@@ -86,7 +86,7 @@ jobs:
           printf '%s\n' "$VERSION" > .version
           jq --arg version "$VERSION" '.version = $version' frontend/package.json > "$RUNNER_TEMP/package.json"
           mv "$RUNNER_TEMP/package.json" frontend/package.json
-          pnpm --dir frontend exec prettier --write package.json
+          pnpm exec vp fmt frontend/package.json
           git cliff --prepend CHANGELOG.md --tag "$RELEASE_TAG" --unreleased
 
       - name: Create bot app token

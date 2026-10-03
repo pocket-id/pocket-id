@@ -41,7 +41,7 @@
 				class="order-dashed"
 				data-testid={`facet-${title.toLowerCase()}-trigger`}
 			>
-				<span class="flex gap-2 items-center">
+				<span class="flex items-center gap-2">
 					<ListFilterIcon />
 					{title}
 				</span>

@@ -164,11 +164,11 @@
 					<Separator class="flex-1" />
 				</div>
 				<div>
-					<p class="text-muted-foreground text-sm mb-2">
+					<p class="text-muted-foreground mb-2 text-sm">
 						{m.visit_and_enter({ url: request.verificationUri })}
 					</p>
 					<CopyToClipboard value={request.userCode}>
-						<p class="text-xl sm:text-2xl font-bold tracking-wider" data-testid="device-login-code">
+						<p class="text-xl font-bold tracking-wider sm:text-2xl" data-testid="device-login-code">
 							{request.userCode.substring(0, 4)}
 							<span class="text-muted-foreground font-normal">-</span>
 							{request.userCode.substring(4, 8)}
@@ -178,7 +178,7 @@
 			</Card.Content>
 		</Card.Root>
 	{/if}
-	<div class="flex mt-7 md:mt-15 gap-3 w-full max-w-112.5">
+	<div class="mt-7 flex w-full max-w-112.5 gap-3 md:mt-15">
 		<Button class="flex-1" href={'/login/alternative' + page.url.search} variant="secondary"
 			>{m.go_back()}</Button
 		>

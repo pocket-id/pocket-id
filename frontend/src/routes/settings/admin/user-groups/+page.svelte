@@ -29,7 +29,7 @@
 <div>
 	<Card.Root>
 		<Card.Header>
-			<div class="flex flex-wrap items-center justify-between md:flex-nowrap gap-4">
+			<div class="flex flex-wrap items-center justify-between gap-4 md:flex-nowrap">
 				<div>
 					<Card.Title>
 						<UserPlus class="text-primary/80 size-5" />

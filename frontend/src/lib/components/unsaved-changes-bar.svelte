@@ -150,7 +150,7 @@
 
 <!-- Belongs to the message, so it leaves with it and never counts towards the buttons' width -->
 {#snippet divider()}
-	<span class="bg-border ml-2.5 mr-2 h-4.5 w-px shrink-0"></span>
+	<span class="bg-border mr-2 ml-2.5 h-4.5 w-px shrink-0"></span>
 {/snippet}
 
 {#if barOpen}

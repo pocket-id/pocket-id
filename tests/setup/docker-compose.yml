@@ -12,13 +12,13 @@ services:
   scim-test-server:
     image: ghcr.io/pocket-id/scim-test-server:latest
     ports:
-      - "18123:8080"    
+      - '18123:8080'
   pocket-id:
     image: pocket-id:test
     extra_hosts:
-      - "host.docker.internal:host-gateway"
+      - 'host.docker.internal:host-gateway'
     ports:
-      - "1411:1411"
+      - '1411:1411'
     environment:
       APP_ENV: test
       ENCRYPTION_KEY: test-encryption-key

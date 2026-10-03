@@ -145,7 +145,7 @@
 			data-testid="account-selection"
 		>
 			{#if $userStore}
-				<Card.Root class="mb-2 py-4 sm:min-w-sm w-full mx-5">
+				<Card.Root class="mx-5 mb-2 w-full py-4 sm:min-w-sm">
 					<Card.Content class="flex items-center gap-4">
 						<Avatar.Root class="size-11 shrink-0">
 							<Avatar.Image src={cachedProfilePicture.getUrl($userStore.id)} />
