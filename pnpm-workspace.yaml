@@ -10,3 +10,14 @@ allowBuilds:
 overrides:
   esbuild@>=0.27.3 <0.28.1: ">=0.28.1"
   next: ">=16.3.6"
+  vite@*: "catalog:"
+
+catalog:
+  vite: npm:@voidzero-dev/vite-plus-core@1.0.0
+  vite-plus: 1.0.0
+
+peerDependencyRules:
+  allowAny:
+    - vite
+  allowedVersions:
+    vite: "*"

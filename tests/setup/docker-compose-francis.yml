@@ -18,7 +18,7 @@ services:
     # The image ships its own HEALTHCHECK, which probes the runtime over the loopback
     # It's repeated here so Pocket ID can wait on it, and so a runtime that never comes up fails fast instead of after the default retries
     healthcheck:
-      test: ["CMD", "/bin/francis", "healthcheck"]
+      test: ['CMD', '/bin/francis', 'healthcheck']
       interval: 2s
       timeout: 5s
       retries: 15

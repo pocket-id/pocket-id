@@ -55,7 +55,7 @@
 				<Item.Root variant="outline" class="gap-5">
 					{#snippet child({ props })}
 						<a href={method.href + page.url.search} {...props}>
-							<Item.Media class="text-primary !self-center !translate-y-0">
+							<Item.Media class="text-primary !translate-y-0 !self-center">
 								<method.icon class="size-7" />
 							</Item.Media>
 							<Item.Content class="text-start">

@@ -91,7 +91,7 @@
 				</div>
 			</div>
 
-			<div class="settings-content flex w-full flex-col gap-4 overflow-hidden pb-2 px-2">
+			<div class="settings-content flex w-full flex-col gap-4 overflow-hidden px-2 pb-2">
 				{#if sqliteStorageWarning && ($userStore?.isAdmin || user?.isAdmin)}
 					<Alert.Root variant="destructive">
 						<LucideTriangleAlert />

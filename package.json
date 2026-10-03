@@ -7,11 +7,17 @@
   ],
   "scripts": {
     "preinstall": "npx only-allow pnpm",
-    "dev": "pnpm --filter pocket-id-frontend dev",
-    "build": "pnpm --filter pocket-id-frontend build",
-    "test": "pnpm --filter pocket-id-tests test",
-    "format": "pnpm --filter pocket-id-frontend format",
-    "check": "pnpm --filter pocket-id-frontend check"
+    "dev": "vp -C frontend run dev",
+    "build": "vp -C frontend run build",
+    "test": "vp -C tests run test",
+    "check": "vp -C frontend run check",
+    "lint": "vp check",
+    "format": "vp fmt",
+    "format:check": "vp fmt --check"
   },
-  "packageManager": "pnpm@11.20.0+sha512.9a6f330a95b66446ea088faf1521405a8a01f07fde7124cc9958dfed52d4bb436737e65b08f85f37b46fcba375092558ac51262b816844b22f63406ed166bfee"
+  "devDependencies": {
+    "vite": "catalog:",
+    "vite-plus": "catalog:"
+  },
+  "packageManager": "pnpm@11.28.3+sha512.d49760a13b1755948775a5d4cb1bc4ba871ff2dc941adf851630d044ed722f9b5be8be57bef93166098c80c706bd612c282d05526dd1d0ae660188c086820f35"
 }

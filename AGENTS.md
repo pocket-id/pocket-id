@@ -19,8 +19,8 @@ golangci-lint run  # lint (config: backend/.golangci.yml - includes build tags)
 
 # frontend/  (or root)
 pnpm check        # svelte-check — the ONLY frontend type gate (no unit tests exist)
-pnpm lint         # prettier --check && eslint  (note: not enforced by CI)
-pnpm format       # prettier --write — REQUIRED before opening a PR
+pnpm lint         # vp check — oxlint + oxfmt check via Vite+ (note: not enforced by CI)
+pnpm format       # vp fmt — REQUIRED before opening a PR
 ```
 
 End-to-end (needs Docker; **stop any local backend on `:1411` first** — see gotchas):

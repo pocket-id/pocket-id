@@ -81,9 +81,9 @@
 				variant="outline"
 				role="combobox"
 				aria-expanded={open}
-				class="h-auto min-h-10 w-full bg-input/30!"
+				class="bg-input/30! h-auto min-h-10 w-full"
 			>
-				<div class="flex items-center justify-between w-full">
+				<div class="flex w-full items-center justify-between">
 					<div class="flex flex-wrap items-center gap-1">
 						{#if selectedItems.length > 0}
 							{#each selectedLabels as label, i (i)}

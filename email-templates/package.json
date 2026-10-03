@@ -1,24 +1,24 @@
 {
-  "name": "pocketid-email-templates",
-  "version": "1.0.0",
-  "scripts": {
-    "preinstall": "npx only-allow pnpm",
-    "build": "tsx build.ts",
-    "build:watch": "tsx watch build.ts",
-    "dev": "email dev --port 3030",
-    "export": "email export"
-  },
-  "dependencies": {
-    "react": "^19.3.0",
-    "react-dom": "^19.3.0",
-    "react-email": "6.11.0"
-  },
-  "devDependencies": {
-    "@react-email/preview-server": "5.2.10",
-    "@react-email/ui": "6.11.0",
-    "@types/node": "^25.9.7",
-    "@types/react": "^19.3.0",
-    "@types/react-dom": "^19.3.0",
-    "tsx": "^4.23.13"
-  }
+	"name": "pocketid-email-templates",
+	"version": "1.0.0",
+	"scripts": {
+		"preinstall": "npx only-allow pnpm",
+		"build": "tsx build.ts",
+		"build:watch": "tsx watch build.ts",
+		"dev": "email dev --port 3030",
+		"export": "email export"
+	},
+	"dependencies": {
+		"react": "^19.3.0",
+		"react-dom": "^19.3.0",
+		"react-email": "6.11.0"
+	},
+	"devDependencies": {
+		"@react-email/preview-server": "5.2.10",
+		"@react-email/ui": "6.11.0",
+		"@types/node": "^25.9.7",
+		"@types/react": "^19.3.0",
+		"@types/react-dom": "^19.3.0",
+		"tsx": "^4.23.13"
+	}
 }

@@ -19,8 +19,8 @@ services:
     healthcheck:
       test:
         [
-          "CMD-SHELL",
-          'curl -fs http://localstack-s3:4566/_localstack/init/ready | grep -q ''"completed": true''',
+          'CMD-SHELL',
+          'curl -fs http://localstack-s3:4566/_localstack/init/ready | grep -q ''"completed": true'''
         ]
       interval: 1s
       timeout: 3s
