@@ -1,5 +1,6 @@
 {
 	"compilerOptions": {
+		"paths": { "*": ["./*"] },
 		"lib": ["ES2022"],
 		"esModuleInterop": true,
 		"module": "es2022",
