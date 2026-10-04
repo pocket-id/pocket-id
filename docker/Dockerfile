@@ -1,4 +1,4 @@
-# syntax=docker/dockerfile:1.7
+# syntax=docker/dockerfile:1
 
 # This file uses multi-stage builds to build the application from source, including the front-end
 
