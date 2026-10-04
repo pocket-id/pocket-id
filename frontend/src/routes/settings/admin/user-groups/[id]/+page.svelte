@@ -1,4 +1,5 @@
 <script lang="ts">
+	import ActionsMenu from '#lib/components/actions-menu.svelte';
 	import CustomClaimsInput from '#lib/components/form/custom-claims-input.svelte';
 	import { Badge } from '#lib/components/ui/badge/index.ts';
 	import * as Card from '#lib/components/ui/card/index.ts';
@@ -11,6 +12,7 @@
 	import { trackUnsavedValue } from '#lib/utils/unsaved-changes-util.svelte.ts';
 	import { LucideChevronLeft } from '@lucide/svelte';
 	import { backNavigate } from '../../users/navigate-back-util';
+	import { deleteUserGroupAction } from '../user-group-actions';
 	import UserGroupForm from '../user-group-form.svelte';
 	import UserSelection from '../user-selection.svelte';
 	import OidcClientSelection from './oidc-client-selection.svelte';
@@ -26,6 +28,7 @@
 	const userGroupService = new UserGroupService();
 	const customClaimService = new CustomClaimService();
 	const backNavigation = backNavigate('/settings/admin/user-groups');
+	const actions = [deleteUserGroupAction(backNavigation.leave)];
 
 	async function updateUserGroup(updatedUserGroup: UserGroupCreate) {
 		await userGroupService.update(userGroup.id, updatedUserGroup);
@@ -67,9 +70,12 @@
 	<button type="button" class="text-muted-foreground flex text-sm" onclick={backNavigation.go}
 		><LucideChevronLeft class="size-5" /> {m.back()}</button
 	>
-	{#if !!userGroup.ldapId}
-		<Badge class="rounded-full" variant="default">{m.ldap()}</Badge>
-	{/if}
+	<div class="flex items-center gap-2">
+		{#if !!userGroup.ldapId}
+			<Badge class="rounded-full" variant="default">{m.ldap()}</Badge>
+		{/if}
+		<ActionsMenu item={userGroup} {actions} label={m.actions()} variant="outline" size="icon-sm" />
+	</div>
 </div>
 <Tabs.Root value="general" useHash class="gap-4">
 	<div class="overflow-x-auto pb-1">

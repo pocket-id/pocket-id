@@ -1,6 +1,5 @@
 <script lang="ts">
 	import { goto } from '$app/navigation';
-	import { openConfirmDialog } from '#lib/components/confirm-dialog/index.ts';
 	import AdvancedTable from '#lib/components/table/advanced-table.svelte';
 	import { Badge } from '#lib/components/ui/badge/index.ts';
 	import { m } from '#lib/paraglide/messages.js';
@@ -11,9 +10,8 @@
 		CreateAdvancedTableActions
 	} from '#lib/types/advanced-table.type.ts';
 	import type { UserGroupMinimal } from '#lib/types/user-group.type.ts';
-	import { axiosErrorToast } from '#lib/utils/error-util.ts';
-	import { LucidePencil, LucideTrash } from '@lucide/svelte';
-	import { toast } from 'svelte-sonner';
+	import { LucidePencil } from '@lucide/svelte';
+	import { deleteUserGroupAction } from './user-group-actions';
 
 	const userGroupService = new UserGroupService();
 	let tableRef: AdvancedTable<UserGroupMinimal>;
@@ -38,7 +36,7 @@
 		{ label: m.source(), key: 'source', hidden: !$appConfigStore.ldapEnabled, cell: SourceCell }
 	];
 
-	const actions: CreateAdvancedTableActions<UserGroupMinimal> = (group) => [
+	const actions: CreateAdvancedTableActions<UserGroupMinimal> = () => [
 		{
 			label: m.edit(),
 			primary: true,
@@ -46,34 +44,8 @@
 			variant: 'ghost',
 			onClick: (group) => goto(`/settings/admin/user-groups/${group.id}`)
 		},
-		{
-			label: m.delete(),
-			icon: LucideTrash,
-			variant: 'danger',
-			onClick: (group) => deleteUserGroup(group),
-			visible: group.ldapId || $appConfigStore.ldapEnabled
-		}
+		deleteUserGroupAction(refresh)
 	];
-
-	async function deleteUserGroup(userGroup: UserGroupMinimal) {
-		openConfirmDialog({
-			title: m.delete_name({ name: userGroup.name }),
-			message: m.are_you_sure_you_want_to_delete_this_user_group(),
-			confirm: {
-				label: m.delete(),
-				destructive: true,
-				action: async () => {
-					try {
-						await userGroupService.remove(userGroup.id);
-						await refresh();
-						toast.success(m.user_group_deleted_successfully());
-					} catch (e) {
-						axiosErrorToast(e);
-					}
-				}
-			}
-		});
-	}
 </script>
 
 {#snippet SourceCell({ item }: { item: UserGroupMinimal })}

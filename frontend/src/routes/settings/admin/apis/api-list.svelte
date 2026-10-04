@@ -1,6 +1,5 @@
 <script lang="ts">
 	import { goto } from '$app/navigation';
-	import { openConfirmDialog } from '#lib/components/confirm-dialog/index.ts';
 	import AdvancedTable from '#lib/components/table/advanced-table.svelte';
 	import { m } from '#lib/paraglide/messages.js';
 	import ApisService from '#lib/services/apis-service.ts';
@@ -9,9 +8,8 @@
 		CreateAdvancedTableActions
 	} from '#lib/types/advanced-table.type.ts';
 	import type { Api } from '#lib/types/api.type.ts';
-	import { axiosErrorToast } from '#lib/utils/error-util.ts';
-	import { LucidePencil, LucideTrash } from '@lucide/svelte';
-	import { toast } from 'svelte-sonner';
+	import { LucidePencil } from '@lucide/svelte';
+	import { deleteApiAction } from './api-actions';
 
 	const apisService = new ApisService();
 	let tableRef: AdvancedTable<Api>;
@@ -40,33 +38,8 @@
 			variant: 'ghost',
 			onClick: (api) => goto(`/settings/admin/apis/${api.id}`)
 		},
-		{
-			label: m.delete(),
-			icon: LucideTrash,
-			variant: 'danger',
-			onClick: (api) => deleteApi(api)
-		}
+		deleteApiAction(refresh)
 	];
-
-	async function deleteApi(api: Api) {
-		openConfirmDialog({
-			title: m.delete_name({ name: api.name }),
-			message: m.are_you_sure_you_want_to_delete_this_api(),
-			confirm: {
-				label: m.delete(),
-				destructive: true,
-				action: async () => {
-					try {
-						await apisService.remove(api.id);
-						await refresh();
-						toast.success(m.api_deleted_successfully());
-					} catch (e) {
-						axiosErrorToast(e);
-					}
-				}
-			}
-		});
-	}
 </script>
 
 <AdvancedTable

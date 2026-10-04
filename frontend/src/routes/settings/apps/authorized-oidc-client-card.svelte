@@ -92,9 +92,7 @@
 									>
 								{/if}
 								{#if client.lastUsedAt}
-									<DropdownMenu.Item
-										class="text-red-500 focus:!text-red-700"
-										onclick={() => onRevoke(client)}
+									<DropdownMenu.Item variant="destructive" onclick={() => onRevoke(client)}
 										><LucideBan class="mr-2 size-4" />{m.revoke()}</DropdownMenu.Item
 									>
 								{/if}

@@ -101,6 +101,18 @@ test('Delete an API', async ({ page }) => {
 	await expect(page.getByRole('row', { name: apis.orders.name })).not.toBeVisible();
 });
 
+test('Delete an API from the details page', async ({ page }) => {
+	await page.goto(`/settings/admin/apis/${apis.orders.id}`);
+
+	await page.getByRole('button', { name: 'Actions' }).click();
+	await page.getByRole('menuitem', { name: 'Delete' }).click();
+	await page.getByRole('alertdialog').getByRole('button', { name: 'Delete' }).click();
+
+	await expect(page.locator('[data-type="success"]')).toHaveText('API deleted successfully');
+	await page.waitForURL((url) => url.pathname === '/settings/admin/apis');
+	await expect(page.getByRole('row', { name: apis.orders.name })).not.toBeVisible();
+});
+
 test('Grant a client user-delegated and client access to API permissions', async ({ page }) => {
 	// Nextcloud has no API access granted by default
 	await page.goto(`/settings/admin/oidc-clients/${oidcClients.nextcloud.id}`);

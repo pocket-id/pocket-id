@@ -1,6 +1,7 @@
 <script lang="ts" generics="T extends {id:string}">
 	import { goto } from '$app/navigation';
 	import { page as currentPage } from '$app/state';
+	import ActionsMenu from '#lib/components/actions-menu.svelte';
 	import Checkbox from '#lib/components/ui/checkbox/checkbox.svelte';
 	import * as Pagination from '#lib/components/ui/pagination/index.ts';
 	import * as Select from '#lib/components/ui/select/index.ts';
@@ -13,12 +14,11 @@
 	} from '#lib/types/advanced-table.type.ts';
 	import type { ListRequestOptions, Paginated, SortRequest } from '#lib/types/list-request.type.ts';
 	import { cn } from '#lib/utils/style.ts';
-	import { ChevronDown, LucideEllipsis } from '@lucide/svelte';
+	import { ChevronDown } from '@lucide/svelte';
 	import { PersistedState } from 'runed';
 	import { onMount } from 'svelte';
 	import { fade } from 'svelte/transition';
-	import Button, { buttonVariants } from '../ui/button/button.svelte';
-	import * as DropdownMenu from '../ui/dropdown-menu/index.js';
+	import Button from '../ui/button/button.svelte';
 	import { Skeleton } from '../ui/skeleton';
 	import AdvancedTableToolbar from './advanced-table-toolbar.svelte';
 
@@ -213,7 +213,7 @@
 		</div>
 	{:else}
 		<div in:fade>
-			<Table.Root class="min-w-full table-auto overflow-x-auto">
+			<Table.Root class="min-w-full table-auto">
 				<Table.Header>
 					<Table.Row>
 						{#if selectedIds}
@@ -263,7 +263,7 @@
 							</Table.Head>
 						{/each}
 						{#if actions}
-							<Table.Head align="right" class="w-12">
+							<Table.Head align="right" class="bg-card sticky right-0 z-10 w-12">
 								<span class="sr-only">{m.actions()}</span>
 							</Table.Head>
 						{/if}
@@ -273,6 +273,7 @@
 					{#each items.data as item (item.id)}
 						<Table.Row
 							class={{
+								'group/row': true,
 								'bg-muted/20': selectedIds?.includes(item.id),
 								'cursor-pointer': getPrimaryAction(item) || onRowClick
 							}}
@@ -301,30 +302,12 @@
 								</Table.Cell>
 							{/each}
 							{#if actions}
-								<Table.Cell align="right" class="w-12 py-0">
-									<DropdownMenu.Root>
-										<DropdownMenu.Trigger
-											class={buttonVariants({ variant: 'ghost', size: 'icon' })}
-										>
-											<LucideEllipsis class="size-4" />
-											<span class="sr-only">{m.toggle_menu()}</span>
-										</DropdownMenu.Trigger>
-										<DropdownMenu.Content align="end">
-											{#each actions(item).filter((a) => !a.hidden) as action (action.label)}
-												<DropdownMenu.Item
-													onclick={() => action.onClick(item)}
-													disabled={action.disabled}
-													class={action.variant === 'danger' ? 'text-red-500!' : ''}
-												>
-													{#if action.icon}
-														{@const Icon = action.icon}
-														<Icon class="mr-2 size-4" />
-													{/if}
-													{action.label}
-												</DropdownMenu.Item>
-											{/each}
-										</DropdownMenu.Content>
-									</DropdownMenu.Root>
+								<!-- Pinned to the right edge so the actions stay reachable when the table scrolls horizontally -->
+								<Table.Cell
+									align="right"
+									class="bg-card sticky right-0 z-10 w-12 py-0 transition-colors group-hover/row:bg-[color-mix(in_oklab,var(--color-muted)_50%,var(--color-card))]"
+								>
+									<ActionsMenu {item} actions={actions(item)} />
 								</Table.Cell>
 							{/if}
 						</Table.Row>

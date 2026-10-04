@@ -150,7 +150,7 @@
 											<span class="sr-only">{m.toggle_menu()}</span>
 										</DropdownMenu.Trigger>
 										<DropdownMenu.Content align="end">
-											<DropdownMenu.Item class="text-red-500!" onclick={() => deleteSecret(secret)}>
+											<DropdownMenu.Item variant="destructive" onclick={() => deleteSecret(secret)}>
 												<LucideTrash2 class="mr-2 size-4" />
 												{m.delete()}
 											</DropdownMenu.Item>

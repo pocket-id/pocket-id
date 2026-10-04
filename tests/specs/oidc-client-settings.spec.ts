@@ -716,6 +716,21 @@ test('Delete OIDC client', async ({ page }) => {
 	await expect(page.getByRole('row', { name: oidcClient.name })).not.toBeVisible();
 });
 
+test('Delete OIDC client from the details page', async ({ page }) => {
+	const oidcClient = oidcClients.nextcloud;
+	await page.goto(`/settings/admin/oidc-clients/${oidcClient.id}`);
+
+	await page.getByRole('button', { name: 'Actions' }).click();
+	await page.getByRole('menuitem', { name: 'Delete' }).click();
+	await page.getByRole('button', { name: 'Delete' }).click();
+
+	await expect(page.locator('[data-type="success"]')).toHaveText(
+		'OIDC client deleted successfully'
+	);
+	await page.waitForURL((url) => url.pathname === '/settings/admin/oidc-clients');
+	await expect(page.getByRole('row', { name: oidcClient.name })).not.toBeVisible();
+});
+
 test('Filter OIDC clients by PAR requirement', async ({ page, request }) => {
 	const parClient = oidcClients.parClient;
 

@@ -1,6 +1,8 @@
 <script lang="ts">
+	import ActionsMenu from '#lib/components/actions-menu.svelte';
 	import CustomClaimsInput from '#lib/components/form/custom-claims-input.svelte';
 	import ProfilePictureSettings from '#lib/components/form/profile-picture-settings.svelte';
+	import OneTimeLinkModal from '#lib/components/one-time-link-modal.svelte';
 	import Badge from '#lib/components/ui/badge/badge.svelte';
 	import * as Card from '#lib/components/ui/card/index.ts';
 	import * as Item from '#lib/components/ui/item/index.js';
@@ -17,6 +19,7 @@
 	import { KeyRound, LucideChevronLeft } from '@lucide/svelte';
 	import { toast } from 'svelte-sonner';
 	import { backNavigate } from '../navigate-back-util';
+	import { deleteUserAction, loginCodeAction } from '../user-actions';
 	import UserForm from '../user-form.svelte';
 	import AdminPasskeyList from './admin-passkey-list.svelte';
 
@@ -26,13 +29,21 @@
 		userGroupIds: data.user.userGroups.map((g) => g.id)
 	});
 	let passkeys: Passkey[] = $state(data.passkeys);
+	let userIdToCreateOneTimeLink: string | null = $state(null);
 
 	const userService = new UserService();
 	const customClaimService = new CustomClaimService();
 	const backNavigation = backNavigate('/settings/admin/users');
 
+	const actions = $derived([
+		loginCodeAction((u) => (userIdToCreateOneTimeLink = u.id)),
+		deleteUserAction(user, backNavigation.leave)
+	]);
+
 	async function updateUser(updatedUser: UserCreate) {
 		await userService.update(user.id, updatedUser);
+		// Whether the user can be deleted depends on the saved disabled state
+		user.disabled = updatedUser.disabled;
 	}
 
 	trackUnsavedValue(
@@ -79,9 +90,12 @@
 	<button class="text-muted-foreground flex text-sm" onclick={() => backNavigation.go()}
 		><LucideChevronLeft class="size-5" /> {m.back()}</button
 	>
-	{#if !!user.ldapId}
-		<Badge class="rounded-full" variant="default">{m.ldap()}</Badge>
-	{/if}
+	<div class="flex items-center gap-2">
+		{#if !!user.ldapId}
+			<Badge class="rounded-full" variant="default">{m.ldap()}</Badge>
+		{/if}
+		<ActionsMenu item={user} {actions} label={m.actions()} variant="outline" size="icon-sm" />
+	</div>
 </div>
 <Tabs.Root value="general" useHash class="gap-4">
 	<div class="overflow-x-auto pb-1">
@@ -165,3 +179,5 @@
 		</Card.Root>
 	</Tabs.Content>
 </Tabs.Root>
+
+<OneTimeLinkModal bind:userId={userIdToCreateOneTimeLink} />

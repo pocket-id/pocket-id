@@ -72,6 +72,19 @@ test('Delete user group', async ({ page }) => {
 	await expect(page.getByRole('row', { name: group.name })).not.toBeVisible();
 });
 
+test('Delete user group from the details page', async ({ page }) => {
+	const group = userGroups.developers;
+	await page.goto(`/settings/admin/user-groups/${group.id}`);
+
+	await page.getByRole('button', { name: 'Actions' }).click();
+	await page.getByRole('menuitem', { name: 'Delete' }).click();
+	await page.getByRole('button', { name: 'Delete' }).click();
+
+	await expect(page.locator('[data-type="success"]')).toHaveText('User group deleted successfully');
+	await page.waitForURL((url) => url.pathname === '/settings/admin/user-groups');
+	await expect(page.getByRole('row', { name: group.name })).not.toBeVisible();
+});
+
 test('Update user group custom claims', async ({ page }) => {
 	await page.goto(`/settings/admin/user-groups/${userGroups.designers.id}`);
 

@@ -113,6 +113,37 @@ test('Delete user', async ({ page }) => {
 	).not.toBeVisible();
 });
 
+test('Delete user from the details page', async ({ page }) => {
+	await page.goto('/settings/admin/users');
+	await page.getByRole('row', { name: `${users.craig.firstname} ${users.craig.lastname}` }).click();
+	await page.waitForURL(`/settings/admin/users/${users.craig.id}`);
+
+	// A pending edit must not block leaving the page once the user is gone
+	await page.getByLabel('First name').fill('Changed');
+
+	await page.getByRole('button', { name: 'Actions' }).click();
+	await page.getByRole('menuitem', { name: 'Delete' }).click();
+	await page.getByRole('alertdialog').getByRole('button', { name: 'Delete' }).click();
+
+	await expect(page.locator('[data-type="success"]')).toHaveText('User deleted successfully');
+	await page.waitForURL((url) => url.pathname === '/settings/admin/users');
+	await expect(
+		page.getByRole('row', {
+			name: `${users.craig.firstname} ${users.craig.lastname}`
+		})
+	).not.toBeVisible();
+});
+
+test('Create one time access token from the details page', async ({ page }) => {
+	await page.goto(`/settings/admin/users/${users.craig.id}`);
+
+	await page.getByRole('button', { name: 'Actions' }).click();
+	await page.getByRole('menuitem', { name: 'Login Code' }).click();
+	await page.getByRole('button', { name: 'Show Code' }).click();
+
+	await expect(page.getByTestId('login-code-link')).toBeVisible();
+});
+
 test('Update user', async ({ page }) => {
 	const user = users.craig;
 

@@ -1,4 +1,5 @@
 <script lang="ts">
+	import ActionsMenu from '#lib/components/actions-menu.svelte';
 	import CollapsibleCard from '#lib/components/collapsible-card.svelte';
 	import * as Card from '#lib/components/ui/card/index.ts';
 	import { m } from '#lib/paraglide/messages.js';
@@ -7,6 +8,7 @@
 	import { trackUnsavedValue } from '#lib/utils/unsaved-changes-util.svelte.ts';
 	import { LucideChevronLeft } from '@lucide/svelte';
 	import { backNavigate } from '../../users/navigate-back-util';
+	import { deleteApiAction } from '../api-actions';
 	import ApiForm from '../api-form.svelte';
 	import ApiAccessCard from './api-access-card.svelte';
 	import ApiPermissionsInput from './api-permissions-input.svelte';
@@ -33,6 +35,7 @@
 
 	const apisService = new ApisService();
 	const backNavigation = backNavigate('/settings/admin/apis');
+	const actions = [deleteApiAction(backNavigation.leave)];
 
 	let accessCard = $state<ApiAccessCard>();
 
@@ -70,11 +73,12 @@
 	<title>{api.name}</title>
 </svelte:head>
 
-<div>
+<div class="flex items-center justify-between">
 	<button type="button" class="text-muted-foreground flex text-sm" onclick={backNavigation.go}>
 		<LucideChevronLeft class="size-5" />
 		{m.back()}
 	</button>
+	<ActionsMenu item={api} {actions} label={m.actions()} variant="outline" size="icon-sm" />
 </div>
 
 <Card.Root>
