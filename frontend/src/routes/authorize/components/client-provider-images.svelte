@@ -122,7 +122,7 @@
 			></div>
 
 			<div class="client relative size-10" class:faded={result}>
-				{#if client?.hasLogo}
+				{#if client?.hasLogo || client?.hasDarkLogo}
 					<img
 						class="aspect-square size-10 object-contain"
 						src={cachedOidcClientLogo.getUrl(client.id, isLightMode)}

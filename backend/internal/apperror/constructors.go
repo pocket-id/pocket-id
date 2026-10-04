@@ -276,6 +276,14 @@ func LogoTooLarge(maxSize string) *Error {
 		WithDetail("max_size", maxSize)
 }
 
+func LogoPresetsDisabled() *Error {
+	return New(CodeLogoPresetsDisabled, http.StatusForbidden, "Logo presets are disabled")
+}
+
+func LogoPresetsUnavailable(cause error) *Error {
+	return Wrap(cause, CodeLogoPresetsUnavailable, http.StatusBadGateway, "Logo presets could not be loaded")
+}
+
 func InvalidLogoURL(cause error) *Error {
 	return Wrap(cause, CodeValidationFailed, http.StatusBadRequest, "Logo URL is not allowed").WithFields([]FieldError{{
 		Field:   "logoUrl",

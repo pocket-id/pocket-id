@@ -7,6 +7,20 @@ import { saveUnsavedChanges } from '../utils/unsaved-changes.util';
 
 test.beforeEach(async () => await cleanupBackend());
 
+// ICON_LIBRARY_URL is fixed when the backend starts, so other states are simulated in the public configuration
+async function stubIconLibrary(page: Page, iconLibrary: 'custom' | 'disabled') {
+	await page.route('**/api/application-configuration', async (route) => {
+		const response = await route.fetch();
+		const config = (await response.json()) as { key: string; value: string }[];
+		await route.fulfill({
+			response,
+			json: config.map((entry) =>
+				entry.key === 'iconLibrary' ? { ...entry, value: iconLibrary } : entry
+			)
+		});
+	});
+}
+
 test.describe('Create OIDC client', () => {
 	async function createClientTest(page: Page, clientId?: string) {
 		const oidcClient = oidcClients.pingvinShare;
@@ -72,9 +86,7 @@ test('Edit OIDC client', async ({ page }) => {
 	await page.getByLabel('Name').fill('Nextcloud updated');
 	await page.getByLabel('Description').fill('Updated description');
 	await page.getByTestId('callback-url-1').first().fill('http://nextcloud-updated/auth/callback');
-	await page.locator('[role="tab"][data-value="light-logo"]').first().click();
 	await page.setInputFiles('#oidc-client-logo-light', 'resources/images/cloud-logo.png');
-	await page.locator('[role="tab"][data-value="dark-logo"]').first().click();
 	await page.setInputFiles('#oidc-client-logo-dark', 'resources/images/cloud-logo.png');
 	await page.getByLabel('Client Launch URL').fill(oidcClient.launchURL);
 	await saveUnsavedChanges(page);
@@ -82,6 +94,273 @@ test('Edit OIDC client', async ({ page }) => {
 	await page.request
 		.get(`/api/oidc/clients/${oidcClient.id}/logo`)
 		.then((res) => expect.soft(res.status()).toBe(200));
+});
+
+test('Upload OIDC client logo from the logo picker', async ({ page }) => {
+	const oidcClient = oidcClients.nextcloud;
+	await page.route('**/api/oidc/logo-presets*', (route) => route.fulfill({ json: [] }));
+	await page.goto(`/settings/admin/oidc-clients/${oidcClient.id}`);
+
+	const uploadLogo = async (variant: 'light' | 'dark') => {
+		const fileChooser = page.waitForEvent('filechooser');
+		await page.getByRole('button', { name: `Upload ${variant} logo` }).click();
+		await (await fileChooser).setFiles('resources/images/cloud-logo.png');
+	};
+
+	// The picker stays open and pre-selects the current logo tile, which shows each upload in its theme
+	await page.getByRole('button', { name: 'Choose logo' }).click();
+	await uploadLogo('dark');
+	const customTile = page.getByRole('option', { name: 'Current logo' });
+	const customTileImages = customTile.locator('img');
+	await expect(customTile).toHaveAttribute('aria-selected', 'true');
+	await expect(customTileImages.nth(1)).toHaveAttribute('src', /^blob:/);
+	await expect(customTileImages.nth(0)).not.toHaveAttribute('src', /^blob:/);
+
+	await uploadLogo('light');
+	await expect(customTileImages.nth(0)).toHaveAttribute('src', /^blob:/);
+
+	// The form only previews the logo of the current theme
+	await page.keyboard.press('Escape');
+	const preview = page.getByRole('img', { name: 'Nextcloud logo' });
+	await expect(preview).toHaveCount(1);
+	await expect(preview).toHaveAttribute('src', /^blob:/);
+
+	await saveUnsavedChanges(page);
+	for (const light of [true, false]) {
+		await page.request
+			.get(`/api/oidc/clients/${oidcClient.id}/logo?light=${light}`)
+			.then((res) => expect.soft(res.status()).toBe(200));
+	}
+});
+
+test('A single OIDC client logo shows in both themes', async ({ page }) => {
+	const oidcClient = oidcClients.immich;
+	await page.route('**/api/oidc/logo-presets*', (route) => route.fulfill({ json: [] }));
+	await page.goto(`/settings/admin/oidc-clients/${oidcClient.id}`);
+
+	// Upload only a dark logo while the page is in light mode
+	await page.getByRole('button', { name: 'Choose logo' }).click();
+	const fileChooser = page.waitForEvent('filechooser');
+	await page.getByRole('button', { name: 'Upload dark logo' }).click();
+	await (await fileChooser).setFiles('resources/images/cloud-logo.png');
+
+	// The light half of the current logo tile and the light preview fall back to the dark logo
+	const currentTileImages = page.getByRole('option', { name: 'Current logo' }).locator('img');
+	await expect(currentTileImages.nth(0)).toHaveAttribute('src', /^blob:/);
+	await expect(currentTileImages.nth(1)).toHaveAttribute('src', /^blob:/);
+	await page.keyboard.press('Escape');
+	await expect(page.getByRole('img', { name: `${oidcClient.name} logo` })).toHaveAttribute(
+		'src',
+		/^blob:/
+	);
+
+	// After saving, the light logo URL serves the dark logo and the client list shows it
+	await saveUnsavedChanges(page);
+	const response = await page.request.get(`/api/oidc/clients/${oidcClient.id}/logo?light=true`);
+	expect(response.status()).toBe(200);
+
+	await page.goto('/settings/admin/oidc-clients');
+	await expect(page.getByRole('img', { name: `${oidcClient.name} logo` })).toBeVisible();
+});
+
+test('Pick OIDC client logo from the icon library', async ({ page }) => {
+	const oidcClient = oidcClients.nextcloud;
+	const cdnBaseUrl = 'https://cdn.jsdelivr.net/gh/selfhst/icons@main';
+	const nextcloud = {
+		name: 'Nextcloud',
+		reference: 'nextcloud',
+		logoUrl: `${cdnBaseUrl}/svg/nextcloud.svg`,
+		darkLogoUrl: `${cdnBaseUrl}/svg/nextcloud-light.svg`
+	};
+	const otherApp = {
+		name: '2FAuth',
+		reference: '2fauth',
+		logoUrl: `${cdnBaseUrl}/svg/2fauth.svg`,
+		darkLogoUrl: null
+	};
+
+	// Stub the icon index and the CDN so the test doesn't depend on jsDelivr
+	// Nextcloud is only found by searching for it, like most icons that aren't at the start of the alphabet
+	const searchTerms: (string | null)[] = [];
+	await page.route('**/api/oidc/logo-presets*', async (route) => {
+		const search = new URL(route.request().url()).searchParams.get('search');
+		searchTerms.push(search);
+		await route.fulfill({ json: search?.startsWith('next') ? [nextcloud] : [otherApp] });
+	});
+	await page.route(`${cdnBaseUrl}/**`, (route) =>
+		route.fulfill({
+			contentType: 'image/svg+xml',
+			body: '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1 1"/>'
+		})
+	);
+
+	// Answer the save with the stored client so the backend doesn't download the icons
+	await page.route(`**/api/oidc/clients/${oidcClient.id}`, async (route) => {
+		if (route.request().method() !== 'PUT') return route.fallback();
+		await route.fulfill({ response: await route.fetch({ method: 'GET' }) });
+	});
+
+	await page.goto(`/settings/admin/oidc-clients/${oidcClient.id}`);
+	await page.getByRole('button', { name: 'Choose logo' }).click();
+
+	// The search starts empty and lists the icon library
+	const searchInput = page.getByRole('combobox', { name: 'Search icons or paste an image URL' });
+	await expect(searchInput).toHaveValue('');
+	await expect(page.getByRole('option', { name: otherApp.name })).toBeVisible();
+	expect(searchTerms).toEqual(['']);
+	await expect(page.getByText('Icons by selfh.st')).toBeVisible();
+
+	await searchInput.fill('nextcloud');
+	await page.getByRole('option', { name: nextcloud.name, exact: true }).click();
+	await expect(page.getByRole('img', { name: 'Nextcloud logo' })).toHaveAttribute(
+		'src',
+		nextcloud.logoUrl
+	);
+
+	// Before saving, the reopened picker shows the picked icon as the selected current logo even though the search no longer finds it
+	await page.getByRole('button', { name: 'Choose logo' }).click();
+	await expect(page.getByRole('option', { name: otherApp.name })).toBeVisible();
+	const currentTile = page.getByRole('option', { name: 'Current logo' });
+	await expect(currentTile).toHaveAttribute('aria-selected', 'true');
+	await expect(currentTile.locator('img').nth(0)).toHaveAttribute('src', nextcloud.logoUrl);
+	await expect(currentTile.locator('img').nth(1)).toHaveAttribute('src', nextcloud.darkLogoUrl);
+	await page.keyboard.press('Escape');
+
+	const updateRequest = page.waitForRequest(
+		(req) => req.method() === 'PUT' && req.url().endsWith(`/api/oidc/clients/${oidcClient.id}`)
+	);
+	await saveUnsavedChanges(page);
+
+	const body = (await updateRequest).postDataJSON();
+	expect(body.logoUrl).toBe(nextcloud.logoUrl);
+	expect(body.darkLogoUrl).toBe(nextcloud.darkLogoUrl);
+});
+
+test('Paste an image URL into the OIDC client logo picker', async ({ page }) => {
+	const oidcClient = oidcClients.nextcloud;
+	const darkLogoUrl = 'https://example.com/nextcloud-dark.svg';
+
+	// Fail the test if a pasted URL is ever sent as an icon search
+	const searchTerms: (string | null)[] = [];
+	await page.route('**/api/oidc/logo-presets*', async (route) => {
+		searchTerms.push(new URL(route.request().url()).searchParams.get('search'));
+		await route.fulfill({ json: [] });
+	});
+	await page.route(darkLogoUrl, (route) =>
+		route.fulfill({
+			contentType: 'image/svg+xml',
+			body: '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1 1"/>'
+		})
+	);
+
+	// Answer the save with the stored client so the backend doesn't download the image
+	await page.route(`**/api/oidc/clients/${oidcClient.id}`, async (route) => {
+		if (route.request().method() !== 'PUT') return route.fallback();
+		await route.fulfill({ response: await route.fetch({ method: 'GET' }) });
+	});
+
+	await page.goto(`/settings/admin/oidc-clients/${oidcClient.id}`);
+
+	// Each half of the URL tile replaces only its own variant
+	await page.getByRole('button', { name: 'Choose logo' }).click();
+	await page
+		.getByRole('combobox', { name: 'Search icons or paste an image URL' })
+		.fill(darkLogoUrl);
+	await page.getByRole('button', { name: 'Use as dark logo' }).click();
+
+	// The search resets and the current logo tile shows the URL in the dark half
+	await expect(
+		page.getByRole('combobox', { name: 'Search icons or paste an image URL' })
+	).toHaveValue('');
+	await expect(
+		page.getByRole('option', { name: 'Current logo' }).locator('img').nth(1)
+	).toHaveAttribute('src', darkLogoUrl);
+	await page.keyboard.press('Escape');
+
+	const updateRequest = page.waitForRequest(
+		(req) => req.method() === 'PUT' && req.url().endsWith(`/api/oidc/clients/${oidcClient.id}`)
+	);
+	await saveUnsavedChanges(page);
+
+	const body = (await updateRequest).postDataJSON();
+	expect(body.darkLogoUrl).toBe(darkLogoUrl);
+	expect(body.logoUrl).toBeFalsy();
+	expect(searchTerms).not.toContain(darkLogoUrl);
+});
+
+test('OIDC client logo picker stays fully visible when reopened', async ({ page }) => {
+	const presets = Array.from({ length: 30 }, (_, i) => ({
+		name: `App ${i}`,
+		reference: `app-${i}`,
+		logoUrl: `https://example.com/app-${i}.svg`,
+		darkLogoUrl: null
+	}));
+	await page.route('**/api/oidc/logo-presets*', (route) => route.fulfill({ json: presets }));
+
+	// A short viewport leaves too little room below the button for the picker
+	const viewportHeight = 760;
+	await page.setViewportSize({ width: 1100, height: viewportHeight });
+	await page.goto(`/settings/admin/oidc-clients/${oidcClients.nextcloud.id}`);
+
+	const button = page.getByRole('button', { name: 'Choose logo' });
+	const picker = page.locator('[data-slot="popover-content"]');
+	const expectPickerInViewport = async () => {
+		await expect(page.getByRole('option', { name: 'App 0' })).toBeVisible();
+		await expect(async () => {
+			const box = await picker.boundingBox();
+			expect(box!.y).toBeGreaterThanOrEqual(0);
+			expect(box!.y + box!.height).toBeLessThanOrEqual(viewportHeight);
+		}).toPass();
+	};
+
+	await button.click();
+	await expectPickerInViewport();
+
+	// Reopening with results still in state used to scroll the page towards the unpositioned popover
+	await page.getByRole('combobox', { name: 'Search icons or paste an image URL' }).fill('');
+	await page.keyboard.press('Escape');
+	await expect(picker).toHaveCount(0);
+	await button.click();
+	await expectPickerInViewport();
+});
+
+test('Custom icon library hides the selfh.st credit', async ({ page }) => {
+	await stubIconLibrary(page, 'custom');
+
+	// The credit is only shown next to icons, so the custom library has to return one
+	const preset = {
+		name: 'Custom App',
+		reference: 'custom-app',
+		logoUrl: 'https://example.com/custom-app.svg',
+		darkLogoUrl: null
+	};
+	await page.route('**/api/oidc/logo-presets*', (route) => route.fulfill({ json: [preset] }));
+
+	await page.goto(`/settings/admin/oidc-clients/${oidcClients.nextcloud.id}`);
+	await page.getByRole('button', { name: 'Choose logo' }).click();
+
+	await expect(page.getByRole('option', { name: preset.name })).toBeVisible();
+	await expect(page.getByText('Icons by selfh.st')).toHaveCount(0);
+});
+
+test('Disabled icon library only accepts image URLs', async ({ page }) => {
+	await stubIconLibrary(page, 'disabled');
+
+	// Fail the test if the picker searches the disabled icon library
+	let searched = false;
+	await page.route('**/api/oidc/logo-presets*', async (route) => {
+		searched = true;
+		await route.fulfill({ json: [] });
+	});
+
+	await page.goto(`/settings/admin/oidc-clients/${oidcClients.nextcloud.id}`);
+	await page.getByRole('button', { name: 'Choose logo' }).click();
+	await page
+		.getByRole('combobox', { name: 'Paste an image URL' })
+		.fill('https://example.com/logo.svg');
+	await expect(page.getByRole('button', { name: 'Use as light logo' })).toBeVisible();
+	await expect(page.getByText('Icons by selfh.st')).toHaveCount(0);
+	expect(searched).toBe(false);
 });
 
 test('Displays OIDC client endpoints from discovery configuration', async ({ page }) => {

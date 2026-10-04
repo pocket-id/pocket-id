@@ -14,6 +14,7 @@ export type AppConfig = {
 	accentColor: string;
 	requireUserEmail: boolean;
 	tracingEnabled: boolean;
+	iconLibrary: 'default' | 'custom' | 'disabled';
 };
 
 export type AllAppConfig = AppConfig & {

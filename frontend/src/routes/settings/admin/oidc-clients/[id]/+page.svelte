@@ -67,11 +67,8 @@
 		const [savedClient] = await Promise.all([dataPromise, imagePromise, darkImagePromise]);
 		Object.assign(client, savedClient);
 
-		if (updatedClient.logoUrl) {
-			cachedOidcClientLogo.bustCache(client.id, true);
-		}
-		if (updatedClient.darkLogoUrl) {
-			cachedOidcClientLogo.bustCache(client.id, false);
+		if (updatedClient.logoUrl || updatedClient.darkLogoUrl) {
+			cachedOidcClientLogo.bustCache(client.id);
 		}
 
 		// Update the hasLogo and hasDarkLogo flags after successful upload

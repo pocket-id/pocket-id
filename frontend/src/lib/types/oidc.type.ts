@@ -104,6 +104,13 @@ export type OidcClientCreateWithLogo = OidcClientCreate & {
 	darkLogoUrl?: string;
 };
 
+export type OidcClientLogoPreset = {
+	name: string;
+	reference: string;
+	logoUrl: string;
+	darkLogoUrl: string | null;
+};
+
 export type OidcDeviceCodeInfo = {
 	scope: string[];
 	scopeInfo: InteractionScopeInfo[];

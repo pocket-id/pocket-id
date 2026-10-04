@@ -19,6 +19,7 @@ import (
 	"github.com/pocket-id/pocket-id/backend/internal/geolite"
 	"github.com/pocket-id/pocket-id/backend/internal/iplocation"
 	"github.com/pocket-id/pocket-id/backend/internal/ldapsync"
+	"github.com/pocket-id/pocket-id/backend/internal/logopreset"
 	"github.com/pocket-id/pocket-id/backend/internal/oidc"
 	"github.com/pocket-id/pocket-id/backend/internal/onetimeaccess"
 	"github.com/pocket-id/pocket-id/backend/internal/scimsync"
@@ -55,6 +56,7 @@ type services struct {
 	emailVerificationModule *emailverification.Module
 	apiModule               *api.Module
 	environmentModule       *environment.Module
+	logoPresetModule        *logopreset.Module
 	actors                  francishost.Host
 }
 
@@ -256,6 +258,16 @@ func initServices(
 	svc.environmentModule = environment.New(environment.Dependencies{
 		HTTPClient:                  httpClient,
 		SQLiteOnNetworkedFilesystem: sqliteOnNetworkedFilesystem,
+	})
+
+	// An empty base URL keeps the icon library disabled
+	var iconLibraryURL string
+	if common.EnvConfig.IconLibraryEnabled() {
+		iconLibraryURL = common.EnvConfig.IconLibraryURL
+	}
+	svc.logoPresetModule = logopreset.New(logopreset.Dependencies{
+		HTTPClient: httpClient,
+		BaseURL:    iconLibraryURL,
 	})
 
 	return svc, nil

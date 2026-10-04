@@ -176,7 +176,7 @@
 {/snippet}
 
 {#snippet LogoCell({ item }: { item: OidcClientWithAllowedGroups })}
-	{#if item.hasLogo}
+	{#if item.hasLogo || item.hasDarkLogo}
 		<ImageBox
 			class="size-12 rounded-lg"
 			src={cachedOidcClientLogo.getUrl(item.id, isLightMode)}

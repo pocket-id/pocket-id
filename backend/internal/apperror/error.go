@@ -67,6 +67,8 @@ const (
 	CodeLogoDownloadFailed              Code = "logo_download_failed"
 	CodeLogoTypeNotSupported            Code = "logo_type_not_supported"
 	CodeLogoTooLarge                    Code = "logo_too_large"
+	CodeLogoPresetsDisabled             Code = "logo_presets_disabled"
+	CodeLogoPresetsUnavailable          Code = "logo_presets_unavailable"
 	CodeOidcPARRequired                 Code = "oidc_par_required"
 )
 

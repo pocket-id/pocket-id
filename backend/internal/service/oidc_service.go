@@ -21,6 +21,7 @@ import (
 
 	"github.com/pocket-id/pocket-id/backend/internal/apperror"
 	"github.com/pocket-id/pocket-id/backend/internal/backchannellogout"
+	"github.com/pocket-id/pocket-id/backend/internal/common"
 	"github.com/pocket-id/pocket-id/backend/internal/dto"
 	"github.com/pocket-id/pocket-id/backend/internal/model"
 	datatype "github.com/pocket-id/pocket-id/backend/internal/model/types"
@@ -522,15 +523,14 @@ func (s *OidcService) GetClientLogo(ctx context.Context, clientID string, light 
 		return nil, 0, "", err
 	}
 
+	// Each variant falls back to the other one, so a client with a single logo shows it in both themes
 	var suffix string
 	var ext string
 	switch {
-	case !light && client.DarkImageType != nil:
-		// Dark logo if requested and exists
+	case client.HasDarkLogo() && (!light || !client.HasLogo()):
 		suffix = "-dark"
 		ext = *client.DarkImageType
-	case client.ImageType != nil:
-		// Light logo if requested or no dark logo is available
+	case client.HasLogo():
 		ext = *client.ImageType
 	default:
 		return nil, 0, "", apperror.ImageNotFound()
@@ -943,6 +943,23 @@ func httpClientWithCheckRedirect(source *http.Client, checkRedirect func(req *ht
 	return client
 }
 
+// checkLogoURLAllowed prevents SSRF by allowing only URLs that resolve to public IPs
+// URLs inside the icon library are exempt because the operator configured it, which lets a self-hosted mirror live on the local network
+func checkLogoURLAllowed(ctx context.Context, u *url.URL) error {
+	if common.EnvConfig.IsIconLibraryURL(u) {
+		return nil
+	}
+
+	private, err := utils.IsURLPrivate(ctx, u)
+	if err != nil {
+		return apperror.LogoDownloadFailed(err)
+	} else if private {
+		return apperror.InvalidLogoURL(errors.New("private IP addresses are not allowed"))
+	}
+
+	return nil
+}
+
 func (s *OidcService) downloadAndSaveLogoFromURL(parentCtx context.Context, clientID string, raw string, light bool) error {
 	u, err := url.Parse(raw)
 	if err != nil {
@@ -955,12 +972,9 @@ func (s *OidcService) downloadAndSaveLogoFromURL(parentCtx context.Context, clie
 	ctx, cancel := context.WithTimeout(parentCtx, 15*time.Second)
 	defer cancel()
 
-	// Prevents SSRF by allowing only public IPs
-	ok, err := utils.IsURLPrivate(ctx, u)
+	err = checkLogoURLAllowed(ctx, u)
 	if err != nil {
-		return apperror.LogoDownloadFailed(err)
-	} else if ok {
-		return apperror.InvalidLogoURL(errors.New("private IP addresses are not allowed"))
+		return err
 	}
 
 	// We need to check this on redirects too
@@ -969,14 +983,7 @@ func (s *OidcService) downloadAndSaveLogoFromURL(parentCtx context.Context, clie
 			return apperror.InvalidLogoURL(errors.New("stopped after 10 redirects"))
 		}
 
-		ok, err := utils.IsURLPrivate(r.Context(), r.URL)
-		if err != nil {
-			return err
-		} else if ok {
-			return apperror.InvalidLogoURL(errors.New("private IP addresses are not allowed"))
-		}
-
-		return nil
+		return checkLogoURLAllowed(r.Context(), r.URL)
 	})
 
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, raw, nil)
