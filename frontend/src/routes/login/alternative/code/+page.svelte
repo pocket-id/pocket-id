@@ -80,8 +80,8 @@
 	{:else}
 		<p class="text-muted-foreground mt-2">{m.enter_the_code_you_received_to_sign_in()}</p>
 	{/if}
-	<form onsubmit={preventDefault(authenticate)} class="flex w-full flex-col items-center mt-8">
-		<div class="flex flex-col w-full justify-center items-center">
+	<form onsubmit={preventDefault(authenticate)} class="mt-8 flex w-full flex-col items-center">
+		<div class="flex w-full flex-col items-center justify-center">
 			{#if longCodeRequested}
 				<Input
 					id="Code"
@@ -106,7 +106,7 @@
 			{#if !longCodeRequested}
 				<div class="flex justify-center">
 					<Button
-						class="mt-2 text-muted-foreground text-xs"
+						class="text-muted-foreground mt-2 text-xs"
 						size="sm"
 						variant="ghost"
 						type="button"
@@ -117,7 +117,7 @@
 				</div>
 			{/if}
 		</div>
-		<div class="w-full max-w-[450px] flex gap-4 pt-7">
+		<div class="flex w-full max-w-[450px] gap-4 pt-7">
 			<Button class="flex-1" variant="secondary" href={backHref}>
 				{m.go_back()}
 			</Button>

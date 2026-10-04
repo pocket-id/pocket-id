@@ -4,7 +4,7 @@ import adapter from '@sveltejs/adapter-static';
 import { vitePreprocess } from '@sveltejs/vite-plugin-svelte';
 import tailwindcss from '@tailwindcss/vite';
 import sbom from 'rollup-plugin-sbom';
-import { defineConfig, type Plugin } from 'vite';
+import { defineConfig, type Plugin, lazyPlugins } from 'vite-plus';
 import packageJson from './package.json' with { type: 'json' };
 
 export default defineConfig(() => {
@@ -17,7 +17,7 @@ export default defineConfig(() => {
 	frontendSbom.applyToEnvironment = (environment) => environment.name === 'client';
 
 	return {
-		plugins: [
+		plugins: lazyPlugins(() => [
 			sveltekit({
 				preprocess: vitePreprocess(),
 				compilerOptions: {
@@ -42,7 +42,7 @@ export default defineConfig(() => {
 				cookieName: 'locale',
 				strategy: ['cookie', 'preferredLanguage', 'baseLocale']
 			})
-		],
+		]),
 
 		server: {
 			host: process.env.HOST,

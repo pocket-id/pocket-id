@@ -55,7 +55,7 @@
 			{m.authenticate_with_passkey_to_access_account()}
 		</p>
 	{/if}
-	<div class="mt-10 flex justify-center gap-3 w-full max-w-[450px]">
+	<div class="mt-10 flex w-full max-w-[450px] justify-center gap-3">
 		{#if $appConfigStore.allowUserSignups === 'open'}
 			<Button class="w-[50%]" variant="secondary" href="/signup">
 				{m.signup()}

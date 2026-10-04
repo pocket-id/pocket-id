@@ -114,7 +114,7 @@
 	{@const expired = new Date(item.expiresAt) <= new Date()}
 	<span
 		class={{
-			'flex gap-2 items-center': true,
+			'flex items-center gap-2': true,
 			'text-orange-300': expired
 		}}
 		>{formatDate(item.expiresAt)}

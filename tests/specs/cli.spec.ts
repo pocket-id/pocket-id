@@ -211,8 +211,8 @@ function archiveExampleExport(outputPath: string, keepActorsBackup = false): Buf
 	const files = fs.readdirSync(exampleExportPath);
 	for (const file of files) {
 		if (skipActorsBackup && file === 'francis.bin') {
-			continue
-		};
+			continue;
+		}
 
 		const filePath = path.join(exampleExportPath, file);
 		if (fs.statSync(filePath).isFile()) {

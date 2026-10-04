@@ -100,7 +100,7 @@
 	</Card.Content>
 </Card.Root>
 
-<Item.Group class="bg-card border shadow-sm rounded-4xl p-5">
+<Item.Group class="bg-card rounded-4xl border p-5 shadow-sm">
 	<Item.Root class="border-none bg-transparent p-0">
 		<Item.Media class="text-primary/80">
 			<KeyRound class="size-5" />

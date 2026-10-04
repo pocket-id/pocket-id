@@ -95,7 +95,7 @@
 </svelte:head>
 <div>
 	<div>
-		<h1 class="flex items-center gap-2 text-2xl font-bold mb-5">
+		<h1 class="mb-5 flex items-center gap-2 text-2xl font-bold">
 			<LayoutDashboard class="text-primary/80 size-6" />
 			{m.my_apps()}
 		</h1>
@@ -137,7 +137,7 @@
 		{/if}
 
 		{#if clients.pagination.totalPages > 1}
-			<div class="flex items-center justify-center mt-5">
+			<div class="mt-5 flex items-center justify-center">
 				<Pagination.Root
 					class="mx-0 w-auto"
 					count={clients.pagination.totalItems}
@@ -190,7 +190,7 @@
 				</div>
 
 				{#if authorizedClientsWithoutLaunchURL.pagination.totalPages > 1}
-					<div class="flex items-center justify-center mt-5">
+					<div class="mt-5 flex items-center justify-center">
 						<Pagination.Root
 							class="mx-0 w-auto"
 							count={authorizedClientsWithoutLaunchURL.pagination.totalItems}
@@ -229,7 +229,7 @@
 	{/if}
 
 	{#if authorizedClientsWithoutLaunchURL.pagination.totalItems > 0 && clients.data.length !== 0}
-		<div class="flex justify-center mt-10">
+		<div class="mt-10 flex justify-center">
 			<Button
 				variant="ghost"
 				class="text-muted-foreground"

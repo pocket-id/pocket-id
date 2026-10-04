@@ -35,7 +35,7 @@
 	const showProviderIcon = $derived(!!providerIconUrl && !iconFailed);
 </script>
 
-<Item.Root variant="transparent" class="hover:bg-muted transition-colors py-3 px-0 sm:px-4">
+<Item.Root variant="transparent" class="hover:bg-muted px-0 py-3 transition-colors sm:px-4">
 	<Item.Media class="bg-muted text-muted-foreground size-11 rounded-xl">
 		{#if showProviderIcon}
 			<img

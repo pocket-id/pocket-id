@@ -1,4 +1,8 @@
 {
   "go.buildTags": "e2etest unit",
-  "prettier.documentSelectors": ["**/*.svelte"]
+  "editor.defaultFormatter": "oxc.oxc-vscode",
+  "oxc.fmt.disableNestedConfig": true,
+  "[svelte]": {
+    "editor.defaultFormatter": "oxc.oxc-vscode"
+  }
 }

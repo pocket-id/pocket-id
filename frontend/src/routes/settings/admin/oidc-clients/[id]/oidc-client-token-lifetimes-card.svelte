@@ -41,7 +41,7 @@
 		<Card.Description>{m.token_lifetimes_description()}</Card.Description>
 	</Card.Header>
 	<Card.Content>
-		<div class="md:grid md:grid-cols-2 gap-10 space-y-5 md:space-y-0">
+		<div class="gap-10 space-y-5 md:grid md:grid-cols-2 md:space-y-0">
 			<DurationInput
 				id="access-token-lifetime"
 				label={m.access_token_lifetime()}

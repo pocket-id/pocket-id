@@ -112,12 +112,12 @@
 								<Toggle
 									bind:pressed={$inputs.emailVerified.value}
 									aria-label={label}
-									class="h-9 border-input bg-yellow-100 dark:bg-yellow-950 data-[state=on]:bg-green-100 dark:data-[state=on]:bg-green-950 rounded-l-none border px-2 py-1 shadow-xs flex items-center hover:data-[state=on]:bg-accent"
+									class="border-input hover:data-[state=on]:bg-accent flex h-9 items-center rounded-l-none border bg-yellow-100 px-2 py-1 shadow-xs data-[state=on]:bg-green-100 dark:bg-yellow-950 dark:data-[state=on]:bg-green-950"
 								>
 									{#if $inputs.emailVerified.value}
-										<LucideMailCheck class="text-green-500 dark:text-green-600 size-5" />
+										<LucideMailCheck class="size-5 text-green-500 dark:text-green-600" />
 									{:else}
-										<LucideMailWarning class="text-yellow-500 dark:text-yellow-600 size-5" />
+										<LucideMailWarning class="size-5 text-yellow-500 dark:text-yellow-600" />
 									{/if}
 								</Toggle>
 							</Tooltip.Trigger>

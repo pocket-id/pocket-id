@@ -4,16 +4,16 @@
 	"scripts": {
 		"preinstall": "npx only-allow pnpm",
 		"test": "playwright test",
-		"format": "prettier --write ."
-	},
-	"devDependencies": {
-        "@playwright/test": "^1.60.0",
-		"@types/node": "^25.9.0",
-		"dotenv": "^17.4.2",
-		"jose": "^6.2.3",
-		"prettier": "^3.8.3"
+		"format": "vp fmt",
+		"format:check": "vp fmt --check"
 	},
 	"dependencies": {
 		"adm-zip": "^0.6.0"
+	},
+	"devDependencies": {
+		"@playwright/test": "^1.60.0",
+		"@types/node": "^25.9.0",
+		"dotenv": "^17.4.2",
+		"jose": "^6.2.3"
 	}
 }

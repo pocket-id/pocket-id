@@ -58,7 +58,7 @@
 			: 'justify-center'}"
 	>
 		<div
-			class="relative z-10 flex h-full w-full max-w-[650px] 2xl:max-w-[800px] p-16 {cn(
+			class="relative z-10 flex h-full w-full max-w-[650px] p-16 2xl:max-w-[800px] {cn(
 				showAlternativeSignInMethodButton && 'pb-0'
 			)}"
 		>
@@ -88,7 +88,7 @@
 					src={cachedBackgroundImage.getUrl()}
 					class="{cn(
 						animate && 'animate-bg-zoom'
-					)} h-screen object-cover w-[calc(100vw-650px)] 2xl:w-[calc(100vw-800px)]"
+					)} h-screen w-[calc(100vw-650px)] object-cover 2xl:w-[calc(100vw-800px)]"
 					alt={m.login_background()}
 				/>
 			</div>
@@ -102,7 +102,7 @@
 		<Card.Root
 			class={{
 				'mx-3 w-full max-w-md': true,
-				'bg-transparent border-0': !backgroundImageExists
+				'border-0 bg-transparent': !backgroundImageExists
 			}}
 		>
 			<Card.CardContent

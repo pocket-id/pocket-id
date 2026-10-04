@@ -49,8 +49,12 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
-      - name: Setup Node.js and pnpm
-        uses: pnpm/setup@fbda4c85fc2e1e08721cd8763afea8f48d60f024 # v3.0.0
+      - name: Setup Vite+
+        uses: voidzero-dev/setup-vp@3754dd7dbdb32bd8f6d28b6043de13ad3a75f21f # v1.21.1
+        with:
+          node-version-file: .node-version
+          cache: true
+          run-install: false
 
       - name: Set up Depot CLI
         uses: depot/setup-action@91bc8495a33ebfc504ffc89e5674379ccf23c29c # v1.7.2
@@ -136,12 +140,11 @@ jobs:
         run: docker load < /tmp/francis-image.tar
 
       - name: Install test dependencies
-        run: pnpm --filter pocket-id-tests install --frozen-lockfile
+        run: vp -C tests install --frozen-lockfile
 
       - name: Install Playwright Browsers
-        working-directory: ./tests
         if: steps.playwright-cache.outputs.cache-hit != 'true'
-        run: pnpm exec playwright install --with-deps chromium
+        run: vp -C tests exec playwright install --with-deps chromium
 
       - name: Run Docker containers
         working-directory: ./tests/setup
@@ -184,8 +187,7 @@ jobs:
           fi
 
       - name: Run Playwright tests
-        working-directory: ./tests
-        run: pnpm exec playwright test
+        run: vp -C tests exec playwright test
 
       - name: Upload Test Report
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1

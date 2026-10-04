@@ -1,4 +1,4 @@
-# syntax=docker/dockerfile:1.7
+# syntax=docker/dockerfile:1
 
 # This file uses multi-stage builds to build the application from source, including the front-end
 
@@ -6,21 +6,20 @@
 ARG BUILD_TAGS=""
 
 # Stage 1: Build Frontend
-FROM node:24-alpine AS frontend-builder
-RUN corepack enable
+FROM --platform=$BUILDPLATFORM ghcr.io/voidzero-dev/vite-plus:1.0.0 AS frontend-builder
+ENV CI=true
+WORKDIR /app
 
-WORKDIR /build
+COPY --chown=vp:vp package.json pnpm-workspace.yaml pnpm-lock.yaml .node-version ./
+COPY --chown=vp:vp --parents frontend/package.json tests/package.json email-templates/package.json ./
+RUN --mount=type=cache,id=pocket-id-pnpm,target=/home/vp/.local/share/pnpm/store,sharing=locked,uid=1000,gid=1000 \
+  vp -C frontend install --frozen-lockfile --prefer-offline
 
-COPY package.json pnpm-workspace.yaml pnpm-lock.yaml ./
-COPY frontend/package.json ./frontend/
-RUN --mount=type=cache,target=/root/.local/share/pnpm/store \
-  pnpm --filter pocket-id-frontend install --frozen-lockfile
+COPY --chown=vp:vp ./frontend ./frontend/
 
-COPY ./frontend ./frontend/
-
-RUN --mount=type=cache,target=/build/frontend/node_modules/.vite \
-  --mount=type=cache,target=/build/frontend/.svelte-kit \
-  BUILD_OUTPUT_PATH=dist pnpm --filter pocket-id-frontend run build
+RUN --mount=type=cache,target=/app/frontend/node_modules/.vite,uid=1000,gid=1000 \
+  --mount=type=cache,target=/app/frontend/.svelte-kit,uid=1000,gid=1000 \
+  BUILD_OUTPUT_PATH=dist vp -C frontend run build
 
 # Stage 2: Build Backend
 FROM golang:1.27.1-alpine AS backend-builder
@@ -31,7 +30,7 @@ RUN --mount=type=cache,target=/go/pkg/mod \
   go mod download
 
 COPY ./backend ./
-COPY --from=frontend-builder /build/frontend/dist ./frontend/dist
+COPY --from=frontend-builder /app/frontend/dist ./frontend/dist
 COPY .version .version
 
 WORKDIR /build/cmd

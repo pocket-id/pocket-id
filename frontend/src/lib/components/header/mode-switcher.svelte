@@ -14,13 +14,13 @@
 	<DropdownMenu.Trigger class={buttonVariants({ variant: 'ghost', size: 'icon' })}>
 		<SunIcon
 			class="h-[1.2rem] w-[1.2rem] !transition-all {isDark
-				? '-rotate-90 scale-0'
-				: 'rotate-0 scale-100'}"
+				? 'scale-0 -rotate-90'
+				: 'scale-100 rotate-0'}"
 		/>
 		<MoonIcon
 			class="absolute h-[1.2rem] w-[1.2rem] !transition-all {isDark
-				? 'rotate-0 scale-100'
-				: 'rotate-90 scale-0'}"
+				? 'scale-100 rotate-0'
+				: 'scale-0 rotate-90'}"
 		/>
 		<span class="sr-only">Toggle theme</span>
 	</DropdownMenu.Trigger>

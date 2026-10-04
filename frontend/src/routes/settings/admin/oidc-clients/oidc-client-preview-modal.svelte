@@ -123,7 +123,7 @@
 			{/each}
 		</div>
 	{:else if value !== null && typeof value === 'object'}
-		<pre class="font-mono text-xs whitespace-pre-wrap break-all">{JSON.stringify(
+		<pre class="font-mono text-xs break-all whitespace-pre-wrap">{JSON.stringify(
 				value,
 				null,
 				2
@@ -183,7 +183,7 @@
 		<div class="flex min-h-0 flex-1 flex-col gap-3">
 			<div class="flex items-center justify-between gap-3 border-b">
 				<!-- The token tabs scroll on narrow screens so the view toggle and copy button stay inside the dialog -->
-				<Tabs.Root bind:value={activeTab} class="min-w-0 overflow-x-auto [scrollbar-width:none]">
+				<Tabs.Root bind:value={activeTab} class="min-w-0 [scrollbar-width:none] overflow-x-auto">
 					<Tabs.List variant="line">
 						<Tabs.Trigger value="idToken">{m.id_token()}</Tabs.Trigger>
 						<Tabs.Trigger value="accessToken">{m.access_token()}</Tabs.Trigger>
@@ -231,7 +231,7 @@
 						<Spinner class="size-6" />
 					</div>
 				{:else if view === 'json'}
-					<pre class="p-4 font-mono text-xs whitespace-pre-wrap break-all">{JSON.stringify(
+					<pre class="p-4 font-mono text-xs break-all whitespace-pre-wrap">{JSON.stringify(
 							activeData,
 							null,
 							2

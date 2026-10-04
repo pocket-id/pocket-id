@@ -7,8 +7,8 @@ project_name: pocket-id
 
 before:
   hooks:
-    - pnpm install --frozen-lockfile
-    - pnpm -C frontend build
+    - vp install --frozen-lockfile
+    - vp -C frontend run build
     - mkdir -p .tmp
     - mv backend/frontend/dist/cyclonedx/frontend.cdx.json .tmp/frontend.cdx.json
     - rm -r backend/frontend/dist/cyclonedx

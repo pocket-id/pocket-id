@@ -3,22 +3,22 @@
 # These secrets are fixed test values and must match the FRANCIS_HOST_PSK passed to Pocket ID in docker-compose-francis.yml.
 
 # The WebTransport server runs over HTTP/3, so this port is UDP
-bind: "0.0.0.0:7400"
+bind: '0.0.0.0:7400'
 
 # The runtime PSKs derive the cluster CA that signs every workload certificate
 runtimePSKs:
-  - "e2e-runtime-psk-0123456789abcdef"
+  - 'e2e-runtime-psk-0123456789abcdef'
 
 # Hosts prove they may join by presenting this pre-shared key
 bootstrap:
   method: psk
-  hostPSK: "e2e-host-bootstrap-psk-0123456789"
+  hostPSK: 'e2e-host-bootstrap-psk-0123456789'
 
 # The runtime owns its own SQLite store, which is separate from Pocket ID's database
 # It lives in /tmp because the image runs as a non-root user (uid 65532) and that is the only world-writable directory in it
 # The store only has to survive as long as the containers do, so there is nothing to persist beyond the test run
 provider:
-  connectionString: "/tmp/francis.db"
+  connectionString: '/tmp/francis.db'
 
 # A single Pocket ID replica joins the cluster, matching the cap the embedded runtime applies when HA is off
 maxHosts: 1

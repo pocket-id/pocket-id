@@ -1,9 +1,0 @@
-# Package Managers
-package-lock.json
-pnpm-lock.yaml
-yarn.lock
-
-# Compiled files
-.svelte-kit/
-build/
-src/lib/paraglide/messages

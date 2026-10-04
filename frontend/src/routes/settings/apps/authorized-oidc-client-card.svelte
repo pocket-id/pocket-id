@@ -70,7 +70,7 @@
 					{/if}
 					{#if client.description}
 						<p
-							class="text-muted-foreground line-clamp-3 wrap-break-word text-ellipsis text-xs mt-1"
+							class="text-muted-foreground mt-1 line-clamp-3 text-xs wrap-break-word text-ellipsis"
 						>
 							{client.description}
 						</p>
@@ -110,7 +110,7 @@
 				<Tooltip.Provider>
 					<Tooltip.Root>
 						<Tooltip.Trigger>
-							<p class="text-muted-foreground flex items-center text-xs text-start">
+							<p class="text-muted-foreground flex items-center text-start text-xs">
 								<LucideLogIn class="mr-2 size-3" />
 								{formatDistanceToNow(client.lastUsedAt, { addSuffix: true })}
 							</p>
