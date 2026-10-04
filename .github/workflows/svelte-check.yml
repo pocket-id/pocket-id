@@ -43,7 +43,7 @@ jobs:
           run-install: false
 
       - name: Install dependencies
-        run: vp install --frozen-lockfile --filter pocket-id-frontend
+        run: vp -C frontend install --frozen-lockfile
 
       - name: Build Pocket ID Frontend
         run: vp -C frontend run build

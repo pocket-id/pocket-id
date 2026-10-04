@@ -140,7 +140,7 @@ jobs:
         run: docker load < /tmp/francis-image.tar
 
       - name: Install test dependencies
-        run: vp install --frozen-lockfile --filter pocket-id-tests
+        run: vp -C tests install --frozen-lockfile
 
       - name: Install Playwright Browsers
         if: steps.playwright-cache.outputs.cache-hit != 'true'

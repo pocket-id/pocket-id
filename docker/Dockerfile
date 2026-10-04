@@ -11,9 +11,9 @@ ENV CI=true
 WORKDIR /app
 
 COPY --chown=vp:vp package.json pnpm-workspace.yaml pnpm-lock.yaml .node-version ./
-COPY --chown=vp:vp frontend/package.json ./frontend/
+COPY --chown=vp:vp --parents frontend/package.json tests/package.json email-templates/package.json ./
 RUN --mount=type=cache,id=pocket-id-pnpm,target=/home/vp/.local/share/pnpm/store,sharing=locked,uid=1000,gid=1000 \
-  vp install --frozen-lockfile --prefer-offline --filter pocket-id-frontend
+  vp -C frontend install --frozen-lockfile --prefer-offline
 
 COPY --chown=vp:vp ./frontend ./frontend/
 
