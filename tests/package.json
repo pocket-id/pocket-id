@@ -14,8 +14,6 @@
 		"@playwright/test": "^1.60.0",
 		"@types/node": "^25.9.0",
 		"dotenv": "^17.4.2",
-		"jose": "^6.2.3",
-		"vite": "catalog:",
-		"vite-plus": "catalog:"
+		"jose": "^6.2.3"
 	}
 }
