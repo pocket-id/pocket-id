@@ -72,7 +72,7 @@
 </script>
 
 {#snippet LogoCell({ item }: { item: OidcClient })}
-	{#if item.hasLogo}
+	{#if item.hasLogo || item.hasDarkLogo}
 		<ImageBox
 			class="size-12 rounded-lg"
 			src={cachedOidcClientLogo.getUrl(item.id, isLightMode)}

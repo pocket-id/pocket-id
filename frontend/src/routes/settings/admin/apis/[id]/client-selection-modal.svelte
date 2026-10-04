@@ -38,7 +38,7 @@
 </script>
 
 {#snippet LogoCell({ item }: { item: ApiClient })}
-	<OidcClientAvatar id={item.id} name={item.name} hasLogo={item.hasLogo} />
+	<OidcClientAvatar id={item.id} name={item.name} hasLogo={item.hasLogo || item.hasDarkLogo} />
 {/snippet}
 
 <Dialog.Root bind:open>

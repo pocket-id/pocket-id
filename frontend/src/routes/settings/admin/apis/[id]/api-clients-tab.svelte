@@ -105,7 +105,11 @@
 
 {#snippet ClientCell({ item }: { item: ClientRow })}
 	<div class="flex items-center gap-3">
-		<OidcClientAvatar id={item.client.id} name={item.client.name} hasLogo={item.client.hasLogo} />
+		<OidcClientAvatar
+			id={item.client.id}
+			name={item.client.name}
+			hasLogo={item.client.hasLogo || item.client.hasDarkLogo}
+		/>
 		<div class="flex flex-col gap-0.5">
 			<a
 				class="font-medium hover:underline"

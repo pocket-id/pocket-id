@@ -12,6 +12,7 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/pocket-id/pocket-id/backend/internal/apperror"
+	"github.com/pocket-id/pocket-id/backend/internal/common"
 	"github.com/pocket-id/pocket-id/backend/internal/dto"
 	"github.com/pocket-id/pocket-id/backend/internal/model"
 	datatype "github.com/pocket-id/pocket-id/backend/internal/model/types"
@@ -409,6 +410,41 @@ func TestOidcService_downloadAndSaveLogoFromURL(t *testing.T) {
 		}
 
 		err := s.downloadAndSaveLogoFromURL(t.Context(), client.ID, "://invalid-url", true)
+		require.Error(t, err)
+		require.True(t, apperror.IsCode(err, apperror.CodeValidationFailed))
+	})
+
+	t.Run("Allows private hosts inside the icon library only", func(t *testing.T) {
+		const iconLibraryURL = "http://127.0.0.1:4050/icons"
+		originalIconLibraryURL := common.EnvConfig.IconLibraryURL
+		common.EnvConfig.IconLibraryURL = iconLibraryURL
+		t.Cleanup(func() {
+			common.EnvConfig.IconLibraryURL = originalIconLibraryURL
+		})
+
+		//nolint:bodyclose
+		svgResponse := testutils.NewMockResponse(http.StatusOK, `<svg xmlns="http://www.w3.org/2000/svg"/>`)
+		svgResponse.Header.Set("Content-Type", "image/svg+xml")
+
+		s := &OidcService{
+			db:          db,
+			fileStorage: dbStorage,
+			httpClient: &http.Client{
+				Transport: &testutils.MockRoundTripper{
+					Responses: map[string]*http.Response{
+						iconLibraryURL + "/svg/nextcloud.svg": svgResponse,
+					},
+				},
+			},
+		}
+
+		// The operator configured the library, so its loopback address is trusted
+		err := s.downloadAndSaveLogoFromURL(t.Context(), client.ID, iconLibraryURL+"/svg/nextcloud.svg", true)
+		require.NoError(t, err)
+		require.True(t, fileExists(t, "oidc-client-images/"+client.ID+".svg"))
+
+		// Other paths on the same private host are still blocked
+		err = s.downloadAndSaveLogoFromURL(t.Context(), client.ID, "http://127.0.0.1:4050/admin/logo.svg", true)
 		require.Error(t, err)
 		require.True(t, apperror.IsCode(err, apperror.CodeValidationFailed))
 	})
@@ -1073,4 +1109,70 @@ func accessibleClientNames(clients []dto.AccessibleOidcClientDto) []string {
 		names[i] = clients[i].Name
 	}
 	return names
+}
+
+func TestOidcService_GetClientLogo(t *testing.T) {
+	db := testutils.NewDatabaseForTest(t)
+	dbStorage, err := storage.NewDatabaseStorage(db)
+	require.NoError(t, err)
+	s := &OidcService{db: db, fileStorage: dbStorage}
+
+	// createClient stores the given variants with their name as content, so the test can tell which one was served
+	createClient := func(t *testing.T, light, dark bool) string {
+		t.Helper()
+
+		client := model.OidcClient{Name: "Logo Client", CallbackURLs: datatype.StringList{"https://example.com/callback"}}
+		if light {
+			client.ImageType = new("png")
+		}
+		if dark {
+			client.DarkImageType = new("png")
+		}
+		require.NoError(t, db.Create(&client).Error)
+
+		if light {
+			require.NoError(t, dbStorage.Save(t.Context(), oidcClientImagePath(client.ID, "", "png"), strings.NewReader("light")))
+		}
+		if dark {
+			require.NoError(t, dbStorage.Save(t.Context(), oidcClientImagePath(client.ID, "-dark", "png"), strings.NewReader("dark")))
+		}
+		return client.ID
+	}
+
+	tests := []struct {
+		name      string
+		light     bool
+		dark      bool
+		wantLight string
+		wantDark  string
+	}{
+		{name: "serves each variant when both exist", light: true, dark: true, wantLight: "light", wantDark: "dark"},
+		{name: "dark mode falls back to the light logo", light: true, wantLight: "light", wantDark: "light"},
+		{name: "light mode falls back to the dark logo", dark: true, wantLight: "dark", wantDark: "dark"},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			clientID := createClient(t, tt.light, tt.dark)
+
+			for requestLight, want := range map[bool]string{true: tt.wantLight, false: tt.wantDark} {
+				reader, _, mimeType, err := s.GetClientLogo(t.Context(), clientID, requestLight)
+				require.NoError(t, err)
+				content, err := io.ReadAll(reader)
+				reader.Close()
+				require.NoError(t, err)
+				assert.Equal(t, want, string(content), "light=%t", requestLight)
+				assert.Equal(t, "image/png", mimeType)
+			}
+		})
+	}
+
+	t.Run("returns not found without any logo", func(t *testing.T) {
+		clientID := createClient(t, false, false)
+
+		for _, requestLight := range []bool{true, false} {
+			_, _, _, err := s.GetClientLogo(t.Context(), clientID, requestLight)
+			require.True(t, apperror.IsCode(err, apperror.CodeImageNotFound), "light=%t", requestLight)
+		}
+	})
 }

@@ -40,7 +40,7 @@
 	<Card.Content class="p-0">
 		<div class="flex gap-3">
 			<div class="aspect-square h-[56px]">
-				{#if client.hasLogo}
+				{#if client.hasLogo || client.hasDarkLogo}
 					<ImageBox
 						class="size-14"
 						src={cachedOidcClientLogo.getUrl(client.id, isLightMode)}

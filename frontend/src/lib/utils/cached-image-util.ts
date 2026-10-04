@@ -57,23 +57,22 @@ export const cachedProfilePicture: CachableImage = {
 };
 
 export const cachedOidcClientLogo: CachableImage = {
-	getUrl: (clientId: string, light = true) => {
-		const url = new URL(
-			`/api/oidc/clients/${encodeClientIdParam(clientId)}/logo`,
-			window.location.origin
-		);
-		if (!light) url.searchParams.set('light', 'false');
-		return getCachedImageUrl(url);
-	},
-	bustCache: (clientId: string, light = true) => {
-		const url = new URL(
-			`/api/oidc/clients/${encodeClientIdParam(clientId)}/logo`,
-			window.location.origin
-		);
-		if (!light) url.searchParams.set('light', 'false');
-		bustImageCache(url);
+	getUrl: (clientId: string, light = true) => getCachedImageUrl(oidcClientLogoUrl(clientId, light)),
+	// Each variant falls back to the other one, so changing either logo can change what both URLs serve
+	bustCache: (clientId: string) => {
+		bustImageCache(oidcClientLogoUrl(clientId, true));
+		bustImageCache(oidcClientLogoUrl(clientId, false));
 	}
 };
+
+function oidcClientLogoUrl(clientId: string, light: boolean) {
+	const url = new URL(
+		`/api/oidc/clients/${encodeClientIdParam(clientId)}/logo`,
+		window.location.origin
+	);
+	if (!light) url.searchParams.set('light', 'false');
+	return url;
+}
 
 // Builds the URL of an authenticator icon
 // Unlike the images above these are static assets that only change with a new release, so they skip the cache busting helper and rely on the backend's cache headers

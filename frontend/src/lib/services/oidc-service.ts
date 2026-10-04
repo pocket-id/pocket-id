@@ -8,6 +8,7 @@ import type {
 	OidcClient,
 	OidcClientCreate,
 	OidcClientCreated,
+	OidcClientLogoPreset,
 	OidcClientMetaData,
 	OidcClientSecret,
 	OidcClientSecretCreated,
@@ -81,14 +82,21 @@ class OidcService extends APIService {
 		await this.api.post(`/oidc/clients/${encodeClientIdParam(client.id)}/logo`, formData, {
 			params: { light }
 		});
-		cachedOidcClientLogo.bustCache(client.id, light);
+		cachedOidcClientLogo.bustCache(client.id);
 	};
 
 	removeClientLogo = async (id: string, light: boolean = true) => {
 		await this.api.delete(`/oidc/clients/${encodeClientIdParam(id)}/logo`, {
 			params: { light }
 		});
-		cachedOidcClientLogo.bustCache(id, light);
+		cachedOidcClientLogo.bustCache(id);
+	};
+
+	searchLogoPresets = async (search: string) => {
+		const { data } = await this.api.get<OidcClientLogoPreset[]>('/oidc/logo-presets', {
+			params: { search }
+		});
+		return data;
 	};
 
 	listClientSecrets = async (id: string) =>

@@ -8,6 +8,7 @@ import (
 	"net"
 	"net/url"
 	"os"
+	"path"
 	"reflect"
 	"strconv"
 	"strings"
@@ -43,6 +44,11 @@ const (
 	defaultSqliteConnString string     = "data/pocket-id.db"
 	defaultFsUploadPath     string     = "data/uploads"
 	AppUrl                  string     = "http://localhost:1411"
+
+	// IconLibraryDisabled is the ICON_LIBRARY_URL value that turns off the icon library for OIDC client logos
+	IconLibraryDisabled string = "disabled"
+	// DefaultIconLibraryURL serves the selfh.st icon collection through jsDelivr
+	DefaultIconLibraryURL string = "https://cdn.jsdelivr.net/gh/selfhst/icons@main"
 
 	// FrancisHostEmbedded is the FRANCIS_HOST value that keeps the Francis actor runtime embedded in the Pocket ID process
 	FrancisHostEmbedded string = "embedded"
@@ -97,6 +103,11 @@ type EnvConfigSchema struct {
 	GeoLiteDBUrl      string `env:"GEOLITE_DB_URL"`
 	// CloudflareLocationHeaders trusts location headers supplied by a Cloudflare proxy instead of using GeoLite
 	CloudflareLocationHeaders bool `env:"CLOUDFLARE_LOCATION_HEADERS"`
+
+	// IconLibraryURL is the base URL of the icon collection admins can pick OIDC client logos from
+	// It must serve index.json and the svg and png directories in the same layout as the selfh.st/icons repository
+	// Setting it to "disabled" turns the icon library off, so Pocket ID never contacts it
+	IconLibraryURL string `env:"ICON_LIBRARY_URL" options:"trimTrailingSlash"`
 
 	ActorsPort string `env:"ACTORS_PORT"`
 	ActorsHost string `env:"ACTORS_HOST" options:"toLower"`
@@ -166,6 +177,7 @@ func defaultConfig() EnvConfigSchema {
 		FrancisHost:               FrancisHostEmbedded,
 		GeoLiteDBPath:             "data/GeoLite2-City.mmdb",
 		GeoLiteDBUrl:              MaxMindGeoLiteCityUrl,
+		IconLibraryURL:            DefaultIconLibraryURL,
 	}
 }
 
@@ -245,6 +257,11 @@ func ValidateEnvConfig(config *EnvConfigSchema) error {
 	}
 
 	err = validateFileBackend(config)
+	if err != nil {
+		return err
+	}
+
+	err = validateIconLibraryURL(config)
 	if err != nil {
 		return err
 	}
@@ -389,6 +406,48 @@ func validateURLWithoutPath(rawURL, envName string) error {
 	}
 
 	return nil
+}
+
+// validateIconLibraryURL checks that ICON_LIBRARY_URL is either "disabled" or an absolute HTTP(S) URL
+func validateIconLibraryURL(config *EnvConfigSchema) error {
+	switch {
+	case config.IconLibraryURL == "":
+		config.IconLibraryURL = DefaultIconLibraryURL
+		return nil
+	case strings.EqualFold(config.IconLibraryURL, IconLibraryDisabled):
+		config.IconLibraryURL = IconLibraryDisabled
+		return nil
+	}
+
+	parsedURL, err := url.Parse(config.IconLibraryURL)
+	if err != nil || (parsedURL.Scheme != "http" && parsedURL.Scheme != "https") || parsedURL.Host == "" {
+		return errors.New("ICON_LIBRARY_URL must be an HTTP or HTTPS URL, or 'disabled'")
+	}
+
+	return nil
+}
+
+// IconLibraryEnabled reports whether admins can pick OIDC client logos from the icon library
+func (c *EnvConfigSchema) IconLibraryEnabled() bool {
+	return c.IconLibraryURL != IconLibraryDisabled
+}
+
+// IsIconLibraryURL reports whether the URL points to a file inside the configured icon library
+// Dot segments are rejected so a URL can't climb out of the library's path on the same host
+func (c *EnvConfigSchema) IsIconLibraryURL(u *url.URL) bool {
+	if !c.IconLibraryEnabled() {
+		return false
+	}
+
+	base, err := url.Parse(c.IconLibraryURL)
+	if err != nil {
+		return false
+	}
+
+	return u.Scheme == base.Scheme &&
+		strings.EqualFold(u.Host, base.Host) &&
+		u.Path == path.Clean(u.Path) &&
+		strings.HasPrefix(u.Path, base.Path+"/")
 }
 
 func validateFileBackend(config *EnvConfigSchema) error {

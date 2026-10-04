@@ -4,19 +4,22 @@
 	import * as Card from '#lib/components/ui/card/index.ts';
 	import * as Field from '#lib/components/ui/field/index.ts';
 	import { Switch } from '#lib/components/ui/switch/index.ts';
-	import * as Tabs from '#lib/components/ui/tabs/index.ts';
 	import { m } from '#lib/paraglide/messages.js';
-	import type { OidcClient, OidcClientCreateWithLogo } from '#lib/types/oidc.type.ts';
+	import appConfigStore from '#lib/stores/application-configuration-store.ts';
+	import type {
+		OidcClient,
+		OidcClientCreateWithLogo,
+		OidcClientLogoPreset
+	} from '#lib/types/oidc.type.ts';
 	import { cachedOidcClientLogo } from '#lib/utils/cached-image-util.ts';
 	import { axiosErrorToast } from '#lib/utils/error-util.ts';
 	import { preventDefault } from '#lib/utils/event-util.ts';
 	import { createForm, type FormInput as FormInputState } from '#lib/utils/form-util.ts';
 	import { trackFormChanges } from '#lib/utils/unsaved-changes-util.svelte.ts';
 	import { callbackUrlSchema, optionalUrl } from '#lib/utils/zod-util.ts';
-	import { LucideMoon, LucideSun } from '@lucide/svelte';
 	import { z } from 'zod/v4';
 	import OidcCallbackUrlInput from './oidc-callback-url-input.svelte';
-	import OidcClientImageInput from './oidc-client-image-input.svelte';
+	import OidcClientLogoPicker from './oidc-client-logo-picker.svelte';
 
 	let {
 		callback,
@@ -149,6 +152,16 @@
 				darkLogoDataURL = URL.createObjectURL(input);
 			}
 			formStore.setValue(logoUrlKey, '');
+		}
+	}
+
+	// A preset fills both variants, and clears the dark logo when the icon has no dark variant so a stale one isn't kept
+	function selectPreset(preset: OidcClientLogoPreset) {
+		onLogoChange(preset.logoUrl, true);
+		if (preset.darkLogoUrl) {
+			onLogoChange(preset.darkLogoUrl, false);
+		} else {
+			resetLogo(false);
 		}
 	}
 
@@ -287,40 +300,19 @@
 	/>
 {/snippet}
 
-{#snippet logoTabTriggers()}
-	<Tabs.List class="grid h-8 grid-cols-2">
-		<Tabs.Trigger value="light-logo" class="px-2.5" aria-label={m.light()}>
-			<LucideSun class="size-3.5" />
-		</Tabs.Trigger>
-		<Tabs.Trigger value="dark-logo" class="px-2.5" aria-label={m.dark()}>
-			<LucideMoon class="size-3.5" />
-		</Tabs.Trigger>
-	</Tabs.List>
-{/snippet}
-
 {#snippet logoInput()}
-	<Tabs.Root value="light-logo">
-		<Tabs.Content value="light-logo">
-			<OidcClientImageInput
-				{logoDataURL}
-				resetLogo={() => resetLogo(true)}
-				clientName={$inputs.name.value}
-				light={true}
-				onLogoChange={(input) => onLogoChange(input, true)}
-				tabTriggers={logoTabTriggers}
-			/>
-		</Tabs.Content>
-		<Tabs.Content value="dark-logo">
-			<OidcClientImageInput
-				light={false}
-				logoDataURL={darkLogoDataURL}
-				resetLogo={() => resetLogo(false)}
-				clientName={$inputs.name.value}
-				onLogoChange={(input) => onLogoChange(input, false)}
-				tabTriggers={logoTabTriggers}
-			/>
-		</Tabs.Content>
-	</Tabs.Root>
+	<OidcClientLogoPicker
+		clientName={$inputs.name.value}
+		{logoDataURL}
+		{darkLogoDataURL}
+		iconLibrary={$appConfigStore.iconLibrary}
+		{onLogoChange}
+		onPresetSelect={selectPreset}
+		onReset={() => {
+			resetLogo(true);
+			resetLogo(false);
+		}}
+	/>
 {/snippet}
 
 <!-- The form is split into cards so that related settings are grouped together -->
