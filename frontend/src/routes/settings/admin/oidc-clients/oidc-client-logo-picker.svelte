@@ -4,7 +4,6 @@
 	import { Button } from '#lib/components/ui/button/index.ts';
 	import * as Command from '#lib/components/ui/command/index.ts';
 	import * as Popover from '#lib/components/ui/popover/index.ts';
-	import { Spinner } from '#lib/components/ui/spinner/index.ts';
 	import { m } from '#lib/paraglide/messages.js';
 	import OidcService from '#lib/services/oidc-service.ts';
 	import type { AppConfig } from '#lib/types/application-configuration.type.ts';
