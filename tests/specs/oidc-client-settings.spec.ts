@@ -326,12 +326,20 @@ test('OIDC client logo picker stays fully visible when reopened', async ({ page 
 
 test('Custom icon library hides the selfh.st credit', async ({ page }) => {
 	await stubIconLibrary(page, 'custom');
-	await page.route('**/api/oidc/logo-presets*', (route) => route.fulfill({ json: [] }));
+
+	// The credit is only shown next to icons, so the custom library has to return one
+	const preset = {
+		name: 'Custom App',
+		reference: 'custom-app',
+		logoUrl: 'https://example.com/custom-app.svg',
+		darkLogoUrl: null
+	};
+	await page.route('**/api/oidc/logo-presets*', (route) => route.fulfill({ json: [preset] }));
 
 	await page.goto(`/settings/admin/oidc-clients/${oidcClients.nextcloud.id}`);
 	await page.getByRole('button', { name: 'Choose logo' }).click();
 
-	await expect(page.getByText('No icons found')).toBeVisible();
+	await expect(page.getByRole('option', { name: preset.name })).toBeVisible();
 	await expect(page.getByText('Icons by selfh.st')).toHaveCount(0);
 });
 
