@@ -20,7 +20,7 @@
       "request": "launch",
       "envFile": "${workspaceFolder}/frontend/.env",
       "cwd": "${workspaceFolder}/frontend",
-      "runtimeExecutable": "npm",
+      "runtimeExecutable": "vp",
       "runtimeArgs": [
         "run",
         "dev"

@@ -68,13 +68,17 @@ jobs:
           echo "tag=v$version" >> "$GITHUB_OUTPUT"
           echo "Preparing release v$version from $GITHUB_SHA." >> "$GITHUB_STEP_SUMMARY"
 
-      - name: Setup Node.js and pnpm
+      - name: Setup Vite+
         if: steps.version.outputs.tag != ''
-        uses: pnpm/setup@fbda4c85fc2e1e08721cd8763afea8f48d60f024 # v3.0.0
+        uses: voidzero-dev/setup-vp@3754dd7dbdb32bd8f6d28b6043de13ad3a75f21f # v1.21.1
+        with:
+          node-version-file: .node-version
+          cache: true
+          run-install: false
 
       - name: Install dependencies
         if: steps.version.outputs.tag != ''
-        run: pnpm install --frozen-lockfile
+        run: vp install --frozen-lockfile
 
       - name: Update version and changelog
         if: steps.version.outputs.tag != ''
@@ -86,7 +90,7 @@ jobs:
           printf '%s\n' "$VERSION" > .version
           jq --arg version "$VERSION" '.version = $version' frontend/package.json > "$RUNNER_TEMP/package.json"
           mv "$RUNNER_TEMP/package.json" frontend/package.json
-          pnpm exec vp fmt frontend/package.json
+          vp fmt frontend/package.json
           git cliff --prepend CHANGELOG.md --tag "$RELEASE_TAG" --unreleased
 
       - name: Create bot app token
@@ -166,8 +170,12 @@ jobs:
             gh release create "$RELEASE_TAG" --verify-tag --title "$RELEASE_TAG" --notes-file "$RUNNER_TEMP/release-notes.md" --draft
           fi
 
-      - name: Setup Node.js and pnpm
-        uses: pnpm/setup@fbda4c85fc2e1e08721cd8763afea8f48d60f024 # v3.0.0
+      - name: Setup Vite+
+        uses: voidzero-dev/setup-vp@3754dd7dbdb32bd8f6d28b6043de13ad3a75f21f # v1.21.1
+        with:
+          node-version-file: .node-version
+          cache: true
+          run-install: false
 
       - name: Setup Go
         uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0

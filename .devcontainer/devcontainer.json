@@ -1,6 +1,6 @@
 {
   "name": "pocket-id",
-  "image": "mcr.microsoft.com/devcontainers/typescript-node:1-22-bookworm",
+  "image": "ghcr.io/voidzero-dev/vite-plus:1.0.0",
   "features": {
     "ghcr.io/devcontainers/features/go:1": {
       "version": "1.27"
@@ -12,12 +12,14 @@
         "golang.go",
         "svelte.svelte-vscode",
         "bradlc.vscode-tailwindcss",
-        "esbenp.prettier-vscode"
+        "oxc.oxc-vscode",
+        "VoidZero.vite-plus-extension-pack"
       ]
     }
   },
   "containerEnv": {
     "HOST": "0.0.0.0"
   },
-  "postCreateCommand": "npm install --prefix frontend && cd backend && go mod download"
+  "remoteUser": "vp",
+  "postCreateCommand": "vp install && cd backend && go mod download"
 }

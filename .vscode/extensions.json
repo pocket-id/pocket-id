@@ -3,6 +3,7 @@
     "golang.go",
     "svelte.svelte-vscode",
     "bradlc.vscode-tailwindcss",
-    "esbenp.prettier-vscode"
+    "oxc.oxc-vscode",
+    "VoidZero.vite-plus-extension-pack"
   ]
 }
