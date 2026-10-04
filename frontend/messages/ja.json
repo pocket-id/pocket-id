@@ -511,7 +511,7 @@
 	"ui_config_disabled_info_description": "アプリケーションの設定は環境変数を通じて管理されているため、UI設定は無効になっています。一部の設定は編集できない場合があります。",
 	"logo_from_url_description": "画像の直接のURL (svg, png, webp) を貼り付けます。アイコンは {#link href=|https://selfh.st/icons|}Selfh.st Icons{/link} か {#link href=|https://dashboardicons.com|}Dashboard Icons{/link} で探せます。",
 	"invalid_url": "無効な URL",
-	"invalid_uri": "Invalid URI",
+	"invalid_uri": "無効な URI",
 	"require_user_email": "メールアドレスを必須にする",
 	"require_user_email_description": "ユーザーにメールアドレスの登録を必須とします。無効にした場合、メールアドレスを持たないユーザーはメールアドレスが必要な機能を利用できなくなります。",
 	"view": "表示",
