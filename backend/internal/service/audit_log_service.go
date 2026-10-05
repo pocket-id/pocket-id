@@ -2,6 +2,7 @@ package service
 
 import (
 	"context"
+	"crypto/rand"
 	"fmt"
 	"log/slog"
 	"time"
@@ -15,17 +16,17 @@ import (
 )
 
 type NewLoginEmailSender interface {
-	SendNewLogin(ctx context.Context, dbConfig *appconfig.AppConfigModel, userFullName, userEmail, ipAddress, country, city, device string, dateTime time.Time) error
+	SendNewLogin(ctx context.Context, dbConfig *appconfig.AppConfigModel, userFullName, userEmail, ipAddress, country, city, device, method string, dateTime time.Time) error
 }
 
 type AuditLogService struct {
 	db               *gorm.DB
 	emailSender      NewLoginEmailSender
 	ipLocator        iplocation.Resolver
-	appConfigService *appconfig.AppConfigService
+	appConfigService appconfig.AppConfigResolver
 }
 
-func NewAuditLogService(db *gorm.DB, emailSender NewLoginEmailSender, ipLocator iplocation.Resolver, appConfigService *appconfig.AppConfigService) *AuditLogService {
+func NewAuditLogService(db *gorm.DB, emailSender NewLoginEmailSender, ipLocator iplocation.Resolver, appConfigService appconfig.AppConfigResolver) *AuditLogService {
 	return &AuditLogService{
 		db:               db,
 		emailSender:      emailSender,
@@ -69,82 +70,136 @@ func (s *AuditLogService) Create(ctx context.Context, event model.AuditLogEvent,
 	return auditLog, true
 }
 
-// CreateNewSignInWithEmail creates a new audit log entry in the database and sends an email if the device hasn't been used before
-// emailLoginNotificationEnabled gates whether the notification email is sent, so the caller decides using the config it already loaded
-func (s *AuditLogService) CreateNewSignInWithEmail(ctx context.Context, ipAddress, userAgent, userID string, tx *gorm.DB, emailLoginNotificationEnabled bool) model.AuditLog {
-	createdAuditLog, ok := s.Create(ctx, model.AuditLogEventSignIn, ipAddress, userAgent, userID, model.AuditLogData{}, tx)
-	if !ok {
-		// At this point the transaction has been canceled already, and error has been logged
-		return createdAuditLog
+// CreateSignIn records a successful login and recognizes either its browser cookie or its exact IP and User-Agent
+// The caller must send the notification only after the login commits
+func (s *AuditLogService) CreateSignIn(ctx context.Context, event model.AuditLogEvent, ipAddress, userAgent, userID, browserToken string, tx *gorm.DB, emailLoginNotificationEnabled bool) model.SignInResult {
+	entry, created := s.Create(ctx, event, ipAddress, userAgent, userID, model.AuditLogData{}, tx)
+	result := model.SignInResult{AuditLog: entry, Created: created}
+	if !created {
+		return result
 	}
 
-	// Count the number of times the user has logged in from the same device
-	var count int64
-	stmt := tx.
-		WithContext(ctx).
-		Model(&model.AuditLog{}).
-		Where("user_id = ? AND user_agent = ?", userID, userAgent)
-	if ipAddress == "" {
-		// An empty IP address is stored as NULL in the database
-		stmt = stmt.Where("ip_address IS NULL")
-	} else {
-		stmt = stmt.Where("ip_address = ?", ipAddress)
-	}
-	err := stmt.Count(&count).Error
+	// Remember the browser even when notifications are disabled so enabling them does not forget existing browsers
+	known, token, err := s.rememberBrowser(ctx, tx, userID, browserToken)
 	if err != nil {
-		slog.ErrorContext(ctx, "Failed to count audit logs", slog.Any("error", err))
-		return createdAuditLog
+		slog.ErrorContext(ctx, "Failed to remember sign-in browser", slog.Any("error", err))
+	}
+	result.KnownBrowserToken = token
+	if known || !emailLoginNotificationEnabled {
+		return result
 	}
 
-	// If the user hasn't logged in from the same device before and email notifications are enabled, send an email
-	if emailLoginNotificationEnabled && count <= 1 {
-		go func() {
-			// This runs in background, so use a context without cancellation (or it would be stopped when the request ends)
-			// We still want to have a context derived from the request's to carry over tracing info
-			innerCtx := context.WithoutCancel(ctx)
+	// Only earlier successful sign-ins for this user can satisfy the fallback
+	var count int64
+	query := tx.WithContext(ctx).Model(&model.AuditLog{}).
+		Where("user_id = ? AND user_agent = ? AND id <> ?", userID, userAgent, entry.ID).
+		Where("event IN ?", []model.AuditLogEvent{model.AuditLogEventSignIn, model.AuditLogEventOneTimeAccessTokenSignIn, model.AuditLogEventRemoteSignIn})
+	if ipAddress == "" {
+		query = query.Where("ip_address IS NULL")
+	} else {
+		query = query.Where("ip_address = ?", ipAddress)
+	}
+	if err := query.Count(&count).Error; err != nil {
+		slog.ErrorContext(ctx, "Failed to check sign-in history", slog.Any("error", err))
+		return result
+	}
+	result.Notify = count == 0
+	return result
+}
 
-			// This runs after the request has completed, so we resolve the current config rather than threading the request's snapshot into the goroutine
-			dbConfig, innerErr := s.appConfigService.GetConfig(innerCtx)
-			if innerErr != nil {
-				slog.ErrorContext(innerCtx, "Failed to load app configuration to send notification email", slog.Any("error", innerErr))
-				return
-			}
+func (s *AuditLogService) rememberBrowser(ctx context.Context, tx *gorm.DB, userID, token string) (bool, string, error) {
+	now := time.Now()
+	expiresAt := now.Add(model.KnownBrowserLifetime).Unix()
 
-			// Note we don't use the transaction here because this is running in background
-			var user model.User
-			innerErr = s.db.
-				WithContext(innerCtx).
-				Where("id = ?", userID).
-				First(&user).
-				Error
-			if innerErr != nil {
-				slog.ErrorContext(innerCtx, "Failed to load user from database to send notification email", slog.Any("error", innerErr))
-				return
-			}
-
-			if user.Email == nil {
-				return
-			}
-
-			innerErr = s.emailSender.SendNewLogin(
-				innerCtx,
-				dbConfig,
-				user.FullName(),
-				*user.Email,
-				ipAddress,
-				createdAuditLog.Country,
-				createdAuditLog.City,
-				s.DeviceStringFromUserAgent(userAgent),
-				createdAuditLog.CreatedAt.UTC(),
-			)
-			if innerErr != nil {
-				slog.ErrorContext(innerCtx, "Failed to send notification email", slog.Any("error", innerErr), slog.String("address", *user.Email))
-				return
-			}
-		}()
+	// Extend only an unexpired token already associated with the authenticated user
+	result := tx.WithContext(ctx).Model(&model.KnownBrowser{}).
+		Where("user_id = ? AND token_hash = ? AND expires_at > ?", userID, utils.CreateSha256Hash(token), now.Unix()).
+		Update("expires_at", expiresAt)
+	if result.Error != nil {
+		return false, "", result.Error
+	}
+	if result.RowsAffected > 0 {
+		return true, token, nil
 	}
 
-	return createdAuditLog
+	// Replace unrecognized tokens with server-generated randomness to avoid accepting a caller-chosen browser identity
+	token = rand.Text()
+	record := model.KnownBrowser{UserID: userID, TokenHash: utils.CreateSha256Hash(token), ExpiresAt: expiresAt}
+	if err := tx.WithContext(ctx).Create(&record).Error; err != nil {
+		return false, "", err
+	}
+	return false, token, nil
+}
+
+// SendSignInNotification sends only after the caller has completed the login successfully
+func (s *AuditLogService) SendSignInNotification(ctx context.Context, result model.SignInResult) {
+	if !result.Created || !result.Notify {
+		return
+	}
+	entry := result.AuditLog
+	ipAddress := ""
+	if entry.IpAddress != nil {
+		ipAddress = *entry.IpAddress
+	}
+	go func() {
+		// This runs in background, so use a context without cancellation (or it would be stopped when the request ends)
+		// We still want to have a context derived from the request's to carry over tracing info
+		innerCtx := context.WithoutCancel(ctx)
+
+		// This runs after the request has completed, so we resolve the current config rather than threading the request's snapshot into the goroutine
+		dbConfig, innerErr := s.appConfigService.GetConfig(innerCtx)
+		if innerErr != nil {
+			slog.ErrorContext(innerCtx, "Failed to load app configuration to send notification email", slog.Any("error", innerErr))
+			return
+		}
+
+		// Note we don't use the transaction here because this is running in background
+		var user model.User
+		innerErr = s.db.
+			WithContext(innerCtx).
+			Where("id = ?", entry.UserID).
+			First(&user).
+			Error
+		if innerErr != nil {
+			slog.ErrorContext(innerCtx, "Failed to load user from database to send notification email", slog.Any("error", innerErr))
+			return
+		}
+
+		if user.Email == nil {
+			return
+		}
+
+		innerErr = s.emailSender.SendNewLogin(
+			innerCtx,
+			dbConfig,
+			user.FullName(),
+			*user.Email,
+			ipAddress,
+			entry.Country,
+			entry.City,
+			s.DeviceStringFromUserAgent(entry.UserAgent),
+			signInMethod(entry.Event),
+			entry.CreatedAt.UTC(),
+		)
+		if innerErr != nil {
+			slog.ErrorContext(innerCtx, "Failed to send notification email", slog.Any("error", innerErr), slog.String("address", *user.Email))
+			return
+		}
+	}()
+}
+
+// signInMethod describes the successful login rather than the credential used to approve another device
+func signInMethod(event model.AuditLogEvent) string {
+	switch event { //nolint:exhaustive // Other audit events are not sign-ins
+	case model.AuditLogEventSignIn:
+		return "Passkey"
+	case model.AuditLogEventOneTimeAccessTokenSignIn:
+		return "One-time code"
+	case model.AuditLogEventRemoteSignIn:
+		return "Another device (QR code)"
+	default:
+		return "Unknown"
+	}
 }
 
 // ListAuditLogsForUser retrieves all audit logs for a given user ID

@@ -329,6 +329,15 @@ func (o *NewActorsOpts) registerCronJobs(host francishost.Host) (err error) {
 		}
 	}
 
+	// Clean expired browser recognition records independently of user activity
+	knownBrowserCleanup, err := job.GetKnownBrowserCleanupJob(o.DB)
+	if err != nil {
+		return fmt.Errorf("failed to get known browser cleanup cron job: %w", err)
+	}
+	if err = host.RegisterBuiltInActor(knownBrowserCleanup); err != nil {
+		return fmt.Errorf("error registering known browser cleanup cron actor: %w", err)
+	}
+
 	// Register the file cleanup jobs
 	fileCleanupJobs, err := job.GetFileCleanupJobs(o.DB, o.FileStorage)
 	if err != nil {

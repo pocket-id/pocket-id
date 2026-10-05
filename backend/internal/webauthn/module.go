@@ -23,8 +23,9 @@ type TokenService interface {
 }
 
 type AuditLogger interface {
+	CreateSignIn(ctx context.Context, event model.AuditLogEvent, ipAddress, userAgent, userID, browserToken string, tx *gorm.DB, emailLoginNotificationEnabled bool) model.SignInResult
+	SendSignInNotification(ctx context.Context, result model.SignInResult)
 	Create(ctx context.Context, event model.AuditLogEvent, ipAddress, userAgent, userID string, data model.AuditLogData, tx *gorm.DB) (model.AuditLog, bool)
-	CreateNewSignInWithEmail(ctx context.Context, ipAddress, userAgent, userID string, tx *gorm.DB, emailLoginNotificationEnabled bool) model.AuditLog
 }
 
 type Dependencies struct {

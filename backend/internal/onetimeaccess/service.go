@@ -152,7 +152,7 @@ func (s *Service) CreateToken(ctx context.Context, userID string, ttl time.Durat
 	return token, nil
 }
 
-func (s *Service) ExchangeToken(ctx context.Context, dbConfig *appconfig.AppConfigModel, token, deviceToken, ipAddress, userAgent string) (model.User, string, error) {
+func (s *Service) ExchangeToken(ctx context.Context, dbConfig *appconfig.AppConfigModel, token, deviceToken, ipAddress, userAgent, browserToken string) (model.User, model.LoginTokens, error) {
 	token = utils.NormalizeUnambiguousString(token)
 
 	// Consume the token by invoking its actor: this atomically validates it and, if valid, deletes it.
@@ -161,38 +161,38 @@ func (s *Service) ExchangeToken(ctx context.Context, dbConfig *appconfig.AppConf
 		DeviceToken: deviceToken,
 	})
 	if err != nil {
-		return model.User{}, "", fmt.Errorf("error invoking one-time access token actor: %w", err)
+		return model.User{}, model.LoginTokens{}, fmt.Errorf("error invoking one-time access token actor: %w", err)
 	}
 
 	var consumeRes tokenConsumeResponse
 	err = res.Decode(&consumeRes)
 	if err != nil {
-		return model.User{}, "", fmt.Errorf("error decoding one-time access token actor response: %w", err)
+		return model.User{}, model.LoginTokens{}, fmt.Errorf("error decoding one-time access token actor response: %w", err)
 	}
 
 	switch consumeRes.Status {
 	case tokenConsumeNotFound:
-		return model.User{}, "", apperror.TokenInvalidOrExpired()
+		return model.User{}, model.LoginTokens{}, apperror.TokenInvalidOrExpired()
 	case tokenConsumeDeviceMismatch:
-		return model.User{}, "", apperror.DeviceCodeInvalid()
+		return model.User{}, model.LoginTokens{}, apperror.DeviceCodeInvalid()
 	case tokenConsumeOK:
 		// All good, continue below
 	default:
-		return model.User{}, "", fmt.Errorf("unexpected status from one-time access token actor: %s", consumeRes.Status)
+		return model.User{}, model.LoginTokens{}, fmt.Errorf("unexpected status from one-time access token actor: %s", consumeRes.Status)
 	}
 
 	// The token has now been consumed. From this point on, if we hit an error we compensate by restoring the token (this is best-effort).
-	user, accessToken, err := s.completeTokenExchange(ctx, dbConfig, consumeRes.State, ipAddress, userAgent)
+	user, accessToken, err := s.completeTokenExchange(ctx, dbConfig, consumeRes.State, ipAddress, userAgent, browserToken)
 	if err != nil {
 		s.restoreToken(ctx, token, consumeRes.State)
-		return model.User{}, "", err
+		return model.User{}, model.LoginTokens{}, err
 	}
 
 	return user, accessToken, nil
 }
 
 // completeTokenExchange performs the work that follows consuming a token: loading the user, validating it, and issuing an access token.
-func (s *Service) completeTokenExchange(ctx context.Context, dbConfig *appconfig.AppConfigModel, state TokenState, ipAddress, userAgent string) (model.User, string, error) {
+func (s *Service) completeTokenExchange(ctx context.Context, dbConfig *appconfig.AppConfigModel, state TokenState, ipAddress, userAgent, browserToken string) (model.User, model.LoginTokens, error) {
 	var user model.User
 	err := s.db.
 		WithContext(ctx).
@@ -200,13 +200,13 @@ func (s *Service) completeTokenExchange(ctx context.Context, dbConfig *appconfig
 		First(&user).
 		Error
 	if errors.Is(err, gorm.ErrRecordNotFound) {
-		return model.User{}, "", apperror.TokenInvalidOrExpired()
+		return model.User{}, model.LoginTokens{}, apperror.TokenInvalidOrExpired()
 	} else if err != nil {
-		return model.User{}, "", err
+		return model.User{}, model.LoginTokens{}, err
 	}
 
 	if user.Disabled {
-		return model.User{}, "", apperror.UserDisabled()
+		return model.User{}, model.LoginTokens{}, apperror.UserDisabled()
 	}
 
 	accessToken, err := s.signer.GenerateAccessToken(
@@ -215,18 +215,14 @@ func (s *Service) completeTokenExchange(ctx context.Context, dbConfig *appconfig
 		dbConfig.SessionDuration.AsDurationMinutes(),
 	)
 	if err != nil {
-		return model.User{}, "", err
+		return model.User{}, model.LoginTokens{}, err
 	}
 
-	s.auditLog.Create(
-		ctx, model.AuditLogEventOneTimeAccessTokenSignIn,
-		ipAddress, userAgent,
-		user.ID,
-		model.AuditLogData{},
-		s.db,
-	)
+	// Recognize the receiving browser after the login code has been consumed and the user validated
+	signIn := s.auditLog.CreateSignIn(ctx, model.AuditLogEventOneTimeAccessTokenSignIn, ipAddress, userAgent, user.ID, browserToken, s.db, dbConfig.EmailLoginNotificationEnabled.IsTrue())
+	s.auditLog.SendSignInNotification(ctx, signIn)
 
-	return user, accessToken, nil
+	return user, model.LoginTokens{AccessToken: accessToken, KnownBrowserToken: signIn.KnownBrowserToken}, nil
 }
 
 // restoreToken restores a token that was consumed but whose exchange could not be completed.

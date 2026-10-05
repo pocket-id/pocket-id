@@ -5,6 +5,7 @@ import (
 	"time"
 
 	"github.com/gin-gonic/gin"
+	"github.com/pocket-id/pocket-id/backend/internal/model"
 )
 
 func AddAccessTokenCookie(c *gin.Context, maxAgeInSeconds int, token string) {
@@ -31,4 +32,8 @@ func AddReauthenticationTokenCookie(c *gin.Context, reauthenticationToken string
 func addCookie(c *gin.Context, name, value string, maxAge int, path string) {
 	c.SetSameSite(http.SameSiteLaxMode)
 	c.SetCookie(name, value, maxAge, path, "", true, true)
+}
+
+func AddKnownBrowserCookie(c *gin.Context, token string) {
+	addCookie(c, KnownBrowserCookieName, token, int(model.KnownBrowserLifetime.Seconds()), "/")
 }

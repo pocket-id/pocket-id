@@ -8,6 +8,7 @@ interface SignInData {
 	location: string;
 	ipAddress: string;
 	device: string;
+	method: string;
 	dateTime: string;
 }
 
@@ -28,6 +29,7 @@ export const NewSignInEmail = ({ data, ...props }: NewSignInEmailProps) => (
 				{ label: 'Approximate location', value: data.location },
 				{ label: 'IP address', value: data.ipAddress },
 				{ label: 'Device', value: data.device },
+				{ label: 'Sign-in method', value: data.method },
 				{ label: 'Time', value: data.dateTime }
 			]}
 		/>
@@ -48,6 +50,7 @@ NewSignInEmail.TemplateProps = {
 			'{{if and .Data.City .Data.Country}}{{.Data.City}}, {{.Data.Country}}{{else if .Data.Country}}{{.Data.Country}}{{else}}Unknown{{end}}',
 		ipAddress: '{{.Data.IPAddress}}',
 		device: '{{.Data.Device}}',
+		method: '{{.Data.Method}}',
 		dateTime: '{{.Data.DateTime.Format "January 2, 2006 at 3:04 PM MST"}}'
 	}
 };
@@ -58,6 +61,7 @@ NewSignInEmail.PreviewProps = {
 		location: 'San Francisco, USA',
 		ipAddress: '203.0.113.42',
 		device: 'Chrome on macOS',
+		method: 'Passkey',
 		dateTime: 'January 2, 2026 at 3:04 PM UTC'
 	}
 };

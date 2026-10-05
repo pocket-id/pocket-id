@@ -23,7 +23,8 @@ func (fakeSigner) GenerateAccessToken(_ model.User, _ string, _ time.Duration) (
 }
 
 type fakeAuditLogger struct {
-	events []model.AuditLogEvent
+	events        []model.AuditLogEvent
+	notifications []model.SignInResult
 }
 
 func (f *fakeAuditLogger) Create(_ context.Context, event model.AuditLogEvent, _, _, _ string, _ model.AuditLogData, _ *gorm.DB) (model.AuditLog, bool) {
@@ -103,10 +104,14 @@ func TestExchangeTokenSuccess(t *testing.T) {
 	require.NoError(t, err)
 
 	dbConfig := appconfig.NewTestConfig(nil)
-	exchangedUser, accessToken, err := svc.ExchangeToken(t.Context(), dbConfig, token, "", "1.2.3.4", "test-agent")
+	dbConfig.EmailLoginNotificationEnabled = "true"
+	exchangedUser, accessToken, err := svc.ExchangeToken(t.Context(), dbConfig, token, "", "1.2.3.4", "test-agent", "")
 	require.NoError(t, err)
 	require.Equal(t, user.ID, exchangedUser.ID)
-	require.NotEmpty(t, accessToken)
+	require.NotEmpty(t, accessToken.AccessToken)
+	require.Len(t, auditLog.notifications, 1)
+	require.True(t, auditLog.notifications[0].Notify)
+	require.Equal(t, model.AuditLogEventOneTimeAccessTokenSignIn, auditLog.notifications[0].AuditLog.Event)
 
 	// The token must have been consumed
 	var state TokenState
@@ -134,7 +139,7 @@ func TestExchangeTokenAcceptsAmbiguousAliases(t *testing.T) {
 	}, &actor.SetStateOpts{TTL: time.Minute}))
 
 	dbConfig := appconfig.NewTestConfig(nil)
-	exchangedUser, _, err := svc.ExchangeToken(t.Context(), dbConfig, "aIObc2", "", "", "")
+	exchangedUser, _, err := svc.ExchangeToken(t.Context(), dbConfig, "aIObc2", "", "", "", "")
 	require.NoError(t, err)
 	require.Equal(t, user.ID, exchangedUser.ID)
 }
@@ -144,7 +149,7 @@ func TestExchangeTokenInvalidToken(t *testing.T) {
 	svc, _, _ := newServiceForTest(t, db)
 
 	dbConfig := appconfig.NewTestConfig(nil)
-	_, _, err := svc.ExchangeToken(t.Context(), dbConfig, "does-not-exist", "", "", "")
+	_, _, err := svc.ExchangeToken(t.Context(), dbConfig, "does-not-exist", "", "", "", "")
 
 	require.True(t, apperror.IsCode(err, apperror.CodeTokenInvalidOrExpired))
 }
@@ -165,7 +170,7 @@ func TestExchangeTokenDeviceMismatch(t *testing.T) {
 	require.NotNil(t, deviceToken)
 
 	dbConfig := appconfig.NewTestConfig(nil)
-	_, _, err = svc.ExchangeToken(t.Context(), dbConfig, token, "wrong-device-token", "", "")
+	_, _, err = svc.ExchangeToken(t.Context(), dbConfig, token, "wrong-device-token", "", "", "")
 
 	require.True(t, apperror.IsCode(err, apperror.CodeDeviceCodeInvalid))
 
@@ -192,7 +197,7 @@ func TestExchangeTokenRejectsDisabledUser(t *testing.T) {
 	require.NoError(t, err)
 
 	dbConfig := appconfig.NewTestConfig(nil)
-	exchangedUser, accessToken, err := svc.ExchangeToken(t.Context(), dbConfig, token, "", "", "")
+	exchangedUser, accessToken, err := svc.ExchangeToken(t.Context(), dbConfig, token, "", "", "", "")
 
 	require.True(t, apperror.IsCode(err, apperror.CodeUserDisabled))
 	require.Empty(t, exchangedUser.ID)
@@ -205,4 +210,15 @@ func TestExchangeTokenRejectsDisabledUser(t *testing.T) {
 	require.Equal(t, user.ID, state.UserID)
 
 	require.Empty(t, auditLog.events)
+	require.Empty(t, auditLog.notifications)
+}
+
+func (f *fakeAuditLogger) CreateSignIn(ctx context.Context, event model.AuditLogEvent, ipAddress, userAgent, userID, browserToken string, tx *gorm.DB, enabled bool) model.SignInResult {
+	entry, created := f.Create(ctx, event, ipAddress, userAgent, userID, model.AuditLogData{}, tx)
+	entry.Event = event
+	return model.SignInResult{AuditLog: entry, Created: created, Notify: enabled, KnownBrowserToken: "recognized-browser"}
+}
+
+func (f *fakeAuditLogger) SendSignInNotification(_ context.Context, result model.SignInResult) {
+	f.notifications = append(f.notifications, result)
 }

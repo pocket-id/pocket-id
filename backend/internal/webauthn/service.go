@@ -255,7 +255,7 @@ func (s *Service) BeginLogin(ctx context.Context, dbConfig *appconfig.AppConfigM
 	}, nil
 }
 
-func (s *Service) VerifyLogin(ctx context.Context, dbConfig *appconfig.AppConfigModel, sessionID string, credentialAssertionData *protocol.ParsedCredentialAssertionData, ipAddress, userAgent string) (model.User, string, error) {
+func (s *Service) VerifyLogin(ctx context.Context, dbConfig *appconfig.AppConfigModel, sessionID string, credentialAssertionData *protocol.ParsedCredentialAssertionData, ipAddress, userAgent, browserToken string) (model.User, model.LoginTokens, error) {
 	tx := s.db.Begin()
 	defer func() {
 		tx.Rollback()
@@ -268,10 +268,10 @@ func (s *Service) VerifyLogin(ctx context.Context, dbConfig *appconfig.AppConfig
 		Clauses(clause.Returning{}).
 		Delete(&storedSession, "id = ?", sessionID)
 	if result.Error != nil {
-		return model.User{}, "", fmt.Errorf("failed to load WebAuthn session: %w", result.Error)
+		return model.User{}, model.LoginTokens{}, fmt.Errorf("failed to load WebAuthn session: %w", result.Error)
 	}
 	if result.RowsAffected == 0 {
-		return model.User{}, "", apperror.InvalidWebAuthnSession()
+		return model.User{}, model.LoginTokens{}, apperror.InvalidWebAuthnSession()
 	}
 
 	session := gowebauthn.SessionData{
@@ -301,29 +301,35 @@ func (s *Service) VerifyLogin(ctx context.Context, dbConfig *appconfig.AppConfig
 	}, session, credentialAssertionData)
 
 	if err != nil {
-		return model.User{}, "", classifyPasskeyError(err, apperror.WebAuthnAuthenticationFailed)
+		return model.User{}, model.LoginTokens{}, classifyPasskeyError(err, apperror.WebAuthnAuthenticationFailed)
 	}
 	if user == nil {
-		return model.User{}, "", apperror.WebAuthnAuthenticationFailed(errors.New("WebAuthn response did not resolve to a user"))
+		return model.User{}, model.LoginTokens{}, apperror.WebAuthnAuthenticationFailed(errors.New("WebAuthn response did not resolve to a user"))
 	}
 
 	if user.Disabled {
-		return model.User{}, "", apperror.UserDisabled()
+		return model.User{}, model.LoginTokens{}, apperror.UserDisabled()
 	}
 
 	token, err := s.signer.GenerateAccessToken(*user, authenticationMethodPhishingResistant, dbConfig.SessionDuration.AsDurationMinutes())
 	if err != nil {
-		return model.User{}, "", err
+		return model.User{}, model.LoginTokens{}, err
 	}
 
-	s.auditLog.CreateNewSignInWithEmail(ctx, ipAddress, userAgent, user.ID, tx, dbConfig.EmailLoginNotificationEnabled.IsTrue())
+	// Prepare browser recognition and the notification within the login transaction
+	signIn := s.auditLog.CreateSignIn(ctx, model.AuditLogEventSignIn, ipAddress, userAgent, user.ID, browserToken, tx, dbConfig.EmailLoginNotificationEnabled.IsTrue())
+	if !signIn.Created {
+		return model.User{}, model.LoginTokens{}, errors.New("failed to create sign-in audit log")
+	}
 
 	err = tx.Commit().Error
 	if err != nil {
-		return model.User{}, "", err
+		return model.User{}, model.LoginTokens{}, err
 	}
 
-	return *user, token, nil
+	// Deliver the notification only after the login transaction has committed
+	s.auditLog.SendSignInNotification(ctx, signIn)
+	return *user, model.LoginTokens{AccessToken: token, KnownBrowserToken: signIn.KnownBrowserToken}, nil
 }
 
 func (s *Service) ListCredentials(ctx context.Context, userID string) ([]model.WebauthnCredential, error) {

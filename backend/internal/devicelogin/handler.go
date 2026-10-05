@@ -72,7 +72,8 @@ func (h *handler) exchangeRequest(c *gin.Context) error {
 	requestID := c.Param("id")
 	deviceToken, _ := c.Cookie(cookie.DeviceLoginTokenCookieName)
 	sessionDuration := dbConfig.SessionDuration.AsDurationMinutes()
-	user, accessToken, status, err := h.service.Exchange(c.Request.Context(), requestID, deviceToken, c.ClientIP(), c.Request.UserAgent(), sessionDuration)
+	browserToken, _ := c.Cookie(cookie.KnownBrowserCookieName)
+	user, tokens, status, err := h.service.Exchange(c.Request.Context(), requestID, deviceToken, c.ClientIP(), c.Request.UserAgent(), browserToken, sessionDuration, dbConfig.EmailLoginNotificationEnabled.IsTrue())
 	if err != nil {
 		if c.Request.Context().Err() != nil {
 			// Context canceled = the client stopped the request
@@ -88,7 +89,8 @@ func (h *handler) exchangeRequest(c *gin.Context) error {
 	}
 
 	maxAge := int(sessionDuration.Seconds())
-	cookie.AddAccessTokenCookie(c, maxAge, accessToken)
+	cookie.AddAccessTokenCookie(c, maxAge, tokens.AccessToken)
+	cookie.AddKnownBrowserCookie(c, tokens.KnownBrowserToken)
 	c.JSON(http.StatusOK, dto.UserDto(user))
 	return nil
 }
