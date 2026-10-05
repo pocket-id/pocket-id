@@ -18,9 +18,10 @@
 </script>
 
 <script lang="ts">
+	import appConfigStore from '#lib/stores/application-configuration-store.ts';
+	import { cn } from '#lib/utils/style.js';
 	import { Tabs as TabsPrimitive } from 'bits-ui';
 	import { onMount } from 'svelte';
-	import { cn } from '#lib/utils/style.js';
 
 	let {
 		ref = $bindable(null),
@@ -109,7 +110,9 @@
 			aria-hidden="true"
 			data-slot="tabs-indicator"
 			class={cn(
-				'bg-foreground pointer-events-none absolute rounded-full opacity-0 transition-[transform,width,height,opacity] duration-300 ease-out motion-reduce:transition-none',
+				'bg-foreground pointer-events-none absolute rounded-full opacity-0',
+				!$appConfigStore?.disableAnimations &&
+					'transition-[transform,width,height,opacity] duration-300 ease-out motion-reduce:transition-none',
 				indicatorOrientation === 'horizontal' ? 'bottom-0 left-0 h-0.5' : 'top-0 right-0 w-0.5',
 				indicatorVisible && 'opacity-100'
 			)}

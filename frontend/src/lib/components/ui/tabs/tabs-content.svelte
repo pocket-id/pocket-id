@@ -13,7 +13,7 @@
 	bind:ref
 	data-slot="tabs-content"
 	class={cn(
-		'data-[state=active]:animate-in data-[state=active]:fade-in-0 data-[state=active]:slide-in-from-bottom-1 flex-1 text-sm outline-none data-[state=active]:duration-200 motion-reduce:data-[state=active]:animate-none',
+		'flex-1 text-sm outline-none',
 		className
 	)}
 	{...restProps}
