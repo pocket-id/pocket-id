@@ -57,7 +57,7 @@ func (s *service) Create(ctx context.Context, event Event, ipAddress, userAgent,
 		Create(&auditLog).
 		Error
 	if err != nil {
-		slog.Error("Failed to create audit log", "error", err)
+		slog.ErrorContext(ctx, "Failed to create audit log", "error", err)
 		return AuditLog{}, false
 	}
 

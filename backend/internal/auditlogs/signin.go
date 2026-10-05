@@ -19,9 +19,18 @@ func (s *service) CreateSignIn(ctx context.Context, event Event, ipAddress, user
 	}
 
 	// Remember the browser even when notifications are disabled so enabling them does not forget existing browsers
-	known, token, err := s.rememberBrowser(ctx, tx, userID, browserToken)
+	// Isolate browser writes so a failure does not abort the surrounding login transaction
+	var known bool
+	var token string
+	err := tx.WithContext(ctx).Transaction(func(browserTx *gorm.DB) error {
+		var err error
+		known, token, err = s.rememberBrowser(ctx, browserTx, userID, browserToken)
+		return err
+	})
 	if err != nil {
 		slog.ErrorContext(ctx, "Failed to remember sign-in browser", slog.Any("error", err))
+		known = false
+		token = browserToken
 	}
 	result.KnownBrowserToken = token
 	if known || !emailLoginNotificationEnabled {

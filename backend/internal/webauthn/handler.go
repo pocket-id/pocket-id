@@ -120,7 +120,9 @@ func (h *handler) verifyLogin(c *gin.Context) error {
 
 	maxAge := int(dbConfig.SessionDuration.AsDurationMinutes().Seconds())
 	cookie.AddAccessTokenCookie(c, maxAge, tokens.AccessToken)
-	cookie.AddKnownBrowserCookie(c, tokens.KnownBrowserToken, int(auditlogs.KnownBrowserLifetime.Seconds()))
+	if tokens.KnownBrowserToken != "" {
+		cookie.AddKnownBrowserCookie(c, tokens.KnownBrowserToken, int(auditlogs.KnownBrowserLifetime.Seconds()))
+	}
 
 	c.JSON(http.StatusOK, userDto)
 	return nil

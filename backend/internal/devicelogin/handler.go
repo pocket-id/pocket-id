@@ -91,7 +91,9 @@ func (h *handler) exchangeRequest(c *gin.Context) error {
 
 	maxAge := int(sessionDuration.Seconds())
 	cookie.AddAccessTokenCookie(c, maxAge, tokens.AccessToken)
-	cookie.AddKnownBrowserCookie(c, tokens.KnownBrowserToken, int(auditlogs.KnownBrowserLifetime.Seconds()))
+	if tokens.KnownBrowserToken != "" {
+		cookie.AddKnownBrowserCookie(c, tokens.KnownBrowserToken, int(auditlogs.KnownBrowserLifetime.Seconds()))
+	}
 	c.JSON(http.StatusOK, dto.UserDto(user))
 	return nil
 }
