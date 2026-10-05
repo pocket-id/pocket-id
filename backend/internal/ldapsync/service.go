@@ -779,29 +779,24 @@ func (s *Service) saveProfilePicture(parentCtx context.Context, userId string, p
 	return nil
 }
 
-// normalizeLDAPDN returns a canonical lowercase form of a DN for use as a map key.
-// Different LDAP servers may format the same DN with varying attribute type casing (e.g. "CN=" vs "cn=") or extra whitespace (e.g. "dc=example, dc=com").
-// Without normalization, cache lookups in usernamesByDN would miss when a member attribute value uses a different format than the DN returned in the search entry
-//
-// ldap.ParseDN is used instead of simple lowercasing because it correctly handles multi-valued RDNs (joined with "+") and strips inter-component whitespace.
-// If parsing fails for any reason, we fall back to a simple lowercase+trim.
+// normalizeLDAPDN returns a canonical lowercase form of a DN for use as a map key
+// Escaping preserves the distinction between separators and literal characters inside attribute values
 func normalizeLDAPDN(dn string) string {
+	// Parse components so equivalent formatting shares a cache key
 	parsed, err := ldap.ParseDN(dn)
 	if err != nil {
 		return strings.ToLower(strings.TrimSpace(dn))
 	}
 
-	// Reconstruct the DN in a canonical form: lowercase type=lowercase value, with RDN components separated by "," and multi-value attributes by "+"
-	parts := make([]string, 0, len(parsed.RDNs))
+	// Preserve case-insensitive lookups while letting the LDAP serializer escape values and sort multi-valued RDNs
 	for _, rdn := range parsed.RDNs {
-		attrs := make([]string, 0, len(rdn.Attributes))
 		for _, attr := range rdn.Attributes {
-			attrs = append(attrs, strings.ToLower(attr.Type)+"="+strings.ToLower(attr.Value))
+			attr.Type = strings.ToLower(attr.Type)
+			attr.Value = strings.ToLower(attr.Value)
 		}
-		parts = append(parts, strings.Join(attrs, "+"))
 	}
 
-	return strings.Join(parts, ",")
+	return parsed.String()
 }
 
 // getDNProperty returns the value of a property from a LDAP identifier

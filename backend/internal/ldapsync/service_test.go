@@ -196,6 +196,84 @@ func TestLdapServiceSyncAllMapsPosixGroupMemberUid(t *testing.T) {
 	assert.ElementsMatch(t, []string{"alice", "bob"}, usernames(group.Users))
 }
 
+func TestLdapServiceSyncAllKeepsDistinctDNMemberships(t *testing.T) {
+	tests := []struct {
+		name       string
+		memberDN   string
+		attackerDN string
+	}{
+		{
+			name:       "escaped comma",
+			memberDN:   "cn=admin,ou=staff,dc=example,dc=com",
+			attackerDN: `cn=admin\,ou=staff,dc=example,dc=com`,
+		},
+		{
+			name:       "escaped plus",
+			memberDN:   "cn=admin+ou=staff,dc=example,dc=com",
+			attackerDN: `cn=admin\+ou=staff,dc=example,dc=com`,
+		},
+	}
+
+	for _, tt := range tests {
+		for _, attackerFirst := range []bool{false, true} {
+			order := "/attacker last"
+			if attackerFirst {
+				order = "/attacker first"
+			}
+			t.Run(tt.name+order, func(t *testing.T) {
+				// Keep the usernames and immutable IDs distinct so only DN resolution can confuse the users
+				entries := []*ldap.Entry{
+					ldapEntry(tt.memberDN, map[string][]string{
+						"entryUUID": {"u-admin"},
+						"uid":       {"admin"},
+						"givenName": {"Admin"},
+						"sn":        {"User"},
+					}),
+					ldapEntry(tt.attackerDN, map[string][]string{
+						"entryUUID": {"u-attacker"},
+						"uid":       {"attacker"},
+						"givenName": {"Attacker"},
+						"sn":        {"User"},
+					}),
+				}
+				if attackerFirst {
+					entries[0], entries[1] = entries[1], entries[0]
+				}
+
+				// Exercise the persisted admin flag and ordinary group memberships through the same sync
+				service, db := newTestLdapService(t, newFakeLDAPClient(
+					ldapSearchResult(entries...),
+					ldapSearchResult(
+						ldapEntry("cn=admins,ou=groups,dc=example,dc=com", map[string][]string{
+							"entryUUID": {"g-admins"},
+							"cn":        {"admins"},
+							"member":    {tt.memberDN},
+						}),
+						ldapEntry("cn=restricted,ou=groups,dc=example,dc=com", map[string][]string{
+							"entryUUID": {"g-restricted"},
+							"cn":        {"restricted"},
+							"member":    {tt.memberDN},
+						}),
+					),
+				))
+				require.NoError(t, service.SyncAll(t.Context(), defaultTestLDAPAppConfig()))
+
+				var admin, attacker model.User
+				require.NoError(t, db.First(&admin, "ldap_id = ?", "u-admin").Error)
+				require.NoError(t, db.First(&attacker, "ldap_id = ?", "u-attacker").Error)
+				assert.True(t, admin.IsAdmin)
+				assert.False(t, attacker.IsAdmin)
+
+				for _, groupID := range []string{"g-admins", "g-restricted"} {
+					var group model.UserGroup
+					require.NoError(t, db.Preload("Users").First(&group, "ldap_id = ?", groupID).Error)
+					assert.Equal(t, []string{"admin"}, usernames(group.Users))
+				}
+			})
+		}
+	}
+}
+
 func TestLdapServiceSyncAllHandlesDuplicateLDAPIDsInSingleRun(t *testing.T) {
 	service, db := newTestLdapService(t, newFakeLDAPClient(
 		ldapSearchResult(
@@ -546,6 +624,26 @@ func TestNormalizeLDAPDN(t *testing.T) {
 			name:     "multi-valued RDN",
 			input:    "cn=alice+uid=a123,dc=example,dc=com",
 			expected: "cn=alice+uid=a123,dc=example,dc=com",
+		},
+		{
+			name:     "reordered multi-valued RDN",
+			input:    "UID=A123+CN=Alice,dc=example,dc=com",
+			expected: "cn=alice+uid=a123,dc=example,dc=com",
+		},
+		{
+			name:     "escaped comma remains part of the value",
+			input:    `CN=Admin\,OU=Staff,DC=example,DC=com`,
+			expected: `cn=admin\,ou=staff,dc=example,dc=com`,
+		},
+		{
+			name:     "hex-escaped comma shares the same key",
+			input:    `cn=admin\2cou=staff,dc=example,dc=com`,
+			expected: `cn=admin\,ou=staff,dc=example,dc=com`,
+		},
+		{
+			name:     "escaped plus remains part of the value",
+			input:    `cn=admin\+ou=staff,dc=example,dc=com`,
+			expected: `cn=admin\+ou=staff,dc=example,dc=com`,
 		},
 		{
 			name:     "invalid DN falls back to lowercase+trim",
