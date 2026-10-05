@@ -8,6 +8,7 @@ import (
 	"github.com/gin-gonic/gin"
 
 	"github.com/pocket-id/pocket-id/backend/internal/appconfig"
+	"github.com/pocket-id/pocket-id/backend/internal/auditlogs"
 	"github.com/pocket-id/pocket-id/backend/internal/dto"
 	"github.com/pocket-id/pocket-id/backend/internal/httpserver"
 	"github.com/pocket-id/pocket-id/backend/internal/utils/cookie"
@@ -90,7 +91,7 @@ func (h *handler) exchangeRequest(c *gin.Context) error {
 
 	maxAge := int(sessionDuration.Seconds())
 	cookie.AddAccessTokenCookie(c, maxAge, tokens.AccessToken)
-	cookie.AddKnownBrowserCookie(c, tokens.KnownBrowserToken)
+	cookie.AddKnownBrowserCookie(c, tokens.KnownBrowserToken, int(auditlogs.KnownBrowserLifetime.Seconds()))
 	c.JSON(http.StatusOK, dto.UserDto(user))
 	return nil
 }

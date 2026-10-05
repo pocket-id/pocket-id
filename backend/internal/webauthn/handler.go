@@ -13,6 +13,7 @@ import (
 
 	"github.com/pocket-id/pocket-id/backend/internal/appconfig"
 	"github.com/pocket-id/pocket-id/backend/internal/apperror"
+	"github.com/pocket-id/pocket-id/backend/internal/auditlogs"
 	"github.com/pocket-id/pocket-id/backend/internal/dto"
 	"github.com/pocket-id/pocket-id/backend/internal/httpserver"
 	"github.com/pocket-id/pocket-id/backend/internal/utils"
@@ -119,7 +120,7 @@ func (h *handler) verifyLogin(c *gin.Context) error {
 
 	maxAge := int(dbConfig.SessionDuration.AsDurationMinutes().Seconds())
 	cookie.AddAccessTokenCookie(c, maxAge, tokens.AccessToken)
-	cookie.AddKnownBrowserCookie(c, tokens.KnownBrowserToken)
+	cookie.AddKnownBrowserCookie(c, tokens.KnownBrowserToken, int(auditlogs.KnownBrowserLifetime.Seconds()))
 
 	c.JSON(http.StatusOK, userDto)
 	return nil

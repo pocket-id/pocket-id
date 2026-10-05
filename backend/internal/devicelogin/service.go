@@ -12,6 +12,7 @@ import (
 	"gorm.io/gorm"
 
 	"github.com/pocket-id/pocket-id/backend/internal/apperror"
+	"github.com/pocket-id/pocket-id/backend/internal/auditlogs"
 	"github.com/pocket-id/pocket-id/backend/internal/dto"
 	"github.com/pocket-id/pocket-id/backend/internal/iplocation"
 	"github.com/pocket-id/pocket-id/backend/internal/model"
@@ -204,7 +205,7 @@ func (s *Service) Exchange(ctx context.Context, requestID, deviceToken, ipAddres
 			}
 
 			// Record the successful remote sign-in after the request has been consumed
-			signIn := s.auditLog.CreateSignIn(ctx, model.AuditLogEventRemoteSignIn, ipAddress, userAgent, user.ID, browserToken, s.db, emailLoginNotificationEnabled)
+			signIn := s.auditLog.CreateSignIn(ctx, auditlogs.EventRemoteSignIn, ipAddress, userAgent, user.ID, browserToken, s.db, emailLoginNotificationEnabled)
 			if !signIn.Created {
 				return dto.UserDto{}, model.LoginTokens{}, consume.Status, errors.New("failed to create device login audit log")
 			}

@@ -12,12 +12,14 @@ import (
 	"time"
 
 	"github.com/ory/fosite"
+	"gorm.io/gorm"
+
 	"github.com/pocket-id/pocket-id/backend/internal/apperror"
+	"github.com/pocket-id/pocket-id/backend/internal/auditlogs"
 	"github.com/pocket-id/pocket-id/backend/internal/dto"
 	"github.com/pocket-id/pocket-id/backend/internal/model"
 	datatype "github.com/pocket-id/pocket-id/backend/internal/model/types"
 	"github.com/pocket-id/pocket-id/backend/internal/utils"
-	"gorm.io/gorm"
 )
 
 func newAuthorizationService(db *gorm.DB, interactionSessionService *interactionSessionService, claimsService *ClaimsService, reauth ReauthenticationTokenConsumer, auditLog AuditLogger, apiAccess APIAccessProvider) *authorizationService {
@@ -277,12 +279,12 @@ func (s *authorizationService) authorizeAuthenticated(ctx context.Context, req a
 
 	grantResourceIndicator(req.requester, audience, grantedScopes)
 
-	authorizationEvent := model.AuditLogEventClientAuthorization
+	authorizationEvent := auditlogs.EventClientAuthorization
 	if !hasAlreadyAuthorizedClient {
-		authorizationEvent = model.AuditLogEventNewClientAuthorization
+		authorizationEvent = auditlogs.EventNewClientAuthorization
 	}
 	if s.auditLog != nil {
-		s.auditLog.Create(ctx, authorizationEvent, req.meta.IPAddress, req.meta.UserAgent, req.userID, model.AuditLogData{"clientName": req.client.Name}, dbFromContext(ctx, s.db))
+		s.auditLog.Create(ctx, authorizationEvent, req.meta.IPAddress, req.meta.UserAgent, req.userID, auditlogs.Data{"clientName": req.client.Name}, dbFromContext(ctx, s.db))
 	}
 
 	return authorizationResult{Session: session}, nil
@@ -691,7 +693,7 @@ func (s *authorizationService) completeConsentStep(ctx context.Context, interact
 		return err
 	}
 	if !hasAlreadyAuthorizedClient && s.auditLog != nil {
-		s.auditLog.Create(ctx, model.AuditLogEventNewClientAuthorization, meta.IPAddress, meta.UserAgent, userID, model.AuditLogData{"clientName": interactionSession.Client.Name}, dbFromContext(ctx, s.db))
+		s.auditLog.Create(ctx, auditlogs.EventNewClientAuthorization, meta.IPAddress, meta.UserAgent, userID, auditlogs.Data{"clientName": interactionSession.Client.Name}, dbFromContext(ctx, s.db))
 	}
 	interactionSession.ConsentRequired = false
 	return nil

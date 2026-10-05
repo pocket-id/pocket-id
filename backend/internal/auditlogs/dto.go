@@ -1,10 +1,10 @@
-package dto
+package auditlogs
 
 import (
 	datatype "github.com/pocket-id/pocket-id/backend/internal/model/types"
 )
 
-type AuditLogDto struct {
+type auditLogDto struct {
 	ID        string            `json:"id"`
 	CreatedAt datatype.DateTime `json:"createdAt"`
 

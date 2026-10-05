@@ -15,6 +15,7 @@ import (
 
 	"github.com/pocket-id/pocket-id/backend/internal/appconfig"
 	"github.com/pocket-id/pocket-id/backend/internal/apperror"
+	"github.com/pocket-id/pocket-id/backend/internal/auditlogs"
 	"github.com/pocket-id/pocket-id/backend/internal/model"
 	datatype "github.com/pocket-id/pocket-id/backend/internal/model/types"
 	"github.com/pocket-id/pocket-id/backend/internal/utils"
@@ -204,8 +205,8 @@ func (s *Service) VerifyRegistration(ctx context.Context, dbConfig *appconfig.Ap
 		return model.WebauthnCredential{}, fmt.Errorf("failed to store WebAuthn credential: %w", err)
 	}
 
-	auditLogData := model.AuditLogData{"credentialID": hex.EncodeToString(credential.ID), "passkeyName": passkeyName}
-	s.auditLog.Create(ctx, model.AuditLogEventPasskeyAdded, ipAddress, r.UserAgent(), userID, auditLogData, tx)
+	auditLogData := auditlogs.Data{"credentialID": hex.EncodeToString(credential.ID), "passkeyName": passkeyName}
+	s.auditLog.Create(ctx, auditlogs.EventPasskeyAdded, ipAddress, r.UserAgent(), userID, auditLogData, tx)
 
 	err = tx.Commit().Error
 	if err != nil {
@@ -317,7 +318,7 @@ func (s *Service) VerifyLogin(ctx context.Context, dbConfig *appconfig.AppConfig
 	}
 
 	// Prepare browser recognition and the notification within the login transaction
-	signIn := s.auditLog.CreateSignIn(ctx, model.AuditLogEventSignIn, ipAddress, userAgent, user.ID, browserToken, tx, dbConfig.EmailLoginNotificationEnabled.IsTrue())
+	signIn := s.auditLog.CreateSignIn(ctx, auditlogs.EventSignIn, ipAddress, userAgent, user.ID, browserToken, tx, dbConfig.EmailLoginNotificationEnabled.IsTrue())
 	if !signIn.Created {
 		return model.User{}, model.LoginTokens{}, errors.New("failed to create sign-in audit log")
 	}
@@ -362,7 +363,7 @@ func (s *Service) DeleteCredential(ctx context.Context, userID string, credentia
 		return apperror.NotFound("Passkey")
 	}
 
-	auditLogData := model.AuditLogData{"credentialID": hex.EncodeToString(credential.CredentialID), "passkeyName": credential.Name}
+	auditLogData := auditlogs.Data{"credentialID": hex.EncodeToString(credential.CredentialID), "passkeyName": credential.Name}
 	if actorUserID != "" && actorUserID != userID {
 		var actor model.User
 		err := tx.
@@ -378,7 +379,7 @@ func (s *Service) DeleteCredential(ctx context.Context, userID string, credentia
 		auditLogData["actorUserID"] = actorUserID
 		auditLogData["actorUsername"] = actor.Username
 	}
-	s.auditLog.Create(ctx, model.AuditLogEventPasskeyRemoved, ipAddress, userAgent, userID, auditLogData, tx)
+	s.auditLog.Create(ctx, auditlogs.EventPasskeyRemoved, ipAddress, userAgent, userID, auditLogData, tx)
 
 	err := tx.Commit().Error
 	if err != nil {

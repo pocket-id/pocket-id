@@ -12,6 +12,7 @@ import (
 
 	"github.com/pocket-id/pocket-id/backend/internal/appconfig"
 	"github.com/pocket-id/pocket-id/backend/internal/apperror"
+	"github.com/pocket-id/pocket-id/backend/internal/auditlogs"
 	"github.com/pocket-id/pocket-id/backend/internal/model"
 	testutils "github.com/pocket-id/pocket-id/backend/internal/utils/testing"
 )
@@ -23,13 +24,13 @@ func (fakeSigner) GenerateAccessToken(_ model.User, _ string, _ time.Duration) (
 }
 
 type fakeAuditLogger struct {
-	events        []model.AuditLogEvent
-	notifications []model.SignInResult
+	events        []auditlogs.Event
+	notifications []auditlogs.SignInResult
 }
 
-func (f *fakeAuditLogger) Create(_ context.Context, event model.AuditLogEvent, _, _, _ string, _ model.AuditLogData, _ *gorm.DB) (model.AuditLog, bool) {
+func (f *fakeAuditLogger) Create(_ context.Context, event auditlogs.Event, _, _, _ string, _ auditlogs.Data, _ *gorm.DB) (auditlogs.AuditLog, bool) {
 	f.events = append(f.events, event)
-	return model.AuditLog{}, true
+	return auditlogs.AuditLog{}, true
 }
 
 type fakeUserProvider struct {
@@ -111,7 +112,7 @@ func TestExchangeTokenSuccess(t *testing.T) {
 	require.NotEmpty(t, accessToken.AccessToken)
 	require.Len(t, auditLog.notifications, 1)
 	require.True(t, auditLog.notifications[0].Notify)
-	require.Equal(t, model.AuditLogEventOneTimeAccessTokenSignIn, auditLog.notifications[0].AuditLog.Event)
+	require.Equal(t, auditlogs.EventOneTimeAccessTokenSignIn, auditLog.notifications[0].AuditLog.Event)
 
 	// The token must have been consumed
 	var state TokenState
@@ -119,7 +120,7 @@ func TestExchangeTokenSuccess(t *testing.T) {
 	require.ErrorIs(t, err, actor.ErrStateNotFound)
 
 	// A sign-in audit log must have been created
-	require.Equal(t, []model.AuditLogEvent{model.AuditLogEventOneTimeAccessTokenSignIn}, auditLog.events)
+	require.Equal(t, []auditlogs.Event{auditlogs.EventOneTimeAccessTokenSignIn}, auditLog.events)
 }
 
 func TestExchangeTokenAcceptsAmbiguousAliases(t *testing.T) {
@@ -213,12 +214,12 @@ func TestExchangeTokenRejectsDisabledUser(t *testing.T) {
 	require.Empty(t, auditLog.notifications)
 }
 
-func (f *fakeAuditLogger) CreateSignIn(ctx context.Context, event model.AuditLogEvent, ipAddress, userAgent, userID, browserToken string, tx *gorm.DB, enabled bool) model.SignInResult {
-	entry, created := f.Create(ctx, event, ipAddress, userAgent, userID, model.AuditLogData{}, tx)
+func (f *fakeAuditLogger) CreateSignIn(ctx context.Context, event auditlogs.Event, ipAddress, userAgent, userID, browserToken string, tx *gorm.DB, enabled bool) auditlogs.SignInResult {
+	entry, created := f.Create(ctx, event, ipAddress, userAgent, userID, auditlogs.Data{}, tx)
 	entry.Event = event
-	return model.SignInResult{AuditLog: entry, Created: created, Notify: enabled, KnownBrowserToken: "recognized-browser"}
+	return auditlogs.SignInResult{AuditLog: entry, Created: created, Notify: enabled, KnownBrowserToken: "recognized-browser"}
 }
 
-func (f *fakeAuditLogger) SendSignInNotification(_ context.Context, result model.SignInResult) {
+func (f *fakeAuditLogger) SendSignInNotification(_ context.Context, result auditlogs.SignInResult) {
 	f.notifications = append(f.notifications, result)
 }

@@ -17,6 +17,7 @@ import (
 	"gorm.io/gorm"
 
 	"github.com/pocket-id/pocket-id/backend/internal/apperror"
+	"github.com/pocket-id/pocket-id/backend/internal/auditlogs"
 	"github.com/pocket-id/pocket-id/backend/internal/model"
 	"github.com/pocket-id/pocket-id/backend/internal/utils"
 	testutils "github.com/pocket-id/pocket-id/backend/internal/utils/testing"
@@ -70,7 +71,7 @@ func (f *fakeTokenService) generatedToken() (string, string, time.Duration, int)
 }
 
 type auditEntry struct {
-	event     model.AuditLogEvent
+	event     auditlogs.Event
 	ipAddress string
 	userAgent string
 	userID    string
@@ -79,7 +80,7 @@ type auditEntry struct {
 type fakeAuditLogger struct {
 	mu            sync.Mutex
 	entries       []auditEntry
-	notifications []model.SignInResult
+	notifications []auditlogs.SignInResult
 }
 
 type fakeIPLocationResolver struct {
@@ -92,11 +93,11 @@ func (f *fakeIPLocationResolver) GetLocationByIP(context.Context, string) (strin
 	return f.country, f.city, f.err
 }
 
-func (f *fakeAuditLogger) Create(_ context.Context, event model.AuditLogEvent, ipAddress, userAgent, userID string, _ model.AuditLogData, _ *gorm.DB) (model.AuditLog, bool) {
+func (f *fakeAuditLogger) Create(_ context.Context, event auditlogs.Event, ipAddress, userAgent, userID string, _ auditlogs.Data, _ *gorm.DB) (auditlogs.AuditLog, bool) {
 	f.mu.Lock()
 	defer f.mu.Unlock()
 	f.entries = append(f.entries, auditEntry{event: event, ipAddress: ipAddress, userAgent: userAgent, userID: userID})
-	return model.AuditLog{}, true
+	return auditlogs.AuditLog{}, true
 }
 
 func (f *fakeAuditLogger) DeviceStringFromUserAgent(userAgent string) string {
@@ -162,7 +163,7 @@ func TestRequestLifecycle(t *testing.T) {
 	require.Equal(t, "device-login-access-token", accessToken.AccessToken)
 	require.Len(t, fixture.auditLog.notifications, 1)
 	require.True(t, fixture.auditLog.notifications[0].Notify)
-	require.Equal(t, model.AuditLogEventRemoteSignIn, fixture.auditLog.notifications[0].AuditLog.Event)
+	require.Equal(t, auditlogs.EventRemoteSignIn, fixture.auditLog.notifications[0].AuditLog.Event)
 
 	signedUserID, authenticationMethod, sessionDuration, generated := fixture.signer.generatedToken()
 	require.Equal(t, user.ID, signedUserID)
@@ -172,7 +173,7 @@ func TestRequestLifecycle(t *testing.T) {
 	requireRequestActorStateDeleted(t, fixture.actors, request.ID)
 
 	entry := fixture.auditLog.lastEntry()
-	require.Equal(t, model.AuditLogEventRemoteSignIn, entry.event)
+	require.Equal(t, auditlogs.EventRemoteSignIn, entry.event)
 	require.Equal(t, "198.51.100.20", entry.ipAddress)
 	require.Equal(t, "target-agent", entry.userAgent)
 	require.Equal(t, user.ID, entry.userID)
@@ -595,13 +596,13 @@ func freeLoopbackAddress(t *testing.T) string {
 	return address
 }
 
-func (f *fakeAuditLogger) CreateSignIn(ctx context.Context, event model.AuditLogEvent, ipAddress, userAgent, userID, browserToken string, tx *gorm.DB, enabled bool) model.SignInResult {
-	entry, created := f.Create(ctx, event, ipAddress, userAgent, userID, model.AuditLogData{}, tx)
+func (f *fakeAuditLogger) CreateSignIn(ctx context.Context, event auditlogs.Event, ipAddress, userAgent, userID, browserToken string, tx *gorm.DB, enabled bool) auditlogs.SignInResult {
+	entry, created := f.Create(ctx, event, ipAddress, userAgent, userID, auditlogs.Data{}, tx)
 	entry.Event = event
-	return model.SignInResult{AuditLog: entry, Created: created, Notify: enabled, KnownBrowserToken: "recognized-browser"}
+	return auditlogs.SignInResult{AuditLog: entry, Created: created, Notify: enabled, KnownBrowserToken: "recognized-browser"}
 }
 
-func (f *fakeAuditLogger) SendSignInNotification(_ context.Context, result model.SignInResult) {
+func (f *fakeAuditLogger) SendSignInNotification(_ context.Context, result auditlogs.SignInResult) {
 	f.mu.Lock()
 	defer f.mu.Unlock()
 	f.notifications = append(f.notifications, result)
