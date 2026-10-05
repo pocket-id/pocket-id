@@ -6,7 +6,10 @@ Pocket ID is an easy-to-use OpenID Connect Certified™ and OAuth 2.0 provider t
 
 → Try out the [Demo](https://demo.pocket-id.org)
 
-<img src="https://github.com/user-attachments/assets/1e99ba44-76da-4b47-9b8a-dbe9b7f84512" width="1200"/>
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset=".github/assets/screenshot-dark.png">
+  <img src=".github/assets/screenshot-light.png" alt="The Pocket ID sign-in page for Pangolin" width="1200">
+</picture>
 
 The goal of Pocket ID is to be a simple and easy-to-use. There are other self-hosted OIDC and OAuth 2.0 providers like [Keycloak](https://www.keycloak.org/) or [ORY Hydra](https://www.ory.sh/hydra/) but they are often too complex for simple use cases.
 
