@@ -166,6 +166,9 @@
     "name": "Enterprise Security Key Series with NFC (Consumer Profile)",
     "icon_light": "7db3534fd5258565.svg"
   },
+  "244eb29e-e090-4e49-81fe-1f20f8d3b8f4": {
+    "name": "CanoKey Canary"
+  },
   "24673149-6c86-42e7-98d9-433fb5b73296": {
     "name": "YubiKey 5 Series with Lightning",
     "icon_light": "7db3534fd5258565.svg"
@@ -251,6 +254,10 @@
   },
   "357f2718-434f-4124-8a58-7e28c5e4a2fc": {
     "name": "Deepnet SafeKey/Classic (NFC)"
+  },
+  "35d5ea15-ab24-4416-bdd1-f204c9bce1b6": {
+    "name": "CyberFOX Password Manager",
+    "icon_light": "e96fd04439690b36.svg"
   },
   "361a3082-0278-4583-a16f-72a527f973e4": {
     "name": "eWBM eFA500 FIDO2 Authenticator"
