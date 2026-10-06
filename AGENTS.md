@@ -15,6 +15,9 @@ the binary for production). This file lists what isn't obvious from reading the 
 # backend/   — the exclude_frontend and unit tags are mandatory locally; CI uses them too
 go test -tags=exclude_frontend,unit ./...                          # unit/integration tests
 go test -tags=exclude_frontend,unit -run TestName ./internal/...   # a single test
+# Tests that need Postgres are skipped unless POCKET_ID_TEST_POSTGRES_URL points at a server (each test creates its own database)
+docker run -d --rm --name pocket-id-test-pg -e POSTGRES_PASSWORD=postgres -p 55432:5432 postgres:17
+POCKET_ID_TEST_POSTGRES_URL='postgres://postgres:postgres@localhost:55432/postgres?sslmode=disable' go test -tags=exclude_frontend,unit ./...
 golangci-lint run  # lint (config: backend/.golangci.yml - includes build tags)
 
 # frontend/  (or root)
@@ -44,6 +47,10 @@ cd ../.. && pnpm test                            # = playwright test in tests/
   timelines. Add a matching up/down pair to **both**. Not GORM AutoMigrate. SQLite migrations
   are not auto-wrapped in a transaction (`NoTxWrap`); wrap multi-statement ones manually
   (`PRAGMA foreign_keys=OFF; BEGIN; … COMMIT; PRAGMA foreign_keys=ON;`).
+- **Column types must match across DBs for export/import.** A SQLite export must import into Postgres
+  and vice versa, so every column must map to the same `DBExportKind` (`backend/internal/utils/db_util.go`)
+  on both: JSON/binary is `JSONB`/`BYTEA` ↔ `BLOB`, timestamps are `TIMESTAMPTZ` ↔ `DATETIME` (never
+  `INTEGER`/`TEXT`), and nullability must match. `TestDBSchemaParity` enforces this (needs Postgres, see above).
 
 ## Backend (Go)
 

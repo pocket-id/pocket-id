@@ -160,38 +160,36 @@ func getScanValuesForTable(cols []string, types utils.DBSchemaTableTypes) []any 
 		// Store a pointer
 		// Note: don't create a helper function for this switch, because it would return type "any" and mess everything up
 		// If the column is nullable, we need a pointer to a pointer!
-		switch types[col].Name {
-		case "boolean", "bool":
+		switch types[col].ExportKind() {
+		case utils.DBExportKindBool:
 			var x bool
 			if types[col].Nullable {
 				res[i] = new(new(x))
 			} else {
 				res[i] = new(x)
 			}
-		case "blob", "bytea", "jsonb":
-			// Treat jsonb columns as binary too
+		case utils.DBExportKindBytes:
 			var x []byte
 			if types[col].Nullable {
 				res[i] = new(new(x))
 			} else {
 				res[i] = new(x)
 			}
-		case "timestamp", "timestamptz", "timestamp with time zone", "datetime":
+		case utils.DBExportKindDateTime:
 			var x datatype.DateTime
 			if types[col].Nullable {
 				res[i] = new(new(x))
 			} else {
 				res[i] = new(x)
 			}
-		case "integer", "int", "bigint":
+		case utils.DBExportKindInteger:
 			var x int64
 			if types[col].Nullable {
 				res[i] = new(new(x))
 			} else {
 				res[i] = new(x)
 			}
-		default:
-			// Treat everything else as a string (including the "numeric" type)
+		case utils.DBExportKindString:
 			var x string
 			if types[col].Nullable {
 				res[i] = new(new(x))

@@ -5,20 +5,26 @@
 package testing
 
 import (
+	"crypto/rand"
 	"errors"
 	"log/slog"
+	"net/url"
+	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 	"time"
 
 	_ "github.com/golang-migrate/migrate/v4/source/file"
 
 	"github.com/golang-migrate/migrate/v4"
+	postgresMigrate "github.com/golang-migrate/migrate/v4/database/postgres"
 	sqliteMigrate "github.com/golang-migrate/migrate/v4/database/sqlite3"
 	"github.com/golang-migrate/migrate/v4/source/iofs"
 	sqlitekit "github.com/italypaleale/go-sql-utils/sqlite"
 	"github.com/libtnb/sqlite"
 	"github.com/stretchr/testify/require"
+	"gorm.io/driver/postgres"
 	"gorm.io/gorm"
 	"gorm.io/gorm/logger"
 
@@ -59,6 +65,61 @@ func NewConcurrentDatabaseForTest(t *testing.T) *gorm.DB {
 	t.Helper()
 	db := openFileTestDB(t)
 	runMigrations(t, db, 0, nil)
+	return db
+}
+
+// NewPostgresDatabaseForTest returns a new instance of GORM connected to a fresh Postgres database with all Postgres migrations applied.
+// The server is taken from the POCKET_ID_TEST_POSTGRES_URL environment variable, and a new database is created on it for each test and dropped afterwards.
+// When the variable is not set the test is skipped, unless POCKET_ID_TEST_POSTGRES_REQUIRED is "true", which CI sets so these tests can never be skipped silently there.
+func NewPostgresDatabaseForTest(t *testing.T) *gorm.DB {
+	t.Helper()
+
+	serverURL := os.Getenv("POCKET_ID_TEST_POSTGRES_URL")
+	if serverURL == "" {
+		if os.Getenv("POCKET_ID_TEST_POSTGRES_REQUIRED") == "true" {
+			t.Fatal("POCKET_ID_TEST_POSTGRES_URL must be set when POCKET_ID_TEST_POSTGRES_REQUIRED is true")
+		}
+		t.Skip("POCKET_ID_TEST_POSTGRES_URL is not set")
+	}
+
+	// Create a database that only this test uses, so tests can run in parallel against the same server
+	admin, err := gorm.Open(postgres.Open(serverURL), newTestGormConfig(t))
+	require.NoError(t, err, "Failed to connect to the Postgres test server")
+	adminDB, err := admin.DB()
+	require.NoError(t, err, "Failed to get sql.DB")
+	dbName := "pocket_id_test_" + strings.ToLower(rand.Text())
+	require.NoError(t, admin.Exec(`CREATE DATABASE "`+dbName+`"`).Error, "Failed to create the Postgres test database")
+
+	// Drop the database once the test is done, after its own connections have been closed by the cleanup registered below
+	t.Cleanup(func() {
+		require.NoError(t, admin.Exec(`DROP DATABASE IF EXISTS "`+dbName+`" WITH (FORCE)`).Error, "Failed to drop the Postgres test database")
+		require.NoError(t, adminDB.Close(), "Failed to close the Postgres test server connection")
+	})
+
+	// Connect to the new database by swapping the database name in the server URL
+	u, err := url.Parse(serverURL)
+	require.NoError(t, err, "Failed to parse POCKET_ID_TEST_POSTGRES_URL")
+	u.Path = "/" + dbName
+	db, err := gorm.Open(postgres.Open(u.String()), newTestGormConfig(t))
+	require.NoError(t, err, "Failed to connect to the Postgres test database")
+	sqlDB, err := db.DB()
+	require.NoError(t, err, "Failed to get sql.DB")
+	t.Cleanup(func() {
+		require.NoError(t, sqlDB.Close(), "Failed to close the Postgres test database")
+	})
+
+	// Apply the embedded Postgres migrations
+	conn, err := sqlDB.Conn(t.Context())
+	require.NoError(t, err, "Failed to acquire migration connection")
+	defer conn.Close()
+	driver, err := postgresMigrate.WithConnection(t.Context(), conn, &postgresMigrate.Config{})
+	require.NoError(t, err, "Failed to create migration driver")
+	source, err := iofs.New(resources.FS, "migrations/postgres")
+	require.NoError(t, err, "Failed to create embedded migration source")
+	m, err := migrate.NewWithInstance("iofs", source, "pocket-id", driver)
+	require.NoError(t, err, "Failed to create migration instance")
+	require.NoError(t, m.Up(), "Failed to perform migrations")
+
 	return db
 }
 

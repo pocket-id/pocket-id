@@ -37,6 +37,38 @@ type DBSchemaColumn struct {
 	Name     string
 	Nullable bool
 }
+
+// DBExportKind is how the values of a column are encoded in a data export
+type DBExportKind string
+
+const (
+	DBExportKindString   DBExportKind = "string"
+	DBExportKindBool     DBExportKind = "bool"
+	DBExportKindInteger  DBExportKind = "integer"
+	DBExportKindDateTime DBExportKind = "datetime"
+	// DBExportKindBytes values are stored as base64-encoded strings
+	DBExportKindBytes DBExportKind = "bytes"
+)
+
+// ExportKind returns how the values of the column are encoded in a data export
+// An export from one database provider can only be imported into another if every column has the same export kind on both
+func (c DBSchemaColumn) ExportKind() DBExportKind {
+	switch c.Name {
+	case "boolean", "bool":
+		return DBExportKindBool
+	case "integer", "int", "bigint":
+		return DBExportKindInteger
+	case "timestamp", "timestamptz", "timestamp with time zone", "datetime":
+		return DBExportKindDateTime
+	case "blob", "bytea", "jsonb":
+		// jsonb is treated as binary too
+		return DBExportKindBytes
+	default:
+		// Everything else is treated as a string, including the "numeric" type
+		return DBExportKindString
+	}
+}
+
 type DBSchemaTableTypes = map[string]DBSchemaColumn
 type DBSchemaTypes = map[string]DBSchemaTableTypes
 

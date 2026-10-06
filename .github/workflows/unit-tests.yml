@@ -34,6 +34,14 @@ jobs:
         working-directory: backend
         run: |
           go get ./...
+      - name: Start Postgres
+        # The SQLite/Postgres schema parity test needs Postgres and fails instead of skipping when POCKET_ID_TEST_POSTGRES_REQUIRED is set
+        if: runner.os == 'Linux'
+        run: |
+          docker run -d --name postgres -e POSTGRES_PASSWORD=postgres -p 5432:5432 --health-cmd "pg_isready -U postgres" --health-interval 1s --health-retries 60 postgres:17
+          timeout 60 sh -c 'until [ "$(docker inspect -f "{{.State.Health.Status}}" postgres)" = healthy ]; do sleep 1; done'
+          echo "POCKET_ID_TEST_POSTGRES_URL=postgres://postgres:postgres@localhost:5432/postgres?sslmode=disable" >> "$GITHUB_ENV"
+          echo "POCKET_ID_TEST_POSTGRES_REQUIRED=true" >> "$GITHUB_ENV"
       - name: Run backend unit tests
         working-directory: backend
         run: go test "-tags=exclude_frontend,unit" -v ./...
