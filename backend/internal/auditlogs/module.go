@@ -85,8 +85,8 @@ func (m *Module) Create(ctx context.Context, event Event, ipAddress, userAgent, 
 }
 
 // CreateSignIn prepares browser recognition and notification delivery within the caller's transaction
-func (m *Module) CreateSignIn(ctx context.Context, event Event, ipAddress, userAgent, userID, browserToken string, tx *gorm.DB, emailLoginNotificationEnabled bool) SignInResult {
-	return m.service.CreateSignIn(ctx, event, ipAddress, userAgent, userID, browserToken, tx, emailLoginNotificationEnabled)
+func (m *Module) CreateSignIn(ctx context.Context, event Event, ipAddress, userAgent, userID, browserToken string, tx *gorm.DB, notificationMode appconfig.AppConfigValue) SignInResult {
+	return m.service.CreateSignIn(ctx, event, ipAddress, userAgent, userID, browserToken, tx, notificationMode)
 }
 
 // SendSignInNotification must be called only after the login commits successfully

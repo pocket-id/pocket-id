@@ -318,7 +318,7 @@ func (s *Service) VerifyLogin(ctx context.Context, dbConfig *appconfig.AppConfig
 	}
 
 	// Prepare browser recognition and the notification within the login transaction
-	signIn := s.auditLog.CreateSignIn(ctx, auditlogs.EventSignIn, ipAddress, userAgent, user.ID, browserToken, tx, dbConfig.EmailLoginNotificationEnabled.IsTrue())
+	signIn := s.auditLog.CreateSignIn(ctx, auditlogs.EventSignIn, ipAddress, userAgent, user.ID, browserToken, tx, dbConfig.EmailLoginNotificationMode)
 	if !signIn.Created {
 		return model.User{}, model.LoginTokens{}, errors.New("failed to create sign-in audit log")
 	}

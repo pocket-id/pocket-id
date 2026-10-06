@@ -6,25 +6,36 @@ import (
 
 	"gorm.io/gorm"
 
+	"github.com/pocket-id/pocket-id/backend/internal/appconfig"
 	"github.com/pocket-id/pocket-id/backend/internal/model"
 )
 
-// CreateSignIn records a successful login and recognizes either its browser cookie or its exact IP and User-Agent
+// CreateSignIn records a successful login and applies the global notification policy
 // The caller must send the notification only after the login commits
-func (s *service) CreateSignIn(ctx context.Context, event Event, ipAddress, userAgent, userID, browserToken string, tx *gorm.DB, emailLoginNotificationEnabled bool) SignInResult {
+func (s *service) CreateSignIn(ctx context.Context, event Event, ipAddress, userAgent, userID, browserToken string, tx *gorm.DB, notificationMode appconfig.AppConfigValue) SignInResult {
 	entry, created := s.Create(ctx, event, ipAddress, userAgent, userID, Data{}, tx)
 	result := SignInResult{AuditLog: entry, Created: created}
 	if !created {
 		return result
 	}
 
-	// Remember the browser even when notifications are disabled so enabling them does not forget existing browsers
-	known, token, err := s.rememberBrowser(userID, browserToken)
-	if err != nil {
-		slog.ErrorContext(ctx, "Failed to remember sign-in browser", slog.Any("error", err))
-	}
-	result.KnownBrowserToken = token
-	if known || !emailLoginNotificationEnabled {
+	// Only browser recognition uses a persistent cookie; other modes rely on the selected notification policy
+	switch notificationMode {
+	case appconfig.LoginNotificationAlways:
+		result.Notify = true
+		return result
+	case appconfig.LoginNotificationBrowserRecognition:
+		known, token, err := s.rememberBrowser(userID, browserToken)
+		if err != nil {
+			slog.ErrorContext(ctx, "Failed to remember sign-in browser", slog.Any("error", err))
+		}
+		result.KnownBrowserToken = token
+		if known {
+			return result
+		}
+	case appconfig.LoginNotificationIPAndUserAgent:
+		// Check sign-in history without reading or renewing the browser token
+	default:
 		return result
 	}
 

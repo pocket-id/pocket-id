@@ -11,6 +11,7 @@ import (
 	"github.com/italypaleale/francis/actor"
 	"gorm.io/gorm"
 
+	"github.com/pocket-id/pocket-id/backend/internal/appconfig"
 	"github.com/pocket-id/pocket-id/backend/internal/apperror"
 	"github.com/pocket-id/pocket-id/backend/internal/auditlogs"
 	"github.com/pocket-id/pocket-id/backend/internal/dto"
@@ -154,7 +155,7 @@ func (s *Service) Decide(ctx context.Context, code, decision, userID, reauthenti
 	return actorResultError(result.Code)
 }
 
-func (s *Service) Exchange(ctx context.Context, requestID, deviceToken, ipAddress, userAgent, browserToken string, sessionDuration time.Duration, emailLoginNotificationEnabled bool) (dto.UserDto, model.LoginTokens, RequestStatus, error) {
+func (s *Service) Exchange(ctx context.Context, requestID, deviceToken, ipAddress, userAgent, browserToken string, sessionDuration time.Duration, notificationMode appconfig.AppConfigValue) (dto.UserDto, model.LoginTokens, RequestStatus, error) {
 	if requestID == "" || deviceToken == "" || sessionDuration <= 0 {
 		return dto.UserDto{}, model.LoginTokens{}, "", apperror.DeviceLoginRequestInvalidOrExpired()
 	}
@@ -205,7 +206,7 @@ func (s *Service) Exchange(ctx context.Context, requestID, deviceToken, ipAddres
 			}
 
 			// Record the successful remote sign-in after the request has been consumed
-			signIn := s.auditLog.CreateSignIn(ctx, auditlogs.EventRemoteSignIn, ipAddress, userAgent, user.ID, browserToken, s.db, emailLoginNotificationEnabled)
+			signIn := s.auditLog.CreateSignIn(ctx, auditlogs.EventRemoteSignIn, ipAddress, userAgent, user.ID, browserToken, s.db, notificationMode)
 			if !signIn.Created {
 				return dto.UserDto{}, model.LoginTokens{}, consume.Status, errors.New("failed to create device login audit log")
 			}

@@ -220,7 +220,7 @@ func (s *Service) completeTokenExchange(ctx context.Context, dbConfig *appconfig
 	}
 
 	// Recognize the receiving browser after the login code has been consumed and the user validated
-	signIn := s.auditLog.CreateSignIn(ctx, auditlogs.EventOneTimeAccessTokenSignIn, ipAddress, userAgent, user.ID, browserToken, s.db, dbConfig.EmailLoginNotificationEnabled.IsTrue())
+	signIn := s.auditLog.CreateSignIn(ctx, auditlogs.EventOneTimeAccessTokenSignIn, ipAddress, userAgent, user.ID, browserToken, s.db, dbConfig.EmailLoginNotificationMode)
 	s.auditLog.SendSignInNotification(ctx, signIn)
 
 	return user, model.LoginTokens{AccessToken: accessToken, KnownBrowserToken: signIn.KnownBrowserToken}, nil
