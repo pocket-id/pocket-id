@@ -367,8 +367,8 @@ func normalizeRowWithSchema(row map[string]any, table string, schema utils.DBSch
 
 		colType := schema[table][col]
 
-		switch colType.Name {
-		case "timestamp", "timestamptz", "timestamp with time zone", "datetime":
+		switch colType.ExportKind() {
+		case utils.DBExportKindDateTime:
 			// Dates are stored as strings
 			str, ok := val.(string)
 			if !ok {
@@ -380,7 +380,7 @@ func normalizeRowWithSchema(row map[string]any, table string, schema utils.DBSch
 			}
 			row[col] = d
 
-		case "blob", "bytea", "jsonb":
+		case utils.DBExportKindBytes:
 			// Binary data and jsonb data is stored in the file as base64-encoded string
 			str, ok := val.(string)
 			if !ok {
@@ -397,6 +397,9 @@ func normalizeRowWithSchema(row map[string]any, table string, schema utils.DBSch
 			} else {
 				row[col] = b
 			}
+
+		case utils.DBExportKindString, utils.DBExportKindBool, utils.DBExportKindInteger:
+			// JSON decodes these values into types the database accepts as they are
 		}
 	}
 
