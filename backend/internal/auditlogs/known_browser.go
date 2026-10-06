@@ -1,45 +1,86 @@
 package auditlogs
 
 import (
-	"context"
-	"crypto/rand"
+	"errors"
+	"fmt"
 	"time"
 
-	"gorm.io/gorm"
-
-	"github.com/pocket-id/pocket-id/backend/internal/utils"
+	"github.com/lestrrat-go/jwx/v4/jwt"
 )
 
-const KnownBrowserLifetime = 180 * 24 * time.Hour
+const (
+	KnownBrowserLifetime = 180 * 24 * time.Hour
+	knownBrowserJWTType  = "known-browser"
+)
 
-// knownBrowser recognizes a browser for notifications without granting authentication
-// Only the hash of the cookie token is stored
-type knownBrowser struct {
-	UserID    string `gorm:"primaryKey"`
-	TokenHash string `gorm:"primaryKey"`
-	ExpiresAt int64
+type browserTokenService interface {
+	generate(userID string, lifetime time.Duration) (string, error)
+	verify(token, userID string) error
 }
 
-func (s *service) rememberBrowser(ctx context.Context, tx *gorm.DB, userID, token string) (bool, string, error) {
+type browserTokens struct {
+	signer SessionTokenService
+	appURL string
+}
+
+// generate creates a notification-only browser marker using the shared session signer
+func (s *browserTokens) generate(userID string, lifetime time.Duration) (string, error) {
+	if s.signer == nil {
+		return "", errors.New("session token signer is not initialized")
+	}
+	if userID == "" || lifetime <= 0 {
+		return "", errors.New("user ID and positive lifetime are required for a known-browser token")
+	}
+
+	// Bind recognition to one user and instance, with a purpose that access-token validation rejects
 	now := time.Now()
-	expiresAt := now.Add(KnownBrowserLifetime).Unix()
+	token, err := jwt.NewBuilder().
+		Subject(userID).
+		Issuer(s.appURL).
+		Audience([]string{s.appURL}).
+		IssuedAt(now).
+		Expiration(now.Add(lifetime)).
+		Claim("type", knownBrowserJWTType).
+		Build()
+	if err != nil {
+		return "", fmt.Errorf("failed to build known-browser token: %w", err)
+	}
 
-	// Extend only an unexpired token already associated with the authenticated user
-	result := tx.WithContext(ctx).Model(&knownBrowser{}).
-		Where("user_id = ? AND token_hash = ? AND expires_at > ?", userID, utils.CreateSha256Hash(token), now.Unix()).
-		Update("expires_at", expiresAt)
-	if result.Error != nil {
-		return false, "", result.Error
+	// The shared signer owns the private key and pinned signing algorithm
+	return s.signer.SignSessionToken(token)
+}
+
+// verify validates recognition without granting authentication or reading browser state
+func (s *browserTokens) verify(token, userID string) error {
+	if s.signer == nil {
+		return errors.New("session token signer is not initialized")
 	}
-	if result.RowsAffected > 0 {
-		return true, token, nil
+	if userID == "" {
+		return errors.New("user ID is required for a known-browser token")
 	}
 
-	// Replace unrecognized tokens with server-generated randomness to avoid accepting a caller-chosen browser identity
-	token = rand.Text()
-	record := knownBrowser{UserID: userID, TokenHash: utils.CreateSha256Hash(token), ExpiresAt: expiresAt}
-	if err := tx.WithContext(ctx).Create(&record).Error; err != nil {
-		return false, "", err
+	_, err := s.signer.VerifySessionToken(token,
+		jwt.WithIssuer(s.appURL),
+		jwt.WithAudience(s.appURL),
+		jwt.WithSubject(userID),
+		jwt.WithRequiredClaim(jwt.IssuedAtKey),
+		jwt.WithRequiredClaim(jwt.ExpirationKey),
+		jwt.WithClaimValue("type", knownBrowserJWTType),
+	)
+	if err != nil {
+		return fmt.Errorf("failed to verify known-browser token: %w", err)
 	}
-	return false, token, nil
+	return nil
+}
+
+func (s *service) rememberBrowser(userID, token string) (bool, string, error) {
+	// Only a valid token for the authenticated user can suppress the new-browser notification
+	known := token != "" && s.browserTokens.verify(token, userID) == nil
+
+	// Renew recognition after every successful sign-in without persisting browser state
+	renewed, err := s.browserTokens.generate(userID, KnownBrowserLifetime)
+	if err != nil {
+		return known, token, err
+	}
+	return known, renewed, nil
 }

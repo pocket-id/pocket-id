@@ -356,13 +356,7 @@ func (s *JwtService) GenerateAccessToken(user model.User, authenticationMethod s
 		return "", fmt.Errorf("failed to set '%s' claim in token: %w", common.AuthenticationMethodsClaim, err)
 	}
 
-	// Session tokens are signed with the symmetric session key
-	signed, err := jwt.Sign(token, jwt.WithKey(jwkutils.SessionKeyAlg(), s.sessionKey))
-	if err != nil {
-		return "", fmt.Errorf("failed to sign token: %w", err)
-	}
-
-	return string(signed), nil
+	return s.SignSessionToken(token)
 }
 
 // GenerateLogoutToken creates a logout token for OIDC Back-Channel Logout 1.0
@@ -402,25 +396,49 @@ func (s *JwtService) GenerateLogoutToken(userID string, clientID string) (string
 	return string(signed), nil
 }
 
-func (s *JwtService) VerifyAccessToken(tokenString string) (jwt.Token, error) {
+// SignSessionToken signs feature-owned claims with the private symmetric session key
+func (s *JwtService) SignSessionToken(token jwt.Token) (string, error) {
+	if s.sessionKey == nil {
+		return "", errors.New("session key is not initialized")
+	}
+
+	signed, err := jwt.Sign(token, jwt.WithKey(jwkutils.SessionKeyAlg(), s.sessionKey))
+	if err != nil {
+		return "", fmt.Errorf("failed to sign token: %w", err)
+	}
+	return string(signed), nil
+}
+
+// VerifySessionToken pins signature verification while the caller supplies its feature's validation rules
+func (s *JwtService) VerifySessionToken(tokenString string, options ...jwt.ValidateOption) (jwt.Token, error) {
 	if s.sessionKey == nil {
 		return nil, errors.New("session key is not initialized")
 	}
 
-	token, err := jwt.ParseString(
-		tokenString,
+	parseOptions := []jwt.ParseOption{
 		jwt.WithValidate(true),
 		jwt.WithKey(jwkutils.SessionKeyAlg(), s.sessionKey),
+	}
+	for _, option := range options {
+		parseOptions = append(parseOptions, option)
+	}
+	token, err := jwt.ParseString(tokenString, parseOptions...)
+	if err != nil {
+		return nil, fmt.Errorf("failed to parse token: %w", err)
+	}
+	return token, nil
+}
+
+func (s *JwtService) VerifyAccessToken(tokenString string) (jwt.Token, error) {
+	if s.sessionKey == nil {
+		return nil, errors.New("session key is not initialized")
+	}
+	return s.VerifySessionToken(tokenString,
 		jwt.WithAcceptableSkew(clockSkew),
 		jwt.WithAudience(s.envConfig.AppURL),
 		jwt.WithIssuer(s.envConfig.AppURL),
 		jwt.WithValidator(TokenTypeValidator(AccessTokenJWTType)),
 	)
-	if err != nil {
-		return nil, fmt.Errorf("failed to parse token: %w", err)
-	}
-
-	return token, nil
 }
 
 // GetPublicJWK returns the JSON Web Key (JWK) for the public key.

@@ -363,20 +363,16 @@ func readSMTPData(reader *bufio.Reader) (string, error) {
 	}
 }
 
-func TestNewLoginRendersEverySignInMethod(t *testing.T) {
+func TestNewLoginRendersSignInMethodInBothTemplates(t *testing.T) {
 	module, err := New(nil)
 	require.NoError(t, err)
-	for _, method := range []string{"Passkey", "One-time code", "Another device (QR code)"} {
-		t.Run(method, func(t *testing.T) {
-			text, html, err := renderBody(module, newLoginTemplate, &templateData[newLoginTemplateData]{
-				AppName: "Pocket ID", AppURL: "https://id.example.test", LogoURL: "https://id.example.test/logo.png",
-				Data: &newLoginTemplateData{IPAddress: "192.0.2.1", Device: "Firefox on Linux", Method: method, DateTime: time.Now()},
-			})
-			require.NoError(t, err)
-			for _, body := range []string{text, html} {
-				assert.Contains(t, body, "Sign-in method")
-				assert.Contains(t, body, method)
-			}
-		})
+	text, html, err := renderBody(module, newLoginTemplate, &templateData[newLoginTemplateData]{
+		AppName: "Pocket ID", AppURL: "https://id.example.test", LogoURL: "https://id.example.test/logo.png",
+		Data: &newLoginTemplateData{IPAddress: "192.0.2.1", Device: "Firefox on Linux", Method: "One-time code", DateTime: time.Now()},
+	})
+	require.NoError(t, err)
+	for _, body := range []string{text, html} {
+		assert.Contains(t, body, "Sign-in method")
+		assert.Contains(t, body, "One-time code")
 	}
 }

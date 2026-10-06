@@ -18,14 +18,16 @@ type service struct {
 	emailSender      NewLoginEmailSender
 	ipLocator        iplocation.Resolver
 	appConfigService appconfig.AppConfigResolver
+	browserTokens    browserTokenService
 }
 
-func newService(db *gorm.DB, emailSender NewLoginEmailSender, ipLocator iplocation.Resolver, appConfigService appconfig.AppConfigResolver) *service {
+func newService(db *gorm.DB, emailSender NewLoginEmailSender, ipLocator iplocation.Resolver, appConfigService appconfig.AppConfigResolver, browserTokens browserTokenService) *service {
 	return &service{
 		db:               db,
 		emailSender:      emailSender,
 		ipLocator:        ipLocator,
 		appConfigService: appConfigService,
+		browserTokens:    browserTokens,
 	}
 }
 

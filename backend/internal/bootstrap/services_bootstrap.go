@@ -94,7 +94,14 @@ func initServices(
 		return nil, fmt.Errorf("failed to create IP location resolver: %w", err)
 	}
 
+	svc.jwtService, err = service.NewJwtService(ctx, db, instanceID)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create JWT service: %w", err)
+	}
+
 	svc.auditLogsModule, err = auditlogs.New(auditlogs.Dependencies{
+		Signer:        svc.jwtService,
+		AppURL:        common.EnvConfig.AppURL,
 		EmailSender:   svc.emailModule,
 		IPLocator:     svc.ipLocator,
 		AppConfig:     svc.appConfigService,
@@ -106,11 +113,6 @@ func initServices(
 	})
 	if err != nil {
 		return nil, fmt.Errorf("failed to create audit logs module: %w", err)
-	}
-
-	svc.jwtService, err = service.NewJwtService(ctx, db, instanceID)
-	if err != nil {
-		return nil, fmt.Errorf("failed to create JWT service: %w", err)
 	}
 
 	svc.customClaimService = service.NewCustomClaimService(db)

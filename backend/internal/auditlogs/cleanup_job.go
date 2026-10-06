@@ -24,7 +24,7 @@ type cleanupJobs struct {
 	retentionDays int
 }
 
-// newCleanupJobs returns the cron job actors for audit retention and browser expiry
+// newCleanupJobs returns the cron job actors for audit retention
 func newCleanupJobs(db *gorm.DB, retentionDays int) ([]*cronjob.CronJob, error) {
 	jobs := &cleanupJobs{db: db, retentionDays: retentionDays}
 
@@ -33,12 +33,7 @@ func newCleanupJobs(db *gorm.DB, retentionDays int) ([]*cronjob.CronJob, error) 
 		return nil, err
 	}
 
-	clearKnownBrowsers, err := newCleanupJob("ClearKnownBrowsers", jobs.clearKnownBrowsers)
-	if err != nil {
-		return nil, err
-	}
-
-	return []*cronjob.CronJob{clearAuditLogs, clearKnownBrowsers}, nil
+	return []*cronjob.CronJob{clearAuditLogs}, nil
 }
 
 // newCleanupJob applies the shared daily schedule to each audit cleanup
@@ -72,16 +67,5 @@ func (j *cleanupJobs) clearAuditLogs(ctx context.Context) error {
 
 	slog.InfoContext(ctx, "Deleted old audit logs", slog.Int64("count", st.RowsAffected))
 
-	return nil
-}
-
-func (j *cleanupJobs) clearKnownBrowsers(ctx context.Context) error {
-	// Use the same expiry boundary as sign-in recognition so valid browser cookies remain untouched
-	result := j.db.WithContext(ctx).Delete(&knownBrowser{}, "expires_at <= ?", time.Now().Unix())
-	if result.Error != nil {
-		return fmt.Errorf("failed to delete expired known browsers: %w", result.Error)
-	}
-
-	slog.InfoContext(ctx, "Deleted expired known browsers", slog.Int64("count", result.RowsAffected))
 	return nil
 }

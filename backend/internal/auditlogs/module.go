@@ -9,6 +9,7 @@ import (
 
 	"github.com/gin-gonic/gin"
 	francishost "github.com/italypaleale/francis/host"
+	"github.com/lestrrat-go/jwx/v4/jwt"
 	"gorm.io/gorm"
 
 	"github.com/pocket-id/pocket-id/backend/internal/appconfig"
@@ -20,6 +21,11 @@ type NewLoginEmailSender interface {
 	SendNewLogin(ctx context.Context, dbConfig *appconfig.AppConfigModel, userFullName, userEmail, ipAddress, country, city, device, method string, dateTime time.Time) error
 }
 
+type SessionTokenService interface {
+	SignSessionToken(token jwt.Token) (string, error)
+	VerifySessionToken(token string, options ...jwt.ValidateOption) (jwt.Token, error)
+}
+
 type Dependencies struct {
 	DB     *gorm.DB
 	Actors francishost.Host
@@ -27,6 +33,8 @@ type Dependencies struct {
 	EmailSender NewLoginEmailSender
 	IPLocator   iplocation.Resolver
 	AppConfig   appconfig.AppConfigResolver
+	Signer      SessionTokenService
+	AppURL      string
 
 	// RetentionDays is how long audit logs are kept before the cleanup job deletes them
 	RetentionDays int
@@ -41,7 +49,7 @@ type Module struct {
 }
 
 func New(deps Dependencies) (*Module, error) {
-	// Register both cleanup jobs before the actor host starts
+	// Register audit retention cleanup before the actor host starts
 	if !deps.CleanupDisabled {
 		if deps.Actors == nil {
 			return nil, errors.New("actor host is required for the audit log cleanup cron job")
@@ -59,7 +67,7 @@ func New(deps Dependencies) (*Module, error) {
 		}
 	}
 
-	service := newService(deps.DB, deps.EmailSender, deps.IPLocator, deps.AppConfig)
+	service := newService(deps.DB, deps.EmailSender, deps.IPLocator, deps.AppConfig, &browserTokens{signer: deps.Signer, appURL: deps.AppURL})
 	return &Module{service: service, handler: newHandler(service)}, nil
 }
 
