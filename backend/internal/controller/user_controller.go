@@ -20,7 +20,7 @@ import (
 // @Summary User management controller
 // @Description Initializes all user-related API endpoints
 // @Tags Users
-func NewUserController(group *gin.RouterGroup, authMiddleware *middleware.AuthMiddleware, appConfigService *appconfig.AppConfigService, userService *service.UserService, webAuthnService *webauthn.Module) {
+func NewUserController(group *gin.RouterGroup, authMiddleware *middleware.AuthMiddleware, fileSizeLimitMiddleware *middleware.FileSizeLimitMiddleware, appConfigService *appconfig.AppConfigService, userService *service.UserService, webAuthnService *webauthn.Module) {
 	uc := UserController{
 		appConfigService: appConfigService,
 		userService:      userService,
@@ -42,8 +42,8 @@ func NewUserController(group *gin.RouterGroup, authMiddleware *middleware.AuthMi
 
 	group.GET("/users/:id/profile-picture.png", httpserver.Handle(uc.getUserProfilePictureHandler))
 
-	group.PUT("/users/:id/profile-picture", authMiddleware.Add(), httpserver.Handle(uc.updateUserProfilePictureHandler))
-	group.PUT("/users/me/profile-picture", authMiddleware.WithAdminNotRequired().Add(), httpserver.Handle(uc.updateCurrentUserProfilePictureHandler))
+	group.PUT("/users/:id/profile-picture", authMiddleware.Add(), fileSizeLimitMiddleware.Add(10<<20), httpserver.Handle(uc.updateUserProfilePictureHandler))
+	group.PUT("/users/me/profile-picture", authMiddleware.WithAdminNotRequired().Add(), fileSizeLimitMiddleware.Add(10<<20), httpserver.Handle(uc.updateCurrentUserProfilePictureHandler))
 
 	group.DELETE("/users/:id/profile-picture", authMiddleware.Add(), httpserver.Handle(uc.resetUserProfilePictureHandler))
 	group.DELETE("/users/me/profile-picture", authMiddleware.WithAdminNotRequired().Add(), httpserver.Handle(uc.resetCurrentUserProfilePictureHandler))

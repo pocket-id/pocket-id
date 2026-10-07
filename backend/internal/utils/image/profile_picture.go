@@ -22,6 +22,8 @@ const profilePictureSize = 300
 
 var ErrInvalidImage = errors.New("invalid image")
 
+var resizeSlots = make(chan struct{}, 2)
+
 // CreateProfilePicture resizes the profile picture to a square and encodes it as PNG
 func CreateProfilePicture(file io.ReadSeeker) (io.ReadSeeker, error) {
 	// Reject an oversized pixel count before decoding can allocate a pixel buffer
@@ -32,6 +34,9 @@ func CreateProfilePicture(file io.ReadSeeker) (io.ReadSeeker, error) {
 	if validationErr != nil {
 		return nil, fmt.Errorf("%w: %w", ErrInvalidImage, validationErr)
 	}
+
+	resizeSlots <- struct{}{}
+	defer func() { <-resizeSlots }()
 
 	// Attempt standard formats first
 	img, _, err := imageorient.Decode(file)
@@ -52,7 +57,7 @@ func CreateProfilePicture(file io.ReadSeeker) (io.ReadSeeker, error) {
 	}
 
 	// Resize to square
-	img = imaging.Fill(img, profilePictureSize, profilePictureSize, imaging.Center, imaging.Lanczos)
+	img = imaging.Resize(centerSquare(img), profilePictureSize, profilePictureSize, imaging.Lanczos)
 
 	// Encode back to PNG
 	var buf bytes.Buffer
@@ -61,6 +66,22 @@ func CreateProfilePicture(file io.ReadSeeker) (io.ReadSeeker, error) {
 	}
 
 	return bytes.NewReader(buf.Bytes()), nil
+}
+
+func centerSquare(img image.Image) image.Image {
+	b := img.Bounds()
+	side := min(b.Dx(), b.Dy())
+
+	sub, ok := img.(interface {
+		SubImage(r image.Rectangle) image.Image
+	})
+	if !ok {
+		return imaging.CropCenter(img, side, side)
+	}
+
+	x := b.Min.X + (b.Dx()-side)/2
+	y := b.Min.Y + (b.Dy()-side)/2
+	return sub.SubImage(image.Rect(x, y, x+side, y+side))
 }
 
 // CreateDefaultProfilePicture creates a profile picture with the initials
