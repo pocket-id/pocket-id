@@ -10,6 +10,7 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"gorm.io/gorm"
 
 	"github.com/pocket-id/pocket-id/backend/internal/apperror"
 	"github.com/pocket-id/pocket-id/backend/internal/common"
@@ -25,7 +26,7 @@ import (
 func TestListAuthorizedClientsRejectsMissingUser(t *testing.T) {
 	service := &OidcService{db: testutils.NewDatabaseForTest(t)}
 
-	_, _, err := service.ListAuthorizedClients(t.Context(), "missing-user", utils.ListRequestOptions{})
+	_, _, err := service.ListAuthorizedClients(t.Context(), "missing-user", "", utils.ListRequestOptions{})
 
 	require.True(t, apperror.IsCode(err, apperror.CodeUserNotFound))
 }
@@ -1040,11 +1041,11 @@ func TestOidcService_ListAccessibleOidcClients_requiresExplicitGroupPermission(t
 		require.NoError(t, db.Create(&clients[i]).Error)
 	}
 
-	groupClients, _, err := s.ListAccessibleOidcClients(t.Context(), userWithGroup.ID, utils.ListRequestOptions{})
+	groupClients, _, err := s.ListAccessibleOidcClients(t.Context(), userWithGroup.ID, "", utils.ListRequestOptions{})
 	require.NoError(t, err)
 	assert.ElementsMatch(t, []string{"Unrestricted", "Restricted to user group"}, accessibleClientNames(groupClients))
 
-	noGroupClients, _, err := s.ListAccessibleOidcClients(t.Context(), userWithoutGroup.ID, utils.ListRequestOptions{})
+	noGroupClients, _, err := s.ListAccessibleOidcClients(t.Context(), userWithoutGroup.ID, "", utils.ListRequestOptions{})
 	require.NoError(t, err)
 	assert.Equal(t, []string{"Unrestricted"}, accessibleClientNames(noGroupClients))
 }
@@ -1079,27 +1080,159 @@ func TestOidcService_ListClientViewsFilterByLaunchURLPresence(t *testing.T) {
 		Filters: map[string][]any{"hasLaunchURL": {false}},
 	}
 
-	allClients, allClientsPagination, err := s.ListAccessibleOidcClients(t.Context(), user.ID, utils.ListRequestOptions{})
+	allClients, allClientsPagination, err := s.ListAccessibleOidcClients(t.Context(), user.ID, "", utils.ListRequestOptions{})
 	require.NoError(t, err)
 	assert.Equal(t, int64(3), allClientsPagination.TotalItems)
 	assert.ElementsMatch(t, []string{"Launchable", "Missing launch URL", "Empty launch URL"}, accessibleClientNames(allClients))
 
-	launchableClients, launchablePagination, err := s.ListAccessibleOidcClients(t.Context(), user.ID, withLaunchURL)
+	launchableClients, launchablePagination, err := s.ListAccessibleOidcClients(t.Context(), user.ID, "", withLaunchURL)
 	require.NoError(t, err)
 	assert.Equal(t, int64(1), launchablePagination.TotalItems)
 	assert.Equal(t, []string{"Launchable"}, accessibleClientNames(launchableClients))
 
-	allAuthorizations, allAuthorizationsPagination, err := s.ListAuthorizedClients(t.Context(), user.ID, utils.ListRequestOptions{})
+	allAuthorizations, allAuthorizationsPagination, err := s.ListAuthorizedClients(t.Context(), user.ID, "", utils.ListRequestOptions{})
 	require.NoError(t, err)
 	assert.Equal(t, int64(3), allAuthorizationsPagination.TotalItems)
 	assert.Len(t, allAuthorizations, 3)
 
-	hiddenAuthorizations, hiddenPagination, err := s.ListAuthorizedClients(t.Context(), user.ID, withoutLaunchURL)
+	hiddenAuthorizations, hiddenPagination, err := s.ListAuthorizedClients(t.Context(), user.ID, "", withoutLaunchURL)
 	require.NoError(t, err)
 	assert.Equal(t, int64(2), hiddenPagination.TotalItems)
 	assert.ElementsMatch(t, []string{"Missing launch URL", "Empty launch URL"}, []string{
 		hiddenAuthorizations[0].Client.Name,
 		hiddenAuthorizations[1].Client.Name,
+	})
+}
+
+func TestOidcService_ListAccessibleOidcClients_searchAndSort(t *testing.T) {
+	forEachTestDatabase(t, func(t *testing.T, db *gorm.DB) {
+		s, err := NewOidcService(db, nil, nil, nil, nil, nil, nil, nil)
+		require.NoError(t, err)
+
+		user := model.User{Username: "search-and-sort"}
+		require.NoError(t, db.Create(&user).Error)
+
+		clients := []model.OidcClient{
+			{Name: "alpha"},
+			{Name: "Bravo"},
+			{Name: "charlie Cloud"},
+			{Name: "Delta"},
+		}
+		for i := range clients {
+			require.NoError(t, db.Create(&clients[i]).Error)
+		}
+
+		// Only Bravo and Delta have been used, so the other two have no last used timestamp
+		now := time.Now()
+		require.NoError(t, db.Create(&model.UserAuthorizedOidcClient{UserID: user.ID, ClientID: clients[1].ID, LastUsedAt: datatype.DateTime(now.Add(-time.Hour))}).Error)
+		require.NoError(t, db.Create(&model.UserAuthorizedOidcClient{UserID: user.ID, ClientID: clients[3].ID, LastUsedAt: datatype.DateTime(now)}).Error)
+
+		list := func(search string, column string, direction string) []string {
+			options := utils.ListRequestOptions{}
+			options.Sort.Column = column
+			options.Sort.Direction = direction
+			result, _, err := s.ListAccessibleOidcClients(t.Context(), user.ID, search, options)
+			require.NoError(t, err)
+			return accessibleClientNames(result)
+		}
+
+		t.Run("sorts by last used with never used clients last in name order", func(t *testing.T) {
+			assert.Equal(t, []string{"Delta", "Bravo", "alpha", "charlie Cloud"}, list("", "lastUsedAt", "DESC"))
+		})
+
+		t.Run("sorts by name case-insensitively", func(t *testing.T) {
+			assert.Equal(t, []string{"alpha", "Bravo", "charlie Cloud", "Delta"}, list("", "name", "asc"))
+			assert.Equal(t, []string{"Delta", "charlie Cloud", "Bravo", "alpha"}, list("", "name", "desc"))
+		})
+
+		t.Run("searches the name case-insensitively", func(t *testing.T) {
+			assert.Equal(t, []string{"charlie Cloud"}, list("CLOUD", "name", "asc"))
+			assert.Equal(t, []string{"Delta"}, list("lTa", "name", "asc"))
+			assert.Empty(t, list("missing", "name", "asc"))
+		})
+
+		t.Run("combines search and sort", func(t *testing.T) {
+			assert.Equal(t, []string{"Bravo", "charlie Cloud"}, list("r", "lastUsedAt", "desc"))
+		})
+	})
+}
+
+func TestOidcService_ListAuthorizedClients_searchAndSort(t *testing.T) {
+	forEachTestDatabase(t, func(t *testing.T, db *gorm.DB) {
+		s, err := NewOidcService(db, nil, nil, nil, nil, nil, nil, nil)
+		require.NoError(t, err)
+
+		user := model.User{Username: "authorized-search-and-sort"}
+		require.NoError(t, db.Create(&user).Error)
+
+		launchURL := "https://launchable.example.com"
+		clients := []model.OidcClient{
+			{Name: "alpha"},
+			{Name: "Bravo"},
+			{Name: "charlie Cloud"},
+			{Name: "Launchable", LaunchURL: &launchURL},
+		}
+		lastUsedOffsets := []time.Duration{-3 * time.Hour, -time.Hour, -2 * time.Hour, 0}
+		now := time.Now()
+		for i := range clients {
+			require.NoError(t, db.Create(&clients[i]).Error)
+			require.NoError(t, db.Create(&model.UserAuthorizedOidcClient{
+				UserID:     user.ID,
+				ClientID:   clients[i].ID,
+				LastUsedAt: datatype.DateTime(now.Add(lastUsedOffsets[i])),
+			}).Error)
+		}
+
+		list := func(search string, hasLaunchURL *bool, column string, direction string) []string {
+			options := utils.ListRequestOptions{}
+			options.Sort.Column = column
+			options.Sort.Direction = direction
+			if hasLaunchURL != nil {
+				options.Filters = map[string][]any{"hasLaunchURL": {*hasLaunchURL}}
+			}
+			result, _, err := s.ListAuthorizedClients(t.Context(), user.ID, search, options)
+			require.NoError(t, err)
+			names := make([]string, len(result))
+			for i := range result {
+				names[i] = result[i].Client.Name
+			}
+			return names
+		}
+		hidden := false
+
+		t.Run("sorts hidden clients by name case-insensitively", func(t *testing.T) {
+			assert.Equal(t, []string{"alpha", "Bravo", "charlie Cloud"}, list("", &hidden, "name", "asc"))
+			assert.Equal(t, []string{"charlie Cloud", "Bravo", "alpha"}, list("", &hidden, "name", "desc"))
+		})
+
+		t.Run("sorts hidden clients by last used", func(t *testing.T) {
+			assert.Equal(t, []string{"Bravo", "charlie Cloud", "alpha"}, list("", &hidden, "lastUsedAt", "desc"))
+		})
+
+		t.Run("searches the client name case-insensitively", func(t *testing.T) {
+			assert.Equal(t, []string{"charlie Cloud"}, list("cloud", &hidden, "name", "asc"))
+			assert.Equal(t, []string{"Launchable"}, list("LAUNCH", nil, "name", "asc"))
+			assert.Empty(t, list("launch", &hidden, "name", "asc"))
+		})
+	})
+}
+
+// forEachTestDatabase runs the test on SQLite and Postgres because LIKE and NULL ordering behave differently on them
+func forEachTestDatabase(t *testing.T, test func(t *testing.T, db *gorm.DB)) {
+	t.Run("sqlite", func(t *testing.T) {
+		test(t, testutils.NewDatabaseForTest(t))
+	})
+	t.Run("postgres", func(t *testing.T) {
+		db := testutils.NewPostgresDatabaseForTest(t)
+
+		// Column types such as DateTime pick their encoding from the configured provider
+		previousProvider := common.EnvConfig.DbProvider
+		common.EnvConfig.DbProvider = common.DbProviderPostgres
+		t.Cleanup(func() {
+			common.EnvConfig.DbProvider = previousProvider
+		})
+
+		test(t, db)
 	})
 }
 

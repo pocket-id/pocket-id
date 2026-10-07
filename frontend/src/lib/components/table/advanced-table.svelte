@@ -2,9 +2,8 @@
 	import { goto } from '$app/navigation';
 	import { page as currentPage } from '$app/state';
 	import ActionsMenu from '#lib/components/actions-menu.svelte';
+	import ListPagination from '#lib/components/list-pagination.svelte';
 	import Checkbox from '#lib/components/ui/checkbox/checkbox.svelte';
-	import * as Pagination from '#lib/components/ui/pagination/index.ts';
-	import * as Select from '#lib/components/ui/select/index.ts';
 	import * as Table from '#lib/components/ui/table/index.js';
 	import Empty from '#lib/icons/empty.svelte';
 	import { m } from '#lib/paraglide/messages.js';
@@ -317,50 +316,10 @@
 		</div>
 	{/if}
 
-	<div class="mt-5 flex flex-col-reverse items-center justify-between gap-3 sm:flex-row">
-		<div class="flex items-center space-x-2">
-			<p class="text-sm font-medium">{m.items_per_page()}</p>
-			<Select.Root
-				type="single"
-				value={items?.pagination.itemsPerPage.toString()}
-				onValueChange={(v) => onPageSizeChange(Number(v))}
-			>
-				<Select.Trigger class="w-20">
-					{items?.pagination.itemsPerPage}
-				</Select.Trigger>
-				<Select.Content>
-					{#each availablePageSizes as size (size)}
-						<Select.Item value={size.toString()}>{size}</Select.Item>
-					{/each}
-				</Select.Content>
-			</Select.Root>
-		</div>
-		<Pagination.Root
-			class="mx-0 w-auto"
-			count={items?.pagination.totalItems || 0}
-			perPage={items?.pagination.itemsPerPage}
-			{onPageChange}
-			page={items?.pagination.currentPage}
-		>
-			{#snippet children({ pages })}
-				<Pagination.Content class="flex justify-end">
-					<Pagination.Item>
-						<Pagination.PrevButton />
-					</Pagination.Item>
-					{#each pages as page (page.key)}
-						{#if page.type !== 'ellipsis' && page.value != 0}
-							<Pagination.Item>
-								<Pagination.Link {page} isActive={items?.pagination.currentPage === page.value}>
-									{page.value}
-								</Pagination.Link>
-							</Pagination.Item>
-						{/if}
-					{/each}
-					<Pagination.Item>
-						<Pagination.NextButton />
-					</Pagination.Item>
-				</Pagination.Content>
-			{/snippet}
-		</Pagination.Root>
-	</div>
+	<ListPagination
+		pagination={items?.pagination}
+		pageSizes={availablePageSizes}
+		{onPageChange}
+		{onPageSizeChange}
+	/>
 {/if}

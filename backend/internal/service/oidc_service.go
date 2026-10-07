@@ -713,7 +713,7 @@ func (s *OidcService) UpdateAllowedUserGroups(ctx context.Context, id string, in
 	return client, nil
 }
 
-func (s *OidcService) ListAuthorizedClients(ctx context.Context, userID string, listRequestOptions utils.ListRequestOptions) ([]model.UserAuthorizedOidcClient, utils.PaginationResponse, error) {
+func (s *OidcService) ListAuthorizedClients(ctx context.Context, userID string, search string, listRequestOptions utils.ListRequestOptions) ([]model.UserAuthorizedOidcClient, utils.PaginationResponse, error) {
 	tx := s.db.Begin()
 	defer func() {
 		tx.Rollback()
@@ -732,20 +732,30 @@ func (s *OidcService) ListAuthorizedClients(ctx context.Context, userID string, 
 		return nil, utils.PaginationResponse{}, err
 	}
 
+	// Join the clients so the search, the launch URL filter and the name sort can use their columns
 	query := tx.
 		WithContext(ctx).
 		Model(&model.UserAuthorizedOidcClient{}).
 		Preload("Client").
-		Where("user_id = ?", userID)
+		Joins("JOIN oidc_clients ON oidc_clients.id = user_authorized_oidc_clients.client_id").
+		Where("user_authorized_oidc_clients.user_id = ?", userID)
+
+	if search != "" {
+		query = query.Where("LOWER(oidc_clients.name) LIKE ?", "%"+strings.ToLower(search)+"%")
+	}
 
 	// Apply the launch URL filter before pagination so hidden authorizations have their own page count
 	if hasLaunchURL, ok := getHasLaunchURLFilter(listRequestOptions); ok {
-		query = query.Joins("JOIN oidc_clients ON oidc_clients.id = user_authorized_oidc_clients.client_id")
 		if hasLaunchURL {
 			query = query.Where("oidc_clients.launch_url IS NOT NULL AND oidc_clients.launch_url <> ''")
 		} else {
 			query = query.Where("oidc_clients.launch_url IS NULL OR oidc_clients.launch_url = ''")
 		}
+	}
+
+	// The name lives on the joined client, so the generic sorting of the authorization model cannot handle it
+	if listRequestOptions.Sort.Column == "name" && utils.IsValidSortDirection(listRequestOptions.Sort.Direction) {
+		query = query.Order("LOWER(oidc_clients.name) " + utils.NormalizeSortDirection(listRequestOptions.Sort.Direction))
 	}
 
 	var authorizedClients []model.UserAuthorizedOidcClient
@@ -802,7 +812,7 @@ func (s *OidcService) RevokeAuthorizedClient(ctx context.Context, userID string,
 	return nil
 }
 
-func (s *OidcService) ListAccessibleOidcClients(ctx context.Context, userID string, listRequestOptions utils.ListRequestOptions) ([]dto.AccessibleOidcClientDto, utils.PaginationResponse, error) {
+func (s *OidcService) ListAccessibleOidcClients(ctx context.Context, userID string, search string, listRequestOptions utils.ListRequestOptions) ([]dto.AccessibleOidcClientDto, utils.PaginationResponse, error) {
 	tx := s.db.Begin()
 	defer func() {
 		tx.Rollback()
@@ -836,6 +846,10 @@ func (s *OidcService) ListAccessibleOidcClients(ctx context.Context, userID stri
 			WHERE oidc_clients_allowed_user_groups.oidc_client_id = oidc_clients.id
 			AND oidc_clients_allowed_user_groups.user_group_id IN (?))`, false, userGroupIDs)
 
+	if search != "" {
+		query = query.Where("LOWER(oidc_clients.name) LIKE ?", "%"+strings.ToLower(search)+"%")
+	}
+
 	// Apply the launch URL filter before pagination so the app launcher never contains empty pages
 	if hasLaunchURL, ok := getHasLaunchURLFilter(listRequestOptions); ok {
 		if hasLaunchURL {
@@ -850,9 +864,11 @@ func (s *OidcService) ListAccessibleOidcClients(ctx context.Context, userID stri
 	// Handle custom sorting for lastUsedAt column
 	var response utils.PaginationResponse
 	if listRequestOptions.Sort.Column == "lastUsedAt" && utils.IsValidSortDirection(listRequestOptions.Sort.Direction) {
+		// Never used clients share a NULL timestamp, so they are ordered by name to keep pages stable
 		query = query.
 			Joins("LEFT JOIN user_authorized_oidc_clients ON oidc_clients.id = user_authorized_oidc_clients.client_id AND user_authorized_oidc_clients.user_id = ?", userID).
-			Order("user_authorized_oidc_clients.last_used_at " + listRequestOptions.Sort.Direction + " NULLS LAST")
+			Order("user_authorized_oidc_clients.last_used_at " + utils.NormalizeSortDirection(listRequestOptions.Sort.Direction) + " NULLS LAST").
+			Order("LOWER(oidc_clients.name) ASC")
 	}
 
 	response, err = utils.PaginateFilterAndSort(listRequestOptions, query, &clients)

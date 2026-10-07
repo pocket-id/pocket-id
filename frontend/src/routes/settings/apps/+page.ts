@@ -1,19 +1,18 @@
 import OIDCService from '#lib/services/oidc-service.ts';
 import type { ListRequestOptions } from '#lib/types/list-request.type.ts';
 import type { PageLoad } from './$types';
+import { getMyAppsPreferences, myAppsSortOptions } from './my-apps-preferences.svelte.ts';
 
 export const load: PageLoad = async () => {
 	const oidcService = new OIDCService();
+	const preferences = getMyAppsPreferences();
 
 	const appRequestOptions: ListRequestOptions = {
 		pagination: {
 			page: 1,
-			limit: 20
+			limit: preferences.paginationLimit
 		},
-		sort: {
-			column: 'lastUsedAt',
-			direction: 'desc'
-		},
+		sort: { ...myAppsSortOptions[preferences.sort] },
 		filters: {
 			hasLaunchURL: [true]
 		}
@@ -22,12 +21,9 @@ export const load: PageLoad = async () => {
 	const authorizedClientRequestOptions: ListRequestOptions = {
 		pagination: {
 			page: 1,
-			limit: 20
+			limit: preferences.paginationLimit
 		},
-		sort: {
-			column: 'lastUsedAt',
-			direction: 'desc'
-		},
+		sort: { ...myAppsSortOptions[preferences.sort] },
 		filters: {
 			hasLaunchURL: [false]
 		}

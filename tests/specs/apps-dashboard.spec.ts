@@ -86,3 +86,55 @@ test('Launch authorized client', async ({ page }) => {
 		client.launchURL
 	);
 });
+
+test('Sort apps by name and remember the choice', async ({ page }) => {
+	await page.goto('/settings/apps');
+
+	const appCards = page.getByRole('article');
+	const sortButton = page.getByRole('button', { name: 'Sort by' });
+	await expect(appCards.first().getByRole('heading')).toHaveText(oidcClients.nextcloud.name);
+
+	await sortButton.click();
+	await page.getByRole('menuitemradio', { name: 'Name (A-Z)' }).click();
+	await expect(appCards.first().getByRole('heading')).toHaveText(oidcClients.immich.name);
+
+	await page.reload();
+	await expect(appCards.first().getByRole('heading')).toHaveText(oidcClients.immich.name);
+
+	await sortButton.click();
+	await expect(page.getByRole('menuitemradio', { name: 'Name (A-Z)' })).toHaveAttribute(
+		'aria-checked',
+		'true'
+	);
+	await page.getByRole('menuitemradio', { name: 'Name (Z-A)' }).click();
+	await expect(appCards.first().getByRole('heading')).toHaveText(oidcClients.nextcloud.name);
+});
+
+test('Search apps by name', async ({ page }) => {
+	await page.goto('/settings/apps');
+
+	const appCards = page.getByRole('article');
+	const searchInput = page.getByRole('searchbox', { name: 'Search apps' });
+
+	await searchInput.fill('NEXT');
+	await expect(appCards).toHaveCount(1);
+	await expect(page.getByRole('article', { name: oidcClients.nextcloud.name })).toBeVisible();
+
+	await searchInput.fill('does-not-exist');
+	await expect(page.getByText('No apps match your search')).toBeVisible();
+	await expect(appCards).toHaveCount(0);
+
+	await searchInput.fill('');
+	await expect(appCards).toHaveCount(2);
+});
+
+test('Search also filters hidden apps', async ({ page }) => {
+	await page.goto('/settings/apps');
+
+	await page.getByRole('button', { name: /Show all apps/ }).click();
+	await expect(page.getByRole('article')).toHaveCount(4);
+
+	await page.getByRole('searchbox', { name: 'Search apps' }).fill(oidcClients.tailscale.name);
+	await expect(page.getByRole('article')).toHaveCount(1);
+	await expect(page.getByRole('article', { name: oidcClients.tailscale.name })).toBeVisible();
+});
