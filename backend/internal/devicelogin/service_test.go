@@ -16,7 +16,9 @@ import (
 	"github.com/stretchr/testify/require"
 	"gorm.io/gorm"
 
+	"github.com/pocket-id/pocket-id/backend/internal/appconfig"
 	"github.com/pocket-id/pocket-id/backend/internal/apperror"
+	"github.com/pocket-id/pocket-id/backend/internal/auditlogs"
 	"github.com/pocket-id/pocket-id/backend/internal/model"
 	"github.com/pocket-id/pocket-id/backend/internal/utils"
 	testutils "github.com/pocket-id/pocket-id/backend/internal/utils/testing"
@@ -70,15 +72,16 @@ func (f *fakeTokenService) generatedToken() (string, string, time.Duration, int)
 }
 
 type auditEntry struct {
-	event     model.AuditLogEvent
+	event     auditlogs.Event
 	ipAddress string
 	userAgent string
 	userID    string
 }
 
 type fakeAuditLogger struct {
-	mu      sync.Mutex
-	entries []auditEntry
+	mu            sync.Mutex
+	entries       []auditEntry
+	notifications []auditlogs.SignInResult
 }
 
 type fakeIPLocationResolver struct {
@@ -91,11 +94,11 @@ func (f *fakeIPLocationResolver) GetLocationByIP(context.Context, string) (strin
 	return f.country, f.city, f.err
 }
 
-func (f *fakeAuditLogger) Create(_ context.Context, event model.AuditLogEvent, ipAddress, userAgent, userID string, _ model.AuditLogData, _ *gorm.DB) (model.AuditLog, bool) {
+func (f *fakeAuditLogger) Create(_ context.Context, event auditlogs.Event, ipAddress, userAgent, userID string, _ auditlogs.Data, _ *gorm.DB) (auditlogs.AuditLog, bool) {
 	f.mu.Lock()
 	defer f.mu.Unlock()
 	f.entries = append(f.entries, auditEntry{event: event, ipAddress: ipAddress, userAgent: userAgent, userID: userID})
-	return model.AuditLog{}, true
+	return auditlogs.AuditLog{}, true
 }
 
 func (f *fakeAuditLogger) DeviceStringFromUserAgent(userAgent string) string {
@@ -154,11 +157,14 @@ func TestRequestLifecycle(t *testing.T) {
 	err = fixture.service.Decide(t.Context(), strings.ToLower(request.Code), "approve", user.ID, "fresh-proof")
 	require.NoError(t, err)
 
-	exchangedUser, accessToken, status, err := fixture.service.Exchange(t.Context(), request.ID, deviceToken, "198.51.100.20", "target-agent", testSessionDuration)
+	exchangedUser, accessToken, status, err := fixture.service.Exchange(t.Context(), request.ID, deviceToken, "198.51.100.20", "target-agent", "", testSessionDuration, appconfig.LoginNotificationBrowserRecognition)
 	require.NoError(t, err)
 	require.Equal(t, RequestStatusApproved, status)
 	require.Equal(t, user.ID, exchangedUser.ID)
-	require.Equal(t, "device-login-access-token", accessToken)
+	require.Equal(t, "device-login-access-token", accessToken.AccessToken)
+	require.Len(t, fixture.auditLog.notifications, 1)
+	require.True(t, fixture.auditLog.notifications[0].Notify)
+	require.Equal(t, auditlogs.EventRemoteSignIn, fixture.auditLog.notifications[0].AuditLog.Event)
 
 	signedUserID, authenticationMethod, sessionDuration, generated := fixture.signer.generatedToken()
 	require.Equal(t, user.ID, signedUserID)
@@ -168,15 +174,15 @@ func TestRequestLifecycle(t *testing.T) {
 	requireRequestActorStateDeleted(t, fixture.actors, request.ID)
 
 	entry := fixture.auditLog.lastEntry()
-	require.Equal(t, model.AuditLogEventRemoteSignIn, entry.event)
+	require.Equal(t, auditlogs.EventRemoteSignIn, entry.event)
 	require.Equal(t, "198.51.100.20", entry.ipAddress)
 	require.Equal(t, "target-agent", entry.userAgent)
 	require.Equal(t, user.ID, entry.userID)
 
-	_, _, _, err = fixture.service.Exchange(t.Context(), request.ID, deviceToken, "", "", testSessionDuration)
+	_, _, _, err = fixture.service.Exchange(t.Context(), request.ID, deviceToken, "", "", "", testSessionDuration, appconfig.LoginNotificationDisabled)
 	assertInvalidRequestError(t, err)
 
-	_, _, _, err = fixture.service.Exchange(t.Context(), request.ID, "wrong-token", "", "", testSessionDuration)
+	_, _, _, err = fixture.service.Exchange(t.Context(), request.ID, "wrong-token", "", "", "", testSessionDuration, appconfig.LoginNotificationDisabled)
 	assertInvalidRequestError(t, err)
 	_, _, _, generated = fixture.signer.generatedToken()
 	require.Equal(t, 1, generated)
@@ -199,7 +205,7 @@ func TestPendingAndDeniedRequests(t *testing.T) {
 	err = fixture.service.Decide(t.Context(), request.Code, "deny", "device-login-user", "")
 	require.NoError(t, err)
 
-	user, accessToken, status, err := fixture.service.Exchange(t.Context(), request.ID, deviceToken, "", "", testSessionDuration)
+	user, accessToken, status, err := fixture.service.Exchange(t.Context(), request.ID, deviceToken, "", "", "", testSessionDuration, appconfig.LoginNotificationDisabled)
 	require.True(t, apperror.IsCode(err, apperror.CodeDeviceLoginDenied))
 	require.Equal(t, RequestStatusDenied, status)
 	require.Empty(t, user.ID)
@@ -219,7 +225,7 @@ func TestPendingExchangeObservesDecisionDuringLongPoll(t *testing.T) {
 	}
 	result := make(chan exchangeOutcome, 1)
 	go func() {
-		_, _, status, exchangeErr := fixture.service.Exchange(t.Context(), request.ID, deviceToken, "", "", testSessionDuration)
+		_, _, status, exchangeErr := fixture.service.Exchange(t.Context(), request.ID, deviceToken, "", "", "", testSessionDuration, appconfig.LoginNotificationDisabled)
 		result <- exchangeOutcome{status: status, err: exchangeErr}
 	}()
 
@@ -242,14 +248,14 @@ func TestRejectsInvalidAndExpiredRequestsWhileActorIsActive(t *testing.T) {
 	require.NoError(t, err)
 
 	unknownRequestID := strings.Repeat("a", 64)
-	_, _, _, err = fixture.service.Exchange(t.Context(), unknownRequestID, "device-token", "", "", testSessionDuration)
+	_, _, _, err = fixture.service.Exchange(t.Context(), unknownRequestID, "device-token", "", "", "", testSessionDuration, appconfig.LoginNotificationDisabled)
 	assertInvalidRequestError(t, err)
 	_, err = fixture.service.Inspect(t.Context(), unknownRequestID)
 	assertInvalidRequestError(t, err)
 	err = fixture.service.Decide(t.Context(), unknownRequestID, "deny", "device-login-user", "")
 	assertInvalidRequestError(t, err)
 
-	_, _, _, err = fixture.service.Exchange(t.Context(), request.ID, "wrong-token", "", "", testSessionDuration)
+	_, _, _, err = fixture.service.Exchange(t.Context(), request.ID, "wrong-token", "", "", "", testSessionDuration, appconfig.LoginNotificationDisabled)
 	assertInvalidRequestError(t, err)
 
 	state := getRequestActorState(t, fixture.actors, request.ID)
@@ -260,7 +266,7 @@ func TestRejectsInvalidAndExpiredRequestsWhileActorIsActive(t *testing.T) {
 	assertInvalidRequestError(t, err)
 	err = fixture.service.Decide(t.Context(), request.Code, "deny", "device-login-user", "")
 	assertInvalidRequestError(t, err)
-	_, _, _, err = fixture.service.Exchange(t.Context(), request.ID, deviceToken, "", "", testSessionDuration)
+	_, _, _, err = fixture.service.Exchange(t.Context(), request.ID, deviceToken, "", "", "", testSessionDuration, appconfig.LoginNotificationDisabled)
 	assertInvalidRequestError(t, err)
 }
 
@@ -279,7 +285,7 @@ func TestRejectsDisabledUserAtExchange(t *testing.T) {
 	require.NoError(t, err)
 	require.NoError(t, fixture.service.Decide(t.Context(), request.Code, "approve", user.ID, "fresh-proof"))
 
-	_, accessToken, _, err := fixture.service.Exchange(t.Context(), request.ID, deviceToken, "", "", testSessionDuration)
+	_, accessToken, _, err := fixture.service.Exchange(t.Context(), request.ID, deviceToken, "", "", "", testSessionDuration, appconfig.LoginNotificationDisabled)
 	require.True(t, apperror.IsCode(err, apperror.CodeUserDisabled))
 	require.Empty(t, accessToken)
 	require.Equal(t, RequestStatusApproved, getRequestActorState(t, fixture.actors, request.ID).Status)
@@ -300,14 +306,14 @@ func TestFailedTokenGenerationConsumesApprovedRequest(t *testing.T) {
 	require.NoError(t, err)
 	require.NoError(t, fixture.service.Decide(t.Context(), request.Code, "approve", user.ID, "fresh-proof"))
 
-	_, accessToken, status, err := fixture.service.Exchange(t.Context(), request.ID, deviceToken, "", "", testSessionDuration)
+	_, accessToken, status, err := fixture.service.Exchange(t.Context(), request.ID, deviceToken, "", "", "", testSessionDuration, appconfig.LoginNotificationDisabled)
 	require.EqualError(t, err, "token generation failed")
 	require.Empty(t, accessToken)
 	require.Equal(t, RequestStatusApproved, status)
 	requireRequestActorStateDeleted(t, fixture.actors, request.ID)
 	require.Equal(t, 0, fixture.auditLog.entryCount())
 
-	_, _, _, err = fixture.service.Exchange(t.Context(), request.ID, deviceToken, "", "", testSessionDuration)
+	_, _, _, err = fixture.service.Exchange(t.Context(), request.ID, deviceToken, "", "", "", testSessionDuration, appconfig.LoginNotificationDisabled)
 	assertInvalidRequestError(t, err)
 }
 
@@ -356,8 +362,8 @@ func TestConcurrentExchangeAllowsOnlyOneSuccess(t *testing.T) {
 		waitGroup.Add(1)
 		go func() {
 			defer waitGroup.Done()
-			_, token, _, exchangeErr := fixture.service.Exchange(t.Context(), request.ID, deviceToken, "", "", testSessionDuration)
-			results <- exchangeResult{token: token, err: exchangeErr}
+			_, token, _, exchangeErr := fixture.service.Exchange(t.Context(), request.ID, deviceToken, "", "", "", testSessionDuration, appconfig.LoginNotificationDisabled)
+			results <- exchangeResult{token: token.AccessToken, err: exchangeErr}
 		}()
 	}
 	waitGroup.Wait()
@@ -416,7 +422,7 @@ func TestRequestStateSurvivesActorHostRestart(t *testing.T) {
 	require.NoError(t, err)
 	require.Equal(t, "persistent-agent", strings.TrimPrefix(info.Device, "Parsed "))
 	require.NoError(t, secondModule.service.Decide(t.Context(), request.Code, "deny", "device-login-user", ""))
-	_, _, status, err := secondModule.service.Exchange(t.Context(), request.ID, deviceToken, "", "", testSessionDuration)
+	_, _, status, err := secondModule.service.Exchange(t.Context(), request.ID, deviceToken, "", "", "", testSessionDuration, appconfig.LoginNotificationDisabled)
 	require.True(t, apperror.IsCode(err, apperror.CodeDeviceLoginDenied))
 	require.Equal(t, RequestStatusDenied, status)
 }
@@ -435,14 +441,14 @@ func TestCompletedExchangeIsInvalidAfterActorHostRestart(t *testing.T) {
 	request, deviceToken, err := firstModule.service.Create(t.Context(), "", "persistent-agent")
 	require.NoError(t, err)
 	require.NoError(t, firstModule.service.Decide(t.Context(), request.Code, "approve", user.ID, "fresh-proof"))
-	_, _, firstStatus, err := firstModule.service.Exchange(t.Context(), request.ID, deviceToken, "", "", testSessionDuration)
+	_, _, firstStatus, err := firstModule.service.Exchange(t.Context(), request.ID, deviceToken, "", "", "", testSessionDuration, appconfig.LoginNotificationDisabled)
 	require.NoError(t, err)
 	require.Equal(t, RequestStatusApproved, firstStatus)
 	stopFirst()
 
 	secondModule, stopSecond := startPersistentDeviceLoginHost(t, db, deps)
 	defer stopSecond()
-	_, _, _, err = secondModule.service.Exchange(t.Context(), request.ID, deviceToken, "", "", testSessionDuration)
+	_, _, _, err = secondModule.service.Exchange(t.Context(), request.ID, deviceToken, "", "", "", testSessionDuration, appconfig.LoginNotificationDisabled)
 	assertInvalidRequestError(t, err)
 
 	_, _, _, generated := deps.Signer.(*fakeTokenService).generatedToken()
@@ -462,7 +468,7 @@ func TestPendingExchangeStopsWhenRequestIsCanceled(t *testing.T) {
 	result := make(chan error, 1)
 	go func() {
 		close(started)
-		_, _, _, exchangeErr := fixture.service.Exchange(ctx, request.ID, deviceToken, "", "", testSessionDuration)
+		_, _, _, exchangeErr := fixture.service.Exchange(ctx, request.ID, deviceToken, "", "", "", testSessionDuration, appconfig.LoginNotificationDisabled)
 		result <- exchangeErr
 	}()
 
@@ -589,4 +595,16 @@ func freeLoopbackAddress(t *testing.T) string {
 	address := listener.Addr().String()
 	require.NoError(t, listener.Close())
 	return address
+}
+
+func (f *fakeAuditLogger) CreateSignIn(ctx context.Context, event auditlogs.Event, ipAddress, userAgent, userID, browserToken string, tx *gorm.DB, mode appconfig.AppConfigValue) auditlogs.SignInResult {
+	entry, created := f.Create(ctx, event, ipAddress, userAgent, userID, auditlogs.Data{}, tx)
+	entry.Event = event
+	return auditlogs.SignInResult{AuditLog: entry, Created: created, Notify: mode != appconfig.LoginNotificationDisabled, KnownBrowserToken: "recognized-browser"}
+}
+
+func (f *fakeAuditLogger) SendSignInNotification(_ context.Context, result auditlogs.SignInResult) {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	f.notifications = append(f.notifications, result)
 }

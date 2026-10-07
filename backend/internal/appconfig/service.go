@@ -236,6 +236,17 @@ func (s *AppConfigService) loadDbConfigFromEnv() (*AppConfigModel, error) {
 		}
 	}
 
+	// TODO: Remove in next major version (v3)
+	// Preserve the old environment setting unless an explicit notification mode replaces it
+	if _, ok := os.LookupEnv("EMAIL_LOGIN_NOTIFICATION_MODE"); !ok {
+		if enabled, exists := os.LookupEnv("EMAIL_LOGIN_NOTIFICATION_ENABLED"); exists {
+			if enabled != "true" && enabled != "false" {
+				return nil, errors.New("EMAIL_LOGIN_NOTIFICATION_ENABLED must be true or false")
+			}
+			dest.EmailLoginNotificationMode = legacyLoginNotificationMode(AppConfigValue(enabled))
+		}
+	}
+
 	// Validate the resolved configuration before exposing values to the rest of the application
 	err := validateEnvConfig(dest)
 	if err != nil {

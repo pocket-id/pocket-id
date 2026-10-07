@@ -11,7 +11,9 @@ import (
 	"github.com/italypaleale/francis/actor"
 	"gorm.io/gorm"
 
+	"github.com/pocket-id/pocket-id/backend/internal/appconfig"
 	"github.com/pocket-id/pocket-id/backend/internal/apperror"
+	"github.com/pocket-id/pocket-id/backend/internal/auditlogs"
 	"github.com/pocket-id/pocket-id/backend/internal/dto"
 	"github.com/pocket-id/pocket-id/backend/internal/iplocation"
 	"github.com/pocket-id/pocket-id/backend/internal/model"
@@ -153,9 +155,9 @@ func (s *Service) Decide(ctx context.Context, code, decision, userID, reauthenti
 	return actorResultError(result.Code)
 }
 
-func (s *Service) Exchange(ctx context.Context, requestID, deviceToken, ipAddress, userAgent string, sessionDuration time.Duration) (dto.UserDto, string, RequestStatus, error) {
+func (s *Service) Exchange(ctx context.Context, requestID, deviceToken, ipAddress, userAgent, browserToken string, sessionDuration time.Duration, notificationMode appconfig.AppConfigValue) (dto.UserDto, model.LoginTokens, RequestStatus, error) {
 	if requestID == "" || deviceToken == "" || sessionDuration <= 0 {
-		return dto.UserDto{}, "", "", apperror.DeviceLoginRequestInvalidOrExpired()
+		return dto.UserDto{}, model.LoginTokens{}, "", apperror.DeviceLoginRequestInvalidOrExpired()
 	}
 
 	deviceTokenHash := utils.CreateSha256Hash(deviceToken)
@@ -168,12 +170,12 @@ func (s *Service) Exchange(ctx context.Context, requestID, deviceToken, ipAddres
 		// Poll the actor's activation cache so the long-lived HTTP request does not repeatedly query the database
 		result, err := s.peek(ctx, requestID, requestActorMethodPoll, requestActorPollInput{DeviceTokenHash: deviceTokenHash})
 		if err != nil {
-			return dto.UserDto{}, "", "", err
+			return dto.UserDto{}, model.LoginTokens{}, "", err
 		}
 
 		err = actorResultError(result.Code)
 		if err != nil {
-			return dto.UserDto{}, "", result.Status, err
+			return dto.UserDto{}, model.LoginTokens{}, result.Status, err
 		}
 
 		switch result.Status {
@@ -181,7 +183,7 @@ func (s *Service) Exchange(ctx context.Context, requestID, deviceToken, ipAddres
 			// Validate the approved user before consuming so lookup failures leave the request untouched
 			user, userDTO, err := s.loadExchangeUser(ctx, result.UserID)
 			if err != nil {
-				return dto.UserDto{}, "", result.Status, err
+				return dto.UserDto{}, model.LoginTokens{}, result.Status, err
 			}
 
 			// Consume inside the actor so only one concurrent exchange can mint a token
@@ -189,42 +191,43 @@ func (s *Service) Exchange(ctx context.Context, requestID, deviceToken, ipAddres
 				DeviceTokenHash: deviceTokenHash,
 			})
 			if err != nil {
-				return dto.UserDto{}, "", "", err
+				return dto.UserDto{}, model.LoginTokens{}, "", err
 			}
 
 			err = actorResultError(consume.Code)
 			if err != nil {
-				return dto.UserDto{}, "", consume.Status, err
+				return dto.UserDto{}, model.LoginTokens{}, consume.Status, err
 			}
 
 			// Mint the session with login-code semantics because the waiting device did not perform WebAuthn
 			accessToken, err := s.signer.GenerateAccessToken(user, authenticationMethodOneTimePassword, sessionDuration)
 			if err != nil {
-				return dto.UserDto{}, "", consume.Status, err
+				return dto.UserDto{}, model.LoginTokens{}, consume.Status, err
 			}
 
 			// Record the successful remote sign-in after the request has been consumed
-			_, created := s.auditLog.Create(ctx, model.AuditLogEventRemoteSignIn, ipAddress, userAgent, user.ID, model.AuditLogData{}, s.db)
-			if !created {
-				return dto.UserDto{}, "", consume.Status, errors.New("failed to create device login audit log")
+			signIn := s.auditLog.CreateSignIn(ctx, auditlogs.EventRemoteSignIn, ipAddress, userAgent, user.ID, browserToken, s.db, notificationMode)
+			if !signIn.Created {
+				return dto.UserDto{}, model.LoginTokens{}, consume.Status, errors.New("failed to create device login audit log")
 			}
 
-			return userDTO, accessToken, consume.Status, nil
+			s.auditLog.SendSignInNotification(ctx, signIn)
+			return userDTO, model.LoginTokens{AccessToken: accessToken, KnownBrowserToken: signIn.KnownBrowserToken}, consume.Status, nil
 		case RequestStatusPending:
 			// no-op
 		case RequestStatusDenied:
-			return dto.UserDto{}, "", result.Status, apperror.DeviceLoginDenied()
+			return dto.UserDto{}, model.LoginTokens{}, result.Status, apperror.DeviceLoginDenied()
 		default:
-			return dto.UserDto{}, "", "", apperror.DeviceLoginRequestInvalidOrExpired()
+			return dto.UserDto{}, model.LoginTokens{}, "", apperror.DeviceLoginRequestInvalidOrExpired()
 		}
 
 		select {
 		case <-ticker.C:
 			// no-op
 		case <-timeout.C:
-			return dto.UserDto{}, "", RequestStatusPending, nil
+			return dto.UserDto{}, model.LoginTokens{}, RequestStatusPending, nil
 		case <-ctx.Done():
-			return dto.UserDto{}, "", "", ctx.Err()
+			return dto.UserDto{}, model.LoginTokens{}, "", ctx.Err()
 		}
 	}
 }

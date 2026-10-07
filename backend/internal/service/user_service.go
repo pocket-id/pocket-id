@@ -31,7 +31,6 @@ import (
 type UserService struct {
 	db                 *gorm.DB
 	jwtService         *JwtService
-	auditLogService    *AuditLogService
 	customClaimService *CustomClaimService
 	appImagesService   *AppImagesService
 	scimSyncScheduler  ScimSyncScheduler
@@ -39,11 +38,10 @@ type UserService struct {
 	fileStorage        storage.FileStorage
 }
 
-func NewUserService(db *gorm.DB, jwtService *JwtService, auditLogService *AuditLogService, customClaimService *CustomClaimService, appImagesService *AppImagesService, scimSyncScheduler ScimSyncScheduler, backchannelLogout *backchannellogout.Service, fileStorage storage.FileStorage) *UserService {
+func NewUserService(db *gorm.DB, jwtService *JwtService, customClaimService *CustomClaimService, appImagesService *AppImagesService, scimSyncScheduler ScimSyncScheduler, backchannelLogout *backchannellogout.Service, fileStorage storage.FileStorage) *UserService {
 	return &UserService{
 		db:                 db,
 		jwtService:         jwtService,
-		auditLogService:    auditLogService,
 		customClaimService: customClaimService,
 		appImagesService:   appImagesService,
 		scimSyncScheduler:  scimSyncScheduler,

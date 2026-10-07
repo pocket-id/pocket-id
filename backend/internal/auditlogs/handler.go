@@ -1,34 +1,20 @@
-package controller
+package auditlogs
 
 import (
 	"net/http"
 
-	"github.com/pocket-id/pocket-id/backend/internal/dto"
-	"github.com/pocket-id/pocket-id/backend/internal/httpserver"
-	"github.com/pocket-id/pocket-id/backend/internal/middleware"
-	"github.com/pocket-id/pocket-id/backend/internal/utils"
-
 	"github.com/gin-gonic/gin"
-	"github.com/pocket-id/pocket-id/backend/internal/service"
+
+	"github.com/pocket-id/pocket-id/backend/internal/dto"
+	"github.com/pocket-id/pocket-id/backend/internal/utils"
 )
 
-// NewAuditLogController creates a new controller for audit log management
-// @Summary Audit log controller
-// @Description Initializes API endpoints for accessing audit logs
-// @Tags Audit Logs
-func NewAuditLogController(group *gin.RouterGroup, auditLogService *service.AuditLogService, authMiddleware *middleware.AuthMiddleware) {
-	alc := AuditLogController{
-		auditLogService: auditLogService,
-	}
-
-	group.GET("/audit-logs/all", authMiddleware.Add(), httpserver.Handle(alc.listAllAuditLogsHandler))
-	group.GET("/audit-logs", authMiddleware.WithAdminNotRequired().Add(), httpserver.Handle(alc.listAuditLogsForUserHandler))
-	group.GET("/audit-logs/filters/client-names", authMiddleware.Add(), httpserver.Handle(alc.listClientNamesHandler))
-	group.GET("/audit-logs/filters/users", authMiddleware.Add(), httpserver.Handle(alc.listUserNamesWithIdsHandler))
+type handler struct {
+	service *service
 }
 
-type AuditLogController struct {
-	auditLogService *service.AuditLogService
+func newHandler(service *service) *handler {
+	return &handler{service: service}
 }
 
 // listAuditLogsForUserHandler godoc
@@ -39,22 +25,22 @@ type AuditLogController struct {
 // @Param pagination[limit] query int false "Number of items per page" default(20)
 // @Param sort[column] query string false "Column to sort by"
 // @Param sort[direction] query string false "Sort direction (asc or desc)" default("asc")
-// @Success 200 {object} dto.Paginated[dto.AuditLogDto]
+// @Success 200 {object} dto.Paginated[auditLogDto]
 // @Failure default {object} dto.ErrorDto "Error"
 // @Router /api/audit-logs [get]
-func (alc *AuditLogController) listAuditLogsForUserHandler(c *gin.Context) error {
+func (h *handler) listAuditLogsForUserHandler(c *gin.Context) error {
 	listRequestOptions := utils.ParseListRequestOptions(c)
 
 	userID := c.GetString("userID")
 
 	// Fetch audit logs for the user
-	logs, pagination, err := alc.auditLogService.ListAuditLogsForUser(c.Request.Context(), userID, listRequestOptions)
+	logs, pagination, err := h.service.ListAuditLogsForUser(c.Request.Context(), userID, listRequestOptions)
 	if err != nil {
 		return err
 	}
 
 	// Map the audit logs to DTOs
-	var logsDtos []dto.AuditLogDto
+	var logsDtos []auditLogDto
 	err = dto.MapStructList(logs, &logsDtos)
 	if err != nil {
 		return err
@@ -62,12 +48,12 @@ func (alc *AuditLogController) listAuditLogsForUserHandler(c *gin.Context) error
 
 	// Add device information to the logs
 	for i, logsDto := range logsDtos {
-		logsDto.Device = alc.auditLogService.DeviceStringFromUserAgent(logs[i].UserAgent)
+		logsDto.Device = h.service.DeviceStringFromUserAgent(logs[i].UserAgent)
 		logsDto.ActorUsername = logsDto.Data["actorUsername"]
 		logsDtos[i] = logsDto
 	}
 
-	c.JSON(http.StatusOK, dto.Paginated[dto.AuditLogDto]{
+	c.JSON(http.StatusOK, dto.Paginated[auditLogDto]{
 		Data:       logsDtos,
 		Pagination: pagination,
 	})
@@ -82,31 +68,31 @@ func (alc *AuditLogController) listAuditLogsForUserHandler(c *gin.Context) error
 // @Param pagination[limit] query int false "Number of items per page" default(20)
 // @Param sort[column] query string false "Column to sort by"
 // @Param sort[direction] query string false "Sort direction (asc or desc)" default("asc")
-// @Success 200 {object} dto.Paginated[dto.AuditLogDto]
+// @Success 200 {object} dto.Paginated[auditLogDto]
 // @Failure default {object} dto.ErrorDto "Error"
 // @Router /api/audit-logs/all [get]
-func (alc *AuditLogController) listAllAuditLogsHandler(c *gin.Context) error {
+func (h *handler) listAllAuditLogsHandler(c *gin.Context) error {
 	listRequestOptions := utils.ParseListRequestOptions(c)
 
-	logs, pagination, err := alc.auditLogService.ListAllAuditLogs(c.Request.Context(), listRequestOptions)
+	logs, pagination, err := h.service.ListAllAuditLogs(c.Request.Context(), listRequestOptions)
 	if err != nil {
 		return err
 	}
 
-	var logsDtos []dto.AuditLogDto
+	var logsDtos []auditLogDto
 	err = dto.MapStructList(logs, &logsDtos)
 	if err != nil {
 		return err
 	}
 
 	for i, logsDto := range logsDtos {
-		logsDto.Device = alc.auditLogService.DeviceStringFromUserAgent(logs[i].UserAgent)
+		logsDto.Device = h.service.DeviceStringFromUserAgent(logs[i].UserAgent)
 		logsDto.Username = logs[i].User.Username
 		logsDto.ActorUsername = logsDto.Data["actorUsername"]
 		logsDtos[i] = logsDto
 	}
 
-	c.JSON(http.StatusOK, dto.Paginated[dto.AuditLogDto]{
+	c.JSON(http.StatusOK, dto.Paginated[auditLogDto]{
 		Data:       logsDtos,
 		Pagination: pagination,
 	})
@@ -120,8 +106,8 @@ func (alc *AuditLogController) listAllAuditLogsHandler(c *gin.Context) error {
 // @Success 200 {array} string "List of client names"
 // @Failure default {object} dto.ErrorDto "Error"
 // @Router /api/audit-logs/filters/client-names [get]
-func (alc *AuditLogController) listClientNamesHandler(c *gin.Context) error {
-	names, err := alc.auditLogService.ListClientNames(c.Request.Context())
+func (h *handler) listClientNamesHandler(c *gin.Context) error {
+	names, err := h.service.ListClientNames(c.Request.Context())
 	if err != nil {
 		return err
 	}
@@ -137,8 +123,8 @@ func (alc *AuditLogController) listClientNamesHandler(c *gin.Context) error {
 // @Success 200 {object} map[string]string "Map of user IDs to usernames"
 // @Failure default {object} dto.ErrorDto "Error"
 // @Router /api/audit-logs/filters/users [get]
-func (alc *AuditLogController) listUserNamesWithIdsHandler(c *gin.Context) error {
-	users, err := alc.auditLogService.ListUsernamesWithIds(c.Request.Context())
+func (h *handler) listUserNamesWithIdsHandler(c *gin.Context) error {
+	users, err := h.service.ListUsernamesWithIds(c.Request.Context())
 	if err != nil {
 		return err
 	}

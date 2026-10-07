@@ -10,9 +10,11 @@ import (
 	"github.com/gin-gonic/gin"
 	francishost "github.com/italypaleale/francis/host"
 	"github.com/lestrrat-go/jwx/v4/jwa"
-	"github.com/pocket-id/pocket-id/backend/internal/model"
 	"go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp"
 	"gorm.io/gorm"
+
+	"github.com/pocket-id/pocket-id/backend/internal/auditlogs"
+	"github.com/pocket-id/pocket-id/backend/internal/model"
 )
 
 type Config struct {
@@ -37,7 +39,7 @@ type ReauthenticationTokenConsumer interface {
 }
 
 type AuditLogger interface {
-	Create(ctx context.Context, event model.AuditLogEvent, ipAddress, userAgent, userID string, data model.AuditLogData, tx *gorm.DB) (model.AuditLog, bool)
+	Create(ctx context.Context, event auditlogs.Event, ipAddress, userAgent, userID string, data auditlogs.Data, tx *gorm.DB) (auditlogs.AuditLog, bool)
 }
 
 type Dependencies struct {

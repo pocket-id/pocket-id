@@ -32,3 +32,7 @@ func addCookie(c *gin.Context, name, value string, maxAge int, path string) {
 	c.SetSameSite(http.SameSiteLaxMode)
 	c.SetCookie(name, value, maxAge, path, "", true, true)
 }
+
+func AddKnownBrowserCookie(c *gin.Context, token string, maxAge int) {
+	addCookie(c, KnownBrowserCookieName, token, maxAge, "/")
+}
