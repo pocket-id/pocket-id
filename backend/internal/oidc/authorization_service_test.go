@@ -8,23 +8,24 @@ import (
 
 	"github.com/ory/fosite"
 	"github.com/stretchr/testify/require"
+	"gorm.io/gorm"
 
 	"github.com/pocket-id/pocket-id/backend/internal/apperror"
+	"github.com/pocket-id/pocket-id/backend/internal/auditlogs"
 	"github.com/pocket-id/pocket-id/backend/internal/model"
 	datatype "github.com/pocket-id/pocket-id/backend/internal/model/types"
 	testutils "github.com/pocket-id/pocket-id/backend/internal/utils/testing"
-	"gorm.io/gorm"
 )
 
 type fakeAuditLogger struct {
-	events []model.AuditLogEvent
-	data   []model.AuditLogData
+	events []auditlogs.Event
+	data   []auditlogs.Data
 }
 
-func (f *fakeAuditLogger) Create(_ context.Context, event model.AuditLogEvent, _, _, _ string, data model.AuditLogData, _ *gorm.DB) (model.AuditLog, bool) {
+func (f *fakeAuditLogger) Create(_ context.Context, event auditlogs.Event, _, _, _ string, data auditlogs.Data, _ *gorm.DB) (auditlogs.AuditLog, bool) {
 	f.events = append(f.events, event)
 	f.data = append(f.data, data)
-	return model.AuditLog{}, true
+	return auditlogs.AuditLog{}, true
 }
 
 func TestAuthorizationServiceAuthorizeLogsClientAuthorization(t *testing.T) {
@@ -59,8 +60,8 @@ func TestAuthorizationServiceAuthorizeLogsClientAuthorization(t *testing.T) {
 	require.NoError(t, err)
 	require.False(t, authorization.RequiresInteraction)
 
-	require.Equal(t, []model.AuditLogEvent{model.AuditLogEventClientAuthorization}, auditLogger.events)
-	require.Equal(t, model.AuditLogData{"clientName": "Test Client"}, auditLogger.data[0])
+	require.Equal(t, []auditlogs.Event{auditlogs.EventClientAuthorization}, auditLogger.events)
+	require.Equal(t, auditlogs.Data{"clientName": "Test Client"}, auditLogger.data[0])
 }
 
 func TestAuthorizationServiceRejectsCustomScopeWithoutResource(t *testing.T) {
@@ -167,8 +168,8 @@ func TestAuthorizationServiceConsentStepLogsNewClientAuthorization(t *testing.T)
 	require.NoError(t, err)
 	require.NotEmpty(t, response.RedirectURL)
 
-	require.Equal(t, []model.AuditLogEvent{model.AuditLogEventNewClientAuthorization}, auditLogger.events)
-	require.Equal(t, model.AuditLogData{"clientName": "Test Client"}, auditLogger.data[0])
+	require.Equal(t, []auditlogs.Event{auditlogs.EventNewClientAuthorization}, auditLogger.events)
+	require.Equal(t, auditlogs.Data{"clientName": "Test Client"}, auditLogger.data[0])
 }
 
 func TestAuthorizationServiceConsentMergesAudienceQualifiedScopeKeys(t *testing.T) {
@@ -234,7 +235,7 @@ func TestAuthorizationServiceConsentMergesAudienceQualifiedScopeKeys(t *testing.
 	})
 	require.NoError(t, err)
 	require.False(t, authorization.RequiresInteraction)
-	require.Equal(t, []model.AuditLogEvent{model.AuditLogEventClientAuthorization}, auditLogger.events)
+	require.Equal(t, []auditlogs.Event{auditlogs.EventClientAuthorization}, auditLogger.events)
 }
 
 // TestAuthorizationServiceRequiresConsentForScopelessAPIAccess guards that a token audienced to a custom API always needs
@@ -1169,7 +1170,7 @@ func TestAuthorizationServiceSkipConsentGrantsWithoutInteraction(t *testing.T) {
 	require.NoError(t, db.Model(&model.UserAuthorizedOidcClient{}).Where("user_id = ? AND client_id = ?", userID, clientID).Count(&count).Error)
 	require.Equal(t, int64(1), count)
 
-	require.Equal(t, []model.AuditLogEvent{model.AuditLogEventNewClientAuthorization}, auditLogger.events)
+	require.Equal(t, []auditlogs.Event{auditlogs.EventNewClientAuthorization}, auditLogger.events)
 }
 
 // A client with SkipConsent must still show the consent screen when the request explicitly asks for it with prompt=consent

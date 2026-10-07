@@ -6,6 +6,8 @@ import (
 	"net/http"
 
 	francishost "github.com/italypaleale/francis/host"
+	"gorm.io/gorm"
+
 	"github.com/pocket-id/pocket-id/backend/internal/api"
 	"github.com/pocket-id/pocket-id/backend/internal/apikey"
 	"github.com/pocket-id/pocket-id/backend/internal/appconfig"
@@ -27,7 +29,6 @@ import (
 	"github.com/pocket-id/pocket-id/backend/internal/storage"
 	"github.com/pocket-id/pocket-id/backend/internal/usersignup"
 	"github.com/pocket-id/pocket-id/backend/internal/webauthn"
-	"gorm.io/gorm"
 )
 
 type services struct {
@@ -36,7 +37,6 @@ type services struct {
 	emailModule        *email.Module
 	geoLiteModule      *geolite.Module
 	ipLocator          iplocation.Resolver
-	auditLogService    *service.AuditLogService
 	jwtService         *service.JwtService
 	userService        *service.UserService
 	customClaimService *service.CustomClaimService
@@ -94,8 +94,17 @@ func initServices(
 		return nil, fmt.Errorf("failed to create IP location resolver: %w", err)
 	}
 
-	svc.auditLogService = service.NewAuditLogService(db, svc.emailModule, svc.ipLocator, svc.appConfigService)
+	svc.jwtService, err = service.NewJwtService(ctx, db, instanceID)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create JWT service: %w", err)
+	}
+
 	svc.auditLogsModule, err = auditlogs.New(auditlogs.Dependencies{
+		Signer:        svc.jwtService,
+		AppURL:        common.EnvConfig.AppURL,
+		EmailSender:   svc.emailModule,
+		IPLocator:     svc.ipLocator,
+		AppConfig:     svc.appConfigService,
 		DB:            db,
 		Actors:        actors,
 		RetentionDays: common.EnvConfig.AuditLogRetentionDays,
@@ -106,18 +115,13 @@ func initServices(
 		return nil, fmt.Errorf("failed to create audit logs module: %w", err)
 	}
 
-	svc.jwtService, err = service.NewJwtService(ctx, db, instanceID)
-	if err != nil {
-		return nil, fmt.Errorf("failed to create JWT service: %w", err)
-	}
-
 	svc.customClaimService = service.NewCustomClaimService(db)
 	svc.webauthnModule, err = webauthn.New(webauthn.Dependencies{
 		DB:        db,
 		Actors:    actors,
 		AppURL:    common.EnvConfig.AppURL,
 		Signer:    svc.jwtService,
-		AuditLog:  svc.auditLogService,
+		AuditLog:  svc.auditLogsModule,
 		AppConfig: svc.appConfigService,
 		// Disable in test environment
 		CleanupDisabled: common.EnvConfig.AppEnv.IsTest(),
@@ -131,7 +135,7 @@ func initServices(
 		Actors:    actors,
 		Signer:    svc.jwtService,
 		Reauth:    svc.webauthnModule,
-		AuditLog:  svc.auditLogService,
+		AuditLog:  svc.auditLogsModule,
 		IPLocator: svc.ipLocator,
 		AppConfig: svc.appConfigService,
 	})
@@ -166,7 +170,7 @@ func initServices(
 		Signer:       svc.jwtService,
 		CustomClaims: svc.customClaimService,
 		Reauth:       svc.webauthnModule,
-		AuditLog:     svc.auditLogService,
+		AuditLog:     svc.auditLogsModule,
 		APIAccess:    svc.apiModule,
 		// Disable in test environment
 		CleanupDisabled: common.EnvConfig.AppEnv.IsTest(),
@@ -186,7 +190,7 @@ func initServices(
 	}
 
 	svc.userGroupService = service.NewUserGroupService(db, svc.scimSyncModule, backchannelLogoutService)
-	svc.userService = service.NewUserService(db, svc.jwtService, svc.auditLogService, svc.customClaimService, svc.appImagesService, svc.scimSyncModule, backchannelLogoutService, fileStorage)
+	svc.userService = service.NewUserService(db, svc.jwtService, svc.customClaimService, svc.appImagesService, svc.scimSyncModule, backchannelLogoutService, fileStorage)
 
 	svc.ldapSyncModule, err = ldapsync.New(ldapsync.Dependencies{
 		DB:                db,
@@ -221,7 +225,7 @@ func initServices(
 		DB:          db,
 		Actors:      actors,
 		Signer:      svc.jwtService,
-		AuditLog:    svc.auditLogService,
+		AuditLog:    svc.auditLogsModule,
 		UserCreator: svc.userService,
 		AppConfig:   svc.appConfigService,
 		ScimSync:    svc.scimSyncModule,
@@ -234,7 +238,7 @@ func initServices(
 		DB:           db,
 		Actors:       actors,
 		Signer:       svc.jwtService,
-		AuditLog:     svc.auditLogService,
+		AuditLog:     svc.auditLogsModule,
 		UserProvider: svc.userService,
 		EmailSender:  svc.emailModule,
 		AppConfig:    svc.appConfigService,

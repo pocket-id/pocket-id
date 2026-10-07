@@ -7,9 +7,10 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"github.com/pocket-id/pocket-id/backend/internal/model"
 	datatype "github.com/pocket-id/pocket-id/backend/internal/model/types"
 )
+
+type stringEnum string
 
 type sourceStruct struct {
 	AString            string
@@ -28,7 +29,7 @@ type sourceStruct struct {
 	EmptyStringPtrToString *string
 	NilStringPtrToString   *string
 	IntToInt64             int
-	AuditLogEventToString  model.AuditLogEvent
+	StringEnumToString     stringEnum
 }
 
 type destStruct struct {
@@ -48,7 +49,7 @@ type destStruct struct {
 	EmptyStringPtrToString string
 	NilStringPtrToString   string
 	IntToInt64             int64
-	AuditLogEventToString  string
+	StringEnumToString     string
 }
 
 type embeddedStruct struct {
@@ -83,7 +84,7 @@ func TestMapStruct(t *testing.T) {
 		EmptyStringPtrToString: new(""),
 		NilStringPtrToString:   nil,
 		IntToInt64:             99,
-		AuditLogEventToString:  model.AuditLogEventAccountCreated,
+		StringEnumToString:     stringEnum("example"),
 	}
 	var dst destStruct
 	err := MapStruct(src, &dst)
@@ -110,7 +111,7 @@ func TestMapStruct(t *testing.T) {
 	assert.Empty(t, dst.EmptyStringPtrToString)
 	assert.Empty(t, dst.NilStringPtrToString)
 	assert.Equal(t, int64(99), dst.IntToInt64)
-	assert.Equal(t, "ACCOUNT_CREATED", dst.AuditLogEventToString)
+	assert.Equal(t, "example", dst.StringEnumToString)
 }
 
 func TestMapStructList(t *testing.T) {

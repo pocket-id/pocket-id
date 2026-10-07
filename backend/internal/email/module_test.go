@@ -83,9 +83,9 @@ func TestModuleSendsEveryEmailType(t *testing.T) {
 		{
 			name:         "new login",
 			subject:      "New device login with Pocket ID Test",
-			bodyContains: []string{"NEW SIGN-IN DETECTED", "Zurich, Switzerland", "192.0.2.10", "Firefox on Linux", "January 2, 2030 at 3:04 PM UTC"},
+			bodyContains: []string{"NEW SIGN-IN DETECTED", "Zurich, Switzerland", "192.0.2.10", "Firefox on Linux", "Sign-in method", "One-time code", "January 2, 2030 at 3:04 PM UTC"},
 			send: func(ctx context.Context, config *appconfig.AppConfigModel) error {
-				return module.SendNewLogin(ctx, config, user.FullName(), userEmail, "192.0.2.10", "Switzerland", "Zurich", "Firefox on Linux", eventTime)
+				return module.SendNewLogin(ctx, config, user.FullName(), userEmail, "192.0.2.10", "Switzerland", "Zurich", "Firefox on Linux", "One-time code", eventTime)
 			},
 		},
 		{
@@ -360,5 +360,19 @@ func readSMTPData(reader *bufio.Reader) (string, error) {
 		if err != nil {
 			return "", err
 		}
+	}
+}
+
+func TestNewLoginRendersSignInMethodInBothTemplates(t *testing.T) {
+	module, err := New(nil)
+	require.NoError(t, err)
+	text, html, err := renderBody(module, newLoginTemplate, &templateData[newLoginTemplateData]{
+		AppName: "Pocket ID", AppURL: "https://id.example.test", LogoURL: "https://id.example.test/logo.png",
+		Data: &newLoginTemplateData{IPAddress: "192.0.2.1", Device: "Firefox on Linux", Method: "One-time code", DateTime: time.Now()},
+	})
+	require.NoError(t, err)
+	for _, body := range []string{text, html} {
+		assert.Contains(t, body, "Sign-in method")
+		assert.Contains(t, body, "One-time code")
 	}
 }

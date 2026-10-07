@@ -11,6 +11,7 @@ import (
 
 	"github.com/pocket-id/pocket-id/backend/internal/appconfig"
 	"github.com/pocket-id/pocket-id/backend/internal/apperror"
+	"github.com/pocket-id/pocket-id/backend/internal/auditlogs"
 	"github.com/pocket-id/pocket-id/backend/internal/dto"
 	"github.com/pocket-id/pocket-id/backend/internal/model"
 	"github.com/pocket-id/pocket-id/backend/internal/utils"
@@ -37,8 +38,8 @@ func (fakeSigner) GenerateAccessToken(_ model.User, _ string, _ time.Duration) (
 
 type fakeAuditLogger struct{}
 
-func (fakeAuditLogger) Create(_ context.Context, _ model.AuditLogEvent, _, _, _ string, _ model.AuditLogData, _ *gorm.DB) (model.AuditLog, bool) {
-	return model.AuditLog{}, true
+func (fakeAuditLogger) Create(_ context.Context, _ auditlogs.Event, _, _, _ string, _ auditlogs.Data, _ *gorm.DB) (auditlogs.AuditLog, bool) {
+	return auditlogs.AuditLog{}, true
 }
 
 func newSignupServiceForTest(t *testing.T, db *gorm.DB, userCreator UserCreator) *Service {

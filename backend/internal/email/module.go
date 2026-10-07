@@ -110,7 +110,7 @@ func (m *Module) SendOneTimeAccessEmail(ctx context.Context, dbConfig *appconfig
 	})
 }
 
-func (m *Module) SendNewLogin(ctx context.Context, dbConfig *appconfig.AppConfigModel, userFullName, userEmail, ipAddress, country, city, device string, dateTime time.Time) error {
+func (m *Module) SendNewLogin(ctx context.Context, dbConfig *appconfig.AppConfigModel, userFullName, userEmail, ipAddress, country, city, device, method string, dateTime time.Time) error {
 	return send(ctx, m, dbConfig, address{
 		name:  userFullName,
 		email: userEmail,
@@ -119,6 +119,7 @@ func (m *Module) SendNewLogin(ctx context.Context, dbConfig *appconfig.AppConfig
 		Country:   country,
 		City:      city,
 		Device:    device,
+		Method:    method,
 		DateTime:  dateTime,
 	})
 }

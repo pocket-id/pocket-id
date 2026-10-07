@@ -12,69 +12,35 @@ import (
 	testutils "github.com/pocket-id/pocket-id/backend/internal/utils/testing"
 )
 
-func TestModuleRegistersAuditLogCleanupCronJob(t *testing.T) {
+func TestModuleCleanupDeletesLogsPastRetention(t *testing.T) {
+	const retentionDays = 7
 	db := testutils.NewDatabaseForTest(t)
+
+	// Preserve a recent record while proving that the registered job honors the configured retention window
+	require.NoError(t, db.Create(&AuditLog{Base: model.Base{ID: "expired-log"}, Event: EventSignIn}).Error)
+	require.NoError(t, db.Create(&AuditLog{Base: model.Base{ID: "recent-log"}, Event: EventSignIn}).Error)
+	require.NoError(t, db.Model(&AuditLog{}).Where("id = ?", "expired-log").Update("created_at", datatype.DateTime(time.Now().AddDate(0, 0, -retentionDays-1))).Error)
 
 	testutils.NewActorHostForTest(t, func(t *testing.T, host *local.Host) {
 		t.Helper()
 		_, err := New(Dependencies{
-			DB:            db,
-			Actors:        host,
-			RetentionDays: 90,
+			DB: db, Actors: host, RetentionDays: retentionDays,
 		})
 		require.NoError(t, err)
 	})
+
+	require.Eventually(t, func() bool {
+		var remaining []string
+		if db.Model(&AuditLog{}).Pluck("id", &remaining).Error != nil {
+			return false
+		}
+		return len(remaining) == 1 && remaining[0] == "recent-log"
+	}, 5*time.Second, 10*time.Millisecond)
 }
 
-func TestModuleRequiresActorHostForCleanupJob(t *testing.T) {
-	db := testutils.NewDatabaseForTest(t)
-
-	_, err := New(Dependencies{DB: db, RetentionDays: 90})
-	require.ErrorContains(t, err, "actor host is required")
-
-	// With the cleanup disabled there is nothing to register, so the actor host is not needed
-	_, err = New(Dependencies{DB: db, RetentionDays: 90, CleanupDisabled: true})
+func TestNewCleanupJobsPreserveAuditActorName(t *testing.T) {
+	jobs, err := newCleanupJobs(testutils.NewDatabaseForTest(t), 90)
 	require.NoError(t, err)
-}
-
-func TestAuditLogCleanupJobDeletesLogsPastRetention(t *testing.T) {
-	const retentionDays = 90
-
-	db := testutils.NewDatabaseForTest(t)
-	user := model.User{
-		Base:        model.Base{ID: "cleanup-job-user"},
-		Username:    "cleanup-job-user",
-		FirstName:   "Cleanup",
-		LastName:    "Job",
-		DisplayName: "Cleanup Job",
-	}
-	err := db.Create(&user).Error
-	require.NoError(t, err)
-
-	err = db.Create(&model.AuditLog{Base: model.Base{ID: "log-old"}, Event: model.AuditLogEventSignIn, UserID: user.ID}).Error
-	require.NoError(t, err)
-	err = db.Create(&model.AuditLog{Base: model.Base{ID: "log-recent"}, Event: model.AuditLogEventSignIn, UserID: user.ID}).Error
-	require.NoError(t, err)
-
-	// BeforeCreate stamps CreatedAt, so the log past the retention window is backdated directly
-	oldCreatedAt := datatype.DateTime(time.Now().AddDate(0, 0, -retentionDays-1))
-	err = db.Model(&model.AuditLog{}).Where("id = ?", "log-old").Update("created_at", oldCreatedAt).Error
-	require.NoError(t, err)
-
-	job := &cleanupJob{db: db, retentionDays: retentionDays}
-	err = job.clearAuditLogs(t.Context())
-	require.NoError(t, err)
-
-	var remaining []string
-	err = db.Model(&model.AuditLog{}).Pluck("id", &remaining).Error
-	require.NoError(t, err)
-	require.Equal(t, []string{"log-recent"}, remaining)
-}
-
-func TestNewCleanupJobCreatesCronActor(t *testing.T) {
-	db := testutils.NewDatabaseForTest(t)
-
-	cronActor, err := newCleanupJob(db, 90)
-	require.NoError(t, err)
-	require.Equal(t, "cronjob.ClearAuditLogs", cronActor.ActorType())
+	require.Len(t, jobs, 1)
+	require.Equal(t, "cronjob.ClearAuditLogs", jobs[0].ActorType())
 }

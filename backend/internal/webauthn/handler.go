@@ -13,6 +13,7 @@ import (
 
 	"github.com/pocket-id/pocket-id/backend/internal/appconfig"
 	"github.com/pocket-id/pocket-id/backend/internal/apperror"
+	"github.com/pocket-id/pocket-id/backend/internal/auditlogs"
 	"github.com/pocket-id/pocket-id/backend/internal/dto"
 	"github.com/pocket-id/pocket-id/backend/internal/httpserver"
 	"github.com/pocket-id/pocket-id/backend/internal/utils"
@@ -106,7 +107,8 @@ func (h *handler) verifyLogin(c *gin.Context) error {
 		return apperror.InvalidWebAuthnResponse(err)
 	}
 
-	user, token, err := h.service.VerifyLogin(c.Request.Context(), dbConfig, sessionID, credentialAssertionData, c.ClientIP(), c.Request.UserAgent())
+	browserToken, _ := c.Cookie(cookie.KnownBrowserCookieName)
+	user, tokens, err := h.service.VerifyLogin(c.Request.Context(), dbConfig, sessionID, credentialAssertionData, c.ClientIP(), c.Request.UserAgent(), browserToken)
 	if err != nil {
 		return err
 	}
@@ -117,7 +119,10 @@ func (h *handler) verifyLogin(c *gin.Context) error {
 	}
 
 	maxAge := int(dbConfig.SessionDuration.AsDurationMinutes().Seconds())
-	cookie.AddAccessTokenCookie(c, maxAge, token)
+	cookie.AddAccessTokenCookie(c, maxAge, tokens.AccessToken)
+	if tokens.KnownBrowserToken != "" {
+		cookie.AddKnownBrowserCookie(c, tokens.KnownBrowserToken, int(auditlogs.KnownBrowserLifetime.Seconds()))
+	}
 
 	c.JSON(http.StatusOK, userDto)
 	return nil

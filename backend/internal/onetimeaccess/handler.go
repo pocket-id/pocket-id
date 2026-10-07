@@ -9,6 +9,7 @@ import (
 
 	"github.com/pocket-id/pocket-id/backend/internal/appconfig"
 	"github.com/pocket-id/pocket-id/backend/internal/apperror"
+	"github.com/pocket-id/pocket-id/backend/internal/auditlogs"
 	"github.com/pocket-id/pocket-id/backend/internal/dto"
 	"github.com/pocket-id/pocket-id/backend/internal/httpserver"
 	"github.com/pocket-id/pocket-id/backend/internal/utils/cookie"
@@ -147,7 +148,8 @@ func (h *handler) exchangeToken(c *gin.Context) error {
 	}
 
 	deviceToken, _ := c.Cookie(cookie.DeviceTokenCookieName)
-	user, token, err := h.service.ExchangeToken(c.Request.Context(), cfg, loginCode, deviceToken, c.ClientIP(), c.Request.UserAgent())
+	browserToken, _ := c.Cookie(cookie.KnownBrowserCookieName)
+	user, tokens, err := h.service.ExchangeToken(c.Request.Context(), cfg, loginCode, deviceToken, c.ClientIP(), c.Request.UserAgent(), browserToken)
 	if err != nil {
 		return err
 	}
@@ -159,7 +161,10 @@ func (h *handler) exchangeToken(c *gin.Context) error {
 	}
 
 	maxAge := int(cfg.SessionDuration.AsDurationMinutes().Seconds())
-	cookie.AddAccessTokenCookie(c, maxAge, token)
+	cookie.AddAccessTokenCookie(c, maxAge, tokens.AccessToken)
+	if tokens.KnownBrowserToken != "" {
+		cookie.AddKnownBrowserCookie(c, tokens.KnownBrowserToken, int(auditlogs.KnownBrowserLifetime.Seconds()))
+	}
 
 	c.JSON(http.StatusOK, userDto)
 	return nil

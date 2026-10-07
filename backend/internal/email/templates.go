@@ -47,6 +47,7 @@ type newLoginTemplateData struct {
 	Country   string
 	City      string
 	Device    string
+	Method    string
 	DateTime  time.Time
 }
 

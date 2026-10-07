@@ -9,11 +9,13 @@ import (
 
 	"github.com/ory/fosite"
 	"github.com/ory/fosite/handler/rfc8628"
+	"gorm.io/gorm"
+
 	"github.com/pocket-id/pocket-id/backend/internal/apperror"
+	"github.com/pocket-id/pocket-id/backend/internal/auditlogs"
 	"github.com/pocket-id/pocket-id/backend/internal/dto"
 	"github.com/pocket-id/pocket-id/backend/internal/model"
 	"github.com/pocket-id/pocket-id/backend/internal/utils"
-	"gorm.io/gorm"
 )
 
 type deviceService struct {
@@ -143,11 +145,11 @@ func (s *deviceService) acceptDeviceCode(ctx context.Context, userCode, userID, 
 			return err
 		}
 
-		event := model.AuditLogEventDeviceCodeAuthorization
+		event := auditlogs.EventDeviceCodeAuthorization
 		if !hasAlreadyAuthorizedClient {
-			event = model.AuditLogEventNewDeviceCodeAuthorization
+			event = auditlogs.EventNewDeviceCodeAuthorization
 		}
-		s.auditLog.Create(ctx, event, meta.IPAddress, meta.UserAgent, userID, model.AuditLogData{"clientName": client.Name}, dbFromContext(ctx, s.db))
+		s.auditLog.Create(ctx, event, meta.IPAddress, meta.UserAgent, userID, auditlogs.Data{"clientName": client.Name}, dbFromContext(ctx, s.db))
 
 		deviceCodeSignature, err := s.store.AcceptDeviceCodeSessionByUserCodeSignature(ctx, userCodeSignature, request)
 		if err != nil {
