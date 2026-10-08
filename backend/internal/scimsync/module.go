@@ -6,11 +6,11 @@ import (
 	"log/slog"
 	"net/http"
 
-	"github.com/gin-gonic/gin"
 	"github.com/italypaleale/francis/actor"
 	francishost "github.com/italypaleale/francis/host"
 	"gorm.io/gorm"
 
+	"github.com/pocket-id/pocket-id/backend/internal/authz"
 	"github.com/pocket-id/pocket-id/backend/internal/httpserver"
 )
 
@@ -48,13 +48,13 @@ func New(deps Dependencies) (*Module, error) {
 	}, nil
 }
 
-// RegisterRoutes mounts the SCIM service provider endpoints
-func (m *Module) RegisterRoutes(apiGroup *gin.RouterGroup, auth gin.HandlerFunc) {
-	apiGroup.GET("/oidc/clients/:id/scim-service-provider", auth, httpserver.Handle(m.handler.getServiceProviderByClient))
-	apiGroup.POST("/scim/service-provider", auth, httpserver.Handle(m.handler.createServiceProvider))
-	apiGroup.POST("/scim/service-provider/:id/sync", auth, httpserver.Handle(m.handler.syncServiceProvider))
-	apiGroup.PUT("/scim/service-provider/:id", auth, httpserver.Handle(m.handler.updateServiceProvider))
-	apiGroup.DELETE("/scim/service-provider/:id", auth, httpserver.Handle(m.handler.deleteServiceProvider))
+// RegisterRoutes mounts the SCIM service provider endpoints, which belong to an OIDC client
+func (m *Module) RegisterRoutes(r *authz.Router) {
+	r.GET("/oidc/clients/:id/scim-service-provider", authz.OidcClientsRead, httpserver.Handle(m.handler.getServiceProviderByClient))
+	r.POST("/scim/service-provider", authz.OidcClientsWrite, httpserver.Handle(m.handler.createServiceProvider))
+	r.POST("/scim/service-provider/:id/sync", authz.OidcClientsWrite, httpserver.Handle(m.handler.syncServiceProvider))
+	r.PUT("/scim/service-provider/:id", authz.OidcClientsWrite, httpserver.Handle(m.handler.updateServiceProvider))
+	r.DELETE("/scim/service-provider/:id", authz.OidcClientsWrite, httpserver.Handle(m.handler.deleteServiceProvider))
 }
 
 // ScheduleSync schedules a debounced cluster-wide synchronization after SCIM-relevant data changes

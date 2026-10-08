@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"github.com/pocket-id/pocket-id/backend/internal/appconfig"
+	"github.com/pocket-id/pocket-id/backend/internal/authz"
 
 	"github.com/gin-gonic/gin"
 	"github.com/pocket-id/pocket-id/backend/internal/dto"
@@ -20,33 +21,33 @@ import (
 // @Summary User management controller
 // @Description Initializes all user-related API endpoints
 // @Tags Users
-func NewUserController(group *gin.RouterGroup, authMiddleware *middleware.AuthMiddleware, fileSizeLimitMiddleware *middleware.FileSizeLimitMiddleware, appConfigService *appconfig.AppConfigService, userService *service.UserService, webAuthnService *webauthn.Module) {
+func NewUserController(r *authz.Router, fileSizeLimitMiddleware *middleware.FileSizeLimitMiddleware, appConfigService *appconfig.AppConfigService, userService *service.UserService, webAuthnService *webauthn.Module) {
 	uc := UserController{
 		appConfigService: appConfigService,
 		userService:      userService,
 		webAuthnService:  webAuthnService,
 	}
 
-	group.GET("/users", authMiddleware.Add(), httpserver.Handle(uc.listUsersHandler))
-	group.GET("/users/me", authMiddleware.WithAdminNotRequired().Add(), httpserver.Handle(uc.getCurrentUserHandler))
-	group.GET("/users/:id", authMiddleware.Add(), httpserver.Handle(uc.getUserHandler))
-	group.POST("/users", authMiddleware.Add(), httpserver.Handle(uc.createUserHandler))
-	group.PUT("/users/:id", authMiddleware.Add(), httpserver.Handle(uc.updateUserHandler))
-	group.GET("/users/:id/groups", authMiddleware.Add(), httpserver.Handle(uc.getUserGroupsHandler))
-	group.GET("/users/:id/webauthn-credentials", authMiddleware.Add(), httpserver.Handle(uc.listUserWebauthnCredentialsHandler))
-	group.PUT("/users/me", authMiddleware.WithAdminNotRequired().Add(), httpserver.Handle(uc.updateCurrentUserHandler))
-	group.DELETE("/users/:id", authMiddleware.Add(), httpserver.Handle(uc.deleteUserHandler))
-	group.DELETE("/users/:id/webauthn-credentials/:credentialId", authMiddleware.Add(), httpserver.Handle(uc.deleteUserWebauthnCredentialHandler))
+	r.GET("/users", authz.UsersRead, httpserver.Handle(uc.listUsersHandler))
+	r.GET("/users/me", authz.AccountRead, httpserver.Handle(uc.getCurrentUserHandler))
+	r.GET("/users/:id", authz.UsersRead, httpserver.Handle(uc.getUserHandler))
+	r.POST("/users", authz.UsersWrite, httpserver.Handle(uc.createUserHandler))
+	r.PUT("/users/:id", authz.UsersWrite, httpserver.Handle(uc.updateUserHandler))
+	r.GET("/users/:id/groups", authz.UsersRead, httpserver.Handle(uc.getUserGroupsHandler))
+	r.GET("/users/:id/webauthn-credentials", authz.UsersRead, httpserver.Handle(uc.listUserWebauthnCredentialsHandler))
+	r.PUT("/users/me", authz.AccountWrite, httpserver.Handle(uc.updateCurrentUserHandler))
+	r.DELETE("/users/:id", authz.UsersWrite, httpserver.Handle(uc.deleteUserHandler))
+	r.DELETE("/users/:id/webauthn-credentials/:credentialId", authz.UsersWrite, httpserver.Handle(uc.deleteUserWebauthnCredentialHandler))
 
-	group.PUT("/users/:id/user-groups", authMiddleware.Add(), httpserver.Handle(uc.updateUserGroups))
+	r.PUT("/users/:id/user-groups", authz.UsersWrite, httpserver.Handle(uc.updateUserGroups))
 
-	group.GET("/users/:id/profile-picture.png", httpserver.Handle(uc.getUserProfilePictureHandler))
+	r.Public().GET("/users/:id/profile-picture.png", httpserver.Handle(uc.getUserProfilePictureHandler))
 
-	group.PUT("/users/:id/profile-picture", authMiddleware.Add(), fileSizeLimitMiddleware.Add(10<<20), httpserver.Handle(uc.updateUserProfilePictureHandler))
-	group.PUT("/users/me/profile-picture", authMiddleware.WithAdminNotRequired().Add(), fileSizeLimitMiddleware.Add(10<<20), httpserver.Handle(uc.updateCurrentUserProfilePictureHandler))
+	r.PUT("/users/:id/profile-picture", authz.UsersWrite, fileSizeLimitMiddleware.Add(10<<20), httpserver.Handle(uc.updateUserProfilePictureHandler))
+	r.PUT("/users/me/profile-picture", authz.AccountWrite, fileSizeLimitMiddleware.Add(10<<20), httpserver.Handle(uc.updateCurrentUserProfilePictureHandler))
 
-	group.DELETE("/users/:id/profile-picture", authMiddleware.Add(), httpserver.Handle(uc.resetUserProfilePictureHandler))
-	group.DELETE("/users/me/profile-picture", authMiddleware.WithAdminNotRequired().Add(), httpserver.Handle(uc.resetCurrentUserProfilePictureHandler))
+	r.DELETE("/users/:id/profile-picture", authz.UsersWrite, httpserver.Handle(uc.resetUserProfilePictureHandler))
+	r.DELETE("/users/me/profile-picture", authz.AccountWrite, httpserver.Handle(uc.resetCurrentUserProfilePictureHandler))
 }
 
 type UserController struct {
@@ -172,7 +173,7 @@ func (uc *UserController) getUserHandler(c *gin.Context) error {
 // @Failure default {object} dto.ErrorDto "Error"
 // @Router /api/users/me [get]
 func (uc *UserController) getCurrentUserHandler(c *gin.Context) error {
-	user, err := uc.userService.GetUser(c.Request.Context(), c.GetString("userID"))
+	user, err := uc.userService.GetUser(c.Request.Context(), authz.PrincipalFrom(c).UserID)
 	if err != nil {
 		return err
 	}
@@ -224,7 +225,7 @@ func (uc *UserController) deleteUserWebauthnCredentialHandler(c *gin.Context) er
 		c.Param("credentialId"),
 		c.ClientIP(),
 		c.Request.UserAgent(),
-		c.GetString("userID"),
+		authz.PrincipalFrom(c).UserID,
 	)
 	if err != nil {
 		return err
@@ -360,7 +361,7 @@ func (uc *UserController) updateUserProfilePictureHandler(c *gin.Context) error 
 // @Failure default {object} dto.ErrorDto "Error"
 // @Router /api/users/me/profile-picture [put]
 func (uc *UserController) updateCurrentUserProfilePictureHandler(c *gin.Context) error {
-	userID := c.GetString("userID")
+	userID := authz.PrincipalFrom(c).UserID
 	fileHeader, err := httpserver.FormFile(c, "file")
 	if err != nil {
 		return err
@@ -422,7 +423,7 @@ func (uc *UserController) updateUser(c *gin.Context, updateOwnUser bool) error {
 
 	var userID string
 	if updateOwnUser {
-		userID = c.GetString("userID")
+		userID = authz.PrincipalFrom(c).UserID
 	} else {
 		userID = c.Param("id")
 	}
@@ -470,7 +471,7 @@ func (uc *UserController) resetUserProfilePictureHandler(c *gin.Context) error {
 // @Failure default {object} dto.ErrorDto "Error"
 // @Router /api/users/me/profile-picture [delete]
 func (uc *UserController) resetCurrentUserProfilePictureHandler(c *gin.Context) error {
-	userID := c.GetString("userID")
+	userID := authz.PrincipalFrom(c).UserID
 
 	if err := uc.userService.ResetProfilePicture(c.Request.Context(), userID); err != nil {
 		return err

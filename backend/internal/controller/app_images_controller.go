@@ -10,6 +10,7 @@ import (
 	kitutils "github.com/italypaleale/go-kit/utils"
 
 	"github.com/pocket-id/pocket-id/backend/internal/apperror"
+	"github.com/pocket-id/pocket-id/backend/internal/authz"
 	_ "github.com/pocket-id/pocket-id/backend/internal/dto"
 	"github.com/pocket-id/pocket-id/backend/internal/httpserver"
 	"github.com/pocket-id/pocket-id/backend/internal/middleware"
@@ -18,8 +19,7 @@ import (
 )
 
 func NewAppImagesController(
-	group *gin.RouterGroup,
-	authMiddleware *middleware.AuthMiddleware,
+	r *authz.Router,
 	fileSizeLimitMiddleware *middleware.FileSizeLimitMiddleware,
 	appImagesService *service.AppImagesService,
 ) {
@@ -27,21 +27,21 @@ func NewAppImagesController(
 		appImagesService: appImagesService,
 	}
 
-	group.GET("/application-images/logo", httpserver.Handle(controller.getLogoHandler))
-	group.GET("/application-images/email", httpserver.Handle(controller.getEmailLogoHandler))
-	group.GET("/application-images/background", httpserver.Handle(controller.getBackgroundImageHandler))
-	group.GET("/application-images/favicon", httpserver.Handle(controller.getFaviconHandler))
-	group.GET("/application-images/default-profile-picture", authMiddleware.Add(), httpserver.Handle(controller.getDefaultProfilePicture))
+	r.Public().GET("/application-images/logo", httpserver.Handle(controller.getLogoHandler))
+	r.Public().GET("/application-images/email", httpserver.Handle(controller.getEmailLogoHandler))
+	r.Public().GET("/application-images/background", httpserver.Handle(controller.getBackgroundImageHandler))
+	r.Public().GET("/application-images/favicon", httpserver.Handle(controller.getFaviconHandler))
+	r.GET("/application-images/default-profile-picture", authz.ConfigRead, httpserver.Handle(controller.getDefaultProfilePicture))
 
-	group.PUT("/application-images/logo", authMiddleware.Add(), fileSizeLimitMiddleware.Add(10<<20), httpserver.Handle(controller.updateLogoHandler))
-	group.PUT("/application-images/email", authMiddleware.Add(), fileSizeLimitMiddleware.Add(10<<20), httpserver.Handle(controller.updateEmailLogoHandler))
-	group.PUT("/application-images/background", authMiddleware.Add(), fileSizeLimitMiddleware.Add(10<<20), httpserver.Handle(controller.updateBackgroundImageHandler))
-	group.PUT("/application-images/favicon", authMiddleware.Add(), fileSizeLimitMiddleware.Add(10<<20), httpserver.Handle(controller.updateFaviconHandler))
-	group.PUT("/application-images/default-profile-picture", authMiddleware.Add(), fileSizeLimitMiddleware.Add(10<<20), httpserver.Handle(controller.updateDefaultProfilePicture))
+	r.PUT("/application-images/logo", authz.ConfigWrite, fileSizeLimitMiddleware.Add(10<<20), httpserver.Handle(controller.updateLogoHandler))
+	r.PUT("/application-images/email", authz.ConfigWrite, fileSizeLimitMiddleware.Add(10<<20), httpserver.Handle(controller.updateEmailLogoHandler))
+	r.PUT("/application-images/background", authz.ConfigWrite, fileSizeLimitMiddleware.Add(10<<20), httpserver.Handle(controller.updateBackgroundImageHandler))
+	r.PUT("/application-images/favicon", authz.ConfigWrite, fileSizeLimitMiddleware.Add(10<<20), httpserver.Handle(controller.updateFaviconHandler))
+	r.PUT("/application-images/default-profile-picture", authz.ConfigWrite, fileSizeLimitMiddleware.Add(10<<20), httpserver.Handle(controller.updateDefaultProfilePicture))
 
-	group.DELETE("/application-images/logo", authMiddleware.Add(), httpserver.Handle(controller.deleteLogoHandler))
-	group.DELETE("/application-images/background", authMiddleware.Add(), httpserver.Handle(controller.deleteBackgroundImageHandler))
-	group.DELETE("/application-images/default-profile-picture", authMiddleware.Add(), httpserver.Handle(controller.deleteDefaultProfilePicture))
+	r.DELETE("/application-images/logo", authz.ConfigWrite, httpserver.Handle(controller.deleteLogoHandler))
+	r.DELETE("/application-images/background", authz.ConfigWrite, httpserver.Handle(controller.deleteBackgroundImageHandler))
+	r.DELETE("/application-images/default-profile-picture", authz.ConfigWrite, httpserver.Handle(controller.deleteDefaultProfilePicture))
 }
 
 type AppImagesController struct {

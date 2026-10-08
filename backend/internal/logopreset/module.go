@@ -3,8 +3,7 @@ package logopreset
 import (
 	"net/http"
 
-	"github.com/gin-gonic/gin"
-
+	"github.com/pocket-id/pocket-id/backend/internal/authz"
 	"github.com/pocket-id/pocket-id/backend/internal/httpserver"
 )
 
@@ -31,6 +30,6 @@ func New(deps Dependencies) *Module {
 }
 
 // RegisterRoutes mounts the logo preset endpoints
-func (m *Module) RegisterRoutes(apiGroup *gin.RouterGroup, auth gin.HandlerFunc) {
-	apiGroup.GET("/oidc/logo-presets", auth, httpserver.Handle(m.handler.search))
+func (m *Module) RegisterRoutes(r *authz.Router) {
+	r.GET("/oidc/logo-presets", authz.OidcClientsRead, httpserver.Handle(m.handler.search))
 }

@@ -15,6 +15,7 @@ import (
 	"time"
 
 	"github.com/gin-gonic/gin"
+	"github.com/pocket-id/pocket-id/backend/internal/authz"
 	"github.com/pocket-id/pocket-id/backend/internal/model"
 	datatype "github.com/pocket-id/pocket-id/backend/internal/model/types"
 	testutils "github.com/pocket-id/pocket-id/backend/internal/utils/testing"
@@ -167,8 +168,12 @@ func testAuthorizationHandlerPAR(t *testing.T, clientType string, tt authorizati
 	rec := httptest.NewRecorder()
 	router := gin.New()
 	router.Handle(tt.method, "/authorize", func(c *gin.Context) {
-		c.Set("userID", userID)
-		c.Set("authenticationTime", time.Now().UTC().Add(-time.Minute))
+		authz.SetPrincipal(c, &authz.Principal{
+			Kind:               authz.KindSession,
+			UserID:             userID,
+			Scopes:             authz.UserScopes(false, authz.KindSession),
+			AuthenticationTime: time.Now().UTC().Add(-time.Minute),
+		})
 		handler.authorize(c)
 	})
 	router.ServeHTTP(rec, req)

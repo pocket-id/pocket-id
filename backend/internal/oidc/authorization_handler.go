@@ -7,10 +7,10 @@ import (
 	"net/http"
 	"net/url"
 	"strings"
-	"time"
 
 	"github.com/gin-gonic/gin"
 	"github.com/ory/fosite"
+	"github.com/pocket-id/pocket-id/backend/internal/authz"
 	"github.com/pocket-id/pocket-id/backend/internal/httpserver"
 	"github.com/pocket-id/pocket-id/backend/internal/utils"
 	"github.com/pocket-id/pocket-id/backend/internal/utils/cookie"
@@ -35,10 +35,7 @@ func newAuthorizationHandler(
 
 func (h *authorizationHandler) authorize(c *gin.Context) {
 	ctx := c.Request.Context()
-	userID := c.GetString("userID")
-	authenticationMethod := c.GetString("authenticationMethod")
-	authenticationTime, _ := c.Get("authenticationTime")
-	typedAuthenticationTime, _ := authenticationTime.(time.Time)
+	principal := authz.PrincipalFrom(c)
 	reauthenticationToken, _ := c.Cookie(cookie.ReauthenticationTokenCookieName)
 
 	// A request that resumes an interaction only carries the interaction ID; the original
@@ -73,9 +70,9 @@ func (h *authorizationHandler) authorize(c *gin.Context) {
 	}
 
 	authorization, err := h.authorizationService.authorize(ctx, authorizeInput{
-		userID:                        userID,
-		authenticationMethod:          authenticationMethod,
-		authenticationTime:            typedAuthenticationTime,
+		userID:                        principal.UserID,
+		authenticationMethod:          principal.AuthenticationMethod,
+		authenticationTime:            principal.AuthenticationTime,
 		requester:                     ar,
 		hasPushedAuthorizationRequest: hasPushedAuthorizationRequest,
 		reauthenticationToken:         reauthenticationToken,
@@ -121,8 +118,7 @@ func (h *authorizationHandler) getInteractionSession(c *gin.Context) {
 
 func (h *authorizationHandler) completeInteraction(c *gin.Context) {
 	interactionID := c.Param("id")
-	authenticationTime, _ := c.Get("authenticationTime")
-	typedAuthenticationTime, _ := authenticationTime.(time.Time)
+	principal := authz.PrincipalFrom(c)
 
 	var request completeInteractionRequest
 	if err := httpserver.BindJSON(c, &request); err != nil {
@@ -131,7 +127,7 @@ func (h *authorizationHandler) completeInteraction(c *gin.Context) {
 	}
 
 	reauthenticationToken, _ := c.Cookie(cookie.ReauthenticationTokenCookieName)
-	response, err := h.authorizationService.completeInteractionStep(c.Request.Context(), interactionID, c.GetString("userID"), request.Step, reauthenticationToken, typedAuthenticationTime, requestMetaFromGin(c))
+	response, err := h.authorizationService.completeInteractionStep(c.Request.Context(), interactionID, principal.UserID, request.Step, reauthenticationToken, principal.AuthenticationTime, requestMetaFromGin(c))
 	if err != nil {
 		_ = c.Error(err)
 		return

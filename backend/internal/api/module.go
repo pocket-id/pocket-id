@@ -3,9 +3,9 @@ package api
 import (
 	"context"
 
-	"github.com/gin-gonic/gin"
 	"gorm.io/gorm"
 
+	"github.com/pocket-id/pocket-id/backend/internal/authz"
 	"github.com/pocket-id/pocket-id/backend/internal/dto"
 	"github.com/pocket-id/pocket-id/backend/internal/httpserver"
 	"github.com/pocket-id/pocket-id/backend/internal/oidc"
@@ -60,26 +60,23 @@ func (m *Module) DescribePermissions(ctx context.Context, audience string, keys 
 }
 
 // RegisterRoutes mounts the admin CRUD endpoints
-// adminAuth is passed in as a gin handler so the module does not import internal/middleware
-func (m *Module) RegisterRoutes(apiGroup *gin.RouterGroup, adminAuth gin.HandlerFunc) {
-	apis := apiGroup.Group("/apis")
-	apis.Use(adminAuth)
-	apis.GET("", httpserver.Handle(m.handler.list))
-	apis.POST("", httpserver.Handle(m.handler.create))
-	apis.GET("/:id", httpserver.Handle(m.handler.get))
-	apis.PUT("/:id", httpserver.Handle(m.handler.update))
-	apis.DELETE("/:id", httpserver.Handle(m.handler.delete))
-	apis.PUT("/:id/permissions", httpserver.Handle(m.handler.updatePermissions))
-	apis.PUT("/:id/cimd-access", httpserver.Handle(m.handler.updateCimdAccess))
+func (m *Module) RegisterRoutes(r *authz.Router) {
+	apis := r.Group("/apis")
+	apis.GET("", authz.APIsRead, httpserver.Handle(m.handler.list))
+	apis.POST("", authz.APIsWrite, httpserver.Handle(m.handler.create))
+	apis.GET("/:id", authz.APIsRead, httpserver.Handle(m.handler.get))
+	apis.PUT("/:id", authz.APIsWrite, httpserver.Handle(m.handler.update))
+	apis.DELETE("/:id", authz.APIsWrite, httpserver.Handle(m.handler.delete))
+	apis.PUT("/:id/permissions", authz.APIsWrite, httpserver.Handle(m.handler.updatePermissions))
+	apis.PUT("/:id/cimd-access", authz.APIsWrite, httpserver.Handle(m.handler.updateCimdAccess))
 
 	// The same client grants are editable from either side of the relation, so the API can list and manage its clients too
-	apis.GET("/:id/clients", httpserver.Handle(m.handler.listClients))
-	apis.GET("/:id/assignable-clients", httpserver.Handle(m.handler.listAssignableClients))
-	apis.PUT("/:id/clients/:clientId", httpserver.Handle(m.handler.updateClientAccessForApi))
-	apis.DELETE("/:id/clients/:clientId", httpserver.Handle(m.handler.removeClientAccessForApi))
+	apis.GET("/:id/clients", authz.APIsRead, httpserver.Handle(m.handler.listClients))
+	apis.GET("/:id/assignable-clients", authz.APIsRead, httpserver.Handle(m.handler.listAssignableClients))
+	apis.PUT("/:id/clients/:clientId", authz.APIsWrite, httpserver.Handle(m.handler.updateClientAccessForApi))
+	apis.DELETE("/:id/clients/:clientId", authz.APIsWrite, httpserver.Handle(m.handler.removeClientAccessForApi))
 
-	access := apiGroup.Group("/api-access")
-	access.Use(adminAuth)
-	access.GET("/:clientId/apis", httpserver.Handle(m.handler.listClientApis))
-	access.GET("/:clientId/assignable-apis", httpserver.Handle(m.handler.listAssignableApis))
+	access := r.Group("/api-access")
+	access.GET("/:clientId/apis", authz.APIsRead, httpserver.Handle(m.handler.listClientApis))
+	access.GET("/:clientId/assignable-apis", authz.APIsRead, httpserver.Handle(m.handler.listAssignableApis))
 }

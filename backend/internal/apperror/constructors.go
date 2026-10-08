@@ -90,6 +90,11 @@ func MissingPermission() *Error {
 	return New(CodeForbidden, http.StatusForbidden, "You don't have permission to perform this action")
 }
 
+// MissingScope keeps the generic forbidden code and names the scope the caller lacks so API clients can tell what to request
+func MissingScope(scope string) *Error {
+	return MissingPermission().WithDetail("required_scope", scope)
+}
+
 func TooManyRequests() *Error {
 	return New(CodeRateLimited, http.StatusTooManyRequests, "Too many requests")
 }

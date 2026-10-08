@@ -43,7 +43,7 @@ func TestImageUploadRoutesLimitRequestSize(t *testing.T) {
 	apiKeyModule, err := apikey.New(t.Context(), apikey.Dependencies{DB: db, CleanupDisabled: true})
 	require.NoError(t, err)
 
-	authMiddleware := middleware.NewAuthMiddleware(apiKeyModule, userService, jwtService)
+	auth := middleware.NewAuthorization(apiKeyModule, userService, jwtService)
 	fileSizeLimitMiddleware := middleware.NewFileSizeLimitMiddleware()
 
 	user := model.User{Username: "upload-admin", IsAdmin: true}
@@ -54,9 +54,9 @@ func TestImageUploadRoutesLimitRequestSize(t *testing.T) {
 
 	router := gin.New()
 	router.Use(middleware.NewErrorHandlerMiddleware().Add())
-	apiGroup := router.Group("/api")
-	NewUserController(apiGroup, authMiddleware, fileSizeLimitMiddleware, nil, userService, nil)
-	NewAppImagesController(apiGroup, authMiddleware, fileSizeLimitMiddleware, nil)
+	apiRouter := auth.Router(router.Group("/api"))
+	NewUserController(apiRouter, fileSizeLimitMiddleware, nil, userService, nil)
+	NewAppImagesController(apiRouter, fileSizeLimitMiddleware, nil)
 
 	routes := []string{
 		"/api/users/user-id/profile-picture",
