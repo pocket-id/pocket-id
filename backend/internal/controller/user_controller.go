@@ -20,7 +20,7 @@ import (
 // @Summary User management controller
 // @Description Initializes all user-related API endpoints
 // @Tags Users
-func NewUserController(group *gin.RouterGroup, authMiddleware *middleware.AuthMiddleware, fileSizeLimitMiddleware *middleware.FileSizeLimitMiddleware, appConfigService *appconfig.AppConfigService, userService *service.UserService, webAuthnService *webauthn.Module) {
+func NewUserController(group *gin.RouterGroup, authMiddleware *middleware.AuthMiddleware, fileSizeLimitMiddleware *middleware.FileSizeLimitMiddleware, appConfigService *appconfig.AppConfigService, userService *service.UserService, webAuthnService *webauthn.Module, updateOwnAccountRateLimit gin.HandlerFunc) {
 	uc := UserController{
 		appConfigService: appConfigService,
 		userService:      userService,
@@ -34,7 +34,8 @@ func NewUserController(group *gin.RouterGroup, authMiddleware *middleware.AuthMi
 	group.PUT("/users/:id", authMiddleware.Add(), httpserver.Handle(uc.updateUserHandler))
 	group.GET("/users/:id/groups", authMiddleware.Add(), httpserver.Handle(uc.getUserGroupsHandler))
 	group.GET("/users/:id/webauthn-credentials", authMiddleware.Add(), httpserver.Handle(uc.listUserWebauthnCredentialsHandler))
-	group.PUT("/users/me", authMiddleware.WithAdminNotRequired().Add(), httpserver.Handle(uc.updateCurrentUserHandler))
+	// Updating the own account reports whether an email or username is already taken, so it is rate limited to slow down probing for existing users
+	group.PUT("/users/me", authMiddleware.WithAdminNotRequired().Add(), updateOwnAccountRateLimit, httpserver.Handle(uc.updateCurrentUserHandler))
 	group.DELETE("/users/:id", authMiddleware.Add(), httpserver.Handle(uc.deleteUserHandler))
 	group.DELETE("/users/:id/webauthn-credentials/:credentialId", authMiddleware.Add(), httpserver.Handle(uc.deleteUserWebauthnCredentialHandler))
 
