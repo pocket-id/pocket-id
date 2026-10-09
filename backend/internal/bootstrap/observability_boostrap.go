@@ -16,7 +16,6 @@ import (
 	"go.opentelemetry.io/contrib/exporters/autoexport"
 	"go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp"
 	"go.opentelemetry.io/otel"
-	globallog "go.opentelemetry.io/otel/log/global"
 	"go.opentelemetry.io/otel/propagation"
 	sdklog "go.opentelemetry.io/otel/sdk/log"
 	"go.opentelemetry.io/otel/sdk/metric"
@@ -118,7 +117,7 @@ func initOtelLogging(ctx context.Context, resource *resource.Resource) (shutdown
 		)
 
 		// Set the logger provider globally
-		globallog.SetLoggerProvider(provider)
+		otel.SetLoggerProvider(provider)
 
 		handler = slog.NewMultiHandler(
 			handler,
