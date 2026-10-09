@@ -1,16 +1,16 @@
 import { m } from '#lib/paraglide/messages.js';
 
 export const eventTypes: Record<string, string> = {
-	SIGN_IN: m.sign_in(),
-	TOKEN_SIGN_IN: m.token_sign_in(),
-	REMOTE_SIGN_IN: m.remote_sign_in(),
-	CLIENT_AUTHORIZATION: m.client_authorization(),
-	NEW_CLIENT_AUTHORIZATION: m.new_client_authorization(),
-	ACCOUNT_CREATED: m.account_created(),
-	DEVICE_CODE_AUTHORIZATION: m.device_code_authorization(),
-	NEW_DEVICE_CODE_AUTHORIZATION: m.new_device_code_authorization(),
-	PASSKEY_ADDED: m.passkey_added(),
-	PASSKEY_REMOVED: m.passkey_removed()
+	SIGN_IN: m.audit_event_sign_in(),
+	TOKEN_SIGN_IN: m.audit_event_token_sign_in(),
+	REMOTE_SIGN_IN: m.audit_event_remote_sign_in(),
+	CLIENT_AUTHORIZATION: m.audit_event_client_authorization(),
+	NEW_CLIENT_AUTHORIZATION: m.audit_event_new_client_authorization(),
+	ACCOUNT_CREATED: m.audit_event_account_created(),
+	DEVICE_CODE_AUTHORIZATION: m.audit_event_device_code_authorization(),
+	NEW_DEVICE_CODE_AUTHORIZATION: m.audit_event_new_device_code_authorization(),
+	PASSKEY_ADDED: m.audit_event_passkey_added(),
+	PASSKEY_REMOVED: m.audit_event_passkey_removed()
 };
 
 /**
