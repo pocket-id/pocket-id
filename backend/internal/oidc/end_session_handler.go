@@ -5,6 +5,7 @@ import (
 	"net/http"
 
 	"github.com/gin-gonic/gin"
+	"github.com/pocket-id/pocket-id/backend/internal/authz"
 	"github.com/pocket-id/pocket-id/backend/internal/dto"
 	"github.com/pocket-id/pocket-id/backend/internal/utils/cookie"
 )
@@ -28,7 +29,7 @@ func (h *endSessionHandler) endSession(c *gin.Context) {
 		return
 	}
 
-	callbackURL, err := h.endSessionService.endSession(c.Request.Context(), input, c.GetString("userID"))
+	callbackURL, err := h.endSessionService.endSession(c.Request.Context(), input, authz.PrincipalFrom(c).UserID)
 	if err != nil {
 		slog.WarnContext(c.Request.Context(), "Error getting logout callback URL, the user has to confirm the logout manually", "error", err)
 		c.Redirect(http.StatusFound, h.baseURL+"/logout")

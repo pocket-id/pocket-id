@@ -4,11 +4,11 @@ import (
 	"errors"
 	"log/slog"
 	"net/http"
-	"time"
 
 	"github.com/gin-gonic/gin"
 	"github.com/ory/fosite"
 	"github.com/pocket-id/pocket-id/backend/internal/apperror"
+	"github.com/pocket-id/pocket-id/backend/internal/authz"
 	"github.com/pocket-id/pocket-id/backend/internal/utils/cookie"
 )
 
@@ -39,8 +39,7 @@ func (h *deviceHandler) authorizeDevice(c *gin.Context) {
 }
 
 func (h *deviceHandler) verifyDeviceCode(c *gin.Context) {
-	authenticationTime, _ := c.Get("authenticationTime")
-	typedAuthenticationTime, _ := authenticationTime.(time.Time)
+	principal := authz.PrincipalFrom(c)
 	reauthenticationToken, _ := c.Cookie(cookie.ReauthenticationTokenCookieName)
 
 	userCode := c.Query("code")
@@ -52,9 +51,9 @@ func (h *deviceHandler) verifyDeviceCode(c *gin.Context) {
 	err := h.deviceService.acceptDeviceCode(
 		c.Request.Context(),
 		userCode,
-		c.GetString("userID"),
-		c.GetString("authenticationMethod"),
-		typedAuthenticationTime,
+		principal.UserID,
+		principal.AuthenticationMethod,
+		principal.AuthenticationTime,
 		reauthenticationToken,
 		requestMetaFromGin(c),
 	)
@@ -77,7 +76,7 @@ func (h *deviceHandler) deviceCodeInfo(c *gin.Context) {
 		return
 	}
 
-	deviceCodeInfo, err := h.deviceService.getDeviceCodeInfo(c.Request.Context(), userCode, c.GetString("userID"))
+	deviceCodeInfo, err := h.deviceService.getDeviceCodeInfo(c.Request.Context(), userCode, authz.PrincipalFrom(c).UserID)
 	if err != nil {
 		_ = c.Error(err)
 		return

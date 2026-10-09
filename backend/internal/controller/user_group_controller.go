@@ -6,9 +6,9 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"github.com/pocket-id/pocket-id/backend/internal/appconfig"
+	"github.com/pocket-id/pocket-id/backend/internal/authz"
 	"github.com/pocket-id/pocket-id/backend/internal/dto"
 	"github.com/pocket-id/pocket-id/backend/internal/httpserver"
-	"github.com/pocket-id/pocket-id/backend/internal/middleware"
 	"github.com/pocket-id/pocket-id/backend/internal/service"
 	"github.com/pocket-id/pocket-id/backend/internal/utils"
 )
@@ -17,23 +17,20 @@ import (
 // @Summary User group management controller
 // @Description Initializes all user group-related API endpoints
 // @Tags User Groups
-func NewUserGroupController(group *gin.RouterGroup, authMiddleware *middleware.AuthMiddleware, appConfigService *appconfig.AppConfigService, userGroupService *service.UserGroupService) {
+func NewUserGroupController(r *authz.Router, appConfigService *appconfig.AppConfigService, userGroupService *service.UserGroupService) {
 	ugc := UserGroupController{
 		appConfigService: appConfigService,
 		UserGroupService: userGroupService,
 	}
 
-	userGroupsGroup := group.Group("/user-groups")
-	userGroupsGroup.Use(authMiddleware.Add())
-	{
-		userGroupsGroup.GET("", httpserver.Handle(ugc.list))
-		userGroupsGroup.GET("/:id", httpserver.Handle(ugc.get))
-		userGroupsGroup.POST("", httpserver.Handle(ugc.create))
-		userGroupsGroup.PUT("/:id", httpserver.Handle(ugc.update))
-		userGroupsGroup.DELETE("/:id", httpserver.Handle(ugc.delete))
-		userGroupsGroup.PUT("/:id/users", httpserver.Handle(ugc.updateUsers))
-		userGroupsGroup.PUT("/:id/allowed-oidc-clients", httpserver.Handle(ugc.updateAllowedOidcClients))
-	}
+	userGroupsGroup := r.Group("/user-groups")
+	userGroupsGroup.GET("", authz.GroupsRead, httpserver.Handle(ugc.list))
+	userGroupsGroup.GET("/:id", authz.GroupsRead, httpserver.Handle(ugc.get))
+	userGroupsGroup.POST("", authz.GroupsWrite, httpserver.Handle(ugc.create))
+	userGroupsGroup.PUT("/:id", authz.GroupsWrite, httpserver.Handle(ugc.update))
+	userGroupsGroup.DELETE("/:id", authz.GroupsWrite, httpserver.Handle(ugc.delete))
+	userGroupsGroup.PUT("/:id/users", authz.GroupsWrite, httpserver.Handle(ugc.updateUsers))
+	userGroupsGroup.PUT("/:id/allowed-oidc-clients", authz.GroupsWrite, httpserver.Handle(ugc.updateAllowedOidcClients))
 }
 
 type UserGroupController struct {

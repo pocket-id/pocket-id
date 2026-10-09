@@ -13,6 +13,7 @@ import (
 
 	"github.com/pocket-id/pocket-id/backend/internal/appconfig"
 	"github.com/pocket-id/pocket-id/backend/internal/auditlogs"
+	"github.com/pocket-id/pocket-id/backend/internal/authz"
 	"github.com/pocket-id/pocket-id/backend/internal/httpserver"
 	"github.com/pocket-id/pocket-id/backend/internal/model"
 )
@@ -79,22 +80,22 @@ func New(deps Dependencies) (*Module, error) {
 }
 
 // RegisterRoutes mounts the WebAuthn registration, login and reauthentication endpoints
-func (m *Module) RegisterRoutes(apiGroup *gin.RouterGroup, userAuth, browserAuth, loginRateLimit, reauthRateLimit gin.HandlerFunc) {
-	apiGroup.GET("/webauthn/register/start", browserAuth, httpserver.Handle(m.handler.beginRegistration))
-	apiGroup.POST("/webauthn/register/finish", browserAuth, httpserver.Handle(m.handler.verifyRegistration))
+func (m *Module) RegisterRoutes(r *authz.Router, loginRateLimit, reauthRateLimit gin.HandlerFunc) {
+	r.GET("/webauthn/register/start", authz.AccountPasskeysEnroll, httpserver.Handle(m.handler.beginRegistration))
+	r.POST("/webauthn/register/finish", authz.AccountPasskeysEnroll, httpserver.Handle(m.handler.verifyRegistration))
 
-	apiGroup.GET("/webauthn/login/start", httpserver.Handle(m.handler.beginLogin))
-	apiGroup.POST("/webauthn/login/finish", loginRateLimit, httpserver.Handle(m.handler.verifyLogin))
+	r.Public().GET("/webauthn/login/start", httpserver.Handle(m.handler.beginLogin))
+	r.Public().POST("/webauthn/login/finish", loginRateLimit, httpserver.Handle(m.handler.verifyLogin))
 
-	apiGroup.POST("/webauthn/logout", userAuth, httpserver.Handle(m.handler.logout))
+	r.POST("/webauthn/logout", authz.AccountSession, httpserver.Handle(m.handler.logout))
 
-	apiGroup.POST("/webauthn/reauthenticate", browserAuth, reauthRateLimit, httpserver.Handle(m.handler.reauthenticate))
+	r.POST("/webauthn/reauthenticate", authz.AccountSession, reauthRateLimit, httpserver.Handle(m.handler.reauthenticate))
 
-	apiGroup.GET("/webauthn/credentials", userAuth, httpserver.Handle(m.handler.listCredentials))
-	apiGroup.PATCH("/webauthn/credentials/:id", userAuth, httpserver.Handle(m.handler.updateCredential))
-	apiGroup.DELETE("/webauthn/credentials/:id", userAuth, httpserver.Handle(m.handler.deleteCredential))
+	r.GET("/webauthn/credentials", authz.AccountPasskeys, httpserver.Handle(m.handler.listCredentials))
+	r.PATCH("/webauthn/credentials/:id", authz.AccountPasskeys, httpserver.Handle(m.handler.updateCredential))
+	r.DELETE("/webauthn/credentials/:id", authz.AccountPasskeys, httpserver.Handle(m.handler.deleteCredential))
 
-	apiGroup.GET("/webauthn/authenticator-icons/:aaguid", httpserver.Handle(m.handler.getThemedAuthenticatorIcon))
+	r.Public().GET("/webauthn/authenticator-icons/:aaguid", httpserver.Handle(m.handler.getThemedAuthenticatorIcon))
 }
 
 // ConsumeReauthenticationToken implements the OIDC module's ReauthenticationTokenConsumer interface

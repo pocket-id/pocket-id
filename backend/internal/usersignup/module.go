@@ -11,6 +11,7 @@ import (
 
 	"github.com/pocket-id/pocket-id/backend/internal/appconfig"
 	"github.com/pocket-id/pocket-id/backend/internal/auditlogs"
+	"github.com/pocket-id/pocket-id/backend/internal/authz"
 	"github.com/pocket-id/pocket-id/backend/internal/dto"
 	"github.com/pocket-id/pocket-id/backend/internal/httpserver"
 	"github.com/pocket-id/pocket-id/backend/internal/model"
@@ -78,12 +79,12 @@ func (m *Module) RunSignupTokenMigration(ctx context.Context) error {
 }
 
 // RegisterRoutes mounts the signup and signup-token management endpoints
-// adminAuth guards the admin token-management routes; signupRateLimit throttles public self-signup
-func (m *Module) RegisterRoutes(apiGroup *gin.RouterGroup, adminAuth, signupRateLimit gin.HandlerFunc) {
-	apiGroup.POST("/signup-tokens", adminAuth, httpserver.Handle(m.handler.createSignupToken))
-	apiGroup.GET("/signup-tokens", adminAuth, httpserver.Handle(m.handler.listSignupTokens))
-	apiGroup.DELETE("/signup-tokens/:id", adminAuth, httpserver.Handle(m.handler.deleteSignupToken))
-	apiGroup.POST("/signup", signupRateLimit, httpserver.Handle(m.handler.signup))
-	apiGroup.GET("/signup/setup", httpserver.Handle(m.handler.checkInitialAdminSetupAvailable))
-	apiGroup.POST("/signup/setup", httpserver.Handle(m.handler.signUpInitialAdmin))
+// signupRateLimit throttles public self-signup
+func (m *Module) RegisterRoutes(r *authz.Router, signupRateLimit gin.HandlerFunc) {
+	r.POST("/signup-tokens", authz.UsersWrite, httpserver.Handle(m.handler.createSignupToken))
+	r.GET("/signup-tokens", authz.UsersRead, httpserver.Handle(m.handler.listSignupTokens))
+	r.DELETE("/signup-tokens/:id", authz.UsersWrite, httpserver.Handle(m.handler.deleteSignupToken))
+	r.Public().POST("/signup", signupRateLimit, httpserver.Handle(m.handler.signup))
+	r.Public().GET("/signup/setup", httpserver.Handle(m.handler.checkInitialAdminSetupAvailable))
+	r.Public().POST("/signup/setup", httpserver.Handle(m.handler.signUpInitialAdmin))
 }
