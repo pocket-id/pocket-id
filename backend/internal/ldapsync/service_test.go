@@ -1,7 +1,9 @@
 package ldapsync
 
 import (
+	"bytes"
 	"net/http"
+	"net/http/httptest"
 	"testing"
 
 	"github.com/go-ldap/ldap/v3"
@@ -43,6 +45,37 @@ func (c *fakeLDAPClient) Bind(_, _ string) error {
 
 func (c *fakeLDAPClient) Close() error {
 	return nil
+}
+
+func TestSaveProfilePictureRejectsOversizedDownload(t *testing.T) {
+	oversized := bytes.Repeat([]byte{0}, 2*1024*1024+1)
+
+	// Cover both a declared Content-Length and a chunked response that hides its size until it is read
+	tests := []struct {
+		name    string
+		chunked bool
+	}{
+		{name: "content length", chunked: false},
+		{name: "chunked", chunked: true},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+				if tt.chunked {
+					w.(http.Flusher).Flush()
+				}
+				_, _ = w.Write(oversized)
+			}))
+			t.Cleanup(server.Close)
+
+			svc := newService(Dependencies{HTTPClient: server.Client()})
+
+			err := svc.saveProfilePicture(t.Context(), "user-id", server.URL+"/picture.png")
+
+			require.ErrorContains(t, err, "must not exceed 2 MB")
+		})
+	}
 }
 
 func TestLdapServiceSyncAllReconcilesUsersAndGroups(t *testing.T) {

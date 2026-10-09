@@ -5,6 +5,7 @@ import (
 	"context"
 	"crypto/tls"
 	"encoding/base64"
+	"errors"
 	"fmt"
 	"io"
 	"log/slog"
@@ -756,8 +757,15 @@ func (s *Service) saveProfilePicture(parentCtx context.Context, userId string, p
 		}
 		defer res.Body.Close()
 
-		data, err := io.ReadAll(res.Body)
-		if err != nil {
+		const maxProfilePictureSize int64 = 2 * 1024 * 1024 // 2MB
+		if res.ContentLength > maxProfilePictureSize {
+			return fmt.Errorf("profile picture must not exceed 2 MB")
+		}
+
+		data, err := io.ReadAll(utils.NewLimitReader(res.Body, maxProfilePictureSize+1))
+		if errors.Is(err, utils.ErrSizeExceeded) {
+			return fmt.Errorf("profile picture must not exceed 2 MB")
+		} else if err != nil {
 			return fmt.Errorf("failed to read profile picture: %w", err)
 		}
 
