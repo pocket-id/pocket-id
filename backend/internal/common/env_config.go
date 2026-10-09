@@ -8,7 +8,6 @@ import (
 	"net"
 	"net/url"
 	"os"
-	"path"
 	"reflect"
 	"strconv"
 	"strings"
@@ -91,6 +90,15 @@ type EnvConfigSchema struct {
 	UnixSocketMode  string `env:"UNIX_SOCKET_MODE"`
 	SystemdSocket   bool   `env:"SYSTEMD_SOCKET"`
 	LocalIPv6Ranges string `env:"LOCAL_IPV6_RANGES"`
+
+	// The OutboundAllowedHosts* fields list the private or reserved destinations each feature's requests to admin- or third-party-controlled URLs may reach
+	// Each value is a comma-separated list of IP addresses, CIDR ranges, hostnames ("*.example.com" matches subdomains) and the keywords "private", "loopback" and "none"
+	OutboundAllowedHostsClientLogo        string `env:"OUTBOUND_ALLOWED_HOSTS_CLIENT_LOGO"`
+	OutboundAllowedHostsClientMetadata    string `env:"OUTBOUND_ALLOWED_HOSTS_CLIENT_METADATA"`
+	OutboundAllowedHostsSCIM              string `env:"OUTBOUND_ALLOWED_HOSTS_SCIM"`
+	OutboundAllowedHostsBackchannelLogout string `env:"OUTBOUND_ALLOWED_HOSTS_BACKCHANNEL_LOGOUT"`
+	OutboundAllowedHostsFederatedJWKS     string `env:"OUTBOUND_ALLOWED_HOSTS_FEDERATED_JWKS"`
+	OutboundAllowedHostsLDAPPicture       string `env:"OUTBOUND_ALLOWED_HOSTS_LDAP_PICTURE"`
 
 	// TLS cert and key need special treatment with fsnotify, so we aren't using `options:"file"`
 	TLSCert     string `env:"TLS_CERT"`
@@ -178,6 +186,10 @@ func defaultConfig() EnvConfigSchema {
 		GeoLiteDBPath:             "data/GeoLite2-City.mmdb",
 		GeoLiteDBUrl:              MaxMindGeoLiteCityUrl,
 		IconLibraryURL:            DefaultIconLibraryURL,
+		// These targets usually run next to Pocket ID on the same Docker network, cluster or LAN
+		OutboundAllowedHostsSCIM:              "private,loopback",
+		OutboundAllowedHostsBackchannelLogout: "private,loopback",
+		OutboundAllowedHostsFederatedJWKS:     "private,loopback",
 	}
 }
 
@@ -430,24 +442,6 @@ func validateIconLibraryURL(config *EnvConfigSchema) error {
 // IconLibraryEnabled reports whether admins can pick OIDC client logos from the icon library
 func (c *EnvConfigSchema) IconLibraryEnabled() bool {
 	return c.IconLibraryURL != IconLibraryDisabled
-}
-
-// IsIconLibraryURL reports whether the URL points to a file inside the configured icon library
-// Dot segments are rejected so a URL can't climb out of the library's path on the same host
-func (c *EnvConfigSchema) IsIconLibraryURL(u *url.URL) bool {
-	if !c.IconLibraryEnabled() {
-		return false
-	}
-
-	base, err := url.Parse(c.IconLibraryURL)
-	if err != nil {
-		return false
-	}
-
-	return u.Scheme == base.Scheme &&
-		strings.EqualFold(u.Host, base.Host) &&
-		u.Path == path.Clean(u.Path) &&
-		strings.HasPrefix(u.Path, base.Path+"/")
 }
 
 func validateFileBackend(config *EnvConfigSchema) error {

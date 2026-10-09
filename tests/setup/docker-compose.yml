@@ -23,6 +23,7 @@ services:
       APP_ENV: test
       ENCRYPTION_KEY: test-encryption-key
       FILE_BACKEND: ${FILE_BACKEND}
+      OUTBOUND_ALLOWED_HOSTS_BACKCHANNEL_LOGOUT: private,loopback,host.docker.internal
     volumes:
       - pocket-id-test-data:/app/data
     build:

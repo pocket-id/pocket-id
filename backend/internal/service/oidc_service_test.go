@@ -3,6 +3,7 @@ package service
 import (
 	"io"
 	"net/http"
+	"net/http/httptest"
 	"strconv"
 	"strings"
 	"testing"
@@ -18,6 +19,7 @@ import (
 	"github.com/pocket-id/pocket-id/backend/internal/model"
 	datatype "github.com/pocket-id/pocket-id/backend/internal/model/types"
 	"github.com/pocket-id/pocket-id/backend/internal/oidc"
+	"github.com/pocket-id/pocket-id/backend/internal/outbound"
 	"github.com/pocket-id/pocket-id/backend/internal/storage"
 	"github.com/pocket-id/pocket-id/backend/internal/utils"
 	testutils "github.com/pocket-id/pocket-id/backend/internal/utils/testing"
@@ -415,37 +417,35 @@ func TestOidcService_downloadAndSaveLogoFromURL(t *testing.T) {
 		require.True(t, apperror.IsCode(err, apperror.CodeValidationFailed))
 	})
 
-	t.Run("Allows private hosts inside the icon library only", func(t *testing.T) {
-		const iconLibraryURL = "http://127.0.0.1:4050/icons"
+	t.Run("Allows the private icon library host only", func(t *testing.T) {
+		server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+			w.Header().Set("Content-Type", "image/svg+xml")
+			_, _ = w.Write([]byte(`<svg xmlns="http://www.w3.org/2000/svg"/>`))
+		}))
+		t.Cleanup(server.Close)
+
+		iconLibraryURL := server.URL + "/icons"
 		originalIconLibraryURL := common.EnvConfig.IconLibraryURL
 		common.EnvConfig.IconLibraryURL = iconLibraryURL
 		t.Cleanup(func() {
 			common.EnvConfig.IconLibraryURL = originalIconLibraryURL
 		})
 
-		//nolint:bodyclose
-		svgResponse := testutils.NewMockResponse(http.StatusOK, `<svg xmlns="http://www.w3.org/2000/svg"/>`)
-		svgResponse.Header.Set("Content-Type", "image/svg+xml")
-
+		clients, err := outbound.New(&common.EnvConfig)
+		require.NoError(t, err)
 		s := &OidcService{
 			db:          db,
 			fileStorage: dbStorage,
-			httpClient: &http.Client{
-				Transport: &testutils.MockRoundTripper{
-					Responses: map[string]*http.Response{
-						iconLibraryURL + "/svg/nextcloud.svg": svgResponse,
-					},
-				},
-			},
+			httpClient:  clients.Client(outbound.PurposeClientLogo),
 		}
 
 		// The operator configured the library, so its loopback address is trusted
-		err := s.downloadAndSaveLogoFromURL(t.Context(), client.ID, iconLibraryURL+"/svg/nextcloud.svg", true)
+		err = s.downloadAndSaveLogoFromURL(t.Context(), client.ID, iconLibraryURL+"/svg/nextcloud.svg", true)
 		require.NoError(t, err)
 		require.True(t, fileExists(t, "oidc-client-images/"+client.ID+".svg"))
 
-		// Other paths on the same private host are still blocked
-		err = s.downloadAndSaveLogoFromURL(t.Context(), client.ID, "http://127.0.0.1:4050/admin/logo.svg", true)
+		// Other private hosts are still blocked, even when they resolve to the same address
+		err = s.downloadAndSaveLogoFromURL(t.Context(), client.ID, strings.Replace(server.URL, "127.0.0.1", "localhost", 1)+"/icons/svg/nextcloud.svg", true)
 		require.Error(t, err)
 		require.True(t, apperror.IsCode(err, apperror.CodeValidationFailed))
 	})

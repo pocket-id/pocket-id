@@ -34,10 +34,10 @@ var _ fosite.CIMDClientPolicy = cimdPolicy{}
 func newCIMDClientResolver(store *Store, config cimdResolverConfig) *cimdClientResolver {
 	options := []fosite.CIMDFetcherOption{
 		fosite.WithCIMDUserAgent("pocket-id/oidc-client-metadata-fetcher"),
-		fosite.WithCIMDExtraPrivateRanges(utils.LocalIPv6IPNets()),
 	}
 	if config.transport != nil {
-		options = append(options, fosite.WithCIMDTransport(config.transport))
+		// The provided transport is the outbound package's guarded transport so we skip Fosite's own pre-resolution checks
+		options = append(options, fosite.WithCIMDTransport(config.transport), fosite.WithCIMDAllowPrivateIPs(true))
 	}
 	if config.transportDecorator != nil {
 		options = append(options, fosite.WithCIMDTransportDecorator(config.transportDecorator))

@@ -21,11 +21,11 @@ import (
 
 	"github.com/pocket-id/pocket-id/backend/internal/apperror"
 	"github.com/pocket-id/pocket-id/backend/internal/backchannellogout"
-	"github.com/pocket-id/pocket-id/backend/internal/common"
 	"github.com/pocket-id/pocket-id/backend/internal/dto"
 	"github.com/pocket-id/pocket-id/backend/internal/model"
 	datatype "github.com/pocket-id/pocket-id/backend/internal/model/types"
 	"github.com/pocket-id/pocket-id/backend/internal/oidc"
+	"github.com/pocket-id/pocket-id/backend/internal/outbound"
 	"github.com/pocket-id/pocket-id/backend/internal/storage"
 	"github.com/pocket-id/pocket-id/backend/internal/utils"
 	imageutil "github.com/pocket-id/pocket-id/backend/internal/utils/image"
@@ -959,23 +959,6 @@ func httpClientWithCheckRedirect(source *http.Client, checkRedirect func(req *ht
 	return client
 }
 
-// checkLogoURLAllowed prevents SSRF by allowing only URLs that resolve to public IPs
-// URLs inside the icon library are exempt because the operator configured it, which lets a self-hosted mirror live on the local network
-func checkLogoURLAllowed(ctx context.Context, u *url.URL) error {
-	if common.EnvConfig.IsIconLibraryURL(u) {
-		return nil
-	}
-
-	private, err := utils.IsURLPrivate(ctx, u)
-	if err != nil {
-		return apperror.LogoDownloadFailed(err)
-	} else if private {
-		return apperror.InvalidLogoURL(errors.New("private IP addresses are not allowed"))
-	}
-
-	return nil
-}
-
 func (s *OidcService) downloadAndSaveLogoFromURL(parentCtx context.Context, clientID string, raw string, light bool) error {
 	u, err := url.Parse(raw)
 	if err != nil {
@@ -988,18 +971,11 @@ func (s *OidcService) downloadAndSaveLogoFromURL(parentCtx context.Context, clie
 	ctx, cancel := context.WithTimeout(parentCtx, 15*time.Second)
 	defer cancel()
 
-	err = checkLogoURLAllowed(ctx, u)
-	if err != nil {
-		return err
-	}
-
-	// We need to check this on redirects too
-	client := httpClientWithCheckRedirect(s.httpClient, func(r *http.Request, via []*http.Request) error {
+	client := httpClientWithCheckRedirect(s.httpClient, func(_ *http.Request, via []*http.Request) error {
 		if len(via) >= 10 {
 			return apperror.InvalidLogoURL(errors.New("stopped after 10 redirects"))
 		}
-
-		return checkLogoURLAllowed(r.Context(), r.URL)
+		return nil
 	})
 
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, raw, nil)
@@ -1013,6 +989,9 @@ func (s *OidcService) downloadAndSaveLogoFromURL(parentCtx context.Context, clie
 	if err != nil {
 		if appErr, ok := errors.AsType[*apperror.Error](err); ok {
 			return appErr
+		}
+		if blockedErr, ok := errors.AsType[*outbound.BlockedError](err); ok {
+			return apperror.InvalidLogoURL(blockedErr)
 		}
 		return apperror.LogoDownloadFailed(err)
 	}

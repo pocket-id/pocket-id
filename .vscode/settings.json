@@ -4,5 +4,8 @@
   "oxc.fmt.disableNestedConfig": true,
   "[svelte]": {
     "editor.defaultFormatter": "oxc.oxc-vscode"
+  },
+  "[go]": {
+    "editor.defaultFormatter": "golang.go"
   }
 }

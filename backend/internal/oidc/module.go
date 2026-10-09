@@ -43,10 +43,11 @@ type AuditLogger interface {
 }
 
 type Dependencies struct {
-	DB         *gorm.DB
-	Actors     francishost.Host
-	Config     Config
-	HTTPClient *http.Client
+	DB                  *gorm.DB
+	Actors              francishost.Host
+	Config              Config
+	FederatedJWKSClient *http.Client
+	CIMDTransport       http.RoundTripper
 
 	GetCIMDURLAllowlist func() []string
 
@@ -80,13 +81,14 @@ func New(ctx context.Context, deps Dependencies) (*Module, error) {
 	store := NewStore(deps.DB, deps.APIAccess).WithIssuer(deps.Config.BaseURL)
 	cimdResolver := newCIMDClientResolver(store, cimdResolverConfig{
 		getURLAllowlist: deps.GetCIMDURLAllowlist,
+		transport:       deps.CIMDTransport,
 		transportDecorator: func(transport http.RoundTripper) http.RoundTripper {
 			return otelhttp.NewTransport(transport)
 		},
 	})
 	store.clientResolver = cimdResolver
 
-	authenticator, err := newFederatedClientAuthenticator(ctx, store, deps.HTTPClient, deps.Config.BaseURL)
+	authenticator, err := newFederatedClientAuthenticator(ctx, store, deps.FederatedJWKSClient, deps.Config.BaseURL)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create federated client authenticator: %w", err)
 	}

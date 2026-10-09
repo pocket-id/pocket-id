@@ -24,6 +24,7 @@ import (
 	"github.com/pocket-id/pocket-id/backend/internal/logopreset"
 	"github.com/pocket-id/pocket-id/backend/internal/oidc"
 	"github.com/pocket-id/pocket-id/backend/internal/onetimeaccess"
+	"github.com/pocket-id/pocket-id/backend/internal/outbound"
 	"github.com/pocket-id/pocket-id/backend/internal/scimsync"
 	"github.com/pocket-id/pocket-id/backend/internal/service"
 	"github.com/pocket-id/pocket-id/backend/internal/storage"
@@ -67,6 +68,7 @@ func initServices(
 	instanceID string,
 	actors francishost.Host,
 	httpClient *http.Client,
+	outboundClients *outbound.Clients,
 	imageExtensions map[string]string,
 	fileStorage storage.FileStorage,
 ) (svc *services, err error) {
@@ -146,7 +148,7 @@ func initServices(
 	svc.scimSyncModule, err = scimsync.New(scimsync.Dependencies{
 		DB:         db,
 		Actors:     actors,
-		HTTPClient: httpClient,
+		HTTPClient: outboundClients.Client(outbound.PurposeSCIM),
 		// Disable in test environment
 		ScheduleDisabled: common.EnvConfig.AppEnv.IsTest(),
 	})
@@ -159,7 +161,8 @@ func initServices(
 	svc.oidcModule, err = oidc.New(ctx, oidc.Dependencies{
 		DB:                  db,
 		Actors:              actors,
-		HTTPClient:          httpClient,
+		FederatedJWKSClient: outboundClients.Client(outbound.PurposeFederatedJWKS),
+		CIMDTransport:       outboundClients.Transport(outbound.PurposeClientMetadata),
 		GetCIMDURLAllowlist: svc.appConfigService.GetCIMDURLAllowlist,
 		Config: oidc.Config{
 			BaseURL:                   common.EnvConfig.AppURL,
@@ -179,12 +182,12 @@ func initServices(
 		return nil, fmt.Errorf("failed to create OIDC module: %w", err)
 	}
 
-	backchannelLogoutService, err := backchannellogout.NewService(db, svc.jwtService, httpClient, actors)
+	backchannelLogoutService, err := backchannellogout.NewService(db, svc.jwtService, outboundClients.Client(outbound.PurposeBackchannelLogout), actors)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create back-channel logout service: %w", err)
 	}
 
-	svc.oidcService, err = service.NewOidcService(db, svc.jwtService, svc.oidcModule.Preview, svc.oidcModule, svc.scimSyncModule, backchannelLogoutService, httpClient, fileStorage)
+	svc.oidcService, err = service.NewOidcService(db, svc.jwtService, svc.oidcModule.Preview, svc.oidcModule, svc.scimSyncModule, backchannelLogoutService, outboundClients.Client(outbound.PurposeClientLogo), fileStorage)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create OIDC service: %w", err)
 	}
@@ -195,7 +198,7 @@ func initServices(
 	svc.ldapSyncModule, err = ldapsync.New(ldapsync.Dependencies{
 		DB:                db,
 		Actors:            actors,
-		HTTPClient:        httpClient,
+		HTTPClient:        outboundClients.Client(outbound.PurposeLDAPPicture),
 		FileStorage:       fileStorage,
 		Users:             svc.userService,
 		Groups:            svc.userGroupService,

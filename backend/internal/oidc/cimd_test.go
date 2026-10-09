@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"net/http"
+	"net/http/httptest"
 	"strings"
 	"testing"
 	"time"
@@ -13,10 +14,56 @@ import (
 	"github.com/stretchr/testify/require"
 	"gorm.io/gorm"
 
+	"github.com/pocket-id/pocket-id/backend/internal/common"
 	"github.com/pocket-id/pocket-id/backend/internal/model"
 	datatype "github.com/pocket-id/pocket-id/backend/internal/model/types"
+	"github.com/pocket-id/pocket-id/backend/internal/outbound"
 	testutils "github.com/pocket-id/pocket-id/backend/internal/utils/testing"
 )
+
+func TestCIMDClientLimitsResponseHeaders(t *testing.T) {
+	// Exercise both transport paths so hostname exceptions cannot bypass the header limit
+	for _, allowlist := range []string{"loopback", "localhost"} {
+		t.Run(allowlist, func(t *testing.T) {
+			server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				size := 1024
+				if r.URL.Path == "/oversized" {
+					size = 40 * 1024
+				}
+				w.Header().Set("X-Padding", strings.Repeat("a", size))
+				w.WriteHeader(http.StatusOK)
+			}))
+			t.Cleanup(server.Close)
+
+			// Use the production outbound transport and CIMD client construction
+			clients, err := outbound.New(&common.EnvConfigSchema{OutboundAllowedHostsClientMetadata: allowlist})
+			require.NoError(t, err)
+			resolver := newCIMDClientResolver(nil, cimdResolverConfig{transport: clients.Transport(outbound.PurposeClientMetadata)})
+			provider, ok := resolver.resolver.Fetcher.(fosite.CIMDSecureHTTPClientProvider)
+			require.True(t, ok)
+			client := provider.CIMDHTTPClient()
+			serverURL := server.URL
+			if allowlist == "localhost" {
+				serverURL = strings.Replace(serverURL, "127.0.0.1", "localhost", 1)
+			}
+
+			// Normal headers must still succeed while oversized headers fail before the body is read
+			for _, path := range []string{"/normal", "/oversized"} {
+				req, err := http.NewRequestWithContext(t.Context(), http.MethodGet, serverURL+path, nil)
+				require.NoError(t, err)
+				res, err := client.Do(req)
+				if res != nil {
+					_ = res.Body.Close()
+				}
+				if path == "/oversized" {
+					require.ErrorContains(t, err, "response headers exceeded")
+				} else {
+					require.NoError(t, err)
+				}
+			}
+		})
+	}
+}
 
 func TestBuildClientFromMetadata(t *testing.T) {
 	const id = "https://app.example.com/oauth/client"
