@@ -137,11 +137,16 @@ export type InteractionScopeInfo = {
 	description?: string;
 };
 
+export type InteractionClient = Pick<
+	OidcClientMetaData,
+	'id' | 'name' | 'hasLogo' | 'hasDarkLogo' | 'clientType'
+>;
+
 export type InteractionSession = {
 	id: string;
 	scopes: string[];
 	scopeInfo: InteractionScopeInfo[];
-	client: OidcClientMetaData;
+	client: InteractionClient;
 	currentStep?: InteractionStep;
 	requiredSteps: InteractionStep[];
 };
