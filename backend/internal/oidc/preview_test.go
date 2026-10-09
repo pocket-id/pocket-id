@@ -39,6 +39,11 @@ func TestClientPreviewBuilderUsesFositeTokenStrategies(t *testing.T) {
 		Email:         &email,
 		EmailVerified: true,
 	}).Error)
+	require.NoError(t, db.Create(&model.OidcClient{
+		Base:                       model.Base{ID: clientID},
+		Name:                       "Test Client",
+		AccessTokenDurationMinutes: 2 * 60,
+	}).Error)
 
 	preview, err := builder.BuildClientPreview(t.Context(), model.OidcClient{
 		Base:                       model.Base{ID: clientID},
@@ -62,7 +67,7 @@ func TestClientPreviewBuilderUsesFositeTokenStrategies(t *testing.T) {
 	require.Equal(t, userID, preview.IDToken["sub"])
 	// ID tokens carry the "type" marker (so the end-session endpoint can reject access tokens
 	// passed as id_token_hint) and the amr from the authentication method.
-	require.Equal(t, idTokenType, preview.IDToken["type"])
+	require.Equal(t, string(IDTokenType), preview.IDToken["type"])
 	require.ElementsMatch(t, []string{"phr"}, stringSliceClaim(t, preview.IDToken["amr"]))
 
 	require.Equal(t, email, preview.UserInfo["email"])
@@ -85,6 +90,10 @@ func TestClientPreviewBuilderIgnoresUnknownScopes(t *testing.T) {
 	require.NoError(t, db.Create(&model.User{
 		Base:     model.Base{ID: "test-user"},
 		Username: "test-user",
+	}).Error)
+	require.NoError(t, db.Create(&model.OidcClient{
+		Base: model.Base{ID: "test-client"},
+		Name: "Test Client",
 	}).Error)
 
 	// The preview mirrors the authorize endpoint: unknown scopes are dropped

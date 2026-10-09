@@ -3,6 +3,7 @@
 	import FormattedMessage from '#lib/components/formatted-message.svelte';
 	import * as Card from '#lib/components/ui/card/index.ts';
 	import * as Field from '#lib/components/ui/field/index.ts';
+	import * as Select from '#lib/components/ui/select/index.ts';
 	import { Switch } from '#lib/components/ui/switch/index.ts';
 	import { m } from '#lib/paraglide/messages.js';
 	import appConfigStore from '#lib/stores/application-configuration-store.ts';
@@ -20,6 +21,10 @@
 	import { z } from 'zod/v4';
 	import OidcCallbackUrlInput from './oidc-callback-url-input.svelte';
 	import OidcClientLogoPicker from './oidc-client-logo-picker.svelte';
+	import OidcClaimMappingPolicyService from '#lib/services/oidc-claim-mapping-policy-service.ts';
+	import type { OidcClaimMappingPolicyMetadataDto } from '#lib/types/oidc-claim-mapping-policy.type.ts';
+	import { SvelteMap } from 'svelte/reactivity';
+	import { onMount } from 'svelte';
 
 	let {
 		callback,
@@ -56,7 +61,8 @@
 		launchURL: existingClient.launchURL || '',
 		logoUrl: '',
 		darkLogoUrl: '',
-		pkceSupported: existingClient.pkceSupported || false
+		pkceSupported: existingClient.pkceSupported || false,
+		claimMappingPolicyId: existingClient?.claimMappingPolicyId || ''
 	};
 
 	const formSchema = z.object({
@@ -72,7 +78,8 @@
 		skipConsent: z.boolean(),
 		launchURL: optionalUrl,
 		logoUrl: optionalUrl,
-		darkLogoUrl: optionalUrl
+		darkLogoUrl: optionalUrl,
+		claimMappingPolicyId: z.string()
 	});
 
 	type FormSchema = typeof formSchema;
@@ -179,6 +186,19 @@
 				$inputs.darkLogoUrl.value = '';
 			}
 		}
+	}
+	const claimMappingPolicies = new SvelteMap<string, string>();
+	claimMappingPolicies.set('', m.claim_mapping_policy_default());
+	let claimMappingPolicyService = new OidcClaimMappingPolicyService();
+	onMount(() => {
+		claimMappingPolicyService.listClaimMappingPolicies().then((data) => {
+			data.data.map((mapping: OidcClaimMappingPolicyMetadataDto) => {
+				claimMappingPolicies.set(mapping.id, mapping.name);
+			});
+		});
+	});
+	function getClaimMappingPolicyName(id: string) {
+		return claimMappingPolicies.get(id);
 	}
 </script>
 
@@ -349,6 +369,28 @@
 				type="url"
 				bind:input={$inputs.launchURL}
 			/>
+
+			<!-- Claim Mapping policy -->
+			<FormInput
+				label={m.claim_mapping_policy()}
+				description={m.claim_mapping_policy_description()}
+				bind:input={$inputs.claimMappingPolicyId}
+			>
+				<Select.Root type="single" bind:value={$inputs.claimMappingPolicyId.value}>
+					<Select.Trigger
+						class="w-full md:w-1/2"
+						aria-label={m.claim_mapping_policy()}
+						placeholder={m.claim_mapping_policy()}
+					>
+						{getClaimMappingPolicyName($inputs.claimMappingPolicyId.value)}
+					</Select.Trigger>
+					<Select.Content>
+						{#each claimMappingPolicies as option (option[0])}
+							<Select.Item value={option[0]}>{option[1]}</Select.Item>
+						{/each}
+					</Select.Content>
+				</Select.Root>
+			</FormInput>
 		</Card.Content>
 	</Card.Root>
 

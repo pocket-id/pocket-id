@@ -66,6 +66,7 @@ export type OidcClient = OidcClientMetaData & {
 	pkceSupported: boolean;
 	accessTokenDurationMinutes: number;
 	refreshTokenDurationMinutes: number;
+	claimMappingPolicyId?: string;
 };
 
 export type OidcClientCreated = OidcClient & {

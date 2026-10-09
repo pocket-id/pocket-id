@@ -289,6 +289,13 @@ func updateOIDCClientModelFromDto(client *model.OidcClient, input *dto.OidcClien
 	client.LaunchURL = input.LaunchURL
 	client.IsGroupRestricted = input.IsGroupRestricted
 
+	// An empty policy id leaves the column NULL, so the client falls back to the default claim mapping policy
+	if input.ClaimMappingPolicyId == "" {
+		client.ClaimMappingPolicyId = nil
+	} else {
+		client.ClaimMappingPolicyId = new(input.ClaimMappingPolicyId)
+	}
+
 	// Token lifetimes are optional, so a zero value falls back to the default
 	client.AccessTokenDurationMinutes = cmp.Or(input.AccessTokenDurationMinutes, model.DefaultAccessTokenDurationMinutes)
 	client.RefreshTokenDurationMinutes = cmp.Or(input.RefreshTokenDurationMinutes, model.DefaultRefreshTokenDurationMinutes)

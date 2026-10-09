@@ -99,6 +99,9 @@ func TestClaimsServiceGetUserClaims(t *testing.T) {
 	group := model.UserGroup{Base: model.Base{ID: "group-1"}, Name: "developers", FriendlyName: "Developers"}
 	require.NoError(t, db.Create(&group).Error)
 
+	var claimMappingPolicy model.OidcClaimMappingPolicy
+	require.NoError(t, db.First(&claimMappingPolicy, "id = ?", defaultClaimMappingPolicyId).Error)
+
 	user := model.User{
 		Base:          model.Base{ID: userID},
 		Username:      "tim",
@@ -112,13 +115,13 @@ func TestClaimsServiceGetUserClaims(t *testing.T) {
 	require.NoError(t, db.Model(&user).Association("UserGroups").Append(&group))
 
 	t.Run("openid only releases sub", func(t *testing.T) {
-		claims, err := service.GetUserClaims(t.Context(), userID, []string{"openid"})
+		claims, err := service.GetUserClaims(t.Context(), userID, []string{"openid"}, claimMappingPolicy, IDTokenType)
 		require.NoError(t, err)
 		require.Equal(t, map[string]any{"sub": userID}, claims)
 	})
 
 	t.Run("email scope releases email claims", func(t *testing.T) {
-		claims, err := service.GetUserClaims(t.Context(), userID, []string{"openid", "email"})
+		claims, err := service.GetUserClaims(t.Context(), userID, []string{"openid", "email"}, claimMappingPolicy, IDTokenType)
 		require.NoError(t, err)
 		require.Equal(t, userID, claims["sub"])
 		require.Equal(t, "tim@example.com", claims["email"])
@@ -128,13 +131,13 @@ func TestClaimsServiceGetUserClaims(t *testing.T) {
 	})
 
 	t.Run("groups scope releases group names", func(t *testing.T) {
-		claims, err := service.GetUserClaims(t.Context(), userID, []string{"groups"})
+		claims, err := service.GetUserClaims(t.Context(), userID, []string{"groups"}, claimMappingPolicy, IDTokenType)
 		require.NoError(t, err)
 		require.Equal(t, []string{"developers"}, claims["groups"])
 	})
 
 	t.Run("profile scope releases profile and custom claims", func(t *testing.T) {
-		claims, err := service.GetUserClaims(t.Context(), userID, []string{"profile"})
+		claims, err := service.GetUserClaims(t.Context(), userID, []string{"profile"}, claimMappingPolicy, IDTokenType)
 		require.NoError(t, err)
 		require.Equal(t, "Tim", claims["given_name"])
 		require.Equal(t, "Cook", claims["family_name"])
@@ -166,8 +169,44 @@ func TestClaimsServiceAppliesSigningAlgToIDTokenHeader(t *testing.T) {
 			session := NewEmptySession()
 			session.Subject = "alg-user"
 
-			require.NoError(t, service.applyIDTokenClaims(t.Context(), session, fosite.Arguments{"openid"}))
+			require.NoError(t, service.applyIDTokenClaims(t.Context(), session, fosite.Arguments{"openid"}, model.OidcClaimMappingPolicy{}))
 			require.Equal(t, alg.String(), session.IDTokenHeaders().Get("alg"))
 		})
 	}
+}
+
+// TestClaimsServiceGetClaimMappingPolicyByClientID verifies that a client without an assigned
+// policy falls back to the default one, while an assigned policy takes precedence over it.
+func TestClaimsServiceGetClaimMappingPolicyByClientID(t *testing.T) {
+	db := testutils.NewDatabaseForTest(t)
+	service := newClaimsService(db, nil, "", nil)
+
+	customPolicy := model.OidcClaimMappingPolicy{
+		Base:          model.Base{ID: "custom-policy"},
+		Name:          "Custom Policy",
+		ClaimMappings: model.OidcClaimMappings{{ClaimName: "sub", SourceType: model.MappingSourceUserField, SourceValue: string(model.UserFieldID)}},
+	}
+	require.NoError(t, db.Create(&customPolicy).Error)
+
+	require.NoError(t, db.Create(&model.OidcClient{Base: model.Base{ID: "client-default"}, Name: "Default Client"}).Error)
+	require.NoError(t, db.Create(&model.OidcClient{Base: model.Base{ID: "client-custom"}, Name: "Custom Client", ClaimMappingPolicyId: new(customPolicy.ID)}).Error)
+
+	t.Run("falls back to the default policy", func(t *testing.T) {
+		policy, err := service.GetClaimMappingPolicyByClientID(t.Context(), "client-default")
+		require.NoError(t, err)
+		require.Equal(t, defaultClaimMappingPolicyId, policy.ID)
+		require.True(t, policy.IsDefault)
+	})
+
+	t.Run("assigned policy wins over the default", func(t *testing.T) {
+		policy, err := service.GetClaimMappingPolicyByClientID(t.Context(), "client-custom")
+		require.NoError(t, err)
+		require.Equal(t, customPolicy.ID, policy.ID)
+	})
+
+	t.Run("unknown client falls back to the default policy", func(t *testing.T) {
+		policy, err := service.GetClaimMappingPolicyByClientID(t.Context(), "missing-client")
+		require.NoError(t, err)
+		require.Equal(t, defaultClaimMappingPolicyId, policy.ID)
+	})
 }

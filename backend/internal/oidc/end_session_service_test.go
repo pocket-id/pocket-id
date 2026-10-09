@@ -116,7 +116,7 @@ func TestEndSessionService(t *testing.T) {
 			builder = builder.JwtID(opts.jti)
 		}
 		if !opts.omitType {
-			builder = builder.Claim(common.TokenTypeClaim, idTokenType)
+			builder = builder.Claim(common.TokenTypeClaim, IDTokenType)
 		}
 		token, err := builder.Build()
 		require.NoError(t, err)

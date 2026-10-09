@@ -32,17 +32,18 @@ import (
 )
 
 type services struct {
-	appConfigService   *appconfig.AppConfigService
-	appImagesService   *service.AppImagesService
-	emailModule        *email.Module
-	geoLiteModule      *geolite.Module
-	ipLocator          iplocation.Resolver
-	jwtService         *service.JwtService
-	userService        *service.UserService
-	customClaimService *service.CustomClaimService
-	oidcService        *service.OidcService
-	userGroupService   *service.UserGroupService
-	fileStorage        storage.FileStorage
+	appConfigService              *appconfig.AppConfigService
+	appImagesService              *service.AppImagesService
+	emailModule                   *email.Module
+	geoLiteModule                 *geolite.Module
+	ipLocator                     iplocation.Resolver
+	jwtService                    *service.JwtService
+	userService                   *service.UserService
+	customClaimService            *service.CustomClaimService
+	oidcClaimMappingPolicyService *service.OidcClaimMappingPolicyService
+	oidcService                   *service.OidcService
+	userGroupService              *service.UserGroupService
+	fileStorage                   storage.FileStorage
 
 	apiKeyModule            *apikey.Module
 	auditLogsModule         *auditlogs.Module
@@ -189,6 +190,7 @@ func initServices(
 		return nil, fmt.Errorf("failed to create OIDC service: %w", err)
 	}
 
+	svc.oidcClaimMappingPolicyService = service.NewOidcClaimMappingPolicyService(db)
 	svc.userGroupService = service.NewUserGroupService(db, svc.scimSyncModule, backchannelLogoutService)
 	svc.userService = service.NewUserService(db, svc.jwtService, svc.customClaimService, svc.appImagesService, svc.scimSyncModule, backchannelLogoutService, fileStorage)
 

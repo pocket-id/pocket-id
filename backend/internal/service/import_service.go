@@ -336,6 +336,18 @@ func (s *ImportService) insertData(dbData DatabaseExport) error {
 			tables = append(tables, t)
 		}
 
+		// Remove the rows that migrations seed (like the default claim mapping policy) so the exported rows don't collide with them
+		// The table order can list tables that don't exist in the schema, so only the tables carried by the export are cleared
+		for _, table := range slices.Backward(tables) {
+			if _, ok := dbData.Tables[table]; !ok {
+				continue
+			}
+			err = tx.Exec("DELETE FROM " + table).Error
+			if err != nil {
+				return fmt.Errorf("failed clearing table '%s': %w", table, err)
+			}
+		}
+
 		// Insert rows
 		for _, table := range tables {
 			for _, row := range dbData.Tables[table] {
