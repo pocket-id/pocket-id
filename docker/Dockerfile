@@ -6,7 +6,7 @@
 ARG BUILD_TAGS=""
 
 # Stage 1: Build Frontend
-FROM --platform=$BUILDPLATFORM ghcr.io/voidzero-dev/vite-plus:1.0.0 AS frontend-builder
+FROM --platform=$BUILDPLATFORM ghcr.io/voidzero-dev/vite-plus:1.1.0 AS frontend-builder
 ENV CI=true
 WORKDIR /app
 
