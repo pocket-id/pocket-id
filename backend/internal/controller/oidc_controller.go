@@ -31,7 +31,6 @@ func NewOidcController(r *authz.Router, fileSizeLimitMiddleware *middleware.File
 	r.GET("/oidc/clients", authz.OidcClientsRead, httpserver.Handle(oc.listClientsHandler))
 	r.POST("/oidc/clients", authz.OidcClientsWrite, httpserver.Handle(oc.createClientHandler))
 	r.GET("/oidc/clients/:id", authz.OidcClientsRead, httpserver.Handle(oc.getClientHandler))
-	r.Public().GET("/oidc/clients/:id/meta", httpserver.Handle(oc.getClientMetaDataHandler))
 	r.PUT("/oidc/clients/:id", authz.OidcClientsWrite, httpserver.Handle(oc.updateClientHandler))
 	r.POST("/oidc/clients/:id/refresh", authz.OidcClientsWrite, httpserver.Handle(oc.refreshClientMetadataHandler))
 	r.DELETE("/oidc/clients/:id", authz.OidcClientsWrite, httpserver.Handle(oc.deleteClientHandler))
@@ -59,32 +58,6 @@ func NewOidcController(r *authz.Router, fileSizeLimitMiddleware *middleware.File
 type OidcController struct {
 	oidcService      *service.OidcService
 	appConfigService appconfig.AppConfigResolver
-}
-
-// getClientMetaDataHandler godoc
-// @Summary Get client metadata
-// @Description Get OIDC client metadata for discovery and configuration
-// @Tags OIDC
-// @Produce json
-// @Param id path string true "Client ID"
-// @Success 200 {object} dto.OidcClientMetaDataDto "Client metadata"
-// @Failure default {object} dto.ErrorDto "Error"
-// @Router /api/oidc/clients/{id}/meta [get]
-func (oc *OidcController) getClientMetaDataHandler(c *gin.Context) error {
-	clientId := c.Param("id")
-	client, err := oc.oidcService.GetClient(c.Request.Context(), clientId)
-	if err != nil {
-		return err
-	}
-
-	clientDto := dto.OidcClientMetaDataDto{}
-	if err := dto.MapStruct(client, &clientDto); err != nil {
-		return err
-	}
-
-	clientDto.HasDarkLogo = client.HasDarkLogo()
-	c.JSON(http.StatusOK, clientDto)
-	return nil
 }
 
 // getClientHandler godoc

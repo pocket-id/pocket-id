@@ -9,7 +9,6 @@ import type {
 	OidcClientCreate,
 	OidcClientCreated,
 	OidcClientLogoPreset,
-	OidcClientMetaData,
 	OidcClientSecret,
 	OidcClientSecretCreated,
 	OidcClientUpdate,
@@ -53,10 +52,6 @@ class OidcService extends APIService {
 	getClient = async (id: string) =>
 		(await this.api.get(`/oidc/clients/${encodeClientIdParam(id)}`))
 			.data as OidcClientWithAllowedUserGroups;
-
-	getClientMetaData = async (id: string) =>
-		(await this.api.get(`/oidc/clients/${encodeClientIdParam(id)}/meta`))
-			.data as OidcClientMetaData;
 
 	updateClient = async (id: string, client: OidcClientUpdate) =>
 		(await this.api.put(`/oidc/clients/${encodeClientIdParam(id)}`, client)).data as OidcClient;
