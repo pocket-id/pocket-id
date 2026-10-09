@@ -359,6 +359,7 @@
 	"all_locations": "All Locations",
 	"global_audit_log": "Global Audit Log",
 	"see_all_recent_account_activities": "View the account activities of all users during the set retention period.",
+	"signed_in": "Signed in",
 	"token_sign_in": "Token Sign In",
 	"client_authorization": "Client Authorization",
 	"new_client_authorization": "New Client Authorization",
