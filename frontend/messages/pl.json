@@ -359,6 +359,7 @@
 	"all_locations": "Wszystkie lokalizacje",
 	"global_audit_log": "Globalny dziennik audytu",
 	"see_all_recent_account_activities": "Wyświetlajcie aktywność wszystkich użytkowników na kontach w ustalonym okresie przechowywania danych.",
+	"signed_in": "Zalogowano",
 	"token_sign_in": "Logowanie za pomocą tokena",
 	"client_authorization": "Autoryzacja klienta",
 	"new_client_authorization": "Nowa autoryzacja klienta",
