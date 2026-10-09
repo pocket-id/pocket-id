@@ -90,6 +90,10 @@ func MissingPermission() *Error {
 	return New(CodeForbidden, http.StatusForbidden, "You don't have permission to perform this action")
 }
 
+func CrossOriginRequestForbidden(cause error) *Error {
+	return Wrap(cause, CodeForbidden, http.StatusForbidden, "Cross-origin requests are not allowed")
+}
+
 func TooManyRequests() *Error {
 	return New(CodeRateLimited, http.StatusTooManyRequests, "Too many requests")
 }
