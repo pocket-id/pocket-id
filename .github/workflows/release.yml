@@ -48,7 +48,7 @@ jobs:
           persist-credentials: false
 
       - name: Setup git-cliff
-        uses: taiki-e/install-action@9983c65e42da123ff25d1f78505eb6de315aa172 # v2.87.20
+        uses: taiki-e/install-action@83ac0ad63c0167e6f06796fab0fce28db1bf3db0 # v2.87.22
         with:
           tool: git-cliff@2.14.2
 
@@ -184,7 +184,7 @@ jobs:
           cache-dependency-path: backend/go.sum
 
       - name: Setup Syft
-        uses: anchore/sbom-action/download-syft@3ad7283483fc7af8ff2b4ea19663c2d5ca935e26 # v0.24.2
+        uses: anchore/sbom-action/download-syft@66cbf4bc1f1c0d2edc94016e65bc221b6bb0ad6c # v0.24.3
         with:
           syft-version: v1.52.0
 
