@@ -95,6 +95,10 @@ func MissingScope(scope string) *Error {
 	return MissingPermission().WithDetail("required_scope", scope)
 }
 
+func CrossOriginRequestForbidden(cause error) *Error {
+	return Wrap(cause, CodeForbidden, http.StatusForbidden, "Cross-origin requests are not allowed")
+}
+
 func TooManyRequests() *Error {
 	return New(CodeRateLimited, http.StatusTooManyRequests, "Too many requests")
 }

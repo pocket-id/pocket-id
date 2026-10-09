@@ -134,6 +134,7 @@ func registerGlobalMiddleware(r *gin.Engine) {
 	r.Use(middleware.NewCorsMiddleware().Add())
 	r.Use(middleware.NewCspMiddleware().Add())
 	r.Use(middleware.NewErrorHandlerMiddleware().Add())
+	r.Use(middleware.NewCrossOriginProtectionMiddleware(common.EnvConfig.AppURL).Add())
 }
 
 func registerRoutes(r *gin.Engine, db *gorm.DB, svc *services, auth *authz.Middleware, rateLimitServices map[string]*ratelimit.RateLimitService) error {
@@ -170,7 +171,7 @@ func registerRoutes(r *gin.Engine, db *gorm.DB, svc *services, auth *authz.Middl
 		rateLimitMiddleware.Add(middleware.RateLimitDeviceLoginVerification),
 	)
 	controller.NewOidcController(apiRouter, fileSizeLimitMiddleware, svc.oidcService, svc.appConfigService)
-	controller.NewUserController(apiRouter, fileSizeLimitMiddleware, svc.appConfigService, svc.userService, svc.webauthnModule)
+	controller.NewUserController(apiRouter, fileSizeLimitMiddleware, svc.appConfigService, svc.userService, svc.webauthnModule, rateLimitMiddleware.Add(middleware.RateLimitUpdateOwnAccount))
 	controller.NewAppConfigController(apiRouter, svc.appConfigService, svc.emailModule)
 	svc.ldapSyncModule.RegisterRoutes(apiRouter)
 	controller.NewAppImagesController(apiRouter, fileSizeLimitMiddleware, svc.appImagesService)

@@ -21,7 +21,7 @@ import (
 // @Summary User management controller
 // @Description Initializes all user-related API endpoints
 // @Tags Users
-func NewUserController(r *authz.Router, fileSizeLimitMiddleware *middleware.FileSizeLimitMiddleware, appConfigService *appconfig.AppConfigService, userService *service.UserService, webAuthnService *webauthn.Module) {
+func NewUserController(r *authz.Router, fileSizeLimitMiddleware *middleware.FileSizeLimitMiddleware, appConfigService *appconfig.AppConfigService, userService *service.UserService, webAuthnService *webauthn.Module, updateOwnAccountRateLimit gin.HandlerFunc) {
 	uc := UserController{
 		appConfigService: appConfigService,
 		userService:      userService,
@@ -35,7 +35,7 @@ func NewUserController(r *authz.Router, fileSizeLimitMiddleware *middleware.File
 	r.PUT("/users/:id", authz.UsersWrite, httpserver.Handle(uc.updateUserHandler))
 	r.GET("/users/:id/groups", authz.UsersRead, httpserver.Handle(uc.getUserGroupsHandler))
 	r.GET("/users/:id/webauthn-credentials", authz.UsersRead, httpserver.Handle(uc.listUserWebauthnCredentialsHandler))
-	r.PUT("/users/me", authz.AccountWrite, httpserver.Handle(uc.updateCurrentUserHandler))
+	r.PUT("/users/me", authz.AccountWrite, updateOwnAccountRateLimit, httpserver.Handle(uc.updateCurrentUserHandler))
 	r.DELETE("/users/:id", authz.UsersWrite, httpserver.Handle(uc.deleteUserHandler))
 	r.DELETE("/users/:id/webauthn-credentials/:credentialId", authz.UsersWrite, httpserver.Handle(uc.deleteUserWebauthnCredentialHandler))
 

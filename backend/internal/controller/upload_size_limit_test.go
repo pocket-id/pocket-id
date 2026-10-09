@@ -55,7 +55,7 @@ func TestImageUploadRoutesLimitRequestSize(t *testing.T) {
 	router := gin.New()
 	router.Use(middleware.NewErrorHandlerMiddleware().Add())
 	apiRouter := auth.Router(router.Group("/api"))
-	NewUserController(apiRouter, fileSizeLimitMiddleware, nil, userService, nil)
+	NewUserController(apiRouter, fileSizeLimitMiddleware, nil, userService, nil, func(c *gin.Context) { c.Next() })
 	NewAppImagesController(apiRouter, fileSizeLimitMiddleware, nil)
 
 	routes := []string{
