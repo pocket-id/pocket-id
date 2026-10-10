@@ -7,6 +7,7 @@
   ],
   "scripts": {
     "preinstall": "npx only-allow pnpm",
+    "prepare": "vp config --no-agent",
     "dev": "vp -C frontend run dev",
     "build": "vp -C frontend run build",
     "test": "vp -C tests run test",
