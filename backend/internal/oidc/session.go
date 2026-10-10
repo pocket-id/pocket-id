@@ -1,6 +1,7 @@
 package oidc
 
 import (
+	"bytes"
 	"encoding/json"
 	"time"
 	"uuid"
@@ -102,6 +103,36 @@ func (s *Session) Clone() fosite.Session {
 		return NewEmptySession()
 	}
 	return &clone
+}
+
+// UnmarshalJSON decodes a stored session and keeps integer ID token claims as int64
+// A plain decode turns them into float64, which drops digits past 2^53 and is written in exponent form in the ID token
+func (s *Session) UnmarshalJSON(data []byte) error {
+	type plainSession Session
+	err := json.Unmarshal(data, (*plainSession)(s))
+	if err != nil || s.Claims == nil {
+		return err
+	}
+
+	// Decode the extra ID token claims a second time with exact numbers
+	var exact struct {
+		Claims struct {
+			Extra map[string]any `json:"ext"`
+		} `json:"id_token_claims"`
+	}
+	decoder := json.NewDecoder(bytes.NewReader(data))
+	decoder.UseNumber()
+	err = decoder.Decode(&exact)
+	if err != nil {
+		return err
+	}
+
+	extra, err := normalizeJSONNumbers(exact.Claims.Extra)
+	if err != nil {
+		return err
+	}
+	s.Claims.Extra, _ = extra.(map[string]any)
+	return nil
 }
 
 func (s *Session) IDTokenClaims() *fositejwt.IDTokenClaims {

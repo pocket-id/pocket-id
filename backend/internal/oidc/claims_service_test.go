@@ -152,6 +152,29 @@ func TestClaimsServiceGetUserClaims(t *testing.T) {
 	})
 }
 
+// TestClaimsServiceGetUserClaimsKeepsIntegerCustomClaims checks that integer custom claims are not turned into float64
+func TestClaimsServiceGetUserClaimsKeepsIntegerCustomClaims(t *testing.T) {
+	db := testutils.NewDatabaseForTest(t)
+	require.NoError(t, db.Create(&model.User{Base: model.Base{ID: "user-1"}, Username: "tim"}).Error)
+
+	customClaims := fakeCustomClaimSource{claims: []model.CustomClaim{
+		{Key: "discord_id", Value: "1234567890123456789"},
+		{Key: "uid_number", Value: "1000000"},
+		{Key: "ratio", Value: "1.5"},
+		{Key: "nested", Value: `{"ids":[1234567890123456789]}`},
+		{Key: "not_json", Value: "1 2"},
+	}}
+	service := newClaimsService(db, customClaims, "", nil)
+
+	claims, err := service.GetUserClaims(t.Context(), "user-1", []string{"profile"})
+	require.NoError(t, err)
+	require.Equal(t, int64(1234567890123456789), claims["discord_id"])
+	require.Equal(t, int64(1000000), claims["uid_number"])
+	require.InDelta(t, 1.5, claims["ratio"], 0)
+	require.Equal(t, map[string]any{"ids": []any{int64(1234567890123456789)}}, claims["nested"])
+	require.Equal(t, "1 2", claims["not_json"])
+}
+
 // TestClaimsServiceAppliesSigningAlgToIDTokenHeader verifies the ID token header carries the
 // signing algorithm so fosite derives the at_hash/c_hash digest from it (e.g. RS384 ->
 // SHA-384, ES512 -> SHA-512) instead of always defaulting to SHA-256.
