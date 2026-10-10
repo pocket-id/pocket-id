@@ -8,6 +8,7 @@ type OidcClaimMappingPolicyMetadataDto struct {
 
 type OidcClaimMappingPolicyDto struct {
 	OidcClaimMappingPolicyMetadataDto
+
 	ClaimMappings []OidcClaimMappingDto `json:"claimMappings"`
 }
 
