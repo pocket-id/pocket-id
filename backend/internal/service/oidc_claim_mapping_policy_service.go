@@ -12,34 +12,44 @@ import (
 	"gorm.io/gorm"
 )
 
-// Valid user field names that can be used as mapping sources
-var validUserFieldSources = map[string]bool{
-	string(model.UserFieldID):            true,
-	string(model.UserFieldEmail):         true,
-	string(model.UserFieldEmailVerified): true,
-	string(model.UserFieldFirstName):     true,
-	string(model.UserFieldLastName):      true,
-	string(model.UserFieldFullName):      true,
-	string(model.UserFieldDisplayName):   true,
-	string(model.UserFieldUsername):      true,
-	string(model.UserFieldLocale):        true,
-	string(model.UserFieldPicture):       true,
-	string(model.UserFieldGroups):        true,
+// isValidUserFieldSources checks if a user field name can be used as a mapping source
+func isValidUserFieldSources(field string) bool {
+	switch model.OidcUserField(field) {
+	case model.UserFieldID,
+		model.UserFieldEmail,
+		model.UserFieldEmailVerified,
+		model.UserFieldFirstName,
+		model.UserFieldLastName,
+		model.UserFieldFullName,
+		model.UserFieldDisplayName,
+		model.UserFieldUsername,
+		model.UserFieldLocale,
+		model.UserFieldPicture,
+		model.UserFieldGroups:
+		return true
+	default:
+		return false
+	}
 }
 
-// Reserved claims that cannot be remapped
-var reservedClaimsForMapping = map[string]bool{
-	"iss":       true,
-	"aud":       true,
-	"exp":       true,
-	"iat":       true,
-	"auth_time": true,
-	"nonce":     true,
-	"acr":       true,
-	"amr":       true,
-	"azp":       true,
-	"nbf":       true,
-	"jti":       true,
+// isReservedClaimsForMapping checks if a claim is reserved and cannot be remapped
+func isReservedClaimsForMapping(claim string) bool {
+	switch claim {
+	case "iss",
+		"aud",
+		"exp",
+		"iat",
+		"auth_time",
+		"nonce",
+		"acr",
+		"amr",
+		"azp",
+		"nbf",
+		"jti":
+		return true
+	default:
+		return false
+	}
 }
 
 type OidcClaimMappingPolicyService struct {
@@ -54,7 +64,6 @@ func NewOidcClaimMappingPolicyService(db *gorm.DB) *OidcClaimMappingPolicyServic
 
 // ListClaimMappingPolicy returns a paginated list of claim mapping policys with their metadata
 func (s *OidcClaimMappingPolicyService) ListClaimMappingPolicy(ctx context.Context, name string, listRequestOptions utils.ListRequestOptions) ([]model.OidcClaimMappingPolicy, utils.PaginationResponse, error) {
-
 	var claimMappingPolicys []model.OidcClaimMappingPolicy
 	query := s.db.WithContext(ctx).Model(&model.OidcClaimMappingPolicy{})
 
@@ -322,7 +331,6 @@ func validateClaimMappings(mappings []dto.OidcClaimMappingDto) error {
 	seenClaims := make(map[string]bool)
 
 	for _, mapping := range mappings {
-
 		if len(mapping.ClaimName) == 0 || len(mapping.SourceType) == 0 || len(mapping.SourceValue) == 0 {
 			return fmt.Errorf("claim name, source type and source value are required")
 		}
@@ -333,14 +341,14 @@ func validateClaimMappings(mappings []dto.OidcClaimMappingDto) error {
 		seenClaims[mapping.ClaimName] = true
 
 		// Check if claim is reserved
-		if reservedClaimsForMapping[mapping.ClaimName] {
+		if isReservedClaimsForMapping(mapping.ClaimName) {
 			return fmt.Errorf("cannot remap reserved claim '%s'", mapping.ClaimName)
 		}
 
 		// Validate source based on type
 		switch mapping.SourceType {
 		case "user_field":
-			if !validUserFieldSources[mapping.SourceValue] {
+			if !isValidUserFieldSources(mapping.SourceValue) {
 				return fmt.Errorf("invalid user field '%s' for mapping", mapping.SourceValue)
 			}
 		case "custom_claim":
