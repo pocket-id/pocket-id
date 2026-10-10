@@ -14,7 +14,6 @@ import (
 	"github.com/pocket-id/pocket-id/backend/internal/apperror"
 	"github.com/pocket-id/pocket-id/backend/internal/auditlogs"
 	"github.com/pocket-id/pocket-id/backend/internal/dto"
-	"github.com/pocket-id/pocket-id/backend/internal/model"
 	"github.com/pocket-id/pocket-id/backend/internal/utils"
 )
 
@@ -99,11 +98,15 @@ func (s *deviceService) acceptDeviceCode(ctx context.Context, userCode, userID, 
 	}
 
 	client := request.GetClient().(Client)
-	user, err := s.loadDeviceAuthorizationUser(ctx, userID)
+	// Load the user and the claim mapping policy once, they back both the group restriction and the token claims
+	claimsSource, err := s.claimsService.loadUserClaimsSource(ctx, userID, client.GetID())
+	if errors.Is(err, errClaimsUserNotFound) {
+		return apperror.UserNotFound()
+	}
 	if err != nil {
 		return err
 	}
-	if !IsUserGroupAllowedToAuthorize(user, client.OidcClient) {
+	if !IsUserGroupAllowedToAuthorize(claimsSource.user, client.OidcClient) {
 		return fosite.ErrAccessDenied.WithHint("You are not allowed to access this service.")
 	}
 
@@ -135,14 +138,7 @@ func (s *deviceService) acceptDeviceCode(ctx context.Context, userCode, userID, 
 
 		session := NewAuthenticatedSession(userID, authenticationMethod, authenticationTime, request.GetRequestedAt())
 
-		claimMappingPolicy, err := s.claimsService.GetClaimMappingPolicyByClientID(ctx, client.GetID())
-		if err != nil {
-			return err
-		}
-		if err = s.claimsService.applyIDTokenClaims(ctx, session, request.GetGrantedScopes(), *claimMappingPolicy); err != nil {
-			return err
-		}
-		if err = s.claimsService.applyAccessTokenClaims(ctx, session, request.GetGrantedScopes(), *claimMappingPolicy); err != nil {
+		if err = s.claimsService.applyTokenClaims(session, request.GetGrantedScopes(), claimsSource); err != nil {
 			return err
 		}
 		request.SetSession(session)
@@ -171,25 +167,6 @@ func (s *deviceService) acceptDeviceCode(ctx context.Context, userCode, userID, 
 
 		return nil
 	})
-}
-
-func (s *deviceService) loadDeviceAuthorizationUser(ctx context.Context, userID string) (model.User, error) {
-	tx := s.db.Begin()
-	defer func() {
-		tx.Rollback()
-	}()
-
-	var user model.User
-	err := tx.
-		WithContext(ctx).
-		Preload("UserGroups").
-		First(&user, "id = ?", userID).
-		Error
-	if errors.Is(err, gorm.ErrRecordNotFound) {
-		return model.User{}, apperror.UserNotFound()
-	}
-
-	return user, err
 }
 
 func (s *deviceService) getDeviceCodeInfo(ctx context.Context, userCode, userID string) (*dto.DeviceCodeInfoDto, error) {

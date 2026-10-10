@@ -187,28 +187,22 @@ func (s *authorizationService) authorize(ctx context.Context, input authorizeInp
 			_ = flagPkceSupportedClient(ctx, client.GetID(), tx)
 		}
 
-		return nil
+		// A request that still needs an interaction has no session to fill yet
+		if result.Session == nil {
+			return nil
+		}
+
+		// Build the token claims inside the transaction so they see the same data as the grant
+		claimsSource, txErr := s.claimsService.loadUserClaimsSource(ctx, result.Session.Subject, client.GetID())
+		if txErr != nil {
+			return txErr
+		}
+		return s.claimsService.applyTokenClaims(result.Session, input.requester.GetGrantedScopes(), claimsSource)
 	})
 	if err != nil {
 		return authorizationResult{}, err
 	}
 
-	if result.Session == nil {
-		return result, nil
-	}
-
-	claimMappingPolicy, err := s.claimsService.GetClaimMappingPolicyByClientID(ctx, client.GetID())
-	if err != nil {
-		return authorizationResult{}, err
-	}
-	err = s.claimsService.applyIDTokenClaims(ctx, result.Session, input.requester.GetGrantedScopes(), *claimMappingPolicy)
-	if err != nil {
-		return authorizationResult{}, err
-	}
-	err = s.claimsService.applyAccessTokenClaims(ctx, result.Session, input.requester.GetGrantedScopes(), *claimMappingPolicy)
-	if err != nil {
-		return authorizationResult{}, err
-	}
 	return result, nil
 }
 

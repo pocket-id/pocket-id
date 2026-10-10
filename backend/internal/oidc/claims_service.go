@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"slices"
 
 	"github.com/ory/fosite"
@@ -37,36 +38,88 @@ func newClaimsService(db *gorm.DB, customClaims CustomClaimSource, baseURL strin
 	}
 }
 
-// ValidateUserAccess re-checks, at token-issuance time, that the user behind a grant is
-// still allowed to obtain tokens for the client.
-func (s *ClaimsService) ValidateUserAccess(ctx context.Context, userID string, client Client) error {
-	// Grants without a resource owner (e.g. client_credentials) carry an empty subject
-	// and have no user to validate.
-	if userID == "" {
-		return nil
+// errClaimsUserNotFound is returned when the user whose claims are requested no longer exists
+// Callers map it to the error their endpoint expects, e.g. invalid_grant on the token endpoint
+var errClaimsUserNotFound = errors.New("user not found")
+
+// userClaimsSource holds everything needed to build the claims of a user for a client
+// It is loaded once per request so every token built from it sees the same data and no query is repeated
+type userClaimsSource struct {
+	user         model.User
+	policy       model.OidcClaimMappingPolicy
+	customClaims []model.CustomClaim
+}
+
+// loadUserClaimsSource reads the user with its groups, the claim mapping policy of the client and, when the policy needs them, the custom claims of the user
+func (s *ClaimsService) loadUserClaimsSource(ctx context.Context, userID string, clientID string) (*userClaimsSource, error) {
+	var src userClaimsSource
+	err := withTx(ctx, s.db, func(ctx context.Context) error {
+		db := dbFromContext(ctx, s.db)
+
+		// Load the user with its groups, which back the groups claim, the group restriction and the group custom claims
+		err := db.
+			Preload("UserGroups").
+			First(&src.user, "id = ?", userID).
+			Error
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return errClaimsUserNotFound
+		}
+		if err != nil {
+			return err
+		}
+
+		// Load the policy assigned to the client, falling back to the default one
+		policy, err := s.GetClaimMappingPolicyByClientID(ctx, clientID)
+		if err != nil {
+			return fmt.Errorf("failed to load claim mapping policy: %w", err)
+		}
+		src.policy = *policy
+
+		// Custom claims cost an extra query, so they are only read when the policy can release one
+		// A service wired without a custom claim source simply has none
+		if s.customClaims == nil || !policyHasCustomClaimMapping(src.policy) {
+			return nil
+		}
+		src.customClaims, err = s.customClaims.GetCustomClaimsForUserWithUserGroups(ctx, src.user.ID, db)
+		return err
+	})
+	if err != nil {
+		return nil, err
 	}
 
-	var user model.User
-	err := dbFromContext(ctx, s.db).
-		Preload("UserGroups").
-		First(&user, "id = ?", userID).
-		Error
-	if errors.Is(err, gorm.ErrRecordNotFound) {
-		return fosite.ErrInvalidGrant.WithHint("The user account no longer exists.")
+	return &src, nil
+}
+
+func policyHasCustomClaimMapping(policy model.OidcClaimMappingPolicy) bool {
+	return slices.ContainsFunc(policy.ClaimMappings, func(mapping model.OidcClaimMapping) bool {
+		return mapping.SourceType == model.MappingSourceCustomClaim
+	})
+}
+
+// loadGrantClaimsSource loads the claims source of the user behind a grant and re-checks, at token-issuance time, that the user is still allowed to obtain tokens for the client
+// Grants without a resource owner (e.g. client_credentials) carry an empty subject, so they have no user to validate and get a nil source
+func (s *ClaimsService) loadGrantClaimsSource(ctx context.Context, userID string, client Client) (*userClaimsSource, error) {
+	if userID == "" {
+		return nil, nil
+	}
+
+	src, err := s.loadUserClaimsSource(ctx, userID, client.GetID())
+	if errors.Is(err, errClaimsUserNotFound) {
+		return nil, fosite.ErrInvalidGrant.WithHint("The user account no longer exists.")
 	}
 	if err != nil {
-		return err
+		return nil, err
 	}
 
-	if user.Disabled {
-		return fosite.ErrInvalidGrant.WithHint("The user account is disabled.")
+	if src.user.Disabled {
+		return nil, fosite.ErrInvalidGrant.WithHint("The user account is disabled.")
 	}
 
-	if !IsUserGroupAllowedToAuthorize(user, client.OidcClient) {
-		return fosite.ErrAccessDenied.WithHint("You are not allowed to access this service.")
+	if !IsUserGroupAllowedToAuthorize(src.user, client.OidcClient) {
+		return nil, fosite.ErrAccessDenied.WithHint("You are not allowed to access this service.")
 	}
 
-	return nil
+	return src, nil
 }
 
 // GetClaimMappingPolicyByClientID returns the claim mapping policy assigned to the client, or the
@@ -87,24 +140,12 @@ func (s *ClaimsService) GetClaimMappingPolicyByClientID(ctx context.Context, cli
 	return &claimMappingPolicy, nil
 }
 
-// applyIDTokenClaims applies the claims of a user to the ID token claims in the session based on the requested scopes.
-func (s *ClaimsService) applyIDTokenClaims(ctx context.Context, session *Session, scopes fosite.Arguments, claimMappingPolicy model.OidcClaimMappingPolicy) error {
-	userID := session.Subject
-	if userID == "" {
-		return nil
-	}
-
-	claims, err := s.GetUserClaims(ctx, userID, scopes, claimMappingPolicy, IDTokenType)
-	if err != nil {
-		return err
-	}
-
-	// Record the signing algorithm on the ID token header so fosite derives the at_hash/
-	// c_hash digest from it (e.g. RS384 -> SHA-384, ES512 -> SHA-512). Without this the
-	// header is empty and fosite defaults to SHA-256, producing wrong hashes whenever the
-	// signing key is not a 256-bit algorithm. ToMap() strips "alg" before signing, so this
-	// never overrides the real JWS header. The signer is always wired in production; it is
-	// only nil in unit tests that do not assert hash correctness.
+// applyTokenClaims applies the claims of a user to both the ID token and the access token of the session based on the granted scopes
+func (s *ClaimsService) applyTokenClaims(session *Session, scopes fosite.Arguments, src *userClaimsSource) error {
+	// Record the signing algorithm on the ID token header so fosite derives the at_hash/c_hash digest from it (e.g. RS384 -> SHA-384, ES512 -> SHA-512)
+	// Without this the header is empty and fosite defaults to SHA-256, producing wrong hashes whenever the signing key is not a 256-bit algorithm
+	// ToMap() strips "alg" before signing, so this never overrides the real JWS header
+	// The signer is always wired in production; it is only nil in unit tests that do not assert hash correctness
 	if s.signer != nil {
 		alg, err := s.signer.GetKeyAlg()
 		if err != nil {
@@ -113,7 +154,9 @@ func (s *ClaimsService) applyIDTokenClaims(ctx context.Context, session *Session
 		session.IDTokenHeaders().Add("alg", alg.String())
 	}
 
-	applyUserClaimsToIDToken(session, userID, claims)
+	// Both tokens are built from the same source, so they always agree on the user data
+	applyUserClaimsToIDToken(session, src.user.ID, s.buildClaims(src, scopes, IDTokenType))
+	applyUserClaimsToAccessToken(session, src.user.ID, s.buildClaims(src, scopes, AccessTokenType))
 	return nil
 }
 
@@ -127,63 +170,25 @@ func applyUserClaimsToIDToken(session *Session, userID string, claims map[string
 	}
 }
 
-// applyIDTokenClaims applies the claims of a user to the ID token claims in the session based on the requested scopes.
-func (s *ClaimsService) applyAccessTokenClaims(ctx context.Context, session *Session, scopes fosite.Arguments, claimMappingPolicy model.OidcClaimMappingPolicy) error {
-	userID := session.Subject
-	if userID == "" {
-		return nil
-	}
-
-	claims, err := s.GetUserClaims(ctx, userID, scopes, claimMappingPolicy, AccessTokenType)
-	if err != nil {
-		return err
-	}
-
-	applyUserClaimsToAccessToken(session, userID, claims)
-	return nil
-}
-
 func applyUserClaimsToAccessToken(session *Session, userID string, claims map[string]any) {
 	jwtClaims := session.GetJWTClaims().(*fositejwt.JWTClaims)
 	jwtClaims.Extra = claims
 }
 
-// GetUserClaims retrieves the claims for a user based on the requested scopes. It includes standard claims
-// like "sub" and "email" as well as any custom claims defined for the user or their groups.
-func (s *ClaimsService) GetUserClaims(ctx context.Context, userID string, scopes []string, claimMappingPolicy model.OidcClaimMappingPolicy, tokenType TokenType) (map[string]any, error) {
-	db := dbFromContext(ctx, s.db)
-
-	var user model.User
-	err := db.
-		Preload("UserGroups").
-		First(&user, "id = ?", userID).
-		Error
-	if err != nil {
-		return nil, err
-	}
-
-	var customClaims []model.CustomClaim
-
-	claims := make(map[string]any, len(claimMappingPolicy.ClaimMappings))
-
-	// filter mappings and apply them
-	for _, mapping := range claimMappingPolicy.ClaimMappings {
+// buildClaims applies the mappings of the policy that target the token type and match the scopes
+// It works on already loaded data, so it never touches the database and cannot fail
+func (s *ClaimsService) buildClaims(src *userClaimsSource, scopes []string, tokenType TokenType) map[string]any {
+	claims := make(map[string]any, len(src.policy.ClaimMappings))
+	for _, mapping := range src.policy.ClaimMappings {
 		if ((mapping.IDToken && tokenType == IDTokenType) ||
 			(mapping.AccessToken && tokenType == AccessTokenType) ||
 			(mapping.UserInfo && tokenType == UserInfoType)) &&
 			isScopeMatching(scopes, mapping.Scope) {
-			// lazy custom claims
-			if mapping.SourceType == model.MappingSourceCustomClaim && customClaims == nil {
-				customClaims, err = s.customClaims.GetCustomClaimsForUserWithUserGroups(ctx, user.ID, db)
-				if err != nil {
-					return nil, err
-				}
-			}
-			s.applyUserClaims(claims, user, customClaims, mapping)
+			s.applyUserClaims(claims, src.user, src.customClaims, mapping)
 		}
 	}
 
-	return claims, nil
+	return claims
 }
 
 func isScopeMatching(requestedScopes []string, claimScopes []string) bool {

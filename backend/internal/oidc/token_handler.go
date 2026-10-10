@@ -44,10 +44,11 @@ func (h *tokenHandler) token(c *gin.Context) {
 		return
 	}
 
+	var claimsSource *userClaimsSource
 	client, ok := accessRequest.GetClient().(Client)
 	if ok {
-		// Re-validate the resource owner on every user-bound grant.
-		err := h.claimsService.ValidateUserAccess(ctx, requestSession.Subject, client)
+		// Re-validate the resource owner on every user-bound grant, loading at the same time everything the token claims are built from
+		claimsSource, err = h.claimsService.loadGrantClaimsSource(ctx, requestSession.Subject, client)
 		if err != nil {
 			slog.WarnContext(ctx, "Rejected token request: user no longer allowed to access client", "error", err.Error())
 			h.provider.WriteAccessError(ctx, c.Writer, accessRequest, err)
@@ -87,23 +88,14 @@ func (h *tokenHandler) token(c *gin.Context) {
 		}
 	}
 
-	claimMappingPolicy, err := h.claimsService.GetClaimMappingPolicyByClientID(ctx, client.GetID())
-	if err != nil {
-		slog.ErrorContext(ctx, "Failed to get claim mapping policy", "error", err)
-		h.provider.WriteAccessError(ctx, c.Writer, accessRequest, err)
-		return
-	}
-	err = h.claimsService.applyIDTokenClaims(ctx, requestSession, accessRequest.GetGrantedScopes(), *claimMappingPolicy)
-	if err != nil {
-		slog.ErrorContext(ctx, "Failed to apply ID token claims", "error", err)
-		h.provider.WriteAccessError(ctx, c.Writer, accessRequest, err)
-		return
-	}
-	err = h.claimsService.applyAccessTokenClaims(ctx, requestSession, accessRequest.GetGrantedScopes(), *claimMappingPolicy)
-	if err != nil {
-		slog.ErrorContext(ctx, "Failed to apply access token claims", "error", err)
-		h.provider.WriteAccessError(ctx, c.Writer, accessRequest, err)
-		return
+	// A grant without a resource owner has no source and carries no user claims
+	if claimsSource != nil {
+		err = h.claimsService.applyTokenClaims(requestSession, accessRequest.GetGrantedScopes(), claimsSource)
+		if err != nil {
+			slog.ErrorContext(ctx, "Failed to apply token claims", "error", err)
+			h.provider.WriteAccessError(ctx, c.Writer, accessRequest, err)
+			return
+		}
 	}
 	// The client credentials grant has no resource owner, so no subject is ever set. Assign a
 	// stable synthetic subject so the issued JWT access token still carries a subclaim.

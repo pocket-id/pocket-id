@@ -13,12 +13,12 @@ import (
 	testutils "github.com/pocket-id/pocket-id/backend/internal/utils/testing"
 )
 
-// TestClaimsServiceValidateUserAccess covers the per-grant re-validation that the token
+// TestClaimsServiceLoadGrantClaimsSource covers the per-grant re-validation that the token
 // endpoint performs on every grant (notably refresh_token, which fosite replays without
 // reloading the user). A disabled user, a user removed from a group-restricted client, or
 // a deleted user must be rejected so they cannot keep minting tokens from a still-valid
 // refresh token.
-func TestClaimsServiceValidateUserAccess(t *testing.T) {
+func TestClaimsServiceLoadGrantClaimsSource(t *testing.T) {
 	db := testutils.NewDatabaseForTest(t)
 	claimsService := newClaimsService(db, nil, "", nil)
 
@@ -44,29 +44,35 @@ func TestClaimsServiceValidateUserAccess(t *testing.T) {
 	}}
 
 	t.Run("empty subject is allowed (client_credentials)", func(t *testing.T) {
-		require.NoError(t, claimsService.ValidateUserAccess(t.Context(), "", openClient))
+		src, err := claimsService.loadGrantClaimsSource(t.Context(), "", openClient)
+		require.NoError(t, err)
+		require.Nil(t, src)
 	})
 
 	t.Run("enabled user is allowed", func(t *testing.T) {
-		require.NoError(t, claimsService.ValidateUserAccess(t.Context(), enabledUser.ID, openClient))
+		src, err := claimsService.loadGrantClaimsSource(t.Context(), enabledUser.ID, openClient)
+		require.NoError(t, err)
+		require.Equal(t, enabledUser.ID, src.user.ID)
 	})
 
 	t.Run("disabled user is rejected with invalid_grant", func(t *testing.T) {
-		err := claimsService.ValidateUserAccess(t.Context(), disabledUser.ID, openClient)
+		_, err := claimsService.loadGrantClaimsSource(t.Context(), disabledUser.ID, openClient)
 		require.ErrorIs(t, err, fosite.ErrInvalidGrant)
 	})
 
 	t.Run("user in an allowed group may use a group-restricted client", func(t *testing.T) {
-		require.NoError(t, claimsService.ValidateUserAccess(t.Context(), enabledUser.ID, restrictedClient))
+		src, err := claimsService.loadGrantClaimsSource(t.Context(), enabledUser.ID, restrictedClient)
+		require.NoError(t, err)
+		require.Equal(t, enabledUser.ID, src.user.ID)
 	})
 
 	t.Run("user outside the allowed groups is rejected with access_denied", func(t *testing.T) {
-		err := claimsService.ValidateUserAccess(t.Context(), outsiderUser.ID, restrictedClient)
+		_, err := claimsService.loadGrantClaimsSource(t.Context(), outsiderUser.ID, restrictedClient)
 		require.ErrorIs(t, err, fosite.ErrAccessDenied)
 	})
 
 	t.Run("deleted user is rejected with invalid_grant", func(t *testing.T) {
-		err := claimsService.ValidateUserAccess(t.Context(), "does-not-exist", openClient)
+		_, err := claimsService.loadGrantClaimsSource(t.Context(), "does-not-exist", openClient)
 		require.ErrorIs(t, err, fosite.ErrInvalidGrant)
 	})
 }
@@ -79,11 +85,11 @@ func (f fakeCustomClaimSource) GetCustomClaimsForUserWithUserGroups(_ context.Co
 	return f.claims, nil
 }
 
-// TestClaimsServiceGetUserClaims pins the scope-to-claims mapping that powers both the ID
+// TestClaimsServiceBuildClaims pins the scope-to-claims mapping that powers both the ID
 // token and the userinfo endpoint: each OIDC scope must only release its own claims, "sub"
 // is always present, and custom claims are emitted as parsed JSON when the stored value is
 // valid JSON and as a raw string otherwise.
-func TestClaimsServiceGetUserClaims(t *testing.T) {
+func TestClaimsServiceBuildClaims(t *testing.T) {
 	db := testutils.NewDatabaseForTest(t)
 	const (
 		baseURL = "https://id.example.com"
@@ -99,9 +105,6 @@ func TestClaimsServiceGetUserClaims(t *testing.T) {
 	group := model.UserGroup{Base: model.Base{ID: "group-1"}, Name: "developers", FriendlyName: "Developers"}
 	require.NoError(t, db.Create(&group).Error)
 
-	var claimMappingPolicy model.OidcClaimMappingPolicy
-	require.NoError(t, db.First(&claimMappingPolicy, "id = ?", defaultClaimMappingPolicyId).Error)
-
 	user := model.User{
 		Base:          model.Base{ID: userID},
 		Username:      "tim",
@@ -114,15 +117,17 @@ func TestClaimsServiceGetUserClaims(t *testing.T) {
 	require.NoError(t, db.Create(&user).Error)
 	require.NoError(t, db.Model(&user).Association("UserGroups").Append(&group))
 
+	// No client is created, so the default policy is used
+	claimsSource, err := service.loadUserClaimsSource(t.Context(), userID, "client-1")
+	require.NoError(t, err)
+
 	t.Run("openid only releases sub", func(t *testing.T) {
-		claims, err := service.GetUserClaims(t.Context(), userID, []string{"openid"}, claimMappingPolicy, IDTokenType)
-		require.NoError(t, err)
+		claims := service.buildClaims(claimsSource, []string{"openid"}, IDTokenType)
 		require.Equal(t, map[string]any{"sub": userID}, claims)
 	})
 
 	t.Run("email scope releases email claims", func(t *testing.T) {
-		claims, err := service.GetUserClaims(t.Context(), userID, []string{"openid", "email"}, claimMappingPolicy, IDTokenType)
-		require.NoError(t, err)
+		claims := service.buildClaims(claimsSource, []string{"openid", "email"}, IDTokenType)
 		require.Equal(t, userID, claims["sub"])
 		require.Equal(t, "tim@example.com", claims["email"])
 		require.Equal(t, true, claims["email_verified"])
@@ -131,14 +136,12 @@ func TestClaimsServiceGetUserClaims(t *testing.T) {
 	})
 
 	t.Run("groups scope releases group names", func(t *testing.T) {
-		claims, err := service.GetUserClaims(t.Context(), userID, []string{"groups"}, claimMappingPolicy, IDTokenType)
-		require.NoError(t, err)
+		claims := service.buildClaims(claimsSource, []string{"groups"}, IDTokenType)
 		require.Equal(t, []string{"developers"}, claims["groups"])
 	})
 
 	t.Run("profile scope releases profile and custom claims", func(t *testing.T) {
-		claims, err := service.GetUserClaims(t.Context(), userID, []string{"profile"}, claimMappingPolicy, IDTokenType)
-		require.NoError(t, err)
+		claims := service.buildClaims(claimsSource, []string{"profile"}, IDTokenType)
 		require.Equal(t, "Tim", claims["given_name"])
 		require.Equal(t, "Cook", claims["family_name"])
 		require.Equal(t, "Tim Cook", claims["name"])
@@ -168,8 +171,9 @@ func TestClaimsServiceAppliesSigningAlgToIDTokenHeader(t *testing.T) {
 
 			session := NewEmptySession()
 			session.Subject = "alg-user"
+			src := &userClaimsSource{user: model.User{Base: model.Base{ID: "alg-user"}}}
 
-			require.NoError(t, service.applyIDTokenClaims(t.Context(), session, fosite.Arguments{"openid"}, model.OidcClaimMappingPolicy{}))
+			require.NoError(t, service.applyTokenClaims(session, fosite.Arguments{"openid"}, src))
 			require.Equal(t, alg.String(), session.IDTokenHeaders().Get("alg"))
 		})
 	}
