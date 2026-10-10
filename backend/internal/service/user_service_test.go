@@ -176,3 +176,31 @@ func TestUpdateUserGroupsBumpsRemovedGroupUpdatedAt(t *testing.T) {
 		require.True(t, updated.LastModified().After(past), "group %s changed membership, so its UpdatedAt must be bumped", updated.Name)
 	}
 }
+
+func TestDeleteUserBumpsGroupUpdatedAt(t *testing.T) {
+	config := &appconfig.AppConfigModel{RequireUserEmail: "false"}
+	userService, groupService := newTestUserService(t)
+
+	group, err := groupService.Create(t.Context(), dto.UserGroupCreateDto{Name: "members", FriendlyName: "Members"})
+	require.NoError(t, err)
+
+	user, err := userService.CreateUser(t.Context(), config, dto.UserCreateDto{
+		Username:     "leaver",
+		FirstName:    "Group",
+		LastName:     "Leaver",
+		UserGroupIds: []string{group.ID},
+	})
+	require.NoError(t, err)
+
+	// Backdate the group so a bump is visible regardless of the timestamp precision
+	past := time.Now().Add(-time.Hour)
+	require.NoError(t, userService.db.Model(&model.UserGroup{}).Where("id = ?", group.ID).Update("updated_at", datatype.DateTime(past)).Error)
+
+	err = userService.DeleteUser(t.Context(), config, user.ID, false)
+	require.NoError(t, err)
+
+	updated, err := groupService.Get(t.Context(), group.ID)
+	require.NoError(t, err)
+	require.Empty(t, updated.Users)
+	require.True(t, updated.LastModified().After(past), "deleting a member must bump the group's UpdatedAt")
+}

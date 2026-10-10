@@ -255,9 +255,27 @@ func (s *UserService) DeleteUserInternal(ctx context.Context, cfg *appconfig.App
 		}
 	}
 
+	// Remember the user's groups before the delete cascades their memberships away
+	var groupIDs []string
+	err = tx.
+		WithContext(ctx).
+		Table("user_groups_users").
+		Where("user_id = ?", userID).
+		Pluck("user_group_id", &groupIDs).
+		Error
+	if err != nil {
+		return fmt.Errorf("failed to load user groups of user to delete: %w", err)
+	}
+
 	err = tx.WithContext(ctx).Delete(&user).Error
 	if err != nil {
 		return fmt.Errorf("failed to delete user: %w", err)
+	}
+
+	// Bump the UpdatedAt of the groups the user was in, so the SCIM sync pushes the groups without the deleted member
+	err = s.touchUserGroups(ctx, tx, groupIDs)
+	if err != nil {
+		return fmt.Errorf("failed to update user groups timestamp: %w", err)
 	}
 
 	return nil
