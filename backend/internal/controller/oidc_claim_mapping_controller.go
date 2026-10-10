@@ -114,7 +114,6 @@ func (ocmc *OidcClaimMappingPolicyController) createClaimMappingPolicyHandler(c 
 // @Failure default {object} dto.ErrorDto "Error"
 // @Router /api/oidc/claim-mapping-policies/{id} [get]
 func (ocmc *OidcClaimMappingPolicyController) getClaimMappingPolicyHandler(c *gin.Context) error {
-
 	claimMappingPolicy, err := ocmc.oidcClaimMappingService.GetClaimMappingPolicy(c.Request.Context(), c.Param("id"))
 	if err != nil {
 		return err
