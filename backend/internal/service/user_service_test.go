@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"strings"
 	"testing"
+	"time"
 	"uuid"
 
 	"github.com/stretchr/testify/require"
@@ -11,6 +12,8 @@ import (
 	"github.com/pocket-id/pocket-id/backend/internal/appconfig"
 	"github.com/pocket-id/pocket-id/backend/internal/apperror"
 	"github.com/pocket-id/pocket-id/backend/internal/dto"
+	"github.com/pocket-id/pocket-id/backend/internal/model"
+	datatype "github.com/pocket-id/pocket-id/backend/internal/model/types"
 	"github.com/pocket-id/pocket-id/backend/internal/storage"
 	testutils "github.com/pocket-id/pocket-id/backend/internal/utils/testing"
 )
@@ -140,4 +143,36 @@ func TestCreateUserBumpsDefaultGroupUpdatedAt(t *testing.T) {
 	require.NoError(t, err)
 	require.NotNil(t, updated.UpdatedAt, "adding a default group member must bump the group's UpdatedAt")
 	require.Len(t, updated.Users, 1)
+}
+
+func TestUpdateUserGroupsBumpsRemovedGroupUpdatedAt(t *testing.T) {
+	config := &appconfig.AppConfigModel{RequireUserEmail: "false"}
+	userService, groupService := newTestUserService(t)
+
+	oldGroup, err := groupService.Create(t.Context(), dto.UserGroupCreateDto{Name: "old", FriendlyName: "Old"})
+	require.NoError(t, err)
+	newGroup, err := groupService.Create(t.Context(), dto.UserGroupCreateDto{Name: "new", FriendlyName: "New"})
+	require.NoError(t, err)
+
+	user, err := userService.CreateUser(t.Context(), config, dto.UserCreateDto{
+		Username:     "mover",
+		FirstName:    "Group",
+		LastName:     "Mover",
+		UserGroupIds: []string{oldGroup.ID},
+	})
+	require.NoError(t, err)
+
+	// Backdate both groups so a bump is visible regardless of the timestamp precision
+	past := time.Now().Add(-time.Hour)
+	require.NoError(t, userService.db.Model(&model.UserGroup{}).Where("id IN ?", []string{oldGroup.ID, newGroup.ID}).Update("updated_at", datatype.DateTime(past)).Error)
+
+	// Move the user from the old group to the new one, as the user's group selection does
+	_, err = userService.UpdateUserGroups(t.Context(), user.ID, []string{newGroup.ID})
+	require.NoError(t, err)
+
+	for _, groupID := range []string{oldGroup.ID, newGroup.ID} {
+		updated, err := groupService.Get(t.Context(), groupID)
+		require.NoError(t, err)
+		require.True(t, updated.LastModified().After(past), "group %s changed membership, so its UpdatedAt must be bumped", updated.Name)
+	}
 }
