@@ -164,7 +164,7 @@ func (s *ClaimsService) GetUserClaims(ctx context.Context, userID string, scopes
 
 	var customClaims []model.CustomClaim
 
-	claims := make(map[string]any, 10)
+	claims := make(map[string]any, len(claimMappingPolicy.ClaimMappings))
 
 	// filter mappings and apply them
 	for _, mapping := range claimMappingPolicy.ClaimMappings {
