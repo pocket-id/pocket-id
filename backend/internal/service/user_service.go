@@ -594,6 +594,9 @@ func (s *UserService) UpdateUserGroups(ctx context.Context, id string, userGroup
 		return !slices.Contains(userGroupIds, group.ID)
 	})
 
+	// Remember the current groups, because the groups the user leaves change their membership too
+	previousGroupIDs := userGroupIDs(user.UserGroups)
+
 	// Fetch the groups based on userGroupIds
 	var groups []model.UserGroup
 	if len(userGroupIds) > 0 {
@@ -623,14 +626,10 @@ func (s *UserService) UpdateUserGroups(ctx context.Context, id string, userGroup
 		return model.User{}, err
 	}
 
-	// Update the UpdatedAt field for all affected groups
-	now := datatype.DateTime(time.Now())
-	for _, group := range groups {
-		group.UpdatedAt = &now
-		err = tx.WithContext(ctx).Save(&group).Error
-		if err != nil {
-			return model.User{}, err
-		}
+	// Bump the UpdatedAt of every group the user joined or left, so the SCIM sync pushes the new membership
+	err = s.touchUserGroups(ctx, tx, append(previousGroupIDs, userGroupIDs(groups)...))
+	if err != nil {
+		return model.User{}, err
 	}
 
 	err = tx.Commit().Error
