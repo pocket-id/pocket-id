@@ -1,0 +1,38 @@
+name: Crowdin Upload
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - frontend/messages/en.json
+      - crowdin.yml
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: crowdin-upload
+  cancel-in-progress: false
+
+jobs:
+  upload:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Upload sources
+        uses: crowdin/github-action@9c23991700c0ec5256fd41089b9d9d7d540e424e # v3.3.0
+        with:
+          upload_sources: true
+          upload_translations: false
+          download_translations: false
+          push_translations: false
+          create_pull_request: false
+          crowdin_branch_name: "[pocket-id.pocket-id] main"
+        env:
+          CROWDIN_PERSONAL_TOKEN: ${{ secrets.CROWDIN_PERSONAL_TOKEN }}
