@@ -99,11 +99,15 @@ func (s *deviceService) acceptDeviceCode(ctx context.Context, userCode, userID, 
 	}
 
 	client := request.GetClient().(Client)
-	user, err := s.loadDeviceAuthorizationUser(ctx, userID)
+	// Load the user and the claim mapping policy once, they back both the group restriction and the token claims
+	claimsSource, err := s.claimsService.loadUserClaimsSource(ctx, userID, client.GetID())
+	if errors.Is(err, errClaimsUserNotFound) {
+		return apperror.UserNotFound()
+	}
 	if err != nil {
 		return err
 	}
-	if !IsUserGroupAllowedToAuthorize(user, client.OidcClient) {
+	if !IsUserGroupAllowedToAuthorize(claimsSource.user, client.OidcClient) {
 		return fosite.ErrAccessDenied.WithHint("You are not allowed to access this service.")
 	}
 
@@ -138,14 +142,7 @@ func (s *deviceService) acceptDeviceCode(ctx context.Context, userCode, userID, 
 		// Keep the lifetimes of the pending device authorization, so its codes and the OpenID Connect session created below still expire
 		copyDeviceCodeExpiry(request.GetSession(), session)
 
-		claimMappingPolicy, err := s.claimsService.GetClaimMappingPolicyByClientID(ctx, client.GetID())
-		if err != nil {
-			return err
-		}
-		if err = s.claimsService.applyIDTokenClaims(ctx, session, request.GetGrantedScopes(), *claimMappingPolicy); err != nil {
-			return err
-		}
-		if err = s.claimsService.applyAccessTokenClaims(ctx, session, request.GetGrantedScopes(), *claimMappingPolicy); err != nil {
+		if err = s.claimsService.applyTokenClaims(session, request.GetGrantedScopes(), claimsSource); err != nil {
 			return err
 		}
 		request.SetSession(session)
