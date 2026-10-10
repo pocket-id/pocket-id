@@ -12,6 +12,7 @@ import (
 	"gorm.io/gorm"
 
 	"github.com/pocket-id/pocket-id/backend/internal/model"
+	"github.com/pocket-id/pocket-id/backend/internal/utils/image"
 	"github.com/pocket-id/pocket-id/backend/internal/storage"
 )
 
@@ -72,10 +73,10 @@ func (j *FileCleanupJobs) clearUnusedDefaultProfilePictures(ctx context.Context)
 		return fmt.Errorf("failed to fetch users: %w", err)
 	}
 
-	// Create a map to track which initials are in use
-	initialsInUse := make(map[string]struct{})
+	// Create a map to track which cache keys are in use, keyed by the current default-picture version
+	cacheKeysInUse := make(map[string]struct{})
 	for _, user := range users {
-		initialsInUse[user.Initials()] = struct{}{}
+		cacheKeysInUse[profilepicture.DefaultPictureCacheKey(user.Initials())] = struct{}{}
 	}
 
 	defaultPicturesDir := path.Join("profile-pictures", "defaults")
@@ -90,10 +91,11 @@ func (j *FileCleanupJobs) clearUnusedDefaultProfilePictures(ctx context.Context)
 		if filename == "" {
 			continue
 		}
-		initials := strings.TrimSuffix(filename, ".png")
+		cacheKey := strings.TrimSuffix(filename, ".png")
 
-		// If these initials aren't used by any user, delete the file
-		if _, ok := initialsInUse[initials]; !ok {
+		// Delete the file when its cache key is not in use, e.g. because the user was renamed or the picture layout changed
+		// Files from before the versioned cache keys carry no version marker and count as outdated, so the cleanup removes them
+		if _, ok := cacheKeysInUse[cacheKey]; !ok {
 			filePath := path.Join(defaultPicturesDir, filename)
 			err = j.fileStorage.Delete(ctx, filePath)
 			if err != nil {

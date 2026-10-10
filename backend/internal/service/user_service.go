@@ -122,7 +122,8 @@ func (s *UserService) GetProfilePicture(ctx context.Context, userID string) (io.
 	}
 
 	// Try cached default for initials
-	defaultPicturePath := path.Join("profile-pictures", "defaults", user.Initials()+".png")
+	// The cache key carries the default-picture version so pictures rendered by an older layout are never reused
+	defaultPicturePath := profilepicture.DefaultPictureCachePath(user.Initials())
 	file, size, err = s.fileStorage.Open(ctx, defaultPicturePath)
 	if err == nil {
 		return file, size, nil

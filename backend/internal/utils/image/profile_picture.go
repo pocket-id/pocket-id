@@ -11,11 +11,8 @@ import (
 	"github.com/boxes-ltd/imaging"
 	"github.com/disintegration/imageorient"
 	"golang.org/x/image/font"
-	"golang.org/x/image/font/opentype"
 	"golang.org/x/image/math/fixed"
 	"golang.org/x/image/webp"
-
-	"github.com/pocket-id/pocket-id/backend/resources"
 )
 
 const profilePictureSize = 300
@@ -85,48 +82,60 @@ func centerSquare(img image.Image) image.Image {
 }
 
 // CreateDefaultProfilePicture creates a profile picture with the initials
+// Each rune is rendered by the first bundled font that covers it, so non-Latin initials do not degrade into tofu boxes
+// See issue #1828
 func CreateDefaultProfilePicture(initials string) (*bytes.Buffer, error) {
 	// Create a blank image with a white background
 	img := imaging.New(profilePictureSize, profilePictureSize, color.RGBA{R: 255, G: 255, B: 255, A: 255})
 
-	// Load the font
-	fontBytes, err := resources.FS.ReadFile("fonts/Gloock.ttf")
+	fonts, err := loadInitialsFonts()
 	if err != nil {
-		return nil, fmt.Errorf("failed to read font file: %w", err)
+		return nil, err
 	}
 
-	// Parse the font
-	fontFace, err := opentype.Parse(fontBytes)
+	// Resolve runes to fonts and fit the text into the canvas, shrinking wide CJK pairs as needed
+	runs, err := fittedRuns(initials, fonts)
 	if err != nil {
-		return nil, fmt.Errorf("failed to parse font: %w", err)
+		return nil, err
 	}
 
-	// Create a font.Face with a specific size
-	fontSize := 160.0
-	face, err := opentype.NewFace(fontFace, &opentype.FaceOptions{
-		Size: fontSize,
-		DPI:  72,
-	})
-	if err != nil {
-		return nil, fmt.Errorf("failed to create font face: %w", err)
+	var buf bytes.Buffer
+	if len(runs) == 0 {
+		// Nothing renderable in the initials, e.g. an empty string, so return the blank canvas
+		err = imaging.Encode(&buf, img, imaging.PNG)
+		if err != nil {
+			return nil, fmt.Errorf("failed to encode image: %w", err)
+		}
+		return &buf, nil
 	}
 
 	// Create a drawer for the image
 	drawer := &font.Drawer{
-		Dst:  img,
-		Src:  image.NewUniform(color.RGBA{R: 0, G: 0, B: 0, A: 255}), // Black text color
-		Face: face,
+		Dst: img,
+		Src: image.NewUniform(color.RGBA{R: 0, G: 0, B: 0, A: 255}), // Black text color
 	}
 
-	// Center the initials
-	x := (profilePictureSize - font.MeasureString(face, initials).Ceil()) / 2
-	y := (profilePictureSize-face.Metrics().Height.Ceil())/2 + face.Metrics().Ascent.Ceil()
-	drawer.Dot = fixed.P(x, y)
+	// Center the whole run sequence horizontally and place the shared baseline vertically
+	width := 0.0
+	for _, run := range runs {
+		w, err := measureRun(run)
+		if err != nil {
+			return nil, err
+		}
+		width += w
+	}
+	ascent := maxRunAscent(runs)
+	descent := maxRunDescent(runs)
+	x := (float64(profilePictureSize) - width) / 2
+	y := (float64(profilePictureSize)-float64(ascent+descent))/2 + float64(ascent)
+	drawer.Dot = fixed.P(int(x), int(y))
 
-	// Draw the initials
-	drawer.DrawString(initials)
+	// Draw each run with its own face, advancing the dot run by run
+	for _, run := range runs {
+		drawer.Face = run.face
+		drawer.DrawString(run.text)
+	}
 
-	var buf bytes.Buffer
 	err = imaging.Encode(&buf, img, imaging.PNG)
 	if err != nil {
 		return nil, fmt.Errorf("failed to encode image: %w", err)
