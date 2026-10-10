@@ -5,10 +5,10 @@ import (
 	"time"
 	"uuid"
 
-	"github.com/ory/fosite"
-	fositeoauth2 "github.com/ory/fosite/handler/oauth2"
-	"github.com/ory/fosite/handler/openid"
-	fositejwt "github.com/ory/fosite/token/jwt"
+	"github.com/pocket-id/fosite"
+	fositeoauth2 "github.com/pocket-id/fosite/handler/oauth2"
+	"github.com/pocket-id/fosite/handler/openid"
+	fositejwt "github.com/pocket-id/fosite/token/jwt"
 )
 
 var _ openid.Session = (*Session)(nil)

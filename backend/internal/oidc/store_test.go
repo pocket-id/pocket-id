@@ -5,8 +5,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/ory/fosite"
-	fositejwt "github.com/ory/fosite/token/jwt"
+	"github.com/pocket-id/fosite"
+	fositejwt "github.com/pocket-id/fosite/token/jwt"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"gorm.io/gorm"
@@ -69,8 +69,9 @@ func TestStoreInvalidateAuthorizeCodeSessionIsAtomic(t *testing.T) {
 	store := NewStore(db, nil)
 
 	const (
-		clientID = "code-client"
-		code     = "auth-code-single-use"
+		clientID  = "code-client"
+		code      = "auth-code-single-use"
+		signature = "auth-code-single-use-signature"
 	)
 	require.NoError(t, db.Create(&model.OidcClient{Base: model.Base{ID: clientID}, Name: "Code Client"}).Error)
 
@@ -84,17 +85,17 @@ func TestStoreInvalidateAuthorizeCodeSessionIsAtomic(t *testing.T) {
 		Form:           url.Values{},
 		Session:        session,
 	}
-	require.NoError(t, store.CreateAuthorizeCodeSession(t.Context(), code, request))
+	require.NoError(t, store.CreateAuthorizeCodeSession(t.Context(), signature, request))
 
 	// First invalidation wins.
-	require.NoError(t, store.InvalidateAuthorizeCodeSession(t.Context(), code))
+	require.NoError(t, store.InvalidateAuthorizeCodeSession(t.Context(), code, signature))
 
 	// A second invalidation of the now-inactive code fails closed: a racing token request
-	// cannot proceed to issue a second set of tokens from the same code.
-	require.ErrorIs(t, store.InvalidateAuthorizeCodeSession(t.Context(), code), fosite.ErrNotFound)
+	// cannot proceed to issue a second set of tokens from the same code, and the client gets invalid_grant.
+	require.ErrorIs(t, store.InvalidateAuthorizeCodeSession(t.Context(), code, signature), fosite.ErrInvalidGrant)
 
 	// Reads of the consumed code report it as invalidated so fosite triggers reuse handling.
-	_, err := store.GetAuthorizeCodeSession(t.Context(), code, nil)
+	_, err := store.GetAuthorizeCodeSession(t.Context(), code, signature, nil)
 	require.ErrorIs(t, err, fosite.ErrInvalidatedAuthorizeCode)
 }
 

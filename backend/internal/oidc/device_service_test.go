@@ -12,7 +12,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/ory/fosite"
+	"github.com/pocket-id/fosite"
 	"github.com/pocket-id/pocket-id/backend/internal/apperror"
 	"github.com/pocket-id/pocket-id/backend/internal/model"
 	testutils "github.com/pocket-id/pocket-id/backend/internal/utils/testing"

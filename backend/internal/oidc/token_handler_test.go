@@ -15,10 +15,10 @@ import (
 	"time"
 
 	"github.com/gin-gonic/gin"
-	"github.com/ory/fosite"
-	"github.com/ory/fosite/compose"
-	fositeoauth2 "github.com/ory/fosite/handler/oauth2"
-	fositejwt "github.com/ory/fosite/token/jwt"
+	"github.com/pocket-id/fosite"
+	"github.com/pocket-id/fosite/compose"
+	fositeoauth2 "github.com/pocket-id/fosite/handler/oauth2"
+	fositejwt "github.com/pocket-id/fosite/token/jwt"
 	"github.com/stretchr/testify/require"
 	"gorm.io/gorm"
 

@@ -3,7 +3,7 @@ package oidc
 import (
 	"context"
 
-	"github.com/ory/fosite/handler/rfc8628"
+	"github.com/pocket-id/fosite/handler/rfc8628"
 	"github.com/pocket-id/pocket-id/backend/internal/utils"
 )
 

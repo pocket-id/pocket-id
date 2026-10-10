@@ -6,7 +6,7 @@ import (
 	"errors"
 	"slices"
 
-	"github.com/ory/fosite"
+	"github.com/pocket-id/fosite"
 	"github.com/pocket-id/pocket-id/backend/internal/common"
 	"github.com/pocket-id/pocket-id/backend/internal/model"
 	"gorm.io/gorm"

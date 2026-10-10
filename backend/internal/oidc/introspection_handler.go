@@ -7,7 +7,7 @@ import (
 	"strings"
 
 	"github.com/gin-gonic/gin"
-	"github.com/ory/fosite"
+	"github.com/pocket-id/fosite"
 )
 
 type introspectionHandler struct {

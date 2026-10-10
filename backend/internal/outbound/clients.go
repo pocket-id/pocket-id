@@ -6,7 +6,7 @@ import (
 	"net/url"
 	"strings"
 
-	"github.com/ory/fosite"
+	"github.com/pocket-id/fosite"
 	"go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp"
 
 	"github.com/pocket-id/pocket-id/backend/internal/common"

@@ -7,8 +7,8 @@ import (
 	"strings"
 	"time"
 
-	"github.com/ory/fosite"
-	"github.com/ory/fosite/handler/rfc8628"
+	"github.com/pocket-id/fosite"
+	"github.com/pocket-id/fosite/handler/rfc8628"
 	"gorm.io/gorm"
 
 	"github.com/pocket-id/pocket-id/backend/internal/apperror"
@@ -135,6 +135,9 @@ func (s *deviceService) acceptDeviceCode(ctx context.Context, userCode, userID, 
 
 		session := NewAuthenticatedSession(userID, authenticationMethod, authenticationTime, request.GetRequestedAt())
 
+		// Keep the lifetimes of the pending device authorization, so its codes and the OpenID Connect session created below still expire
+		copyDeviceCodeExpiry(request.GetSession(), session)
+
 		if err = s.claimsService.applyIDTokenClaims(ctx, session, request.GetGrantedScopes()); err != nil {
 			return err
 		}
@@ -164,6 +167,18 @@ func (s *deviceService) acceptDeviceCode(ctx context.Context, userCode, userID, 
 
 		return nil
 	})
+}
+
+// copyDeviceCodeExpiry copies the device and user code expiry from the pending device authorization's session to the session that replaces it
+func copyDeviceCodeExpiry(from fosite.Session, to *Session) {
+	if from == nil {
+		return
+	}
+	for _, tokenType := range []fosite.TokenType{fosite.DeviceCode, fosite.UserCode} {
+		if expiresAt := from.GetExpiresAt(tokenType); !expiresAt.IsZero() {
+			to.SetExpiresAt(tokenType, expiresAt)
+		}
+	}
 }
 
 func (s *deviceService) loadDeviceAuthorizationUser(ctx context.Context, userID string) (model.User, error) {
