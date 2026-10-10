@@ -3,7 +3,7 @@ package oidc
 import (
 	"testing"
 
-	"github.com/ory/fosite"
+	"github.com/pocket-id/fosite"
 	"github.com/stretchr/testify/assert"
 
 	"github.com/pocket-id/pocket-id/backend/internal/model"

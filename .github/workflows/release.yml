@@ -25,8 +25,16 @@ defaults:
     shell: bash
 
 jobs:
+  translations:
+    name: Download translations
+    uses: ./.github/workflows/crowdin-download.yml
+    secrets:
+      CROWDIN_PERSONAL_TOKEN: ${{ secrets.CROWDIN_PERSONAL_TOKEN }}
+      BOT_APP_PRIVATE_KEY: ${{ secrets.BOT_APP_PRIVATE_KEY }}
+
   prepare:
     name: Prepare release
+    needs: translations
     runs-on: depot-ubuntu-latest
     outputs:
       tag: ${{ steps.version.outputs.tag }}
@@ -40,10 +48,11 @@ jobs:
             exit 1
           fi
 
+      # Release from the translations commit because it may have been added on top of the triggering commit
       - name: Checkout release source
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
-          ref: ${{ github.sha }}
+          ref: ${{ needs.translations.outputs.commit }}
           fetch-depth: 0
           persist-credentials: false
 
@@ -66,7 +75,7 @@ jobs:
 
           echo "version=$version" >> "$GITHUB_OUTPUT"
           echo "tag=v$version" >> "$GITHUB_OUTPUT"
-          echo "Preparing release v$version from $GITHUB_SHA." >> "$GITHUB_STEP_SUMMARY"
+          echo "Preparing release v$version from $(git rev-parse HEAD)." >> "$GITHUB_STEP_SUMMARY"
 
       - name: Setup Vite+
         if: steps.version.outputs.tag != ''

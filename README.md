@@ -27,7 +27,7 @@ Visit the [documentation](https://docs.pocket-id.org) for the setup guide and mo
 
 ## Contribute
 
-You're very welcome to contribute to Pocket ID! Please follow the [contribution guide](/CONTRIBUTING.md) to get started.
+You're very welcome to contribute to Pocket ID! Please follow the [contribution guide](https://github.com/pocket-id/.github/blob/main/CONTRIBUTING.md) to get started. See the [development guide](https://pocket-id.org/docs/helping-out/development) for setup, formatting, and testing instructions.
 
 <div align="center">
 <br />

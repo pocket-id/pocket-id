@@ -4,7 +4,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/ory/fosite"
+	"github.com/pocket-id/fosite"
 	"github.com/stretchr/testify/require"
 )
 

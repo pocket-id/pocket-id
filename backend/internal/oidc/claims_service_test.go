@@ -5,7 +5,7 @@ import (
 	"testing"
 
 	"github.com/lestrrat-go/jwx/v4/jwa"
-	"github.com/ory/fosite"
+	"github.com/pocket-id/fosite"
 	"github.com/stretchr/testify/require"
 	"gorm.io/gorm"
 

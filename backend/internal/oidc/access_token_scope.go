@@ -4,15 +4,15 @@ import (
 	"context"
 	"slices"
 
-	"github.com/ory/fosite"
-	fositeoauth2 "github.com/ory/fosite/handler/oauth2"
+	"github.com/pocket-id/fosite"
+	fositeoauth2 "github.com/pocket-id/fosite/handler/oauth2"
 )
 
 // NewAccessTokenStrategy applies Pocket ID's identity-audience policy to the provided access token strategy
-func NewAccessTokenStrategy(coreStrategy fositeoauth2.CoreStrategy, issuer string) fositeoauth2.CoreStrategy {
+func NewAccessTokenStrategy(accessTokenStrategy fositeoauth2.AccessTokenStrategy, issuer string) fositeoauth2.AccessTokenStrategy {
 	return identityAudienceAccessTokenStrategy{
-		CoreStrategy: coreStrategy,
-		issuer:       issuer,
+		AccessTokenStrategy: accessTokenStrategy,
+		issuer:              issuer,
 	}
 }
 
@@ -58,10 +58,10 @@ func (r identityAudienceRequester) GetGrantedAudience() fosite.Arguments {
 
 // identityAudienceAccessTokenStrategy wraps the access token strategy so an access token granted an identity scope also lists the issuer in its audience, keeping the self-contained JWT consistent with what is persisted for introspection and userinfo
 type identityAudienceAccessTokenStrategy struct {
-	fositeoauth2.CoreStrategy
+	fositeoauth2.AccessTokenStrategy
 	issuer string
 }
 
 func (s identityAudienceAccessTokenStrategy) GenerateAccessToken(ctx context.Context, requester fosite.Requester) (string, string, error) {
-	return s.CoreStrategy.GenerateAccessToken(ctx, withIdentityAudience(requester, s.issuer))
+	return s.AccessTokenStrategy.GenerateAccessToken(ctx, withIdentityAudience(requester, s.issuer))
 }

@@ -10,12 +10,11 @@ import (
 	"slices"
 	"time"
 
-	"github.com/ory/fosite"
-	fositeoauth2 "github.com/ory/fosite/handler/oauth2"
-	"github.com/ory/fosite/handler/openid"
-	"github.com/ory/fosite/handler/pkce"
-	"github.com/ory/fosite/handler/rfc8628"
-	fositestorage "github.com/ory/fosite/storage"
+	"github.com/pocket-id/fosite"
+	fositeoauth2 "github.com/pocket-id/fosite/handler/oauth2"
+	"github.com/pocket-id/fosite/handler/openid"
+	"github.com/pocket-id/fosite/handler/pkce"
+	"github.com/pocket-id/fosite/handler/rfc8628"
 	"github.com/pocket-id/pocket-id/backend/internal/model"
 	datatype "github.com/pocket-id/pocket-id/backend/internal/model/types"
 	"gorm.io/gorm"
@@ -35,14 +34,17 @@ const (
 )
 
 var (
-	_ fosite.Storage                      = (*Store)(nil)
-	_ fosite.PARStorage                   = (*Store)(nil)
-	_ fositeoauth2.CoreStorage            = (*Store)(nil)
-	_ fositeoauth2.TokenRevocationStorage = (*Store)(nil)
-	_ rfc8628.RFC8628CoreStorage          = (*Store)(nil)
-	_ openid.OpenIDConnectRequestStorage  = (*Store)(nil)
-	_ pkce.PKCERequestStorage             = (*Store)(nil)
-	_ fositestorage.Transactional         = (*Store)(nil)
+	_ fosite.Storage                              = (*Store)(nil)
+	_ fosite.ClientManager                        = (*Store)(nil)
+	_ fosite.PARStorageProvider                   = (*Store)(nil)
+	_ fositeoauth2.AuthorizeCodeStorageProvider   = (*Store)(nil)
+	_ fositeoauth2.AccessTokenStorageProvider     = (*Store)(nil)
+	_ fositeoauth2.RefreshTokenStorageProvider    = (*Store)(nil)
+	_ fositeoauth2.TokenRevocationStorageProvider = (*Store)(nil)
+	_ rfc8628.DeviceAuthStorageProvider           = (*Store)(nil)
+	_ openid.OpenIDConnectRequestStorageProvider  = (*Store)(nil)
+	_ pkce.PKCERequestStorageProvider             = (*Store)(nil)
+	_ fosite.Transactional                        = (*Store)(nil)
 )
 
 // NewStore creates the fosite storage. Exported for packages that need to seed or
@@ -88,7 +90,7 @@ type storedRequester struct {
 	DefaultResponseMode  fosite.ResponseModeType `json:"default_response_mode,omitempty"`
 }
 
-// Satisfies fosite.Storage
+// Satisfies fosite.ClientManager
 
 func (s *Store) GetClient(ctx context.Context, id string) (fosite.Client, error) {
 	tx := s.dbFor(ctx)
@@ -324,14 +326,14 @@ func (s *Store) firstClientByID(ctx context.Context, id string) (model.OidcClien
 	return client, nil
 }
 
-// Satisfies fositeoauth2.CoreStorage
+// Satisfies fositeoauth2.AuthorizeCodeStorage, fositeoauth2.AccessTokenStorage and fositeoauth2.RefreshTokenStorage
 
-func (s *Store) CreateAuthorizeCodeSession(ctx context.Context, code string, request fosite.Requester) error {
-	return s.upsertSession(ctx, sessionKindAuthorizeCode, code, request, "", true, fosite.AuthorizeCode)
+func (s *Store) CreateAuthorizeCodeSession(ctx context.Context, signature string, request fosite.Requester) error {
+	return s.upsertSession(ctx, sessionKindAuthorizeCode, signature, request, "", true, fosite.AuthorizeCode)
 }
 
-func (s *Store) GetAuthorizeCodeSession(ctx context.Context, code string, _ fosite.Session) (fosite.Requester, error) {
-	request, active, err := s.getRequesterSession(ctx, sessionKindAuthorizeCode, code)
+func (s *Store) GetAuthorizeCodeSession(ctx context.Context, _ string, signature string, _ fosite.Session) (fosite.Requester, error) {
+	request, active, err := s.getRequesterSession(ctx, sessionKindAuthorizeCode, signature)
 	if err != nil {
 		return nil, err
 	}
@@ -341,8 +343,14 @@ func (s *Store) GetAuthorizeCodeSession(ctx context.Context, code string, _ fosi
 	return request, nil
 }
 
-func (s *Store) InvalidateAuthorizeCodeSession(ctx context.Context, code string) error {
-	return s.deactivateSession(ctx, sessionKindAuthorizeCode, code)
+func (s *Store) InvalidateAuthorizeCodeSession(ctx context.Context, _ string, signature string) error {
+	err := s.deactivateSession(ctx, sessionKindAuthorizeCode, signature)
+
+	// The code was active when the token request read it, so a missing active row means a concurrent request redeemed it first
+	if errors.Is(err, fosite.ErrNotFound) {
+		return fosite.ErrInvalidGrant.WithHint("The authorization code has already been used.")
+	}
+	return err
 }
 
 func (s *Store) CreateAccessTokenSession(ctx context.Context, signature string, request fosite.Requester) error {
@@ -524,19 +532,25 @@ func (s *Store) CreatePKCERequestSession(ctx context.Context, signature string, 
 	return s.upsertSession(ctx, sessionKindPKCE, signature, requester, "", true, fosite.AuthorizeCode)
 }
 
-func (s *Store) GetPKCERequestSession(ctx context.Context, signature string, _ fosite.Session) (fosite.Requester, error) {
+func (s *Store) GetPKCERequestSession(ctx context.Context, _ string, signature string, _ fosite.Session) (fosite.Requester, error) {
 	request, _, err := s.getRequesterSession(ctx, sessionKindPKCE, signature)
 	return request, err
 }
 
-func (s *Store) DeletePKCERequestSession(ctx context.Context, signature string) error {
+func (s *Store) DeletePKCERequestSession(ctx context.Context, _ string, signature string) error {
 	return s.deleteSession(ctx, sessionKindPKCE, signature)
 }
 
 // Satisfies openid.OpenIDConnectRequestStorage
 
 func (s *Store) CreateOpenIDConnectSession(ctx context.Context, authorizeCode string, requester fosite.Requester) error {
-	return s.upsertSession(ctx, sessionKindOpenID, authorizeCode, requester, "", true, fosite.AuthorizeCode)
+	// Sessions of the device authorization grant are keyed by the device code signature and expire together with the device code
+	// An expiry ensures the cleanup job removes sessions whose code is never redeemed
+	expiresAtKey := fosite.AuthorizeCode
+	if session := requester.GetSession(); session != nil && session.GetExpiresAt(fosite.AuthorizeCode).IsZero() {
+		expiresAtKey = fosite.DeviceCode
+	}
+	return s.upsertSession(ctx, sessionKindOpenID, authorizeCode, requester, "", true, expiresAtKey)
 }
 
 func (s *Store) GetOpenIDConnectSession(ctx context.Context, authorizeCode string, _ fosite.Requester) (fosite.Requester, error) {
@@ -584,7 +598,7 @@ func (s *Store) DeletePARSession(ctx context.Context, requestURI string) error {
 	return s.deleteSession(ctx, sessionKindPAR, requestURI)
 }
 
-// Satisfies rfc8628.RFC8628CoreStorage
+// Satisfies rfc8628.DeviceAuthStorage
 
 func (s *Store) CreateDeviceAuthSession(ctx context.Context, deviceCodeSignature, userCodeSignature string, request fosite.DeviceRequester) error {
 	requestData, err := s.encodeDeviceRequester(request)
@@ -633,7 +647,8 @@ func (s *Store) InvalidateDeviceCodeSession(ctx context.Context, signature strin
 		return result.Error
 	}
 	if result.RowsAffected == 0 {
-		return fosite.ErrNotFound
+		// The device code was active when the token request read it, so a concurrent request redeemed it first
+		return fosite.ErrInvalidGrant.WithHint("The device code has already been used.")
 	}
 	return nil
 }
@@ -709,30 +724,9 @@ func (s *Store) AcceptDeviceCodeSessionByUserCodeSignature(ctx context.Context, 
 	return deviceCodeSignature, err
 }
 
-// Satisfies fositestorage.Transactional
-
-func (s *Store) BeginTX(ctx context.Context) (context.Context, error) {
-	tx := s.db.WithContext(ctx).Begin()
-	if tx.Error != nil {
-		return ctx, tx.Error
-	}
-	return contextWithTx(ctx, tx), nil
-}
-
-func (s *Store) Commit(ctx context.Context) error {
-	tx, ok := ctx.Value(txContextKey{}).(*gorm.DB)
-	if !ok {
-		return nil
-	}
-	return tx.Commit().Error
-}
-
-func (s *Store) Rollback(ctx context.Context) error {
-	tx, ok := ctx.Value(txContextKey{}).(*gorm.DB)
-	if !ok {
-		return nil
-	}
-	return tx.Rollback().Error
+// Satisfies fosite.Transactional
+func (s *Store) Transaction(ctx context.Context, fn func(ctx context.Context) error) error {
+	return withTx(ctx, s.db, fn)
 }
 
 func (s *Store) upsertSession(ctx context.Context, kind string, key string, requester fosite.Requester, accessTokenSignature string, active bool, expiresAtKey fosite.TokenType) error {
@@ -1103,4 +1097,42 @@ func expiresAt(session fosite.Session, tokenType fosite.TokenType) *datatype.Dat
 
 func (s *Store) dbFor(ctx context.Context) *gorm.DB {
 	return dbFromContext(ctx, s.db)
+}
+
+// Fosite reaches every storage through a provider accessor, and Store implements all of them itself
+
+func (s *Store) FositeClientManager() fosite.ClientManager {
+	return s
+}
+
+func (s *Store) AuthorizeCodeStorage() fositeoauth2.AuthorizeCodeStorage {
+	return s
+}
+
+func (s *Store) AccessTokenStorage() fositeoauth2.AccessTokenStorage {
+	return s
+}
+
+func (s *Store) RefreshTokenStorage() fositeoauth2.RefreshTokenStorage {
+	return s
+}
+
+func (s *Store) TokenRevocationStorage() fositeoauth2.TokenRevocationStorage {
+	return s
+}
+
+func (s *Store) OpenIDConnectRequestStorage() openid.OpenIDConnectRequestStorage {
+	return s
+}
+
+func (s *Store) PKCERequestStorage() pkce.PKCERequestStorage {
+	return s
+}
+
+func (s *Store) DeviceAuthStorage() rfc8628.DeviceAuthStorage {
+	return s
+}
+
+func (s *Store) PARStorage() fosite.PARStorage {
+	return s
 }

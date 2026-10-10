@@ -1,5 +1,8 @@
+project_id: "773504"
+api_token_env: CROWDIN_PERSONAL_TOKEN
+base_path: "."
+preserve_hierarchy: true
+
 files:
   - source: /frontend/messages/en.json
     translation: /%original_path%/%two_letters_code%.json
-pull_request_title: 'chore(translations): update translations via Crowdin'
-project_id: "773504"

@@ -8,11 +8,11 @@ import (
 	"net/url"
 	"time"
 
-	"github.com/ory/fosite"
-	"github.com/ory/fosite/compose"
-	fositeoauth2 "github.com/ory/fosite/handler/oauth2"
-	"github.com/ory/fosite/handler/openid"
-	"github.com/ory/fosite/token/jwt"
+	"github.com/pocket-id/fosite"
+	"github.com/pocket-id/fosite/compose"
+	fositeoauth2 "github.com/pocket-id/fosite/handler/oauth2"
+	"github.com/pocket-id/fosite/handler/openid"
+	"github.com/pocket-id/fosite/token/jwt"
 	"github.com/pocket-id/pocket-id/backend/internal/utils"
 	"golang.org/x/crypto/hkdf"
 )
@@ -65,15 +65,12 @@ func newProvider(store *Store, authenticator *federatedClientAuthenticator, sign
 		return SigningKeyFromSigner(signer)
 	}
 	sig := newJWTSigner(keyGetter)
-	coreStrategy := compose.NewOAuth2HMACStrategy(fositeConfig)
 	deviceStrategy := &deviceStrategy{DefaultDeviceStrategy: compose.NewDeviceStrategy(fositeConfig)}
-	defaultAccessTokenStrategy := &fositeoauth2.DefaultJWTStrategy{
-		Signer:          sig,
-		HMACSHAStrategy: coreStrategy,
-		Config:          fositeConfig,
-	}
 	rfc9068AccessTokenStrategy := &fositeoauth2.RFC9068JWTStrategy{
-		DefaultJWTStrategy: defaultAccessTokenStrategy,
+		DefaultJWTStrategy: &fositeoauth2.DefaultJWTStrategy{
+			Signer: sig,
+			Config: fositeConfig,
+		},
 	}
 
 	// Apply Pocket ID's identity-audience policy outside Fosite's reusable RFC 9068 token profile
@@ -85,11 +82,12 @@ func newProvider(store *Store, authenticator *federatedClientAuthenticator, sign
 	provider := compose.Compose(
 		fositeConfig,
 		store,
-		&compose.CommonStrategy{
-			CoreStrategy:               accessTokenStrategy,
-			RFC8628CodeStrategy:        deviceStrategy,
-			OpenIDConnectTokenStrategy: idTokenStrategy,
-			Signer:                     sig,
+		&strategyProvider{
+			opaque:      compose.NewOAuth2HMACStrategy(fositeConfig),
+			accessToken: accessTokenStrategy,
+			device:      deviceStrategy,
+			idToken:     idTokenStrategy,
+			Signer:      sig,
 		},
 		compose.OAuth2AuthorizeExplicitFactory,
 		compose.OAuth2ClientCredentialsGrantFactory,

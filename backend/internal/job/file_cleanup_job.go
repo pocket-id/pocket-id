@@ -13,6 +13,7 @@ import (
 
 	"github.com/pocket-id/pocket-id/backend/internal/model"
 	"github.com/pocket-id/pocket-id/backend/internal/storage"
+	profilepicture "github.com/pocket-id/pocket-id/backend/internal/utils/image"
 )
 
 // GetFileCleanupJobs returns the CronJob actors
@@ -75,7 +76,7 @@ func (j *FileCleanupJobs) clearUnusedDefaultProfilePictures(ctx context.Context)
 	// Create a map to track which initials are in use
 	initialsInUse := make(map[string]struct{})
 	for _, user := range users {
-		initialsInUse[user.Initials()] = struct{}{}
+		initialsInUse[profilepicture.Initials(user.FirstName, user.LastName, user.Username)] = struct{}{}
 	}
 
 	defaultPicturesDir := path.Join("profile-pictures", "defaults")
