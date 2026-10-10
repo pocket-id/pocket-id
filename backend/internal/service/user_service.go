@@ -122,7 +122,8 @@ func (s *UserService) GetProfilePicture(ctx context.Context, userID string) (io.
 	}
 
 	// Try cached default for initials
-	defaultPicturePath := path.Join("profile-pictures", "defaults", user.Initials()+".png")
+	initials := profilepicture.Initials(user.FirstName, user.LastName, user.Username)
+	defaultPicturePath := path.Join("profile-pictures", "defaults", initials+".png")
 	file, size, err = s.fileStorage.Open(ctx, defaultPicturePath)
 	if err == nil {
 		return file, size, nil
@@ -131,7 +132,7 @@ func (s *UserService) GetProfilePicture(ctx context.Context, userID string) (io.
 	}
 
 	// Create and return generated default with initials
-	defaultPicture, err := profilepicture.CreateDefaultProfilePicture(user.Initials())
+	defaultPicture, err := profilepicture.CreateDefaultProfilePicture(initials)
 	if err != nil {
 		return nil, 0, err
 	}
@@ -144,7 +145,7 @@ func (s *UserService) GetProfilePicture(ctx context.Context, userID string) (io.
 		// Use bytes.NewReader because we need an io.ReadSeeker
 		rErr := s.fileStorage.Save(context.Background(), defaultPicturePath, bytes.NewReader(defaultPictureBytes))
 		if rErr != nil {
-			slog.Error("Failed to cache default profile picture", slog.String("initials", user.Initials()), slog.Any("error", rErr))
+			slog.Error("Failed to cache default profile picture", slog.String("initials", initials), slog.Any("error", rErr))
 		}
 	}()
 
