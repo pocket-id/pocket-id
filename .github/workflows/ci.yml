@@ -2,15 +2,15 @@ name: CI
 
 on:
   push:
-    branches: [main]
+    branches: [main, "v[0-9]+"]
   pull_request:
-    branches: [main, breaking/**]
+    branches: [main, "v[0-9]+"]
   workflow_dispatch:
 
 permissions:
   contents: read
 
-# Cancel outdated runs of a pull request but test every commit on main
+# Cancel outdated runs of a pull request but test every commit on main and the major version branches
 concurrency:
   group: ci-${{ github.event_name == 'pull_request' && github.event.pull_request.number || github.sha }}
   cancel-in-progress: ${{ github.event_name == 'pull_request' }}

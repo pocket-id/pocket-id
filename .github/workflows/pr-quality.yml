@@ -28,7 +28,9 @@ jobs:
           max-failures: 4
 
           # PR Branch Checks
-          allowed-target-branches: "main"
+          allowed-target-branches: |
+            main
+            v*
           blocked-target-branches: ""
           allowed-source-branches: ""
           blocked-source-branches: ""
