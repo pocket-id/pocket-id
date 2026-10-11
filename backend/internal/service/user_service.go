@@ -723,11 +723,15 @@ func (s *UserService) ResetProfilePicture(ctx context.Context, userID string) er
 // DisableUserInternal disables a user within an existing transaction
 // It's exported for the LDAP sync, which soft-deletes users that are no longer in the directory
 func (s *UserService) DisableUserInternal(ctx context.Context, tx *gorm.DB, userID string) error {
+	// Bump UpdatedAt so the SCIM sync pushes the disabled state, but only when the user was still enabled
 	err := tx.
 		WithContext(ctx).
 		Model(&model.User{}).
-		Where("id = ?", userID).
-		Update("disabled", true).
+		Where("id = ? AND disabled = ?", userID, false).
+		Updates(map[string]any{
+			"disabled":   true,
+			"updated_at": datatype.DateTime(time.Now()),
+		}).
 		Error
 
 	if err != nil {
