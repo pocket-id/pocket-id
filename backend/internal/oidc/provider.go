@@ -95,7 +95,7 @@ func newProvider(store *Store, authenticator *federatedClientAuthenticator, sign
 		compose.RFC8628DeviceFactory,
 		compose.RFC8628DeviceAuthorizationTokenFactory,
 		compose.OpenIDConnectExplicitFactory,
-		compose.OpenIDConnectRefreshFactory,
+		openIDConnectRefreshFactory,
 		compose.OpenIDConnectDeviceFactory,
 		compose.OAuth2TokenIntrospectionFactory,
 		compose.OAuth2PKCEFactory,
@@ -112,6 +112,38 @@ func newProvider(store *Store, authenticator *federatedClientAuthenticator, sign
 			config:      fositeConfig,
 		},
 	}, nil
+}
+
+// openIDConnectRefreshHandler wraps Fosite's refresh handler and stores the jti of each refreshed ID token on the refresh token issued with it
+// Fosite assigns that jti after the refresh token is stored, and RP-initiated logout finds the refresh token by the jti of the id_token_hint
+type openIDConnectRefreshHandler struct {
+	*openid.OpenIDConnectRefreshHandler
+
+	store    *Store
+	strategy fositeoauth2.RefreshTokenStrategy
+}
+
+func openIDConnectRefreshFactory(config fosite.Configurator, storage fosite.Storage, strategy any) any {
+	return &openIDConnectRefreshHandler{
+		OpenIDConnectRefreshHandler: compose.OpenIDConnectRefreshFactory(config, storage, strategy).(*openid.OpenIDConnectRefreshHandler),
+		store:                       storage.(*Store),
+		strategy:                    strategy.(fositeoauth2.RefreshTokenStrategyProvider).RefreshTokenStrategy(),
+	}
+}
+
+func (h *openIDConnectRefreshHandler) PopulateTokenEndpointResponse(ctx context.Context, requester fosite.AccessRequester, responder fosite.AccessResponder) error {
+	err := h.OpenIDConnectRefreshHandler.PopulateTokenEndpointResponse(ctx, requester, responder)
+	if err != nil {
+		return err
+	}
+
+	session, ok := requester.GetSession().(*Session)
+	refreshToken, _ := responder.GetExtra("refresh_token").(string)
+	if !ok || refreshToken == "" {
+		return nil
+	}
+
+	return h.store.setRefreshTokenIDTokenJTI(ctx, h.strategy.RefreshTokenSignature(ctx, refreshToken), session.IDTokenClaims().JTI)
 }
 
 func redirectSecureChecker(allowInsecureCallbackURLs bool) func(context.Context, *url.URL) bool {

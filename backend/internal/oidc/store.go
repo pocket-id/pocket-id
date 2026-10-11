@@ -444,6 +444,34 @@ func (s *Store) RevokeSessionsByIDTokenHint(ctx context.Context, userID, clientI
 	return s.revokeRequestIDs(ctx, jtiMatches)
 }
 
+// setRefreshTokenIDTokenJTI records the jti of the ID token that was issued together with the refresh token, so RP-initiated logout can match it
+func (s *Store) setRefreshTokenIDTokenJTI(ctx context.Context, signature string, idTokenJTI string) error {
+	session, err := s.getSession(ctx, sessionKindRefreshToken, signature)
+	if err != nil {
+		return err
+	}
+
+	var stored storedRequester
+	if err := json.Unmarshal([]byte(session.RequestData), &stored); err != nil {
+		return err
+	}
+	if stored.Session == nil || stored.Session.Claims == nil {
+		return nil
+	}
+	stored.Session.Claims.JTI = idTokenJTI
+
+	data, err := json.Marshal(stored)
+	if err != nil {
+		return err
+	}
+
+	return s.dbFor(ctx).
+		Model(&OAuth2Session{}).
+		Where("kind = ? AND key = ?", sessionKindRefreshToken, signature).
+		Update("request_data", string(data)).
+		Error
+}
+
 func RevokeUserClientSessions(ctx context.Context, db *gorm.DB, userID, clientID string) error {
 	s := NewStore(db, nil)
 	requestIDs, _, err := s.findRefreshTokenRequestIDsForUserClient(ctx, userID, clientID, "")
