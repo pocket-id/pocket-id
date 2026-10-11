@@ -574,7 +574,6 @@
 	"email_verification_required": "Required",
 	"email_verification_required_description": "Users can't sign in to applications until they verify their email address. Self-signed-up accounts that aren't verified within 24 hours are deleted.",
 	"email_verification_required_needs_user_email": "Requiring email verification also requires users to have an email address.",
-	"email_verification_required_conflicts_with_verified_by_default": "Emails can't be verified by default while email verification is required.",
 	"email_verification_required_warning": "Verify your email address to use your account",
 	"email_verification_required_warning_description": "Your access is limited until you verify your email address.",
 	"email_verification_deadline_description": "If you don't, your account will be deleted {time}.",

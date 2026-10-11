@@ -121,22 +121,13 @@
 				emailFields.some((f) => data[f]);
 			requireFieldsWhen(emailEnabled, m.smtp_field_required_when_email_enabled());
 
-			// Requiring verification only protects accounts that have an email which isn't trusted by default
-			if (data.emailVerification === 'required') {
-				if (!data.requireUserEmail) {
-					ctx.addIssue({
-						code: 'custom',
-						path: ['emailVerification'],
-						message: m.email_verification_required_needs_user_email()
-					});
-				}
-				if (data.emailsVerified) {
-					ctx.addIssue({
-						code: 'custom',
-						path: ['emailVerification'],
-						message: m.email_verification_required_conflicts_with_verified_by_default()
-					});
-				}
+			// Requiring verification only protects accounts that have an email
+			if (data.emailVerification === 'required' && !data.requireUserEmail) {
+				ctx.addIssue({
+					code: 'custom',
+					path: ['emailVerification'],
+					message: m.email_verification_required_needs_user_email()
+				});
 			}
 		});
 
@@ -206,10 +197,53 @@
 				description={m.require_user_email_description()}
 				bind:checked={$inputs.requireUserEmail.value}
 			/>
+			<Field.Field>
+				<div>
+					<Field.Label for="email-verification">{m.email_verification()}</Field.Label>
+					<Field.Description>{m.email_verification_description()}</Field.Description>
+				</div>
+				<Select.Root
+					type="single"
+					disabled={$appConfigStore.uiConfigDisabled}
+					value={$inputs.emailVerification.value}
+					allowDeselect={false}
+					onValueChange={(value) => {
+						$inputs.emailVerification.value = value as AllAppConfig['emailVerification'];
+						// Emails verified by default would let every new account skip the verification
+						if (value === 'required') {
+							$inputs.emailsVerified.value = false;
+						}
+					}}
+				>
+					<Select.Trigger
+						id="email-verification"
+						class="w-full"
+						aria-invalid={!!$inputs.emailVerification.error}
+					>
+						{emailVerificationOptions[$inputs.emailVerification.value].label}
+					</Select.Trigger>
+					<Select.Content class="w-[calc(var(--bits-select-anchor-width)+--spacing(3))]">
+						<Select.Group>
+							{#each Object.entries(emailVerificationOptions) as [value, option] (value)}
+								<Select.Item {value} label={option.label}>
+									<div class="flex flex-col items-start gap-1 whitespace-normal">
+										<span class="font-medium">{option.label}</span>
+										<span class="text-muted-foreground text-xs">{option.description}</span>
+									</div>
+								</Select.Item>
+							{/each}
+						</Select.Group>
+					</Select.Content>
+				</Select.Root>
+				{#if $inputs.emailVerification.error}
+					<Field.Error>{$inputs.emailVerification.error}</Field.Error>
+				{/if}
+			</Field.Field>
 			<SwitchWithLabel
 				id="emails-verified-by-default"
 				label={m.emails_verified_by_default()}
 				description={m.emails_verified_by_default_description()}
+				disabled={$inputs.emailVerification.value === 'required'}
 				bind:checked={$inputs.emailsVerified.value}
 			/>
 		</div>
@@ -276,43 +310,6 @@
 						</Select.Group>
 					</Select.Content>
 				</Select.Root>
-			</Field.Field>
-			<Field.Field>
-				<div>
-					<Field.Label for="email-verification">{m.email_verification()}</Field.Label>
-					<Field.Description>{m.email_verification_description()}</Field.Description>
-				</div>
-				<Select.Root
-					type="single"
-					disabled={$appConfigStore.uiConfigDisabled}
-					value={$inputs.emailVerification.value}
-					allowDeselect={false}
-					onValueChange={(value) =>
-						($inputs.emailVerification.value = value as AllAppConfig['emailVerification'])}
-				>
-					<Select.Trigger
-						id="email-verification"
-						class="w-full"
-						aria-invalid={!!$inputs.emailVerification.error}
-					>
-						{emailVerificationOptions[$inputs.emailVerification.value].label}
-					</Select.Trigger>
-					<Select.Content class="w-[calc(var(--bits-select-anchor-width)+--spacing(3))]">
-						<Select.Group>
-							{#each Object.entries(emailVerificationOptions) as [value, option] (value)}
-								<Select.Item {value} label={option.label}>
-									<div class="flex flex-col items-start gap-1 whitespace-normal">
-										<span class="font-medium">{option.label}</span>
-										<span class="text-muted-foreground text-xs">{option.description}</span>
-									</div>
-								</Select.Item>
-							{/each}
-						</Select.Group>
-					</Select.Content>
-				</Select.Root>
-				{#if $inputs.emailVerification.error}
-					<Field.Error>{$inputs.emailVerification.error}</Field.Error>
-				{/if}
 			</Field.Field>
 			<SwitchWithLabel
 				id="email-login-admin"
