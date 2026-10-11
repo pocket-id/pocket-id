@@ -79,7 +79,7 @@ func UnsupportedFileType(expected string) *Error {
 }
 
 func FileTooLarge(maxSize string) *Error {
-	return New(CodeFileTooLarge, http.StatusRequestEntityTooLarge, fmt.Sprintf("File must not exceed %s", maxSize)).WithDetail("max_size", maxSize)
+	return New(CodeFileTooLarge, http.StatusRequestEntityTooLarge, "File must not exceed "+maxSize).WithDetail("max_size", maxSize)
 }
 
 func NotSignedIn() *Error {
@@ -281,7 +281,7 @@ func LogoTypeNotSupported() *Error {
 }
 
 func LogoTooLarge(maxSize string) *Error {
-	return New(CodeLogoTooLarge, http.StatusUnprocessableEntity, fmt.Sprintf("Downloaded logo must not exceed %s", maxSize)).
+	return New(CodeLogoTooLarge, http.StatusUnprocessableEntity, "Downloaded logo must not exceed "+maxSize).
 		WithDetail("max_size", maxSize)
 }
 

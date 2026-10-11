@@ -133,10 +133,9 @@ jobs:
       - name: Run Golangci-lint
         uses: golangci/golangci-lint-action@ba0d7d2ec06a0ea1cb5fa41b2e4a3ab91d21278a # v9.3.0
         with:
-          version: v2.13.2
+          version-file: .golangci-lint-version
           args: --config=.golangci.yml
           working-directory: backend
-          only-new-issues: ${{ github.event_name == 'pull_request' }}
 
   backend-test:
     name: Backend tests (${{ matrix.name }})

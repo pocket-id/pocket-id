@@ -1,7 +1,6 @@
 package email
 
 import (
-	"fmt"
 	"time"
 )
 
@@ -10,7 +9,7 @@ import (
 var newLoginTemplate = template[newLoginTemplateData]{
 	path: "login-with-new-device",
 	title: func(data *templateData[newLoginTemplateData]) string {
-		return fmt.Sprintf("New device login with %s", data.AppName)
+		return "New device login with " + data.AppName
 	},
 }
 
@@ -31,7 +30,7 @@ var testTemplate = template[struct{}]{
 var apiKeyExpiringSoonTemplate = template[apiKeyExpiringSoonTemplateData]{
 	path: "api-key-expiring-soon",
 	title: func(data *templateData[apiKeyExpiringSoonTemplateData]) string {
-		return fmt.Sprintf("API Key \"%s\" Expiring Soon", data.Data.ApiKeyName)
+		return `API Key "` + data.Data.ApiKeyName + `" Expiring Soon`
 	},
 }
 

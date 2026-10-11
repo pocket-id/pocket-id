@@ -19,9 +19,9 @@ linters:
     - errchkjson
     - errorlint
     - exhaustive
+    - exptostd
     - gocheckcompilerdirectives
     - gochecksumtype
-    - gocognit
     - gocritic
     - gosec
     - gosmopolitan
@@ -30,9 +30,11 @@ linters:
     - loggercheck
     - makezero
     - musttag
+    - nakedret
     - nilerr
     - nilnesserr
     - noctx
+    - perfsprint
     - protogetter
     - reassign
     - recvcheck
