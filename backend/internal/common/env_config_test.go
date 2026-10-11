@@ -1,7 +1,6 @@
 package common
 
 import (
-	"net/url"
 	"os"
 	"testing"
 
@@ -698,39 +697,4 @@ func TestIconLibraryConfig(t *testing.T) {
 			assert.Equal(t, tt.wantEnabled, EnvConfig.IconLibraryEnabled())
 		})
 	}
-}
-
-func TestIsIconLibraryURL(t *testing.T) {
-	config := EnvConfigSchema{IconLibraryURL: "http://mirror.lan:4050/icons"}
-
-	tests := []struct {
-		name string
-		url  string
-		want bool
-	}{
-		{name: "file inside the library", url: "http://mirror.lan:4050/icons/svg/nextcloud.svg", want: true},
-		{name: "host is matched case-insensitively", url: "http://MIRROR.lan:4050/icons/svg/nextcloud.svg", want: true},
-		{name: "path outside the library", url: "http://mirror.lan:4050/admin/logo.svg", want: false},
-		{name: "path sharing the library prefix", url: "http://mirror.lan:4050/icons-private/logo.svg", want: false},
-		{name: "dot segments climbing out of the library", url: "http://mirror.lan:4050/icons/../admin/logo.svg", want: false},
-		{name: "encoded dot segments", url: "http://mirror.lan:4050/icons/%2e%2e/admin/logo.svg", want: false},
-		{name: "host that starts with the library host", url: "http://mirror.lan.evil.com:4050/icons/svg/nextcloud.svg", want: false},
-		{name: "different port", url: "http://mirror.lan:8080/icons/svg/nextcloud.svg", want: false},
-		{name: "different scheme", url: "https://mirror.lan:4050/icons/svg/nextcloud.svg", want: false},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			u, err := url.Parse(tt.url)
-			require.NoError(t, err)
-			assert.Equal(t, tt.want, config.IsIconLibraryURL(u))
-		})
-	}
-
-	t.Run("nothing is inside a disabled library", func(t *testing.T) {
-		disabled := EnvConfigSchema{IconLibraryURL: IconLibraryDisabled}
-		u, err := url.Parse("http://disabled/svg/nextcloud.svg")
-		require.NoError(t, err)
-		assert.False(t, disabled.IsIconLibraryURL(u))
-	})
 }

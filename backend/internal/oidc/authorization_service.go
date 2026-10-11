@@ -11,7 +11,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/ory/fosite"
+	"github.com/pocket-id/fosite"
 	"gorm.io/gorm"
 
 	"github.com/pocket-id/pocket-id/backend/internal/apperror"

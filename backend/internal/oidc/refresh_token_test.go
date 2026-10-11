@@ -13,8 +13,8 @@ import (
 	"time"
 
 	"github.com/gin-gonic/gin"
-	"github.com/ory/fosite"
-	"github.com/ory/fosite/compose"
+	"github.com/pocket-id/fosite"
+	"github.com/pocket-id/fosite/compose"
 	"github.com/stretchr/testify/require"
 	"gorm.io/gorm"
 

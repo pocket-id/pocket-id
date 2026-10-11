@@ -8,7 +8,6 @@ import (
 	"github.com/go-webauthn/webauthn/webauthn"
 
 	datatype "github.com/pocket-id/pocket-id/backend/internal/model/types"
-	"github.com/pocket-id/pocket-id/backend/internal/utils"
 )
 
 type User struct {
@@ -86,16 +85,6 @@ func (u User) FullName() string {
 	}
 
 	return u.Username
-}
-
-func (u User) Initials() string {
-	first := utils.GetFirstCharacter(u.FirstName)
-	last := utils.GetFirstCharacter(u.LastName)
-	if first != "" || last != "" {
-		return strings.ToUpper(first + last)
-	}
-
-	return strings.ToUpper(utils.GetFirstCharacter(u.Username))
 }
 
 func (u User) LastModified() time.Time {

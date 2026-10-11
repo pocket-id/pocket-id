@@ -5,11 +5,11 @@ import (
 	"errors"
 	"fmt"
 
-	"github.com/gin-gonic/gin"
 	francishost "github.com/italypaleale/francis/host"
 	"gorm.io/gorm"
 
 	"github.com/pocket-id/pocket-id/backend/internal/appconfig"
+	"github.com/pocket-id/pocket-id/backend/internal/authz"
 	"github.com/pocket-id/pocket-id/backend/internal/httpserver"
 	"github.com/pocket-id/pocket-id/backend/internal/model"
 )
@@ -63,13 +63,13 @@ func New(ctx context.Context, deps Dependencies) (*Module, error) {
 }
 
 // RegisterRoutes mounts the API key management endpoints
-// authWithoutApiKey disables API key authentication so an API key cannot be used to mint or renew further API keys
-func (m *Module) RegisterRoutes(apiGroup *gin.RouterGroup, auth, authWithoutApiKey gin.HandlerFunc) {
-	group := apiGroup.Group("/api-keys")
-	group.GET("", auth, httpserver.Handle(m.handler.list))
-	group.POST("", authWithoutApiKey, httpserver.Handle(m.handler.create))
-	group.POST("/:id/renew", authWithoutApiKey, httpserver.Handle(m.handler.renew))
-	group.DELETE("/:id", auth, httpserver.Handle(m.handler.revoke))
+// Creating and renewing keys requires a browser session so an API key cannot mint further API keys
+func (m *Module) RegisterRoutes(r *authz.Router) {
+	group := r.Group("/api-keys")
+	group.GET("", authz.AccountAPIKeys, httpserver.Handle(m.handler.list))
+	group.POST("", authz.AccountAPIKeysCreate, httpserver.Handle(m.handler.create))
+	group.POST("/:id/renew", authz.AccountAPIKeysCreate, httpserver.Handle(m.handler.renew))
+	group.DELETE("/:id", authz.AccountAPIKeys, httpserver.Handle(m.handler.revoke))
 }
 
 // ValidateApiKey resolves the user that owns the given raw API key

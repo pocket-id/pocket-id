@@ -7,12 +7,12 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/gin-gonic/gin"
 	francishost "github.com/italypaleale/francis/host"
 	"github.com/lestrrat-go/jwx/v4/jwt"
 	"gorm.io/gorm"
 
 	"github.com/pocket-id/pocket-id/backend/internal/appconfig"
+	"github.com/pocket-id/pocket-id/backend/internal/authz"
 	"github.com/pocket-id/pocket-id/backend/internal/httpserver"
 	"github.com/pocket-id/pocket-id/backend/internal/iplocation"
 )
@@ -71,12 +71,12 @@ func New(deps Dependencies) (*Module, error) {
 	return &Module{service: service, handler: newHandler(service)}, nil
 }
 
-// RegisterRoutes mounts audit-log queries with the existing admin and current-user permissions
-func (m *Module) RegisterRoutes(group *gin.RouterGroup, adminAuth, userAuth gin.HandlerFunc) {
-	group.GET("/audit-logs/all", adminAuth, httpserver.Handle(m.handler.listAllAuditLogsHandler))
-	group.GET("/audit-logs", userAuth, httpserver.Handle(m.handler.listAuditLogsForUserHandler))
-	group.GET("/audit-logs/filters/client-names", adminAuth, httpserver.Handle(m.handler.listClientNamesHandler))
-	group.GET("/audit-logs/filters/users", adminAuth, httpserver.Handle(m.handler.listUserNamesWithIdsHandler))
+// RegisterRoutes mounts the audit-log queries for the caller's own events and for all events
+func (m *Module) RegisterRoutes(r *authz.Router) {
+	r.GET("/audit-logs/all", authz.AuditLogsRead, httpserver.Handle(m.handler.listAllAuditLogsHandler))
+	r.GET("/audit-logs", authz.AccountAuditLogs, httpserver.Handle(m.handler.listAuditLogsForUserHandler))
+	r.GET("/audit-logs/filters/client-names", authz.AuditLogsRead, httpserver.Handle(m.handler.listClientNamesHandler))
+	r.GET("/audit-logs/filters/users", authz.AuditLogsRead, httpserver.Handle(m.handler.listUserNamesWithIdsHandler))
 }
 
 // Create records an event within the caller's transaction

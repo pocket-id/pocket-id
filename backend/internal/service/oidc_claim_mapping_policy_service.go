@@ -310,7 +310,7 @@ func (s *OidcClaimMappingPolicyService) DeleteClaimMappingPolicy(ctx context.Con
 
 	if claimMappingPolicy.IsDefault {
 		tx.Rollback()
-		return fmt.Errorf("cannot delete the default claim mapping policy")
+		return errors.New("cannot delete the default claim mapping policy")
 	}
 
 	// Clear the reference on any client that was using this policy, so they fall back to the default one
@@ -336,7 +336,7 @@ func validateClaimMappings(mappings []dto.OidcClaimMappingDto) error {
 
 	for _, mapping := range mappings {
 		if len(mapping.ClaimName) == 0 || len(mapping.SourceType) == 0 || len(mapping.SourceValue) == 0 {
-			return fmt.Errorf("claim name, source type and source value are required")
+			return errors.New("claim name, source type and source value are required")
 		}
 		// Check for duplicates
 		if seenClaims[mapping.ClaimName] {
@@ -358,7 +358,7 @@ func validateClaimMappings(mappings []dto.OidcClaimMappingDto) error {
 		case "custom_claim":
 			// Custom claim key validation
 			if len(mapping.SourceValue) == 0 || len(mapping.SourceValue) > 255 {
-				return fmt.Errorf("invalid custom claim key length")
+				return errors.New("invalid custom claim key length")
 			}
 		case "static":
 			// Static values are always valid (string or JSON)
@@ -368,7 +368,7 @@ func validateClaimMappings(mappings []dto.OidcClaimMappingDto) error {
 	}
 
 	if !seenClaims["sub"] {
-		return fmt.Errorf("claim mapping must include 'sub' claim")
+		return errors.New("claim mapping must include 'sub' claim")
 	}
 	return nil
 }

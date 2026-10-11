@@ -1,11 +1,8 @@
 package utils
 
 import (
-	"context"
-	"errors"
 	"net"
 	"net/netip"
-	"net/url"
 	"strings"
 
 	"github.com/pocket-id/pocket-id/backend/internal/common"
@@ -26,13 +23,6 @@ var privateLanIPNets = []*net.IPNet{
 
 var tailscaleIPNets = []*net.IPNet{
 	{IP: net.IPv4(100, 64, 0, 0), Mask: net.CIDRMask(10, 32)}, // 100.64.0.0/10
-}
-
-// LocalIPv6IPNets returns the extra IPv6 ranges configured via LOCAL_IPV6_RANGES
-// that are treated as local/private. It is used to extend SSRF protection in
-// components that classify IPs independently (e.g. the fosite CIMD fetcher).
-func LocalIPv6IPNets() []*net.IPNet {
-	return localIPv6Ranges
 }
 
 func IsLocalIPv6(ip net.IP) bool {
@@ -75,23 +65,6 @@ func IsPrivateIP(ip net.IP) bool {
 
 	addr = addr.Unmap()
 	return addr.IsLoopback() || addr.IsPrivate() || addr.IsLinkLocalUnicast() || addr.IsLinkLocalMulticast() || addr.IsUnspecified()
-}
-
-func IsURLPrivate(ctx context.Context, u *url.URL) (bool, error) {
-	var r net.Resolver
-	ips, err := r.LookupIPAddr(ctx, u.Hostname())
-	if err != nil || len(ips) == 0 {
-		return false, errors.New("cannot resolve hostname")
-	}
-
-	// Prevents SSRF by allowing only public IPs
-	for _, addr := range ips {
-		if IsPrivateIP(addr.IP) {
-			return true, nil
-		}
-	}
-
-	return false, nil
 }
 
 func listContainsIP(ipNets []*net.IPNet, ip net.IP) bool {

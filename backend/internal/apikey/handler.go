@@ -5,6 +5,7 @@ import (
 
 	"github.com/gin-gonic/gin"
 
+	"github.com/pocket-id/pocket-id/backend/internal/authz"
 	"github.com/pocket-id/pocket-id/backend/internal/dto"
 	"github.com/pocket-id/pocket-id/backend/internal/httpserver"
 	"github.com/pocket-id/pocket-id/backend/internal/utils"
@@ -31,7 +32,7 @@ func newHandler(service *Service) *handler {
 func (h *handler) list(c *gin.Context) error {
 	listRequestOptions := utils.ParseListRequestOptions(c)
 
-	userID := c.GetString("userID")
+	userID := authz.PrincipalFrom(c).UserID
 
 	apiKeys, pagination, err := h.service.ListApiKeys(c.Request.Context(), userID, listRequestOptions)
 	if err != nil {
@@ -59,7 +60,7 @@ func (h *handler) list(c *gin.Context) error {
 // @Success 201 {object} apiKeyResponseDto "Created API key with token"
 // @Router /api/api-keys [post]
 func (h *handler) create(c *gin.Context) error {
-	userID := c.GetString("userID")
+	userID := authz.PrincipalFrom(c).UserID
 
 	var input apiKeyCreateDto
 	err := httpserver.BindJSON(c, &input)
@@ -93,7 +94,7 @@ func (h *handler) create(c *gin.Context) error {
 // @Success 200 {object} apiKeyResponseDto "Renewed API key with new token"
 // @Router /api/api-keys/{id}/renew [post]
 func (h *handler) renew(c *gin.Context) error {
-	userID := c.GetString("userID")
+	userID := authz.PrincipalFrom(c).UserID
 	apiKeyID := c.Param("id")
 
 	var input apiKeyRenewDto
@@ -128,7 +129,7 @@ func (h *handler) renew(c *gin.Context) error {
 // @Success 204 "No Content"
 // @Router /api/api-keys/{id} [delete]
 func (h *handler) revoke(c *gin.Context) error {
-	userID := c.GetString("userID")
+	userID := authz.PrincipalFrom(c).UserID
 	apiKeyID := c.Param("id")
 
 	err := h.service.RevokeApiKey(c.Request.Context(), userID, apiKeyID)

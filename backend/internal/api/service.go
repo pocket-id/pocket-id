@@ -9,7 +9,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/ory/fosite"
+	"github.com/pocket-id/fosite"
 	"github.com/pocket-id/pocket-id/backend/internal/apperror"
 	"github.com/pocket-id/pocket-id/backend/internal/model"
 	datatype "github.com/pocket-id/pocket-id/backend/internal/model/types"

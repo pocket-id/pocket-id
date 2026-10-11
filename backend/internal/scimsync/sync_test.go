@@ -414,7 +414,7 @@ func (m *mockSCIMTransport) RoundTrip(req *http.Request) (*http.Response, error)
 
 func (m *mockSCIMTransport) validateRequest(req *http.Request, body []byte) string {
 	if req.URL.Scheme != "https" || req.URL.Host != "scim.example.test" {
-		return fmt.Sprintf("request used unexpected SCIM endpoint %s", req.URL.String())
+		return "request used unexpected SCIM endpoint " + req.URL.String()
 	}
 	if req.Header.Get("Accept") != mockSCIMRequestContentType {
 		return "request did not accept application/scim+json"

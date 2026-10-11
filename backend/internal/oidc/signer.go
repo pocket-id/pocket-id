@@ -5,7 +5,7 @@ import (
 	"errors"
 
 	jose "github.com/go-jose/go-jose/v4"
-	fositejwt "github.com/ory/fosite/token/jwt"
+	fositejwt "github.com/pocket-id/fosite/token/jwt"
 )
 
 // SigningKeyFromSigner wraps the raw signing key in a *jose.JSONWebKey that carries the

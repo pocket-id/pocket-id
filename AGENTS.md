@@ -56,7 +56,7 @@ cd ../.. && pnpm test                            # = playwright test in tests/
 
 - **Config:** global `common.EnvConfig` (caarlos0/env); any secret var supports a `*_FILE` variant.
 - **Logging:** stdlib `log/slog` only (bridged to OpenTelemetry). No zerolog/logrus in app code.
-- `go.mod` pins a **fork** of fosite (`replace github.com/ory/fosite => github.com/pocket-id/fosite`).
+- Fosite comes from Pocket ID's **fork** `github.com/pocket-id/fosite`, not `github.com/ory/fosite`. It ports upstream fixes from `ory/hydra`.
 
 ## Frontend (SvelteKit)
 

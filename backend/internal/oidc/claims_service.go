@@ -5,10 +5,12 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"io"
 	"slices"
+	"strings"
 
-	"github.com/ory/fosite"
-	fositejwt "github.com/ory/fosite/token/jwt"
+	"github.com/pocket-id/fosite"
+	fositejwt "github.com/pocket-id/fosite/token/jwt"
 	"github.com/pocket-id/pocket-id/backend/internal/common"
 	"github.com/pocket-id/pocket-id/backend/internal/model"
 	"gorm.io/gorm"
@@ -250,14 +252,7 @@ func (s *ClaimsService) applyUserClaims(claims map[string]any, user model.User, 
 					claimName = customClaim.Key
 				}
 
-				// A custom claim value can be a JSON document or a plain string
-				var jsonValue any
-				err := json.Unmarshal([]byte(customClaim.Value), &jsonValue)
-				if err == nil {
-					claims[claimName] = jsonValue
-				} else {
-					claims[claimName] = customClaim.Value
-				}
+				claims[claimName] = parseCustomClaimValue(customClaim.Value)
 
 				if mapping.SourceValue != "*" {
 					break
@@ -266,13 +261,53 @@ func (s *ClaimsService) applyUserClaims(claims map[string]any, user model.User, 
 		}
 
 	case model.MappingSourceStatic:
-		// Try to parse as JSON, fall back to string
-		var jsonValue any
-		err := json.Unmarshal([]byte(mapping.SourceValue), &jsonValue)
-		if err == nil {
-			claims[mapping.ClaimName] = jsonValue
-		} else {
-			claims[mapping.ClaimName] = mapping.SourceValue
+		// A static value can be a JSON document or a plain string, just like a custom claim value
+		claims[mapping.ClaimName] = parseCustomClaimValue(mapping.SourceValue)
+	}
+}
+
+// parseCustomClaimValue decodes a custom claim value that is a JSON document and returns any other value as a plain string
+// Integers are kept as int64 because float64 drops digits past 2^53 and is written in exponent form in signed tokens
+func parseCustomClaimValue(value string) any {
+	decoder := json.NewDecoder(strings.NewReader(value))
+	decoder.UseNumber()
+
+	var parsed any
+	if err := decoder.Decode(&parsed); err != nil || decoder.Decode(new(any)) != io.EOF {
+		return value
+	}
+
+	normalized, err := normalizeJSONNumbers(parsed)
+	if err != nil {
+		return value
+	}
+	return normalized
+}
+
+// normalizeJSONNumbers replaces every json.Number with an int64 when it is an integer and with a float64 otherwise
+func normalizeJSONNumbers(value any) (any, error) {
+	switch v := value.(type) {
+	case json.Number:
+		if i, err := v.Int64(); err == nil {
+			return i, nil
+		}
+		return v.Float64()
+	case map[string]any:
+		for key, item := range v {
+			normalized, err := normalizeJSONNumbers(item)
+			if err != nil {
+				return nil, err
+			}
+			v[key] = normalized
+		}
+	case []any:
+		for i, item := range v {
+			normalized, err := normalizeJSONNumbers(item)
+			if err != nil {
+				return nil, err
+			}
+			v[i] = normalized
 		}
 	}
+	return value, nil
 }

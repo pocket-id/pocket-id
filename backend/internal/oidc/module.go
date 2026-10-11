@@ -7,13 +7,13 @@ import (
 	"net/http"
 	"time"
 
-	"github.com/gin-gonic/gin"
 	francishost "github.com/italypaleale/francis/host"
 	"github.com/lestrrat-go/jwx/v4/jwa"
 	"go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp"
 	"gorm.io/gorm"
 
 	"github.com/pocket-id/pocket-id/backend/internal/auditlogs"
+	"github.com/pocket-id/pocket-id/backend/internal/authz"
 	"github.com/pocket-id/pocket-id/backend/internal/model"
 )
 
@@ -43,10 +43,11 @@ type AuditLogger interface {
 }
 
 type Dependencies struct {
-	DB         *gorm.DB
-	Actors     francishost.Host
-	Config     Config
-	HTTPClient *http.Client
+	DB                  *gorm.DB
+	Actors              francishost.Host
+	Config              Config
+	FederatedJWKSClient *http.Client
+	CIMDTransport       http.RoundTripper
 
 	GetCIMDURLAllowlist func() []string
 
@@ -80,13 +81,14 @@ func New(ctx context.Context, deps Dependencies) (*Module, error) {
 	store := NewStore(deps.DB, deps.APIAccess).WithIssuer(deps.Config.BaseURL)
 	cimdResolver := newCIMDClientResolver(store, cimdResolverConfig{
 		getURLAllowlist: deps.GetCIMDURLAllowlist,
+		transport:       deps.CIMDTransport,
 		transportDecorator: func(transport http.RoundTripper) http.RoundTripper {
 			return otelhttp.NewTransport(transport)
 		},
 	})
 	store.clientResolver = cimdResolver
 
-	authenticator, err := newFederatedClientAuthenticator(ctx, store, deps.HTTPClient, deps.Config.BaseURL)
+	authenticator, err := newFederatedClientAuthenticator(ctx, store, deps.FederatedJWKSClient, deps.Config.BaseURL)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create federated client authenticator: %w", err)
 	}
@@ -143,26 +145,26 @@ func (m *Module) RefreshClientMetadata(ctx context.Context, clientID string) (mo
 	return m.cimdResolver.RefreshMetadataClient(ctx, clientID)
 }
 
-func (m *Module) RegisterRoutes(rootGroup *gin.RouterGroup, apiGroup *gin.RouterGroup, optionalBrowserAuth gin.HandlerFunc, browserAuth gin.HandlerFunc) {
-	rootGroup.GET("/authorize", optionalBrowserAuth, m.authorizationHandler.authorize)
-	rootGroup.POST("/authorize", optionalBrowserAuth, m.authorizationHandler.authorize)
+func (m *Module) RegisterRoutes(root, api *authz.Router) {
+	root.Optional().GET("/authorize", authz.AccountSession, m.authorizationHandler.authorize)
+	root.Optional().POST("/authorize", authz.AccountSession, m.authorizationHandler.authorize)
 
-	apiGroup.GET("/oidc/interactions/:id", m.authorizationHandler.getInteractionSession)
-	apiGroup.POST("/oidc/interactions/:id/complete", browserAuth, m.authorizationHandler.completeInteraction)
+	api.Public().GET("/oidc/interactions/:id", m.authorizationHandler.getInteractionSession)
+	api.POST("/oidc/interactions/:id/complete", authz.AccountSession, m.authorizationHandler.completeInteraction)
 
-	apiGroup.POST("/oidc/par", m.parHandler.pushedAuthorizationRequest)
+	api.Public().POST("/oidc/par", m.parHandler.pushedAuthorizationRequest)
 
-	apiGroup.POST("/oidc/token", m.tokenHandler.token)
+	api.Public().POST("/oidc/token", m.tokenHandler.token)
 
-	apiGroup.GET("/oidc/userinfo", m.userInfoHandler.userInfo)
-	apiGroup.POST("/oidc/userinfo", m.userInfoHandler.userInfo)
+	api.Public().GET("/oidc/userinfo", m.userInfoHandler.userInfo)
+	api.Public().POST("/oidc/userinfo", m.userInfoHandler.userInfo)
 
-	apiGroup.POST("/oidc/introspect", m.introspectionHandler.introspectToken)
+	api.Public().POST("/oidc/introspect", m.introspectionHandler.introspectToken)
 
-	apiGroup.GET("/oidc/end-session", optionalBrowserAuth, m.endSessionHandler.endSession)
-	apiGroup.POST("/oidc/end-session", optionalBrowserAuth, m.endSessionHandler.endSession)
+	api.Optional().GET("/oidc/end-session", authz.AccountSession, m.endSessionHandler.endSession)
+	api.Optional().POST("/oidc/end-session", authz.AccountSession, m.endSessionHandler.endSession)
 
-	apiGroup.POST("/oidc/device/authorize", m.deviceHandler.authorizeDevice)
-	apiGroup.POST("/oidc/device/verify", browserAuth, m.deviceHandler.verifyDeviceCode)
-	apiGroup.GET("/oidc/device/info", browserAuth, m.deviceHandler.deviceCodeInfo)
+	api.Public().POST("/oidc/device/authorize", m.deviceHandler.authorizeDevice)
+	api.POST("/oidc/device/verify", authz.AccountSession, m.deviceHandler.verifyDeviceCode)
+	api.GET("/oidc/device/info", authz.AccountSession, m.deviceHandler.deviceCodeInfo)
 }

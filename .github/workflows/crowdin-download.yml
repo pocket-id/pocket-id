@@ -1,0 +1,89 @@
+name: Crowdin Download
+
+on:
+  schedule:
+    - cron: "0 3 * * 1" # Runs every Monday at 03:00 UTC
+  workflow_dispatch:
+  workflow_call: # Called by the release workflow so every release ships the latest translations
+    outputs:
+      commit:
+        description: Commit on main that contains the latest translations
+        value: ${{ jobs.download.outputs.commit }}
+    secrets:
+      CROWDIN_PERSONAL_TOKEN:
+        required: true
+      BOT_APP_PRIVATE_KEY:
+        required: true
+
+permissions:
+  contents: read
+
+jobs:
+  download:
+    runs-on: ubuntu-latest
+    concurrency:
+      group: crowdin-download
+      cancel-in-progress: false
+    outputs:
+      commit: ${{ steps.commit.outputs.commit }}
+
+    steps:
+      # The checked out commit is pushed to main, so running from any other branch could publish unrelated commits
+      - name: Require the main branch
+        run: |
+          if [[ "$GITHUB_REF" != refs/heads/main ]]; then
+            echo "::error::Translations can only be downloaded from main."
+            exit 1
+          fi
+
+      - name: Checkout repository
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ github.sha }}
+          persist-credentials: false
+
+      - name: Download translations
+        uses: crowdin/github-action@9c23991700c0ec5256fd41089b9d9d7d540e424e # v3.3.0
+        with:
+          upload_sources: false
+          upload_translations: false
+          download_translations: true
+          push_translations: false
+          create_pull_request: false
+          crowdin_branch_name: "[pocket-id.pocket-id] main"
+          user: auto
+        env:
+          CROWDIN_PERSONAL_TOKEN: ${{ secrets.CROWDIN_PERSONAL_TOKEN }}
+
+      - name: Create bot app token
+        id: app-token
+        uses: actions/create-github-app-token@bcd2ba49218906704ab6c1aa796996da409d3eb1 # v3.2.0
+        with:
+          client-id: ${{ vars.BOT_APP_CLIENT_ID }}
+          private-key: ${{ secrets.BOT_APP_PRIVATE_KEY }}
+          permission-contents: write
+
+      - name: Commit translations to main
+        id: commit
+        env:
+          GH_TOKEN: ${{ steps.app-token.outputs.token }}
+          APP_SLUG: ${{ steps.app-token.outputs.app-slug }}
+        run: |
+          # Attribute the commit to the app and authenticate the push with its installation token
+          bot_name="${APP_SLUG}[bot]"
+          bot_id=$(gh api "users/$bot_name" --jq .id)
+          git config user.name "Pocket ID Bot"
+          git config user.email "$bot_id+$bot_name@users.noreply.github.com"
+          gh auth setup-git
+
+          # Only commit when Crowdin returned different translations
+          git add frontend/messages/*.json
+          if git diff --cached --quiet; then
+            echo "Translations are already up to date." >> "$GITHUB_STEP_SUMMARY"
+          else
+            git commit -m "chore(translations): update translations via Crowdin"
+            git push origin HEAD:refs/heads/main
+            echo "Committed updated translations to main." >> "$GITHUB_STEP_SUMMARY"
+          fi
+
+          echo "commit=$(git rev-parse HEAD)" >> "$GITHUB_OUTPUT"

@@ -7,10 +7,10 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"github.com/pocket-id/pocket-id/backend/internal/appconfig"
+	"github.com/pocket-id/pocket-id/backend/internal/authz"
 	"github.com/pocket-id/pocket-id/backend/internal/common"
 	"github.com/pocket-id/pocket-id/backend/internal/dto"
 	"github.com/pocket-id/pocket-id/backend/internal/httpserver"
-	"github.com/pocket-id/pocket-id/backend/internal/middleware"
 	"github.com/pocket-id/pocket-id/backend/internal/tracing"
 )
 
@@ -23,8 +23,7 @@ type TestEmailSender interface {
 // @Description Initialize routes for application configuration
 // @Tags Application Configuration
 func NewAppConfigController(
-	group *gin.RouterGroup,
-	authMiddleware *middleware.AuthMiddleware,
+	r *authz.Router,
 	appConfigService *appconfig.AppConfigService,
 	emailSender TestEmailSender,
 ) {
@@ -33,11 +32,11 @@ func NewAppConfigController(
 		appConfigService: appConfigService,
 		emailSender:      emailSender,
 	}
-	group.GET("/application-configuration", httpserver.Handle(acc.listAppConfigHandler))
-	group.GET("/application-configuration/all", authMiddleware.Add(), httpserver.Handle(acc.listAllAppConfigHandler))
-	group.PUT("/application-configuration", authMiddleware.Add(), httpserver.Handle(acc.updateAppConfigHandler))
+	r.Public().GET("/application-configuration", httpserver.Handle(acc.listAppConfigHandler))
+	r.GET("/application-configuration/all", authz.ConfigRead, httpserver.Handle(acc.listAllAppConfigHandler))
+	r.PUT("/application-configuration", authz.ConfigWrite, httpserver.Handle(acc.updateAppConfigHandler))
 
-	group.POST("/application-configuration/test-email", authMiddleware.Add(), httpserver.Handle(acc.testEmailHandler))
+	r.POST("/application-configuration/test-email", authz.ConfigWrite, httpserver.Handle(acc.testEmailHandler))
 }
 
 type AppConfigController struct {
@@ -169,7 +168,7 @@ func (acc *AppConfigController) testEmailHandler(c *gin.Context) error {
 		return err
 	}
 
-	userID := c.GetString("userID")
+	userID := authz.PrincipalFrom(c).UserID
 
 	err = acc.emailSender.SendTestEmail(c.Request.Context(), dbConfig, userID)
 	if err != nil {

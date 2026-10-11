@@ -7,6 +7,7 @@ import (
 	"github.com/gin-gonic/gin"
 
 	"github.com/pocket-id/pocket-id/backend/internal/appconfig"
+	"github.com/pocket-id/pocket-id/backend/internal/authz"
 	"github.com/pocket-id/pocket-id/backend/internal/dto"
 	"github.com/pocket-id/pocket-id/backend/internal/httpserver"
 )
@@ -33,7 +34,7 @@ func (h *handler) send(c *gin.Context) error {
 		return fmt.Errorf("error loading app configuration: %w", err)
 	}
 
-	err = h.service.Send(c.Request.Context(), dbConfig, c.GetString("userID"))
+	err = h.service.Send(c.Request.Context(), dbConfig, authz.PrincipalFrom(c).UserID)
 	if err != nil {
 		return err
 	}
@@ -55,7 +56,7 @@ func (h *handler) verify(c *gin.Context) error {
 		return err
 	}
 
-	err := h.service.Verify(c.Request.Context(), c.GetString("userID"), input.Token)
+	err := h.service.Verify(c.Request.Context(), authz.PrincipalFrom(c).UserID, input.Token)
 	if err != nil {
 		return err
 	}

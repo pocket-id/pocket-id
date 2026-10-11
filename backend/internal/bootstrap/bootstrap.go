@@ -16,6 +16,7 @@ import (
 
 	"github.com/pocket-id/pocket-id/backend/internal/common"
 	"github.com/pocket-id/pocket-id/backend/internal/instanceid"
+	"github.com/pocket-id/pocket-id/backend/internal/outbound"
 	"github.com/pocket-id/pocket-id/backend/internal/storage"
 )
 
@@ -34,6 +35,11 @@ func Bootstrap(ctx context.Context) error {
 	shutdowns.Add(shutdownFns...)
 
 	slog.InfoContext(ctx, "Pocket ID is starting")
+
+	outboundClients, err := outbound.New(&common.EnvConfig)
+	if err != nil {
+		return fmt.Errorf("failed to initialize outbound HTTP clients: %w", err)
+	}
 
 	// Init database
 	db, pg, err := NewDatabase(ctx)
@@ -95,7 +101,7 @@ func Bootstrap(ctx context.Context) error {
 	services = append(services, actorsRun)
 
 	// Create all services
-	svc, err := initServices(ctx, db, instanceID, actors, httpClient, imageExtensions, fileStorage)
+	svc, err := initServices(ctx, db, instanceID, actors, httpClient, outboundClients, imageExtensions, fileStorage)
 	if err != nil {
 		return fmt.Errorf("failed to initialize services: %w", err)
 	}

@@ -9,6 +9,7 @@ import (
 
 	"github.com/pocket-id/pocket-id/backend/internal/appconfig"
 	"github.com/pocket-id/pocket-id/backend/internal/auditlogs"
+	"github.com/pocket-id/pocket-id/backend/internal/authz"
 	"github.com/pocket-id/pocket-id/backend/internal/dto"
 	"github.com/pocket-id/pocket-id/backend/internal/httpserver"
 	"github.com/pocket-id/pocket-id/backend/internal/utils/cookie"
@@ -139,7 +140,7 @@ func (h *handler) decideRequest(c *gin.Context) error {
 	}
 
 	reauthenticationToken, _ := c.Cookie(cookie.ReauthenticationTokenCookieName)
-	err = h.service.Decide(c.Request.Context(), input.Code, input.Decision, c.GetString("userID"), reauthenticationToken)
+	err = h.service.Decide(c.Request.Context(), input.Code, input.Decision, authz.PrincipalFrom(c).UserID, reauthenticationToken)
 	if err != nil {
 		return err
 	}

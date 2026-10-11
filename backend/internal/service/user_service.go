@@ -122,7 +122,8 @@ func (s *UserService) GetProfilePicture(ctx context.Context, userID string) (io.
 	}
 
 	// Try cached default for initials
-	defaultPicturePath := path.Join("profile-pictures", "defaults", user.Initials()+".png")
+	initials := profilepicture.Initials(user.FirstName, user.LastName, user.Username)
+	defaultPicturePath := path.Join("profile-pictures", "defaults", initials+".png")
 	file, size, err = s.fileStorage.Open(ctx, defaultPicturePath)
 	if err == nil {
 		return file, size, nil
@@ -131,7 +132,7 @@ func (s *UserService) GetProfilePicture(ctx context.Context, userID string) (io.
 	}
 
 	// Create and return generated default with initials
-	defaultPicture, err := profilepicture.CreateDefaultProfilePicture(user.Initials())
+	defaultPicture, err := profilepicture.CreateDefaultProfilePicture(initials)
 	if err != nil {
 		return nil, 0, err
 	}
@@ -144,7 +145,7 @@ func (s *UserService) GetProfilePicture(ctx context.Context, userID string) (io.
 		// Use bytes.NewReader because we need an io.ReadSeeker
 		rErr := s.fileStorage.Save(context.Background(), defaultPicturePath, bytes.NewReader(defaultPictureBytes))
 		if rErr != nil {
-			slog.Error("Failed to cache default profile picture", slog.String("initials", user.Initials()), slog.Any("error", rErr))
+			slog.Error("Failed to cache default profile picture", slog.String("initials", initials), slog.Any("error", rErr))
 		}
 	}()
 
@@ -255,9 +256,27 @@ func (s *UserService) DeleteUserInternal(ctx context.Context, cfg *appconfig.App
 		}
 	}
 
+	// Remember the user's groups before the delete cascades their memberships away
+	var groupIDs []string
+	err = tx.
+		WithContext(ctx).
+		Table("user_groups_users").
+		Where("user_id = ?", userID).
+		Pluck("user_group_id", &groupIDs).
+		Error
+	if err != nil {
+		return fmt.Errorf("failed to load user groups of user to delete: %w", err)
+	}
+
 	err = tx.WithContext(ctx).Delete(&user).Error
 	if err != nil {
 		return fmt.Errorf("failed to delete user: %w", err)
+	}
+
+	// Bump the UpdatedAt of the groups the user was in, so the SCIM sync pushes the groups without the deleted member
+	err = s.touchUserGroups(ctx, tx, groupIDs)
+	if err != nil {
+		return fmt.Errorf("failed to update user groups timestamp: %w", err)
 	}
 
 	return nil
@@ -594,6 +613,9 @@ func (s *UserService) UpdateUserGroups(ctx context.Context, id string, userGroup
 		return !slices.Contains(userGroupIds, group.ID)
 	})
 
+	// Remember the current groups, because the groups the user leaves change their membership too
+	previousGroupIDs := userGroupIDs(user.UserGroups)
+
 	// Fetch the groups based on userGroupIds
 	var groups []model.UserGroup
 	if len(userGroupIds) > 0 {
@@ -623,14 +645,10 @@ func (s *UserService) UpdateUserGroups(ctx context.Context, id string, userGroup
 		return model.User{}, err
 	}
 
-	// Update the UpdatedAt field for all affected groups
-	now := datatype.DateTime(time.Now())
-	for _, group := range groups {
-		group.UpdatedAt = &now
-		err = tx.WithContext(ctx).Save(&group).Error
-		if err != nil {
-			return model.User{}, err
-		}
+	// Bump the UpdatedAt of every group the user joined or left, so the SCIM sync pushes the new membership
+	err = s.touchUserGroups(ctx, tx, append(previousGroupIDs, userGroupIDs(groups)...))
+	if err != nil {
+		return model.User{}, err
 	}
 
 	err = tx.Commit().Error
@@ -705,11 +723,15 @@ func (s *UserService) ResetProfilePicture(ctx context.Context, userID string) er
 // DisableUserInternal disables a user within an existing transaction
 // It's exported for the LDAP sync, which soft-deletes users that are no longer in the directory
 func (s *UserService) DisableUserInternal(ctx context.Context, tx *gorm.DB, userID string) error {
+	// Bump UpdatedAt so the SCIM sync pushes the disabled state, but only when the user was still enabled
 	err := tx.
 		WithContext(ctx).
 		Model(&model.User{}).
-		Where("id = ?", userID).
-		Update("disabled", true).
+		Where("id = ? AND disabled = ?", userID, false).
+		Updates(map[string]any{
+			"disabled":   true,
+			"updated_at": datatype.DateTime(time.Now()),
+		}).
 		Error
 
 	if err != nil {

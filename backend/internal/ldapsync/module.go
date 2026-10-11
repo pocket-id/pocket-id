@@ -6,11 +6,11 @@ import (
 	"io"
 	"net/http"
 
-	"github.com/gin-gonic/gin"
 	francishost "github.com/italypaleale/francis/host"
 	"gorm.io/gorm"
 
 	"github.com/pocket-id/pocket-id/backend/internal/appconfig"
+	"github.com/pocket-id/pocket-id/backend/internal/authz"
 	"github.com/pocket-id/pocket-id/backend/internal/dto"
 	"github.com/pocket-id/pocket-id/backend/internal/httpserver"
 	"github.com/pocket-id/pocket-id/backend/internal/model"
@@ -90,9 +90,8 @@ func New(deps Dependencies) (*Module, error) {
 }
 
 // RegisterRoutes mounts the manual LDAP synchronization endpoint
-// auth guards it, as it's an admin-only operation
-func (m *Module) RegisterRoutes(apiGroup *gin.RouterGroup, auth gin.HandlerFunc) {
-	apiGroup.POST("/application-configuration/sync-ldap", auth, httpserver.Handle(m.handler.syncLdap))
+func (m *Module) RegisterRoutes(r *authz.Router) {
+	r.POST("/application-configuration/sync-ldap", authz.ConfigWrite, httpserver.Handle(m.handler.syncLdap))
 }
 
 // SyncAll runs a full LDAP synchronization with the provided application configuration

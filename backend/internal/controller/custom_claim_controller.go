@@ -4,9 +4,9 @@ import (
 	"net/http"
 
 	"github.com/gin-gonic/gin"
+	"github.com/pocket-id/pocket-id/backend/internal/authz"
 	"github.com/pocket-id/pocket-id/backend/internal/dto"
 	"github.com/pocket-id/pocket-id/backend/internal/httpserver"
-	"github.com/pocket-id/pocket-id/backend/internal/middleware"
 	"github.com/pocket-id/pocket-id/backend/internal/service"
 )
 
@@ -14,16 +14,13 @@ import (
 // @Summary Custom claim management controller
 // @Description Initializes all custom claim-related API endpoints
 // @Tags Custom Claims
-func NewCustomClaimController(group *gin.RouterGroup, authMiddleware *middleware.AuthMiddleware, customClaimService *service.CustomClaimService) {
+func NewCustomClaimController(r *authz.Router, customClaimService *service.CustomClaimService) {
 	wkc := &CustomClaimController{customClaimService: customClaimService}
 
-	customClaimsGroup := group.Group("/custom-claims")
-	customClaimsGroup.Use(authMiddleware.Add())
-	{
-		customClaimsGroup.GET("/suggestions", httpserver.Handle(wkc.getSuggestionsHandler))
-		customClaimsGroup.PUT("/user/:userId", httpserver.Handle(wkc.UpdateCustomClaimsForUserHandler))
-		customClaimsGroup.PUT("/user-group/:userGroupId", httpserver.Handle(wkc.UpdateCustomClaimsForUserGroupHandler))
-	}
+	customClaimsGroup := r.Group("/custom-claims")
+	customClaimsGroup.GET("/suggestions", authz.UsersRead, httpserver.Handle(wkc.getSuggestionsHandler))
+	customClaimsGroup.PUT("/user/:userId", authz.UsersWrite, httpserver.Handle(wkc.UpdateCustomClaimsForUserHandler))
+	customClaimsGroup.PUT("/user-group/:userGroupId", authz.GroupsWrite, httpserver.Handle(wkc.UpdateCustomClaimsForUserGroupHandler))
 }
 
 type CustomClaimController struct {

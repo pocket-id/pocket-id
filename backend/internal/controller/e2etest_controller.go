@@ -7,19 +7,20 @@ import (
 
 	"github.com/gin-gonic/gin"
 
+	"github.com/pocket-id/pocket-id/backend/internal/authz"
 	"github.com/pocket-id/pocket-id/backend/internal/httpserver"
 	"github.com/pocket-id/pocket-id/backend/internal/service"
 )
 
-func NewTestController(group *gin.RouterGroup, testService *service.TestService) {
+func NewTestController(r *authz.PublicRouter, testService *service.TestService) {
 	testController := &TestController{TestService: testService}
 
-	group.POST("/test/reset", httpserver.Handle(testController.resetAndSeedHandler))
-	group.POST("/test/accesstoken", httpserver.Handle(testController.signAccessToken))
-	group.POST("/test/refreshtoken", httpserver.Handle(testController.signRefreshToken))
+	r.POST("/test/reset", httpserver.Handle(testController.resetAndSeedHandler))
+	r.POST("/test/accesstoken", httpserver.Handle(testController.signAccessToken))
+	r.POST("/test/refreshtoken", httpserver.Handle(testController.signRefreshToken))
 
-	group.GET("/externalidp/jwks.json", httpserver.Handle(testController.externalIdPJWKS))
-	group.POST("/externalidp/sign", httpserver.Handle(testController.externalIdPSignToken))
+	r.GET("/externalidp/jwks.json", httpserver.Handle(testController.externalIdPJWKS))
+	r.POST("/externalidp/sign", httpserver.Handle(testController.externalIdPSignToken))
 }
 
 type TestController struct {

@@ -5,6 +5,7 @@ import (
 
 	"github.com/gin-gonic/gin"
 
+	"github.com/pocket-id/pocket-id/backend/internal/authz"
 	"github.com/pocket-id/pocket-id/backend/internal/dto"
 	"github.com/pocket-id/pocket-id/backend/internal/utils"
 )
@@ -31,7 +32,7 @@ func newHandler(service *service) *handler {
 func (h *handler) listAuditLogsForUserHandler(c *gin.Context) error {
 	listRequestOptions := utils.ParseListRequestOptions(c)
 
-	userID := c.GetString("userID")
+	userID := authz.PrincipalFrom(c).UserID
 
 	// Fetch audit logs for the user
 	logs, pagination, err := h.service.ListAuditLogsForUser(c.Request.Context(), userID, listRequestOptions)

@@ -8,6 +8,7 @@ import (
 	"gorm.io/gorm"
 
 	"github.com/pocket-id/pocket-id/backend/internal/appconfig"
+	"github.com/pocket-id/pocket-id/backend/internal/authz"
 	"github.com/pocket-id/pocket-id/backend/internal/httpserver"
 )
 
@@ -40,7 +41,7 @@ func New(deps Dependencies) (*Module, error) {
 }
 
 // RegisterRoutes mounts the email verification endpoints
-func (m *Module) RegisterRoutes(apiGroup *gin.RouterGroup, userAuth, sendRateLimit, verifyRateLimit gin.HandlerFunc) {
-	apiGroup.POST("/users/me/send-email-verification", sendRateLimit, userAuth, httpserver.Handle(m.handler.send))
-	apiGroup.POST("/users/me/verify-email", verifyRateLimit, userAuth, httpserver.Handle(m.handler.verify))
+func (m *Module) RegisterRoutes(r *authz.Router, sendRateLimit, verifyRateLimit gin.HandlerFunc) {
+	r.POST("/users/me/send-email-verification", authz.AccountWrite, sendRateLimit, httpserver.Handle(m.handler.send))
+	r.POST("/users/me/verify-email", authz.AccountWrite, verifyRateLimit, httpserver.Handle(m.handler.verify))
 }

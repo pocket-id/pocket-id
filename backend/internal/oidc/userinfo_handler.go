@@ -6,7 +6,7 @@ import (
 	"net/http"
 
 	"github.com/gin-gonic/gin"
-	"github.com/ory/fosite"
+	"github.com/pocket-id/fosite"
 )
 
 type userInfoHandler struct {

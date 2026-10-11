@@ -19,6 +19,7 @@ import (
 const (
 	RateLimitAPI                     = "api"
 	RateLimitSignup                  = "signup"
+	RateLimitUpdateOwnAccount        = "update-own-account"
 	RateLimitWebauthnLogin           = "webauthn-login"
 	RateLimitWebauthnReauthenticate  = "webauthn-reauthenticate"
 	RateLimitOneTimeAccessToken      = "one-time-access-token"
@@ -50,6 +51,7 @@ func RateLimitPolicies() []RateLimitPolicy {
 	return []RateLimitPolicy{
 		{Name: RateLimitAPI, Rate: 100, Per: time.Second, Burst: 300},
 		{Name: RateLimitSignup, Rate: 2, Per: time.Minute, Burst: 10},
+		{Name: RateLimitUpdateOwnAccount, Rate: 2, Per: time.Minute, Burst: 10},
 		{Name: RateLimitWebauthnLogin, Rate: 1, Per: 5 * time.Second, Burst: 10},
 		{Name: RateLimitWebauthnReauthenticate, Rate: 1, Per: 10 * time.Second, Burst: 5},
 		{Name: RateLimitOneTimeAccessToken, Rate: 1, Per: 10 * time.Second, Burst: 5},

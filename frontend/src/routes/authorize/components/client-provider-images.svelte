@@ -5,7 +5,7 @@
 	import CrossAnimated from '#lib/icons/cross-animated.svelte';
 	import { m } from '#lib/paraglide/messages.js';
 	import appConfigStore from '#lib/stores/application-configuration-store.ts';
-	import type { OidcClientMetaData } from '#lib/types/oidc.type.ts';
+	import type { InteractionClient } from '#lib/types/oidc.type.ts';
 	import { cachedOidcClientLogo } from '#lib/utils/cached-image-util.ts';
 	import { mode } from 'mode-watcher';
 	import { untrack } from 'svelte';
@@ -21,7 +21,7 @@
 	}: {
 		success?: boolean;
 		error?: boolean;
-		client?: OidcClientMetaData;
+		client?: InteractionClient;
 	} = $props();
 
 	// Each tile travels this far so they meet in the middle

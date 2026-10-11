@@ -20,9 +20,9 @@ import (
 	"github.com/lestrrat-go/jwx/v4/jwa"
 	"github.com/lestrrat-go/jwx/v4/jwk"
 	"github.com/lestrrat-go/jwx/v4/jwt"
-	"github.com/ory/fosite"
-	"github.com/ory/fosite/compose"
-	fositejwt "github.com/ory/fosite/token/jwt"
+	"github.com/pocket-id/fosite"
+	"github.com/pocket-id/fosite/compose"
+	fositejwt "github.com/pocket-id/fosite/token/jwt"
 	"github.com/pocket-id/pocket-id/backend/internal/apikey"
 	"github.com/pocket-id/pocket-id/backend/internal/appconfig"
 	"gorm.io/gorm"
@@ -932,20 +932,14 @@ func seededRefreshTokenFixture(userID string, clientID string, fixtureRefreshTok
 }
 
 func (s *TestService) SignAccessToken(ctx context.Context, userID, clientID string, expired bool) (string, error) {
-	globalSecret, err := oidc.DeriveGlobalSecret(common.EnvConfig.EncryptionKey)
-	if err != nil {
-		return "", err
-	}
 	fositeConfig := &fosite.Config{
-		GlobalSecret:        globalSecret,
 		AccessTokenLifespan: AccessTokenDuration,
 		AccessTokenIssuer:   common.EnvConfig.AppURL,
 	}
-	coreStrategy := compose.NewOAuth2HMACStrategy(fositeConfig)
 	keyGetter := func(context.Context) (interface{}, error) {
 		return oidc.SigningKeyFromSigner(s.jwtService)
 	}
-	strategy := oidc.NewAccessTokenStrategy(compose.NewOAuth2RFC9068JWTStrategy(keyGetter, coreStrategy, fositeConfig), common.EnvConfig.AppURL)
+	strategy := oidc.NewAccessTokenStrategy(compose.NewOAuth2RFC9068JWTStrategy(keyGetter, fositeConfig), common.EnvConfig.AppURL)
 
 	expiresAt := time.Now().UTC().Add(AccessTokenDuration)
 	if expired {

@@ -42,7 +42,8 @@ export default defineConfig({
 	staged: {
 		'frontend/**/*': "sh -c 'vp fmt --check frontend'",
 		'tests/**/*': "sh -c 'vp fmt --check tests'",
-		'email-templates/**/*': "sh -c 'vp fmt --check email-templates'"
+		'email-templates/**/*': "sh -c 'vp fmt --check email-templates'",
+		'backend/**/*.go': `sh -c 'command -v gofmt >/dev/null || exit 0; gofmt -d "$@"' gofmt`
 	},
 	test: {
 		exclude: ['**/node_modules/**', 'tests/**'],

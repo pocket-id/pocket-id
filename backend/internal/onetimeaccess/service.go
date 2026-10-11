@@ -26,6 +26,7 @@ const (
 	authenticationMethodOneTimePassword = "otp"
 	shortTokenLength                    = 6
 	longTokenLength                     = 12
+	deviceTokenLength                   = 16
 )
 
 // TokenStore is the minimal interface needed to persist a one-time access token in the actor state store.
@@ -63,16 +64,16 @@ func (s *Service) RequestOneTimeAccessEmailAsAdmin(ctx context.Context, dbConfig
 	return err
 }
 
-func (s *Service) RequestOneTimeAccessEmailAsUnauthenticatedUser(ctx context.Context, dbConfig *appconfig.AppConfigModel, userID, redirectPath string) (string, error) {
+func (s *Service) RequestOneTimeAccessEmailAsUnauthenticatedUser(ctx context.Context, dbConfig *appconfig.AppConfigModel, email, redirectPath string) (string, error) {
 	if !dbConfig.EmailOneTimeAccessAsUnauthenticatedEnabled.IsTrue() {
 		return "", apperror.OneTimeAccessDisabled()
 	}
 
 	var userId string
-	err := s.db.Model(&model.User{}).Select("id").Where("email = ?", userID).First(&userId).Error
+	err := s.db.Model(&model.User{}).Select("id").Where("email = ?", email).First(&userId).Error
 	if errors.Is(err, gorm.ErrRecordNotFound) {
-		// Do not return error if user not found to prevent email enumeration
-		return "", nil
+		// Return a dummy device token that looks like a real one so the response does not reveal whether the email is registered
+		return utils.GenerateRandomAlphanumericString(deviceTokenLength)
 	} else if err != nil {
 		return "", err
 	}
@@ -276,7 +277,7 @@ func generateToken(ttl time.Duration, withDeviceToken bool) (token string, devic
 	}
 
 	if withDeviceToken {
-		dt, err := utils.GenerateRandomAlphanumericString(16)
+		dt, err := utils.GenerateRandomAlphanumericString(deviceTokenLength)
 		if err != nil {
 			return "", nil, err
 		}

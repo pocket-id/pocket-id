@@ -476,7 +476,7 @@ func (s *Service) syncGroups(ctx context.Context, provider ServiceProvider, grou
 func (s *Service) syncUser(ctx context.Context, provider ServiceProvider, user model.User, userResource *ScimUser) (scimSyncAction, *ScimUser, error) {
 	// If user is not allowed for the client, delete it from SCIM provider
 	if userResource != nil && !oidc.IsUserGroupAllowedToAuthorize(user, provider.OidcClient) {
-		return scimActionDeleted, nil, s.deleteScimResource(ctx, provider, fmt.Sprintf("/Users/%s", url.PathEscape(userResource.ID)))
+		return scimActionDeleted, nil, s.deleteScimResource(ctx, provider, "/Users/"+url.PathEscape(userResource.ID))
 	}
 
 	payload := ScimUser{
@@ -505,11 +505,13 @@ func (s *Service) syncUser(ctx context.Context, provider ServiceProvider, user m
 		if user.LastModified().Before(userResource.GetMeta().LastModified) {
 			return scimActionNone, nil, nil
 		}
-		path := fmt.Sprintf("/Users/%s", url.PathEscape(userResource.GetID()))
+
+		path := "/Users/" + url.PathEscape(userResource.GetID())
 		userResource, err := updateScimResource(s, ctx, provider, path, payload)
 		if err != nil {
 			return scimActionNone, nil, err
 		}
+
 		return scimActionUpdated, userResource, nil
 	}
 
@@ -525,10 +527,11 @@ func (s *Service) syncUser(ctx context.Context, provider ServiceProvider, user m
 func (s *Service) syncGroup(ctx context.Context, provider ServiceProvider, group model.UserGroup, groupResource *ScimGroup, userResources []ScimUser) (scimSyncAction, error) {
 	// If group is not allowed for the client, delete it from SCIM provider
 	if groupResource != nil && !groupAllowedForClient(group.ID, provider.OidcClient) {
-		err := s.deleteScimResource(ctx, provider, fmt.Sprintf("/Groups/%s", url.PathEscape(groupResource.GetID())))
+		err := s.deleteScimResource(ctx, provider, "/Groups/"+url.PathEscape(groupResource.GetID()))
 		if err != nil {
 			return scimActionNone, err
 		}
+
 		return scimActionDeleted, nil
 	}
 
@@ -560,11 +563,13 @@ func (s *Service) syncGroup(ctx context.Context, provider ServiceProvider, group
 		if group.LastModified().Before(groupResource.GetMeta().LastModified) {
 			return scimActionNone, nil
 		}
-		path := fmt.Sprintf("/Groups/%s", url.PathEscape(groupResource.GetID()))
+
+		path := "/Groups/" + url.PathEscape(groupResource.GetID())
 		_, err := updateScimResource(s, ctx, provider, path, groupPayload)
 		if err != nil {
 			return scimActionNone, err
 		}
+
 		return scimActionUpdated, nil
 	}
 
@@ -826,7 +831,7 @@ func (s *Service) scimRequest(ctx context.Context, provider ServiceProvider, met
 		}
 	}
 
-	return nil, fmt.Errorf("scim request retry attempts exceeded")
+	return nil, errors.New("scim request retry attempts exceeded")
 }
 
 func scimRetryDelay(retryAfter string, attempt int) time.Duration {

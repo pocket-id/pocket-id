@@ -5,7 +5,7 @@ import (
 	"testing"
 
 	"github.com/lestrrat-go/jwx/v4/jwa"
-	"github.com/ory/fosite"
+	"github.com/pocket-id/fosite"
 	"github.com/stretchr/testify/require"
 	"gorm.io/gorm"
 
@@ -156,6 +156,32 @@ func TestClaimsServiceBuildClaims(t *testing.T) {
 		// Profile must not leak email when the email scope was not requested.
 		require.NotContains(t, claims, "email")
 	})
+}
+
+// TestClaimsServiceBuildClaimsKeepsIntegerCustomClaims checks that integer custom claims are not turned into float64
+func TestClaimsServiceBuildClaimsKeepsIntegerCustomClaims(t *testing.T) {
+	db := testutils.NewDatabaseForTest(t)
+	require.NoError(t, db.Create(&model.User{Base: model.Base{ID: "user-1"}, Username: "tim"}).Error)
+
+	customClaims := fakeCustomClaimSource{claims: []model.CustomClaim{
+		{Key: "discord_id", Value: "1234567890123456789"},
+		{Key: "uid_number", Value: "1000000"},
+		{Key: "ratio", Value: "1.5"},
+		{Key: "nested", Value: `{"ids":[1234567890123456789]}`},
+		{Key: "not_json", Value: "1 2"},
+	}}
+	service := newClaimsService(db, customClaims, "", nil)
+
+	// No client is created, so the default policy is used
+	claimsSource, err := service.loadUserClaimsSource(t.Context(), "user-1", "client-1")
+	require.NoError(t, err)
+
+	claims := service.buildClaims(claimsSource, []string{"profile"}, UserInfoType)
+	require.Equal(t, int64(1234567890123456789), claims["discord_id"])
+	require.Equal(t, int64(1000000), claims["uid_number"])
+	require.InDelta(t, 1.5, claims["ratio"], 0)
+	require.Equal(t, map[string]any{"ids": []any{int64(1234567890123456789)}}, claims["nested"])
+	require.Equal(t, "1 2", claims["not_json"])
 }
 
 // TestClaimsServiceAppliesSigningAlgToIDTokenHeader verifies the ID token header carries the

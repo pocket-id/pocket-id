@@ -6,7 +6,7 @@ import (
 	"slices"
 
 	"github.com/gin-gonic/gin"
-	"github.com/ory/fosite"
+	"github.com/pocket-id/fosite"
 )
 
 type tokenHandler struct {

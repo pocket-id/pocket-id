@@ -3,8 +3,7 @@ package environment
 import (
 	"net/http"
 
-	"github.com/gin-gonic/gin"
-
+	"github.com/pocket-id/pocket-id/backend/internal/authz"
 	"github.com/pocket-id/pocket-id/backend/internal/httpserver"
 )
 
@@ -31,8 +30,8 @@ func New(deps Dependencies) *Module {
 }
 
 // RegisterRoutes mounts the environment endpoints
-func (m *Module) RegisterRoutes(apiGroup *gin.RouterGroup, auth gin.HandlerFunc) {
-	apiGroup.GET("/version/latest", httpserver.Handle(m.handler.getLatestVersion))
-	apiGroup.GET("/version/current", auth, httpserver.Handle(m.handler.getCurrentVersion))
-	apiGroup.GET("/storage/sqlite-warning", auth, httpserver.Handle(m.handler.getSqliteStorageWarning))
+func (m *Module) RegisterRoutes(r *authz.Router) {
+	r.Public().GET("/version/latest", httpserver.Handle(m.handler.getLatestVersion))
+	r.GET("/version/current", authz.AccountRead, httpserver.Handle(m.handler.getCurrentVersion))
+	r.GET("/storage/sqlite-warning", authz.AccountRead, httpserver.Handle(m.handler.getSqliteStorageWarning))
 }

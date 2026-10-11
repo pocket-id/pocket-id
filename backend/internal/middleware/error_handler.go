@@ -3,10 +3,10 @@ package middleware
 import (
 	"context"
 	"errors"
-	"fmt"
 	"log/slog"
 	"net/http"
 	"reflect"
+	"strconv"
 	"strings"
 	"time"
 	"unicode"
@@ -254,7 +254,7 @@ func formatRetryAfter(retryAfter time.Duration) string {
 		seconds = 1
 	}
 
-	return fmt.Sprintf("%d", seconds)
+	return strconv.Itoa(seconds)
 }
 
 func capitalizeFirst(message string) string {

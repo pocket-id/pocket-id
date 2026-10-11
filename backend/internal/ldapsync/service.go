@@ -5,6 +5,7 @@ import (
 	"context"
 	"crypto/tls"
 	"encoding/base64"
+	"errors"
 	"fmt"
 	"io"
 	"log/slog"
@@ -374,6 +375,12 @@ func (s *Service) fetchUsersFromLDAP(ctx context.Context, client ldapClient, dbC
 		err = newUser.Validate()
 		if err != nil {
 			slog.WarnContext(ctx, "LDAP user object is not valid", slog.Any("error", err))
+			continue
+		}
+
+		// Saving a user without an email fails when emails are required, which would abort the whole sync
+		if dbConfig.RequireUserEmail.IsTrue() && newUser.Email == nil {
+			slog.WarnContext(ctx, "Skipping LDAP user without an email address because emails are required", slog.String("username", newUser.Username))
 			continue
 		}
 
@@ -756,8 +763,15 @@ func (s *Service) saveProfilePicture(parentCtx context.Context, userId string, p
 		}
 		defer res.Body.Close()
 
-		data, err := io.ReadAll(res.Body)
-		if err != nil {
+		const maxProfilePictureSize int64 = 2 * 1024 * 1024 // 2MB
+		if res.ContentLength > maxProfilePictureSize {
+			return errors.New("profile picture must not exceed 2 MB")
+		}
+
+		data, err := io.ReadAll(utils.NewLimitReader(res.Body, maxProfilePictureSize+1))
+		if errors.Is(err, utils.ErrSizeExceeded) {
+			return errors.New("profile picture must not exceed 2 MB")
+		} else if err != nil {
 			return fmt.Errorf("failed to read profile picture: %w", err)
 		}
 

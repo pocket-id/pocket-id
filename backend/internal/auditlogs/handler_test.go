@@ -2,6 +2,7 @@ package auditlogs
 
 import (
 	"encoding/json"
+	"errors"
 	"net/http"
 	"net/http/httptest"
 	"testing"
@@ -9,6 +10,8 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/stretchr/testify/require"
 
+	"github.com/pocket-id/pocket-id/backend/internal/apperror"
+	"github.com/pocket-id/pocket-id/backend/internal/authz"
 	"github.com/pocket-id/pocket-id/backend/internal/model"
 	testutils "github.com/pocket-id/pocket-id/backend/internal/utils/testing"
 )
@@ -28,15 +31,20 @@ func TestAuditLogRoutesPreservePermissionsAndResponses(t *testing.T) {
 		}).Error)
 	}
 
-	// Keep authentication lightweight while exercising which middleware each route receives
+	// Keep authentication lightweight while exercising which scope each route requires
 	router := gin.New()
 	router.Use(func(c *gin.Context) {
 		c.Next()
-		if len(c.Errors) > 0 {
-			c.JSON(http.StatusInternalServerError, gin.H{"error": c.Errors.String()})
+		if len(c.Errors) == 0 {
+			return
 		}
+		status := http.StatusInternalServerError
+		if appErr, ok := errors.AsType[*apperror.Error](c.Errors.Last().Err); ok {
+			status = appErr.HTTPStatus()
+		}
+		c.JSON(status, gin.H{"error": c.Errors.String()})
 	})
-	module.RegisterRoutes(router.Group("/api"), auditLogTestAuth(true), auditLogTestAuth(false))
+	module.RegisterRoutes(authz.NewMiddleware(auditLogTestAuthenticator{}).Router(router.Group("/api")))
 
 	for _, path := range []string{"/audit-logs", "/audit-logs/all", "/audit-logs/filters/client-names", "/audit-logs/filters/users"} {
 		for _, role := range []string{"", "user", "admin"} {
@@ -62,19 +70,24 @@ func TestAuditLogRoutesPreservePermissionsAndResponses(t *testing.T) {
 	}
 }
 
-func auditLogTestAuth(adminRequired bool) gin.HandlerFunc {
-	return func(c *gin.Context) {
-		role := c.GetHeader("X-Test-Role")
-		if role == "" {
-			c.AbortWithStatus(http.StatusUnauthorized)
-			return
-		}
-		if adminRequired && role != "admin" {
-			c.AbortWithStatus(http.StatusForbidden)
-			return
-		}
-		c.Set("userID", "alice")
-	}
+// auditLogTestAuthenticator signs in as alice with the role named in the X-Test-Role header
+type auditLogTestAuthenticator struct{}
+
+func (auditLogTestAuthenticator) Kind() authz.PrincipalKind {
+	return authz.KindSession
+}
+
+func (auditLogTestAuthenticator) Present(c *gin.Context) bool {
+	return c.GetHeader("X-Test-Role") != ""
+}
+
+func (auditLogTestAuthenticator) Authenticate(c *gin.Context) (*authz.Principal, error) {
+	isAdmin := c.GetHeader("X-Test-Role") == "admin"
+	return &authz.Principal{
+		Kind:   authz.KindSession,
+		UserID: "alice",
+		Scopes: authz.UserScopes(isAdmin, authz.KindSession),
+	}, nil
 }
 
 func assertAuditLogRouteResponse(t *testing.T, path string, response *httptest.ResponseRecorder) {

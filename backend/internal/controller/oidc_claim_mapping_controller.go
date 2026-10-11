@@ -4,9 +4,9 @@ import (
 	"net/http"
 
 	"github.com/gin-gonic/gin"
+	"github.com/pocket-id/pocket-id/backend/internal/authz"
 	"github.com/pocket-id/pocket-id/backend/internal/dto"
 	"github.com/pocket-id/pocket-id/backend/internal/httpserver"
-	"github.com/pocket-id/pocket-id/backend/internal/middleware"
 	"github.com/pocket-id/pocket-id/backend/internal/model"
 	"github.com/pocket-id/pocket-id/backend/internal/service"
 	"github.com/pocket-id/pocket-id/backend/internal/utils"
@@ -16,20 +16,18 @@ import (
 // @Summary OIDC claim mapping policy controller
 // @Description Initializes all OIDC claim mapping policy-related API endpoints
 // @Tags OIDC Claim Mapping Policy
-func NewOidcClaimMappingPolicyController(r *gin.RouterGroup, authMiddleware *middleware.AuthMiddleware, oidcClaimMappingPolicyService *service.OidcClaimMappingPolicyService) {
+func NewOidcClaimMappingPolicyController(r *authz.Router, oidcClaimMappingPolicyService *service.OidcClaimMappingPolicyService) {
 	ocmc := &OidcClaimMappingPolicyController{oidcClaimMappingService: oidcClaimMappingPolicyService}
 
-	group := r.Group("", authMiddleware.Add())
-	group.GET("/oidc/claim-mapping-policies", httpserver.Handle(ocmc.listClaimMappingPolicyHandler))
-	group.POST("/oidc/claim-mapping-policies", httpserver.Handle(ocmc.createClaimMappingPolicyHandler))
-	group.GET("/oidc/claim-mapping-policies/:id", httpserver.Handle(ocmc.getClaimMappingPolicyHandler))
-	group.PUT("/oidc/claim-mapping-policies/:id", httpserver.Handle(ocmc.updateClaimMappingPolicyHandler))
-	group.DELETE("/oidc/claim-mapping-policies/:id", httpserver.Handle(ocmc.deleteClaimMappingPolicyHandler))
-	group.GET("/oidc/claim-mapping-policies/:id/clients", httpserver.Handle(ocmc.listClientsByClaimMappingPolicyHandler))
-	group.GET("/oidc/claim-mapping-policies/:id/assignable-clients", httpserver.Handle(ocmc.listAssignableClientsHandler))
-	group.POST("/oidc/claim-mapping-policies/:id/clients/:clientId", httpserver.Handle(ocmc.assignClientHandler))
-	group.DELETE("/oidc/claim-mapping-policies/:id/clients/:clientId", httpserver.Handle(ocmc.removeClientHandler))
-
+	r.GET("/oidc/claim-mapping-policies", authz.OidcClientsRead, httpserver.Handle(ocmc.listClaimMappingPolicyHandler))
+	r.POST("/oidc/claim-mapping-policies", authz.OidcClientsWrite, httpserver.Handle(ocmc.createClaimMappingPolicyHandler))
+	r.GET("/oidc/claim-mapping-policies/:id", authz.OidcClientsRead, httpserver.Handle(ocmc.getClaimMappingPolicyHandler))
+	r.PUT("/oidc/claim-mapping-policies/:id", authz.OidcClientsWrite, httpserver.Handle(ocmc.updateClaimMappingPolicyHandler))
+	r.DELETE("/oidc/claim-mapping-policies/:id", authz.OidcClientsWrite, httpserver.Handle(ocmc.deleteClaimMappingPolicyHandler))
+	r.GET("/oidc/claim-mapping-policies/:id/clients", authz.OidcClientsRead, httpserver.Handle(ocmc.listClientsByClaimMappingPolicyHandler))
+	r.GET("/oidc/claim-mapping-policies/:id/assignable-clients", authz.OidcClientsRead, httpserver.Handle(ocmc.listAssignableClientsHandler))
+	r.POST("/oidc/claim-mapping-policies/:id/clients/:clientId", authz.OidcClientsWrite, httpserver.Handle(ocmc.assignClientHandler))
+	r.DELETE("/oidc/claim-mapping-policies/:id/clients/:clientId", authz.OidcClientsWrite, httpserver.Handle(ocmc.removeClientHandler))
 }
 
 type OidcClaimMappingPolicyController struct {
