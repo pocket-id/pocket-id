@@ -378,6 +378,12 @@ func (s *Service) fetchUsersFromLDAP(ctx context.Context, client ldapClient, dbC
 			continue
 		}
 
+		// Saving a user without an email fails when emails are required, which would abort the whole sync
+		if dbConfig.RequireUserEmail.IsTrue() && newUser.Email == nil {
+			slog.WarnContext(ctx, "Skipping LDAP user without an email address because emails are required", slog.String("username", newUser.Username))
+			continue
+		}
+
 		desiredUsers = append(desiredUsers, ldapDesiredUser{
 			ldapID:  ldapID,
 			input:   newUser,
