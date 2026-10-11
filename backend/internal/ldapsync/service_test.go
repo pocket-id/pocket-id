@@ -401,6 +401,71 @@ func TestLdapServiceSyncAllBumpsUpdatedAtOfSoftDeletedUsers(t *testing.T) {
 	assert.Equal(t, lastSync.ToTime().Unix(), disabled.UpdatedAt.ToTime().Unix())
 }
 
+func TestLdapServiceSyncAllSkipsUsersWithoutEmailWhenEmailIsRequired(t *testing.T) {
+	service, db := newTestLdapService(t, newFakeLDAPClient(
+		ldapSearchResult(
+			ldapEntry("uid=alice,ou=people,dc=example,dc=com", map[string][]string{
+				"entryUUID": {"u-alice"},
+				"uid":       {"alice"},
+				"mail":      {"alice@example.com"},
+				"givenName": {"Alice"},
+				"sn":        {"Jones"},
+			}),
+			ldapEntry("uid=service,ou=people,dc=example,dc=com", map[string][]string{
+				"entryUUID": {"u-service"},
+				"uid":       {"service"},
+				"givenName": {"Service"},
+				"sn":        {"Account"},
+			}),
+			ldapEntry("uid=bob,ou=people,dc=example,dc=com", map[string][]string{
+				"entryUUID": {"u-bob"},
+				"uid":       {"bob"},
+				"givenName": {"Bob"},
+				"sn":        {"Brown"},
+			}),
+		),
+		ldapSearchResult(
+			ldapEntry("cn=team,ou=groups,dc=example,dc=com", map[string][]string{
+				"entryUUID": {"g-team"},
+				"cn":        {"team"},
+				"member": {
+					"uid=alice,ou=people,dc=example,dc=com",
+					"uid=service,ou=people,dc=example,dc=com",
+				},
+			}),
+		),
+	))
+
+	// Bob was synced earlier, before his mail attribute was removed in LDAP
+	bobLdapID := "u-bob"
+	require.NoError(t, db.Create(&model.User{
+		Username:  "bob",
+		Email:     new("bob@example.com"),
+		FirstName: "Bob",
+		LastName:  "Brown",
+		LdapID:    &bobLdapID,
+	}).Error)
+
+	config := defaultTestLDAPAppConfig()
+	config.RequireUserEmail = "true"
+
+	err := service.SyncAll(t.Context(), config)
+	require.NoError(t, err)
+
+	var users []model.User
+	require.NoError(t, db.Order("username").Find(&users).Error)
+	assert.Equal(t, []string{"alice", "bob"}, usernames(users))
+
+	var bob model.User
+	require.NoError(t, db.First(&bob, "ldap_id = ?", bobLdapID).Error)
+	assert.Equal(t, new("bob@example.com"), bob.Email)
+	assert.False(t, bob.Disabled)
+
+	var team model.UserGroup
+	require.NoError(t, db.Preload("Users").First(&team, "ldap_id = ?", "g-team").Error)
+	assert.Equal(t, []string{"alice"}, usernames(team.Users))
+}
+
 func TestLdapServiceSyncAllSetsAdminFromGroupMembership(t *testing.T) {
 	tests := []struct {
 		name        string
