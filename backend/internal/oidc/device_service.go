@@ -103,8 +103,7 @@ func (s *deviceService) acceptDeviceCode(ctx context.Context, userCode, userID, 
 	claimsSource, err := s.claimsService.loadUserClaimsSource(ctx, userID, client.GetID())
 	if errors.Is(err, errClaimsUserNotFound) {
 		return apperror.UserNotFound()
-	}
-	if err != nil {
+	} else if err != nil {
 		return err
 	}
 	if !IsUserGroupAllowedToAuthorize(claimsSource.user, client.OidcClient) {
@@ -142,7 +141,8 @@ func (s *deviceService) acceptDeviceCode(ctx context.Context, userCode, userID, 
 		// Keep the lifetimes of the pending device authorization, so its codes and the OpenID Connect session created below still expire
 		copyDeviceCodeExpiry(request.GetSession(), session)
 
-		if err = s.claimsService.applyTokenClaims(session, request.GetGrantedScopes(), claimsSource); err != nil {
+		err = s.claimsService.applyTokenClaims(session, request.GetGrantedScopes(), claimsSource)
+		if err != nil {
 			return err
 		}
 		request.SetSession(session)

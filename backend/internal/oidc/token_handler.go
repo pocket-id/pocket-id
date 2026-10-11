@@ -127,7 +127,11 @@ func (h *tokenHandler) validateRefreshAPIGrant(ctx context.Context, client Clien
 	}
 
 	_, _, err = resolveResource(ctx, nil, h.apiAccess, client.GetID(), resource, accessRequest.GetGrantedScopes(), SubjectTypeUser)
-	return err
+	if err != nil {
+		return err
+	}
+
+	return nil
 }
 
 // refreshGrantResource recovers the API resource of a refresh grant from its granted audience

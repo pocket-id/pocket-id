@@ -196,7 +196,9 @@ func (ocmc *OidcClaimMappingPolicyController) listClientsByClaimMappingPolicyHan
 	searchTerm := c.Query("search")
 	listRequestOptions := utils.ParseListRequestOptions(c)
 
-	clients, pagination, err := ocmc.oidcClaimMappingService.ListClientsByClaimMappingPolicy(c.Request.Context(), c.Param("id"), searchTerm, listRequestOptions)
+	clients, pagination, err := ocmc.oidcClaimMappingService.ListClientsByClaimMappingPolicy(
+		c.Request.Context(), c.Param("id"), searchTerm, listRequestOptions,
+	)
 	if err != nil {
 		return err
 	}
@@ -230,7 +232,9 @@ func (ocmc *OidcClaimMappingPolicyController) listAssignableClientsHandler(c *gi
 	searchTerm := c.Query("search")
 	listRequestOptions := utils.ParseListRequestOptions(c)
 
-	clients, pagination, err := ocmc.oidcClaimMappingService.ListAssignableClients(c.Request.Context(), c.Param("id"), searchTerm, listRequestOptions)
+	clients, pagination, err := ocmc.oidcClaimMappingService.ListAssignableClients(
+		c.Request.Context(), c.Param("id"), searchTerm, listRequestOptions,
+	)
 	if err != nil {
 		return err
 	}
@@ -257,7 +261,9 @@ func (ocmc *OidcClaimMappingPolicyController) listAssignableClientsHandler(c *gi
 // @Failure default {object} dto.ErrorDto "Error"
 // @Router /api/oidc/claim-mapping-policies/{id}/clients/{clientId} [post]
 func (ocmc *OidcClaimMappingPolicyController) assignClientHandler(c *gin.Context) error {
-	err := ocmc.oidcClaimMappingService.AssignClientToClaimMappingPolicy(c.Request.Context(), c.Param("id"), c.Param("clientId"))
+	err := ocmc.oidcClaimMappingService.AssignClientToClaimMappingPolicy(
+		c.Request.Context(), c.Param("id"), c.Param("clientId"),
+	)
 	if err != nil {
 		return err
 	}
@@ -276,7 +282,9 @@ func (ocmc *OidcClaimMappingPolicyController) assignClientHandler(c *gin.Context
 // @Failure default {object} dto.ErrorDto "Error"
 // @Router /api/oidc/claim-mapping-policies/{id}/clients/{clientId} [delete]
 func (ocmc *OidcClaimMappingPolicyController) removeClientHandler(c *gin.Context) error {
-	err := ocmc.oidcClaimMappingService.RemoveClientFromClaimMappingPolicy(c.Request.Context(), c.Param("id"), c.Param("clientId"))
+	err := ocmc.oidcClaimMappingService.RemoveClientFromClaimMappingPolicy(
+		c.Request.Context(), c.Param("id"), c.Param("clientId"),
+	)
 	if err != nil {
 		return err
 	}
@@ -294,6 +302,7 @@ func clientMetaDataDtos(clients []model.OidcClient) ([]dto.OidcClientMetaDataDto
 		if err := dto.MapStruct(client, &clientDto); err != nil {
 			return nil, err
 		}
+
 		clientDto.HasDarkLogo = client.HasDarkLogo()
 		dtos[i] = clientDto
 	}

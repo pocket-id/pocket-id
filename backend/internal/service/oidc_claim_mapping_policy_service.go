@@ -96,7 +96,8 @@ func (s *OidcClaimMappingPolicyService) GetClaimMappingPolicy(ctx context.Contex
 // mapping policy, optionally filtered by client name
 func (s *OidcClaimMappingPolicyService) ListClientsByClaimMappingPolicy(ctx context.Context, policyID string, name string, listRequestOptions utils.ListRequestOptions) ([]model.OidcClient, utils.PaginationResponse, error) {
 	// Resolve the policy first, so an unknown ID reports a 404 instead of an empty page
-	if _, err := s.GetClaimMappingPolicy(ctx, policyID); err != nil {
+	_, err := s.GetClaimMappingPolicy(ctx, policyID)
+	if err != nil {
 		return nil, utils.PaginationResponse{}, err
 	}
 
@@ -120,7 +121,8 @@ func (s *OidcClaimMappingPolicyService) ListClientsByClaimMappingPolicy(ctx cont
 // ListAssignableClients returns a paginated list of the OIDC clients that are not on this claim
 // mapping policy yet, so they can be offered for assignment
 func (s *OidcClaimMappingPolicyService) ListAssignableClients(ctx context.Context, policyID string, name string, listRequestOptions utils.ListRequestOptions) ([]model.OidcClient, utils.PaginationResponse, error) {
-	if _, err := s.GetClaimMappingPolicy(ctx, policyID); err != nil {
+	_, err := s.GetClaimMappingPolicy(ctx, policyID)
+	if err != nil {
 		return nil, utils.PaginationResponse{}, err
 	}
 
@@ -144,7 +146,8 @@ func (s *OidcClaimMappingPolicyService) ListAssignableClients(ctx context.Contex
 // AssignClientToClaimMappingPolicy points a client at the policy. A client has a single policy, so
 // this replaces whichever one it was on before.
 func (s *OidcClaimMappingPolicyService) AssignClientToClaimMappingPolicy(ctx context.Context, policyID string, clientID string) error {
-	if _, err := s.GetClaimMappingPolicy(ctx, policyID); err != nil {
+	_, err := s.GetClaimMappingPolicy(ctx, policyID)
+	if err != nil {
 		return err
 	}
 
@@ -166,7 +169,8 @@ func (s *OidcClaimMappingPolicyService) AssignClientToClaimMappingPolicy(ctx con
 // the default one. The client must currently be on this policy, so a stale request cannot detach a
 // client that has since been moved elsewhere.
 func (s *OidcClaimMappingPolicyService) RemoveClientFromClaimMappingPolicy(ctx context.Context, policyID string, clientID string) error {
-	if _, err := s.GetClaimMappingPolicy(ctx, policyID); err != nil {
+	_, err := s.GetClaimMappingPolicy(ctx, policyID)
+	if err != nil {
 		return err
 	}
 

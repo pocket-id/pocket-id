@@ -197,7 +197,13 @@ func (s *authorizationService) authorize(ctx context.Context, input authorizeInp
 		if txErr != nil {
 			return txErr
 		}
-		return s.claimsService.applyTokenClaims(result.Session, input.requester.GetGrantedScopes(), claimsSource)
+
+		txErr = s.claimsService.applyTokenClaims(result.Session, input.requester.GetGrantedScopes(), claimsSource)
+		if txErr != nil {
+			return txErr
+		}
+
+		return nil
 	})
 	if err != nil {
 		return authorizationResult{}, err

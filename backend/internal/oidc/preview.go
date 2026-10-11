@@ -55,7 +55,7 @@ func (b *ClientPreviewBuilder) BuildClientPreview(ctx context.Context, client mo
 		return nil, fmt.Errorf("failed to generate preview ID token: %w", err)
 	}
 
-	applyUserClaimsToAccessToken(session, userID, b.claimsService.buildClaims(claimsSource, scopeArgs, AccessTokenType))
+	applyUserClaimsToAccessToken(session, b.claimsService.buildClaims(claimsSource, scopeArgs, AccessTokenType))
 
 	accessToken, _, err := b.strategies.accessToken.GenerateAccessToken(ctx, request)
 	if err != nil {
