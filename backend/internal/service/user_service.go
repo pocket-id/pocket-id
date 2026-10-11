@@ -544,11 +544,11 @@ func (s *UserService) UpdateUser(ctx context.Context, cfg *appconfig.AppConfigMo
 	}
 
 	// The verified email stays in effect until the user confirms the new address through the emailed link
-	// The other changes are already saved, but the user has to learn that the email change could not be started
+	// The other changes are already saved, so the error tells the user that only the email change could not be started
 	if change.deferred != nil {
 		err = s.emailVerification.RequestEmailChange(ctx, cfg, userID, *change.deferred)
 		if err != nil {
-			return model.User{}, err
+			return user, apperror.EmailChangeNotStarted(err)
 		}
 	}
 

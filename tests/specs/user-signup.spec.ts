@@ -300,7 +300,12 @@ test.describe('User Signup', () => {
 		test('Open signup with required email verification restricts the new account', async ({
 			page
 		}) => {
-			await setAppConfigValues(page.request, { emailVerification: 'required' });
+			// Required verification needs an SMTP server, but nothing listens on it, so the email sent at signup just fails
+			await setAppConfigValues(page.request, {
+				emailVerification: 'required',
+				smtpHost: 'localhost',
+				smtpFrom: 'pocket-id@test.com'
+			});
 			await setSignupMode(page, 'Open Signup');
 
 			await page.goto('/signup');

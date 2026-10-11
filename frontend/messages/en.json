@@ -579,6 +579,7 @@
 	"email_verification_deadline_description": "If you don't, your account will be deleted {time}.",
 	"verify_email_address": "Verify email address",
 	"email_verification_required_error": "You must verify your email address before you can sign in to applications",
+	"email_change_not_started": "Your other changes were saved, but the email to confirm your new email address couldn't be sent. Please try again.",
 	"email_change_pending_title": "Confirm your new email address",
 	"email_change_pending_description": "We sent a confirmation link to {email}. Your current email address stays in use until you confirm the change.",
 	"cancel_email_change": "Cancel change",

@@ -55,7 +55,7 @@ async function markCraigVerified(request: APIRequestContext) {
 test.describe('Required email verification', () => {
 	test.beforeEach(async ({ page }) => {
 		await cleanupBackend();
-		await setAppConfigValues(page.request, { emailVerification: 'required' });
+		await requireEmailVerificationWithSmtp(page.request);
 
 		// Craig is a regular user whose email is not verified yet
 		await authUtil.changeUser(page, 'craig');

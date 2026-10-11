@@ -280,15 +280,21 @@ func TestAppConfigBindingValidatesRequiredEmailVerification(t *testing.T) {
 		return httpserver.BindJSON(c, &input)
 	}))
 
+	const (
+		smtpHost = "smtp.example.com"
+		smtpFrom = "pocket-id@example.com"
+	)
 	for _, tt := range []struct {
-		name, mode, required, verified string
-		status                         int
+		name, mode, required, verified, host, from string
+		status                                     int
 	}{
-		{"required with trusted emails", "required", "true", "true", http.StatusBadRequest},
-		{"required without email", "required", "false", "false", http.StatusBadRequest},
-		{"valid required", "required", "true", "false", http.StatusOK},
-		{"optional with trusted emails", "optional", "false", "true", http.StatusOK},
-		{"disabled with trusted emails", "disabled", "false", "true", http.StatusOK},
+		{"required with trusted emails", "required", "true", "true", smtpHost, smtpFrom, http.StatusBadRequest},
+		{"required without email", "required", "false", "false", smtpHost, smtpFrom, http.StatusBadRequest},
+		{"required without SMTP host", "required", "true", "false", "", smtpFrom, http.StatusBadRequest},
+		{"required without sender address", "required", "true", "false", smtpHost, "", http.StatusBadRequest},
+		{"valid required", "required", "true", "false", smtpHost, smtpFrom, http.StatusOK},
+		{"optional with trusted emails", "optional", "false", "true", "", "", http.StatusOK},
+		{"disabled with trusted emails", "disabled", "false", "true", "", "", http.StatusOK},
 	} {
 		t.Run(tt.name, func(t *testing.T) {
 			var input dto.AppConfigUpdateDto
@@ -296,6 +302,8 @@ func TestAppConfigBindingValidatesRequiredEmailVerification(t *testing.T) {
 			input.EmailVerification = tt.mode
 			input.RequireUserEmail = tt.required
 			input.EmailsVerified = tt.verified
+			input.SmtpHost = tt.host
+			input.SmtpFrom = tt.from
 			payload, err := json.Marshal(input)
 			require.NoError(t, err)
 			request := httptest.NewRequestWithContext(t.Context(), http.MethodPut, "/config", strings.NewReader(string(payload)))
@@ -311,7 +319,7 @@ func TestAppConfigBindingValidatesRequiredEmailVerification(t *testing.T) {
 					} `json:"details"`
 				}
 				require.NoError(t, json.Unmarshal(recorder.Body.Bytes(), &body))
-				require.Equal(t, []apperror.FieldError{{Field: "emailVerification", Code: "invalid_configuration", Message: "requires user emails and forbids emails verified by default"}}, body.Details.Fields)
+				require.Equal(t, []apperror.FieldError{{Field: "emailVerification", Code: "invalid_configuration", Message: "requires user emails, an SMTP host and sender address, and forbids emails verified by default"}}, body.Details.Fields)
 			}
 		})
 	}

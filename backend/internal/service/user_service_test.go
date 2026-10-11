@@ -3,6 +3,7 @@ package service
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"strings"
 	"testing"
 	"time"
@@ -208,8 +209,9 @@ func TestDeleteUserBumpsGroupUpdatedAt(t *testing.T) {
 }
 
 type recordingEmailVerificationSender struct {
-	sent      []string
-	requested []string
+	sent       []string
+	requested  []string
+	requestErr error
 }
 
 func (r *recordingEmailVerificationSender) Send(_ context.Context, _ *appconfig.AppConfigModel, userID string) error {
@@ -219,7 +221,7 @@ func (r *recordingEmailVerificationSender) Send(_ context.Context, _ *appconfig.
 
 func (r *recordingEmailVerificationSender) RequestEmailChange(_ context.Context, _ *appconfig.AppConfigModel, _, newEmail string) error {
 	r.requested = append(r.requested, newEmail)
-	return nil
+	return r.requestErr
 }
 
 func TestUpdateOwnEmailWithVerification(t *testing.T) {
@@ -294,6 +296,21 @@ func TestUpdateOwnEmailWithVerification(t *testing.T) {
 
 		require.Equal(t, "Renamed", updated.FirstName)
 		require.Equal(t, "old@example.com", *updated.Email)
+	})
+
+	t.Run("a change link that can't be sent is reported apart from the saved fields", func(t *testing.T) {
+		userService, sender, config, user, update := setup(t, appconfig.EmailVerificationRequired, true)
+		sender.requestErr = errors.New("smtp unavailable")
+		update.FirstName = "Renamed"
+
+		updated, err := userService.UpdateUser(t.Context(), config, user.ID, update, true, false)
+		require.True(t, apperror.IsCode(err, apperror.CodeEmailChangeNotStarted))
+		require.Equal(t, "Renamed", updated.FirstName)
+
+		stored, err := userService.GetUser(t.Context(), user.ID)
+		require.NoError(t, err)
+		require.Equal(t, "Renamed", stored.FirstName)
+		require.Equal(t, "old@example.com", *stored.Email)
 	})
 
 	t.Run("no change link is sent when the user may not edit their own account", func(t *testing.T) {
