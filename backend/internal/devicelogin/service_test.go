@@ -5,7 +5,6 @@ package devicelogin
 import (
 	"context"
 	"errors"
-	"net"
 	"strings"
 	"sync"
 	"testing"
@@ -236,6 +235,7 @@ func TestPendingExchangeObservesDecisionDuringLongPoll(t *testing.T) {
 		require.True(t, apperror.IsCode(outcome.err, apperror.CodeDeviceLoginDenied))
 		require.Equal(t, RequestStatusDenied, outcome.status)
 	case <-time.After(2 * time.Second):
+	case <-time.After(actorPollingInterval + 5*time.Second):
 		t.Fatal("exchange did not observe the actor decision")
 	}
 }
@@ -548,7 +548,7 @@ func startPersistentDeviceLoginHost(t *testing.T, db *gorm.DB, deps Dependencies
 	require.NoError(t, err)
 
 	host, err := local.NewHost(
-		local.WithAddress(freeLoopbackAddress(t)),
+		local.WithAddress(testutils.FreeLoopbackUDPAddr(t)),
 		local.WithRuntimePSKs([]byte("pocket-id-device-login-test-host-psk")),
 		local.WithSQLiteProvider(local.SQLiteProviderOptions{DB: sqlDB}),
 		local.WithShutdownGracePeriod(time.Second),
@@ -585,16 +585,6 @@ func startPersistentDeviceLoginHost(t *testing.T, db *gorm.DB, deps Dependencies
 	}
 	t.Cleanup(stop)
 	return module, stop
-}
-
-func freeLoopbackAddress(t *testing.T) string {
-	t.Helper()
-	var listenConfig net.ListenConfig
-	listener, err := listenConfig.Listen(t.Context(), "tcp", "127.0.0.1:0")
-	require.NoError(t, err)
-	address := listener.Addr().String()
-	require.NoError(t, listener.Close())
-	return address
 }
 
 func (f *fakeAuditLogger) CreateSignIn(ctx context.Context, event auditlogs.Event, ipAddress, userAgent, userID, browserToken string, tx *gorm.DB, mode appconfig.AppConfigValue) auditlogs.SignInResult {
