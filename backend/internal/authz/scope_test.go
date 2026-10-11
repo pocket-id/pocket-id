@@ -62,6 +62,36 @@ func TestUserScopes(t *testing.T) {
 	})
 }
 
+func TestPrincipalRestrictUnverified(t *testing.T) {
+	t.Run("keeps only the scopes needed to verify the email and withholds the rest", func(t *testing.T) {
+		principal := &Principal{Kind: KindSession, Scopes: UserScopes(false, KindSession)}
+		principal.RestrictUnverified()
+
+		require.Equal(t, NewScopeSet(AccountRead, AccountWrite, AccountPasskeys, AccountPasskeysEnroll, AccountSession), principal.Scopes)
+		require.Equal(t, NewScopeSet(AccountAPIKeys, AccountApps, AccountAuditLogs, AccountAuthorize, AccountAPIKeysCreate), principal.WithheldUntilVerified)
+	})
+
+	t.Run("never adds scopes the credential kind cannot hold", func(t *testing.T) {
+		principal := &Principal{Kind: KindAPIKey, Scopes: UserScopes(false, KindAPIKey)}
+		principal.RestrictUnverified()
+
+		require.Equal(t, NewScopeSet(AccountRead, AccountWrite, AccountPasskeys), principal.Scopes)
+		require.False(t, principal.WithheldUntilVerified.Has(AccountAuthorize))
+	})
+
+	t.Run("withholds admin scopes", func(t *testing.T) {
+		principal := &Principal{Kind: KindSession, Scopes: UserScopes(true, KindSession)}
+		principal.RestrictUnverified()
+
+		for _, entry := range catalog {
+			if entry.category == CategoryAdmin {
+				require.False(t, principal.Scopes.Has(entry.scope), entry.scope)
+				require.True(t, principal.WithheldUntilVerified.Has(entry.scope), entry.scope)
+			}
+		}
+	})
+}
+
 func TestUnknownScope(t *testing.T) {
 	unknown := Scope("unknown:scope")
 	require.False(t, unknown.Known())

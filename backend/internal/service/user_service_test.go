@@ -1,6 +1,7 @@
 package service
 
 import (
+	"context"
 	"encoding/json"
 	"strings"
 	"testing"
@@ -34,6 +35,7 @@ func newTestUserService(t *testing.T) (*UserService, *UserGroupService) {
 		nil,
 		nil,
 		fileStorage,
+		nil,
 	)
 	groupService := NewUserGroupService(db, nil, nil)
 
@@ -203,4 +205,159 @@ func TestDeleteUserBumpsGroupUpdatedAt(t *testing.T) {
 	require.NoError(t, err)
 	require.Empty(t, updated.Users)
 	require.True(t, updated.LastModified().After(past), "deleting a member must bump the group's UpdatedAt")
+}
+
+type recordingEmailVerificationSender struct {
+	sent      []string
+	requested []string
+}
+
+func (r *recordingEmailVerificationSender) Send(_ context.Context, _ *appconfig.AppConfigModel, userID string) error {
+	r.sent = append(r.sent, userID)
+	return nil
+}
+
+func (r *recordingEmailVerificationSender) RequestEmailChange(_ context.Context, _ *appconfig.AppConfigModel, _, newEmail string) error {
+	r.requested = append(r.requested, newEmail)
+	return nil
+}
+
+func TestUpdateOwnEmailWithVerification(t *testing.T) {
+	// setup creates a user with the given verification state and an update that changes only their email
+	setup := func(t *testing.T, mode string, emailVerified bool) (*UserService, *recordingEmailVerificationSender, *appconfig.AppConfigModel, model.User, dto.UserCreateDto) {
+		t.Helper()
+
+		config := appconfig.NewTestConfig(nil)
+		config.EmailVerification = appconfig.AppConfigValue(mode)
+		userService, _ := newTestUserService(t)
+		sender := &recordingEmailVerificationSender{}
+		userService.emailVerification = sender
+
+		user, err := userService.CreateUser(t.Context(), config, dto.UserCreateDto{
+			Username:      "changer",
+			Email:         new("old@example.com"),
+			EmailVerified: emailVerified,
+			FirstName:     "Email",
+			LastName:      "Changer",
+		})
+		require.NoError(t, err)
+
+		update := dto.UserCreateDto{
+			Username:  user.Username,
+			Email:     new("new@example.com"),
+			FirstName: user.FirstName,
+			LastName:  user.LastName,
+		}
+		return userService, sender, config, user, update
+	}
+
+	t.Run("a verified email stays in effect until the new address is confirmed", func(t *testing.T) {
+		userService, sender, config, user, update := setup(t, appconfig.EmailVerificationRequired, true)
+
+		updated, err := userService.UpdateUser(t.Context(), config, user.ID, update, true, false)
+		require.NoError(t, err)
+
+		require.Equal(t, "old@example.com", *updated.Email)
+		require.True(t, updated.EmailVerified)
+		require.Equal(t, []string{"new@example.com"}, sender.requested)
+		require.Empty(t, sender.sent)
+	})
+
+	t.Run("a deferred change to an address another user has is rejected right away", func(t *testing.T) {
+		userService, sender, config, user, update := setup(t, appconfig.EmailVerificationRequired, true)
+		_, err := userService.CreateUser(t.Context(), config, dto.UserCreateDto{Username: "other", Email: new("new@example.com"), FirstName: "Other"})
+		require.NoError(t, err)
+
+		_, err = userService.UpdateUser(t.Context(), config, user.ID, update, true, false)
+		require.True(t, apperror.IsCode(err, apperror.CodeAlreadyInUse))
+		require.Empty(t, sender.requested)
+	})
+
+	t.Run("an unverified email is replaced right away and the new one has to be verified", func(t *testing.T) {
+		userService, sender, config, user, update := setup(t, appconfig.EmailVerificationRequired, false)
+
+		updated, err := userService.UpdateUser(t.Context(), config, user.ID, update, true, false)
+		require.NoError(t, err)
+
+		require.Equal(t, "new@example.com", *updated.Email)
+		require.False(t, updated.EmailVerified)
+		require.Equal(t, []string{user.ID}, sender.sent)
+		require.Empty(t, sender.requested)
+	})
+
+	t.Run("the other fields are saved while the email change waits for confirmation", func(t *testing.T) {
+		userService, _, config, user, update := setup(t, appconfig.EmailVerificationRequired, true)
+		update.FirstName = "Renamed"
+
+		updated, err := userService.UpdateUser(t.Context(), config, user.ID, update, true, false)
+		require.NoError(t, err)
+
+		require.Equal(t, "Renamed", updated.FirstName)
+		require.Equal(t, "old@example.com", *updated.Email)
+	})
+
+	t.Run("no change link is sent when the user may not edit their own account", func(t *testing.T) {
+		userService, sender, config, user, update := setup(t, appconfig.EmailVerificationRequired, true)
+		config.AllowOwnAccountEdit = "false"
+
+		updated, err := userService.UpdateUser(t.Context(), config, user.ID, update, true, false)
+		require.NoError(t, err)
+
+		require.Equal(t, "old@example.com", *updated.Email)
+		require.Empty(t, sender.requested)
+		require.Empty(t, sender.sent)
+	})
+
+	t.Run("an admin changing another user's email replaces it right away", func(t *testing.T) {
+		userService, sender, config, user, update := setup(t, appconfig.EmailVerificationRequired, true)
+		update.EmailVerified = true
+
+		updated, err := userService.UpdateUser(t.Context(), config, user.ID, update, false, false)
+		require.NoError(t, err)
+
+		require.Equal(t, "new@example.com", *updated.Email)
+		require.Empty(t, sender.requested)
+		require.Empty(t, sender.sent)
+	})
+
+	t.Run("the email is replaced right away when verification is optional", func(t *testing.T) {
+		userService, sender, config, user, update := setup(t, appconfig.EmailVerificationOptional, true)
+
+		updated, err := userService.UpdateUser(t.Context(), config, user.ID, update, true, false)
+		require.NoError(t, err)
+
+		require.Equal(t, "new@example.com", *updated.Email)
+		require.False(t, updated.EmailVerified)
+		require.Empty(t, sender.sent)
+		require.Empty(t, sender.requested)
+	})
+}
+
+func TestMarkingEmailVerifiedClearsSignupDeadline(t *testing.T) {
+	config := appconfig.NewTestConfig(nil)
+	userService, _ := newTestUserService(t)
+
+	user, err := userService.CreateUser(t.Context(), config, dto.UserCreateDto{
+		Username:  "pending",
+		Email:     new("pending@example.com"),
+		FirstName: "Pending",
+		LastName:  "User",
+	})
+	require.NoError(t, err)
+	deadline := datatype.DateTime(time.Now().Add(time.Hour))
+	require.NoError(t, userService.db.Model(&model.User{}).Where("id = ?", user.ID).Update("email_verification_deadline", deadline).Error)
+
+	updated, err := userService.UpdateUser(t.Context(), config, user.ID, dto.UserCreateDto{
+		Username:      user.Username,
+		Email:         user.Email,
+		EmailVerified: true,
+		FirstName:     user.FirstName,
+		LastName:      user.LastName,
+	}, false, false)
+	require.NoError(t, err)
+	require.True(t, updated.EmailVerified)
+
+	stored, err := userService.GetUser(t.Context(), user.ID)
+	require.NoError(t, err)
+	require.Nil(t, stored.EmailVerificationDeadline)
 }

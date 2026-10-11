@@ -13,6 +13,7 @@ const (
 	AccountApps           Scope = "account:apps"
 	AccountAuditLogs      Scope = "account:audit-logs"
 	AccountSession        Scope = "account:session"
+	AccountAuthorize      Scope = "account:authorize"
 	AccountPasskeysEnroll Scope = "account:passkeys:enroll"
 	AccountAPIKeysCreate  Scope = "account:api-keys:create"
 )
@@ -77,6 +78,7 @@ var catalog = []definition{
 	{AccountApps, CategoryAccount, delegated},
 	{AccountAuditLogs, CategoryAccount, delegated},
 	{AccountSession, CategoryAccount, KindSession},
+	{AccountAuthorize, CategoryAccount, KindSession},
 	{AccountPasskeysEnroll, CategoryAccount, KindSession},
 	{AccountAPIKeysCreate, CategoryAccount, KindSession},
 
@@ -131,6 +133,9 @@ func (s ScopeSet) Has(scope Scope) bool {
 	_, ok := s[scope]
 	return ok
 }
+
+// unverifiedScopes are the scopes a user keeps while their email still has to be verified
+var unverifiedScopes = NewScopeSet(AccountRead, AccountWrite, AccountPasskeys, AccountPasskeysEnroll, AccountSession)
 
 // UserScopes returns the scopes a user holds when authenticated with a credential of the given kind
 // The admin flag stands in for roles: admins hold every scope and other users hold the account scopes

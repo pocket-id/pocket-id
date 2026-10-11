@@ -1,6 +1,7 @@
 package appconfig
 
 import (
+	"encoding/json"
 	"errors"
 	"reflect"
 	"strings"
@@ -298,5 +299,29 @@ func TestAppConfigModel_Update(t *testing.T) {
 		notFound, ok := errors.AsType[AppConfigKeyNotFoundError](err)
 		require.True(t, ok)
 		assert.Equal(t, "thisKeyDoesNotExist", notFound.field)
+	})
+}
+
+func TestAppConfigModel_UnmarshalJSON(t *testing.T) {
+	t.Run("maps the legacy email verification toggle to a mode", func(t *testing.T) {
+		tests := map[string]AppConfigValue{
+			"true":  EmailVerificationOptional,
+			"false": EmailVerificationDisabled,
+		}
+		for enabled, expected := range tests {
+			var m AppConfigModel
+			err := json.Unmarshal([]byte(`{"emailVerificationEnabled":"`+enabled+`"}`), &m)
+			require.NoError(t, err)
+
+			assert.Equal(t, expected, m.EmailVerification)
+		}
+	})
+
+	t.Run("an explicit email verification mode wins over the legacy toggle", func(t *testing.T) {
+		var m AppConfigModel
+		err := json.Unmarshal([]byte(`{"emailVerification":"required","emailVerificationEnabled":"false"}`), &m)
+		require.NoError(t, err)
+
+		assert.Equal(t, AppConfigValue(EmailVerificationRequired), m.EmailVerification)
 	})
 }

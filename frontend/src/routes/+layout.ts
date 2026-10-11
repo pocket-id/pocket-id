@@ -31,7 +31,7 @@ export const load: LayoutLoad = async ({ url }) => {
 
 	const [user, appConfig] = await Promise.all([userPromise, appConfigPromise]);
 
-	const redirectPath = getAuthRedirectPath(url, user);
+	const redirectPath = getAuthRedirectPath(url, user, appConfig);
 	if (redirectPath) {
 		redirect(302, redirectPath);
 	}

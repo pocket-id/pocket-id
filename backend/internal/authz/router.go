@@ -22,6 +22,11 @@ func (r *Router) Group(relativePath string) *Router {
 	return &Router{group: r.group.Group(relativePath), auth: r.auth, optional: r.optional}
 }
 
+// Use returns a router whose routes run the handlers before authorization, for example to render its errors in a way the route's clients understand
+func (r *Router) Use(handlers ...gin.HandlerFunc) *Router {
+	return &Router{group: r.group.Group("", handlers...), auth: r.auth, optional: r.optional}
+}
+
 // Optional returns a router whose routes let requests without a usable credential through as anonymous
 // Handlers on these routes must check PrincipalFrom before relying on a signed-in user
 func (r *Router) Optional() *Router {

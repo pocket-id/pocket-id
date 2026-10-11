@@ -14,6 +14,7 @@
 	import type { DeviceLoginVerificationInfo } from '#lib/types/device-login.type.ts';
 	import type { OidcDeviceCodeInfo } from '#lib/types/oidc.type.ts';
 	import { getClientIDHost } from '#lib/utils/client-id-util.ts';
+	import { isEmailVerificationPending } from '#lib/utils/email-verification-util.ts';
 	import { getWebauthnErrorMessage } from '#lib/utils/error-util.ts';
 	import { preventDefault } from '#lib/utils/event-util.ts';
 	import { startAuthentication } from '@simplewebauthn/browser';
@@ -44,6 +45,7 @@
 	);
 	let codeComplete = $derived(normalizedUserCode.length === 8);
 	let completed = $derived(success || deviceLoginOutcome !== undefined);
+	let emailVerificationPending = $derived(isEmailVerificationPending($userStore, $appConfigStore));
 	let deviceLoginLocation = $derived(
 		deviceLoginInfo?.city && deviceLoginInfo.country
 			? `${deviceLoginInfo.city}, ${deviceLoginInfo.country}`
@@ -168,7 +170,7 @@
 	</h1>
 	{#if errorMessage}
 		<p class="text-muted-foreground mt-2">
-			{errorMessage}. {m.please_try_again()}
+			{errorMessage}. {#if !emailVerificationPending}{m.please_try_again()}{/if}
 		</p>
 	{:else if deviceLoginOutcome === 'approved'}
 		<p class="text-muted-foreground mt-2">{m.the_requesting_device_has_been_signed_in()}</p>
@@ -268,7 +270,11 @@
 		<div class="mt-10 flex w-full max-w-112.5 gap-2">
 			{#if errorMessage}
 				<Button class="flex-1" variant="secondary" href="/">{m.cancel()}</Button>
-				<Button class="flex-1" onclick={retry}>{m.try_again()}</Button>
+				{#if emailVerificationPending}
+					<Button class="flex-1" href="/settings/account">{m.verify_email_address()}</Button>
+				{:else}
+					<Button class="flex-1" onclick={retry}>{m.try_again()}</Button>
+				{/if}
 			{:else if deviceLoginInfo}
 				<Button
 					class="flex-1"

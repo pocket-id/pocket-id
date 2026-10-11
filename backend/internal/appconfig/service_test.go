@@ -462,6 +462,23 @@ func TestService_CIMDURLAllowlist(t *testing.T) {
 }
 
 func TestService_LoadDbConfigFromEnv(t *testing.T) {
+	t.Run("required verification rejects conflicting settings", func(t *testing.T) {
+		for _, setting := range []struct{ name, value string }{
+			{"EMAILS_VERIFIED", "true"},
+			{"REQUIRE_USER_EMAIL", "false"},
+		} {
+			t.Run(setting.name, func(t *testing.T) {
+				t.Setenv("EMAIL_VERIFICATION", "required")
+				t.Setenv("EMAILS_VERIFIED", "false")
+				t.Setenv("REQUIRE_USER_EMAIL", "true")
+				t.Setenv(setting.name, setting.value)
+
+				_, err := (&AppConfigService{}).loadDbConfigFromEnv()
+				require.ErrorContains(t, err, "EMAIL_VERIFICATION requires user emails and forbids emails verified by default")
+			})
+		}
+	})
+
 	// writeSecretFile writes content to a file in a temporary directory that is removed when the test ends, returning its path
 	writeSecretFile := func(t *testing.T, content string) string {
 		t.Helper()

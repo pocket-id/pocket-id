@@ -9,7 +9,9 @@ import (
 	"strings"
 
 	"github.com/pocket-id/fosite"
+	"github.com/pocket-id/pocket-id/backend/internal/appconfig"
 	"github.com/pocket-id/pocket-id/backend/internal/common"
+	"github.com/pocket-id/pocket-id/backend/internal/emailverification"
 	"github.com/pocket-id/pocket-id/backend/internal/model"
 	"gorm.io/gorm"
 )
@@ -18,20 +20,38 @@ const (
 	idTokenType = "id-token"
 )
 
+const emailVerificationRequiredHint = "You must verify your email address before you can access this service."
+
 type ClaimsService struct {
 	db           *gorm.DB
 	customClaims CustomClaimSource
 	baseURL      string
 	signer       TokenSigner
+	appConfig    appconfig.AppConfigResolver
 }
 
-func newClaimsService(db *gorm.DB, customClaims CustomClaimSource, baseURL string, signer TokenSigner) *ClaimsService {
+func newClaimsService(db *gorm.DB, customClaims CustomClaimSource, baseURL string, signer TokenSigner, appConfig appconfig.AppConfigResolver) *ClaimsService {
 	return &ClaimsService{
 		db:           db,
 		customClaims: customClaims,
 		baseURL:      baseURL,
 		signer:       signer,
+		appConfig:    appConfig,
 	}
+}
+
+// isEmailVerificationPending reports whether the user still has to verify their email before tokens can be issued for them
+func (s *ClaimsService) isEmailVerificationPending(ctx context.Context, user *model.User) (bool, error) {
+	if !emailverification.CanBePending(user) {
+		return false, nil
+	}
+
+	cfg, err := s.appConfig.GetConfig(ctx)
+	if err != nil {
+		return false, err
+	}
+
+	return emailverification.IsPending(cfg, user), nil
 }
 
 // ValidateUserAccess re-checks, at token-issuance time, that the user behind a grant is
@@ -57,6 +77,15 @@ func (s *ClaimsService) ValidateUserAccess(ctx context.Context, userID string, c
 
 	if user.Disabled {
 		return fosite.ErrInvalidGrant.WithHint("The user account is disabled.")
+	}
+
+	// The authorization middleware already stops these users at the authorize step, but grants issued before the email became unverified, such as refresh tokens, are only checked here
+	pending, err := s.isEmailVerificationPending(ctx, &user)
+	if err != nil {
+		return err
+	}
+	if pending {
+		return fosite.ErrInvalidGrant.WithHint(emailVerificationRequiredHint)
 	}
 
 	if !IsUserGroupAllowedToAuthorize(user, client.OidcClient) {

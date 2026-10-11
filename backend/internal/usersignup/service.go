@@ -17,6 +17,7 @@ import (
 	"github.com/pocket-id/pocket-id/backend/internal/auditlogs"
 	"github.com/pocket-id/pocket-id/backend/internal/common"
 	"github.com/pocket-id/pocket-id/backend/internal/dto"
+	"github.com/pocket-id/pocket-id/backend/internal/emailverification"
 	"github.com/pocket-id/pocket-id/backend/internal/model"
 	datatype "github.com/pocket-id/pocket-id/backend/internal/model/types"
 	"github.com/pocket-id/pocket-id/backend/internal/utils"
@@ -26,23 +27,28 @@ import (
 // It must match the value emitted by the JWT service in the access token's "amr" claim
 const authenticationMethodOneTimePassword = "otp"
 
+// signupVerificationPeriod is how long a self-signed-up account has to verify its email before it is deleted
+const signupVerificationPeriod = emailverification.TokenLifetime
+
 type Service struct {
-	db           *gorm.DB
-	actorService *actor.Service
-	userCreator  UserCreator
-	signer       TokenService
-	auditLog     AuditLogger
-	scimSync     ScimSyncScheduler
+	db                *gorm.DB
+	actorService      *actor.Service
+	userCreator       UserCreator
+	signer            TokenService
+	auditLog          AuditLogger
+	scimSync          ScimSyncScheduler
+	emailVerification EmailVerificationSender
 }
 
 func newService(deps Dependencies, actorService *actor.Service) *Service {
 	return &Service{
-		db:           deps.DB,
-		actorService: actorService,
-		userCreator:  deps.UserCreator,
-		signer:       deps.Signer,
-		auditLog:     deps.AuditLog,
-		scimSync:     deps.ScimSync,
+		db:                deps.DB,
+		actorService:      actorService,
+		userCreator:       deps.UserCreator,
+		signer:            deps.Signer,
+		auditLog:          deps.AuditLog,
+		scimSync:          deps.ScimSync,
+		emailVerification: deps.EmailVerification,
 	}
 }
 
@@ -94,6 +100,13 @@ func (s *Service) SignUp(ctx context.Context, config *appconfig.AppConfigModel, 
 		return model.User{}, "", err
 	}
 
+	if emailverification.IsPending(config, &user) {
+		err = s.emailVerification.Send(ctx, config, user.ID)
+		if err != nil {
+			slog.WarnContext(ctx, "Failed to send the email verification message after signup", slog.String("userID", user.ID), slog.Any("error", err))
+		}
+	}
+
 	return user, accessToken, nil
 }
 
@@ -108,6 +121,16 @@ func (s *Service) createSignedUpUser(ctx context.Context, config *appconfig.AppC
 	user, err := s.userCreator.CreateUserInternal(ctx, config, userToCreate, false, tx)
 	if err != nil {
 		return model.User{}, "", err
+	}
+
+	// Give the account a deadline to verify its email, after which it is deleted so abandoned signups cannot squat an address
+	if emailverification.IsPending(config, &user) {
+		deadline := datatype.DateTime(time.Now().Add(signupVerificationPeriod))
+		err = tx.WithContext(ctx).Model(&user).Update("email_verification_deadline", deadline).Error
+		if err != nil {
+			return model.User{}, "", err
+		}
+		user.EmailVerificationDeadline = &deadline
 	}
 
 	accessToken, err := s.signer.GenerateAccessToken(user, "", config.SessionDuration.AsDurationMinutes())

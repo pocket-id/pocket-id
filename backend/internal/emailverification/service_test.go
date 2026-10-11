@@ -15,19 +15,10 @@ import (
 	"github.com/pocket-id/pocket-id/backend/internal/appconfig"
 	"github.com/pocket-id/pocket-id/backend/internal/apperror"
 	"github.com/pocket-id/pocket-id/backend/internal/model"
+	datatype "github.com/pocket-id/pocket-id/backend/internal/model/types"
 	"github.com/pocket-id/pocket-id/backend/internal/utils"
 	testutils "github.com/pocket-id/pocket-id/backend/internal/utils/testing"
 )
-
-type testUserProvider struct {
-	db *gorm.DB
-}
-
-func (p testUserProvider) GetUser(ctx context.Context, userID string) (model.User, error) {
-	var user model.User
-	err := p.db.WithContext(ctx).Where("id = ?", userID).First(&user).Error
-	return user, err
-}
 
 type testEmailSender struct {
 	err  error
@@ -61,7 +52,7 @@ func newServiceForTest(t *testing.T, emailSender *testEmailSender) (*Service, *l
 	var service *Service
 	host := testutils.NewActorHostForTest(t, func(t *testing.T, host *local.Host) {
 		require.NoError(t, host.RegisterActor(ActorType, NewActor))
-		service = newService(db, host.Service(), testUserProvider{db: db}, emailSender, "https://id.example.test")
+		service = newService(db, host.Service(), emailSender, nil, "https://id.example.test")
 	})
 	require.NotNil(t, service)
 
@@ -127,6 +118,22 @@ func TestVerifyConsumesTokenAndMarksBoundAddressVerified(t *testing.T) {
 
 	var state State
 	require.ErrorIs(t, host.GetState(t.Context(), ActorType, user.ID, &state), actor.ErrStateNotFound)
+}
+
+func TestVerifyClearsSignupDeadline(t *testing.T) {
+	emailSender := &testEmailSender{}
+	service, _, db := newServiceForTest(t, emailSender)
+	user := createTestUser(t, db, "user-deadline", "user@example.test")
+	require.NoError(t, db.Model(&user).Update("email_verification_deadline", datatype.DateTime(time.Now().Add(time.Hour))).Error)
+
+	require.NoError(t, service.Send(t.Context(), &appconfig.AppConfigModel{}, user.ID))
+	token := verificationTokenFromEmail(t, emailSender.sent[0])
+	require.NoError(t, service.Verify(t.Context(), user.ID, token))
+
+	var updated model.User
+	require.NoError(t, db.Where("id = ?", user.ID).First(&updated).Error)
+	require.True(t, updated.EmailVerified)
+	require.Nil(t, updated.EmailVerificationDeadline)
 }
 
 func TestVerifyRejectsTokenAfterAddressChanges(t *testing.T) {
@@ -254,4 +261,108 @@ func TestSendDiscardsTokenWhenEmailDeliveryFails(t *testing.T) {
 
 	var state State
 	require.ErrorIs(t, host.GetState(t.Context(), ActorType, user.ID, &state), actor.ErrStateNotFound)
+}
+
+func TestRequestEmailChangeSendsLinkToNewAddressAndKeepsCurrentEmail(t *testing.T) {
+	emailSender := &testEmailSender{}
+	service, _, db := newServiceForTest(t, emailSender)
+	user := createTestUser(t, db, "user-change", "old@example.test")
+	require.NoError(t, db.Model(&user).Update("email_verified", true).Error)
+
+	require.NoError(t, service.RequestEmailChange(t.Context(), &appconfig.AppConfigModel{}, user.ID, "new@example.test"))
+	require.Len(t, emailSender.sent, 1)
+	require.Equal(t, "new@example.test", emailSender.sent[0].userEmail)
+
+	pending, err := service.PendingEmailChange(t.Context(), user.ID)
+	require.NoError(t, err)
+	require.NotNil(t, pending)
+	require.Equal(t, "new@example.test", pending.Email)
+
+	var unchanged model.User
+	require.NoError(t, db.Where("id = ?", user.ID).First(&unchanged).Error)
+	require.Equal(t, "old@example.test", *unchanged.Email)
+	require.True(t, unchanged.EmailVerified)
+}
+
+func TestVerifyEmailChangeReplacesEmail(t *testing.T) {
+	emailSender := &testEmailSender{}
+	service, _, db := newServiceForTest(t, emailSender)
+	user := createTestUser(t, db, "user-confirm", "old@example.test")
+
+	require.NoError(t, service.RequestEmailChange(t.Context(), &appconfig.AppConfigModel{}, user.ID, "new@example.test"))
+	token := verificationTokenFromEmail(t, emailSender.sent[0])
+	require.NoError(t, service.Verify(t.Context(), user.ID, token))
+
+	var updated model.User
+	require.NoError(t, db.Where("id = ?", user.ID).First(&updated).Error)
+	require.Equal(t, "new@example.test", *updated.Email)
+	require.True(t, updated.EmailVerified)
+
+	pending, err := service.PendingEmailChange(t.Context(), user.ID)
+	require.NoError(t, err)
+	require.Nil(t, pending)
+}
+
+func TestVerifyEmailChangeRejectsTokenAfterEmailChangedElsewhere(t *testing.T) {
+	emailSender := &testEmailSender{}
+	service, _, db := newServiceForTest(t, emailSender)
+	user := createTestUser(t, db, "user-admin-changed", "old@example.test")
+
+	require.NoError(t, service.RequestEmailChange(t.Context(), &appconfig.AppConfigModel{}, user.ID, "new@example.test"))
+	token := verificationTokenFromEmail(t, emailSender.sent[0])
+
+	// An admin sets a different email before the user confirms their change, and that one must win
+	require.NoError(t, db.Model(&user).Update("email", "admin-set@example.test").Error)
+
+	err := service.Verify(t.Context(), user.ID, token)
+	require.True(t, apperror.IsCode(err, apperror.CodeEmailVerificationTokenInvalid))
+
+	var updated model.User
+	require.NoError(t, db.Where("id = ?", user.ID).First(&updated).Error)
+	require.Equal(t, "admin-set@example.test", *updated.Email)
+}
+
+func TestVerifyEmailChangeRejectsAddressTakenInTheMeantime(t *testing.T) {
+	emailSender := &testEmailSender{}
+	service, _, db := newServiceForTest(t, emailSender)
+	user := createTestUser(t, db, "user-race", "old@example.test")
+
+	require.NoError(t, service.RequestEmailChange(t.Context(), &appconfig.AppConfigModel{}, user.ID, "new@example.test"))
+	token := verificationTokenFromEmail(t, emailSender.sent[0])
+	createTestUser(t, db, "user-taker", "new@example.test")
+
+	err := service.Verify(t.Context(), user.ID, token)
+	require.True(t, apperror.IsCode(err, apperror.CodeAlreadyInUse))
+
+	var unchanged model.User
+	require.NoError(t, db.Where("id = ?", user.ID).First(&unchanged).Error)
+	require.Equal(t, "old@example.test", *unchanged.Email)
+}
+
+func TestCancelEmailChangeOnlyDropsPendingChange(t *testing.T) {
+	emailSender := &testEmailSender{}
+	service, host, db := newServiceForTest(t, emailSender)
+	user := createTestUser(t, db, "user-cancel", "old@example.test")
+
+	t.Run("cancels a pending change and invalidates its link", func(t *testing.T) {
+		require.NoError(t, service.RequestEmailChange(t.Context(), &appconfig.AppConfigModel{}, user.ID, "new@example.test"))
+		token := verificationTokenFromEmail(t, emailSender.sent[len(emailSender.sent)-1])
+
+		require.NoError(t, service.CancelEmailChange(t.Context(), user.ID))
+
+		pending, err := service.PendingEmailChange(t.Context(), user.ID)
+		require.NoError(t, err)
+		require.Nil(t, pending)
+		require.True(t, apperror.IsCode(service.Verify(t.Context(), user.ID, token), apperror.CodeEmailVerificationTokenInvalid))
+	})
+
+	t.Run("keeps a verification of the current email", func(t *testing.T) {
+		require.NoError(t, service.Send(t.Context(), &appconfig.AppConfigModel{}, user.ID))
+
+		require.NoError(t, service.CancelEmailChange(t.Context(), user.ID))
+
+		var state State
+		require.NoError(t, host.GetState(t.Context(), ActorType, user.ID, &state))
+		require.Equal(t, "old@example.test", state.Email)
+	})
 }

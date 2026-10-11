@@ -13,6 +13,7 @@ import (
 	"time"
 
 	"github.com/pocket-id/fosite"
+	"github.com/pocket-id/pocket-id/backend/internal/appconfig"
 	"github.com/pocket-id/pocket-id/backend/internal/apperror"
 	"github.com/pocket-id/pocket-id/backend/internal/model"
 	testutils "github.com/pocket-id/pocket-id/backend/internal/utils/testing"
@@ -164,7 +165,7 @@ func newTestDeviceService(t *testing.T, clientID, userID string, requiresReauthe
 	}, nil)
 	require.NoError(t, err)
 
-	claimsService := newClaimsService(db, nil, "", nil)
+	claimsService := newClaimsService(db, nil, "", nil, appconfig.StaticResolver{})
 	authorizationService := newAuthorizationService(db, newInteractionSessionService(db), claimsService, reauth, &fakeAuditLogger{}, apiAccess)
 	service := newDeviceService(provider, store, provider.deviceStrategy, authorizationService, claimsService, &fakeAuditLogger{}, db)
 

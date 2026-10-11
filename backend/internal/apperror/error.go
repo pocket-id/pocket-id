@@ -35,6 +35,7 @@ const (
 	CodeDeviceLoginExpired              Code = "device_login_expired"
 	CodeReauthenticationRequired        Code = "reauthentication_required"
 	CodeEmailVerificationTokenInvalid   Code = "invalid_email_verification_token"
+	CodeEmailVerificationRequired       Code = "email_verification_required"
 	CodeSetupNotAvailable               Code = "setup_not_available"
 	CodeSetupAlreadyCompleted           Code = "setup_already_completed"
 	CodeTokenInvalidOrExpired           Code = "token_invalid_or_expired"

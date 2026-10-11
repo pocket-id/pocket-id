@@ -250,6 +250,8 @@ test('Update email configuration', async ({ page }) => {
 	await page.getByLabel('Email Login Code Requested by User').click();
 	await page.getByLabel('Email Login Code from Admin').click();
 	await page.getByLabel('API Key Expiration').click();
+	await page.getByLabel('Email Verification', { exact: true }).click();
+	await page.getByRole('option', { name: /^Required/ }).click();
 
 	await saveUnsavedChanges(page);
 
@@ -264,6 +266,24 @@ test('Update email configuration', async ({ page }) => {
 	await expect(page.getByLabel('Email Login Code Requested by User')).toBeChecked();
 	await expect(page.getByLabel('Email Login Code from Admin')).toBeChecked();
 	await expect(page.getByLabel('API Key Expiration')).toBeChecked();
+	await expect(page.getByLabel('Email Verification', { exact: true })).toContainText('Required');
+});
+
+test('Required email verification rejects emails verified by default', async ({ page }) => {
+	await page.getByRole('tab', { name: 'Email' }).click();
+
+	await page.getByLabel('SMTP Host').fill('smtp.gmail.com');
+	await page.getByLabel('SMTP Port').fill('587');
+	await page.getByLabel('SMTP From').fill('test@gmail.com');
+	await page.getByLabel('Emails verified by default').click();
+	await page.getByLabel('Email Verification', { exact: true }).click();
+	await page.getByRole('option', { name: /^Required/ }).click();
+
+	await page.getByRole('button', { name: 'Save', exact: true }).click();
+
+	await expect(
+		page.getByText("Emails can't be verified by default while email verification is required.")
+	).toBeVisible();
 });
 
 test('Save LDAP configuration while LDAP remains disabled', async ({ page }) => {

@@ -308,3 +308,7 @@ func OidcPARRequired() *Error {
 func InvalidEmailVerificationToken() *Error {
 	return New(CodeEmailVerificationTokenInvalid, http.StatusBadRequest, "Email verification token is invalid")
 }
+
+func EmailVerificationRequired() *Error {
+	return New(CodeEmailVerificationRequired, http.StatusForbidden, "You must verify your email address before you can access this service.")
+}

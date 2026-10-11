@@ -14,6 +14,7 @@
 	import type { InteractionStep } from '#lib/types/oidc.type.ts';
 	import { cachedProfilePicture } from '#lib/utils/cached-image-util.ts';
 	import { getClientIDHost } from '#lib/utils/client-id-util.ts';
+	import { isEmailVerificationPending } from '#lib/utils/email-verification-util.ts';
 	import { getWebauthnErrorMessage } from '#lib/utils/error-util.ts';
 	import { startAuthentication } from '@simplewebauthn/browser';
 	import { slide } from 'svelte/transition';
@@ -196,9 +197,13 @@
 		</div>
 	{/if}
 	<div class="flex w-full max-w-md flex-row-reverse gap-2">
-		<Button class="flex-1" {isLoading} onclick={handlePipeline} autofocus={true}>
-			{errorMessage ? m.try_again() : m.sign_in()}
-		</Button>
+		{#if errorMessage && isEmailVerificationPending($userStore, $appConfigStore)}
+			<Button class="flex-1" href="/settings/account">{m.verify_email_address()}</Button>
+		{:else}
+			<Button class="flex-1" {isLoading} onclick={handlePipeline} autofocus={true}>
+				{errorMessage ? m.try_again() : m.sign_in()}
+			</Button>
+		{/if}
 		<Button class="flex-1" variant="secondary" href={document.referrer || '/'}>
 			{m.cancel()}
 		</Button>

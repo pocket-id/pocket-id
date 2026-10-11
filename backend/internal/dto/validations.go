@@ -92,6 +92,10 @@ func init() {
 		"integer_string": func(fl validator.FieldLevel) bool {
 			return validateIntegerString(fl.Field().String())
 		},
+		"email_verification": func(fl validator.FieldLevel) bool {
+			return fl.Field().String() != "required" ||
+				(fl.Parent().FieldByName("RequireUserEmail").String() == "true" && fl.Parent().FieldByName("EmailsVerified").String() == "false")
+		},
 	}
 	for k, v := range validators {
 		err := engine.RegisterValidation(k, v)
@@ -182,6 +186,8 @@ func ValidationErrorDetails(validationError validator.FieldError) (string, strin
 		return "invalid_format", "must be either true or false"
 	case "integer_string":
 		return "invalid_format", "must be an integer"
+	case "email_verification":
+		return "invalid_configuration", "requires user emails and forbids emails verified by default"
 	default:
 		return validationError.Tag(), "is invalid"
 	}

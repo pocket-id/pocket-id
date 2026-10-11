@@ -11,8 +11,14 @@
 	import userStore from '#lib/stores/user-store.ts';
 	import type { Passkey } from '#lib/types/passkey.type.ts';
 	import type { AccountUpdate } from '#lib/types/user.type.ts';
-	import { getWebauthnErrorMessage } from '#lib/utils/error-util.ts';
-	import { KeyRound, Languages, LucideAlertTriangle, UserCog } from '@lucide/svelte';
+	import { axiosErrorToast, getWebauthnErrorMessage } from '#lib/utils/error-util.ts';
+	import {
+		KeyRound,
+		Languages,
+		LucideAlertTriangle,
+		LucideMailCheck,
+		UserCog
+	} from '@lucide/svelte';
 	import { startRegistration } from '@simplewebauthn/browser';
 	import { toast } from 'svelte-sonner';
 	import AccountForm from './account-form.svelte';
@@ -23,6 +29,7 @@
 	let { data } = $props();
 	let account = $state(data.account);
 	let passkeys = $state(data.passkeys);
+	let pendingEmailChange = $state(data.pendingEmailChange);
 	let passkeyToRename: Passkey | null = $state(null);
 	const userService = new UserService();
 	const webauthnService = new WebAuthnService();
@@ -32,7 +39,25 @@
 	);
 
 	async function updateAccount(user: AccountUpdate) {
-		userStore.setUser(await userService.updateCurrent(user));
+		const updated = await userService.updateCurrent(user);
+		userStore.setUser(updated);
+
+		// A verified email is only replaced once the new address is confirmed, so the change shows up as pending instead
+		if (user.email && user.email !== updated.email) {
+			pendingEmailChange = await userService.getPendingEmailChange().catch(() => null);
+		}
+
+		return updated;
+	}
+
+	async function cancelEmailChange() {
+		await userService
+			.cancelEmailChange()
+			.then(() => {
+				pendingEmailChange = null;
+				toast.success(m.email_change_canceled());
+			})
+			.catch(axiosErrorToast);
 	}
 
 	async function createPasskey() {
@@ -55,7 +80,7 @@
 
 {#if passkeys.length == 0}
 	<Alert.Root variant="warning" class="flex gap-3">
-		<LucideAlertTriangle class="size-4" />
+		<LucideAlertTriangle class="size-4 shrink-0" />
 		<div class="md:flex md:w-full md:place-content-between">
 			<div>
 				<Alert.Title class="font-semibold">{m.passkey_missing()}</Alert.Title>
@@ -72,12 +97,36 @@
 	</Alert.Root>
 {:else if passkeys.length == 1}
 	<Alert.Root variant="warning" dismissibleId="single-passkey" class="flex gap-3">
-		<LucideAlertTriangle class="size-4" />
+		<LucideAlertTriangle class="size-4 shrink-0" />
 		<div>
 			<Alert.Title class="font-semibold">{m.single_passkey_configured()}</Alert.Title>
 			<Alert.Description class="text-sm">
 				{m.it_is_recommended_to_add_more_than_one_passkey()}
 			</Alert.Description>
+		</div>
+	</Alert.Root>
+{/if}
+
+{#if pendingEmailChange}
+	<Alert.Root variant="info" class="flex gap-3">
+		<LucideMailCheck class="size-4 shrink-0" />
+		<div class="md:flex md:w-full md:place-content-between">
+			<div>
+				<Alert.Title class="font-semibold">{m.email_change_pending_title()}</Alert.Title>
+				<Alert.Description class="text-sm">
+					{m.email_change_pending_description({ email: pendingEmailChange.email })}
+				</Alert.Description>
+			</div>
+			<div>
+				<Button
+					class="mt-2 md:mt-0"
+					variant="outline"
+					usePromiseLoading
+					onclick={cancelEmailChange}
+				>
+					{m.cancel_email_change()}
+				</Button>
+			</div>
 		</div>
 	</Alert.Root>
 {/if}

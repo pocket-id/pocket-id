@@ -5,7 +5,7 @@
 	import { m } from '#lib/paraglide/messages.js';
 	import UserService from '#lib/services/user-service.ts';
 	import appConfigStore from '#lib/stores/application-configuration-store.ts';
-	import type { AccountUpdate } from '#lib/types/user.type.ts';
+	import type { AccountUpdate, User } from '#lib/types/user.type.ts';
 	import { axiosErrorToast } from '#lib/utils/error-util.ts';
 	import { createForm } from '#lib/utils/form-util.ts';
 	import { trackFormChanges } from '#lib/utils/unsaved-changes-util.svelte.ts';
@@ -23,7 +23,7 @@
 	}: {
 		account: AccountUpdate;
 		userId: string;
-		callback: (user: AccountUpdate) => Promise<void>;
+		callback: (user: AccountUpdate) => Promise<User>;
 		isLdapUser?: boolean;
 		userInfoInputDisabled?: boolean;
 	} = $props();
@@ -55,7 +55,19 @@
 		}
 	}
 
-	trackFormChanges(() => formStore, callback);
+	trackFormChanges(
+		() => formStore,
+		async (data) => {
+			const saved = await callback(data);
+
+			// A verified email is only replaced once the new address is confirmed, so keep showing the email that is still in effect
+			// The saved data becomes the new baseline, so it has to carry that email as well
+			if (saved.email && data.email && saved.email !== data.email) {
+				data.email = saved.email;
+				formStore.setValue('email', saved.email);
+			}
+		}
+	);
 
 	async function updateProfilePicture(image: File) {
 		await userService

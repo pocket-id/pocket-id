@@ -9,6 +9,7 @@ import (
 	"github.com/stretchr/testify/require"
 	"gorm.io/gorm"
 
+	"github.com/pocket-id/pocket-id/backend/internal/appconfig"
 	"github.com/pocket-id/pocket-id/backend/internal/model"
 	testutils "github.com/pocket-id/pocket-id/backend/internal/utils/testing"
 )
@@ -20,7 +21,7 @@ import (
 // refresh token.
 func TestClaimsServiceValidateUserAccess(t *testing.T) {
 	db := testutils.NewDatabaseForTest(t)
-	claimsService := newClaimsService(db, nil, "", nil)
+	claimsService := newClaimsService(db, nil, "", nil, appconfig.StaticResolver{})
 
 	group := model.UserGroup{Base: model.Base{ID: "group-allowed"}, Name: "allowed", FriendlyName: "Allowed"}
 	require.NoError(t, db.Create(&group).Error)
@@ -71,6 +72,49 @@ func TestClaimsServiceValidateUserAccess(t *testing.T) {
 	})
 }
 
+// requiredEmailVerification returns a configuration resolver that requires users to verify their email
+func requiredEmailVerification() appconfig.StaticResolver {
+	cfg := appconfig.NewTestConfig(nil)
+	cfg.EmailVerification = appconfig.EmailVerificationRequired
+	return appconfig.StaticResolver{Config: cfg}
+}
+
+// TestClaimsServiceValidateUserAccessEmailVerification makes sure users who still have to verify their email cannot redeem codes or refresh tokens when verification is required
+func TestClaimsServiceValidateUserAccessEmailVerification(t *testing.T) {
+	db := testutils.NewDatabaseForTest(t)
+	claimsService := newClaimsService(db, nil, "", nil, requiredEmailVerification())
+
+	unverifiedUser := model.User{Base: model.Base{ID: "user-unverified"}, Username: "unverified"}
+	require.NoError(t, db.Create(&unverifiedUser).Error)
+	verifiedUser := model.User{Base: model.Base{ID: "user-verified"}, Username: "verified", EmailVerified: true}
+	require.NoError(t, db.Create(&verifiedUser).Error)
+	unverifiedAdmin := model.User{Base: model.Base{ID: "admin-unverified"}, Username: "admin", IsAdmin: true}
+	require.NoError(t, db.Create(&unverifiedAdmin).Error)
+
+	client := Client{OidcClient: model.OidcClient{Base: model.Base{ID: "client-open"}, Name: "Open"}}
+
+	t.Run("unverified user is rejected with invalid_grant", func(t *testing.T) {
+		err := claimsService.ValidateUserAccess(t.Context(), unverifiedUser.ID, client)
+		require.ErrorIs(t, err, fosite.ErrInvalidGrant)
+		require.Contains(t, fosite.ErrorToRFC6749Error(err).GetDescription(), emailVerificationRequiredHint)
+	})
+
+	t.Run("verified user is allowed", func(t *testing.T) {
+		require.NoError(t, claimsService.ValidateUserAccess(t.Context(), verifiedUser.ID, client))
+	})
+
+	t.Run("unverified admin is allowed", func(t *testing.T) {
+		require.NoError(t, claimsService.ValidateUserAccess(t.Context(), unverifiedAdmin.ID, client))
+	})
+
+	t.Run("unverified user is allowed when verification is optional", func(t *testing.T) {
+		cfg := appconfig.NewTestConfig(nil)
+		cfg.EmailVerification = appconfig.EmailVerificationOptional
+		optional := newClaimsService(db, nil, "", nil, appconfig.StaticResolver{Config: cfg})
+		require.NoError(t, optional.ValidateUserAccess(t.Context(), unverifiedUser.ID, client))
+	})
+}
+
 type fakeCustomClaimSource struct {
 	claims []model.CustomClaim
 }
@@ -94,7 +138,7 @@ func TestClaimsServiceGetUserClaims(t *testing.T) {
 		{Key: "department", Value: "engineering"}, // plain string
 		{Key: "roles", Value: `["admin","dev"]`},  // JSON document
 	}}
-	service := newClaimsService(db, customClaims, baseURL, nil)
+	service := newClaimsService(db, customClaims, baseURL, nil, appconfig.StaticResolver{})
 
 	group := model.UserGroup{Base: model.Base{ID: "group-1"}, Name: "developers", FriendlyName: "Developers"}
 	require.NoError(t, db.Create(&group).Error)
@@ -164,7 +208,7 @@ func TestClaimsServiceGetUserClaimsKeepsIntegerCustomClaims(t *testing.T) {
 		{Key: "nested", Value: `{"ids":[1234567890123456789]}`},
 		{Key: "not_json", Value: "1 2"},
 	}}
-	service := newClaimsService(db, customClaims, "", nil)
+	service := newClaimsService(db, customClaims, "", nil, appconfig.StaticResolver{})
 
 	claims, err := service.GetUserClaims(t.Context(), "user-1", []string{"profile"})
 	require.NoError(t, err)
@@ -184,7 +228,7 @@ func TestClaimsServiceAppliesSigningAlgToIDTokenHeader(t *testing.T) {
 
 	for _, alg := range []jwa.SignatureAlgorithm{jwa.RS256(), jwa.RS384(), jwa.ES512()} {
 		t.Run(alg.String(), func(t *testing.T) {
-			service := newClaimsService(db, nil, "", algTestSigner{alg: alg})
+			service := newClaimsService(db, nil, "", algTestSigner{alg: alg}, appconfig.StaticResolver{})
 
 			session := NewEmptySession()
 			session.Subject = "alg-user"

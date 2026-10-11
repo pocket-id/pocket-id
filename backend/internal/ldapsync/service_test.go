@@ -521,6 +521,7 @@ func newTestLdapService(t *testing.T, client ldapClient) (*Service, *gorm.DB) {
 		nil,
 		nil,
 		fileStorage,
+		nil,
 	)
 
 	svc := newService(Dependencies{

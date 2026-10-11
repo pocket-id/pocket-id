@@ -12,6 +12,7 @@ import (
 	"go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp"
 	"gorm.io/gorm"
 
+	"github.com/pocket-id/pocket-id/backend/internal/appconfig"
 	"github.com/pocket-id/pocket-id/backend/internal/auditlogs"
 	"github.com/pocket-id/pocket-id/backend/internal/authz"
 	"github.com/pocket-id/pocket-id/backend/internal/model"
@@ -56,6 +57,7 @@ type Dependencies struct {
 	Reauth       ReauthenticationTokenConsumer
 	AuditLog     AuditLogger
 	APIAccess    APIAccessProvider
+	AppConfig    appconfig.AppConfigResolver
 
 	// CleanupDisabled skips registering the cron jobs that delete expired rows from the database, for example in tests
 	CleanupDisabled bool
@@ -97,7 +99,7 @@ func New(ctx context.Context, deps Dependencies) (*Module, error) {
 		return nil, fmt.Errorf("failed to create OAuth2 provider: %w", err)
 	}
 
-	claimsService := newClaimsService(deps.DB, deps.CustomClaims, deps.Config.BaseURL, deps.Signer)
+	claimsService := newClaimsService(deps.DB, deps.CustomClaims, deps.Config.BaseURL, deps.Signer, deps.AppConfig)
 	previewBuilder := newClientPreviewBuilder(claimsService, provider.tokenStrategies)
 	interactionSessionService := newInteractionSessionService(deps.DB)
 	authorizationService := newAuthorizationService(deps.DB, interactionSessionService, claimsService, deps.Reauth, deps.AuditLog, deps.APIAccess)
@@ -146,11 +148,13 @@ func (m *Module) RefreshClientMetadata(ctx context.Context, clientID string) (mo
 }
 
 func (m *Module) RegisterRoutes(root, api *authz.Router) {
-	root.Optional().GET("/authorize", authz.AccountSession, m.authorizationHandler.authorize)
-	root.Optional().POST("/authorize", authz.AccountSession, m.authorizationHandler.authorize)
+	// Browsers reach the authorize endpoint through a redirect, so authorization errors are shown on the interaction error page instead of as JSON
+	authorize := root.Use(m.authorizationHandler.redirectAuthorizationErrors).Optional()
+	authorize.GET("/authorize", authz.AccountAuthorize, m.authorizationHandler.authorize)
+	authorize.POST("/authorize", authz.AccountAuthorize, m.authorizationHandler.authorize)
 
 	api.Public().GET("/oidc/interactions/:id", m.authorizationHandler.getInteractionSession)
-	api.POST("/oidc/interactions/:id/complete", authz.AccountSession, m.authorizationHandler.completeInteraction)
+	api.POST("/oidc/interactions/:id/complete", authz.AccountAuthorize, m.authorizationHandler.completeInteraction)
 
 	api.Public().POST("/oidc/par", m.parHandler.pushedAuthorizationRequest)
 
@@ -165,6 +169,6 @@ func (m *Module) RegisterRoutes(root, api *authz.Router) {
 	api.Optional().POST("/oidc/end-session", authz.AccountSession, m.endSessionHandler.endSession)
 
 	api.Public().POST("/oidc/device/authorize", m.deviceHandler.authorizeDevice)
-	api.POST("/oidc/device/verify", authz.AccountSession, m.deviceHandler.verifyDeviceCode)
-	api.GET("/oidc/device/info", authz.AccountSession, m.deviceHandler.deviceCodeInfo)
+	api.POST("/oidc/device/verify", authz.AccountAuthorize, m.deviceHandler.verifyDeviceCode)
+	api.GET("/oidc/device/info", authz.AccountAuthorize, m.deviceHandler.deviceCodeInfo)
 }

@@ -4,6 +4,8 @@ import (
 	"errors"
 
 	"github.com/gin-gonic/gin/binding"
+
+	datatype "github.com/pocket-id/pocket-id/backend/internal/model/types"
 )
 
 type UserDto struct {
@@ -20,6 +22,8 @@ type UserDto struct {
 	UserGroups    []UserGroupMinimalDto `json:"userGroups"`
 	LdapID        *string               `json:"ldapId"`
 	Disabled      bool                  `json:"disabled"`
+
+	EmailVerificationDeadline *datatype.DateTime `json:"emailVerificationDeadline,omitempty"`
 }
 
 type UserCreateDto struct {

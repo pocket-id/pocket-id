@@ -21,6 +21,7 @@ import (
 	"github.com/pocket-id/pocket-id/backend/internal/apperror"
 	"github.com/pocket-id/pocket-id/backend/internal/backchannellogout"
 	"github.com/pocket-id/pocket-id/backend/internal/dto"
+	"github.com/pocket-id/pocket-id/backend/internal/emailverification"
 	"github.com/pocket-id/pocket-id/backend/internal/model"
 	datatype "github.com/pocket-id/pocket-id/backend/internal/model/types"
 	"github.com/pocket-id/pocket-id/backend/internal/storage"
@@ -36,9 +37,24 @@ type UserService struct {
 	scimSyncScheduler  ScimSyncScheduler
 	backchannelLogout  *backchannellogout.Service
 	fileStorage        storage.FileStorage
+	emailVerification  EmailVerificationSender
 }
 
-func NewUserService(db *gorm.DB, jwtService *JwtService, customClaimService *CustomClaimService, appImagesService *AppImagesService, scimSyncScheduler ScimSyncScheduler, backchannelLogout *backchannellogout.Service, fileStorage storage.FileStorage) *UserService {
+// EmailVerificationSender emails verification links for a user's current email or for an email they want to change to
+type EmailVerificationSender interface {
+	Send(ctx context.Context, dbConfig *appconfig.AppConfigModel, userID string) error
+	RequestEmailChange(ctx context.Context, dbConfig *appconfig.AppConfigModel, userID, newEmail string) error
+}
+
+// ownEmailChange records how a user's change of their own email is handled once the update is committed
+type ownEmailChange struct {
+	// applied is set when the new email replaced the current one right away
+	applied bool
+	// deferred holds the new email when it only replaces the current one after the user confirms it
+	deferred *string
+}
+
+func NewUserService(db *gorm.DB, jwtService *JwtService, customClaimService *CustomClaimService, appImagesService *AppImagesService, scimSyncScheduler ScimSyncScheduler, backchannelLogout *backchannellogout.Service, fileStorage storage.FileStorage, emailVerification EmailVerificationSender) *UserService {
 	return &UserService{
 		db:                 db,
 		jwtService:         jwtService,
@@ -47,6 +63,7 @@ func NewUserService(db *gorm.DB, jwtService *JwtService, customClaimService *Cus
 		scimSyncScheduler:  scimSyncScheduler,
 		backchannelLogout:  backchannelLogout,
 		fileStorage:        fileStorage,
+		emailVerification:  emailVerification,
 	}
 }
 
@@ -498,6 +515,16 @@ func (s *UserService) UpdateUser(ctx context.Context, cfg *appconfig.AppConfigMo
 		}
 	}
 
+	// A user's own email change may have to be confirmed first, so that's decided before the update is applied
+	var change ownEmailChange
+	if updateOwnUser {
+		var err error
+		change, err = s.prepareOwnEmailChange(ctx, cfg, userID, &updatedUser, isLdapSync, tx)
+		if err != nil {
+			return model.User{}, err
+		}
+	}
+
 	user, err := s.UpdateUserInternal(ctx, cfg, userID, updatedUser, updateOwnUser, isLdapSync, tx)
 	if err != nil {
 		return model.User{}, err
@@ -516,7 +543,83 @@ func (s *UserService) UpdateUser(ctx context.Context, cfg *appconfig.AppConfigMo
 		s.backchannelLogout.NotifyUser(ctx, userID)
 	}
 
+	// The verified email stays in effect until the user confirms the new address through the emailed link
+	// The other changes are already saved, but the user has to learn that the email change could not be started
+	if change.deferred != nil {
+		err = s.emailVerification.RequestEmailChange(ctx, cfg, userID, *change.deferred)
+		if err != nil {
+			return model.User{}, err
+		}
+	}
+
+	// A user whose new email still restricts the account needs the verification link right away
+	if change.applied && emailverification.IsPending(cfg, &user) {
+		err = s.emailVerification.Send(ctx, cfg, userID)
+		if err != nil {
+			slog.WarnContext(ctx, "Failed to send the email verification message after an email change", slog.String("userID", userID), slog.Any("error", err))
+		}
+	}
+
 	return user, nil
+}
+
+// prepareOwnEmailChange decides how a user's change of their own email is handled
+// A deferred change keeps the current email in the update, so the new address only takes effect once the user confirms it
+func (s *UserService) prepareOwnEmailChange(ctx context.Context, cfg *appconfig.AppConfigModel, userID string, updatedUser *dto.UserCreateDto, isLdapSync bool, tx *gorm.DB) (ownEmailChange, error) {
+	var change ownEmailChange
+	if s.emailVerification == nil || updatedUser.Email == nil {
+		return change, nil
+	}
+
+	// Lock the user, so the decision below still holds when the update is applied
+	var user model.User
+	err := tx.
+		WithContext(ctx).
+		Where("id = ?", userID).
+		Clauses(clause.Locking{Strength: "UPDATE"}).
+		First(&user).
+		Error
+	if errors.Is(err, gorm.ErrRecordNotFound) {
+		return change, apperror.UserNotFound()
+	}
+	if err != nil {
+		return change, err
+	}
+
+	// The update ignores an email the user may not edit, so there's nothing to verify then
+	emailChanged := user.Email == nil || *user.Email != *updatedUser.Email
+	if !emailChanged || !canEditProfile(cfg, &user, true, isLdapSync) {
+		return change, nil
+	}
+
+	if !emailverification.DefersEmailChange(cfg, &user) {
+		change.applied = true
+		return change, nil
+	}
+
+	// The address is checked now, so the user doesn't wait for a link to find out it's taken
+	taken, err := isEmailTaken(ctx, tx, user.ID, *updatedUser.Email)
+	if err != nil {
+		return change, err
+	}
+	if taken {
+		return change, apperror.AlreadyInUse("email")
+	}
+
+	change.deferred = updatedUser.Email
+	updatedUser.Email = user.Email
+	return change, nil
+}
+
+// canEditProfile reports whether an update may change the user's personal fields, such as their name and email
+// LDAP users are managed by the directory and users may be barred from editing their own account, while the LDAP sync itself can always update them
+func canEditProfile(cfg *appconfig.AppConfigModel, user *model.User, updateOwnUser bool, isLdapSync bool) bool {
+	if isLdapSync {
+		return true
+	}
+
+	isLdapUser := user.LdapID != nil && cfg.LdapEnabled.IsTrue()
+	return !isLdapUser && (!updateOwnUser || cfg.AllowOwnAccountEdit.IsTrue())
 }
 
 // UpdateUserInternal updates a user within an existing transaction
@@ -540,15 +643,10 @@ func (s *UserService) UpdateUserInternal(ctx context.Context, cfg *appconfig.App
 		return model.User{}, err
 	}
 
-	// Check if this is an LDAP user and LDAP is enabled
-	isLdapUser := user.LdapID != nil && cfg.LdapEnabled.IsTrue()
-	allowOwnAccountEdit := cfg.AllowOwnAccountEdit.IsTrue()
-
-	if !isLdapSync && (isLdapUser || (!allowOwnAccountEdit && updateOwnUser)) {
+	if !canEditProfile(cfg, &user, updateOwnUser, isLdapSync) {
 		// Restricted update: Only locale can be changed when:
 		// - User is from LDAP, OR
 		// - User is editing their own account but global setting disallows self-editing
-		// (Exception: LDAP sync operations can update everything)
 		user.Locale = updatedUser.Locale
 	} else {
 		// Full update: Allow updating all personal fields
@@ -571,6 +669,11 @@ func (s *UserService) UpdateUserInternal(ctx context.Context, cfg *appconfig.App
 			user.EmailVerified = updatedUser.EmailVerified
 			user.Disabled = updatedUser.Disabled
 		}
+	}
+
+	// A verified account is no longer deleted for missing the signup verification deadline
+	if user.EmailVerified {
+		user.EmailVerificationDeadline = nil
 	}
 
 	user.UpdatedAt = new(datatype.DateTime(time.Now()))
@@ -669,22 +772,20 @@ func (s *UserService) UpdateUserGroups(ctx context.Context, id string, userGroup
 }
 
 func (s *UserService) checkDuplicatedFields(ctx context.Context, user model.User, tx *gorm.DB) error {
+	if user.Email != nil {
+		taken, err := isEmailTaken(ctx, tx, user.ID, *user.Email)
+		if err != nil {
+			return err
+		}
+		if taken {
+			return apperror.AlreadyInUse("email")
+		}
+	}
+
 	var result struct {
 		Found bool
 	}
 	err := tx.
-		WithContext(ctx).
-		Raw(`SELECT EXISTS(SELECT 1 FROM users WHERE id != ? AND email = ?) AS found`, user.ID, user.Email).
-		First(&result).
-		Error
-	if err != nil {
-		return err
-	}
-	if result.Found {
-		return apperror.AlreadyInUse("email")
-	}
-
-	err = tx.
 		WithContext(ctx).
 		Raw(`SELECT EXISTS(SELECT 1 FROM users WHERE id != ? AND username = ?) AS found`, user.ID, user.Username).
 		First(&result).
@@ -739,4 +840,17 @@ func (s *UserService) DisableUserInternal(ctx context.Context, tx *gorm.DB, user
 	}
 
 	return nil
+}
+
+// isEmailTaken reports whether a user other than the given one already uses the email
+func isEmailTaken(ctx context.Context, tx *gorm.DB, userID, email string) (bool, error) {
+	var result struct {
+		Found bool
+	}
+	err := tx.
+		WithContext(ctx).
+		Raw(`SELECT EXISTS(SELECT 1 FROM users WHERE id != ? AND email = ?) AS found`, userID, email).
+		First(&result).
+		Error
+	return result.Found, err
 }

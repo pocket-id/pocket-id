@@ -3,9 +3,13 @@ import type { PageLoad } from './$types';
 
 export const load: PageLoad = async () => {
 	const userService = new UserService();
-	const account = await userService.getCurrent();
+	const [account, pendingEmailChange] = await Promise.all([
+		userService.getCurrent(),
+		userService.getPendingEmailChange().catch(() => null)
+	]);
 
 	return {
-		account
+		account,
+		pendingEmailChange
 	};
 };

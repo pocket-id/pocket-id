@@ -12,9 +12,6 @@
 <TabsPrimitive.Content
 	bind:ref
 	data-slot="tabs-content"
-	class={cn(
-		'flex-1 text-sm outline-none',
-		className
-	)}
+	class={cn('flex-1 text-sm outline-none', className)}
 	{...restProps}
 />
