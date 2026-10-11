@@ -124,6 +124,39 @@ func TestDeviceServiceCreateRejectsResourceWithoutUserDelegatedGrant(t *testing.
 	require.Zero(t, count)
 }
 
+func TestDeviceServiceAcceptKeepsRequestedResource(t *testing.T) {
+	const (
+		userID   = "test-user"
+		clientID = "test-client"
+		audience = "https://api.orders.example.com"
+	)
+	service, store, provider := newTestDeviceService(t, clientID, userID, false, nil, userAccess(map[string][]string{audience: {"read:orders"}}))
+
+	form := url.Values{
+		"client_id": {clientID},
+		"resource":  {audience},
+		"scope":     {"openid read:orders"},
+	}
+	req := httptest.NewRequestWithContext(t.Context(), http.MethodPost, "/api/oidc/device/authorize", strings.NewReader(form.Encode()))
+	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+	response, _, err := service.createDeviceAuthorization(t.Context(), req)
+	require.NoError(t, err)
+
+	info, err := service.getDeviceCodeInfo(t.Context(), response.UserCode, userID)
+	require.NoError(t, err)
+	require.Equal(t, []string{"openid", "read:orders"}, info.Scope)
+
+	err = service.acceptDeviceCode(t.Context(), response.UserCode, userID, "phr", time.Now().UTC(), "", requestMeta{})
+	require.NoError(t, err)
+
+	deviceCodeSignature, err := provider.deviceStrategy.DeviceCodeSignature(t.Context(), response.DeviceCode)
+	require.NoError(t, err)
+	acceptedRequest, err := store.GetDeviceCodeSession(t.Context(), deviceCodeSignature, NewEmptySession())
+	require.NoError(t, err)
+	require.ElementsMatch(t, []string{"openid", "read:orders"}, acceptedRequest.GetGrantedScopes())
+	require.Equal(t, []string{audience}, []string(acceptedRequest.GetGrantedAudience()))
+}
+
 func newTestDeviceServiceWithCode(t *testing.T, clientID, userID string, requiresReauthentication bool, reauth ReauthenticationTokenConsumer) (*deviceService, *Store, *oidcProvider, string, string) {
 	t.Helper()
 

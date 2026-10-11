@@ -107,7 +107,7 @@ func (s *deviceService) acceptDeviceCode(ctx context.Context, userCode, userID, 
 		return fosite.ErrAccessDenied.WithHint("You are not allowed to access this service.")
 	}
 
-	resource, err := request.GetResource()
+	resource, err := storedDeviceRequestResource(client, request)
 	if err != nil {
 		return err
 	}
@@ -207,7 +207,7 @@ func (s *deviceService) getDeviceCodeInfo(ctx context.Context, userCode, userID 
 	}
 
 	client := request.GetClient().(Client)
-	resource, err := request.GetResource()
+	resource, err := storedDeviceRequestResource(client, request)
 	if err != nil {
 		return nil, err
 	}
@@ -255,6 +255,12 @@ func (s *deviceService) getDeviceCodeInfo(ctx context.Context, userCode, userID 
 		AuthorizationRequired:    authorizationRequired,
 		ReauthenticationRequired: client.RequiresReauthentication,
 	}, nil
+}
+
+// storedDeviceRequestResource returns the RFC 8707 resource of a stored device authorization request
+// Fosite stores the request without the resource parameter, so it is recovered from the API audience granted when the request was created
+func storedDeviceRequestResource(client Client, request fosite.Requester) (string, error) {
+	return refreshGrantResource(client.GetID(), "", request.GetGrantedAudience())
 }
 
 func (s *deviceService) deviceRequestFromUserCode(ctx context.Context, userCode string) (fosite.DeviceRequester, string, error) {
