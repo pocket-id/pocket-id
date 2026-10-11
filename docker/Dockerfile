@@ -22,7 +22,7 @@ RUN --mount=type=cache,target=/app/frontend/node_modules/.vite,uid=1000,gid=1000
   BUILD_OUTPUT_PATH=dist vp -C frontend run build
 
 # Stage 2: Build Backend
-FROM golang:1.27.1-alpine AS backend-builder
+FROM golang:1.27.2-alpine AS backend-builder
 ARG BUILD_TAGS
 WORKDIR /build
 COPY ./backend/go.mod ./backend/go.sum ./
