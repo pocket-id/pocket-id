@@ -965,7 +965,7 @@ func (s *OidcService) downloadAndSaveLogoFromURL(parentCtx context.Context, clie
 		return apperror.InvalidLogoURL(err)
 	}
 	if (u.Scheme != "http" && u.Scheme != "https") || u.Host == "" {
-		return apperror.InvalidLogoURL(fmt.Errorf("URL must use HTTP or HTTPS and include a host"))
+		return apperror.InvalidLogoURL(errors.New("URL must use HTTP or HTTPS and include a host"))
 	}
 
 	ctx, cancel := context.WithTimeout(parentCtx, 15*time.Second)

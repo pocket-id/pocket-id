@@ -2,6 +2,7 @@ package emailverification
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"log/slog"
 	"time"
@@ -97,7 +98,7 @@ func (s *Service) Verify(ctx context.Context, userID, token string) error {
 
 	var result consumeResponse
 	if response == nil {
-		return fmt.Errorf("email verification actor returned an empty response")
+		return errors.New("email verification actor returned an empty response")
 	}
 	err = response.Decode(&result)
 	if err != nil {
