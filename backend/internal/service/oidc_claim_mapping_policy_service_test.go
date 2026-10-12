@@ -731,6 +731,42 @@ func TestListClientsByClaimMappingPolicyFiltersBySearchTerm(t *testing.T) {
 	assert.Equal(t, "Nextcloud", clients[0].Name)
 }
 
+// TestListClientsByClaimMappingPolicyEscapesWildcards checks that LIKE wildcards in the search term are matched literally
+func TestListClientsByClaimMappingPolicyEscapesWildcards(t *testing.T) {
+	db := testutils.NewDatabaseForTest(t)
+	service := NewOidcClaimMappingPolicyService(db)
+
+	policy, err := service.CreateClaimMappingPolicy(context.Background(), dto.OidcClaimMappingPolicyDto{
+		OidcClaimMappingPolicyMetadataDto: dto.OidcClaimMappingPolicyMetadataDto{Name: "Attached"},
+		ClaimMappings: []dto.OidcClaimMappingDto{
+			{ClaimName: "sub", SourceType: "user_field", SourceValue: string(model.UserFieldID)},
+		},
+	})
+	require.NoError(t, err)
+
+	require.NoError(t, db.Create(&model.OidcClient{
+		Base: model.Base{ID: "client-a"}, Name: "100% Grafana", ClaimMappingPolicyId: &policy.ID,
+	}).Error)
+	require.NoError(t, db.Create(&model.OidcClient{
+		Base: model.Base{ID: "client-b"}, Name: "Next_cloud", ClaimMappingPolicyId: &policy.ID,
+	}).Error)
+	require.NoError(t, db.Create(&model.OidcClient{
+		Base: model.Base{ID: "client-c"}, Name: "Nextcloud", ClaimMappingPolicyId: &policy.ID,
+	}).Error)
+
+	// A bare % would match every client if it were not escaped
+	clients, _, err := service.ListClientsByClaimMappingPolicy(context.Background(), policy.ID, "%", utils.ListRequestOptions{})
+	require.NoError(t, err)
+	require.Len(t, clients, 1)
+	assert.Equal(t, "100% Grafana", clients[0].Name)
+
+	// An unescaped _ would also match "Nextcloud" since it stands for any single character
+	clients, _, err = service.ListClientsByClaimMappingPolicy(context.Background(), policy.ID, "t_c", utils.ListRequestOptions{})
+	require.NoError(t, err)
+	require.Len(t, clients, 1)
+	assert.Equal(t, "Next_cloud", clients[0].Name)
+}
+
 func TestListClientsByClaimMappingPolicyPaginates(t *testing.T) {
 	db := testutils.NewDatabaseForTest(t)
 	service := NewOidcClaimMappingPolicyService(db)

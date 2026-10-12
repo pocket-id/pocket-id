@@ -69,7 +69,7 @@ func (s *OidcClaimMappingPolicyService) ListClaimMappingPolicy(ctx context.Conte
 	query := s.db.WithContext(ctx).Model(&model.OidcClaimMappingPolicy{})
 
 	if name != "" {
-		query = query.Where("name LIKE ?", "%"+name+"%")
+		query = query.Where(`name LIKE ? ESCAPE '\'`, utils.LikeContainsPattern(name))
 	}
 
 	response, err := utils.PaginateFilterAndSort(listRequestOptions, query, &claimMappingPolicys)
@@ -123,7 +123,7 @@ func (s *OidcClaimMappingPolicyService) ListClientsByClaimMappingPolicy(ctx cont
 		Where("claim_mapping_policy_id = ?", policyID)
 
 	if name != "" {
-		query = query.Where("name LIKE ?", "%"+name+"%")
+		query = query.Where(`name LIKE ? ESCAPE '\'`, utils.LikeContainsPattern(name))
 	}
 
 	response, err := utils.PaginateFilterAndSort(listRequestOptions, query, &clients)
@@ -159,7 +159,7 @@ func (s *OidcClaimMappingPolicyService) ListAssignableClients(ctx context.Contex
 		Where("claim_mapping_policy_id IS NULL OR claim_mapping_policy_id <> ?", policyID)
 
 	if name != "" {
-		query = query.Where("name LIKE ?", "%"+name+"%")
+		query = query.Where(`name LIKE ? ESCAPE '\'`, utils.LikeContainsPattern(name))
 	}
 
 	response, err := utils.PaginateFilterAndSort(listRequestOptions, query, &clients)
