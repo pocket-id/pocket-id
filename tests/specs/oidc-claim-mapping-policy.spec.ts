@@ -60,13 +60,13 @@ test('Map preferred username to email in the access token of an assigned client'
 	const previewDialog = page.getByRole('dialog');
 	await previewDialog.getByRole('combobox').first().click();
 	await page.getByRole('option', { name: user.username, exact: true }).click();
-	await expect(previewDialog).toContainText(`Preview for ${user.displayName}`);
+	await expect(previewDialog.getByRole('combobox').first()).toContainText(user.username);
 
 	await previewDialog.getByRole('tab', { name: 'Access Token' }).click();
-	const accessTokenPanel = previewDialog.getByRole('tabpanel');
-	const preferredUsername = accessTokenPanel
+	const preferredUsername = previewDialog
+		.getByTestId('preview-claims')
 		.locator('div')
-		.filter({ has: page.getByText('preferred_username', { exact: true }) })
-		.last();
+		.filter({ has: page.getByRole('term').getByText('preferred_username', { exact: true }) })
+		.getByRole('definition');
 	await expect(preferredUsername).toContainText(user.email);
 });
