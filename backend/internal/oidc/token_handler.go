@@ -117,12 +117,7 @@ func (h *tokenHandler) validateRefreshAPIGrant(ctx context.Context, client Clien
 		return nil
 	}
 
-	issuer := ""
-	if h.claimsService != nil {
-		issuer = h.claimsService.baseURL
-	}
-
-	resource, err := refreshGrantResource(client.GetID(), issuer, accessRequest.GetGrantedAudience())
+	resource, err := refreshGrantResource(client.GetID(), accessRequest.GetGrantedAudience())
 	if err != nil {
 		return err
 	}
@@ -131,10 +126,11 @@ func (h *tokenHandler) validateRefreshAPIGrant(ctx context.Context, client Clien
 	return err
 }
 
-func refreshGrantResource(clientID, issuer string, grantedAudience fosite.Arguments) (string, error) {
+// refreshGrantResource recovers the API resource of a refresh grant from its granted audience
+func refreshGrantResource(clientID string, grantedAudience fosite.Arguments) (string, error) {
 	resource := ""
 	for _, audience := range grantedAudience {
-		if audience == "" || audience == clientID || audience == issuer {
+		if audience == "" || audience == clientID {
 			continue
 		}
 		if resource != "" && resource != audience {
