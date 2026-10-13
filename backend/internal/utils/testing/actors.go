@@ -31,7 +31,7 @@ const testActorHostPSK = "pocket-id-test-actor-host-psk-32bytes"
 func NewActorHostForTest(t *testing.T, register func(t *testing.T, h *local.Host), extraOpts ...local.HostOption) *local.Host {
 	t.Helper()
 
-	address := freeLoopbackUDPAddr(t)
+	address := FreeLoopbackUDPAddr(t)
 	hostOpts := []local.HostOption{
 		local.WithAddress(address),
 		local.WithRuntimePSKs([]byte(testActorHostPSK)),
@@ -111,9 +111,9 @@ func waitForActorHostPeerServer(t *testing.T, address string, errCh <-chan error
 	t.Fatalf("timed out waiting for actor host peer server %s", address)
 }
 
-// freeLoopbackUDPAddr reserves a free loopback UDP port and returns its address
+// FreeLoopbackUDPAddr reserves a free loopback UDP port and returns its address
 // The port is released before returning, so the actor host can bind it
-func freeLoopbackUDPAddr(t *testing.T) string {
+func FreeLoopbackUDPAddr(t *testing.T) string {
 	t.Helper()
 
 	var lc net.ListenConfig

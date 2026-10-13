@@ -1,8 +1,10 @@
+import type { AppConfig } from '#lib/types/application-configuration.type.ts';
 import type { User } from '#lib/types/user.type.ts';
+import { isEmailVerificationPending } from './email-verification-util.ts';
 
 // Returns the path to redirect to based on the current path and user authentication status
 // If no redirect is needed, it returns null
-export function getAuthRedirectPath(url: URL, user: User | null) {
+export function getAuthRedirectPath(url: URL, user: User | null, appConfig: AppConfig | null) {
 	const path = url.pathname;
 	const isSignedIn = !!user;
 	const isAdmin = user?.isAdmin;
@@ -28,6 +30,7 @@ export function getAuthRedirectPath(url: URL, user: User | null) {
 		].includes(path);
 
 	const isAdminPath = path == '/settings/admin' || path.startsWith('/settings/admin/');
+	const isSettingsPath = path == '/settings' || path.startsWith('/settings/');
 
 	if (!isUnauthenticatedOnlyPath && !isPublicPath && !isSignedIn) {
 		const redirect = url.pathname + url.search;
@@ -40,6 +43,15 @@ export function getAuthRedirectPath(url: URL, user: User | null) {
 
 	if (isAdminPath && !isAdmin) {
 		return '/settings';
+	}
+
+	// A user who still has to verify their email can only reach their account settings until they do
+	if (
+		isSettingsPath &&
+		path != '/settings/account' &&
+		isEmailVerificationPending(user, appConfig)
+	) {
+		return '/settings/account';
 	}
 
 	return null;

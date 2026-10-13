@@ -29,6 +29,10 @@ type UserCreator interface {
 	CreateUserInternal(ctx context.Context, dbConfig *appconfig.AppConfigModel, input dto.UserCreateDto, isLdapSync bool, tx *gorm.DB) (model.User, error)
 }
 
+type EmailVerificationSender interface {
+	Send(ctx context.Context, dbConfig *appconfig.AppConfigModel, userID string) error
+}
+
 // ScimSyncScheduler schedules SCIM after the signup transaction has committed
 type ScimSyncScheduler interface {
 	ScheduleSync(ctx context.Context)
@@ -43,6 +47,12 @@ type Dependencies struct {
 	UserCreator UserCreator
 	AppConfig   appconfig.AppConfigResolver
 	ScimSync    ScimSyncScheduler
+	UserDeleter UserDeleter
+
+	EmailVerification EmailVerificationSender
+
+	// CleanupDisabled skips registering the cron job that deletes signups that missed their email verification deadline, for example in tests
+	CleanupDisabled bool
 }
 
 type Module struct {
@@ -56,6 +66,19 @@ func New(deps Dependencies) (*Module, error) {
 	err := deps.Actors.RegisterActor(SignupTokenActorType, NewSignupTokenActor)
 	if err != nil {
 		return nil, fmt.Errorf("error registering the %s actor: %w", SignupTokenActorType, err)
+	}
+
+	// Register the job that deletes self-signed-up accounts that did not verify their email in time
+	if !deps.CleanupDisabled {
+		job, err := newCleanupJob(deps.DB, deps.AppConfig, deps.UserDeleter)
+		if err != nil {
+			return nil, err
+		}
+
+		err = deps.Actors.RegisterBuiltInActor(job)
+		if err != nil {
+			return nil, fmt.Errorf("error registering unverified signup cleanup cron actor: %w", err)
+		}
 	}
 
 	service := newService(deps, deps.Actors.Service())

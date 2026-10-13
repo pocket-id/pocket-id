@@ -247,6 +247,17 @@ func (s *AppConfigService) loadDbConfigFromEnv() (*AppConfigModel, error) {
 		}
 	}
 
+	// TODO: Remove in next major version (v3)
+	// Preserve the old environment setting unless an explicit email verification mode replaces it
+	if _, ok := os.LookupEnv("EMAIL_VERIFICATION"); !ok {
+		if enabled, exists := os.LookupEnv("EMAIL_VERIFICATION_ENABLED"); exists {
+			if enabled != "true" && enabled != "false" {
+				return nil, errors.New("EMAIL_VERIFICATION_ENABLED must be true or false")
+			}
+			dest.EmailVerification = legacyEmailVerification(AppConfigValue(enabled))
+		}
+	}
+
 	// Validate the resolved configuration before exposing values to the rest of the application
 	err := validateEnvConfig(dest)
 	if err != nil {

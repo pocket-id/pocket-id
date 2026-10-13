@@ -176,6 +176,7 @@ func initServices(
 		Reauth:       svc.webauthnModule,
 		AuditLog:     svc.auditLogsModule,
 		APIAccess:    svc.apiModule,
+		AppConfig:    svc.appConfigService,
 		// Disable in test environment
 		CleanupDisabled: common.EnvConfig.AppEnv.IsTest(),
 	})
@@ -195,7 +196,20 @@ func initServices(
 
 	svc.oidcClaimMappingPolicyService = service.NewOidcClaimMappingPolicyService(db)
 	svc.userGroupService = service.NewUserGroupService(db, svc.scimSyncModule, backchannelLogoutService)
-	svc.userService = service.NewUserService(db, svc.jwtService, svc.customClaimService, svc.appImagesService, svc.scimSyncModule, backchannelLogoutService, fileStorage)
+	// The user service sends verification links through this module, so it's created first and never depends on the user service itself
+	svc.emailVerificationModule, err = emailverification.New(emailverification.Dependencies{
+		DB:          db,
+		Actors:      actors,
+		EmailSender: svc.emailModule,
+		ScimSync:    svc.scimSyncModule,
+		AppConfig:   svc.appConfigService,
+		AppURL:      common.EnvConfig.AppURL,
+	})
+	if err != nil {
+		return nil, fmt.Errorf("failed to create email verification module: %w", err)
+	}
+
+	svc.userService = service.NewUserService(db, svc.jwtService, svc.customClaimService, svc.appImagesService, svc.scimSyncModule, backchannelLogoutService, fileStorage, svc.emailVerificationModule)
 
 	svc.ldapSyncModule, err = ldapsync.New(ldapsync.Dependencies{
 		DB:                db,
@@ -227,13 +241,17 @@ func initServices(
 	}
 
 	svc.userSignUpModule, err = usersignup.New(usersignup.Dependencies{
-		DB:          db,
-		Actors:      actors,
-		Signer:      svc.jwtService,
-		AuditLog:    svc.auditLogsModule,
-		UserCreator: svc.userService,
-		AppConfig:   svc.appConfigService,
-		ScimSync:    svc.scimSyncModule,
+		DB:                db,
+		Actors:            actors,
+		Signer:            svc.jwtService,
+		AuditLog:          svc.auditLogsModule,
+		UserCreator:       svc.userService,
+		AppConfig:         svc.appConfigService,
+		ScimSync:          svc.scimSyncModule,
+		UserDeleter:       svc.userService,
+		EmailVerification: svc.emailVerificationModule,
+		// Disable in test environment
+		CleanupDisabled: common.EnvConfig.AppEnv.IsTest(),
 	})
 	if err != nil {
 		return nil, fmt.Errorf("failed to create user signup module: %w", err)
@@ -250,18 +268,6 @@ func initServices(
 	})
 	if err != nil {
 		return nil, fmt.Errorf("failed to create one-time access module: %w", err)
-	}
-
-	svc.emailVerificationModule, err = emailverification.New(emailverification.Dependencies{
-		DB:          db,
-		Actors:      actors,
-		Users:       svc.userService,
-		EmailSender: svc.emailModule,
-		AppConfig:   svc.appConfigService,
-		AppURL:      common.EnvConfig.AppURL,
-	})
-	if err != nil {
-		return nil, fmt.Errorf("failed to create email verification module: %w", err)
 	}
 
 	svc.environmentModule = environment.New(environment.Dependencies{

@@ -13,6 +13,19 @@ import (
 	"github.com/pocket-id/pocket-id/backend/internal/dto"
 )
 
+const (
+	LoginNotificationDisabled           = "disabled"
+	LoginNotificationAlways             = "always"
+	LoginNotificationIPAndUserAgent     = "ipAndUserAgent"
+	LoginNotificationBrowserRecognition = "browserRecognition"
+)
+
+const (
+	EmailVerificationDisabled = "disabled"
+	EmailVerificationOptional = "optional"
+	EmailVerificationRequired = "required"
+)
+
 type AppConfigModel struct {
 	// General
 	AppName             AppConfigValue `json:"appName" env:"APP_NAME" public:"true"`
@@ -39,7 +52,7 @@ type AppConfigModel struct {
 	EmailOneTimeAccessAsUnauthenticatedEnabled AppConfigValue `json:"emailOneTimeAccessAsUnauthenticatedEnabled" env:"EMAIL_ONE_TIME_ACCESS_AS_UNAUTHENTICATED_ENABLED" type:"bool" public:"true"`
 	EmailOneTimeAccessAsAdminEnabled           AppConfigValue `json:"emailOneTimeAccessAsAdminEnabled" env:"EMAIL_ONE_TIME_ACCESS_AS_ADMIN_ENABLED" type:"bool" public:"true"`
 	EmailApiKeyExpirationEnabled               AppConfigValue `json:"emailApiKeyExpirationEnabled" env:"EMAIL_API_KEY_EXPIRATION_ENABLED" type:"bool"`
-	EmailVerificationEnabled                   AppConfigValue `json:"emailVerificationEnabled" env:"EMAIL_VERIFICATION_ENABLED" type:"bool" public:"true"`
+	EmailVerification                          AppConfigValue `json:"emailVerification" env:"EMAIL_VERIFICATION" public:"true"`
 	// LDAP
 	LdapEnabled                        AppConfigValue `json:"ldapEnabled" env:"LDAP_ENABLED" type:"bool" public:"true"`
 	LdapUrl                            AppConfigValue `json:"ldapUrl" env:"LDAP_URL"`
@@ -145,7 +158,7 @@ func getDefaultConfig() *AppConfigModel {
 		EmailOneTimeAccessAsUnauthenticatedEnabled: "false",
 		EmailOneTimeAccessAsAdminEnabled:           "false",
 		EmailApiKeyExpirationEnabled:               "false",
-		EmailVerificationEnabled:                   "false",
+		EmailVerification:                          EmailVerificationDisabled,
 		// LDAP
 		LdapEnabled:                        "false",
 		LdapUrl:                            "",

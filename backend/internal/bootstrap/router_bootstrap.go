@@ -40,7 +40,7 @@ func initRouter(db *gorm.DB, svc *services, rateLimitServices map[string]*rateli
 	if err != nil {
 		return nil, err
 	}
-	auth := middleware.NewAuthorization(svc.apiKeyModule, svc.userService, svc.jwtService)
+	auth := middleware.NewAuthorization(svc.apiKeyModule, svc.userService, svc.jwtService, svc.appConfigService)
 	err = registerRoutes(r, db, svc, auth, rateLimitServices)
 	if err != nil {
 		return nil, err
@@ -171,7 +171,7 @@ func registerRoutes(r *gin.Engine, db *gorm.DB, svc *services, auth *authz.Middl
 		rateLimitMiddleware.Add(middleware.RateLimitDeviceLoginVerification),
 	)
 	controller.NewOidcController(apiRouter, fileSizeLimitMiddleware, svc.oidcService, svc.appConfigService)
-	controller.NewUserController(apiRouter, fileSizeLimitMiddleware, svc.appConfigService, svc.userService, svc.webauthnModule, rateLimitMiddleware.Add(middleware.RateLimitUpdateOwnAccount))
+	controller.NewUserController(apiRouter, fileSizeLimitMiddleware, svc.appConfigService, svc.userService, svc.webauthnModule, rateLimitMiddleware.Add(middleware.RateLimitSendEmailVerification))
 	controller.NewOidcClaimMappingPolicyController(apiRouter, svc.oidcClaimMappingPolicyService)
 	controller.NewAppConfigController(apiRouter, svc.appConfigService, svc.emailModule)
 	svc.ldapSyncModule.RegisterRoutes(apiRouter)

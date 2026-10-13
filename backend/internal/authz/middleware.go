@@ -85,6 +85,11 @@ func (m *Middleware) require(scope Scope, optional bool) gin.HandlerFunc {
 		// A valid credential without the scope is forbidden even on optional routes, so a caller is never silently downgraded to anonymous
 		if !principal.Scopes.Has(scope) {
 			c.Abort()
+			// A scope that is only withheld until the email is verified tells the user how to regain it
+			if principal.WithheldUntilVerified.Has(scope) {
+				_ = c.Error(apperror.EmailVerificationRequired())
+				return
+			}
 			_ = c.Error(apperror.MissingScope(string(scope)))
 			return
 		}

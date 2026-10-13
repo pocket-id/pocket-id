@@ -14,9 +14,27 @@ type Principal struct {
 	UserID string
 	Scopes ScopeSet
 
+	// WithheldUntilVerified are the scopes the user's role grants but that are withheld until the user verifies their email
+	WithheldUntilVerified ScopeSet
+
 	// AuthenticationMethod and AuthenticationTime describe how the session was established and are only set for KindSession
 	AuthenticationMethod string
 	AuthenticationTime   time.Time
+}
+
+// RestrictUnverified withholds every scope except those a user needs to verify their email, such as signing out or correcting the address
+func (p *Principal) RestrictUnverified() {
+	kept := make(ScopeSet, len(unverifiedScopes))
+	withheld := make(ScopeSet, len(p.Scopes))
+	for scope := range p.Scopes {
+		if unverifiedScopes.Has(scope) {
+			kept[scope] = struct{}{}
+		} else {
+			withheld[scope] = struct{}{}
+		}
+	}
+	p.Scopes = kept
+	p.WithheldUntilVerified = withheld
 }
 
 // PrincipalFrom returns the principal the authorization middleware attached to the request

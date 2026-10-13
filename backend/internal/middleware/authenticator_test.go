@@ -12,6 +12,7 @@ import (
 	"gorm.io/gorm"
 
 	"github.com/pocket-id/pocket-id/backend/internal/apikey"
+	"github.com/pocket-id/pocket-id/backend/internal/appconfig"
 	"github.com/pocket-id/pocket-id/backend/internal/authz"
 	"github.com/pocket-id/pocket-id/backend/internal/common"
 	"github.com/pocket-id/pocket-id/backend/internal/instanceid"
@@ -41,30 +42,42 @@ func TestAuthorizationWithRealCredentials(t *testing.T) {
 	jwtService, err := service.NewJwtService(t.Context(), db, instanceID)
 	require.NoError(t, err)
 
-	userService := service.NewUserService(db, jwtService, nil, nil, nil, nil, nil)
+	userService := service.NewUserService(db, jwtService, nil, nil, nil, nil, nil, nil)
 	apiKeyModule, err := apikey.New(t.Context(), apikey.Dependencies{DB: db, CleanupDisabled: true})
 	require.NoError(t, err)
 
 	// Create one credential of each kind for a regular user, an admin and a disabled user
-	user := createUserForAuthorizationTest(t, db, "auth-user", false, false)
-	admin := createUserForAuthorizationTest(t, db, "auth-admin", true, false)
-	disabled := createUserForAuthorizationTest(t, db, "auth-disabled", true, true)
+	// The regular users and the admin have a verified email, the others still have to verify theirs
+	user := createUserForAuthorizationTest(t, db, "auth-user", false, false, true)
+	admin := createUserForAuthorizationTest(t, db, "auth-admin", true, false, true)
+	disabled := createUserForAuthorizationTest(t, db, "auth-disabled", true, true, true)
+	unverified := createUserForAuthorizationTest(t, db, "auth-unverified", false, false, false)
+	unverifiedAdmin := createUserForAuthorizationTest(t, db, "auth-unverified-admin", true, false, false)
 
 	userSession, err := jwtService.GenerateAccessToken(user, "", time.Hour)
+	require.NoError(t, err)
+	unverifiedSession, err := jwtService.GenerateAccessToken(unverified, "", time.Hour)
 	require.NoError(t, err)
 	userAPIKey := createAPIKeyForAuthorizationTest(t, db, user, "user-raw-api-key")
 	adminAPIKey := createAPIKeyForAuthorizationTest(t, db, admin, "admin-raw-api-key")
 	disabledAPIKey := createAPIKeyForAuthorizationTest(t, db, disabled, "disabled-raw-api-key")
+	unverifiedAPIKey := createAPIKeyForAuthorizationTest(t, db, unverified, "unverified-raw-api-key")
+	unverifiedAdminAPIKey := createAPIKeyForAuthorizationTest(t, db, unverifiedAdmin, "unverified-admin-raw-api-key")
 
 	// Mount one route per kind of requirement
+	// Email verification is required, so unverified regular users only keep the scopes needed to verify their email
+	cfg := appconfig.NewTestConfig(nil)
+	cfg.EmailVerification = appconfig.EmailVerificationRequired
 	router := gin.New()
 	router.Use(NewErrorHandlerMiddleware().Add())
-	apiRouter := NewAuthorization(apiKeyModule, userService, jwtService).Router(router.Group("/api"))
+	apiRouter := NewAuthorization(apiKeyModule, userService, jwtService, appconfig.StaticResolver{Config: cfg}).Router(router.Group("/api"))
 	ok := func(c *gin.Context) {
 		c.String(http.StatusOK, authz.PrincipalFrom(c).UserID)
 	}
 	apiRouter.GET("/session-only", authz.AccountSession, ok)
 	apiRouter.GET("/account", authz.AccountRead, ok)
+	apiRouter.GET("/apps", authz.AccountApps, ok)
+	apiRouter.GET("/authorize", authz.AccountAuthorize, ok)
 	apiRouter.GET("/admin", authz.UsersRead, ok)
 
 	tests := []struct {
@@ -85,6 +98,15 @@ func TestAuthorizationWithRealCredentials(t *testing.T) {
 		{name: "admin API key on admin route", path: "/api/admin", apiKey: adminAPIKey, status: http.StatusOK, userID: admin.ID},
 		{name: "invalid session cookie falls back to API key", path: "/api/admin", sessionCookie: "not-a-jwt", apiKey: adminAPIKey, status: http.StatusOK, userID: admin.ID},
 		{name: "disabled user's API key", path: "/api/account", apiKey: disabledAPIKey, status: http.StatusForbidden, errorCode: "user_disabled"},
+		{name: "verified user session on apps route", path: "/api/apps", authorization: "Bearer " + userSession, status: http.StatusOK, userID: user.ID},
+		{name: "unverified user session on session-only route", path: "/api/session-only", authorization: "Bearer " + unverifiedSession, status: http.StatusOK, userID: unverified.ID},
+		{name: "unverified user session on account route", path: "/api/account", authorization: "Bearer " + unverifiedSession, status: http.StatusOK, userID: unverified.ID},
+		{name: "unverified user session on apps route", path: "/api/apps", authorization: "Bearer " + unverifiedSession, status: http.StatusForbidden, errorCode: "email_verification_required"},
+		{name: "unverified user session on authorize route", path: "/api/authorize", authorization: "Bearer " + unverifiedSession, status: http.StatusForbidden, errorCode: "email_verification_required"},
+		{name: "verified user session on authorize route", path: "/api/authorize", authorization: "Bearer " + userSession, status: http.StatusOK, userID: user.ID},
+		{name: "unverified user API key on account route", path: "/api/account", apiKey: unverifiedAPIKey, status: http.StatusOK, userID: unverified.ID},
+		{name: "unverified user API key on apps route", path: "/api/apps", apiKey: unverifiedAPIKey, status: http.StatusForbidden, errorCode: "email_verification_required"},
+		{name: "unverified admin API key on admin route", path: "/api/admin", apiKey: unverifiedAdminAPIKey, status: http.StatusOK, userID: unverifiedAdmin.ID},
 		{name: "unknown API key", path: "/api/account", apiKey: "unknown", status: http.StatusUnauthorized, errorCode: "not_signed_in"},
 		{name: "no credentials", path: "/api/account", status: http.StatusUnauthorized, errorCode: "not_signed_in"},
 	}
@@ -118,17 +140,18 @@ func TestAuthorizationWithRealCredentials(t *testing.T) {
 	}
 }
 
-func createUserForAuthorizationTest(t *testing.T, db *gorm.DB, username string, isAdmin, disabled bool) model.User {
+func createUserForAuthorizationTest(t *testing.T, db *gorm.DB, username string, isAdmin, disabled, emailVerified bool) model.User {
 	t.Helper()
 
 	user := model.User{
-		Username:    username,
-		Email:       new(username + "@example.com"),
-		FirstName:   "Auth",
-		LastName:    "User",
-		DisplayName: "Auth User",
-		IsAdmin:     isAdmin,
-		Disabled:    disabled,
+		Username:      username,
+		Email:         new(username + "@example.com"),
+		EmailVerified: emailVerified,
+		FirstName:     "Auth",
+		LastName:      "User",
+		DisplayName:   "Auth User",
+		IsAdmin:       isAdmin,
+		Disabled:      disabled,
 	}
 
 	err := db.Create(&user).Error

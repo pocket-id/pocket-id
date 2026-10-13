@@ -3,6 +3,8 @@
 // This file contains utils for unit tests and it's only built when the "unit" tag is set
 package appconfig
 
+import "context"
+
 // NewTestAppConfigService is a function used by tests to create AppConfigService objects with pre-defined configuration values
 func NewTestAppConfigService(config *AppConfigModel) *AppConfigService {
 	if config == nil {
@@ -24,4 +26,13 @@ func NewTestConfig(config *AppConfigModel) *AppConfigModel {
 	}
 
 	return config
+}
+
+// StaticResolver is an AppConfigResolver for tests that always returns the same configuration, or the default one when none is set
+type StaticResolver struct {
+	Config *AppConfigModel
+}
+
+func (r StaticResolver) GetConfig(context.Context) (*AppConfigModel, error) {
+	return NewTestConfig(r.Config), nil
 }

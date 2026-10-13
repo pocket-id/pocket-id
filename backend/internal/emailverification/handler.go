@@ -10,7 +10,14 @@ import (
 	"github.com/pocket-id/pocket-id/backend/internal/authz"
 	"github.com/pocket-id/pocket-id/backend/internal/dto"
 	"github.com/pocket-id/pocket-id/backend/internal/httpserver"
+	datatype "github.com/pocket-id/pocket-id/backend/internal/model/types"
 )
+
+// emailChangeDto describes an email change that waits for the user to confirm the new address
+type emailChangeDto struct {
+	Email     string            `json:"email"`
+	ExpiresAt datatype.DateTime `json:"expiresAt"`
+}
 
 type handler struct {
 	service   *Service
@@ -57,6 +64,47 @@ func (h *handler) verify(c *gin.Context) error {
 	}
 
 	err := h.service.Verify(c.Request.Context(), authz.PrincipalFrom(c).UserID, input.Token)
+	if err != nil {
+		return err
+	}
+
+	c.Status(http.StatusNoContent)
+	return nil
+}
+
+// pendingEmailChange godoc
+// @Summary Get pending email change
+// @Description Get the email change of the currently authenticated user that still has to be confirmed through the emailed link
+// @Tags Users
+// @Produce json
+// @Success 200 {object} emailChangeDto
+// @Success 204 "No pending email change"
+// @Router /api/users/me/email-change [get]
+func (h *handler) pendingEmailChange(c *gin.Context) error {
+	pending, err := h.service.PendingEmailChange(c.Request.Context(), authz.PrincipalFrom(c).UserID)
+	if err != nil {
+		return err
+	}
+	if pending == nil {
+		c.Status(http.StatusNoContent)
+		return nil
+	}
+
+	c.JSON(http.StatusOK, emailChangeDto{
+		Email:     pending.Email,
+		ExpiresAt: datatype.DateTime(pending.ExpiresAt),
+	})
+	return nil
+}
+
+// cancelEmailChange godoc
+// @Summary Cancel pending email change
+// @Description Cancel the pending email change of the currently authenticated user, so its verification link stops working
+// @Tags Users
+// @Success 204 "No Content"
+// @Router /api/users/me/email-change [delete]
+func (h *handler) cancelEmailChange(c *gin.Context) error {
+	err := h.service.CancelEmailChange(c.Request.Context(), authz.PrincipalFrom(c).UserID)
 	if err != nil {
 		return err
 	}

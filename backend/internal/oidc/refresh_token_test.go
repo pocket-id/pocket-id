@@ -18,6 +18,7 @@ import (
 	"github.com/stretchr/testify/require"
 	"gorm.io/gorm"
 
+	"github.com/pocket-id/pocket-id/backend/internal/appconfig"
 	"github.com/pocket-id/pocket-id/backend/internal/model"
 	datatype "github.com/pocket-id/pocket-id/backend/internal/model/types"
 	testutils "github.com/pocket-id/pocket-id/backend/internal/utils/testing"
@@ -42,7 +43,7 @@ func TestRefreshTokenRotationGrace(t *testing.T) {
 			require.NoError(t, db.Create(&model.User{Base: model.Base{ID: userID}, Username: "grace"}).Error)
 			provider, err := newProvider(store, nil, testTokenSigner{key: key}, Config{BaseURL: issuer, TokenBaseURL: issuer, Secret: []byte(secret)}, nil)
 			require.NoError(t, err)
-			handler := newTokenHandler(provider, newClaimsService(db, nil, issuer, nil), nil)
+			handler := newTokenHandler(provider, newClaimsService(db, nil, issuer, nil, appconfig.StaticResolver{}), nil)
 
 			// Seed an old grant so the grace period must start at rotation rather than token issuance
 			request := newTestRequester(requestID, clientID, userID, "grace-jti")

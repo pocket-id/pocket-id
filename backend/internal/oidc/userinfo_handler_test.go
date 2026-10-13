@@ -14,6 +14,7 @@ import (
 	"github.com/pocket-id/fosite"
 	"github.com/stretchr/testify/require"
 
+	"github.com/pocket-id/pocket-id/backend/internal/appconfig"
 	"github.com/pocket-id/pocket-id/backend/internal/model"
 	testutils "github.com/pocket-id/pocket-id/backend/internal/utils/testing"
 )
@@ -54,7 +55,7 @@ func TestUserInfoHandler(t *testing.T) {
 	}, nil)
 	require.NoError(t, err)
 
-	handler := newUserInfoHandler(provider, newClaimsService(db, nil, baseURL, nil), baseURL)
+	handler := newUserInfoHandler(provider, newClaimsService(db, nil, baseURL, nil, appconfig.StaticResolver{}), baseURL)
 
 	issueAccessToken := func(t *testing.T, requestID, subject string, scopes ...string) string {
 		t.Helper()

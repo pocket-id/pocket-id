@@ -10,6 +10,7 @@ import (
 	"github.com/stretchr/testify/require"
 	"gorm.io/gorm"
 
+	"github.com/pocket-id/pocket-id/backend/internal/appconfig"
 	"github.com/pocket-id/pocket-id/backend/internal/apperror"
 	"github.com/pocket-id/pocket-id/backend/internal/auditlogs"
 	"github.com/pocket-id/pocket-id/backend/internal/model"
@@ -33,7 +34,7 @@ const defaultClaimMappingPolicyId = "f383d02d-69e1-4a28-96f8-7c5410c8ac8d"
 func TestAuthorizationServiceAuthorizeLogsClientAuthorization(t *testing.T) {
 	db := testutils.NewDatabaseForTest(t)
 	auditLogger := &fakeAuditLogger{}
-	service := newAuthorizationService(db, newInteractionSessionService(db), newClaimsService(db, nil, "", nil), nil, auditLogger, nil)
+	service := newAuthorizationService(db, newInteractionSessionService(db), newClaimsService(db, nil, "", nil, appconfig.StaticResolver{}), nil, auditLogger, nil)
 
 	const (
 		userID   = "test-user"
@@ -68,7 +69,7 @@ func TestAuthorizationServiceAuthorizeLogsClientAuthorization(t *testing.T) {
 
 func TestAuthorizationServiceRejectsCustomScopeWithoutResource(t *testing.T) {
 	db := testutils.NewDatabaseForTest(t)
-	service := newAuthorizationService(db, newInteractionSessionService(db), newClaimsService(db, nil, "", nil), nil, nil, nil)
+	service := newAuthorizationService(db, newInteractionSessionService(db), newClaimsService(db, nil, "", nil, appconfig.StaticResolver{}), nil, nil, nil)
 
 	const (
 		userID   = "test-user"
@@ -108,7 +109,7 @@ func TestAuthorizationServiceCollapsesResourceErrorsBeforeAuthentication(t *test
 		t.Helper()
 		db := testutils.NewDatabaseForTest(t)
 		require.NoError(t, db.Create(&model.OidcClient{Base: model.Base{ID: clientID}, Name: "Test Client"}).Error)
-		service := newAuthorizationService(db, newInteractionSessionService(db), newClaimsService(db, nil, "", nil), nil, nil, apiAccess)
+		service := newAuthorizationService(db, newInteractionSessionService(db), newClaimsService(db, nil, "", nil, appconfig.StaticResolver{}), nil, nil, apiAccess)
 
 		requester := newTestAuthorizeRequesterWithForm("resource-probe", clientID, url.Values{"resource": {resource}})
 		_, err := service.authorize(t.Context(), authorizeInput{
@@ -142,7 +143,7 @@ func TestAuthorizationServiceCollapsesResourceErrorsBeforeAuthentication(t *test
 func TestAuthorizationServiceConsentStepLogsNewClientAuthorization(t *testing.T) {
 	db := testutils.NewDatabaseForTest(t)
 	auditLogger := &fakeAuditLogger{}
-	service := newAuthorizationService(db, newInteractionSessionService(db), newClaimsService(db, nil, "", nil), nil, auditLogger, nil)
+	service := newAuthorizationService(db, newInteractionSessionService(db), newClaimsService(db, nil, "", nil, appconfig.StaticResolver{}), nil, auditLogger, nil)
 
 	const (
 		userID        = "test-user"
@@ -185,7 +186,7 @@ func TestAuthorizationServiceConsentMergesAudienceQualifiedScopeKeys(t *testing.
 		apiB     = "https://api-b.example.com"
 	)
 
-	service := newAuthorizationService(db, newInteractionSessionService(db), newClaimsService(db, nil, "", nil), nil, auditLogger, userAccess(map[string][]string{
+	service := newAuthorizationService(db, newInteractionSessionService(db), newClaimsService(db, nil, "", nil, appconfig.StaticResolver{}), nil, auditLogger, userAccess(map[string][]string{
 		apiA: {"read"},
 		apiB: {"read"},
 	}))
@@ -252,7 +253,7 @@ func TestAuthorizationServiceRequiresConsentForScopelessAPIAccess(t *testing.T) 
 	)
 
 	// The client may reach the API but was granted none of its permissions, which is the MCP-style scopeless grant
-	service := newAuthorizationService(db, newInteractionSessionService(db), newClaimsService(db, nil, "", nil), nil, nil, userAccess(map[string][]string{
+	service := newAuthorizationService(db, newInteractionSessionService(db), newClaimsService(db, nil, "", nil, appconfig.StaticResolver{}), nil, nil, userAccess(map[string][]string{
 		api: {},
 	}))
 
@@ -294,7 +295,7 @@ func TestAuthorizationServiceRequiresConsentForScopelessAPIAccess(t *testing.T) 
 
 func TestAuthorizationServiceAuthorizeConsumesInteractionSession(t *testing.T) {
 	db := testutils.NewDatabaseForTest(t)
-	service := newAuthorizationService(db, newInteractionSessionService(db), newClaimsService(db, nil, "", nil), nil, nil, nil)
+	service := newAuthorizationService(db, newInteractionSessionService(db), newClaimsService(db, nil, "", nil, appconfig.StaticResolver{}), nil, nil, nil)
 
 	const (
 		userID        = "test-user"
@@ -378,7 +379,7 @@ func TestInteractionSessionServiceGetRejectsExpiredSession(t *testing.T) {
 
 func TestInteractionAPIClassifiesMissingSession(t *testing.T) {
 	db := testutils.NewDatabaseForTest(t)
-	service := newAuthorizationService(db, newInteractionSessionService(db), newClaimsService(db, nil, "", nil), nil, nil, nil)
+	service := newAuthorizationService(db, newInteractionSessionService(db), newClaimsService(db, nil, "", nil, appconfig.StaticResolver{}), nil, nil, nil)
 
 	_, err := service.getInteractionSession(t.Context(), "missing-interaction")
 	require.True(t, apperror.IsCode(err, apperror.CodeNotFound))
@@ -389,7 +390,7 @@ func TestInteractionAPIClassifiesMissingSession(t *testing.T) {
 
 func TestAuthorizationServiceAuthorizeBindsScopesToInteractionSession(t *testing.T) {
 	db := testutils.NewDatabaseForTest(t)
-	service := newAuthorizationService(db, newInteractionSessionService(db), newClaimsService(db, nil, "", nil), nil, nil, nil)
+	service := newAuthorizationService(db, newInteractionSessionService(db), newClaimsService(db, nil, "", nil, appconfig.StaticResolver{}), nil, nil, nil)
 
 	const (
 		userID   = "test-user"
@@ -444,7 +445,7 @@ func TestAuthorizationServiceAuthorizeBindsScopesToInteractionSession(t *testing
 
 func TestAuthorizationServiceAuthorizeRejectsInteractionSessionOfOtherClient(t *testing.T) {
 	db := testutils.NewDatabaseForTest(t)
-	service := newAuthorizationService(db, newInteractionSessionService(db), newClaimsService(db, nil, "", nil), nil, nil, nil)
+	service := newAuthorizationService(db, newInteractionSessionService(db), newClaimsService(db, nil, "", nil, appconfig.StaticResolver{}), nil, nil, nil)
 
 	const (
 		userID        = "test-user"
@@ -483,7 +484,7 @@ func TestAuthorizationServiceAuthorizeRejectsInteractionSessionOfOtherClient(t *
 
 func TestAuthorizationServiceAuthorizeSwitchesUserAndResetsRequirements(t *testing.T) {
 	db := testutils.NewDatabaseForTest(t)
-	service := newAuthorizationService(db, newInteractionSessionService(db), newClaimsService(db, nil, "", nil), nil, nil, nil)
+	service := newAuthorizationService(db, newInteractionSessionService(db), newClaimsService(db, nil, "", nil, appconfig.StaticResolver{}), nil, nil, nil)
 
 	const (
 		userID        = "test-user"
@@ -543,7 +544,7 @@ func TestAuthorizationServiceAuthorizeSwitchesUserAndResetsRequirements(t *testi
 
 func TestAuthorizationServiceAuthorizeRequiresLoginForUserBoundInteraction(t *testing.T) {
 	db := testutils.NewDatabaseForTest(t)
-	service := newAuthorizationService(db, newInteractionSessionService(db), newClaimsService(db, nil, "", nil), nil, nil, nil)
+	service := newAuthorizationService(db, newInteractionSessionService(db), newClaimsService(db, nil, "", nil, appconfig.StaticResolver{}), nil, nil, nil)
 
 	const (
 		userID        = "test-user"
@@ -576,7 +577,7 @@ func TestAuthorizationServiceAuthorizeRequiresLoginForUserBoundInteraction(t *te
 
 func TestAuthorizationServiceCompleteInteractionBindsUserToSession(t *testing.T) {
 	db := testutils.NewDatabaseForTest(t)
-	service := newAuthorizationService(db, newInteractionSessionService(db), newClaimsService(db, nil, "", nil), nil, nil, nil)
+	service := newAuthorizationService(db, newInteractionSessionService(db), newClaimsService(db, nil, "", nil, appconfig.StaticResolver{}), nil, nil, nil)
 
 	const (
 		userID        = "test-user"
@@ -612,7 +613,7 @@ func TestAuthorizationServiceCompleteInteractionBindsUserToSession(t *testing.T)
 
 func TestAuthorizationServiceCompleteInteractionSwitchesUserAndResetsRequirements(t *testing.T) {
 	db := testutils.NewDatabaseForTest(t)
-	service := newAuthorizationService(db, newInteractionSessionService(db), newClaimsService(db, nil, "", nil), nil, nil, nil)
+	service := newAuthorizationService(db, newInteractionSessionService(db), newClaimsService(db, nil, "", nil, appconfig.StaticResolver{}), nil, nil, nil)
 
 	const (
 		userID        = "test-user"
@@ -665,7 +666,7 @@ func TestAuthorizationServiceCompleteInteractionSwitchesUserAndResetsRequirement
 // still be required for that user rather than being inherited from the initiator.
 func TestAuthorizationServiceSelectAccountRecomputesConsentForSelectedUser(t *testing.T) {
 	db := testutils.NewDatabaseForTest(t)
-	service := newAuthorizationService(db, newInteractionSessionService(db), newClaimsService(db, nil, "", nil), nil, nil, nil)
+	service := newAuthorizationService(db, newInteractionSessionService(db), newClaimsService(db, nil, "", nil, appconfig.StaticResolver{}), nil, nil, nil)
 
 	const (
 		initiatorID = "initiator-user"
@@ -727,7 +728,7 @@ func TestValidateClientPKCERequirement(t *testing.T) {
 // flag is honored for confidential clients (fosite only enforces PKCE for public clients).
 func TestAuthorizationServiceAuthorizeEnforcesPerClientPKCE(t *testing.T) {
 	db := testutils.NewDatabaseForTest(t)
-	service := newAuthorizationService(db, newInteractionSessionService(db), newClaimsService(db, nil, "", nil), nil, nil, nil)
+	service := newAuthorizationService(db, newInteractionSessionService(db), newClaimsService(db, nil, "", nil, appconfig.StaticResolver{}), nil, nil, nil)
 
 	const (
 		userID   = "test-user"
@@ -763,7 +764,7 @@ func TestAuthorizationServiceAuthorizeEnforcesPerClientPKCE(t *testing.T) {
 
 func TestAuthorizationServiceAuthorizePARRequiredClient(t *testing.T) {
 	db := testutils.NewDatabaseForTest(t)
-	service := newAuthorizationService(db, newInteractionSessionService(db), newClaimsService(db, nil, "", nil), nil, nil, nil)
+	service := newAuthorizationService(db, newInteractionSessionService(db), newClaimsService(db, nil, "", nil, appconfig.StaticResolver{}), nil, nil, nil)
 
 	const (
 		userID        = "test-user"
@@ -828,7 +829,7 @@ func TestAuthorizationServiceAuthorizePARRequiredClient(t *testing.T) {
 
 func TestAuthorizationServiceInteractionRequestQuery(t *testing.T) {
 	db := testutils.NewDatabaseForTest(t)
-	service := newAuthorizationService(db, newInteractionSessionService(db), newClaimsService(db, nil, "", nil), nil, nil, nil)
+	service := newAuthorizationService(db, newInteractionSessionService(db), newClaimsService(db, nil, "", nil, appconfig.StaticResolver{}), nil, nil, nil)
 
 	const (
 		clientID      = "test-client"
@@ -868,7 +869,7 @@ func TestAuthorizationServiceInteractionRequestQuery(t *testing.T) {
 
 func TestAuthorizationServiceAuthorizeUsesLoginAuthenticationTime(t *testing.T) {
 	db := testutils.NewDatabaseForTest(t)
-	service := newAuthorizationService(db, newInteractionSessionService(db), newClaimsService(db, nil, "", nil), nil, nil, nil)
+	service := newAuthorizationService(db, newInteractionSessionService(db), newClaimsService(db, nil, "", nil, appconfig.StaticResolver{}), nil, nil, nil)
 
 	const (
 		userID   = "test-user"
@@ -910,7 +911,7 @@ func TestAuthorizationServiceAuthorizeUsesLoginAuthenticationTime(t *testing.T) 
 
 func TestAuthorizationServiceAuthorizeRequiresReauthenticationWhenMaxAgeExceeded(t *testing.T) {
 	db := testutils.NewDatabaseForTest(t)
-	service := newAuthorizationService(db, newInteractionSessionService(db), newClaimsService(db, nil, "", nil), nil, nil, nil)
+	service := newAuthorizationService(db, newInteractionSessionService(db), newClaimsService(db, nil, "", nil, appconfig.StaticResolver{}), nil, nil, nil)
 
 	const (
 		userID   = "test-user"
@@ -947,7 +948,7 @@ func TestAuthorizationServiceAuthorizeRequiresReauthenticationWhenMaxAgeExceeded
 
 func TestAuthorizationServiceAuthorizeUsesCompletedReauthenticationTime(t *testing.T) {
 	db := testutils.NewDatabaseForTest(t)
-	service := newAuthorizationService(db, newInteractionSessionService(db), newClaimsService(db, nil, "", nil), nil, nil, nil)
+	service := newAuthorizationService(db, newInteractionSessionService(db), newClaimsService(db, nil, "", nil, appconfig.StaticResolver{}), nil, nil, nil)
 
 	const (
 		userID        = "test-user"
@@ -994,7 +995,7 @@ func TestAuthorizationServiceAuthorizeUsesCompletedReauthenticationTime(t *testi
 
 func TestAuthorizationServiceAuthorizeUsesOriginalInteractionRequestTime(t *testing.T) {
 	db := testutils.NewDatabaseForTest(t)
-	service := newAuthorizationService(db, newInteractionSessionService(db), newClaimsService(db, nil, "", nil), nil, nil, nil)
+	service := newAuthorizationService(db, newInteractionSessionService(db), newClaimsService(db, nil, "", nil, appconfig.StaticResolver{}), nil, nil, nil)
 
 	const (
 		userID        = "test-user"
@@ -1145,7 +1146,7 @@ func TestConsentRequired(t *testing.T) {
 func TestAuthorizationServiceSkipConsentGrantsWithoutInteraction(t *testing.T) {
 	db := testutils.NewDatabaseForTest(t)
 	auditLogger := &fakeAuditLogger{}
-	service := newAuthorizationService(db, newInteractionSessionService(db), newClaimsService(db, nil, "", nil), nil, auditLogger, nil)
+	service := newAuthorizationService(db, newInteractionSessionService(db), newClaimsService(db, nil, "", nil, appconfig.StaticResolver{}), nil, auditLogger, nil)
 
 	const (
 		userID   = "test-user"
@@ -1178,7 +1179,7 @@ func TestAuthorizationServiceSkipConsentGrantsWithoutInteraction(t *testing.T) {
 // A client with SkipConsent must still show the consent screen when the request explicitly asks for it with prompt=consent
 func TestAuthorizationServiceSkipConsentHonorsPromptConsent(t *testing.T) {
 	db := testutils.NewDatabaseForTest(t)
-	service := newAuthorizationService(db, newInteractionSessionService(db), newClaimsService(db, nil, "", nil), nil, nil, nil)
+	service := newAuthorizationService(db, newInteractionSessionService(db), newClaimsService(db, nil, "", nil, appconfig.StaticResolver{}), nil, nil, nil)
 
 	const (
 		userID   = "test-user"

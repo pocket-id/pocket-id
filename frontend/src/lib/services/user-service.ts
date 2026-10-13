@@ -3,7 +3,13 @@ import type { ListRequestOptions, Paginated } from '#lib/types/list-request.type
 import type { Passkey } from '#lib/types/passkey.type.ts';
 import type { SignupToken } from '#lib/types/signup-token.type.ts';
 import type { UserGroup } from '#lib/types/user-group.type.ts';
-import type { AccountUpdate, User, UserCreate, UserSignUp } from '#lib/types/user.type.ts';
+import type {
+	AccountUpdate,
+	EmailChange,
+	User,
+	UserCreate,
+	UserSignUp
+} from '#lib/types/user.type.ts';
 import { cachedProfilePicture } from '#lib/utils/cached-image-util.ts';
 import { get } from 'svelte/store';
 import APIService from './api-service';
@@ -144,5 +150,14 @@ export default class UserService extends APIService {
 	verifyEmail = async (token: string) => {
 		const res = await this.api.post('/users/me/verify-email', { token });
 		return res.data as User;
+	};
+
+	getPendingEmailChange = async () => {
+		const res = await this.api.get('/users/me/email-change');
+		return res.status === 204 ? null : (res.data as EmailChange);
+	};
+
+	cancelEmailChange = async () => {
+		await this.api.delete('/users/me/email-change');
 	};
 }
