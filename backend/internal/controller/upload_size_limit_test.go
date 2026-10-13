@@ -13,6 +13,7 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/pocket-id/pocket-id/backend/internal/apikey"
+	"github.com/pocket-id/pocket-id/backend/internal/appconfig"
 	"github.com/pocket-id/pocket-id/backend/internal/apperror"
 	"github.com/pocket-id/pocket-id/backend/internal/common"
 	"github.com/pocket-id/pocket-id/backend/internal/instanceid"
@@ -39,11 +40,11 @@ func TestImageUploadRoutesLimitRequestSize(t *testing.T) {
 	jwtService, err := service.NewJwtService(t.Context(), db, instanceID)
 	require.NoError(t, err)
 
-	userService := service.NewUserService(db, jwtService, nil, nil, nil, nil, nil)
+	userService := service.NewUserService(db, jwtService, nil, nil, nil, nil, nil, nil)
 	apiKeyModule, err := apikey.New(t.Context(), apikey.Dependencies{DB: db, CleanupDisabled: true})
 	require.NoError(t, err)
 
-	auth := middleware.NewAuthorization(apiKeyModule, userService, jwtService)
+	auth := middleware.NewAuthorization(apiKeyModule, userService, jwtService, appconfig.StaticResolver{})
 	fileSizeLimitMiddleware := middleware.NewFileSizeLimitMiddleware()
 
 	user := model.User{Username: "upload-admin", IsAdmin: true}

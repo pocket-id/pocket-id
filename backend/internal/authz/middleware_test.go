@@ -15,12 +15,13 @@ import (
 
 // fakeAuthenticator accepts any request carrying its header and resolves to the configured outcome
 type fakeAuthenticator struct {
-	kind   PrincipalKind
-	header string
-	user   string
-	admin  bool
-	err    error
-	calls  int
+	kind       PrincipalKind
+	header     string
+	user       string
+	admin      bool
+	unverified bool
+	err        error
+	calls      int
 }
 
 func (a *fakeAuthenticator) Kind() PrincipalKind {
@@ -38,6 +39,9 @@ func (a *fakeAuthenticator) Authenticate(*gin.Context) (*Principal, error) {
 	}
 
 	principal := &Principal{Kind: a.kind, UserID: a.user, Scopes: UserScopes(a.admin, a.kind)}
+	if a.unverified {
+		principal.RestrictUnverified()
+	}
 	if a.kind == KindSession {
 		principal.AuthenticationMethod = "passkey"
 		principal.AuthenticationTime = time.Unix(1700000000, 0)
@@ -133,6 +137,31 @@ func TestMiddlewareAuthorizes(t *testing.T) {
 
 		require.Equal(t, http.StatusNoContent, result.status)
 		require.Equal(t, "session-user", result.principal.UserID)
+	})
+}
+
+func TestMiddlewareExplainsScopesWithheldUntilVerified(t *testing.T) {
+	session := &fakeAuthenticator{kind: KindSession, header: "X-Session", user: "session-user", unverified: true}
+	m := NewMiddleware(session)
+
+	t.Run("allows a scope needed to verify the email", func(t *testing.T) {
+		result := serve(t, m, AccountWrite, false, map[string]string{"X-Session": "1"})
+
+		require.Equal(t, http.StatusNoContent, result.status)
+	})
+
+	t.Run("asks to verify the email for a withheld scope, even on optional routes", func(t *testing.T) {
+		for _, optional := range []bool{false, true} {
+			result := serve(t, m, AccountAuthorize, optional, map[string]string{"X-Session": "1"})
+
+			require.True(t, apperror.IsCode(result.err, apperror.CodeEmailVerificationRequired), "optional=%v", optional)
+		}
+	})
+
+	t.Run("reports a scope the role never grants as missing", func(t *testing.T) {
+		result := serve(t, m, UsersRead, false, map[string]string{"X-Session": "1"})
+
+		require.True(t, apperror.IsCode(result.err, apperror.CodeForbidden))
 	})
 }
 

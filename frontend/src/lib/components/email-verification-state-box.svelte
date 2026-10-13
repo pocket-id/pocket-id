@@ -7,8 +7,10 @@
 	import UserService from '#lib/services/user-service.ts';
 	import appConfigStore from '#lib/stores/application-configuration-store.ts';
 	import userStore from '#lib/stores/user-store.ts';
+	import { isEmailVerificationPending } from '#lib/utils/email-verification-util.ts';
 	import { axiosErrorToast } from '#lib/utils/error-util.ts';
 	import { LucideAlertTriangle, LucideCheckCircle2, LucideCircleX } from '@lucide/svelte';
+	import { formatDistanceToNow } from 'date-fns';
 	import { onMount } from 'svelte';
 	import { toast } from 'svelte-sonner';
 	import { get } from 'svelte/store';
@@ -16,6 +18,10 @@
 	const userService = new UserService();
 
 	let emailVerificationState = $state(page.url.searchParams.get('emailVerificationState'));
+
+	const emailVerificationRequired = $derived(
+		isEmailVerificationPending($userStore, $appConfigStore)
+	);
 
 	async function sendEmailVerification() {
 		await userService
@@ -60,15 +66,27 @@
 			</Alert.Description>
 		</Alert.Root>
 	{/if}
-{:else if $userStore && $appConfigStore.emailVerificationEnabled && !$userStore.emailVerified}
-	<Alert.Root variant="warning" class="flex gap-3">
-		<LucideAlertTriangle class="size-4" />
+{:else if $userStore && $appConfigStore.emailVerification !== 'disabled' && !$userStore.emailVerified}
+	<Alert.Root variant={emailVerificationRequired ? 'destructive' : 'warning'} class="flex gap-3">
+		<LucideAlertTriangle class="size-4 shrink-0" />
 		<div class="md:flex md:w-full md:place-content-between">
 			<div>
-				<Alert.Title class="font-semibold">{m.email_verification_warning()}</Alert.Title>
-				<Alert.Description class="text-sm">
-					{m.email_verification_warning_description()}
-				</Alert.Description>
+				{#if emailVerificationRequired}
+					<Alert.Title class="font-semibold">{m.email_verification_required_warning()}</Alert.Title>
+					<Alert.Description class="text-sm">
+						{m.email_verification_required_warning_description()}
+						{#if $userStore.emailVerificationDeadline}
+							{m.email_verification_deadline_description({
+								time: formatDistanceToNow($userStore.emailVerificationDeadline, { addSuffix: true })
+							})}
+						{/if}
+					</Alert.Description>
+				{:else}
+					<Alert.Title class="font-semibold">{m.email_verification_warning()}</Alert.Title>
+					<Alert.Description class="text-sm">
+						{m.email_verification_warning_description()}
+					</Alert.Description>
+				{/if}
 			</div>
 			<div>
 				<Button class="mt-2 md:mt-0" usePromiseLoading onclick={sendEmailVerification}>

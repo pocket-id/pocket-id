@@ -20,7 +20,9 @@ const codeMessages: Record<string, () => string> = {
 	webauthn_authentication_failed: () => m.passkey_verification_failed(),
 	passkey_user_verification_required: () => m.passkey_user_verification_required(),
 	synced_passkey_not_allowed: () => m.synced_passkeys_not_allowed(),
-	device_login_expired: () => m.device_login_request_expired()
+	device_login_expired: () => m.device_login_request_expired(),
+	email_verification_required: () => m.email_verification_required_error(),
+	email_change_not_started: () => m.email_change_not_started()
 };
 
 function getApiErrorResponse(e: unknown): ApiErrorResponse | undefined {
@@ -47,6 +49,10 @@ export function getAxiosErrorMessage(
 
 	const codeMessage = response.code ? codeMessages[response.code]?.() : undefined;
 	return codeMessage || (typeof response.error === 'string' ? response.error : defaultMessage);
+}
+
+export function getAxiosErrorCode(e: unknown): string | undefined {
+	return getApiErrorResponse(e)?.code;
 }
 
 export function getAxiosErrorRequestId(e: unknown): string | undefined {

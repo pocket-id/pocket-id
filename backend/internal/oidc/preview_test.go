@@ -9,6 +9,7 @@ import (
 
 	"github.com/stretchr/testify/require"
 
+	"github.com/pocket-id/pocket-id/backend/internal/appconfig"
 	"github.com/pocket-id/pocket-id/backend/internal/model"
 	testutils "github.com/pocket-id/pocket-id/backend/internal/utils/testing"
 )
@@ -26,7 +27,7 @@ func TestClientPreviewBuilderUsesFositeTokenStrategies(t *testing.T) {
 	}, nil)
 	require.NoError(t, err)
 
-	builder := newClientPreviewBuilder(newClaimsService(db, nil, "https://issuer.example.com", nil), provider.tokenStrategies)
+	builder := newClientPreviewBuilder(newClaimsService(db, nil, "https://issuer.example.com", nil, appconfig.StaticResolver{}), provider.tokenStrategies)
 
 	const (
 		userID   = "test-user"
@@ -89,7 +90,7 @@ func TestClientPreviewBuilderIgnoresUnknownScopes(t *testing.T) {
 
 	// The preview mirrors the authorize endpoint: unknown scopes are dropped
 	// from the previewed tokens instead of failing the preview.
-	builder := newClientPreviewBuilder(newClaimsService(db, nil, "https://issuer.example.com", nil), provider.tokenStrategies)
+	builder := newClientPreviewBuilder(newClaimsService(db, nil, "https://issuer.example.com", nil, appconfig.StaticResolver{}), provider.tokenStrategies)
 	preview, err := builder.BuildClientPreview(t.Context(), model.OidcClient{
 		Base: model.Base{ID: "test-client"},
 		Name: "Test Client",

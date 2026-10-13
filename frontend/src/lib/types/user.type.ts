@@ -16,9 +16,18 @@ export type User = {
 	locale?: Locale;
 	ldapId?: string;
 	disabled?: boolean;
+	emailVerificationDeadline?: string;
 };
 
-export type UserCreate = Omit<User, 'id' | 'customClaims' | 'ldapId' | 'userGroups'>;
+export type EmailChange = {
+	email: string;
+	expiresAt: string;
+};
+
+export type UserCreate = Omit<
+	User,
+	'id' | 'customClaims' | 'ldapId' | 'userGroups' | 'emailVerificationDeadline'
+>;
 
 export type AccountUpdate = Omit<UserCreate, 'isAdmin' | 'disabled' | 'emailVerified'>;
 

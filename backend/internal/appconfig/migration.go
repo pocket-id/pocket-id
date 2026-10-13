@@ -62,6 +62,9 @@ func fromLegacyConfig(legacyCfg map[string]string) (*AppConfigModel, error) {
 	if legacyCfg["emailLoginNotificationMode"] == "" {
 		dest.EmailLoginNotificationMode = legacyLoginNotificationMode(AppConfigValue(legacyCfg["emailLoginNotificationEnabled"]))
 	}
+	if legacyCfg["emailVerification"] == "" {
+		dest.EmailVerification = legacyEmailVerification(AppConfigValue(legacyCfg["emailVerificationEnabled"]))
+	}
 
 	rt := reflect.ValueOf(dest).Elem().Type()
 	rv := reflect.ValueOf(dest).Elem()

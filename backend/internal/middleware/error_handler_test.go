@@ -11,6 +11,7 @@ import (
 	"time"
 
 	"github.com/gin-gonic/gin"
+	"github.com/pocket-id/pocket-id/backend/internal/appconfig"
 	"github.com/pocket-id/pocket-id/backend/internal/apperror"
 	"github.com/pocket-id/pocket-id/backend/internal/dto"
 	"github.com/pocket-id/pocket-id/backend/internal/httpserver"
@@ -228,7 +229,7 @@ func TestValidationResponseUsesAppConfigTypeMessages(t *testing.T) {
 		EmailOneTimeAccessAsUnauthenticatedEnabled: "false",
 		EmailLoginNotificationMode:                 "disabled",
 		EmailApiKeyExpirationEnabled:               "false",
-		EmailVerificationEnabled:                   "false",
+		EmailVerification:                          "disabled",
 		AutoCreateOIDCClientSecret:                 "true",
 	}
 	payload, err := json.Marshal(input)
@@ -268,4 +269,58 @@ func TestClassifyDeadlineAsRequestTimeout(t *testing.T) {
 	require.Equal(t, apperror.CodeRequestTimeout, classified.code)
 	require.Equal(t, http.StatusGatewayTimeout, classified.status)
 	require.Equal(t, "Request timed out", classified.message)
+}
+
+func TestAppConfigBindingValidatesRequiredEmailVerification(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	router := gin.New()
+	router.Use(NewErrorHandlerMiddleware().Add())
+	router.PUT("/config", httpserver.Handle(func(c *gin.Context) error {
+		var input dto.AppConfigUpdateDto
+		return httpserver.BindJSON(c, &input)
+	}))
+
+	const (
+		smtpHost = "smtp.example.com"
+		smtpFrom = "pocket-id@example.com"
+	)
+	for _, tt := range []struct {
+		name, mode, required, verified, host, from string
+		status                                     int
+	}{
+		{"required with trusted emails", "required", "true", "true", smtpHost, smtpFrom, http.StatusBadRequest},
+		{"required without email", "required", "false", "false", smtpHost, smtpFrom, http.StatusBadRequest},
+		{"required without SMTP host", "required", "true", "false", "", smtpFrom, http.StatusBadRequest},
+		{"required without sender address", "required", "true", "false", smtpHost, "", http.StatusBadRequest},
+		{"valid required", "required", "true", "false", smtpHost, smtpFrom, http.StatusOK},
+		{"optional with trusted emails", "optional", "false", "true", "", "", http.StatusOK},
+		{"disabled with trusted emails", "disabled", "false", "true", "", "", http.StatusOK},
+	} {
+		t.Run(tt.name, func(t *testing.T) {
+			var input dto.AppConfigUpdateDto
+			require.NoError(t, dto.MapStruct(appconfig.NewTestConfig(nil), &input))
+			input.EmailVerification = tt.mode
+			input.RequireUserEmail = tt.required
+			input.EmailsVerified = tt.verified
+			input.SmtpHost = tt.host
+			input.SmtpFrom = tt.from
+			payload, err := json.Marshal(input)
+			require.NoError(t, err)
+			request := httptest.NewRequestWithContext(t.Context(), http.MethodPut, "/config", strings.NewReader(string(payload)))
+			request.Header.Set("Content-Type", "application/json")
+			recorder := httptest.NewRecorder()
+			router.ServeHTTP(recorder, request)
+
+			require.Equal(t, tt.status, recorder.Code, recorder.Body.String())
+			if tt.status == http.StatusBadRequest {
+				var body struct {
+					Details struct {
+						Fields []apperror.FieldError `json:"fields"`
+					} `json:"details"`
+				}
+				require.NoError(t, json.Unmarshal(recorder.Body.Bytes(), &body))
+				require.Equal(t, []apperror.FieldError{{Field: "emailVerification", Code: "invalid_configuration", Message: "requires user emails, an SMTP host and sender address, and forbids emails verified by default"}}, body.Details.Fields)
+			}
+		})
+	}
 }

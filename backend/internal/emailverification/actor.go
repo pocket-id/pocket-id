@@ -17,10 +17,12 @@ const ActorType = "EmailVerification"
 
 const (
 	// MethodIssue replaces the outstanding verification state for a user
-	MethodIssue   = "issue"
-	methodConsume = "consume"
-	methodDiscard = "discard"
-	methodRestore = "restore"
+	MethodIssue         = "issue"
+	methodConsume       = "consume"
+	methodDiscard       = "discard"
+	methodRestore       = "restore"
+	methodCancelChange  = "cancelChange"
+	methodPendingChange = "pendingChange"
 )
 
 type consumeStatus string
@@ -32,7 +34,14 @@ const (
 
 // State is the persisted verification state for one user
 type State struct {
-	TokenHash string
+	TokenHash     string
+	Email         string
+	ReplacesEmail string
+	ExpiresAt     time.Time
+}
+
+// EmailChange describes an email change that is waiting for the user to confirm it
+type EmailChange struct {
 	Email     string
 	ExpiresAt time.Time
 }
@@ -68,9 +77,33 @@ func (a *emailVerificationActor) Invoke(ctx context.Context, method string, data
 		return nil, a.discard(ctx, data)
 	case methodRestore:
 		return nil, a.restore(ctx, data)
+	case methodCancelChange:
+		return nil, a.cancelChange(ctx)
 	default:
 		return nil, common.ErrUnsupportedActorMethod{Method: method}
 	}
+}
+
+// Peek implements actor.ActorPeek
+func (a *emailVerificationActor) Peek(ctx context.Context, method string, _ actor.Envelope) (any, error) {
+	if method != methodPendingChange {
+		return nil, common.ErrUnsupportedActorMethod{Method: method}
+	}
+
+	state, err := a.client.GetState(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("error retrieving actor state: %w", err)
+	}
+
+	// Only an unexpired email change is pending, a token for the current email is not
+	if state.ReplacesEmail == "" || state.ExpiresAt.Before(time.Now()) {
+		return EmailChange{}, nil
+	}
+
+	return EmailChange{
+		Email:     state.Email,
+		ExpiresAt: state.ExpiresAt,
+	}, nil
 }
 
 func (a *emailVerificationActor) issue(ctx context.Context, data actor.Envelope) error {
@@ -123,6 +156,23 @@ func (a *emailVerificationActor) discard(ctx context.Context, data actor.Envelop
 
 	// Only discard if the token hash matches, to avoid discarding a newer token that may have been issued after the one being discarded
 	if state.TokenHash == "" || subtle.ConstantTimeCompare([]byte(state.TokenHash), []byte(request.TokenHash)) != 1 {
+		return nil
+	}
+
+	err = a.client.DeleteState(ctx)
+	if err != nil && !errors.Is(err, actor.ErrStateNotFound) {
+		return fmt.Errorf("error deleting actor state: %w", err)
+	}
+
+	return nil
+}
+
+func (a *emailVerificationActor) cancelChange(ctx context.Context) error {
+	state, err := a.client.GetState(ctx)
+	if err != nil {
+		return fmt.Errorf("error retrieving actor state: %w", err)
+	}
+	if state.ReplacesEmail == "" {
 		return nil
 	}
 

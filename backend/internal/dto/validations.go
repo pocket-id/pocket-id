@@ -92,6 +92,15 @@ func init() {
 		"integer_string": func(fl validator.FieldLevel) bool {
 			return validateIntegerString(fl.Field().String())
 		},
+		"email_verification": func(fl validator.FieldLevel) bool {
+			// Required verification needs emails that aren't trusted by default and the SMTP host and sender address without which no verification link can be sent
+			parent := fl.Parent()
+			return fl.Field().String() != "required" ||
+				(parent.FieldByName("RequireUserEmail").String() == "true" &&
+					parent.FieldByName("EmailsVerified").String() == "false" &&
+					parent.FieldByName("SmtpHost").String() != "" &&
+					parent.FieldByName("SmtpFrom").String() != "")
+		},
 	}
 	for k, v := range validators {
 		err := engine.RegisterValidation(k, v)
@@ -182,6 +191,8 @@ func ValidationErrorDetails(validationError validator.FieldError) (string, strin
 		return "invalid_format", "must be either true or false"
 	case "integer_string":
 		return "invalid_format", "must be an integer"
+	case "email_verification":
+		return "invalid_configuration", "requires user emails, an SMTP host and sender address, and forbids emails verified by default"
 	default:
 		return validationError.Tag(), "is invalid"
 	}

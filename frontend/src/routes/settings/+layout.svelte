@@ -7,6 +7,7 @@
 	import { m } from '#lib/paraglide/messages.js';
 	import appConfigStore from '#lib/stores/application-configuration-store.ts';
 	import userStore from '#lib/stores/user-store.ts';
+	import { isEmailVerificationPending } from '#lib/utils/email-verification-util.ts';
 	import { LucideTriangleAlert } from '@lucide/svelte';
 	import type { Snippet } from 'svelte';
 	import { fade, fly } from 'svelte/transition';
@@ -28,11 +29,14 @@
 		children?: NavItem[];
 	};
 
-	const items: NavItem[] = [
-		{ href: '/settings/account', label: m.my_account() },
-		{ href: '/settings/apps', label: m.my_apps() },
-		{ href: '/settings/audit-log', label: m.audit_log() }
-	];
+	// A user who still has to verify their email can only reach their account until they do
+	const items: NavItem[] = isEmailVerificationPending(user, $appConfigStore)
+		? [{ href: '/settings/account', label: m.my_account() }]
+		: [
+				{ href: '/settings/account', label: m.my_account() },
+				{ href: '/settings/apps', label: m.my_apps() },
+				{ href: '/settings/audit-log', label: m.audit_log() }
+			];
 
 	const adminChildren: NavItem[] = [
 		{ href: '/settings/admin/users', label: m.users() },

@@ -1,5 +1,6 @@
 import test, { expect, type Page } from '@playwright/test';
 import { signupTokens, userGroups, users } from '../data';
+import { setAppConfigValues } from '../utils/app-config.util';
 import { cleanupBackend } from '../utils/cleanup.util';
 import passkeyUtil from '../utils/passkey.util';
 import { saveUnsavedChanges } from '../utils/unsaved-changes.util';
@@ -294,6 +295,39 @@ test.describe('User Signup', () => {
 			await page.reload();
 			await expect(page).toHaveURL('/signup/add-passkey');
 			await expect(page.getByRole('heading', { name: 'Set up your passkey' })).toBeVisible();
+		});
+
+		test('Open signup with required email verification restricts the new account', async ({
+			page
+		}) => {
+			// Required verification needs an SMTP server, but nothing listens on it, so the email sent at signup just fails
+			await setAppConfigValues(page.request, {
+				emailVerification: 'required',
+				smtpHost: 'localhost',
+				smtpFrom: 'pocket-id@test.com'
+			});
+			await setSignupMode(page, 'Open Signup');
+
+			await page.goto('/signup');
+			await page.getByLabel('First name').fill('Pending');
+			await page.getByLabel('Last name').fill('User');
+			await page.getByLabel('Username').fill('pendinguser');
+			await page.getByLabel('Email').fill('pending.user@test.com');
+			await page.getByRole('button', { name: 'Sign Up' }).click();
+
+			await page.waitForURL('/signup/add-passkey');
+			await page.getByRole('button', { name: 'Skip for now' }).click();
+			await page
+				.getByRole('alertdialog', { name: 'Skip Passkey Setup' })
+				.getByRole('button', { name: 'Skip for now' })
+				.click();
+
+			await page.waitForURL('/settings/account');
+			await expect(page.getByText('Verify your email address to use your account')).toBeVisible();
+			await expect(page.getByText('your account will be deleted')).toBeVisible();
+
+			await page.goto('/settings/apps');
+			await expect(page).toHaveURL('/settings/account');
 		});
 
 		test('Token usage limit is enforced', async ({ page }) => {

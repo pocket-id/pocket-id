@@ -22,6 +22,7 @@ import (
 	"github.com/stretchr/testify/require"
 	"gorm.io/gorm"
 
+	"github.com/pocket-id/pocket-id/backend/internal/appconfig"
 	"github.com/pocket-id/pocket-id/backend/internal/model"
 	datatype "github.com/pocket-id/pocket-id/backend/internal/model/types"
 	testutils "github.com/pocket-id/pocket-id/backend/internal/utils/testing"
@@ -63,7 +64,7 @@ func TestTokenHandlerClientCredentialsGrant(t *testing.T) {
 		Secret:       []byte(secret),
 	}, nil)
 	require.NoError(t, err)
-	handler := newTokenHandler(provider, newClaimsService(db, nil, baseURL, nil), nil)
+	handler := newTokenHandler(provider, newClaimsService(db, nil, baseURL, nil, appconfig.StaticResolver{}), nil)
 
 	form := url.Values{"grant_type": {"client_credentials"}}
 	req := httptest.NewRequestWithContext(t.Context(), http.MethodPost, "/api/oidc/token", strings.NewReader(form.Encode()))
@@ -122,7 +123,7 @@ func TestTokenHandlerClientCredentialsDropsIdentityScopes(t *testing.T) {
 		Secret:       []byte(secret),
 	}, nil)
 	require.NoError(t, err)
-	handler := newTokenHandler(provider, newClaimsService(db, nil, baseURL, nil), nil)
+	handler := newTokenHandler(provider, newClaimsService(db, nil, baseURL, nil, appconfig.StaticResolver{}), nil)
 
 	form := url.Values{"grant_type": {"client_credentials"}, "scope": {"openid"}}
 	req := httptest.NewRequestWithContext(t.Context(), http.MethodPost, "/api/oidc/token", strings.NewReader(form.Encode()))
@@ -182,7 +183,7 @@ func TestTokenHandlerClientCredentialsUsesClientSubjectGrants(t *testing.T) {
 		Secret:       []byte(secret),
 	}, nil)
 	require.NoError(t, err)
-	handler := newTokenHandler(provider, newClaimsService(db, nil, baseURL, nil), apiAccess)
+	handler := newTokenHandler(provider, newClaimsService(db, nil, baseURL, nil, appconfig.StaticResolver{}), apiAccess)
 
 	requestToken := func(t *testing.T, scope string) map[string]any {
 		t.Helper()
@@ -253,7 +254,7 @@ func TestTokenHandlerClientCredentialsDefaultsResourceScopes(t *testing.T) {
 		Secret:       []byte(secret),
 	}, nil)
 	require.NoError(t, err)
-	handler := newTokenHandler(provider, newClaimsService(db, nil, baseURL, nil), apiAccess)
+	handler := newTokenHandler(provider, newClaimsService(db, nil, baseURL, nil, appconfig.StaticResolver{}), apiAccess)
 
 	requestToken := func(t *testing.T, target string, form url.Values) map[string]any {
 		t.Helper()
@@ -408,7 +409,7 @@ func TestTokenHandlerRefreshGrantRevalidatesUser(t *testing.T) {
 			Secret:       []byte(secret),
 		}, nil)
 		require.NoError(t, err)
-		handler := newTokenHandler(provider, newClaimsService(db, nil, baseURL, nil), nil)
+		handler := newTokenHandler(provider, newClaimsService(db, nil, baseURL, nil, appconfig.StaticResolver{}), nil)
 
 		form := url.Values{
 			"grant_type":    {"refresh_token"},
@@ -592,7 +593,7 @@ func TestTokenHandlerRefreshGrantPreservesAudienceAndScope(t *testing.T) {
 			Secret:       []byte(secret),
 		}, nil)
 		require.NoError(t, err)
-		handler := newTokenHandler(provider, newClaimsService(db, nil, baseURL, nil), apiAccess)
+		handler := newTokenHandler(provider, newClaimsService(db, nil, baseURL, nil, appconfig.StaticResolver{}), apiAccess)
 
 		form := url.Values{
 			"grant_type":    {"refresh_token"},
@@ -759,7 +760,7 @@ func TestTokenHandlerClientSecretRotation(t *testing.T) {
 		Secret:       []byte(secret),
 	}, nil)
 	require.NoError(t, err)
-	handler := newTokenHandler(provider, newClaimsService(db, nil, baseURL, nil), nil)
+	handler := newTokenHandler(provider, newClaimsService(db, nil, baseURL, nil, appconfig.StaticResolver{}), nil)
 
 	requestToken := func(t *testing.T, clientSecret string) map[string]any {
 		t.Helper()
@@ -827,7 +828,7 @@ func TestTokenHandlerClientWithoutSecrets(t *testing.T) {
 		Secret:       []byte(secret),
 	}, nil)
 	require.NoError(t, err)
-	handler := newTokenHandler(provider, newClaimsService(db, nil, baseURL, nil), nil)
+	handler := newTokenHandler(provider, newClaimsService(db, nil, baseURL, nil, appconfig.StaticResolver{}), nil)
 
 	form := url.Values{"grant_type": {"client_credentials"}}
 	req := httptest.NewRequestWithContext(t.Context(), http.MethodPost, "/api/oidc/token", strings.NewReader(form.Encode()))

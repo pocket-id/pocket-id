@@ -10,6 +10,7 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"github.com/pocket-id/fosite"
+	"github.com/pocket-id/pocket-id/backend/internal/apperror"
 	"github.com/pocket-id/pocket-id/backend/internal/authz"
 	"github.com/pocket-id/pocket-id/backend/internal/httpserver"
 	"github.com/pocket-id/pocket-id/backend/internal/utils"
@@ -136,6 +137,17 @@ func (h *authorizationHandler) completeInteraction(c *gin.Context) {
 	c.JSON(http.StatusOK, response)
 }
 
+// redirectAuthorizationErrors shows the errors of the authorization middleware, such as a disabled account or an unverified email, on the interaction error page
+// The middleware refuses these requests before the authorize handler runs, so its error is still unwritten when the chain returns here
+func (h *authorizationHandler) redirectAuthorizationErrors(c *gin.Context) {
+	c.Next()
+
+	if len(c.Errors) == 0 || c.Writer.Written() {
+		return
+	}
+	h.redirectToInteractionError(c, c.Errors.Last().Err)
+}
+
 func (h *authorizationHandler) writeAuthorizeError(ctx context.Context, c *gin.Context, ar fosite.AuthorizeRequester, err error) {
 	if rfcErr, ok := errors.AsType[*fosite.RFC6749Error](err); ok {
 		attrs := []slog.Attr{
@@ -170,12 +182,14 @@ func (h *authorizationHandler) writeAuthorizeError(ctx context.Context, c *gin.C
 
 func (h *authorizationHandler) redirectToInteractionError(c *gin.Context, err error) {
 	errorMessage := "An unknown error occurred during the authorization request."
-	if err, ok := errors.AsType[*fosite.RFC6749Error](err); ok {
-		if err.HintField != "" {
-			errorMessage = err.HintField
-		} else if err.DescriptionField != "" {
-			errorMessage = err.DescriptionField
+	if rfcErr, ok := errors.AsType[*fosite.RFC6749Error](err); ok {
+		if rfcErr.HintField != "" {
+			errorMessage = rfcErr.HintField
+		} else if rfcErr.DescriptionField != "" {
+			errorMessage = rfcErr.DescriptionField
 		}
+	} else if appErr, ok := errors.AsType[*apperror.Error](err); ok {
+		errorMessage = appErr.ClientMessage()
 	}
 
 	query := url.Values{}

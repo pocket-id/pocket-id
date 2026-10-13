@@ -30,6 +30,25 @@ func (f fakeUserCreator) CreateUserInternal(_ context.Context, _ *appconfig.AppC
 	return f.user, nil
 }
 
+// dbUserCreator stores the user in the signup transaction, so changes made later in that transaction can be asserted
+type dbUserCreator struct{}
+
+func (dbUserCreator) CreateUserInternal(_ context.Context, _ *appconfig.AppConfigModel, input dto.UserCreateDto, _ bool, tx *gorm.DB) (model.User, error) {
+	user := model.User{Username: input.Username, Email: input.Email, EmailVerified: input.EmailVerified}
+	err := tx.Create(&user).Error
+	return user, err
+}
+
+type fakeEmailVerificationSender struct {
+	err     error
+	userIDs []string
+}
+
+func (f *fakeEmailVerificationSender) Send(_ context.Context, _ *appconfig.AppConfigModel, userID string) error {
+	f.userIDs = append(f.userIDs, userID)
+	return f.err
+}
+
 type fakeSigner struct{}
 
 func (fakeSigner) GenerateAccessToken(_ model.User, _ string, _ time.Duration) (string, error) {
@@ -163,4 +182,57 @@ func listAllOptions() utils.ListRequestOptions {
 	opts.Pagination.Page = 1
 	opts.Pagination.Limit = 100
 	return opts
+}
+
+func TestSignUpRequiresEmailVerification(t *testing.T) {
+	signUp := func(t *testing.T, mode string, sender *fakeEmailVerificationSender) (*gorm.DB, model.User) {
+		t.Helper()
+
+		db := testutils.NewDatabaseForTest(t)
+		svc := newSignupServiceForTest(t, db, dbUserCreator{})
+		svc.emailVerification = sender
+
+		config := appconfig.NewTestConfig(nil)
+		config.AllowUserSignups = "open"
+		config.EmailVerification = appconfig.AppConfigValue(mode)
+		user, _, err := svc.SignUp(t.Context(), config, signUpDto{
+			Username: "newuser",
+			Email:    new("newuser@example.com"),
+		}, "1.2.3.4", "test-agent")
+		require.NoError(t, err)
+
+		return db, user
+	}
+
+	t.Run("sets a deadline and sends the verification email when verification is required", func(t *testing.T) {
+		sender := &fakeEmailVerificationSender{}
+		before := time.Now()
+		db, user := signUp(t, appconfig.EmailVerificationRequired, sender)
+
+		require.NotNil(t, user.EmailVerificationDeadline)
+		require.WithinDuration(t, before.Add(24*time.Hour), user.EmailVerificationDeadline.ToTime(), time.Minute)
+
+		var stored model.User
+		require.NoError(t, db.First(&stored, "id = ?", user.ID).Error)
+		require.NotNil(t, stored.EmailVerificationDeadline)
+		require.Equal(t, []string{user.ID}, sender.userIDs)
+	})
+
+	t.Run("keeps the account without a deadline when verification is optional", func(t *testing.T) {
+		sender := &fakeEmailVerificationSender{}
+		db, user := signUp(t, appconfig.EmailVerificationOptional, sender)
+
+		var stored model.User
+		require.NoError(t, db.First(&stored, "id = ?", user.ID).Error)
+		require.Nil(t, stored.EmailVerificationDeadline)
+		require.Empty(t, sender.userIDs)
+	})
+
+	t.Run("a failed delivery does not fail the signup", func(t *testing.T) {
+		sender := &fakeEmailVerificationSender{err: errors.New("smtp unavailable")}
+		_, user := signUp(t, appconfig.EmailVerificationRequired, sender)
+
+		require.NotNil(t, user.EmailVerificationDeadline)
+		require.Equal(t, []string{user.ID}, sender.userIDs)
+	})
 }

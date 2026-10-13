@@ -308,3 +308,11 @@ func OidcPARRequired() *Error {
 func InvalidEmailVerificationToken() *Error {
 	return New(CodeEmailVerificationTokenInvalid, http.StatusBadRequest, "Email verification token is invalid")
 }
+
+func EmailVerificationRequired() *Error {
+	return New(CodeEmailVerificationRequired, http.StatusForbidden, "You must verify your email address before you can access this service.")
+}
+
+func EmailChangeNotStarted(cause error) *Error {
+	return Wrap(cause, CodeEmailChangeNotStarted, http.StatusInternalServerError, "Your other changes were saved, but the email to confirm your new email address could not be sent")
+}
