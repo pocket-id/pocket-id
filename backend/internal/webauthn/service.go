@@ -99,6 +99,7 @@ func (s *Service) BeginRegistration(ctx context.Context, dbConfig *appconfig.App
 			UserVerification:        userVerificationRequirement(dbConfig),
 		}),
 		gowebauthn.WithResidentKeyRequirement(protocol.ResidentKeyRequirementRequired),
+		gowebauthn.WithCredentialParameters(gowebauthn.CredentialParametersPQCRecommendedL3()),
 		gowebauthn.WithExclusions(user.WebAuthnCredentialDescriptors()),
 		gowebauthn.WithExtensions(gowebauthn.WithExtensionCredProps()), // Required for Firefox Android to properly save the key in Google password manager
 	)
