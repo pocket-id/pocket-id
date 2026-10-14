@@ -80,7 +80,7 @@
 <nav
 	class="text-muted-foreground grid gap-2 text-sm"
 	aria-label={m.settings()}
-	data-sveltekit-keepfocus
+	data-sveltekit-reset="false"
 >
 	{#each items as item, i (groupId(item, i))}
 		{#if item.children?.length}
