@@ -90,6 +90,8 @@ var catalog = []definition{
 	{GroupsWrite, CategoryAdmin, delegated},
 	{OidcClientsRead, CategoryAdmin, delegated},
 	{OidcClientsWrite, CategoryAdmin, delegated},
+	{OidcClaimMappingPoliciesRead, CategoryAdmin, delegated},
+	{OidcClaimMappingPoliciesWrite, CategoryAdmin, delegated},
 	{APIsRead, CategoryAdmin, delegated},
 	{APIsWrite, CategoryAdmin, delegated},
 	{ConfigRead, CategoryAdmin, delegated},
