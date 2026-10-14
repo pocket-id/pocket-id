@@ -99,3 +99,27 @@ func newExportTestDB(t *testing.T) *gorm.DB {
 
 	return db
 }
+
+func TestEmailSigningSettingsSurviveExportAndImport(t *testing.T) {
+	dbPath := filepath.Join(t.TempDir(), "signing.db")
+	db := openImportTestDB(t, dbPath, nil)
+	defer closeImportTestDB(db)
+	sqlDB, err := db.DB()
+	require.NoError(t, err)
+	require.NoError(t, utils.MigrateDatabase(t.Context(), sqlDB))
+	require.NoError(t, db.Exec("INSERT INTO email_signing_settings (id, enabled, certificate_chain, private_key) VALUES (1, ?, ?, ?)", true, "test-chain", "encrypted-private-key").Error)
+	exported, err := NewExportService(db, nil, nil).extractDatabase(t.Context())
+	require.NoError(t, err)
+	require.Len(t, exported.Tables["email_signing_settings"], 1)
+	importer := &ImportService{db: db}
+	require.NoError(t, importer.ImportDatabase(t.Context(), exported))
+	var restored struct {
+		Enabled          bool
+		CertificateChain string
+		PrivateKey       string
+	}
+	require.NoError(t, db.Table("email_signing_settings").Where("id = ?", 1).Scan(&restored).Error)
+	require.True(t, restored.Enabled)
+	require.Equal(t, "test-chain", restored.CertificateChain)
+	require.Equal(t, "encrypted-private-key", restored.PrivateKey)
+}

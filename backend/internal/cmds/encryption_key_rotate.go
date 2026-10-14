@@ -11,6 +11,7 @@ import (
 
 	"github.com/pocket-id/pocket-id/backend/internal/bootstrap"
 	"github.com/pocket-id/pocket-id/backend/internal/common"
+	"github.com/pocket-id/pocket-id/backend/internal/email"
 	"github.com/pocket-id/pocket-id/backend/internal/instanceid"
 	datatype "github.com/pocket-id/pocket-id/backend/internal/model/types"
 	"github.com/pocket-id/pocket-id/backend/internal/scimsync"
@@ -101,6 +102,10 @@ func encryptionKeyRotate(ctx context.Context, flags encryptionKeyRotateFlags, db
 			}
 		}
 
+		err = rotateEmailSigningKey(tx, oldEncKey, newEncKey)
+		if err != nil {
+			return err
+		}
 		err = rotateScimTokens(tx, oldEncKey, newEncKey)
 		if err != nil {
 			return err
@@ -193,4 +198,24 @@ func rotateScimTokens(db *gorm.DB, oldEncKey []byte, newEncKey []byte) error {
 	}
 
 	return nil
+}
+
+func rotateEmailSigningKey(db *gorm.DB, oldKey, newKey []byte) error {
+	// Read the ciphertext directly because the process still uses the old runtime encryption key
+	var row struct{ PrivateKey string }
+	if err := db.Model(&email.SigningSettings{}).Select("private_key").Where("id = ?", 1).Scan(&row).Error; err != nil {
+		return err
+	}
+	if row.PrivateKey == "" {
+		return nil
+	}
+	plain, err := datatype.DecryptEncryptedStringWithKey(oldKey, row.PrivateKey)
+	if err != nil {
+		return fmt.Errorf("decrypt S/MIME private key: %w", err)
+	}
+	encrypted, err := datatype.EncryptEncryptedStringWithKey(newKey, plain)
+	if err != nil {
+		return fmt.Errorf("encrypt S/MIME private key: %w", err)
+	}
+	return db.Model(&email.SigningSettings{}).Where("id = ?", 1).Update("private_key", encrypted).Error
 }

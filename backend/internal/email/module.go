@@ -18,6 +18,7 @@ import (
 	"github.com/pocket-id/pocket-id/backend/internal/appconfig"
 	"github.com/pocket-id/pocket-id/backend/internal/apperror"
 	"github.com/pocket-id/pocket-id/backend/internal/common"
+	"github.com/pocket-id/pocket-id/backend/internal/email/smtptransport"
 	"github.com/pocket-id/pocket-id/backend/internal/model"
 	"github.com/pocket-id/pocket-id/backend/resources"
 )
@@ -171,15 +172,36 @@ func send[V any](ctx context.Context, module *Module, dbConfig *appconfig.AppCon
 	return nil
 }
 
-func (m *Module) getEmailer(ctx context.Context, dbConfig *appconfig.AppConfigModel) (emailer.Emailer, error) {
+func (m *Module) getEmailer(ctx context.Context, dbConfig *appconfig.AppConfigModel) (*smtptransport.SMTPEmailer, error) {
 	connString, err := smtpConnString(dbConfig)
 	if err != nil {
 		return nil, err
 	}
 
-	return emailer.NewEmailer(ctx, emailer.NewEmailerOpts{
-		ConnString: connString,
-	})
+	// Load one consistent certificate/key snapshot for this delivery and fail before connecting if signing is unusable
+	settings, err := m.loadSigningSettings(ctx)
+	if err != nil {
+		return nil, err
+	}
+	opts := smtptransport.InitOpts{}
+	opts.ConnString, err = url.Parse(connString)
+	if err != nil {
+		return nil, err
+	}
+	if settings.Enabled {
+		certs, signer, err := signerFromSettings(settings, dbConfig.SmtpFrom.String())
+		if err != nil {
+			return nil, err
+		}
+		opts.Transform = func(_ context.Context, payload []byte) ([]byte, error) {
+			return signMessage(payload, certs, signer)
+		}
+	}
+	transport := &smtptransport.SMTPEmailer{}
+	if err := transport.Init(ctx, opts); err != nil {
+		return nil, err
+	}
+	return transport, nil
 }
 
 func smtpConnString(dbConfig *appconfig.AppConfigModel) (string, error) {

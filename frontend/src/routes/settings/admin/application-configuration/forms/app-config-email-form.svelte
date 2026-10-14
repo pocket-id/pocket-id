@@ -1,4 +1,5 @@
 <script lang="ts">
+	import SmimeSettings from './smime-settings.svelte';
 	import { openConfirmDialog } from '#lib/components/confirm-dialog/index.ts';
 	import FormInput from '#lib/components/form/form-input.svelte';
 	import SwitchWithLabel from '#lib/components/form/switch-with-label.svelte';
@@ -182,7 +183,7 @@
 		await appConfigService
 			.sendTestEmail()
 			.then(() => toast.success(m.test_email_sent_successfully()))
-			.catch(() => toast.error(m.failed_to_send_test_email()))
+			.catch((error) => axiosErrorToast(error, m.failed_to_send_test_email()))
 			.finally(() => (isSendingTestEmail = false));
 	}
 </script>
@@ -278,6 +279,10 @@
 				bind:checked={$inputs.smtpSkipCertVerify.value}
 			/>
 		</div>
+		<SmimeSettings
+			emailSettingsDirty={formStore.isDirty()}
+			sender={$inputs.smtpFrom?.value ?? ''}
+		/>
 		<h4 class="mt-10 text-lg font-semibold">{m.enabled_emails()}</h4>
 		<div class="mt-4 flex flex-col gap-5">
 			<Field.Field>
