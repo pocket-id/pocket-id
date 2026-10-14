@@ -2,6 +2,7 @@ package email
 
 import (
 	"io"
+	"log/slog"
 	"net/http"
 
 	"github.com/gin-gonic/gin"
@@ -51,7 +52,11 @@ func (m *Module) RegisterSigningRoutes(r *authz.Router, config appconfig.AppConf
 			return signingError("Upload a PKCS#12 file smaller than 1 MB")
 		}
 		if c.Request.MultipartForm != nil {
-			defer c.Request.MultipartForm.RemoveAll()
+			defer func() {
+				if err := c.Request.MultipartForm.RemoveAll(); err != nil {
+					slog.WarnContext(c.Request.Context(), "Failed to remove temporary S/MIME upload files", "error", err)
+				}
+			}()
 		}
 		file, _, err := c.Request.FormFile("file")
 		if err != nil {

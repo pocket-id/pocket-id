@@ -15,16 +15,16 @@ import (
 	"mime/multipart"
 	"mime/quotedprintable"
 	"net"
+	"net/mail"
 	stdsmtp "net/smtp"
 	"net/textproto"
+	"net/url"
 	"os"
 	"strings"
 	"time"
 
 	"github.com/italypaleale/go-kit/emailer"
 	"github.com/italypaleale/go-kit/utils"
-	"net/mail"
-	"net/url"
 )
 
 const (
@@ -153,7 +153,7 @@ func (s *SMTPEmailer) Init(_ context.Context, opts InitOpts) error {
 }
 
 // SendEmail sends a MIME email over SMTP using the configured auth and TLS mode
-func (s SMTPEmailer) SendEmail(ctx context.Context, to emailer.EmailAddress, subject string, message emailer.SendEmailMessage) error {
+func (s *SMTPEmailer) SendEmail(ctx context.Context, to emailer.EmailAddress, subject string, message emailer.SendEmailMessage) error {
 	// Build the MIME message first so transport errors are not mixed with formatting errors
 	payload, err := s.buildMessage(to, subject, message)
 	if err != nil {
@@ -248,7 +248,7 @@ func (s SMTPEmailer) SendEmail(ctx context.Context, to emailer.EmailAddress, sub
 }
 
 // buildMessage renders a UTF-8 MIME email with either one body part or multipart/alternative
-func (s SMTPEmailer) buildMessage(to emailer.EmailAddress, subject string, message emailer.SendEmailMessage) ([]byte, error) {
+func (s *SMTPEmailer) buildMessage(to emailer.EmailAddress, subject string, message emailer.SendEmailMessage) ([]byte, error) {
 	// Reject CR/LF in the caller-supplied header values so a crafted recipient or subject cannot inject extra headers or a second body
 	err := validateHeaderValue("recipient name", to.Name)
 	if err != nil {
@@ -328,7 +328,7 @@ func (s SMTPEmailer) buildMessage(to emailer.EmailAddress, subject string, messa
 }
 
 // dialSMTP opens the underlying TCP connection and applies implicit TLS when requested
-func (s SMTPEmailer) dialSMTP(ctx context.Context) (net.Conn, error) {
+func (s *SMTPEmailer) dialSMTP(ctx context.Context) (net.Conn, error) {
 	// Implicit TLS performs the handshake before the SMTP protocol starts
 	if s.tlsMode == smtpTLSImplicit {
 		tlsDialer := tls.Dialer{
@@ -342,7 +342,7 @@ func (s SMTPEmailer) dialSMTP(ctx context.Context) (net.Conn, error) {
 }
 
 // configureTLS upgrades the SMTP session with STARTTLS when the selected mode requires it
-func (s SMTPEmailer) configureTLS(client *stdsmtp.Client) error {
+func (s *SMTPEmailer) configureTLS(client *stdsmtp.Client) error {
 	// Implicit TLS has already completed before the SMTP session begins
 	if s.tlsMode == smtpTLSImplicit || s.tlsMode == smtpTLSNone {
 		return nil
@@ -363,7 +363,7 @@ func (s SMTPEmailer) configureTLS(client *stdsmtp.Client) error {
 }
 
 // authenticate sends SMTP AUTH only when the connection string included credentials
-func (s SMTPEmailer) authenticate(client *stdsmtp.Client) error {
+func (s *SMTPEmailer) authenticate(client *stdsmtp.Client) error {
 	// Allow anonymous SMTP relays or local test servers when no credentials were configured
 	if s.username == "" {
 		return nil

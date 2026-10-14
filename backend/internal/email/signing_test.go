@@ -22,7 +22,6 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
-	"strings"
 	"testing"
 	"time"
 
@@ -170,7 +169,7 @@ func TestSignMessageInteroperability(t *testing.T) {
 					sigFile, contentFile := filepath.Join(dir, "signature.der"), filepath.Join(dir, "content.mime")
 					require.NoError(t, os.WriteFile(sigFile, signature, 0600))
 					require.NoError(t, os.WriteFile(contentFile, content, 0600))
-					output, err := exec.Command("openssl", "cms", "-verify", "-binary", "-inform", "DER", "-in", sigFile, "-content", contentFile, "-noverify", "-out", filepath.Join(dir, "verified.mime")).CombinedOutput()
+					output, err := exec.CommandContext(t.Context(), "openssl", "cms", "-verify", "-binary", "-inform", "DER", "-in", sigFile, "-content", contentFile, "-noverify", "-out", filepath.Join(dir, "verified.mime")).CombinedOutput()
 					require.NoError(t, err, string(output))
 				}
 			}
@@ -276,7 +275,7 @@ func TestSigningFailsBeforeSMTPForExpiredOrMismatchedCertificate(t *testing.T) {
 	require.NoError(t, module.SendEmailVerification(t.Context(), cfg, "User", "recipient@example.test", "https://example.test"))
 	session, err := server.wait()
 	require.NoError(t, err)
-	assert.False(t, strings.Contains(session.message, "multipart/signed"))
+	assert.NotContains(t, session.message, "multipart/signed")
 }
 
 func TestSigningWithIssuerChain(t *testing.T) {

@@ -160,7 +160,7 @@ func TestSendEmail(t *testing.T) {
 
 func TestSendEmailSetsHostnameBeforeStartTLS(t *testing.T) {
 	// Reject the first greeting after recording it so the test covers the pre-STARTTLS command without needing a TLS certificate
-	listener, err := net.Listen("tcp", "127.0.0.1:0")
+	listener, err := (&net.ListenConfig{}).Listen(t.Context(), "tcp", "127.0.0.1:0")
 	require.NoError(t, err)
 	t.Cleanup(func() { _ = listener.Close() })
 
@@ -276,7 +276,7 @@ func TestSendEmailRejectsHeaderInjection(t *testing.T) {
 
 func TestSendEmailHonorsContextDeadline(t *testing.T) {
 	// A server that accepts the connection but never sends the SMTP greeting, so the client blocks reading it
-	listener, err := net.Listen("tcp", "127.0.0.1:0")
+	listener, err := (&net.ListenConfig{}).Listen(t.Context(), "tcp", "127.0.0.1:0")
 	require.NoError(t, err)
 	t.Cleanup(func() { _ = listener.Close() })
 
@@ -337,7 +337,7 @@ type smtpTestServer struct {
 
 func newSMTPTestServer(t *testing.T, authMechanisms string) *smtpTestServer {
 	// Bind an ephemeral local port so tests can run in parallel without conflicting listeners
-	listener, err := net.Listen("tcp", "127.0.0.1:0")
+	listener, err := (&net.ListenConfig{}).Listen(t.Context(), "tcp", "127.0.0.1:0")
 	require.NoError(t, err)
 
 	server := &smtpTestServer{
