@@ -6,7 +6,6 @@
 	import FormInput from '#lib/components/form/form-input.svelte';
 	import SwitchWithLabel from '#lib/components/form/switch-with-label.svelte';
 	import { Button } from '#lib/components/ui/button/index.ts';
-	import { Input } from '#lib/components/ui/input/index.ts';
 	import * as Field from '#lib/components/ui/field/index.ts';
 	import { m } from '#lib/paraglide/messages.js';
 	import AppConfigService from '#lib/services/app-config-service.ts';
@@ -171,15 +170,47 @@
 			<div class="grid grid-cols-1 items-start gap-5 md:grid-cols-2">
 				<Field.Field>
 					<Field.Label for="smime-file">{m.smime_certificate_file()}</Field.Label>
-					<Field.Description>{m.smime_upload_description()}</Field.Description>
-					<Input id="smime-file" type="file" accept=".p12,.pfx" bind:files bind:ref={fileInput} />
+					<input
+						id="smime-file"
+						type="file"
+						accept=".p12,.pfx"
+						hidden
+						{disabled}
+						bind:files
+						bind:this={fileInput}
+					/>
+					<div class="flex h-9 min-w-0 items-center gap-3">
+						<Button
+							variant="secondary"
+							class="h-9"
+							{disabled}
+							onclick={() => fileInput?.click()}
+							aria-describedby="smime-file-name smime-file-description"
+						>
+							{m.smime_choose_file()}
+						</Button>
+						<span
+							id="smime-file-name"
+							class="text-muted-foreground min-w-0 truncate text-sm"
+							role="status"
+							title={files?.[0]?.name}
+						>
+							{files?.[0]?.name ?? m.smime_no_file_selected()}
+						</span>
+					</div>
+					<Field.Description id="smime-file-description"
+						>{m.smime_upload_description()}</Field.Description
+					>
 				</Field.Field>
-				<FormInput
-					label={m.smime_password()}
-					type="password"
-					bind:input={$passwordInputs.password}
-					description={m.smime_password_description()}
-				/>
+				<div class="flex flex-col gap-3">
+					<FormInput
+						label={m.smime_password()}
+						type="password"
+						{disabled}
+						bind:input={$passwordInputs.password}
+					/>
+					<Field.Description>{m.smime_password_description()}</Field.Description>
+				</div>
 			</div>
 			<div class="flex flex-wrap gap-3">
 				<Button
