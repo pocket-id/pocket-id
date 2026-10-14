@@ -9,6 +9,7 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"github.com/vmihailenco/msgpack/v5"
 
 	"github.com/pocket-id/pocket-id/backend/internal/dto"
 )
@@ -323,5 +324,62 @@ func TestAppConfigModel_UnmarshalJSON(t *testing.T) {
 		require.NoError(t, err)
 
 		assert.Equal(t, AppConfigValue(EmailVerificationRequired), m.EmailVerification)
+	})
+}
+
+func TestAppConfigModel_DecodeMsgpack(t *testing.T) {
+	// The actor state is stored as MessagePack keyed by field name
+	t.Run("maps the legacy toggles stored in actor state to modes", func(t *testing.T) {
+		tests := map[string]struct {
+			notification      AppConfigValue
+			emailVerification AppConfigValue
+		}{
+			"true":  {LoginNotificationBrowserRecognition, EmailVerificationOptional},
+			"false": {LoginNotificationDisabled, EmailVerificationDisabled},
+		}
+		for enabled, expected := range tests {
+			data, err := msgpack.Marshal(map[string]string{
+				"AppName":                       "Legacy App",
+				"EmailLoginNotificationEnabled": enabled,
+				"EmailVerificationEnabled":      enabled,
+			})
+			require.NoError(t, err)
+
+			var m AppConfigModel
+			err = msgpack.Unmarshal(data, &m)
+			require.NoError(t, err)
+
+			assert.Equal(t, AppConfigValue("Legacy App"), m.AppName)
+			assert.Equal(t, expected.notification, m.EmailLoginNotificationMode)
+			assert.Equal(t, expected.emailVerification, m.EmailVerification)
+		}
+	})
+
+	t.Run("the stored modes win over the legacy toggles", func(t *testing.T) {
+		data, err := msgpack.Marshal(map[string]string{
+			"EmailLoginNotificationMode":    LoginNotificationAlways,
+			"EmailLoginNotificationEnabled": "false",
+			"EmailVerification":             EmailVerificationRequired,
+			"EmailVerificationEnabled":      "false",
+		})
+		require.NoError(t, err)
+
+		var m AppConfigModel
+		err = msgpack.Unmarshal(data, &m)
+		require.NoError(t, err)
+
+		assert.Equal(t, AppConfigValue(LoginNotificationAlways), m.EmailLoginNotificationMode)
+		assert.Equal(t, AppConfigValue(EmailVerificationRequired), m.EmailVerification)
+	})
+
+	t.Run("round trips the current model", func(t *testing.T) {
+		data, err := msgpack.Marshal(getDefaultConfig())
+		require.NoError(t, err)
+
+		var m AppConfigModel
+		err = msgpack.Unmarshal(data, &m)
+		require.NoError(t, err)
+
+		assert.Equal(t, *getDefaultConfig(), m)
 	})
 }
