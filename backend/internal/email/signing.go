@@ -194,7 +194,10 @@ func (m *Module) UploadSigningCertificate(ctx context.Context, pfx []byte, passw
 	// Decode the encrypted upload in memory and never persist its password
 	key, cert, parents, err := pkcs12.DecodeChain(pfx, password)
 	if err != nil {
-		return signingError("Unable to open the PKCS#12 file; check the certificate file and password")
+		if errors.Is(err, pkcs12.ErrIncorrectPassword) || errors.Is(err, pkcs12.ErrDecryption) {
+			return signingError("Unable to decrypt the PKCS#12 file; check the password")
+		}
+		return signingError("Unable to read the PKCS#12 file: " + err.Error())
 	}
 	signer, ok := key.(crypto.Signer)
 	if !ok || cert == nil {

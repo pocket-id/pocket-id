@@ -116,7 +116,7 @@ func TestSigningUploadLifecycleAndSecretStorage(t *testing.T) {
 	require.NoError(t, err)
 	_, cert, pfx := signingFixture(t, "RSA")
 	require.Error(t, module.SetSigningEnabled(t.Context(), true, "sender@example.test"))
-	require.Error(t, module.UploadSigningCertificate(t.Context(), pfx, "wrong", "sender@example.test"))
+	require.EqualError(t, module.UploadSigningCertificate(t.Context(), pfx, "wrong", "sender@example.test"), "Unable to decrypt the PKCS#12 file; check the password")
 	require.Error(t, module.UploadSigningCertificate(t.Context(), pfx, " password ", "other@example.test"))
 	require.NoError(t, module.UploadSigningCertificate(t.Context(), pfx, " password ", "sender@example.test"))
 	require.NoError(t, module.SetSigningEnabled(t.Context(), true, "sender@example.test"))
@@ -136,7 +136,9 @@ func TestSigningUploadLifecycleAndSecretStorage(t *testing.T) {
 	require.NotEmpty(t, settings.PrivateKey.String())
 	assert.NotEqual(t, settings.PrivateKey.String(), ciphertext)
 	// Invalid replacement must leave the active certificate and enabled setting intact
-	require.Error(t, module.UploadSigningCertificate(t.Context(), []byte("invalid"), "", "sender@example.test"))
+	err = module.UploadSigningCertificate(t.Context(), []byte("invalid"), "", "sender@example.test")
+	require.ErrorContains(t, err, "Unable to read the PKCS#12 file:")
+	assert.NotContains(t, err.Error(), "check the password")
 	after, err := module.SigningStatus(t.Context(), "sender@example.test")
 	require.NoError(t, err)
 	assert.Equal(t, status, after)
@@ -148,6 +150,17 @@ func TestSigningUploadLifecycleAndSecretStorage(t *testing.T) {
 	settings, err = module.loadSigningSettings(t.Context())
 	require.NoError(t, err)
 	assert.Empty(t, settings.PrivateKey)
+}
+
+func TestSigningUploadLegacyDESWithHighIterations(t *testing.T) {
+	db := testutils.NewDatabaseForTest(t)
+	module, err := New(db)
+	require.NoError(t, err)
+	key, cert, _ := signingFixture(t, "RSA")
+	// Cover legacy 3DES exports with high iteration counts instead of attributing their import failures to the algorithm
+	pfx, err := pkcs12.LegacyDES.WithIterations(102400).Encode(key, cert, nil, " password ")
+	require.NoError(t, err)
+	require.NoError(t, module.UploadSigningCertificate(t.Context(), pfx, " password ", "sender@example.test"))
 }
 
 func TestSignMessageInteroperability(t *testing.T) {
