@@ -2,7 +2,7 @@ name: CI
 
 on:
   push:
-    branches: [main, "v[0-9]+", feat/smime-email-signing]
+    branches: [main, "v[0-9]+"]
   pull_request:
     branches: [main, "v[0-9]+"]
   workflow_dispatch:
@@ -112,7 +112,7 @@ jobs:
     name: Backend lint
     needs: changes
     if: needs.changes.outputs.backend == 'true'
-    runs-on: ubuntu-latest
+    runs-on: depot-ubuntu-latest
     permissions:
       contents: read
       # Needed by the only-new-issues option
@@ -146,7 +146,7 @@ jobs:
       matrix:
         include:
           - name: Linux
-            runner: ubuntu-latest
+            runner: depot-ubuntu-latest
           - name: Windows
             runner: windows-latest
     runs-on: ${{ matrix.runner }}
@@ -188,7 +188,7 @@ jobs:
     name: Backend tests (race detector)
     needs: changes
     if: needs.changes.outputs.backend == 'true'
-    runs-on: ubuntu-latest
+    runs-on: depot-ubuntu-latest
 
     steps:
       - name: Checkout code
@@ -218,7 +218,7 @@ jobs:
     name: Svelte check
     needs: changes
     if: needs.changes.outputs.frontend == 'true'
-    runs-on: ubuntu-latest
+    runs-on: depot-ubuntu-latest
 
     steps:
       - name: Checkout code
@@ -249,9 +249,11 @@ jobs:
     name: E2E (${{ matrix.db }}, ${{ matrix.storage }}, ${{ matrix.francis }})
     needs: changes
     if: needs.changes.outputs.e2e == 'true'
-    runs-on: ubuntu-24.04
+    runs-on: depot-ubuntu-24.04-32
     permissions:
       contents: read
+      # Needed by Depot to authenticate the Docker builds
+      id-token: write
     strategy:
       fail-fast: false
       matrix:
@@ -288,10 +290,10 @@ jobs:
           cache: true
           run-install: false
 
-      - name: Set up Docker Buildx
-        run: |
-          docker buildx create --name pocket-id-ci --driver docker-container --use
-          docker buildx inspect --bootstrap
+      - name: Set up Depot CLI
+        uses: depot/setup-action@91bc8495a33ebfc504ffc89e5674379ccf23c29c # v1.7.2
+        with:
+          configure-docker: true
 
       - name: Cache Playwright Browsers
         uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
