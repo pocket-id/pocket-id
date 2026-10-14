@@ -375,10 +375,6 @@ func (s *OidcClaimMappingPolicyService) DeleteClaimMappingPolicy(ctx context.Con
 		return err
 	}
 
-	if claimMappingPolicy.IsDefault {
-		return errors.New("cannot delete the default claim mapping policy")
-	}
-
 	// The built-in policy is managed by the migrations and must always exist
 	if claimMappingPolicy.ID == model.BuiltInClaimMappingPolicyID {
 		return apperror.BuiltInClaimMappingPolicyUpdate()
@@ -393,6 +389,14 @@ func (s *OidcClaimMappingPolicyService) DeleteClaimMappingPolicy(ctx context.Con
 	err = tx.WithContext(ctx).Delete(&claimMappingPolicy).Error
 	if err != nil {
 		return err
+	}
+
+	// Promote the built-in policy when the default one is deleted, so clients without a policy keep getting claims
+	if claimMappingPolicy.IsDefault {
+		err = tx.WithContext(ctx).Model(&model.OidcClaimMappingPolicy{}).Where("id = ?", model.BuiltInClaimMappingPolicyID).Update("is_default", true).Error
+		if err != nil {
+			return err
+		}
 	}
 
 	return tx.Commit().Error

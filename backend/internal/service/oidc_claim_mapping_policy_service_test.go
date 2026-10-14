@@ -332,10 +332,11 @@ func TestDeleteClaimMappingPolicy(t *testing.T) {
 	require.Error(t, err)
 }
 
-func TestDeleteDefaultClaimMappingPolicyFails(t *testing.T) {
+// TestDeleteDefaultClaimMappingPolicyFallsBackToBuiltIn checks that deleting the default policy makes the built-in policy the default again
+func TestDeleteDefaultClaimMappingPolicyFallsBackToBuiltIn(t *testing.T) {
 	service := newTestOidcClaimMappingPolicyService(t)
 
-	// Create a default policy
+	// Create a default policy, which takes the default flag over from the built-in one
 	dto := dto.OidcClaimMappingPolicyDto{
 		OidcClaimMappingPolicyMetadataDto: dto.OidcClaimMappingPolicyMetadataDto{
 			Name:      "Default Policy",
@@ -352,14 +353,17 @@ func TestDeleteDefaultClaimMappingPolicyFails(t *testing.T) {
 	result, err := service.CreateClaimMappingPolicy(context.Background(), dto)
 	require.NoError(t, err)
 
-	// Try to delete it - should fail
+	// Delete it
 	err = service.DeleteClaimMappingPolicy(context.Background(), result.ID)
-	require.Error(t, err)
-	assert.Contains(t, err.Error(), "cannot delete the default claim mapping policy")
-
-	// Verify it still exists
-	_, err = service.GetClaimMappingPolicy(context.Background(), result.ID)
 	require.NoError(t, err)
+
+	_, err = service.GetClaimMappingPolicy(context.Background(), result.ID)
+	require.Error(t, err)
+
+	// The built-in policy is the default again
+	builtIn, err := service.GetClaimMappingPolicy(context.Background(), model.BuiltInClaimMappingPolicyID)
+	require.NoError(t, err)
+	assert.True(t, builtIn.IsDefault)
 }
 
 // TestUpdateClaimMappingPolicyUnsetDefaultFallsBackToBuiltIn checks that unsetting the default flag on a policy makes the built-in policy the default again
