@@ -14,7 +14,6 @@ import (
 	"github.com/pocket-id/pocket-id/backend/internal/model"
 	"github.com/pocket-id/pocket-id/backend/internal/utils"
 	testutils "github.com/pocket-id/pocket-id/backend/internal/utils/testing"
-	"gorm.io/gorm"
 )
 
 func newTestOidcClaimMappingPolicyService(t *testing.T) *OidcClaimMappingPolicyService {
@@ -814,7 +813,7 @@ func TestListClientsByClaimMappingPolicyNotFound(t *testing.T) {
 
 // newPolicyWithClients creates a policy plus the given clients, each attached to the policy passed
 // as its value (nil for a client on no policy at all).
-func newPolicyWithClients(t *testing.T, svc *OidcClaimMappingPolicyService, db *gorm.DB, name string) *dto.OidcClaimMappingPolicyDto {
+func newPolicyWithClients(t *testing.T, svc *OidcClaimMappingPolicyService, name string) *dto.OidcClaimMappingPolicyDto {
 	t.Helper()
 	policy, err := svc.CreateClaimMappingPolicy(context.Background(), dto.OidcClaimMappingPolicyDto{
 		OidcClaimMappingPolicyMetadataDto: dto.OidcClaimMappingPolicyMetadataDto{Name: name},
@@ -830,8 +829,8 @@ func TestListAssignableClientsExcludesClientsAlreadyOnThePolicy(t *testing.T) {
 	db := testutils.NewDatabaseForTest(t)
 	service := NewOidcClaimMappingPolicyService(db)
 
-	policy := newPolicyWithClients(t, service, db, "Target")
-	otherPolicy := newPolicyWithClients(t, service, db, "Other")
+	policy := newPolicyWithClients(t, service, "Target")
+	otherPolicy := newPolicyWithClients(t, service, "Other")
 
 	require.NoError(t, db.Create(&model.OidcClient{
 		Base: model.Base{ID: "client-on-policy"}, Name: "Grafana", ClaimMappingPolicyId: &policy.ID,
@@ -861,8 +860,8 @@ func TestAssignClientToClaimMappingPolicy(t *testing.T) {
 	db := testutils.NewDatabaseForTest(t)
 	service := NewOidcClaimMappingPolicyService(db)
 
-	policy := newPolicyWithClients(t, service, db, "Target")
-	otherPolicy := newPolicyWithClients(t, service, db, "Other")
+	policy := newPolicyWithClients(t, service, "Target")
+	otherPolicy := newPolicyWithClients(t, service, "Other")
 
 	require.NoError(t, db.Create(&model.OidcClient{
 		Base: model.Base{ID: "client-a"}, Name: "Grafana", ClaimMappingPolicyId: &otherPolicy.ID,
@@ -881,7 +880,7 @@ func TestAssignClientToClaimMappingPolicyUnknownClient(t *testing.T) {
 	db := testutils.NewDatabaseForTest(t)
 	service := NewOidcClaimMappingPolicyService(db)
 
-	policy := newPolicyWithClients(t, service, db, "Target")
+	policy := newPolicyWithClients(t, service, "Target")
 
 	err := service.AssignClientToClaimMappingPolicy(context.Background(), policy.ID, "nonexistent")
 	require.Error(t, err)
@@ -903,7 +902,7 @@ func TestRemoveClientFromClaimMappingPolicy(t *testing.T) {
 	db := testutils.NewDatabaseForTest(t)
 	service := NewOidcClaimMappingPolicyService(db)
 
-	policy := newPolicyWithClients(t, service, db, "Target")
+	policy := newPolicyWithClients(t, service, "Target")
 
 	require.NoError(t, db.Create(&model.OidcClient{
 		Base: model.Base{ID: "client-a"}, Name: "Grafana", ClaimMappingPolicyId: &policy.ID,
@@ -922,8 +921,8 @@ func TestRemoveClientFromClaimMappingPolicyLeavesClientsOfOtherPolicies(t *testi
 	db := testutils.NewDatabaseForTest(t)
 	service := NewOidcClaimMappingPolicyService(db)
 
-	policy := newPolicyWithClients(t, service, db, "Target")
-	otherPolicy := newPolicyWithClients(t, service, db, "Other")
+	policy := newPolicyWithClients(t, service, "Target")
+	otherPolicy := newPolicyWithClients(t, service, "Other")
 
 	require.NoError(t, db.Create(&model.OidcClient{
 		Base: model.Base{ID: "client-a"}, Name: "Grafana", ClaimMappingPolicyId: &otherPolicy.ID,

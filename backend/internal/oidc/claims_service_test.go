@@ -202,8 +202,8 @@ func TestClaimsServiceBuildClaims(t *testing.T) {
 	})
 }
 
-// TestClaimsServiceGetUserClaimsKeepsIntegerCustomClaims checks that integer custom claims are not turned into float64
-func TestClaimsServiceGetUserClaimsKeepsIntegerCustomClaims(t *testing.T) {
+// TestClaimsServiceBuildClaimsKeepsIntegerCustomClaims checks that integer custom claims are not turned into float64
+func TestClaimsServiceBuildClaimsKeepsIntegerCustomClaims(t *testing.T) {
 	db := testutils.NewDatabaseForTest(t)
 	require.NoError(t, db.Create(&model.User{Base: model.Base{ID: "user-1"}, Username: "tim"}).Error)
 
@@ -216,8 +216,11 @@ func TestClaimsServiceGetUserClaimsKeepsIntegerCustomClaims(t *testing.T) {
 	}}
 	service := newClaimsService(db, customClaims, "", nil, appconfig.StaticResolver{})
 
-	claims, err := service.GetUserClaims(t.Context(), "user-1", []string{"profile"})
+	// No client is created, so the default policy is used
+	claimsSource, err := service.loadUserClaimsSource(t.Context(), "user-1", "client-1")
 	require.NoError(t, err)
+
+	claims := service.buildClaims(claimsSource, []string{"profile"}, IDTokenType)
 	require.Equal(t, int64(1234567890123456789), claims["discord_id"])
 	require.Equal(t, int64(1000000), claims["uid_number"])
 	require.InDelta(t, 1.5, claims["ratio"], 0)
@@ -250,7 +253,7 @@ func TestClaimsServiceAppliesSigningAlgToIDTokenHeader(t *testing.T) {
 // policy falls back to the default one, while an assigned policy takes precedence over it.
 func TestClaimsServiceGetClaimMappingPolicyByClientID(t *testing.T) {
 	db := testutils.NewDatabaseForTest(t)
-	service := newClaimsService(db, nil, "", nil)
+	service := newClaimsService(db, nil, "", nil, appconfig.StaticResolver{})
 
 	customPolicy := model.OidcClaimMappingPolicy{
 		Base:          model.Base{ID: "custom-policy"},
