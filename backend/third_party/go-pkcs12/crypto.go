@@ -124,6 +124,9 @@ func pbeCipherFor(algorithm pkix.AlgorithmIdentifier, password []byte) (cipher.B
 	if err := unmarshal(algorithm.Parameters.FullBytes, &params); err != nil {
 		return nil, nil, err
 	}
+	if err := checkKDFIterations(params.Iterations); err != nil {
+		return nil, nil, err
+	}
 
 	key := cipherType.deriveKey(params.Salt, password, params.Iterations)
 	iv := cipherType.deriveIV(params.Salt, password, params.Iterations)
@@ -217,6 +220,9 @@ func pbes2CipherFor(algorithm pkix.AlgorithmIdentifier, password []byte) (cipher
 
 	var kdfParams pbkdf2Params
 	if err := unmarshal(params.Kdf.Parameters.FullBytes, &kdfParams); err != nil {
+		return nil, nil, err
+	}
+	if err := checkKDFIterations(kdfParams.Iterations); err != nil {
 		return nil, nil, err
 	}
 	if kdfParams.Salt.Tag != asn1.TagOctetString {

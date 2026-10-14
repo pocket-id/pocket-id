@@ -58,12 +58,16 @@ func signingError(message string) error {
 	return apperror.New("smime_invalid_configuration", http.StatusBadRequest, message)
 }
 
-func (m *Module) loadSigningSettings(ctx context.Context) (*SigningSettings, error) {
+func (m *Module) loadSigningSettings(ctx context.Context, columns ...string) (*SigningSettings, error) {
 	if m.db == nil {
 		return &SigningSettings{}, nil
 	}
 	var settings SigningSettings
-	if err := m.db.WithContext(ctx).First(&settings, "id = ?", 1).Error; err != nil {
+	query := m.db.WithContext(ctx)
+	if len(columns) > 0 {
+		query = query.Select(columns)
+	}
+	if err := query.First(&settings, "id = ?", 1).Error; err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			return &SigningSettings{ID: 1}, nil
 		}
@@ -158,7 +162,8 @@ func validateSigningCertificate(cert *x509.Certificate, signer crypto.Signer, se
 }
 
 func (m *Module) SigningStatus(ctx context.Context, sender string) (*SigningStatus, error) {
-	settings, err := m.loadSigningSettings(ctx)
+	// Metadata and removal remain accessible even if a stored private key cannot be decrypted
+	settings, err := m.loadSigningSettings(ctx, "id", "enabled", "certificate_chain")
 	if err != nil {
 		return nil, err
 	}
@@ -203,6 +208,29 @@ func (m *Module) UploadSigningCertificate(ctx context.Context, pfx []byte, passw
 	if !ok || cert == nil {
 		return signingError("The file must contain a certificate and its private key")
 	}
+	// PKCS#12 bag order does not identify the sender certificate, so find the certificate belonging to the private key
+	publicKey, err := x509.MarshalPKIXPublicKey(signer.Public())
+	if err != nil {
+		return err
+	}
+	certificates := append([]*x509.Certificate{cert}, parents...)
+	matchingIndex := -1
+	for i, candidate := range certificates {
+		candidateKey, err := x509.MarshalPKIXPublicKey(candidate.PublicKey)
+		if err != nil {
+			return err
+		}
+		if bytes.Equal(publicKey, candidateKey) {
+			matchingIndex = i
+			break
+		}
+	}
+	if matchingIndex < 0 {
+		return signingError("The private key does not match the certificate")
+	}
+	cert = certificates[matchingIndex]
+	parents = certificates[:matchingIndex]
+	parents = append(parents, certificates[matchingIndex+1:]...)
 	if err := validateSigningCertificate(cert, signer, sender, time.Now()); err != nil {
 		return err
 	}
@@ -325,8 +353,13 @@ func signMessage(payload []byte, certs []*x509.Certificate, signer crypto.Signer
 		return nil, errors.New("invalid MIME message")
 	}
 	var outer, inner bytes.Buffer
+	contentHeader := false
 	for _, line := range bytes.Split(parts[0], []byte("\r\n")) {
-		if bytes.HasPrefix(bytes.ToLower(line), []byte("content-")) {
+		// Continuation lines belong to the preceding header and must retain their exact signed bytes
+		if len(line) > 0 && line[0] != ' ' && line[0] != '\t' {
+			contentHeader = bytes.HasPrefix(bytes.ToLower(line), []byte("content-"))
+		}
+		if contentHeader {
 			inner.Write(line)
 			inner.WriteString("\r\n")
 		} else {

@@ -12,7 +12,8 @@ signatures, and include the configured SMTP sender address in its email subject
 alternative names. RSA keys of 2048–8192 bits and ECDSA keys of at least 256 bits
 are supported. Uploads are limited to a 1 MiB multipart request. Include any
 intermediate issuer certificates needed by recipient clients. Certificate
-trust is evaluated by the recipient; the displayed validity status refers to
+bag order does not matter; the sender certificate is selected by its public key.
+Trust is evaluated by the recipient; the displayed validity status refers to
 certificate dates and is not a public-CA trust or revocation check.
 
 The page displays certificate holder, issuer, email addresses, validity dates,
@@ -51,5 +52,7 @@ Both DER and BER PKCS#12 containers are supported using the local SSLMate decode
 adaptation documented in `backend/third_party/go-pkcs12/README.pocket-id.md`.
 The decoder verifies the MAC over the original authenticated bytes before parsing
 the contained ASN.1 data, and bounds input size, nesting, and element count.
+KDF iteration counts are limited to 1–1,000,000 per derivation to bound import
+CPU work; higher-count files must be exported again with supported parameters.
 Tests verify delivered MIME bytes, reject tampered content, cover both RSA and
 ECDSA, and independently check signatures with OpenSSL when it is available.

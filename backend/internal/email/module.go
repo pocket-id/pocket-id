@@ -179,7 +179,8 @@ func (m *Module) getEmailer(ctx context.Context, dbConfig *appconfig.AppConfigMo
 	}
 
 	// Load one consistent certificate/key snapshot for this delivery and fail before connecting if signing is unusable
-	settings, err := m.loadSigningSettings(ctx)
+	// Do not decrypt an unused key when signing is disabled, so disabling also restores delivery after key corruption
+	settings, err := m.loadSigningSettings(ctx, "id", "enabled", "certificate_chain", "CASE WHEN enabled THEN private_key ELSE '' END AS private_key")
 	if err != nil {
 		return nil, err
 	}

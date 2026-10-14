@@ -169,9 +169,10 @@ func TestSignMessageInteroperability(t *testing.T) {
 			key, cert, _ := signingFixture(t, algorithm)
 			for _, body := range []string{
 				"Content-Type: text/plain; charset=UTF-8\r\nContent-Transfer-Encoding: quoted-printable\r\n\r\nGr=C3=BC=C3=9Fe\r\n.Line\r\n",
+				"Content-Type: text/plain;\r\n\tcharset=UTF-8\r\nContent-Transfer-Encoding: quoted-printable\r\n\r\nGr=C3=BC=C3=9Fe\r\n",
 				"Content-Type: multipart/alternative; boundary=inner\r\n\r\n--inner\r\nContent-Type: text/plain\r\n\r\nHello\r\n--inner\r\nContent-Type: text/html\r\n\r\n<b>Hello</b>\r\n--inner--\r\n",
 			} {
-				message := []byte("From: sender@example.test\r\nTo: recipient@example.test\r\nSubject: Test\r\nMIME-Version: 1.0\r\n" + body)
+				message := []byte("From: sender@example.test\r\nTo: recipient@example.test\r\nSubject: Test\r\n\tfolded\r\nMIME-Version: 1.0\r\n" + body)
 				signed, err := signMessage(message, []*x509.Certificate{cert}, key)
 				require.NoError(t, err)
 				content, signature := verifyMessage(t, signed)
@@ -324,6 +325,11 @@ func TestSigningWithIssuerChain(t *testing.T) {
 	require.NoError(t, err)
 	require.NoError(t, module.UploadSigningCertificate(t.Context(), pfx, "chain", "sender@example.test"))
 	require.NoError(t, module.UploadSigningCertificate(t.Context(), indefiniteSigningEnvelope(t, pfx), "chain", "sender@example.test"))
+	// Some exporters place issuer bags before the sender certificate even though the private key belongs to the sender
+	rootFirst, err := pkcs12.Modern.Encode(leafKey, root, []*x509.Certificate{intermediate, leaf}, "chain")
+	require.NoError(t, err)
+	require.NoError(t, module.UploadSigningCertificate(t.Context(), rootFirst, "chain", "sender@example.test"))
+	require.NoError(t, module.UploadSigningCertificate(t.Context(), indefiniteSigningEnvelope(t, rootFirst), "chain", "sender@example.test"))
 	settings, err := module.loadSigningSettings(t.Context())
 	require.NoError(t, err)
 	certs, signer, err := signerFromSettings(settings, "sender@example.test")
