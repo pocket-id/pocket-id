@@ -1,5 +1,7 @@
 module github.com/pocket-id/pocket-id/backend
 
+replace software.sslmate.com/src/go-pkcs12 => ./third_party/go-pkcs12
+
 go 1.27.2
 
 require (

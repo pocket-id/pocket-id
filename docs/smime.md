@@ -45,7 +45,11 @@ master encryption key with backups. `encryption-key-rotate` also re-encrypts the
 S/MIME key. Schema migrations are provided for SQLite and PostgreSQL.
 
 The local SMTP adapter is documented in
-`backend/internal/email/smtptransport/README.md`. No external OpenSSL process is
-required in production; Go libraries perform PKCS#12 decoding and CMS signing.
+`backend/internal/email/smtptransport/README.md`. Go libraries perform PKCS#12
+decoding and CMS signing; no external OpenSSL process is required in production.
+Both DER and BER PKCS#12 containers are supported using the local SSLMate decoder
+adaptation documented in `backend/third_party/go-pkcs12/README.pocket-id.md`.
+The decoder verifies the MAC over the original authenticated bytes before parsing
+the contained ASN.1 data, and bounds input size, nesting, and element count.
 Tests verify delivered MIME bytes, reject tampered content, cover both RSA and
 ECDSA, and independently check signatures with OpenSSL when it is available.

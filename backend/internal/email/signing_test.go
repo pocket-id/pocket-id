@@ -323,6 +323,7 @@ func TestSigningWithIssuerChain(t *testing.T) {
 	module, err := New(testutils.NewDatabaseForTest(t))
 	require.NoError(t, err)
 	require.NoError(t, module.UploadSigningCertificate(t.Context(), pfx, "chain", "sender@example.test"))
+	require.NoError(t, module.UploadSigningCertificate(t.Context(), indefiniteSigningEnvelope(t, pfx), "chain", "sender@example.test"))
 	settings, err := module.loadSigningSettings(t.Context())
 	require.NoError(t, err)
 	certs, signer, err := signerFromSettings(settings, "sender@example.test")
