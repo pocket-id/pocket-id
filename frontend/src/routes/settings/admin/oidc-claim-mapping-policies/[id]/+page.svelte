@@ -7,7 +7,10 @@
 	import { toast } from 'svelte-sonner';
 	import { backNavigate } from '../../users/navigate-back-util';
 	import OidcClaimMappingPolicyService from '#lib/services/oidc-claim-mapping-policy-service.ts';
-	import type { OidcClaimMappingPolicy } from '#lib/types/oidc-claim-mapping-policy.type.ts';
+	import {
+		builtInClaimMappingPolicyId,
+		type OidcClaimMappingPolicy
+	} from '#lib/types/oidc-claim-mapping-policy.type.ts';
 	import OidcClaimMappingPolicyForm from '../oidc-claim-mapping-policy-form.svelte';
 	import OidcClaimMappingsCard from './oidc-claim-mappings-card.svelte';
 	import OidcClaimMappingPolicyClientsTab from './oidc-claim-mapping-policy-clients-tab.svelte';
@@ -18,6 +21,9 @@
 	let policy: OidcClaimMappingPolicy = $state(data.policy);
 	let clientsTab = $state<OidcClaimMappingPolicyClientsTab>();
 	let showPreview = $state(false);
+
+	// The built-in policy is managed by the server, so only its default flag can be changed
+	const readOnly = $derived(policy.id === builtInClaimMappingPolicyId);
 
 	const claimMappingPolicyService = new OidcClaimMappingPolicyService();
 	const backNavigation = backNavigate('/settings/admin/oidc-claim-mapping-policies');
@@ -84,11 +90,16 @@
 			</Card.Header>
 
 			<Card.Content>
-				<OidcClaimMappingPolicyForm existingPolicy={policy} callback={updatePolicy} mode="update" />
+				<OidcClaimMappingPolicyForm
+					existingPolicy={policy}
+					callback={updatePolicy}
+					mode="update"
+					{readOnly}
+				/>
 			</Card.Content>
 		</Card.Root>
 
-		<OidcClaimMappingsCard {policy} onClaimMappingsSave={updatePolicy} />
+		<OidcClaimMappingsCard {policy} onClaimMappingsSave={updatePolicy} {readOnly} />
 	</Tabs.Content>
 
 	<Tabs.Content value="clients" class="flex flex-col gap-4">

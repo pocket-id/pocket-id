@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"reflect"
 
 	"github.com/pocket-id/pocket-id/backend/internal/apperror"
 	"github.com/pocket-id/pocket-id/backend/internal/dto"
@@ -300,7 +301,20 @@ func (s *OidcClaimMappingPolicyService) UpdateClaimMappingPolicy(ctx context.Con
 	}
 
 	// Apply the changes
+	original := claimMappingPolicy
 	updateClaimMappingPolicyFromDto(&claimMappingPolicy, dto)
+
+	// The built-in policy is managed by the migrations, so only its default flag may change
+	if original.ID == model.BuiltInClaimMappingPolicyID &&
+		(claimMappingPolicy.Name != original.Name || !reflect.DeepEqual(claimMappingPolicy.ClaimMappings, original.ClaimMappings)) {
+		return &dto, apperror.BuiltInClaimMappingPolicyUpdate()
+	}
+
+	// There must always be a default policy, and the built-in one is the fallback when the current default is unset
+	unsetDefault := original.IsDefault && !claimMappingPolicy.IsDefault
+	if unsetDefault && original.ID == model.BuiltInClaimMappingPolicyID {
+		return &dto, apperror.ValidationMessage("The built-in claim mapping policy can't be unset as default, set another policy as default instead")
+	}
 
 	err = tx.WithContext(ctx).Save(&claimMappingPolicy).Error
 	if err != nil {
@@ -310,6 +324,14 @@ func (s *OidcClaimMappingPolicyService) UpdateClaimMappingPolicy(ctx context.Con
 	// Unset default for other claim mapping policies, in the same transaction so there is never more than one default
 	if claimMappingPolicy.IsDefault {
 		err = tx.WithContext(ctx).Model(&model.OidcClaimMappingPolicy{}).Where("id != ?", claimMappingPolicy.ID).Update("is_default", false).Error
+		if err != nil {
+			return &dto, err
+		}
+	}
+
+	// Promote the built-in policy when the default one is unset, so clients without a policy keep getting claims
+	if unsetDefault {
+		err = tx.WithContext(ctx).Model(&model.OidcClaimMappingPolicy{}).Where("id = ?", model.BuiltInClaimMappingPolicyID).Update("is_default", true).Error
 		if err != nil {
 			return &dto, err
 		}
@@ -355,6 +377,11 @@ func (s *OidcClaimMappingPolicyService) DeleteClaimMappingPolicy(ctx context.Con
 
 	if claimMappingPolicy.IsDefault {
 		return errors.New("cannot delete the default claim mapping policy")
+	}
+
+	// The built-in policy is managed by the migrations and must always exist
+	if claimMappingPolicy.ID == model.BuiltInClaimMappingPolicyID {
+		return apperror.BuiltInClaimMappingPolicyUpdate()
 	}
 
 	// Clear the reference on any client that was using this policy, so they fall back to the default one

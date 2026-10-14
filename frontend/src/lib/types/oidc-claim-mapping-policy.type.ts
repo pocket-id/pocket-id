@@ -50,6 +50,9 @@ export type OidcClaimMappingDto = {
 	userInfo: boolean;
 };
 
+// ID of the policy inserted by the migrations, which is read-only except for its default flag
+export const builtInClaimMappingPolicyId = '00000000-0000-0000-0000-000000000000';
+
 export type OidcClaimMappingPolicyMetadataDto = {
 	id: string;
 	name: string;

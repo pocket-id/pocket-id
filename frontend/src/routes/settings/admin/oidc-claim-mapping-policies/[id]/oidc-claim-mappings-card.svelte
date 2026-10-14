@@ -19,10 +19,12 @@
 
 	let {
 		policy,
-		onClaimMappingsSave
+		onClaimMappingsSave,
+		readOnly = false
 	}: {
 		policy: OidcClaimMappingPolicy;
 		onClaimMappingsSave: (policy: OidcClaimMappingPolicy) => Promise<void>;
+		readOnly?: boolean;
 	} = $props();
 
 	type OidcClaimMappingRow = OidcClaimMappingDto & { id: string };
@@ -146,7 +148,8 @@
 		{ label: m.access_token(), column: 'accessToken', hidden: true },
 		{ label: m.id_token(), column: 'idToken', hidden: true },
 		{ label: m.userinfo(), column: 'userInfo', hidden: true },
-		{ label: '', key: 'actions', cell: OidcClaimMappingActionsCell, hidden: false }
+		// A read-only policy has no actions column at all, so it cannot be re-enabled from the column picker
+		...(readOnly ? [] : [{ label: '', key: 'actions', cell: OidcClaimMappingActionsCell }])
 	];
 
 	async function fetchCallback(
@@ -202,9 +205,13 @@
 		<div class="flex flex-wrap items-center justify-between gap-4 md:flex-nowrap">
 			<div>
 				<Card.Title>{m.claim_mappings()}</Card.Title>
-				<Card.Description>{m.claim_mappings_description()}</Card.Description>
+				<Card.Description>
+					{readOnly ? m.built_in_claim_mappings_description() : m.claim_mappings_description()}
+				</Card.Description>
 			</div>
-			<Button class="w-full md:w-auto" onclick={addClaimMapping}>{m.add_claim_mapping()}</Button>
+			{#if !readOnly}
+				<Button class="w-full md:w-auto" onclick={addClaimMapping}>{m.add_claim_mapping()}</Button>
+			{/if}
 		</div>
 	</Card.Header>
 	<Card.Content>
@@ -214,7 +221,7 @@
 			withoutSearch
 			{fetchCallback}
 			{columns}
-			onRowClick={(item) => editClaimMapping(item)}
+			onRowClick={readOnly ? undefined : (item) => editClaimMapping(item)}
 		/>
 	</Card.Content>
 </Card.Root>

@@ -719,6 +719,7 @@
 	"claim_mappings": "Claim Mappings",
 	"claim_mapping": "Claim Mapping",
 	"claim_mappings_description": "List of claim mapping of the policy",
+	"built_in_claim_mappings_description": "The built-in policy can't be modified. Duplicate it to customize its claim mappings.",
 	"claim_name": "Claim name",
 	"source_type": "Source type",
 	"source_value": "Source value",

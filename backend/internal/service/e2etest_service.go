@@ -197,7 +197,7 @@ func (s *TestService) SeedDatabase(baseURL string) error {
 		// It mirrors the migration so clients without an assigned policy keep getting the standard claims
 		defaultClaimMappingPolicy := model.OidcClaimMappingPolicy{
 			Base: model.Base{
-				ID: "f383d02d-69e1-4a28-96f8-7c5410c8ac8d",
+				ID: model.BuiltInClaimMappingPolicyID,
 			},
 			Name:      "Standard Policy",
 			IsDefault: true,

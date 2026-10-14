@@ -8,7 +8,10 @@
 		AdvancedTableColumn,
 		CreateAdvancedTableActions
 	} from '#lib/types/advanced-table.type.ts';
-	import type { OidcClaimMappingPolicyMetadataDto } from '#lib/types/oidc-claim-mapping-policy.type.ts';
+	import {
+		builtInClaimMappingPolicyId,
+		type OidcClaimMappingPolicyMetadataDto
+	} from '#lib/types/oidc-claim-mapping-policy.type.ts';
 	import { axiosErrorToast } from '#lib/utils/error-util.ts';
 	import { LucideCopy, LucidePencil, LucideTrash } from '@lucide/svelte';
 	import { toast } from 'svelte-sonner';
@@ -32,7 +35,7 @@
 		}
 	];
 
-	const actions: CreateAdvancedTableActions<OidcClaimMappingPolicyMetadataDto> = () => [
+	const actions: CreateAdvancedTableActions<OidcClaimMappingPolicyMetadataDto> = (policy) => [
 		{
 			label: m.edit(),
 			primary: true,
@@ -51,6 +54,7 @@
 			label: m.delete(),
 			icon: LucideTrash,
 			variant: 'danger',
+			hidden: policy.id === builtInClaimMappingPolicyId,
 			onClick: (policy) => deleteClaimMappingPolicy(policy)
 		}
 	];

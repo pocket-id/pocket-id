@@ -362,6 +362,108 @@ func TestDeleteDefaultClaimMappingPolicyFails(t *testing.T) {
 	require.NoError(t, err)
 }
 
+// TestUpdateClaimMappingPolicyUnsetDefaultFallsBackToBuiltIn checks that unsetting the default flag on a policy makes the built-in policy the default again
+func TestUpdateClaimMappingPolicyUnsetDefaultFallsBackToBuiltIn(t *testing.T) {
+	service := newTestOidcClaimMappingPolicyService(t)
+
+	input := dto.OidcClaimMappingPolicyDto{
+		OidcClaimMappingPolicyMetadataDto: dto.OidcClaimMappingPolicyMetadataDto{Name: "Custom", IsDefault: true},
+		ClaimMappings: []dto.OidcClaimMappingDto{
+			{ClaimName: "sub", SourceType: "user_field", SourceValue: string(model.UserFieldID)},
+		},
+	}
+	created, err := service.CreateClaimMappingPolicy(context.Background(), input)
+	require.NoError(t, err)
+
+	// The custom policy took over the default flag from the built-in one
+	builtIn, err := service.GetClaimMappingPolicy(context.Background(), model.BuiltInClaimMappingPolicyID)
+	require.NoError(t, err)
+	require.False(t, builtIn.IsDefault)
+
+	// Unset the default flag on the custom policy
+	input.IsDefault = false
+	_, err = service.UpdateClaimMappingPolicy(context.Background(), created.ID, input)
+	require.NoError(t, err)
+
+	custom, err := service.GetClaimMappingPolicy(context.Background(), created.ID)
+	require.NoError(t, err)
+	assert.False(t, custom.IsDefault)
+
+	builtIn, err = service.GetClaimMappingPolicy(context.Background(), model.BuiltInClaimMappingPolicyID)
+	require.NoError(t, err)
+	assert.True(t, builtIn.IsDefault)
+}
+
+// builtInPolicyDto returns the built-in policy as the frontend would send it back on update
+func builtInPolicyDto(t *testing.T, service *OidcClaimMappingPolicyService) dto.OidcClaimMappingPolicyDto {
+	t.Helper()
+	policy, err := service.GetClaimMappingPolicy(context.Background(), model.BuiltInClaimMappingPolicyID)
+	require.NoError(t, err)
+
+	var policyDto dto.OidcClaimMappingPolicyDto
+	require.NoError(t, dto.MapStruct(policy, &policyDto))
+	return policyDto
+}
+
+// TestUpdateBuiltInClaimMappingPolicyOnlyAllowsDefaultFlag checks that the built-in policy inserted by the migrations is read-only except for its default flag
+func TestUpdateBuiltInClaimMappingPolicyOnlyAllowsDefaultFlag(t *testing.T) {
+	service := newTestOidcClaimMappingPolicyService(t)
+
+	t.Run("renaming is rejected", func(t *testing.T) {
+		input := builtInPolicyDto(t, service)
+		input.Name = "Renamed"
+
+		_, err := service.UpdateClaimMappingPolicy(context.Background(), model.BuiltInClaimMappingPolicyID, input)
+		var appErr *apperror.Error
+		require.ErrorAs(t, err, &appErr)
+		assert.Equal(t, apperror.CodeBuiltInClaimMappingPolicyUpdate, appErr.Code())
+	})
+
+	t.Run("changing the mappings is rejected", func(t *testing.T) {
+		input := builtInPolicyDto(t, service)
+		input.ClaimMappings = input.ClaimMappings[:1]
+
+		_, err := service.UpdateClaimMappingPolicy(context.Background(), model.BuiltInClaimMappingPolicyID, input)
+		var appErr *apperror.Error
+		require.ErrorAs(t, err, &appErr)
+		assert.Equal(t, apperror.CodeBuiltInClaimMappingPolicyUpdate, appErr.Code())
+
+		policy, err := service.GetClaimMappingPolicy(context.Background(), model.BuiltInClaimMappingPolicyID)
+		require.NoError(t, err)
+		assert.Greater(t, len(policy.ClaimMappings), 1)
+	})
+
+	t.Run("unsetting the default flag is rejected", func(t *testing.T) {
+		input := builtInPolicyDto(t, service)
+		input.IsDefault = false
+
+		_, err := service.UpdateClaimMappingPolicy(context.Background(), model.BuiltInClaimMappingPolicyID, input)
+		var appErr *apperror.Error
+		require.ErrorAs(t, err, &appErr)
+		assert.Equal(t, apperror.CodeValidationFailed, appErr.Code())
+
+		policy, err := service.GetClaimMappingPolicy(context.Background(), model.BuiltInClaimMappingPolicyID)
+		require.NoError(t, err)
+		assert.True(t, policy.IsDefault)
+	})
+
+	t.Run("deleting is rejected even when not default", func(t *testing.T) {
+		// Make another policy the default so the built-in one is no longer protected by the default check
+		_, err := service.CreateClaimMappingPolicy(context.Background(), dto.OidcClaimMappingPolicyDto{
+			OidcClaimMappingPolicyMetadataDto: dto.OidcClaimMappingPolicyMetadataDto{Name: "New Default", IsDefault: true},
+			ClaimMappings: []dto.OidcClaimMappingDto{
+				{ClaimName: "sub", SourceType: "user_field", SourceValue: string(model.UserFieldID)},
+			},
+		})
+		require.NoError(t, err)
+
+		err = service.DeleteClaimMappingPolicy(context.Background(), model.BuiltInClaimMappingPolicyID)
+		var appErr *apperror.Error
+		require.ErrorAs(t, err, &appErr)
+		assert.Equal(t, apperror.CodeBuiltInClaimMappingPolicyUpdate, appErr.Code())
+	})
+}
+
 // Tests for validateClaimMappings
 
 func TestValidateClaimMappingsMissingSubClaim(t *testing.T) {

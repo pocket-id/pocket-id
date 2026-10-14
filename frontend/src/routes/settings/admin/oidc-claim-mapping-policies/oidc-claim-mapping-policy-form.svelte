@@ -17,11 +17,13 @@
 	let {
 		callback,
 		existingPolicy,
-		mode
+		mode,
+		readOnly = false
 	}: {
 		existingPolicy?: OidcClaimMappingPolicy;
 		callback: (policy: OidcClaimMappingPolicy) => Promise<void>;
 		mode: 'create' | 'update';
+		readOnly?: boolean;
 	} = $props();
 
 	let isLoading = $state(false);
@@ -216,6 +218,7 @@
 			class="w-full"
 			bind:input={$inputs.name}
 			placeholder={m.enter_policy_name()}
+			disabled={readOnly}
 		/>
 		<div>
 			<SwitchWithLabel
@@ -228,6 +231,7 @@
 					}
 				}}
 				bind:checked={$inputs.isDefault.value}
+				disabled={readOnly && existingPolicy?.isDefault}
 			/>
 		</div>
 	</div>
