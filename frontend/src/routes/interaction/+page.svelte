@@ -30,6 +30,8 @@
 	let errorMessage: string | null = $state(null);
 	let errorCode: string | undefined = $state();
 	let currentStep = $derived(interactionSession.currentStep);
+	// Every requested scope starts selected so the user only has to deselect the ones they do not want to grant
+	let selectedScopes = $state([...(data.interactionSession.scopes ?? [])]);
 
 	const fullName = $derived.by(() => {
 		if (!$userStore) {
@@ -93,7 +95,11 @@
 	}
 
 	async function completeInteraction(step: InteractionStep, skipRedirect = false) {
-		const result = await oidcService.completeAuthorizeInteractionStep(interactionSession.id, step);
+		const result = await oidcService.completeAuthorizeInteractionStep(
+			interactionSession.id,
+			step,
+			step === 'consent' ? selectedScopes : undefined
+		);
 		if (result.interaction) {
 			interactionSession = result.interaction;
 			if (interactionSession.currentStep == 'reauthenticate') {
@@ -193,6 +199,7 @@
 					<ScopeList
 						scopes={interactionSession.scopes || []}
 						scopeInfo={interactionSession.scopeInfo ?? []}
+						bind:selectedScopes
 					/>
 				</Card.Content>
 			</Card.Root>

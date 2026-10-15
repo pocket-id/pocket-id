@@ -392,8 +392,8 @@ github.com/pires/go-proxyproto v0.15.0/go.mod h1:OXsCrKwrK2tXS9YrI5tkHx5xaQlO8FH
 github.com/pkg/errors v0.9.1 h1:FEBLx1zS214owpjy7qsBeixbURkuhQAwrK5UwLGTwt4=
 github.com/pkg/errors v0.9.1/go.mod h1:bwawxfHBFNV+L2hUp1rHADufV3IMtnDRdf1r5NINEl0=
 github.com/pmezard/go-difflib v1.0.0/go.mod h1:iKH77koFhYxTK1pcRnkKkqfTogsbg7gZNVY4sRDYZ/4=
-github.com/pocket-id/fosite v1.4.1 h1:7dkhiW0Zof78fkWlAYt+rnA5xJFFcJgovQURlQZrD+I=
-github.com/pocket-id/fosite v1.4.1/go.mod h1:1zQyPDsHITYiDgzNEVvZcDho56KLb+MWSP6OM3u3s1c=
+github.com/pocket-id/fosite v1.4.2 h1:r0KaYjXhtKbsK7qH2yuC1WGEX0qgIGrIH6S/azXOxfI=
+github.com/pocket-id/fosite v1.4.2/go.mod h1:1zQyPDsHITYiDgzNEVvZcDho56KLb+MWSP6OM3u3s1c=
 github.com/prometheus/client_golang v1.25.0 h1:cDtW1TcFsMi1RJc8khwCKB4VhzwV04aKqbYtNOXuiK0=
 github.com/prometheus/client_golang v1.25.0/go.mod h1:j2X/4/kaQHLPnmyEU8zjmkndo1T317VpCIQEml8LTKk=
 github.com/prometheus/client_model v0.6.3 h1:O0jaTVAYNxTHYInEPFJt5I3+sN8zqBtVMPTB1qyxiEo=

@@ -59,6 +59,7 @@ func (s *interactionSessionService) update(ctx context.Context, interactionSessi
 			"reauthentication_required":  interactionSession.ReauthenticationRequired,
 			"consent_required":           interactionSession.ConsentRequired,
 			"user_id":                    interactionSession.UserID,
+			"scopes":                     interactionSession.Scopes,
 			"reauthenticated_at":         interactionSession.ReauthenticatedAt,
 			"parameters":                 interactionSession.Parameters,
 		}).
