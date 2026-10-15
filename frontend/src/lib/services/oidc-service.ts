@@ -27,10 +27,14 @@ class OidcService extends APIService {
 		return data;
 	};
 
-	completeAuthorizeInteractionStep = async (id: string, step: InteractionStep) => {
+	completeAuthorizeInteractionStep = async (
+		id: string,
+		step: InteractionStep,
+		scopes?: string[]
+	) => {
 		const { data } = await this.api.post<CompleteInteractionResponse>(
 			`/oidc/interactions/${id}/complete`,
-			{ step }
+			{ step, scopes }
 		);
 		return data;
 	};
@@ -116,8 +120,8 @@ class OidcService extends APIService {
 		return res.data as OidcClientWithAllowedUserGroups;
 	};
 
-	verifyDeviceCode = async (userCode: string) => {
-		return await this.api.post(`/oidc/device/verify?code=${userCode}`);
+	verifyDeviceCode = async (userCode: string, scopes?: string[]) => {
+		return await this.api.post(`/oidc/device/verify?code=${userCode}`, { scopes });
 	};
 
 	getDeviceCodeInfo = async (userCode: string): Promise<OidcDeviceCodeInfo> => {

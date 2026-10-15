@@ -128,7 +128,7 @@ func (h *authorizationHandler) completeInteraction(c *gin.Context) {
 	}
 
 	reauthenticationToken, _ := c.Cookie(cookie.ReauthenticationTokenCookieName)
-	response, err := h.authorizationService.completeInteractionStep(c.Request.Context(), interactionID, principal.UserID, request.Step, reauthenticationToken, principal.AuthenticationTime, requestMetaFromGin(c))
+	response, err := h.authorizationService.completeInteractionStep(c.Request.Context(), interactionID, principal.UserID, request.Step, request.Scopes, reauthenticationToken, principal.AuthenticationTime, requestMetaFromGin(c))
 	if err != nil {
 		_ = c.Error(err)
 		return
