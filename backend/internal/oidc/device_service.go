@@ -14,7 +14,6 @@ import (
 	"github.com/pocket-id/pocket-id/backend/internal/apperror"
 	"github.com/pocket-id/pocket-id/backend/internal/auditlogs"
 	"github.com/pocket-id/pocket-id/backend/internal/dto"
-	"github.com/pocket-id/pocket-id/backend/internal/model"
 	"github.com/pocket-id/pocket-id/backend/internal/utils"
 )
 
@@ -183,25 +182,6 @@ func copyDeviceCodeExpiry(from fosite.Session, to *Session) {
 			to.SetExpiresAt(tokenType, expiresAt)
 		}
 	}
-}
-
-func (s *deviceService) loadDeviceAuthorizationUser(ctx context.Context, userID string) (model.User, error) {
-	tx := s.db.Begin()
-	defer func() {
-		tx.Rollback()
-	}()
-
-	var user model.User
-	err := tx.
-		WithContext(ctx).
-		Preload("UserGroups").
-		First(&user, "id = ?", userID).
-		Error
-	if errors.Is(err, gorm.ErrRecordNotFound) {
-		return model.User{}, apperror.UserNotFound()
-	}
-
-	return user, err
 }
 
 func (s *deviceService) getDeviceCodeInfo(ctx context.Context, userCode, userID string) (*dto.DeviceCodeInfoDto, error) {

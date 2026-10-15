@@ -4,6 +4,7 @@ package service
 
 import (
 	"context"
+	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -637,10 +638,7 @@ func TestValidateClaimMappingsCustomClaimInvalidLength(t *testing.T) {
 	assert.Contains(t, err.Error(), "claim name, source type and source value are required")
 
 	// Test too long custom claim key (256 chars)
-	longKey := "a"
-	for i := 0; i < 256; i++ {
-		longKey += "a"
-	}
+	longKey := strings.Repeat("a", 256)
 	err = validateClaimMappings([]dto.OidcClaimMappingDto{
 		{
 			ClaimName:   "sub",
