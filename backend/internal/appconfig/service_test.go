@@ -7,6 +7,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/italypaleale/francis/actor"
 	"github.com/italypaleale/francis/host/local"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -103,6 +104,44 @@ func TestService_NewService(t *testing.T) {
 		assert.Equal(t, AppConfigValue("true"), cfg.LdapEnabled)
 		// Keys not present in the legacy config keep their defaults
 		assert.Equal(t, getDefaultConfig().SessionDuration, cfg.SessionDuration)
+	})
+
+	t.Run("upgrades boolean toggles stored in actor state by previous versions", func(t *testing.T) {
+		setUIConfigDisabled(t, false)
+		db := testutils.NewDatabaseForTest(t)
+
+		var svc *AppConfigService
+		host := testutils.NewActorHostForTest(t, func(t *testing.T, h *local.Host) {
+			var err error
+			svc, err = NewService(t.Context(), h, db)
+			require.NoError(t, err)
+		})
+
+		// Previous versions stored the config as msgpack keyed by Go field name, with boolean toggles where modes exist now
+		type previousConfig struct {
+			AppName                                    AppConfigValue
+			EmailLoginNotificationEnabled              AppConfigValue
+			EmailVerificationEnabled                   AppConfigValue
+			EmailOneTimeAccessAsUnauthenticatedEnabled AppConfigValue
+		}
+		previous := previousConfig{AppName: "Previous App"}
+		previous.EmailLoginNotificationEnabled = "true"
+		previous.EmailVerificationEnabled = "true"
+		previous.EmailOneTimeAccessAsUnauthenticatedEnabled = "true"
+		err := host.SetState(t.Context(), AppConfigActorType, actor.SingletonActorID, previous, nil)
+		require.NoError(t, err)
+
+		// Halt the actor so it reloads and decodes the stored state, as it does when a new version starts
+		require.NoError(t, host.Halt(AppConfigActorType, actor.SingletonActorID))
+
+		require.EventuallyWithT(t, func(c *assert.CollectT) {
+			cfg, err := svc.GetConfig(t.Context())
+			require.NoError(c, err)
+			require.Equal(c, AppConfigValue("Previous App"), cfg.AppName)
+			assert.Equal(c, AppConfigValue(LoginNotificationBrowserRecognition), cfg.EmailLoginNotificationMode)
+			assert.Equal(c, AppConfigValue(EmailVerificationOptional), cfg.EmailVerification)
+			assert.Equal(c, AppConfigValue(EmailOneTimeAccessAsUnauthenticatedAll), cfg.EmailOneTimeAccessAsUnauthenticated)
+		}, 10*time.Second, 20*time.Millisecond)
 	})
 
 	t.Run("maps the legacy email login code toggle when bootstrapping from the legacy config", func(t *testing.T) {
