@@ -33,6 +33,7 @@ export type AllAppConfig = AppConfig & {
 	smtpSkipCertVerify: boolean;
 	emailLoginNotificationMode: 'disabled' | 'always' | 'ipAndUserAgent' | 'browserRecognition';
 	emailApiKeyExpirationEnabled: boolean;
+	emailLanguage: 'en' | 'fr';
 	// LDAP
 	ldapUrl: string;
 	ldapBindDn: string;

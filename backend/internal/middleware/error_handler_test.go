@@ -230,6 +230,7 @@ func TestValidationResponseUsesAppConfigTypeMessages(t *testing.T) {
 		EmailLoginNotificationMode:                 "disabled",
 		EmailApiKeyExpirationEnabled:               "false",
 		EmailVerification:                          "disabled",
+		EmailLanguage:                              "en",
 		AutoCreateOIDCClientSecret:                 "true",
 	}
 	payload, err := json.Marshal(input)

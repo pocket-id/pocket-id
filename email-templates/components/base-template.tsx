@@ -1,9 +1,11 @@
 import { Body, Column, Container, Head, Html, Img, Link, Preview, Row, Section } from 'react-email';
+import type { Locale } from '../locales';
 import type { SharedProps } from '../props';
 import { colors, fonts, radius } from './theme';
 
 interface BaseTemplateProps extends SharedProps {
 	preview?: string;
+	locale?: Locale;
 	children: React.ReactNode;
 }
 
@@ -12,9 +14,10 @@ export const BaseTemplate = ({
 	appName,
 	appURL,
 	preview,
+	locale = 'en',
 	children
 }: BaseTemplateProps) => (
-	<Html lang="en">
+	<Html lang={locale}>
 		<Head>
 			<meta name="color-scheme" content="light" />
 			<meta name="supported-color-schemes" content="light" />

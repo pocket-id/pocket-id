@@ -5,6 +5,7 @@ import CardHeader from '../components/card-header';
 import { CodeBox } from '../components/code-box';
 import { Muted, Paragraph } from '../components/text';
 import { colors } from '../components/theme';
+import type { Locale } from '../locales';
 import { type SharedProps, sharedPreviewProps, sharedTemplateProps } from '../props';
 
 interface OneTimeAccessData {
@@ -16,28 +17,62 @@ interface OneTimeAccessData {
 
 interface OneTimeAccessEmailProps extends SharedProps {
 	data: OneTimeAccessData;
+	locale: Locale;
 }
 
-export const OneTimeAccessEmail = ({ data, ...props }: OneTimeAccessEmailProps) => (
-	<BaseTemplate {...props} preview={`Your ${props.appName} login code is ${data.code}`}>
-		<CardHeader title="Your login code" />
-		<Paragraph>
-			Use the code below to sign in to {props.appName}. It expires in {data.expirationString}.
-		</Paragraph>
+const strings: Record<
+	Locale,
+	{
+		preview: (appName: string, code: string) => string;
+		title: string;
+		body: (appName: string, expirationString: string) => string;
+		button: string;
+		mutedPrefix: string;
+		mutedSuffix: string;
+	}
+> = {
+	en: {
+		preview: (appName, code) => `Your ${appName} login code is ${code}`,
+		title: 'Your login code',
+		body: (appName, expirationString) =>
+			`Use the code below to sign in to ${appName}. It expires in ${expirationString}.`,
+		button: 'Sign in',
+		mutedPrefix: 'Or open',
+		mutedSuffix: 'and enter the code manually.'
+	},
+	fr: {
+		preview: (appName, code) => `Votre code de connexion ${appName} est ${code}`,
+		title: 'Votre code de connexion',
+		body: (appName, expirationString) =>
+			`Utilisez le code ci-dessous pour vous connecter à ${appName}. Il expire dans ${expirationString}.`,
+		button: 'Se connecter',
+		mutedPrefix: 'Ou ouvrez',
+		mutedSuffix: 'et saisissez le code manuellement.'
+	}
+};
 
-		<CodeBox code={data.code} />
+export const OneTimeAccessEmail = ({ data, locale, ...props }: OneTimeAccessEmailProps) => {
+	const t = strings[locale];
 
-		<Button href={data.buttonCodeLink}>Sign in</Button>
+	return (
+		<BaseTemplate {...props} locale={locale} preview={t.preview(props.appName, data.code)}>
+			<CardHeader title={t.title} />
+			<Paragraph>{t.body(props.appName, data.expirationString)}</Paragraph>
 
-		<Muted style={{ marginTop: '32px' }}>
-			Or open{' '}
-			<Link href={data.loginLink} style={linkStyle}>
-				{data.loginLink}
-			</Link>{' '}
-			and enter the code manually.
-		</Muted>
-	</BaseTemplate>
-);
+			<CodeBox code={data.code} />
+
+			<Button href={data.buttonCodeLink}>{t.button}</Button>
+
+			<Muted style={{ marginTop: '32px' }}>
+				{t.mutedPrefix}{' '}
+				<Link href={data.loginLink} style={linkStyle}>
+					{data.loginLink}
+				</Link>{' '}
+				{t.mutedSuffix}
+			</Muted>
+		</BaseTemplate>
+	);
+};
 
 export default OneTimeAccessEmail;
 
@@ -47,7 +82,7 @@ const linkStyle = {
 	wordBreak: 'break-all' as const
 };
 
-OneTimeAccessEmail.TemplateProps = {
+OneTimeAccessEmail.TemplateProps = (_locale: Locale) => ({
 	...sharedTemplateProps,
 	data: {
 		code: '{{.Data.Code}}',
@@ -55,10 +90,11 @@ OneTimeAccessEmail.TemplateProps = {
 		buttonCodeLink: '{{.Data.LoginLinkWithCode}}',
 		expirationString: '{{.Data.ExpirationString}}'
 	}
-};
+});
 
 OneTimeAccessEmail.PreviewProps = {
 	...sharedPreviewProps,
+	locale: 'en' as Locale,
 	data: {
 		code: '123456',
 		loginLink: 'https://id.example.com/lc',

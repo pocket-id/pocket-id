@@ -188,6 +188,8 @@
 	"save_and_send": "Save and send",
 	"test_email_sent_successfully": "Test email sent successfully to your email address.",
 	"failed_to_send_test_email": "Failed to send test email. Check the server logs for more information.",
+	"email_language": "Email Language",
+	"email_language_description": "The language used to render outbound emails, such as sign-in alerts and verification links. This applies to the whole instance; it isn't per-user.",
 	"smtp_configuration": "SMTP Configuration",
 	"smtp_host": "SMTP Host",
 	"smtp_port": "SMTP Port",

@@ -1,0 +1,9 @@
+{{define "root"}}VOTRE CODE DE CONNEXION
+
+Utilisez le code ci-dessous pour vous connecter à {{.AppName}}. Il expire dans {{.Data.ExpirationString}}.
+
+{{.Data.Code}}
+
+Se connecter {{.Data.LoginLinkWithCode}}
+
+Ou ouvrez {{.Data.LoginLink}} et saisissez le code manuellement.{{end}}

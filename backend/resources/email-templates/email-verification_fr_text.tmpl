@@ -1,0 +1,10 @@
+{{define "root"}}VÉRIFIEZ VOTRE ADRESSE E-MAIL
+
+Bonjour {{.Data.UserFullName}},
+
+Cliquez sur le bouton ci-dessous pour confirmer l'adresse e-mail de votre compte {{.AppName}}. Ce lien expire dans 24 heures.
+
+Vérifier l'adresse e-mail {{.Data.VerificationLink}}
+
+Si vous préférez ne pas cliquer sur un bouton, ouvrez ce lien :
+{{.Data.VerificationLink}}{{end}}

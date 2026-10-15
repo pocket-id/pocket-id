@@ -46,13 +46,13 @@ type address struct {
 }
 
 func New(db *gorm.DB) (*Module, error) {
-	// Preload both template variants so missing or invalid embedded templates fail during startup
-	htmlTemplates, err := prepareHTMLTemplates(templatePaths)
+	// Preload every locale variant so missing or invalid embedded templates fail during startup
+	htmlTemplates, err := prepareHTMLTemplates(templatePaths, supportedEmailLanguages)
 	if err != nil {
 		return nil, fmt.Errorf("prepare HTML templates: %w", err)
 	}
 
-	textTemplates, err := prepareTextTemplates(templatePaths)
+	textTemplates, err := prepareTextTemplates(templatePaths, supportedEmailLanguages)
 	if err != nil {
 		return nil, fmt.Errorf("prepare text templates: %w", err)
 	}
@@ -145,7 +145,8 @@ func send[V any](ctx context.Context, module *Module, dbConfig *appconfig.AppCon
 	}
 
 	// Render the complete message before opening an SMTP connection so template failures never produce partial deliveries
-	text, html, err := renderBody(module, tmpl, templateData)
+	locale := resolveEmailLanguage(dbConfig)
+	text, html, err := renderBody(module, tmpl, templateData, locale)
 	if err != nil {
 		return fmt.Errorf("prepare email body for '%s': %w", tmpl.path, err)
 	}
@@ -222,16 +223,18 @@ func smtpConnString(dbConfig *appconfig.AppConfigModel) (string, error) {
 	return smtpURL.String(), nil
 }
 
-func renderBody[V any](module *Module, tmpl template[V], data *templateData[V]) (text string, html string, err error) {
+func renderBody[V any](module *Module, tmpl template[V], data *templateData[V], locale string) (text string, html string, err error) {
+	key := templateKey(tmpl.path, locale)
+
 	// Render both variants from the same data so the plain-text and HTML messages cannot diverge
 	textBuilder := &strings.Builder{}
-	err = module.textTemplates[tmpl.path].ExecuteTemplate(textBuilder, "root", data)
+	err = module.textTemplates[key].ExecuteTemplate(textBuilder, "root", data)
 	if err != nil {
 		return "", "", fmt.Errorf("execute text template: %w", err)
 	}
 
 	htmlBuilder := &strings.Builder{}
-	err = module.htmlTemplates[tmpl.path].ExecuteTemplate(htmlBuilder, "root", data)
+	err = module.htmlTemplates[key].ExecuteTemplate(htmlBuilder, "root", data)
 	if err != nil {
 		return "", "", fmt.Errorf("execute HTML template: %w", err)
 	}
@@ -239,34 +242,69 @@ func renderBody[V any](module *Module, tmpl template[V], data *templateData[V]) 
 	return textBuilder.String(), htmlBuilder.String(), nil
 }
 
-func prepareTextTemplates(templates []string) (map[string]*ttemplate.Template, error) {
-	textTemplates := make(map[string]*ttemplate.Template, len(templates))
+func prepareTextTemplates(templates []string, emailLanguages []string) (map[string]*ttemplate.Template, error) {
+	textTemplates := make(map[string]*ttemplate.Template, len(templates)*len(emailLanguages))
 	for _, tmpl := range templates {
-		templatePath := path.Join("email-templates", tmpl+"_text.tmpl")
+		for _, locale := range emailLanguages {
+			templatePath := path.Join("email-templates", tmpl+localeFileInfix(locale)+"_text.tmpl")
 
-		parsedTemplate, err := ttemplate.ParseFS(resources.FS, templatePath)
-		if err != nil {
-			return nil, fmt.Errorf("parsing template '%s': %w", tmpl, err)
+			parsedTemplate, err := ttemplate.ParseFS(resources.FS, templatePath)
+			if err != nil {
+				return nil, fmt.Errorf("parsing template '%s' (%s): %w", tmpl, locale, err)
+			}
+
+			textTemplates[templateKey(tmpl, locale)] = parsedTemplate
 		}
-
-		textTemplates[tmpl] = parsedTemplate
 	}
 
 	return textTemplates, nil
 }
 
-func prepareHTMLTemplates(templates []string) (map[string]*htemplate.Template, error) {
-	htmlTemplates := make(map[string]*htemplate.Template, len(templates))
+func prepareHTMLTemplates(templates []string, emailLanguages []string) (map[string]*htemplate.Template, error) {
+	htmlTemplates := make(map[string]*htemplate.Template, len(templates)*len(emailLanguages))
 	for _, tmpl := range templates {
-		templatePath := path.Join("email-templates", tmpl+"_html.tmpl")
+		for _, locale := range emailLanguages {
+			templatePath := path.Join("email-templates", tmpl+localeFileInfix(locale)+"_html.tmpl")
 
-		parsedTemplate, err := htemplate.ParseFS(resources.FS, templatePath)
-		if err != nil {
-			return nil, fmt.Errorf("parsing template '%s': %w", tmpl, err)
+			parsedTemplate, err := htemplate.ParseFS(resources.FS, templatePath)
+			if err != nil {
+				return nil, fmt.Errorf("parsing template '%s' (%s): %w", tmpl, locale, err)
+			}
+
+			htmlTemplates[templateKey(tmpl, locale)] = parsedTemplate
 		}
-
-		htmlTemplates[tmpl] = parsedTemplate
 	}
 
 	return htmlTemplates, nil
+}
+
+// templateKey identifies a template's embedded resource for a given locale
+func templateKey(tmplPath string, locale string) string {
+	return locale + "/" + tmplPath
+}
+
+// localeFileInfix returns the "_<locale>" segment inserted before the "_html"/"_text" suffix of an
+// embedded template's file name. The default language (English) keeps the original, unsuffixed file
+// names, so this returns an empty string for it; see email-templates/build.ts for the generator.
+func localeFileInfix(locale string) string {
+	if locale == appconfig.EmailLanguageEnglish {
+		return ""
+	}
+	return "_" + locale
+}
+
+// supportedEmailLanguages lists every language the "Email language" instance setting
+// (Admin -> Application Configuration -> Email) can be set to
+var supportedEmailLanguages = []string{
+	appconfig.EmailLanguageEnglish,
+	appconfig.EmailLanguageFrench,
+}
+
+// resolveEmailLanguage returns the email language to render with for the given configuration,
+// falling back to English for an empty or unrecognized value
+func resolveEmailLanguage(dbConfig *appconfig.AppConfigModel) string {
+	if dbConfig.EmailLanguage.String() == appconfig.EmailLanguageFrench {
+		return appconfig.EmailLanguageFrench
+	}
+	return appconfig.EmailLanguageEnglish
 }

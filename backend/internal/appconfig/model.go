@@ -26,6 +26,11 @@ const (
 	EmailVerificationRequired = "required"
 )
 
+const (
+	EmailLanguageEnglish = "en"
+	EmailLanguageFrench  = "fr"
+)
+
 type AppConfigModel struct {
 	// General
 	AppName             AppConfigValue `json:"appName" env:"APP_NAME" public:"true"`
@@ -53,6 +58,7 @@ type AppConfigModel struct {
 	EmailOneTimeAccessAsAdminEnabled           AppConfigValue `json:"emailOneTimeAccessAsAdminEnabled" env:"EMAIL_ONE_TIME_ACCESS_AS_ADMIN_ENABLED" type:"bool" public:"true"`
 	EmailApiKeyExpirationEnabled               AppConfigValue `json:"emailApiKeyExpirationEnabled" env:"EMAIL_API_KEY_EXPIRATION_ENABLED" type:"bool"`
 	EmailVerification                          AppConfigValue `json:"emailVerification" env:"EMAIL_VERIFICATION" public:"true"`
+	EmailLanguage                              AppConfigValue `json:"emailLanguage" env:"EMAIL_LANGUAGE"`
 	// LDAP
 	LdapEnabled                        AppConfigValue `json:"ldapEnabled" env:"LDAP_ENABLED" type:"bool" public:"true"`
 	LdapUrl                            AppConfigValue `json:"ldapUrl" env:"LDAP_URL"`
@@ -159,6 +165,7 @@ func getDefaultConfig() *AppConfigModel {
 		EmailOneTimeAccessAsAdminEnabled:           "false",
 		EmailApiKeyExpirationEnabled:               "false",
 		EmailVerification:                          EmailVerificationDisabled,
+		EmailLanguage:                              EmailLanguageEnglish,
 		// LDAP
 		LdapEnabled:                        "false",
 		LdapUrl:                            "",

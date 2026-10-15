@@ -30,6 +30,11 @@
 		tls: 'TLS'
 	};
 
+	const emailLanguageOptions: Record<AllAppConfig['emailLanguage'], string> = {
+		en: 'English',
+		fr: 'Français'
+	};
+
 	const notificationOptions = $derived({
 		disabled: { label: m.never(), description: m.login_notification_disabled_description() },
 		always: {
@@ -83,7 +88,8 @@
 				'ipAndUserAgent',
 				'browserRecognition'
 			]),
-			emailApiKeyExpirationEnabled: z.boolean()
+			emailApiKeyExpirationEnabled: z.boolean(),
+			emailLanguage: z.enum(['en', 'fr'])
 		})
 		.superRefine((data, ctx) => {
 			const requiredSmtpFields: (keyof z.infer<typeof formSchema>)[] = [
@@ -246,6 +252,31 @@
 				disabled={$inputs.emailVerification.value === 'required'}
 				bind:checked={$inputs.emailsVerified.value}
 			/>
+			<Field.Field>
+				<div>
+					<Field.Label for="email-language">{m.email_language()}</Field.Label>
+					<Field.Description>{m.email_language_description()}</Field.Description>
+				</div>
+				<Select.Root
+					type="single"
+					disabled={$appConfigStore.uiConfigDisabled}
+					value={$inputs.emailLanguage.value}
+					allowDeselect={false}
+					onValueChange={(value) =>
+						($inputs.emailLanguage.value = value as AllAppConfig['emailLanguage'])}
+				>
+					<Select.Trigger id="email-language" class="w-full">
+						{emailLanguageOptions[$inputs.emailLanguage.value]}
+					</Select.Trigger>
+					<Select.Content class="w-[calc(var(--bits-select-anchor-width)+--spacing(3))]">
+						<Select.Group>
+							{#each Object.entries(emailLanguageOptions) as [value, label] (value)}
+								<Select.Item {value} {label} />
+							{/each}
+						</Select.Group>
+					</Select.Content>
+				</Select.Root>
+			</Field.Field>
 		</div>
 		<h4 class="mt-10 text-lg font-semibold">{m.smtp_configuration()}</h4>
 		<div class="mt-4 grid grid-cols-1 items-start gap-5 md:grid-cols-2">

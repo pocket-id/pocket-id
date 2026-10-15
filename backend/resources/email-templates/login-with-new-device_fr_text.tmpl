@@ -1,0 +1,20 @@
+{{define "root"}}NOUVELLE CONNEXION DÉTECTÉE
+
+Votre compte {{.AppName}} a été accédé récemment depuis une nouvelle adresse IP ou un nouveau navigateur. Si c'est bien vous, aucune action n'est nécessaire.
+
+Localisation approximative
+{{if and .Data.City .Data.Country}}{{.Data.City}}, {{.Data.Country}}{{else if .Data.Country}}{{.Data.Country}}{{else}}Inconnue{{end}}
+
+Adresse IP
+{{.Data.IPAddress}}
+
+Appareil
+{{.Data.Device}}
+
+Méthode de connexion
+{{.Data.Method}}
+
+Date et heure
+{{.Data.DateTime.Format "January 2, 2006 at 3:04 PM MST"}}
+
+Si vous ne reconnaissez pas cette activité, vérifiez les clés d'accès de votre compte {{.AppName}} et supprimez celles que vous ne reconnaissez pas.{{end}}

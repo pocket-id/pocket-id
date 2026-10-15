@@ -25,12 +25,16 @@ import (
 func TestNewLoadsEveryEmailTemplate(t *testing.T) {
 	module, err := New(nil)
 	require.NoError(t, err)
-	require.Len(t, module.textTemplates, len(templatePaths))
-	require.Len(t, module.htmlTemplates, len(templatePaths))
+	wantCount := len(templatePaths) * len(supportedEmailLanguages)
+	require.Len(t, module.textTemplates, wantCount)
+	require.Len(t, module.htmlTemplates, wantCount)
 
 	for _, templatePath := range templatePaths {
-		assert.NotNil(t, module.textTemplates[templatePath])
-		assert.NotNil(t, module.htmlTemplates[templatePath])
+		for _, locale := range supportedEmailLanguages {
+			key := templateKey(templatePath, locale)
+			assert.NotNil(t, module.textTemplates[key])
+			assert.NotNil(t, module.htmlTemplates[key])
+		}
 	}
 }
 
@@ -369,10 +373,41 @@ func TestNewLoginRendersSignInMethodInBothTemplates(t *testing.T) {
 	text, html, err := renderBody(module, newLoginTemplate, &templateData[newLoginTemplateData]{
 		AppName: "Pocket ID", AppURL: "https://id.example.test", LogoURL: "https://id.example.test/logo.png",
 		Data: &newLoginTemplateData{IPAddress: "192.0.2.1", Device: "Firefox on Linux", Method: "One-time code", DateTime: time.Now()},
-	})
+	}, appconfig.EmailLanguageEnglish)
 	require.NoError(t, err)
 	for _, body := range []string{text, html} {
 		assert.Contains(t, body, "Sign-in method")
 		assert.Contains(t, body, "One-time code")
 	}
+}
+
+func TestModuleSendsFrenchWhenEmailLanguageIsFrench(t *testing.T) {
+	db := testutils.NewDatabaseForTest(t)
+	userEmail := "recipient-fr@example.test"
+	user := model.User{
+		Base:      model.Base{ID: "email-recipient-fr"},
+		Username:  "email-recipient-fr",
+		Email:     &userEmail,
+		FirstName: "Test",
+		LastName:  "User",
+	}
+	require.NoError(t, db.Create(&user).Error)
+
+	module, err := New(db)
+	require.NoError(t, err)
+
+	server := newSMTPTestServer(t)
+	config := newSMTPTestConfig(t, server.address())
+	config.EmailLanguage = appconfig.EmailLanguageFrench
+
+	require.NoError(t, module.SendEmailVerification(t.Context(), config, user.FullName(), userEmail, "https://id.example.test/verify-token"))
+
+	session, sessionErr := server.wait()
+	require.NoError(t, sessionErr)
+	// The accented characters in the French copy may be transfer-encoded (e.g. quoted-printable)
+	// by the SMTP layer, so assertions stick to ASCII-safe fragments that are unique to the French
+	// template rather than comparing the raw (possibly encoded) message against accented text.
+	assert.Contains(t, session.message, "cliquer sur un bouton")
+	assert.Contains(t, session.message, "lang=\"fr\"")
+	assert.NotContains(t, session.message, "Verify your email address")
 }

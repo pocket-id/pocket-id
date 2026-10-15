@@ -1,0 +1,7 @@
+{{define "root"}}CLÉ API BIENTÔT EXPIRÉE
+
+Bonjour {{.Data.Name}},
+
+Votre clé API {{.Data.ApiKeyName}} expirera le {{.Data.ExpiresAt.Format "2006-01-02 15:04:05 MST"}}. Tout ce qui utilise cette clé cessera de fonctionner une fois qu'elle aura expiré.
+
+Pour conserver l'accès, créez une nouvelle clé API dans les paramètres de votre compte {{.AppName}} avant cette date.{{end}}

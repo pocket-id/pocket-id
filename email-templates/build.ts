@@ -1,6 +1,7 @@
 import { render } from 'react-email';
 import * as fs from 'node:fs';
 import * as path from 'node:path';
+import { defaultLocale, type Locale, locales } from './locales';
 
 const outputDir = '../backend/resources/email-templates';
 
@@ -12,18 +13,28 @@ function getTemplateName(filename: string): string {
 	return filename.replace('.tsx', '');
 }
 
-async function buildTemplateFile(Component: any, templateName: string, isPlainText: boolean) {
-	const rendered = await render(
-		Component(Component.TemplateProps),
-		isPlainText ? { plainText: true } : {}
-	);
+// The English build keeps the original, unsuffixed file names so the backend's default
+// templates (and existing tests/snapshots) are unaffected. Other locales get a "_<locale>"
+// infix before the "_html"/"_text" suffix, e.g. "email-verification_fr_html.tmpl".
+function localeInfix(locale: Locale): string {
+	return locale === defaultLocale ? '' : `_${locale}`;
+}
+
+async function buildTemplateFile(
+	Component: any,
+	templateName: string,
+	isPlainText: boolean,
+	locale: Locale
+) {
+	const props = { ...Component.TemplateProps(locale), locale };
+	const rendered = await render(Component(props), isPlainText ? { plainText: true } : {});
 
 	// Normalize quotes
 	const normalized = rendered.replace(/&quot;/g, '"');
 
 	const goTemplate = `{{define "root"}}${normalized}{{end}}`;
 	const suffix = isPlainText ? '_text.tmpl' : '_html.tmpl';
-	const templatePath = path.join(outputDir, `${templateName}${suffix}`);
+	const templatePath = path.join(outputDir, `${templateName}${localeInfix(locale)}${suffix}`);
 
 	fs.writeFileSync(templatePath, goTemplate);
 }
@@ -56,10 +67,12 @@ async function discoverAndBuildTemplates() {
 				continue;
 			}
 
-			await buildTemplateFile(Component, templateName, false); // HTML
-			await buildTemplateFile(Component, templateName, true); // Text
+			for (const locale of locales) {
+				await buildTemplateFile(Component, templateName, false, locale); // HTML
+				await buildTemplateFile(Component, templateName, true, locale); // Text
+			}
 
-			console.log(`✓ Built ${templateName}`);
+			console.log(`✓ Built ${templateName} (${locales.join(', ')})`);
 		} catch (error) {
 			console.error(`✗ Error building ${templateName}:`, error);
 		}
