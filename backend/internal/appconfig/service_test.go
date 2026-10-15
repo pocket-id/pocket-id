@@ -105,6 +105,20 @@ func TestService_NewService(t *testing.T) {
 		assert.Equal(t, getDefaultConfig().SessionDuration, cfg.SessionDuration)
 	})
 
+	t.Run("maps the legacy email login code toggle when bootstrapping from the legacy config", func(t *testing.T) {
+		setUIConfigDisabled(t, false)
+		db := testutils.NewDatabaseForTest(t)
+		seedLegacyConfig(t, db, map[string]string{
+			"emailOneTimeAccessAsUnauthenticatedEnabled": "true",
+		})
+
+		svc := newActorBackedService(t, db)
+
+		cfg, err := svc.GetConfig(t.Context())
+		require.NoError(t, err)
+		assert.Equal(t, AppConfigValue(EmailOneTimeAccessAsUnauthenticatedAll), cfg.EmailOneTimeAccessAsUnauthenticated)
+	})
+
 	t.Run("loads config from the environment when the UI config is disabled", func(t *testing.T) {
 		setUIConfigDisabled(t, true)
 		t.Setenv("APP_NAME", "Environment App")
@@ -462,6 +476,45 @@ func TestService_CIMDURLAllowlist(t *testing.T) {
 }
 
 func TestService_LoadDbConfigFromEnv(t *testing.T) {
+	t.Run("legacy email login code variable maps to a mode", func(t *testing.T) {
+		tests := map[string]AppConfigValue{
+			"true":  EmailOneTimeAccessAsUnauthenticatedAll,
+			"false": EmailOneTimeAccessAsUnauthenticatedDisabled,
+		}
+		for enabled, expected := range tests {
+			t.Setenv("EMAIL_ONE_TIME_ACCESS_AS_UNAUTHENTICATED_ENABLED", enabled)
+
+			cfg, err := (&AppConfigService{}).loadDbConfigFromEnv()
+			require.NoError(t, err)
+			assert.Equal(t, expected, cfg.EmailOneTimeAccessAsUnauthenticated)
+		}
+	})
+
+	t.Run("explicit email login code mode wins over the legacy variable", func(t *testing.T) {
+		t.Setenv("EMAIL_ONE_TIME_ACCESS_AS_UNAUTHENTICATED", "nonAdmins")
+		t.Setenv("EMAIL_ONE_TIME_ACCESS_AS_UNAUTHENTICATED_ENABLED", "true")
+
+		cfg, err := (&AppConfigService{}).loadDbConfigFromEnv()
+		require.NoError(t, err)
+		assert.Equal(t, AppConfigValue(EmailOneTimeAccessAsUnauthenticatedNonAdmins), cfg.EmailOneTimeAccessAsUnauthenticated)
+	})
+
+	t.Run("invalid email login code values are rejected", func(t *testing.T) {
+		t.Run("legacy variable", func(t *testing.T) {
+			t.Setenv("EMAIL_ONE_TIME_ACCESS_AS_UNAUTHENTICATED_ENABLED", "yes")
+
+			_, err := (&AppConfigService{}).loadDbConfigFromEnv()
+			require.ErrorContains(t, err, "EMAIL_ONE_TIME_ACCESS_AS_UNAUTHENTICATED_ENABLED must be true or false")
+		})
+
+		t.Run("mode variable", func(t *testing.T) {
+			t.Setenv("EMAIL_ONE_TIME_ACCESS_AS_UNAUTHENTICATED", "true")
+
+			_, err := (&AppConfigService{}).loadDbConfigFromEnv()
+			require.ErrorContains(t, err, "EMAIL_ONE_TIME_ACCESS_AS_UNAUTHENTICATED")
+		})
+	})
+
 	t.Run("required verification rejects conflicting settings", func(t *testing.T) {
 		for _, setting := range []struct{ name, value string }{
 			{"EMAILS_VERIFIED", "true"},

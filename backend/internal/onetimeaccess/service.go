@@ -65,12 +65,16 @@ func (s *Service) RequestOneTimeAccessEmailAsAdmin(ctx context.Context, dbConfig
 }
 
 func (s *Service) RequestOneTimeAccessEmailAsUnauthenticatedUser(ctx context.Context, dbConfig *appconfig.AppConfigModel, email, redirectPath string) (string, error) {
-	if !dbConfig.EmailOneTimeAccessAsUnauthenticatedEnabled.IsTrue() {
+	// Requests are rejected outright only when no user at all may request a code, which the login page already reveals
+	if !selfRequestedCodeAllowed(dbConfig, false) {
 		return "", apperror.OneTimeAccessDisabled()
 	}
 
-	var userId string
-	err := s.db.Model(&model.User{}).Select("id").Where("email = ?", email).First(&userId).Error
+	var user struct {
+		ID      string
+		IsAdmin bool
+	}
+	err := s.db.WithContext(ctx).Model(&model.User{}).Select("id", "is_admin").Where("email = ?", email).First(&user).Error
 	if errors.Is(err, gorm.ErrRecordNotFound) {
 		// Return a dummy device token that looks like a real one so the response does not reveal whether the email is registered
 		return utils.GenerateRandomAlphanumericString(deviceTokenLength)
@@ -78,7 +82,12 @@ func (s *Service) RequestOneTimeAccessEmailAsUnauthenticatedUser(ctx context.Con
 		return "", err
 	}
 
-	deviceToken, err := s.requestOneTimeAccessEmailInternal(ctx, userId, redirectPath, 15*time.Minute, true, dbConfig)
+	// Users who are excluded get the same dummy device token so the response does not reveal who holds admin privileges
+	if !selfRequestedCodeAllowed(dbConfig, user.IsAdmin) {
+		return utils.GenerateRandomAlphanumericString(deviceTokenLength)
+	}
+
+	deviceToken, err := s.requestOneTimeAccessEmailInternal(ctx, user.ID, redirectPath, 15*time.Minute, true, dbConfig)
 	if err != nil {
 		return "", err
 	} else if deviceToken == nil {
@@ -86,6 +95,19 @@ func (s *Service) RequestOneTimeAccessEmailAsUnauthenticatedUser(ctx context.Con
 	}
 
 	return *deviceToken, nil
+}
+
+// selfRequestedCodeAllowed reports whether the configuration lets a user sign in with a login code they requested from the login page
+// Unknown modes are treated as disabled so a misconfiguration fails closed
+func selfRequestedCodeAllowed(dbConfig *appconfig.AppConfigModel, isAdmin bool) bool {
+	switch dbConfig.EmailOneTimeAccessAsUnauthenticated {
+	case appconfig.EmailOneTimeAccessAsUnauthenticatedAll:
+		return true
+	case appconfig.EmailOneTimeAccessAsUnauthenticatedNonAdmins:
+		return !isAdmin
+	default:
+		return false
+	}
 }
 
 func (s *Service) requestOneTimeAccessEmailInternal(ctx context.Context, userID, redirectPath string, ttl time.Duration, withDeviceToken bool, dbConfig *appconfig.AppConfigModel) (*string, error) {
@@ -209,6 +231,11 @@ func (s *Service) completeTokenExchange(ctx context.Context, dbConfig *appconfig
 
 	if user.Disabled {
 		return model.User{}, model.LoginTokens{}, apperror.UserDisabled()
+	}
+
+	// Only codes requested from the login page carry a device token, so check them again in case the user gained admin privileges or the setting changed since the code was sent
+	if state.DeviceToken != nil && !selfRequestedCodeAllowed(dbConfig, user.IsAdmin) {
+		return model.User{}, model.LoginTokens{}, apperror.TokenInvalidOrExpired()
 	}
 
 	accessToken, err := s.signer.GenerateAccessToken(

@@ -7,8 +7,9 @@ func (m *AppConfigModel) UnmarshalJSON(data []byte) error {
 	type config AppConfigModel
 	value := struct {
 		*config
-		LegacyNotificationEnabled      AppConfigValue `json:"emailLoginNotificationEnabled"`
-		LegacyEmailVerificationEnabled AppConfigValue `json:"emailVerificationEnabled"`
+		LegacyNotificationEnabled                        AppConfigValue `json:"emailLoginNotificationEnabled"`
+		LegacyEmailVerificationEnabled                   AppConfigValue `json:"emailVerificationEnabled"`
+		LegacyEmailOneTimeAccessAsUnauthenticatedEnabled AppConfigValue `json:"emailOneTimeAccessAsUnauthenticatedEnabled"`
 	}{config: (*config)(m)}
 	if err := json.Unmarshal(data, &value); err != nil {
 		return err
@@ -18,6 +19,9 @@ func (m *AppConfigModel) UnmarshalJSON(data []byte) error {
 	}
 	if m.EmailVerification == "" && value.LegacyEmailVerificationEnabled != "" {
 		m.EmailVerification = legacyEmailVerification(value.LegacyEmailVerificationEnabled)
+	}
+	if m.EmailOneTimeAccessAsUnauthenticated == "" && value.LegacyEmailOneTimeAccessAsUnauthenticatedEnabled != "" {
+		m.EmailOneTimeAccessAsUnauthenticated = legacyEmailOneTimeAccessAsUnauthenticated(value.LegacyEmailOneTimeAccessAsUnauthenticatedEnabled)
 	}
 	return nil
 }
@@ -34,4 +38,12 @@ func legacyEmailVerification(enabled AppConfigValue) AppConfigValue {
 		return EmailVerificationOptional
 	}
 	return EmailVerificationDisabled
+}
+
+// legacyEmailOneTimeAccessAsUnauthenticated maps the old toggle to the mode that keeps its behavior, which allowed admins as well
+func legacyEmailOneTimeAccessAsUnauthenticated(enabled AppConfigValue) AppConfigValue {
+	if enabled.IsTrue() {
+		return EmailOneTimeAccessAsUnauthenticatedAll
+	}
+	return EmailOneTimeAccessAsUnauthenticatedDisabled
 }

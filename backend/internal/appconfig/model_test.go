@@ -324,4 +324,26 @@ func TestAppConfigModel_UnmarshalJSON(t *testing.T) {
 
 		assert.Equal(t, AppConfigValue(EmailVerificationRequired), m.EmailVerification)
 	})
+
+	t.Run("maps the legacy email login code toggle to a mode that keeps admins allowed", func(t *testing.T) {
+		tests := map[string]AppConfigValue{
+			"true":  EmailOneTimeAccessAsUnauthenticatedAll,
+			"false": EmailOneTimeAccessAsUnauthenticatedDisabled,
+		}
+		for enabled, expected := range tests {
+			var m AppConfigModel
+			err := json.Unmarshal([]byte(`{"emailOneTimeAccessAsUnauthenticatedEnabled":"`+enabled+`"}`), &m)
+			require.NoError(t, err)
+
+			assert.Equal(t, expected, m.EmailOneTimeAccessAsUnauthenticated)
+		}
+	})
+
+	t.Run("an explicit email login code mode wins over the legacy toggle", func(t *testing.T) {
+		var m AppConfigModel
+		err := json.Unmarshal([]byte(`{"emailOneTimeAccessAsUnauthenticated":"nonAdmins","emailOneTimeAccessAsUnauthenticatedEnabled":"true"}`), &m)
+		require.NoError(t, err)
+
+		assert.Equal(t, AppConfigValue(EmailOneTimeAccessAsUnauthenticatedNonAdmins), m.EmailOneTimeAccessAsUnauthenticated)
+	})
 }

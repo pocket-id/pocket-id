@@ -43,9 +43,13 @@ func (f fakeUserProvider) GetUser(ctx context.Context, userID string) (model.Use
 	return user, err
 }
 
-type fakeEmailSender struct{}
+// fakeEmailSender reports the recipient of every email on the sent channel, because emails are sent from a background goroutine
+type fakeEmailSender struct {
+	sent chan string
+}
 
-func (fakeEmailSender) SendOneTimeAccessEmail(_ context.Context, _ *appconfig.AppConfigModel, _, _, _, _, _, _ string) error {
+func (f fakeEmailSender) SendOneTimeAccessEmail(_ context.Context, _ *appconfig.AppConfigModel, _, userEmail, _, _, _, _ string) error {
+	f.sent <- userEmail
 	return nil
 }
 
@@ -65,7 +69,7 @@ func newServiceForTest(t *testing.T, db *gorm.DB) (*Service, *local.Host, *fakeA
 			Signer:       fakeSigner{},
 			AuditLog:     auditLog,
 			UserProvider: fakeUserProvider{db: db},
-			EmailSender:  fakeEmailSender{},
+			EmailSender:  fakeEmailSender{sent: make(chan string, 1)},
 		}, h.Service())
 	})
 	require.NotNil(t, svc)
@@ -212,6 +216,138 @@ func TestExchangeTokenRejectsDisabledUser(t *testing.T) {
 
 	require.Empty(t, auditLog.events)
 	require.Empty(t, auditLog.notifications)
+}
+
+func TestRequestOneTimeAccessEmailAsUnauthenticatedUser(t *testing.T) {
+	for _, test := range []struct {
+		name         string
+		mode         appconfig.AppConfigValue
+		isAdmin      bool
+		wantDisabled bool
+		wantEmail    bool
+	}{
+		{name: "disabled rejects users", mode: appconfig.EmailOneTimeAccessAsUnauthenticatedDisabled, wantDisabled: true},
+		{name: "disabled rejects admins", mode: appconfig.EmailOneTimeAccessAsUnauthenticatedDisabled, isAdmin: true, wantDisabled: true},
+		{name: "unknown mode fails closed", mode: "true", wantDisabled: true},
+		{name: "non-admins mode allows users", mode: appconfig.EmailOneTimeAccessAsUnauthenticatedNonAdmins, wantEmail: true},
+		{name: "non-admins mode silently excludes admins", mode: appconfig.EmailOneTimeAccessAsUnauthenticatedNonAdmins, isAdmin: true},
+		{name: "all mode allows users", mode: appconfig.EmailOneTimeAccessAsUnauthenticatedAll, wantEmail: true},
+		{name: "all mode allows admins", mode: appconfig.EmailOneTimeAccessAsUnauthenticatedAll, isAdmin: true, wantEmail: true},
+	} {
+		t.Run(test.name, func(t *testing.T) {
+			db := testutils.NewDatabaseForTest(t)
+			svc, _, _ := newServiceForTest(t, db)
+			sent := svc.emailSender.(fakeEmailSender).sent
+
+			email := "user@example.com"
+			user := model.User{
+				Base:     model.Base{ID: "request-user"},
+				Username: "request-user",
+				Email:    &email,
+				IsAdmin:  test.isAdmin,
+			}
+			require.NoError(t, db.Create(&user).Error)
+
+			dbConfig := appconfig.NewTestConfig(nil)
+			dbConfig.EmailOneTimeAccessAsUnauthenticated = test.mode
+			deviceToken, err := svc.RequestOneTimeAccessEmailAsUnauthenticatedUser(t.Context(), dbConfig, email, "")
+
+			if test.wantDisabled {
+				require.True(t, apperror.IsCode(err, apperror.CodeOneTimeAccessDisabled))
+				return
+			}
+
+			// Excluded users must get a device token that looks like a real one so the response does not reveal admin privileges
+			require.NoError(t, err)
+			require.Len(t, deviceToken, deviceTokenLength)
+
+			if test.wantEmail {
+				select {
+				case recipient := <-sent:
+					require.Equal(t, email, recipient)
+				case <-time.After(5 * time.Second):
+					require.Fail(t, "expected a login code email")
+				}
+				return
+			}
+
+			// The excluded path returns before any email goroutine is started, so an empty channel is conclusive
+			select {
+			case <-sent:
+				require.Fail(t, "expected no login code email")
+			default:
+			}
+		})
+	}
+}
+
+func TestRequestOneTimeAccessEmailAsUnauthenticatedUserUnknownEmail(t *testing.T) {
+	db := testutils.NewDatabaseForTest(t)
+	svc, _, _ := newServiceForTest(t, db)
+
+	dbConfig := appconfig.NewTestConfig(nil)
+	dbConfig.EmailOneTimeAccessAsUnauthenticated = appconfig.EmailOneTimeAccessAsUnauthenticatedNonAdmins
+	deviceToken, err := svc.RequestOneTimeAccessEmailAsUnauthenticatedUser(t.Context(), dbConfig, "unknown@example.com", "")
+
+	require.NoError(t, err)
+	require.Len(t, deviceToken, deviceTokenLength)
+}
+
+func TestExchangeTokenRechecksSelfRequestedCodes(t *testing.T) {
+	for _, test := range []struct {
+		name           string
+		mode           appconfig.AppConfigValue
+		isAdmin        bool
+		selfRequested  bool
+		wantInvalidErr bool
+	}{
+		{name: "user who became admin cannot use a self-requested code", mode: appconfig.EmailOneTimeAccessAsUnauthenticatedNonAdmins, isAdmin: true, selfRequested: true, wantInvalidErr: true},
+		{name: "self-requested code stops working once the setting is disabled", mode: appconfig.EmailOneTimeAccessAsUnauthenticatedDisabled, selfRequested: true, wantInvalidErr: true},
+		{name: "user can use a self-requested code", mode: appconfig.EmailOneTimeAccessAsUnauthenticatedNonAdmins, selfRequested: true},
+		{name: "admin can use a self-requested code when all users are allowed", mode: appconfig.EmailOneTimeAccessAsUnauthenticatedAll, isAdmin: true, selfRequested: true},
+		{name: "admin can use a code created by an admin", mode: appconfig.EmailOneTimeAccessAsUnauthenticatedNonAdmins, isAdmin: true},
+		{name: "admin can use a code created by an admin while the setting is disabled", mode: appconfig.EmailOneTimeAccessAsUnauthenticatedDisabled, isAdmin: true},
+	} {
+		t.Run(test.name, func(t *testing.T) {
+			db := testutils.NewDatabaseForTest(t)
+			svc, host, auditLog := newServiceForTest(t, db)
+
+			user := model.User{
+				Base:     model.Base{ID: "exchange-user"},
+				Username: "exchange-user",
+				IsAdmin:  test.isAdmin,
+			}
+			require.NoError(t, db.Create(&user).Error)
+
+			// Only codes requested from the login page are stored with a device token
+			token, deviceToken, err := StoreToken(t.Context(), svc.actorService, user.ID, time.Minute, test.selfRequested)
+			require.NoError(t, err)
+			deviceTokenValue := ""
+			if deviceToken != nil {
+				deviceTokenValue = *deviceToken
+			}
+
+			dbConfig := appconfig.NewTestConfig(nil)
+			dbConfig.EmailOneTimeAccessAsUnauthenticated = test.mode
+			exchangedUser, accessToken, err := svc.ExchangeToken(t.Context(), dbConfig, token, deviceTokenValue, "", "", "")
+
+			if !test.wantInvalidErr {
+				require.NoError(t, err)
+				require.Equal(t, user.ID, exchangedUser.ID)
+				require.NotEmpty(t, accessToken.AccessToken)
+				return
+			}
+
+			require.True(t, apperror.IsCode(err, apperror.CodeTokenInvalidOrExpired))
+			require.Empty(t, accessToken)
+			require.Empty(t, auditLog.events)
+
+			// The refused code is restored like any other failed exchange, so it stays unusable until it expires
+			var state TokenState
+			err = host.GetState(t.Context(), TokenActorType, token, &state)
+			require.NoError(t, err)
+		})
+	}
 }
 
 func (f *fakeAuditLogger) CreateSignIn(ctx context.Context, event auditlogs.Event, ipAddress, userAgent, userID, browserToken string, tx *gorm.DB, mode appconfig.AppConfigValue) auditlogs.SignInResult {
