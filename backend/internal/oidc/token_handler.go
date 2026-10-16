@@ -44,9 +44,11 @@ func (h *tokenHandler) token(c *gin.Context) {
 		return
 	}
 
-	if client, ok := accessRequest.GetClient().(Client); ok {
-		// Re-validate the resource owner on every user-bound grant.
-		err := h.claimsService.ValidateUserAccess(ctx, requestSession.Subject, client)
+	var claimsSource *userClaimsSource
+	client, ok := accessRequest.GetClient().(Client)
+	if ok {
+		// Re-validate the resource owner on every user-bound grant, loading at the same time everything the token claims are built from
+		claimsSource, err = h.claimsService.loadGrantClaimsSource(ctx, requestSession.Subject, client)
 		if err != nil {
 			slog.WarnContext(ctx, "Rejected token request: user no longer allowed to access client", "error", err.Error())
 			h.provider.WriteAccessError(ctx, c.Writer, accessRequest, err)
@@ -86,13 +88,15 @@ func (h *tokenHandler) token(c *gin.Context) {
 		}
 	}
 
-	err = h.claimsService.applyIDTokenClaims(ctx, requestSession, accessRequest.GetGrantedScopes())
-	if err != nil {
-		slog.ErrorContext(ctx, "Failed to apply ID token claims", "error", err)
-		h.provider.WriteAccessError(ctx, c.Writer, accessRequest, err)
-		return
+	// A grant without a resource owner has no source and carries no user claims
+	if claimsSource != nil {
+		err = h.claimsService.applyTokenClaims(requestSession, accessRequest.GetGrantedScopes(), claimsSource)
+		if err != nil {
+			slog.ErrorContext(ctx, "Failed to apply token claims", "error", err)
+			h.provider.WriteAccessError(ctx, c.Writer, accessRequest, err)
+			return
+		}
 	}
-
 	// The client credentials grant has no resource owner, so no subject is ever set. Assign a
 	// stable synthetic subject so the issued JWT access token still carries a subclaim.
 	if requestSession.Subject == "" {
@@ -123,7 +127,11 @@ func (h *tokenHandler) validateRefreshAPIGrant(ctx context.Context, client Clien
 	}
 
 	_, _, err = resolveResource(ctx, nil, h.apiAccess, client.GetID(), resource, accessRequest.GetGrantedScopes(), SubjectTypeUser)
-	return err
+	if err != nil {
+		return err
+	}
+
+	return nil
 }
 
 // refreshGrantResource recovers the API resource of a refresh grant from its granted audience

@@ -29,6 +29,8 @@ func (f *fakeAuditLogger) Create(_ context.Context, event auditlogs.Event, _, _,
 	return auditlogs.AuditLog{}, true
 }
 
+const defaultClaimMappingPolicyId = model.BuiltInClaimMappingPolicyID
+
 func TestAuthorizationServiceAuthorizeLogsClientAuthorization(t *testing.T) {
 	db := testutils.NewDatabaseForTest(t)
 	auditLogger := &fakeAuditLogger{}
