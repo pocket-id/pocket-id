@@ -248,6 +248,7 @@ test('Update email configuration', async ({ page }) => {
 	await page.getByLabel('Email Login Notification').click();
 	await page.getByRole('option', { name: /^Unrecognized browser/ }).click();
 	await page.getByLabel('Email Login Code Requested by User').click();
+	await page.getByRole('option', { name: /^Users without admin privileges/ }).click();
 	await page.getByLabel('Email Login Code from Admin').click();
 	await page.getByLabel('API Key Expiration').click();
 	await page.getByLabel('Email Verification', { exact: true }).click();
@@ -263,7 +264,9 @@ test('Update email configuration', async ({ page }) => {
 	await expect(page.getByLabel('SMTP Password')).toHaveValue('password');
 	await expect(page.getByLabel('SMTP From')).toHaveValue('test@gmail.com');
 	await expect(page.getByLabel('Email Login Notification')).toContainText('Unrecognized browser');
-	await expect(page.getByLabel('Email Login Code Requested by User')).toBeChecked();
+	await expect(page.getByLabel('Email Login Code Requested by User')).toContainText(
+		'Users without admin privileges'
+	);
 	await expect(page.getByLabel('Email Login Code from Admin')).toBeChecked();
 	await expect(page.getByLabel('API Key Expiration')).toBeChecked();
 	await expect(page.getByLabel('Email Verification', { exact: true })).toContainText('Required');

@@ -5,7 +5,7 @@ export type AppConfig = {
 	homePageUrl: string;
 	allowOwnAccountEdit: boolean;
 	allowUserSignups: 'disabled' | 'withToken' | 'open';
-	emailOneTimeAccessAsUnauthenticatedEnabled: boolean;
+	emailOneTimeAccessAsUnauthenticated: 'disabled' | 'nonAdmins' | 'all';
 	emailOneTimeAccessAsAdminEnabled: boolean;
 	emailVerification: 'disabled' | 'optional' | 'required';
 	ldapEnabled: boolean;
