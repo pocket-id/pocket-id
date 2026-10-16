@@ -35,7 +35,7 @@ func TestRefreshTokenRotationGrace(t *testing.T) {
 	require.NoError(t, err)
 	strategy := compose.NewOAuth2HMACStrategy(&fosite.Config{GlobalSecret: globalSecret})
 
-	for _, scenario := range []string{"retry", "concurrent", "reuse after grace", "expired token", "wrong client", "disabled user", "token revocation", "logout", "app revocation"} {
+	for _, scenario := range []string{"retry", "concurrent", "reuse after grace", "expired token", "wrong client", "disabled user", "token revocation", "logout", "logout with refreshed ID token", "app revocation"} {
 		t.Run(scenario, func(t *testing.T) {
 			db := testutils.NewConcurrentDatabaseForTest(t)
 			store := NewStore(db, nil)
@@ -144,6 +144,11 @@ func TestRefreshTokenRotationGrace(t *testing.T) {
 					require.NoError(t, store.RevokeRefreshToken(t.Context(), requestID))
 				case "logout":
 					require.NoError(t, store.RevokeSessionsByIDTokenHint(t.Context(), userID, clientID, "grace-jti"))
+				case "logout with refreshed ID token":
+					// Relying parties log out with the latest ID token they hold, which comes from the refresh
+					refreshedJTI := decodeJWTPart(t, first["id_token"].(string), 1)["jti"].(string)
+					require.NotEqual(t, "grace-jti", refreshedJTI)
+					require.NoError(t, store.RevokeSessionsByIDTokenHint(t.Context(), userID, clientID, refreshedJTI))
 				case "app revocation":
 					require.NoError(t, RevokeUserClientSessions(t.Context(), db, userID, clientID))
 				}
