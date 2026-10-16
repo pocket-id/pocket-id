@@ -1,3 +1,4 @@
+import type { SigningStatus } from '#lib/types/smime.type.ts';
 import userStore from '#lib/stores/user-store.ts';
 import type {
 	AllAppConfig,
@@ -94,6 +95,33 @@ export default class AppConfigService extends APIService {
 
 	sendTestEmail = async () => {
 		await this.api.post('/application-configuration/test-email');
+	};
+
+	getSigningStatus = async () => {
+		const { data } = await this.api.get<SigningStatus>('/application-configuration/smime');
+		return data;
+	};
+	uploadSigningCertificate = async (file: File, password: string) => {
+		const form = new FormData();
+		form.append('file', file);
+		form.append('password', password);
+		const { data } = await this.api.put<SigningStatus>(
+			'/application-configuration/smime/certificate',
+			form
+		);
+		return data;
+	};
+	setSigningEnabled = async (enabled: boolean) => {
+		const { data } = await this.api.put<SigningStatus>('/application-configuration/smime', {
+			enabled
+		});
+		return data;
+	};
+	removeSigningCertificate = async () => {
+		const { data } = await this.api.delete<SigningStatus>(
+			'/application-configuration/smime/certificate'
+		);
+		return data;
 	};
 
 	syncLdap = async () => {

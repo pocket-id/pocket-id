@@ -180,6 +180,10 @@ jobs:
         working-directory: backend
         run: go test "-tags=exclude_frontend,unit" -v ./...
 
+      - name: Run PKCS12 decoder tests
+        working-directory: backend
+        run: go test software.sslmate.com/src/go-pkcs12/...
+
   backend-test-race:
     name: Backend tests (race detector)
     needs: changes
@@ -205,6 +209,10 @@ jobs:
       - name: Run backend unit tests with the race detector
         working-directory: backend
         run: go test -race "-tags=exclude_frontend,unit" ./...
+
+      - name: Run PKCS12 decoder tests with the race detector
+        working-directory: backend
+        run: go test -race software.sslmate.com/src/go-pkcs12/...
 
   svelte-check:
     name: Svelte check

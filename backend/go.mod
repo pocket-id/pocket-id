@@ -1,5 +1,7 @@
 module github.com/pocket-id/pocket-id/backend
 
+replace software.sslmate.com/src/go-pkcs12 => ./third_party/go-pkcs12
+
 go 1.27.2
 
 require (
@@ -12,6 +14,7 @@ require (
 	github.com/caarlos0/env/v11 v11.4.1
 	github.com/cenkalti/backoff/v5 v5.0.3
 	github.com/coreos/go-systemd v0.0.0-20191104093116-d3cd4ed1dbcf
+	github.com/digitorus/pkcs7 v0.0.0-20260914070511-d678ea5ea03f
 	github.com/disintegration/imageorient v0.0.0-20180920195336-8147d86e83ec
 	github.com/dunglas/go-urlpattern v1.0.0
 	github.com/fsnotify/fsnotify v1.10.1
@@ -59,6 +62,7 @@ require (
 	gorm.io/gorm v1.31.2
 	gorm.io/plugin/opentelemetry v0.1.16
 	modernc.org/sqlite v1.60.1
+	software.sslmate.com/src/go-pkcs12 v0.7.4
 )
 
 require (

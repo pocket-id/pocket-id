@@ -26,6 +26,7 @@ FROM golang:1.27.2-alpine AS backend-builder
 ARG BUILD_TAGS
 WORKDIR /build
 COPY ./backend/go.mod ./backend/go.sum ./
+COPY ./backend/third_party/go-pkcs12 ./third_party/go-pkcs12
 RUN --mount=type=cache,target=/go/pkg/mod \
   go mod download
 

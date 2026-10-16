@@ -69,6 +69,11 @@ func TestEncryptionKeyRotate(t *testing.T) {
 	).Error
 	require.NoError(t, err)
 
+	// Seed an S/MIME key encrypted with the old master key to exercise the same rotation as existing secrets
+	signingCiphertext, err := datatype.EncryptEncryptedStringWithKey(oldEncKey, []byte("test-smime-private-key"))
+	require.NoError(t, err)
+	require.NoError(t, db.Exec("INSERT INTO email_signing_settings (id, private_key) VALUES (1, ?)", signingCiphertext).Error)
+
 	flags := encryptionKeyRotateFlags{
 		NewKey: string(newKey),
 		Yes:    true,
@@ -119,4 +124,11 @@ func TestEncryptionKeyRotate(t *testing.T) {
 	decBytes, err := datatype.DecryptEncryptedStringWithKey(newEncKey, storedToken)
 	require.NoError(t, err)
 	assert.Equal(t, "scim-token-123", string(decBytes))
+	var storedSigningKey string
+	require.NoError(t, db.Raw("SELECT private_key FROM email_signing_settings WHERE id = 1").Scan(&storedSigningKey).Error)
+	plainSigningKey, err := datatype.DecryptEncryptedStringWithKey(newEncKey, storedSigningKey)
+	require.NoError(t, err)
+	assert.Equal(t, "test-smime-private-key", string(plainSigningKey))
+	_, err = datatype.DecryptEncryptedStringWithKey(oldEncKey, storedSigningKey)
+	require.Error(t, err, "old key must no longer decrypt S/MIME material")
 }
