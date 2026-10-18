@@ -588,7 +588,7 @@ func (s *authorizationService) resolveScopeInfoForRequest(ctx context.Context, r
 	return infos, nil
 }
 
-func (s *authorizationService) completeInteractionStep(ctx context.Context, interactionSessionID, userID string, step interactionStep, reauthenticationToken string, authenticationTime time.Time, meta requestMeta) (completeInteractionResponse, error) {
+func (s *authorizationService) completeInteractionStep(ctx context.Context, interactionSessionID, userID string, step interactionStep, approvedScopes []string, reauthenticationToken string, authenticationTime time.Time, meta requestMeta) (completeInteractionResponse, error) {
 	var interactionSession InteractionSession
 	var response completeInteractionResponse
 	err := withTx(ctx, s.db, func(ctx context.Context) error {
@@ -621,7 +621,7 @@ func (s *authorizationService) completeInteractionStep(ctx context.Context, inte
 			return apperror.ValidationMessage("expected interaction step " + string(requiredSteps[0]) + " but got " + string(step))
 		}
 
-		if err := s.applyInteractionStep(ctx, &interactionSession, userID, step, reauthenticationToken, authenticationTime, meta); err != nil {
+		if err := s.applyInteractionStep(ctx, &interactionSession, userID, step, approvedScopes, reauthenticationToken, authenticationTime, meta); err != nil {
 			return err
 		}
 
@@ -646,7 +646,7 @@ func (s *authorizationService) completeInteractionStep(ctx context.Context, inte
 	return completeInteractionResponse{Interaction: &interaction}, nil
 }
 
-func (s *authorizationService) applyInteractionStep(ctx context.Context, interactionSession *InteractionSession, userID string, step interactionStep, reauthenticationToken string, authenticationTime time.Time, meta requestMeta) error {
+func (s *authorizationService) applyInteractionStep(ctx context.Context, interactionSession *InteractionSession, userID string, step interactionStep, approvedScopes []string, reauthenticationToken string, authenticationTime time.Time, meta requestMeta) error {
 	switch step {
 	case interactionStepAuthenticate:
 		if err := bindInteractionSessionUser(interactionSession, userID); err != nil {
@@ -663,7 +663,7 @@ func (s *authorizationService) applyInteractionStep(ctx context.Context, interac
 	case interactionStepReauthenticate:
 		return s.completeReauthenticationStep(ctx, interactionSession, userID, reauthenticationToken)
 	case interactionStepConsent:
-		return s.completeConsentStep(ctx, interactionSession, userID, meta)
+		return s.completeConsentStep(ctx, interactionSession, userID, approvedScopes, meta)
 	default:
 		return apperror.ValidationMessage("unknown interaction step " + string(step))
 	}
@@ -686,10 +686,17 @@ func (s *authorizationService) completeReauthenticationStep(ctx context.Context,
 	return nil
 }
 
-func (s *authorizationService) completeConsentStep(ctx context.Context, interactionSession *InteractionSession, userID string, meta requestMeta) error {
+func (s *authorizationService) completeConsentStep(ctx context.Context, interactionSession *InteractionSession, userID string, approvedScopes []string, meta requestMeta) error {
 	if err := bindInteractionSessionUser(interactionSession, userID); err != nil {
 		return err
 	}
+
+	// Narrow the request to the scopes the user approved before recording consent, so deselected scopes are neither consented to nor granted
+	if err := narrowInteractionScopes(interactionSession, approvedScopes); err != nil {
+		return err
+	}
+
+	// Record consent for the approved scopes only
 	resource := interactionSession.Parameters["resource"]
 	_, _, consentKeys, err := s.resolveGrant(ctx, interactionSession.ClientID, resource, interactionSession.Scopes)
 	if err != nil {
@@ -703,6 +710,56 @@ func (s *authorizationService) completeConsentStep(ctx context.Context, interact
 		s.auditLog.Create(ctx, auditlogs.EventNewClientAuthorization, meta.IPAddress, meta.UserAgent, userID, auditlogs.Data{"clientName": interactionSession.Client.Name}, dbFromContext(ctx, s.db))
 	}
 	interactionSession.ConsentRequired = false
+	return nil
+}
+
+// requiredConsentScopes are the scopes a user cannot deselect on the consent screen because the client cannot sign the user in without them
+var requiredConsentScopes = []string{"openid"}
+
+// narrowApprovedScopes restricts the requested scopes to the ones the user approved on a consent screen
+// The browser and device consent flows share it so both apply the same rules to a selection
+// A nil approval keeps every requested scope, so callers that send no selection keep the all-or-nothing behavior
+func narrowApprovedScopes(requestedScopes, approvedScopes []string) ([]string, error) {
+	if approvedScopes == nil {
+		return requestedScopes, nil
+	}
+
+	// The approval may only remove scopes, never add ones the client did not request
+	for _, scope := range approvedScopes {
+		if !slices.Contains(requestedScopes, scope) {
+			return nil, apperror.ValidationMessage("scope " + scope + " was not requested")
+		}
+	}
+
+	// Keep the requested order so the narrowed request only differs from the original by the removed scopes
+	narrowed := make([]string, 0, len(requestedScopes))
+	for _, scope := range requestedScopes {
+		if slices.Contains(approvedScopes, scope) || slices.Contains(requiredConsentScopes, scope) {
+			narrowed = append(narrowed, scope)
+		}
+	}
+
+	return narrowed, nil
+}
+
+// narrowInteractionScopes restricts the interaction session to the scopes the user approved on the consent screen
+// The stored scope parameter is rewritten too because the resumed authorize request is rebuilt from it, which keeps deselected scopes out of the granted scopes and the issued tokens
+func narrowInteractionScopes(interactionSession *InteractionSession, approvedScopes []string) error {
+	if approvedScopes == nil {
+		return nil
+	}
+
+	narrowed, err := narrowApprovedScopes(interactionSession.Scopes, approvedScopes)
+	if err != nil {
+		return err
+	}
+	interactionSession.Scopes = narrowed
+
+	if interactionSession.Parameters == nil {
+		interactionSession.Parameters = InteractionSessionParameters{}
+	}
+	interactionSession.Parameters["scope"] = strings.Join(narrowed, " ")
+
 	return nil
 }
 

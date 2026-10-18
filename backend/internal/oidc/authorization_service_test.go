@@ -167,12 +167,153 @@ func TestAuthorizationServiceConsentStepLogsNewClientAuthorization(t *testing.T)
 		Parameters:      map[string]string{},
 	}).Error)
 
-	response, err := service.completeInteractionStep(t.Context(), interactionID, userID, interactionStepConsent, "", time.Now().UTC(), requestMeta{})
+	response, err := service.completeInteractionStep(t.Context(), interactionID, userID, interactionStepConsent, nil, "", time.Now().UTC(), requestMeta{})
 	require.NoError(t, err)
 	require.NotEmpty(t, response.RedirectURL)
 
 	require.Equal(t, []auditlogs.Event{auditlogs.EventNewClientAuthorization}, auditLogger.events)
 	require.Equal(t, auditlogs.Data{"clientName": "Test Client"}, auditLogger.data[0])
+}
+
+// TestAuthorizationServiceConsentStepGrantsOnlyApprovedScopes guards that scopes the user deselects on the consent screen are neither consented to nor granted when the request resumes
+func TestAuthorizationServiceConsentStepGrantsOnlyApprovedScopes(t *testing.T) {
+	db := testutils.NewDatabaseForTest(t)
+
+	const (
+		userID        = "test-user"
+		clientID      = "test-client"
+		interactionID = "test-interaction"
+		api           = "https://api.example.com"
+	)
+
+	service := newAuthorizationService(db, newInteractionSessionService(db), newClaimsService(db, nil, "", nil, appconfig.StaticResolver{}), nil, nil, userAccess(map[string][]string{
+		api: {"users.read", "users.write"},
+	}))
+
+	require.NoError(t, db.Create(&model.User{Base: model.Base{ID: userID}}).Error)
+	require.NoError(t, db.Create(&model.OidcClient{Base: model.Base{ID: clientID}, Name: "Test Client"}).Error)
+	require.NoError(t, db.Create(&InteractionSession{
+		Base:            model.Base{ID: interactionID},
+		Scopes:          datatype.StringList{"openid", "email", "users.read", "users.write"},
+		ClientID:        clientID,
+		ConsentRequired: true,
+		RequestedAt:     datatype.DateTime(time.Now().UTC()),
+		Parameters:      map[string]string{"scope": "openid email users.read users.write", "resource": api},
+	}).Error)
+
+	// The user deselects users.write and does not send openid, which must still be kept
+	response, err := service.completeInteractionStep(t.Context(), interactionID, userID, interactionStepConsent, []string{"email", "users.read"}, "", time.Now().UTC(), requestMeta{})
+	require.NoError(t, err)
+	require.NotEmpty(t, response.RedirectURL)
+
+	// The interaction session and the parameters the resumed request is rebuilt from only carry the approved scopes
+	var interactionSession InteractionSession
+	require.NoError(t, db.First(&interactionSession, "id = ?", interactionID).Error)
+	require.Equal(t, datatype.StringList{"openid", "email", "users.read"}, interactionSession.Scopes)
+	require.Equal(t, "openid email users.read", interactionSession.Parameters["scope"])
+
+	// Consent is only recorded for the approved scopes
+	var authorizedClient model.UserAuthorizedOidcClient
+	require.NoError(t, db.First(&authorizedClient, "user_id = ? AND client_id = ?", userID, clientID).Error)
+	require.Contains(t, authorizedClient.Scope, consentScopeKey(api, "users.read"))
+	require.NotContains(t, authorizedClient.Scope, consentScopeKey(api, "users.write"))
+
+	authorize := func(scopes ...string) (fosite.AuthorizeRequester, authorizationResult, error) {
+		requester := newTestAuthorizeRequesterWithForm("resumed-request", clientID, url.Values{"resource": {api}})
+		requester.(*fosite.AuthorizeRequest).RequestedScope = fosite.Arguments(scopes)
+		authorization, err := service.authorize(t.Context(), authorizeInput{
+			userID:             userID,
+			authenticationTime: time.Now().UTC(),
+			requester:          requester,
+			interactionID:      interactionID,
+		})
+		return requester, authorization, err
+	}
+
+	// Replaying the original scopes must not grant the deselected one
+	_, _, err = authorize("openid", "email", "users.read", "users.write")
+	require.ErrorIs(t, err, fosite.ErrInvalidRequest)
+
+	// The resumed request grants exactly the approved scopes
+	requester, authorization, err := authorize("openid", "email", "users.read")
+	require.NoError(t, err)
+	require.False(t, authorization.RequiresInteraction)
+	require.ElementsMatch(t, []string{"openid", "email", "users.read"}, []string(requester.GetGrantedScopes()))
+}
+
+func TestAuthorizationServiceConsentStepRejectsUnrequestedScopes(t *testing.T) {
+	db := testutils.NewDatabaseForTest(t)
+	service := newAuthorizationService(db, newInteractionSessionService(db), newClaimsService(db, nil, "", nil, appconfig.StaticResolver{}), nil, nil, nil)
+
+	const (
+		userID        = "test-user"
+		clientID      = "test-client"
+		interactionID = "test-interaction"
+	)
+
+	require.NoError(t, db.Create(&model.User{Base: model.Base{ID: userID}}).Error)
+	require.NoError(t, db.Create(&model.OidcClient{Base: model.Base{ID: clientID}, Name: "Test Client"}).Error)
+	require.NoError(t, db.Create(&InteractionSession{
+		Base:            model.Base{ID: interactionID},
+		Scopes:          datatype.StringList{"openid", "email"},
+		ClientID:        clientID,
+		ConsentRequired: true,
+		RequestedAt:     datatype.DateTime(time.Now().UTC()),
+		Parameters:      map[string]string{"scope": "openid email"},
+	}).Error)
+
+	// The approval may only remove scopes, so a scope the client never requested is rejected
+	_, err := service.completeInteractionStep(t.Context(), interactionID, userID, interactionStepConsent, []string{"email", "groups"}, "", time.Now().UTC(), requestMeta{})
+	require.Error(t, err)
+
+	// Nothing is consented to and the interaction is left untouched
+	var interactionSession InteractionSession
+	require.NoError(t, db.First(&interactionSession, "id = ?", interactionID).Error)
+	require.True(t, interactionSession.ConsentRequired)
+	require.Equal(t, datatype.StringList{"openid", "email"}, interactionSession.Scopes)
+	require.ErrorIs(t, db.First(&model.UserAuthorizedOidcClient{}, "user_id = ? AND client_id = ?", userID, clientID).Error, gorm.ErrRecordNotFound)
+}
+
+func TestNarrowInteractionScopes(t *testing.T) {
+	newSession := func() *InteractionSession {
+		return &InteractionSession{
+			Scopes:     datatype.StringList{"openid", "profile", "email", "offline_access"},
+			Parameters: map[string]string{"scope": "openid profile email offline_access"},
+		}
+	}
+
+	t.Run("nil approval keeps every requested scope", func(t *testing.T) {
+		session := newSession()
+		require.NoError(t, narrowInteractionScopes(session, nil))
+		require.Equal(t, datatype.StringList{"openid", "profile", "email", "offline_access"}, session.Scopes)
+		require.Equal(t, "openid profile email offline_access", session.Parameters["scope"])
+	})
+
+	t.Run("empty approval keeps only the required scopes", func(t *testing.T) {
+		session := newSession()
+		require.NoError(t, narrowInteractionScopes(session, []string{}))
+		require.Equal(t, datatype.StringList{"openid"}, session.Scopes)
+		require.Equal(t, "openid", session.Parameters["scope"])
+	})
+
+	t.Run("approval keeps the requested order", func(t *testing.T) {
+		session := newSession()
+		require.NoError(t, narrowInteractionScopes(session, []string{"offline_access", "profile"}))
+		require.Equal(t, datatype.StringList{"openid", "profile", "offline_access"}, session.Scopes)
+		require.Equal(t, "openid profile offline_access", session.Parameters["scope"])
+	})
+
+	t.Run("approval of an unrequested scope is rejected", func(t *testing.T) {
+		session := newSession()
+		require.Error(t, narrowInteractionScopes(session, []string{"groups"}))
+		require.Equal(t, datatype.StringList{"openid", "profile", "email", "offline_access"}, session.Scopes)
+	})
+
+	t.Run("nil parameters are initialized", func(t *testing.T) {
+		session := &InteractionSession{Scopes: datatype.StringList{"openid", "email"}}
+		require.NoError(t, narrowInteractionScopes(session, []string{}))
+		require.Equal(t, "openid", session.Parameters["scope"])
+	})
 }
 
 func TestAuthorizationServiceConsentMergesAudienceQualifiedScopeKeys(t *testing.T) {
@@ -384,7 +525,7 @@ func TestInteractionAPIClassifiesMissingSession(t *testing.T) {
 	_, err := service.getInteractionSession(t.Context(), "missing-interaction")
 	require.True(t, apperror.IsCode(err, apperror.CodeNotFound))
 
-	_, err = service.completeInteractionStep(t.Context(), "missing-interaction", "user", interactionStepConsent, "", time.Now().UTC(), requestMeta{})
+	_, err = service.completeInteractionStep(t.Context(), "missing-interaction", "user", interactionStepConsent, nil, "", time.Now().UTC(), requestMeta{})
 	require.True(t, apperror.IsCode(err, apperror.CodeNotFound))
 }
 
@@ -601,7 +742,7 @@ func TestAuthorizationServiceCompleteInteractionBindsUserToSession(t *testing.T)
 		Parameters:      map[string]string{},
 	}).Error)
 
-	response, err := service.completeInteractionStep(t.Context(), interactionID, userID, interactionStepConsent, "", time.Now().UTC(), requestMeta{})
+	response, err := service.completeInteractionStep(t.Context(), interactionID, userID, interactionStepConsent, nil, "", time.Now().UTC(), requestMeta{})
 	require.NoError(t, err)
 	require.NotEmpty(t, response.RedirectURL)
 
@@ -646,7 +787,7 @@ func TestAuthorizationServiceCompleteInteractionSwitchesUserAndResetsRequirement
 		},
 	}).Error)
 
-	response, err := service.completeInteractionStep(t.Context(), interactionID, otherUserID, interactionStepSelectAccount, "", time.Now().UTC(), requestMeta{})
+	response, err := service.completeInteractionStep(t.Context(), interactionID, otherUserID, interactionStepSelectAccount, nil, "", time.Now().UTC(), requestMeta{})
 	require.NoError(t, err)
 	require.Empty(t, response.RedirectURL)
 	require.NotNil(t, response.Interaction)
@@ -694,7 +835,7 @@ func TestAuthorizationServiceSelectAccountRecomputesConsentForSelectedUser(t *te
 	require.NoError(t, err)
 	require.True(t, authorization.RequiresInteraction)
 
-	response, err := service.completeInteractionStep(t.Context(), authorization.InteractionID, switchedID, interactionStepSelectAccount, "", time.Now().UTC(), requestMeta{})
+	response, err := service.completeInteractionStep(t.Context(), authorization.InteractionID, switchedID, interactionStepSelectAccount, nil, "", time.Now().UTC(), requestMeta{})
 	require.NoError(t, err)
 
 	// The flow must not be granted yet: consent is still pending for the switched-to user.

@@ -37,6 +37,7 @@
 	let deviceLoginDecision: 'approve' | 'deny' | undefined = $state();
 	let errorMessage: string | null = $state(null);
 	let authorizationRequired = $state(false);
+	let selectedScopes: string[] = $state([]);
 	let reauthenticationRequired = $state(false);
 	let reauthenticated = $state(false);
 	let normalizedUserCode = $derived(
@@ -79,6 +80,8 @@
 
 			if (info.authorizationRequired && !authorizationRequired) {
 				authorizationRequired = true;
+				// Every requested scope starts selected so the user only has to deselect the ones they do not want to grant
+				selectedScopes = [...(info.scope ?? [])];
 				return;
 			}
 
@@ -92,7 +95,10 @@
 				reauthenticated = true;
 			}
 
-			await oidcService.verifyDeviceCode(normalizedUserCode);
+			await oidcService.verifyDeviceCode(
+				normalizedUserCode,
+				authorizationRequired ? selectedScopes : undefined
+			);
 			success = true;
 		} catch (error) {
 			errorMessage = getWebauthnErrorMessage(error);
@@ -236,7 +242,11 @@
 					</Card.Description>
 				</Card.Header>
 				<Card.Content data-testid="scopes">
-					<ScopeList scopes={deviceInfo!.scope || []} scopeInfo={deviceInfo!.scopeInfo || []} />
+					<ScopeList
+						scopes={deviceInfo!.scope || []}
+						scopeInfo={deviceInfo!.scopeInfo || []}
+						bind:selectedScopes
+					/>
 				</Card.Content>
 			</Card.Root>
 		</div>

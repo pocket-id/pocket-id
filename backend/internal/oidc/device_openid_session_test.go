@@ -18,7 +18,7 @@ func TestDeviceCodeExchangeConsumesOpenIDConnectSession(t *testing.T) {
 		clientID = "test-client"
 	)
 	service, store, provider, userCode, deviceCode := newTestDeviceServiceWithCode(t, clientID, userID, false, nil)
-	require.NoError(t, service.acceptDeviceCode(t.Context(), userCode, userID, "phr", time.Now().UTC(), "", requestMeta{}))
+	require.NoError(t, service.acceptDeviceCode(t.Context(), userCode, userID, "phr", time.Now().UTC(), nil, "", requestMeta{}))
 
 	signature, err := provider.deviceStrategy.DeviceCodeSignature(t.Context(), deviceCode)
 	require.NoError(t, err)

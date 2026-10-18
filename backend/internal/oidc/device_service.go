@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"net/http"
+	"slices"
 	"strings"
 	"time"
 
@@ -84,7 +85,7 @@ func (s *deviceService) createDeviceAuthorization(ctx context.Context, req *http
 	}, request, nil
 }
 
-func (s *deviceService) acceptDeviceCode(ctx context.Context, userCode, userID, authenticationMethod string, authenticationTime time.Time, reauthenticationToken string, meta requestMeta) error {
+func (s *deviceService) acceptDeviceCode(ctx context.Context, userCode, userID, authenticationMethod string, authenticationTime time.Time, approvedScopes []string, reauthenticationToken string, meta requestMeta) error {
 	request, userCodeSignature, err := s.deviceRequestFromUserCode(ctx, userCode)
 	if err != nil {
 		return err
@@ -107,6 +108,11 @@ func (s *deviceService) acceptDeviceCode(ctx context.Context, userCode, userID, 
 	}
 	if !IsUserGroupAllowedToAuthorize(claimsSource.user, client.OidcClient) {
 		return fosite.ErrAccessDenied.WithHint("You are not allowed to access this service.")
+	}
+
+	// Narrow the request to the scopes the user approved before resolving the grant, so deselected scopes are neither consented to nor granted
+	if err := narrowDeviceRequestScopes(request, approvedScopes); err != nil {
+		return err
 	}
 
 	resource, err := request.GetResource()
@@ -170,6 +176,31 @@ func (s *deviceService) acceptDeviceCode(ctx context.Context, userCode, userID, 
 
 		return nil
 	})
+}
+
+// narrowDeviceRequestScopes restricts a pending device authorization to the scopes the user approved on the consent screen
+// The device authorization endpoint already granted every allowed scope, so the grants of deselected scopes are dropped as well
+func narrowDeviceRequestScopes(request fosite.DeviceRequester, approvedScopes []string) error {
+	if approvedScopes == nil {
+		return nil
+	}
+
+	narrowed, err := narrowApprovedScopes(request.GetRequestedScopes(), approvedScopes)
+	if err != nil {
+		return err
+	}
+
+	// The requester interface can only add grants, so the stored device request is changed directly
+	deviceRequest, ok := request.(*fosite.DeviceRequest)
+	if !ok {
+		return errors.New("unexpected device request type")
+	}
+	deviceRequest.SetRequestedScopes(narrowed)
+	deviceRequest.GrantedScope = slices.DeleteFunc(deviceRequest.GrantedScope, func(scope string) bool {
+		return !slices.Contains(narrowed, scope)
+	})
+
+	return nil
 }
 
 // copyDeviceCodeExpiry copies the device and user code expiry from the pending device authorization's session to the session that replaces it

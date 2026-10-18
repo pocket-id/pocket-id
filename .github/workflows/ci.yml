@@ -416,7 +416,7 @@ jobs:
         run: vp -C tests exec playwright test
 
       - name: Upload Test Report
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         if: always()
         with:
           name: playwright-report-${{ matrix.db }}-${{ matrix.storage }}-francis-${{ matrix.francis }}
@@ -425,7 +425,7 @@ jobs:
           retention-days: 15
 
       - name: Upload Backend Test Report
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         if: always()
         with:
           name: backend-${{ matrix.db }}-${{ matrix.storage }}-francis-${{ matrix.francis }}
@@ -434,7 +434,7 @@ jobs:
           retention-days: 15
 
       - name: Upload Francis Runtime Report
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         if: always() && matrix.francis == 'remote'
         with:
           name: francis-runtime-${{ matrix.db }}-${{ matrix.storage }}
