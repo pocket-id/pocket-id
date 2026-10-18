@@ -3,22 +3,22 @@ import { cleanupBackend } from '../utils/cleanup.util';
 
 test.beforeEach(async () => await cleanupBackend());
 
-test('settings sidebar has an accessible name', async ({ page }) => {
+test('main navigation has an accessible name', async ({ page }) => {
 	await page.goto('/settings/account');
 
-	const nav = page.getByRole('navigation', { name: 'Settings' });
+	const nav = page.getByRole('navigation', { name: 'Main' }).first();
 	await expect(nav).toBeVisible();
 });
 
 test('keyboard focus stays on sidebar link after navigating', async ({ page }) => {
 	await page.goto('/settings/account');
 
-	const auditLog = page.getByRole('link', { name: 'Audit Log' });
-	await auditLog.focus();
+	const activity = page.getByRole('link', { name: 'Activity' }).first();
+	await activity.focus();
 	await page.keyboard.press('Enter');
 
 	await page.waitForURL('**/settings/audit-log');
-	await expect(auditLog).toBeFocused();
+	await expect(activity).toBeFocused();
 });
 
 test('unsaved changes block navigation until they are discarded', async ({ page }) => {
@@ -29,7 +29,7 @@ test('unsaved changes block navigation until they are discarded', async ({ page 
 	await displayName.fill('Pending navigation');
 	await expect(page.getByText('You have unsaved changes', { exact: true })).toBeVisible();
 
-	const myApps = page.getByRole('link', { name: 'My Apps' });
+	const myApps = page.getByRole('link', { name: 'My Apps' }).first();
 	await myApps.click();
 	await expect(page).toHaveURL(/\/settings\/account$/);
 
