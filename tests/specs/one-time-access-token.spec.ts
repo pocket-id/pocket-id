@@ -23,7 +23,11 @@ test('Sign in with login code without a passkey shows passkey setup', async ({ p
 	await (await passkeyUtil.init(page)).addPasskey();
 	await page.getByRole('button', { name: 'Authenticate' }).click();
 	await page.waitForURL('/settings/account');
-	await page.getByLabel('Delete').first().click();
+	await page
+		.getByRole('button', { name: /^Actions for / })
+		.first()
+		.click();
+	await page.getByRole('menuitem', { name: 'Delete' }).click();
 	await page.getByLabel('Delete Passkey').getByRole('button', { name: 'Delete' }).click();
 	await expect(page.locator('[data-type="success"]')).toHaveText('Passkey deleted successfully');
 

@@ -1,9 +1,9 @@
 <script lang="ts">
 	import { refreshAll } from '$app/navigation';
 	import FormattedMessage from '#lib/components/formatted-message.svelte';
+	import IdentityRow from '#lib/components/identity-row.svelte';
 	import SignInWrapper from '#lib/components/login-wrapper.svelte';
 	import ScopeList from '#lib/components/scope-list.svelte';
-	import * as Avatar from '#lib/components/ui/avatar/index.ts';
 	import { Button } from '#lib/components/ui/button/index.ts';
 	import * as Card from '#lib/components/ui/card/index.ts';
 	import { m } from '#lib/paraglide/messages.js';
@@ -12,7 +12,6 @@
 	import appConfigStore from '#lib/stores/application-configuration-store.ts';
 	import userStore from '#lib/stores/user-store.ts';
 	import type { InteractionStep } from '#lib/types/oidc.type.ts';
-	import { cachedProfilePicture } from '#lib/utils/cached-image-util.ts';
 	import { getClientIDHost } from '#lib/utils/client-id-util.ts';
 	import { getAxiosErrorCode, getWebauthnErrorMessage } from '#lib/utils/error-util.ts';
 	import { startAuthentication } from '@simplewebauthn/browser';
@@ -32,19 +31,6 @@
 	let currentStep = $derived(interactionSession.currentStep);
 	// Every requested scope starts selected so the user only has to deselect the ones they do not want to grant
 	let selectedScopes = $state([...(data.interactionSession.scopes ?? [])]);
-
-	const fullName = $derived.by(() => {
-		if (!$userStore) {
-			return '';
-		}
-
-		if ($userStore.displayName) {
-			return $userStore.displayName;
-		}
-
-		return [$userStore.firstName, $userStore.lastName].filter(Boolean).join(' ').trim();
-	});
-	const primaryName = $derived(fullName || $userStore?.email || '');
 
 	async function useDifferentAccount() {
 		await webauthnService.logout();
@@ -154,23 +140,9 @@
 			data-testid="account-selection"
 		>
 			{#if $userStore}
-				<Card.Root class="mx-5 mb-2 w-full py-4 sm:min-w-sm">
-					<Card.Content class="flex items-center gap-4">
-						<Avatar.Root class="size-11 shrink-0">
-							<Avatar.Image src={cachedProfilePicture.getUrl($userStore.id)} />
-						</Avatar.Root>
-						<div class="flex min-w-0 flex-col text-start">
-							<p class="truncate text-base leading-tight font-medium">
-								{primaryName}
-							</p>
-							{#if fullName && $userStore.email}
-								<p class="text-muted-foreground mt-1 truncate text-sm leading-tight">
-									{$userStore.email}
-								</p>
-							{/if}
-						</div>
-					</Card.Content>
-				</Card.Root>
+				<div class="mx-5 mb-2 w-full sm:min-w-sm">
+					<IdentityRow user={$userStore} />
+				</div>
 			{/if}
 			<div class="mb-10 flex justify-center">
 				<button

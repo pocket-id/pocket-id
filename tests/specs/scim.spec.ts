@@ -1,7 +1,7 @@
 import test, { expect, type Page } from '@playwright/test';
 import { cleanupBackend, cleanupScimServiceProvider } from 'utils/cleanup.util';
 import { oidcClients, userGroups, users } from '../data';
-import { saveUnsavedChanges } from '../utils/unsaved-changes.util';
+import { saveUnsavedChanges, unsavedChangesBar } from '../utils/unsaved-changes.util';
 
 async function configureOidcClient(page: Page) {
 	await page.goto(`/settings/admin/oidc-clients/${oidcClients.scim.id}`);
@@ -36,14 +36,14 @@ test.describe('SCIM Configuration', () => {
 
 		await page.getByLabel('SCIM Endpoint').fill('http://scim.provider/api');
 		await page.getByLabel('SCIM Token').fill('supersecrettoken');
-		await expect(page.getByText('You have unsaved changes', { exact: true })).toHaveCount(0);
+		await expect(unsavedChangesBar(page)).toHaveCount(0);
 
 		await page.getByRole('button', { name: 'Enable' }).click();
 
 		await expect(page.locator('[data-type="success"]')).toHaveText('SCIM enabled successfully.');
 
 		await page.getByLabel('SCIM Endpoint').fill('http://edited.scim.provider/api');
-		await expect(page.getByText('You have unsaved changes', { exact: true })).toBeVisible();
+		await expect(unsavedChangesBar(page)).toContainText(/\d+ unsaved changes?/);
 		await page.getByRole('button', { name: 'Discard', exact: true }).click();
 		await expect(page.getByLabel('SCIM Endpoint')).toHaveValue('http://scim.provider/api');
 

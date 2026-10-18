@@ -1,17 +1,15 @@
 <script lang="ts">
 	import { page } from '$app/state';
-	import CopyToClipboard from '#lib/components/copy-to-clipboard.svelte';
+	import CopyField from '#lib/components/copy-field.svelte';
 	import Qrcode from '#lib/components/qrcode/qrcode.svelte';
 	import { Button } from '#lib/components/ui/button/index.ts';
 	import * as Dialog from '#lib/components/ui/dialog/index.ts';
 	import * as Field from '#lib/components/ui/field/index.ts';
 	import * as Select from '#lib/components/ui/select/index.js';
-	import { Separator } from '#lib/components/ui/separator/index.ts';
 	import { m } from '#lib/paraglide/messages.js';
 	import UserService from '#lib/services/user-service.ts';
 	import appConfigStore from '#lib/stores/application-configuration-store.ts';
 	import { axiosErrorToast } from '#lib/utils/error-util.ts';
-	import { mode } from 'mode-watcher';
 	import { toast } from 'svelte-sonner';
 
 	let {
@@ -110,27 +108,15 @@
 				>
 			</Dialog.Footer>
 		{:else}
-			<div class="flex flex-col items-center gap-2">
-				<CopyToClipboard value={code!}>
-					<p class="text-3xl font-bold">{code}</p>
-				</CopyToClipboard>
-
-				<div class="text-muted-foreground my-2 flex items-center justify-center gap-3">
-					<Separator />
-					<p class="text-xs text-nowrap">{m.or_visit()}</p>
-					<Separator />
-				</div>
-
-				<Qrcode
-					class="mb-2"
+			<div class="flex flex-col gap-4">
+				<CopyField label={m.code()} value={code!} copyLabel={m.copy_code()} />
+				<CopyField
+					label={m.link()}
 					value={oneTimeLink}
-					size={150}
-					color={mode.current === 'dark' ? '#FFFFFF' : '#000000'}
-					backgroundColor={mode.current === 'dark' ? '#000000' : '#FFFFFF'}
+					copyLabel={m.copy_link()}
+					testId="login-code-link"
 				/>
-				<CopyToClipboard value={oneTimeLink!}>
-					<p data-testId="login-code-link" class="text-sm">{oneTimeLink!}</p>
-				</CopyToClipboard>
+				<Qrcode class="self-center" value={oneTimeLink} size={160} />
 			</div>
 		{/if}
 	</Dialog.Content>

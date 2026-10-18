@@ -1,6 +1,6 @@
 <script lang="ts">
 	import { page } from '$app/state';
-	import CopyToClipboard from '#lib/components/copy-to-clipboard.svelte';
+	import CopyField from '#lib/components/copy-field.svelte';
 	import FormInput from '#lib/components/form/form-input.svelte';
 	import UserGroupInput from '#lib/components/form/user-group-input.svelte';
 	import Qrcode from '#lib/components/qrcode/qrcode.svelte';
@@ -14,7 +14,6 @@
 	import { axiosErrorToast } from '#lib/utils/error-util.ts';
 	import { preventDefault } from '#lib/utils/event-util.ts';
 	import { createForm } from '#lib/utils/form-util.ts';
-	import { mode } from 'mode-watcher';
 	import { onMount } from 'svelte';
 	import { z } from 'zod/v4';
 
@@ -181,20 +180,16 @@
 				</Dialog.Footer>
 			</form>
 		{:else}
-			<div class="flex flex-col items-center gap-2">
-				<Qrcode
-					class="mb-2"
-					value={signupLink}
-					size={180}
-					color={mode.current === 'dark' ? '#FFFFFF' : '#000000'}
+			<div class="flex flex-col items-center gap-4">
+				<Qrcode value={signupLink} size={180} />
+				<CopyField
+					label={m.link()}
+					value={signupLink!}
+					copyLabel={m.copy_link()}
+					testId="signup-token-link"
 				/>
-				<CopyToClipboard value={signupLink!}>
-					<p data-testId="signup-token-link" class="px-2 text-center text-sm break-all">
-						{signupLink!}
-					</p>
-				</CopyToClipboard>
 
-				<div class="text-muted-foreground mt-2 text-center text-sm">
+				<div class="text-caption text-fg-muted text-center">
 					<p>{m.usage_limit()}: {createdSignupData?.usageLimit}</p>
 					<p>{m.expiration()}: {getExpirationLabel(createdSignupData?.ttl ?? 0)}</p>
 				</div>

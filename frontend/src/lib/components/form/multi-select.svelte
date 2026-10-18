@@ -4,7 +4,7 @@
 	import { cn } from '#lib/utils/style.ts';
 	import { LucideChevronDown } from '@lucide/svelte';
 	import { Badge } from '../ui/badge';
-	import { Button } from '../ui/button';
+	import { filledFieldClass } from '../ui/input';
 
 	let {
 		items,
@@ -40,20 +40,25 @@
 <DropdownMenu.Root>
 	<DropdownMenu.Trigger>
 		{#snippet child({ props })}
-			<Button {...props} variant="outline" class={cn('w-full px-3 font-normal', className)}>
-				<!-- Button centers its content in an inner span, so this one spreads the badges and the chevron apart -->
-				<span class="flex w-full min-w-0 items-center justify-between gap-2">
-					<!-- The badges stay on one line and are clipped so the trigger keeps the height of the other inputs -->
-					<span class="flex min-w-0 gap-1 overflow-hidden">
-						{#each selected as item (item.value)}
-							<Badge variant="secondary">{item.label}</Badge>
-						{:else}
-							<span class="text-muted-foreground">{placeholder}</span>
-						{/each}
-					</span>
-					<LucideChevronDown class="size-4 shrink-0 opacity-50" />
+			<button
+				{...props}
+				type="button"
+				class={cn(
+					filledFieldClass,
+					'text-control aria-expanded:bg-fill-selected dark:aria-expanded:bg-fill-selected flex h-(--h-md) w-full items-center justify-between gap-1.5 rounded-sm pr-2.5 pl-3.5 text-left',
+					className
+				)}
+			>
+				<!-- The badges stay on one line and are clipped so the trigger keeps the height of the other inputs -->
+				<span class="flex min-w-0 gap-1 overflow-hidden">
+					{#each selected as item (item.value)}
+						<Badge variant="outline" class="bg-surface">{item.label}</Badge>
+					{:else}
+						<span class="text-fg-muted truncate">{placeholder}</span>
+					{/each}
 				</span>
-			</Button>
+				<LucideChevronDown class="text-fg-muted size-3.5 shrink-0" />
+			</button>
 		{/snippet}
 	</DropdownMenu.Trigger>
 	<DropdownMenu.Content align="start" class="w-[var(--bits-dropdown-menu-anchor-width)]">

@@ -1,14 +1,10 @@
 <script lang="ts">
 	import { openConfirmDialog } from '#lib/components/confirm-dialog/index.ts';
 	import PasskeyRow from '#lib/components/passkey-row.svelte';
-	import * as Item from '#lib/components/ui/item/index.js';
 	import { m } from '#lib/paraglide/messages.js';
 	import UserService from '#lib/services/user-service.ts';
 	import type { Passkey } from '#lib/types/passkey.type.ts';
-	import { authenticatorIconUrl } from '#lib/utils/cached-image-util.ts';
 	import { axiosErrorToast } from '#lib/utils/error-util.ts';
-	import { LucideKeyRound } from '@lucide/svelte';
-	import { mode } from 'mode-watcher';
 	import { toast } from 'svelte-sonner';
 
 	let {
@@ -20,8 +16,6 @@
 	} = $props();
 
 	const userService = new UserService();
-
-	const isLightMode = $derived(mode.current === 'light');
 
 	async function refreshPasskeys() {
 		passkeys = await userService.listUserPasskeys(userId);
@@ -48,17 +42,8 @@
 	}
 </script>
 
-<Item.Group class="mt-3">
+<div class="mt-3 divide-y overflow-hidden rounded-md border">
 	{#each [...passkeys].sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()) as passkey (passkey.id)}
-		<PasskeyRow
-			label={passkey.name}
-			description={m.added_on() + ' ' + new Date(passkey.createdAt).toLocaleDateString()}
-			icon={LucideKeyRound}
-			providerIconUrl={passkey.hasIcon
-				? authenticatorIconUrl(passkey.aaguid, isLightMode)
-				: undefined}
-			showRenameAction={false}
-			onDelete={() => deletePasskey(passkey)}
-		/>
+		<PasskeyRow {passkey} onDelete={() => deletePasskey(passkey)} />
 	{/each}
-</Item.Group>
+</div>

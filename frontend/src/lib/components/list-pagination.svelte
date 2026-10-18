@@ -1,9 +1,12 @@
 <script lang="ts">
-	import * as Pagination from '#lib/components/ui/pagination/index.ts';
+	import FormattedMessage from '#lib/components/formatted-message.svelte';
+	import { Button } from '#lib/components/ui/button/index.ts';
 	import * as Select from '#lib/components/ui/select/index.ts';
 	import { m } from '#lib/paraglide/messages.js';
 	import type { PaginationResponse } from '#lib/types/list-request.type.ts';
 	import { cn } from '#lib/utils/style.ts';
+	import ChevronLeftIcon from '@lucide/svelte/icons/chevron-left';
+	import ChevronRightIcon from '@lucide/svelte/icons/chevron-right';
 
 	let {
 		pagination,
@@ -21,62 +24,69 @@
 		class?: string;
 	} = $props();
 
-	// The controls are useless when every item already fits on a page of the smallest size
-	const hidden = $derived(
-		hideWhenSinglePage && (pagination?.totalItems ?? 0) <= Math.min(...pageSizes)
-	);
+	const totalItems = $derived(pagination?.totalItems ?? 0);
+	const currentPage = $derived(pagination?.currentPage ?? 1);
+	const perPage = $derived(pagination?.itemsPerPage ?? pageSizes[0]);
+	const totalPages = $derived(pagination?.totalPages ?? 1);
+	const from = $derived(totalItems ? (currentPage - 1) * perPage + 1 : 0);
+	const to = $derived(Math.min(totalItems, currentPage * perPage));
+
+	// The page size only matters when the items do not all fit on a page of the smallest size
+	const fitsSmallestPage = $derived(totalItems <= Math.min(...pageSizes));
 </script>
 
-{#if !hidden}
-	<div
-		class={cn(
-			'mt-5 flex flex-col-reverse items-center justify-between gap-3 sm:flex-row',
-			className
-		)}
+{#if pagination && !(hideWhenSinglePage && fitsSmallestPage)}
+	<nav
+		aria-label={m.pagination()}
+		class={cn('text-control flex min-h-(--row) items-center gap-3 pt-2', className)}
 	>
-		<div class="flex items-center space-x-2">
-			<p class="text-sm font-medium">{m.items_per_page()}</p>
-			<Select.Root
-				type="single"
-				value={pagination?.itemsPerPage.toString()}
-				onValueChange={(v) => onPageSizeChange(Number(v))}
-			>
-				<Select.Trigger class="w-20" aria-label={m.items_per_page()}>
-					{pagination?.itemsPerPage}
-				</Select.Trigger>
-				<Select.Content>
-					{#each pageSizes as size (size)}
-						<Select.Item value={size.toString()}>{size}</Select.Item>
-					{/each}
-				</Select.Content>
-			</Select.Root>
-		</div>
-		<Pagination.Root
-			class="mx-0 w-auto"
-			count={pagination?.totalItems || 0}
-			perPage={pagination?.itemsPerPage}
-			{onPageChange}
-			page={pagination?.currentPage}
-		>
-			{#snippet children({ pages })}
-				<Pagination.Content class="flex justify-end">
-					<Pagination.Item>
-						<Pagination.PrevButton />
-					</Pagination.Item>
-					{#each pages as page (page.key)}
-						{#if page.type !== 'ellipsis' && page.value != 0}
-							<Pagination.Item>
-								<Pagination.Link {page} isActive={pagination?.currentPage === page.value}>
-									{page.value}
-								</Pagination.Link>
-							</Pagination.Item>
-						{/if}
-					{/each}
-					<Pagination.Item>
-						<Pagination.NextButton />
-					</Pagination.Item>
-				</Pagination.Content>
-			{/snippet}
-		</Pagination.Root>
-	</div>
+		<span class="text-fg-muted flex min-w-0 flex-wrap items-center gap-1">
+			<span role="status" class="[&_b]:text-fg pr-1 tabular-nums [&_b]:font-medium">
+				<FormattedMessage message={m.pagination_range} inputs={{ from, to, total: totalItems }} />
+			</span>
+			{#if !fitsSmallestPage}
+				<span class="flex items-center gap-1 max-sm:hidden">
+					<span aria-hidden="true">·</span>
+					<Select.Root
+						type="single"
+						value={String(perPage)}
+						onValueChange={(v) => onPageSizeChange(Number(v))}
+					>
+						<Select.Trigger variant="ghost" class="text-fg-muted" aria-label={m.page_size()}>
+							{m.per_page({ count: perPage })}
+						</Select.Trigger>
+						<Select.Content>
+							{#each pageSizes as size (size)}
+								<Select.Item value={String(size)} label={m.per_page({ count: size })} />
+							{/each}
+						</Select.Content>
+					</Select.Root>
+				</span>
+			{/if}
+		</span>
+		{#if totalPages > 1}
+			<span class="ml-auto flex gap-2">
+				<Button
+					variant="secondary"
+					size="sm"
+					class="max-sm:px-2"
+					disabled={currentPage <= 1}
+					onclick={() => onPageChange(currentPage - 1)}
+				>
+					<ChevronLeftIcon />
+					<span class="max-sm:sr-only">{m.previous()}</span>
+				</Button>
+				<Button
+					variant="secondary"
+					size="sm"
+					class="max-sm:px-2"
+					disabled={currentPage >= totalPages}
+					onclick={() => onPageChange(currentPage + 1)}
+				>
+					<span class="max-sm:sr-only">{m.next()}</span>
+					<ChevronRightIcon />
+				</Button>
+			</span>
+		{/if}
+	</nav>
 {/if}

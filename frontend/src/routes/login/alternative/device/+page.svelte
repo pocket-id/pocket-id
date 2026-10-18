@@ -1,12 +1,9 @@
 <script lang="ts">
 	import { goto } from '$app/navigation';
 	import { page } from '$app/state';
-	import CopyToClipboard from '#lib/components/copy-to-clipboard.svelte';
 	import SignInWrapper from '#lib/components/login-wrapper.svelte';
-	import Qrcode from '#lib/components/qrcode/qrcode.svelte';
+	import QrPanel from '#lib/components/qrcode/qr-panel.svelte';
 	import { Button } from '#lib/components/ui/button/index.ts';
-	import * as Card from '#lib/components/ui/card/index.ts';
-	import { Separator } from '#lib/components/ui/separator/index.ts';
 	import { Spinner } from '#lib/components/ui/spinner/index.ts';
 	import { m } from '#lib/paraglide/messages.js';
 	import DeviceLoginService from '#lib/services/device-login-service.ts';
@@ -14,7 +11,6 @@
 	import type { DeviceLoginRequest } from '#lib/types/device-login.type.ts';
 	import { getAxiosErrorMessage } from '#lib/utils/error-util.ts';
 	import { isAxiosError } from 'axios';
-	import { mode } from 'mode-watcher';
 	import { onMount } from 'svelte';
 	import LoginLogoErrorSuccessIndicator from '../../components/login-logo-error-success-indicator.svelte';
 
@@ -153,33 +149,9 @@
 			{m.creating_device_login_request()}
 		</div>
 	{:else if request && !errorMessage}
-		<Card.Root class="mt-8 w-full max-w-sm shrink-0">
-			<Card.Content class="flex flex-col items-center gap-5">
-				<Qrcode
-					value={request.verificationUriComplete}
-					color={mode.current === 'dark' ? '#FFFFFF' : '#000000'}
-					aria-label={m.device_login_qr_code()}
-					class="h-[12dvh]"
-				/>
-				<div class="flex w-full items-center gap-3">
-					<Separator class="flex-1" />
-					<span class="text-muted-foreground text-xs">{m.or()}</span>
-					<Separator class="flex-1" />
-				</div>
-				<div>
-					<p class="text-muted-foreground mb-2 text-sm">
-						{m.visit_and_enter({ url: request.verificationUri })}
-					</p>
-					<CopyToClipboard value={request.userCode}>
-						<p class="text-xl font-bold tracking-wider sm:text-2xl" data-testid="device-login-code">
-							{request.userCode.substring(0, 4)}
-							<span class="text-muted-foreground font-normal">-</span>
-							{request.userCode.substring(4, 8)}
-						</p>
-					</CopyToClipboard>
-				</div>
-			</Card.Content>
-		</Card.Root>
+		<div class="mt-8 w-full max-w-sm shrink-0">
+			<QrPanel {request} />
+		</div>
 	{/if}
 	<div class="mt-7 flex w-full max-w-112.5 gap-3 md:mt-15">
 		<Button class="flex-1" href={'/login/alternative' + page.url.search} variant="secondary"

@@ -96,7 +96,7 @@ test('Authorize new client', async ({ page }) => {
 	const urlParams = createUrlParams(oidcClient);
 	await page.goto(`/authorize?${urlParams.toString()}`);
 
-	await expectScopes(page, ['Email', 'Profile']);
+	await expectScopes(page, ['Email address', 'Name, username and picture']);
 
 	await expectCallbackRedirect(page, oidcClient.callbackUrl, () =>
 		page.getByRole('button', { name: 'Sign in' }).click()
@@ -111,7 +111,7 @@ test('Authorize client requesting offline_access scope', async ({ page }) => {
 
 	// offline_access is a valid OIDC scope: the flow must reach the consent screen rather than
 	// being rejected with invalid_scope (offline_access itself has no displayable scope item)
-	await expectScopes(page, ['Email', 'Profile']);
+	await expectScopes(page, ['Email address', 'Name, username and picture']);
 
 	const callbackUrl = await expectCallbackRedirect(page, oidcClient.callbackUrl, () =>
 		page.getByRole('button', { name: 'Sign in' }).click()
@@ -125,10 +125,10 @@ test('Authorize new client with a deselected scope', async ({ page }) => {
 	const urlParams = createUrlParams(oidcClient);
 	await page.goto(`/authorize?${urlParams.toString()}`);
 
-	await expectScopes(page, ['Email', 'Profile']);
-	await page.getByRole('checkbox', { name: 'Email' }).click();
-	await expect(page.getByRole('checkbox', { name: 'Email' })).not.toBeChecked();
-	await expect(page.getByRole('checkbox', { name: 'Profile' })).toBeChecked();
+	await expectScopes(page, ['Email address', 'Name, username and picture']);
+	await page.getByRole('checkbox', { name: 'Email address' }).click();
+	await expect(page.getByRole('checkbox', { name: 'Email address' })).not.toBeChecked();
+	await expect(page.getByRole('checkbox', { name: 'Name, username and picture' })).toBeChecked();
 
 	const callbackUrl = await expectCallbackRedirect(page, oidcClient.callbackUrl, () =>
 		page.getByRole('button', { name: 'Sign in' }).click()
@@ -199,7 +199,7 @@ test('Authorize new client while not signed in', async ({ page }) => {
 	await (await passkeyUtil.init(page)).addPasskey();
 	await page.getByRole('button', { name: 'Sign in' }).click();
 
-	await expectScopes(page, ['Email', 'Profile']);
+	await expectScopes(page, ['Email address', 'Name, username and picture']);
 
 	await expectCallbackRedirect(page, oidcClient.callbackUrl, () =>
 		page.getByRole('button', { name: 'Sign in' }).click()
@@ -216,7 +216,7 @@ test('Authorize new client shows Pocket ID error when user group not allowed', a
 	await (await passkeyUtil.init(page)).addPasskey('craig');
 	await page.getByRole('button', { name: 'Sign in' }).click();
 
-	await expectScopes(page, ['Email', 'Profile']);
+	await expectScopes(page, ['Email address', 'Name, username and picture']);
 
 	await page.getByRole('button', { name: 'Sign in' }).click();
 
@@ -701,7 +701,7 @@ test('Authorize new client with device authorization flow', async ({ page }) => 
 	await page.goto(`/device?user_code=${userCode}`);
 	await page.getByRole('button', { name: 'Authorize' }).click();
 
-	await expectScopes(page, ['Email', 'Profile']);
+	await expectScopes(page, ['Email address', 'Name, username and picture']);
 
 	await page.getByRole('button', { name: 'Authorize' }).click();
 
@@ -724,10 +724,10 @@ test('Authorize new client with device authorization flow and a deselected scope
 	await page.goto(`/device?user_code=${device.user_code}`);
 	await page.getByRole('button', { name: 'Authorize' }).click();
 
-	await expectScopes(page, ['Email', 'Profile']);
-	await page.getByRole('checkbox', { name: 'Email' }).click();
-	await expect(page.getByRole('checkbox', { name: 'Email' })).not.toBeChecked();
-	await expect(page.getByRole('checkbox', { name: 'Profile' })).toBeChecked();
+	await expectScopes(page, ['Email address', 'Name, username and picture']);
+	await page.getByRole('checkbox', { name: 'Email address' }).click();
+	await expect(page.getByRole('checkbox', { name: 'Email address' })).not.toBeChecked();
+	await expect(page.getByRole('checkbox', { name: 'Name, username and picture' })).toBeChecked();
 
 	await page.getByRole('button', { name: 'Authorize' }).click();
 	await expect(
@@ -763,7 +763,7 @@ test('Authorize new client with device authorization flow while not signed in', 
 	await (await passkeyUtil.init(page)).addPasskey();
 	await page.getByRole('button', { name: 'Authorize' }).click();
 
-	await expectScopes(page, ['Email', 'Profile']);
+	await expectScopes(page, ['Email address', 'Name, username and picture']);
 
 	await page.getByRole('button', { name: 'Authorize' }).click();
 
@@ -834,7 +834,7 @@ for (const scenario of [
 			} else {
 				await page.getByRole('button', { name: 'Authorize', exact: true }).click();
 				if (scenario.consentRequired) {
-					await expectScopes(page, ['Email', 'Profile']);
+					await expectScopes(page, ['Email address', 'Name, username and picture']);
 					await page.getByRole('button', { name: 'Authorize', exact: true }).click();
 				}
 				await expect(
@@ -962,7 +962,7 @@ test('Authorize new client with device authorization with user group not allowed
 	await (await passkeyUtil.init(page)).addPasskey('craig');
 	await page.getByRole('button', { name: 'Authorize' }).click();
 
-	await expectScopes(page, ['Email', 'Profile']);
+	await expectScopes(page, ['Email address', 'Name, username and picture']);
 
 	await page.getByRole('button', { name: 'Authorize' }).click();
 
@@ -1241,7 +1241,7 @@ test.describe('OIDC prompt parameter', () => {
 		await page.goto(`/authorize?${urlParams.toString()}`);
 
 		// Should show consent UI even though client was already authorized
-		await expectScopes(page, ['Profile', 'Email']);
+		await expectScopes(page, ['Name, username and picture', 'Email address']);
 
 		await expectCallbackRedirect(page, oidcClient.callbackUrl, () =>
 			page.getByRole('button', { name: 'Sign in' }).click()
@@ -1532,7 +1532,7 @@ test.describe('Pushed Authorization Requests (PAR)', () => {
 		await page.goto(`/authorize?${urlParams.toString()}`);
 
 		// Consent screen with the requested scope (resolved from the PAR) must be shown
-		await expectScopes(page, ['Groups']);
+		await expectScopes(page, ['Group membership']);
 
 		// Confirming proceeds with the authorization
 		await expectCallbackRedirect(page, client.callbackUrl, () =>
@@ -1685,7 +1685,7 @@ test.describe('OIDC skip consent', () => {
 		await page.goto(`/authorize?${urlParams.toString()}`);
 
 		// prompt=consent overrides the client's skip-consent setting, so the scopes must still be shown
-		await expectScopes(page, ['Email', 'Profile']);
+		await expectScopes(page, ['Email address', 'Name, username and picture']);
 
 		const callbackUrl = await expectCallbackRedirect(page, client.callbackUrl, () =>
 			page.getByRole('button', { name: 'Sign in' }).click()

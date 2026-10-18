@@ -1,6 +1,6 @@
 <script lang="ts">
 	import { goto } from '$app/navigation';
-	import ImageBox from '#lib/components/image-box.svelte';
+	import OidcClientAvatar from '#lib/components/oidc-client-avatar.svelte';
 	import AdvancedTable from '#lib/components/table/advanced-table.svelte';
 	import { ScrollArea } from '#lib/components/ui/scroll-area/index.ts';
 	import * as Tooltip from '#lib/components/ui/tooltip/index.ts';
@@ -11,10 +11,8 @@
 		CreateAdvancedTableActions
 	} from '#lib/types/advanced-table.type.ts';
 	import type { OidcClientWithAllowedGroups } from '#lib/types/oidc.type.ts';
-	import { cachedOidcClientLogo } from '#lib/utils/cached-image-util.ts';
 	import { encodeClientIdParam } from '#lib/utils/client-id-util.ts';
 	import { LucidePencil } from '@lucide/svelte';
-	import { mode } from 'mode-watcher';
 	import { deleteClientAction, refreshClientAction } from './oidc-client-actions';
 
 	const oidcService = new OIDCService();
@@ -23,8 +21,6 @@
 	export function refresh() {
 		return tableRef?.refresh();
 	}
-
-	const isLightMode = $derived(mode.current === 'light');
 
 	const booleanFilterValues = [
 		{ label: m.yes(), value: true },
@@ -134,17 +130,7 @@
 {/snippet}
 
 {#snippet LogoCell({ item }: { item: OidcClientWithAllowedGroups })}
-	{#if item.hasLogo || item.hasDarkLogo}
-		<ImageBox
-			class="size-12 rounded-lg"
-			src={cachedOidcClientLogo.getUrl(item.id, isLightMode)}
-			alt={m.name_logo({ name: item.name })}
-		/>
-	{:else}
-		<div class="bg-muted flex size-12 items-center justify-center rounded-lg text-lg font-bold">
-			{item.name.charAt(0).toUpperCase()}
-		</div>
-	{/if}
+	<OidcClientAvatar id={item.id} name={item.name} hasLogo={item.hasLogo || item.hasDarkLogo} />
 {/snippet}
 
 <AdvancedTable

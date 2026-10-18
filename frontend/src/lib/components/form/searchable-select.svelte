@@ -1,12 +1,11 @@
 <script lang="ts">
-	import { Button } from '#lib/components/ui/button/index.ts';
 	import * as Command from '#lib/components/ui/command/index.ts';
+	import { filledFieldClass } from '#lib/components/ui/input/index.ts';
 	import * as Popover from '#lib/components/ui/popover/index.ts';
 	import { Spinner } from '#lib/components/ui/spinner/index.ts';
 	import { m } from '#lib/paraglide/messages.js';
 	import { cn } from '#lib/utils/style.ts';
 	import { LucideCheck, LucideChevronDown } from '@lucide/svelte';
-	import { tick } from 'svelte';
 	import type { FormEventHandler, HTMLAttributes } from 'svelte/elements';
 
 	let {
@@ -33,16 +32,7 @@
 
 	let open = $state(false);
 	let filteredItems = $state(items);
-
-	// We want to refocus the trigger button when the user selects
-	// an item from the list so users can continue navigating the
-	// rest of the form with the keyboard.
-	function closeAndFocusTrigger(triggerId: string) {
-		open = false;
-		tick().then(() => {
-			document.getElementById(triggerId)?.focus();
-		});
-	}
+	const selectedLabel = $derived(items.find((item) => item.value === value)?.label);
 
 	function filterItems(searchString: string) {
 		if (!searchString) {
@@ -65,18 +55,22 @@
 <Popover.Root bind:open {...restProps}>
 	<Popover.Trigger>
 		{#snippet child({ props })}
-			<Button
-				variant="outline"
+			<button
+				{...props}
+				type="button"
 				role="combobox"
 				aria-expanded={open}
-				{...props}
-				class={restProps.class}
+				class={cn(
+					filledFieldClass,
+					'text-control aria-expanded:bg-fill-selected dark:aria-expanded:bg-fill-selected flex h-(--h-md) w-full items-center justify-between gap-1.5 rounded-sm pr-2.5 pl-3.5 text-left',
+					restProps.class
+				)}
 			>
-				<span class="flex w-full justify-between">
-					{items.find((item) => item.value === value)?.label || selectText}
-					<LucideChevronDown class="size-4 shrink-0 opacity-50" />
+				<span class={cn('truncate', !selectedLabel && 'text-fg-muted')}>
+					{selectedLabel || selectText}
 				</span>
-			</Button>
+				<LucideChevronDown class="text-fg-muted size-3.5 shrink-0" />
+			</button>
 		{/snippet}
 	</Popover.Trigger>
 	<Popover.Content class="p-0" sameWidth>
@@ -106,11 +100,10 @@
 						onSelect={() => {
 							value = item.value;
 							onSelect?.(item.value);
-							// If you need to focus the trigger, you may need to refactor to get the trigger id another way
-							closeAndFocusTrigger('popover-trigger');
+							open = false;
 						}}
 					>
-						<LucideCheck class={cn('mr-2 size-4', value !== item.value && 'text-transparent')} />
+						<LucideCheck class={cn('size-4', value !== item.value && 'text-transparent')} />
 						{item.label}
 					</Command.Item>
 				{/each}

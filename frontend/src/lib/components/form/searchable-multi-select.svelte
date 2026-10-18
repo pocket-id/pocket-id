@@ -1,6 +1,6 @@
 <script lang="ts">
 	import { Badge } from '#lib/components/ui/badge/index.ts';
-	import { Button } from '#lib/components/ui/button/index.ts';
+	import { filledFieldClass } from '#lib/components/ui/input/index.ts';
 	import * as Command from '#lib/components/ui/command/index.ts';
 	import * as Popover from '#lib/components/ui/popover/index.ts';
 	import { Spinner } from '#lib/components/ui/spinner/index.ts';
@@ -76,26 +76,29 @@
 <Popover.Root bind:open>
 	<Popover.Trigger {id}>
 		{#snippet child({ props })}
-			<Button
+			<button
 				{...props}
-				variant="outline"
+				type="button"
 				role="combobox"
 				aria-expanded={open}
-				class="bg-input/30! h-auto min-h-10 w-full"
+				class={cn(
+					filledFieldClass,
+					'text-control aria-expanded:bg-fill-selected dark:aria-expanded:bg-fill-selected flex min-h-(--h-md) w-full items-center justify-between gap-1.5 rounded-sm py-2 pr-2.5 pl-3.5 text-left'
+				)}
 			>
-				<div class="flex w-full items-center justify-between">
-					<div class="flex flex-wrap items-center gap-1">
-						{#if selectedItems.length > 0}
-							{#each selectedLabels as label, i (i)}
-								<Badge variant="secondary">{label}</Badge>
-							{/each}
-						{:else}
-							<span class="text-muted-foreground font-normal">{m.select_items()}</span>
-						{/if}
-					</div>
-					<LucideChevronDown class="ml-2 size-4 shrink-0 opacity-50" />
-				</div>
-			</Button>
+				<span class="flex min-w-0 flex-wrap items-center gap-1">
+					{#if selectedItems.length > 0}
+						{#each selectedLabels as label, i (i)}
+							<Badge variant="outline" class="bg-surface max-w-full">
+								<span class="truncate">{label}</span>
+							</Badge>
+						{/each}
+					{:else}
+						<span class="text-fg-muted">{m.select_items()}</span>
+					{/if}
+				</span>
+				<LucideChevronDown class="text-fg-muted size-3.5 shrink-0" />
+			</button>
 		{/snippet}
 	</Popover.Trigger>
 	<Popover.Content class="p-0" sameWidth>
@@ -127,9 +130,9 @@
 						}}
 					>
 						<LucideCheck
-							class={cn('mr-2 size-4', !selectedItems.includes(item.value) && 'text-transparent')}
+							class={cn('size-4', !selectedItems.includes(item.value) && 'text-transparent')}
 						/>
-						{item.label}
+						<span class="min-w-0 wrap-anywhere">{item.label}</span>
 					</Command.Item>
 				{/each}
 			</Command.Group>
