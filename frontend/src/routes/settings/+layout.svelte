@@ -1,6 +1,5 @@
 <script lang="ts">
 	import { onNavigate } from '$app/navigation';
-	import EmailVerificationStateBox from '#lib/components/email-verification-state-box.svelte';
 	import FormattedMessage from '#lib/components/formatted-message.svelte';
 	import AppSidebar from '#lib/components/shell/app-sidebar.svelte';
 	import { navGroups } from '#lib/components/shell/nav-items.ts';
@@ -102,8 +101,10 @@
 						</Alert.Description>
 					</Alert.Root>
 				{/if}
-				<EmailVerificationStateBox />
-				{@render children()}
+				<!-- SvelteKit reuses the page when only the id changes, so a remount makes its state start from the new entity -->
+				{#key page.params.id}
+					{@render children()}
+				{/key}
 			</main>
 		</div>
 	</div>

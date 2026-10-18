@@ -1,13 +1,15 @@
 <script lang="ts">
-	import * as Field from '#lib/components/ui/field/index.ts';
-	import * as Select from '#lib/components/ui/select/index.ts';
+	import SettingRow from '#lib/components/setting-row.svelte';
+	import SettingsSection from '#lib/components/settings-section.svelte';
 	import { Switch } from '#lib/components/ui/switch/index.ts';
 	import { m } from '#lib/paraglide/messages.js';
 	import appConfigStore from '#lib/stores/application-configuration-store.ts';
 	import type { AllAppConfig } from '#lib/types/application-configuration.type.ts';
-	import { createForm } from '#lib/utils/form-util.ts';
+	import { createForm, pickSchemaValues } from '#lib/utils/form-util.ts';
 	import { trackFormChanges } from '#lib/utils/unsaved-changes-util.svelte.ts';
+	import { LucideFingerprint, LucideKeyRound, LucideRefreshCw } from '@lucide/svelte';
 	import { z } from 'zod/v4';
+	import OptionSelect from './option-select.svelte';
 
 	let {
 		callback,
@@ -23,129 +25,83 @@
 		webauthnAuthenticatorAttachment: z.enum(['any', 'platform', 'cross-platform'])
 	});
 
-	const initialConfig = {
-		webauthnUserVerification: appConfig.webauthnUserVerification,
-		webauthnAllowSyncedPasskeys: appConfig.webauthnAllowSyncedPasskeys,
-		webauthnAuthenticatorAttachment: appConfig.webauthnAuthenticatorAttachment
-	};
-
-	const userVerificationOptions = {
-		required: {
+	const userVerificationOptions = [
+		{
+			value: 'required' as const,
 			label: m.user_verification_required(),
-			description: m.user_verification_required_description()
+			description: m.config_uv_required_description()
 		},
-		preferred: {
+		{
+			value: 'preferred' as const,
 			label: m.user_verification_preferred(),
-			description: m.user_verification_preferred_description()
+			description: m.config_uv_preferred_description()
 		}
-	};
+	];
 
-	const authenticatorAttachmentOptions = {
-		any: {
+	const authenticatorAttachmentOptions = [
+		{
+			value: 'any' as const,
 			label: m.any_authenticator(),
-			description: m.any_authenticator_description()
+			description: m.config_any_passkey_description()
 		},
-		platform: {
+		{
+			value: 'platform' as const,
 			label: m.device_passkeys_only(),
-			description: m.device_passkeys_only_description()
+			description: m.config_device_passkeys_description()
 		},
-		'cross-platform': {
-			label: m.external_security_keys_only(),
-			description: m.external_security_keys_only_description()
+		{
+			value: 'cross-platform' as const,
+			label: m.config_security_keys_only(),
+			description: m.config_security_keys_only_description()
 		}
-	};
+	];
 
-	let formStore = $derived(createForm(formSchema, initialConfig));
-	let inputs = $derived(formStore.inputs);
+	const formStore = createForm(formSchema, pickSchemaValues(formSchema, appConfig));
+	const inputs = formStore.inputs;
 
 	trackFormChanges(() => formStore, callback);
 </script>
 
-<fieldset disabled={$appConfigStore.uiConfigDisabled}>
-	<Field.Group>
-		<Field.Field data-invalid={!!$inputs.webauthnUserVerification.error}>
-			<div>
-				<Field.Label for="passkey-user-verification">{m.user_verification()}</Field.Label>
-				<Field.Description>{m.user_verification_description()}</Field.Description>
-			</div>
-			<Select.Root
-				type="single"
-				value={$inputs.webauthnUserVerification.value}
-				onValueChange={(value) =>
-					($inputs.webauthnUserVerification.value = value as 'required' | 'preferred')}
-			>
-				<Select.Trigger
-					id="passkey-user-verification"
-					class="w-full"
-					aria-label={m.user_verification()}
-					aria-invalid={!!$inputs.webauthnUserVerification.error}
-					placeholder={m.user_verification()}
-				>
-					{userVerificationOptions[$inputs.webauthnUserVerification.value]?.label}
-				</Select.Trigger>
-				<Select.Content>
-					<Select.Group>
-						{#each Object.entries(userVerificationOptions) as [value, option] (value)}
-							<Select.Item {value} label={option.label}>
-								<div class="flex flex-col items-start gap-1">
-									<span class="font-medium">{option.label}</span>
-									<span class="text-muted-foreground text-xs">{option.description}</span>
-								</div>
-							</Select.Item>
-						{/each}
-					</Select.Group>
-				</Select.Content>
-			</Select.Root>
-		</Field.Field>
-
-		<Field.Field orientation="horizontal">
-			<Field.Content>
-				<div>
-					<Field.Label for="allow-synced-passkeys">{m.allow_synced_passkeys()}</Field.Label>
-					<Field.Description>{m.allow_synced_passkeys_description()}</Field.Description>
-				</div>
-			</Field.Content>
-			<Switch
-				id="allow-synced-passkeys"
-				class="my-auto"
-				bind:checked={$inputs.webauthnAllowSyncedPasskeys.value}
-			/>
-		</Field.Field>
-
-		<Field.Field data-invalid={!!$inputs.webauthnAuthenticatorAttachment.error}>
-			<div>
-				<Field.Label for="passkey-authenticator-type">{m.allowed_authenticator_type()}</Field.Label>
-				<Field.Description>{m.allowed_authenticator_type_description()}</Field.Description>
-			</div>
-			<Select.Root
-				type="single"
-				value={$inputs.webauthnAuthenticatorAttachment.value}
-				onValueChange={(value) =>
-					($inputs.webauthnAuthenticatorAttachment.value = value as
-						'any' | 'platform' | 'cross-platform')}
-			>
-				<Select.Trigger
-					id="passkey-authenticator-type"
-					class="w-full"
-					aria-label={m.allowed_authenticator_type()}
-					aria-invalid={!!$inputs.webauthnAuthenticatorAttachment.error}
-					placeholder={m.allowed_authenticator_type()}
-				>
-					{authenticatorAttachmentOptions[$inputs.webauthnAuthenticatorAttachment.value]?.label}
-				</Select.Trigger>
-				<Select.Content>
-					<Select.Group>
-						{#each Object.entries(authenticatorAttachmentOptions) as [value, option] (value)}
-							<Select.Item {value} label={option.label}>
-								<div class="flex flex-col items-start gap-1">
-									<span class="font-medium">{option.label}</span>
-									<span class="text-muted-foreground text-xs">{option.description}</span>
-								</div>
-							</Select.Item>
-						{/each}
-					</Select.Group>
-				</Select.Content>
-			</Select.Root>
-		</Field.Field>
-	</Field.Group>
+<fieldset class="flex min-w-0 flex-col gap-10" disabled={$appConfigStore.uiConfigDisabled}>
+	<SettingsSection
+		title={m.config_registration()}
+		description={m.config_registration_description()}
+	>
+		<SettingRow
+			title={m.user_verification()}
+			description={m.config_user_verification_description()}
+			icon={LucideFingerprint}
+		>
+			{#snippet control(props)}
+				<OptionSelect
+					{...props}
+					value={$inputs.webauthnUserVerification.value}
+					options={userVerificationOptions}
+					onValueChange={(v) => ($inputs.webauthnUserVerification.value = v)}
+				/>
+			{/snippet}
+		</SettingRow>
+		<SettingRow
+			title={m.allow_synced_passkeys()}
+			description={m.config_allow_synced_passkeys_description()}
+			consequence={$inputs.webauthnAllowSyncedPasskeys.value
+				? undefined
+				: m.config_synced_passkeys_off_note()}
+			icon={LucideRefreshCw}
+		>
+			{#snippet control(props)}
+				<Switch {...props} bind:checked={$inputs.webauthnAllowSyncedPasskeys.value} />
+			{/snippet}
+		</SettingRow>
+		<SettingRow title={m.allowed_authenticator_type()} icon={LucideKeyRound}>
+			{#snippet control(props)}
+				<OptionSelect
+					{...props}
+					value={$inputs.webauthnAuthenticatorAttachment.value}
+					options={authenticatorAttachmentOptions}
+					onValueChange={(v) => ($inputs.webauthnAuthenticatorAttachment.value = v)}
+				/>
+			{/snippet}
+		</SettingRow>
+	</SettingsSection>
 </fieldset>

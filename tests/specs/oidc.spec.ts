@@ -72,8 +72,8 @@ test('Authorize existing client with POST while signed in', async ({ page }, tes
 
 		// Since the access token isn't sent with the POST request because of SameSite cookie restrictions,
 		// /authorize thinks the user is not signed in and shows the login page.
-		// The interaction page has the access token so the user just needs to click "Sign in" to continue the flow.
-		await page.getByRole('button', { name: 'Sign in' }).click();
+		// The interaction page has the access token so the user just needs to click "Continue to …" to finish the flow.
+		await page.getByRole('button', { name: /^Continue to / }).click();
 	});
 	await authorizeRequestPromise;
 });
@@ -87,7 +87,7 @@ test('Authorize existing client while not signed in', async ({ page }) => {
 		await page.goto(`/authorize?${urlParams.toString()}`);
 
 		await (await passkeyUtil.init(page)).addPasskey();
-		await page.getByRole('button', { name: 'Sign in' }).click();
+		await page.getByRole('button', { name: 'Sign in with passkey' }).click();
 	});
 });
 
@@ -99,7 +99,7 @@ test('Authorize new client', async ({ page }) => {
 	await expectScopes(page, ['Email address', 'Name, username and picture']);
 
 	await expectCallbackRedirect(page, oidcClient.callbackUrl, () =>
-		page.getByRole('button', { name: 'Sign in' }).click()
+		page.getByRole('button', { name: /^Continue to / }).click()
 	);
 });
 
@@ -114,7 +114,7 @@ test('Authorize client requesting offline_access scope', async ({ page }) => {
 	await expectScopes(page, ['Email address', 'Name, username and picture']);
 
 	const callbackUrl = await expectCallbackRedirect(page, oidcClient.callbackUrl, () =>
-		page.getByRole('button', { name: 'Sign in' }).click()
+		page.getByRole('button', { name: /^Continue to / }).click()
 	);
 	expect(callbackUrl.searchParams.get('code')).toBeTruthy();
 	expect(callbackUrl.searchParams.get('error')).toBeNull();
@@ -131,7 +131,7 @@ test('Authorize new client with a deselected scope', async ({ page }) => {
 	await expect(page.getByRole('checkbox', { name: 'Name, username and picture' })).toBeChecked();
 
 	const callbackUrl = await expectCallbackRedirect(page, oidcClient.callbackUrl, () =>
-		page.getByRole('button', { name: 'Sign in' }).click()
+		page.getByRole('button', { name: /^Continue to / }).click()
 	);
 
 	// The deselected scope must be missing from the issued token and therefore from the userinfo claims
@@ -180,10 +180,10 @@ test('Authorize new client without scopes', async ({ page }) => {
 	await page.goto(`/authorize?${urlParams.toString()}`);
 
 	// With no scopes there is nothing to display, but the page should still allow sign-in
-	await expect(page.getByRole('button', { name: 'Sign in' })).toBeVisible();
+	await expect(page.getByRole('button', { name: /^Continue to / })).toBeVisible();
 
 	const callbackUrl = await expectCallbackRedirect(page, oidcClient.callbackUrl, () =>
-		page.getByRole('button', { name: 'Sign in' }).click()
+		page.getByRole('button', { name: /^Continue to / }).click()
 	);
 	expect(callbackUrl.searchParams.get('code')).toBeTruthy();
 	expect(callbackUrl.searchParams.get('error')).toBeNull();
@@ -197,12 +197,12 @@ test('Authorize new client while not signed in', async ({ page }) => {
 	await page.goto(`/authorize?${urlParams.toString()}`);
 
 	await (await passkeyUtil.init(page)).addPasskey();
-	await page.getByRole('button', { name: 'Sign in' }).click();
+	await page.getByRole('button', { name: 'Sign in with passkey' }).click();
 
 	await expectScopes(page, ['Email address', 'Name, username and picture']);
 
 	await expectCallbackRedirect(page, oidcClient.callbackUrl, () =>
-		page.getByRole('button', { name: 'Sign in' }).click()
+		page.getByRole('button', { name: /^Continue to / }).click()
 	);
 });
 
@@ -214,11 +214,11 @@ test('Authorize new client shows Pocket ID error when user group not allowed', a
 	await page.goto(`/authorize?${urlParams.toString()}`);
 
 	await (await passkeyUtil.init(page)).addPasskey('craig');
-	await page.getByRole('button', { name: 'Sign in' }).click();
+	await page.getByRole('button', { name: 'Sign in with passkey' }).click();
 
 	await expectScopes(page, ['Email address', 'Name, username and picture']);
 
-	await page.getByRole('button', { name: 'Sign in' }).click();
+	await page.getByRole('button', { name: /^Continue to / }).click();
 
 	await expect(page).toHaveURL(/\/interaction\/error\?error=/);
 	await expect(
@@ -233,7 +233,7 @@ test('Unknown authorize interaction shows the interaction error page', async ({
 	await page.goto(`/interaction?interaction=${crypto.randomUUID()}`, { referer: relyingPartyUrl });
 
 	await expect(page).toHaveURL(/\/interaction\/error\?error=/);
-	await expect(page.getByRole('heading', { name: 'Error' })).toBeVisible();
+	await expect(page.getByRole('heading', { name: 'We couldn’t sign you in' })).toBeVisible();
 	await expect(page.getByText('OIDC interaction not found or expired')).toBeVisible();
 	await expect(page.getByRole('link', { name: 'Go back' })).toHaveAttribute(
 		'href',
@@ -266,8 +266,10 @@ test('End session without id token hint shows confirmation page', async ({ page 
 
 	await expect(page).toHaveURL('/logout');
 	await page.getByRole('button', { name: 'Sign out' }).click();
+	await expect(page.getByRole('heading', { name: 'You’re signed out' })).toBeVisible();
+	await page.getByRole('link', { name: 'Sign in again' }).click();
 
-	await expect(page).toHaveURL('/login?redirect=%2F');
+	await expect(page).toHaveURL('/login');
 });
 
 test('End session with id token hint redirects to callback URL', async ({ page }) => {
@@ -699,15 +701,13 @@ test('Authorize new client with device authorization flow', async ({ page }) => 
 	const userCode = await oidcUtil.getUserCode(page, client.id, client.secret);
 
 	await page.goto(`/device?user_code=${userCode}`);
-	await page.getByRole('button', { name: 'Authorize' }).click();
+	await page.getByRole('button', { name: 'Continue', exact: true }).click();
 
 	await expectScopes(page, ['Email address', 'Name, username and picture']);
 
-	await page.getByRole('button', { name: 'Authorize' }).click();
+	await page.getByRole('button', { name: 'Approve' }).click();
 
-	await expect(
-		page.getByRole('paragraph').filter({ hasText: 'The device has been authorized.' })
-	).toBeVisible();
+	await expect(page.getByRole('heading', { name: 'Authorized' })).toBeVisible();
 });
 
 test('Authorize new client with device authorization flow and a deselected scope', async ({
@@ -722,17 +722,15 @@ test('Authorize new client with device authorization flow and a deselected scope
 		.then((r) => r.json());
 
 	await page.goto(`/device?user_code=${device.user_code}`);
-	await page.getByRole('button', { name: 'Authorize' }).click();
+	await page.getByRole('button', { name: 'Continue', exact: true }).click();
 
 	await expectScopes(page, ['Email address', 'Name, username and picture']);
 	await page.getByRole('checkbox', { name: 'Email address' }).click();
 	await expect(page.getByRole('checkbox', { name: 'Email address' })).not.toBeChecked();
 	await expect(page.getByRole('checkbox', { name: 'Name, username and picture' })).toBeChecked();
 
-	await page.getByRole('button', { name: 'Authorize' }).click();
-	await expect(
-		page.getByRole('paragraph').filter({ hasText: 'The device has been authorized.' })
-	).toBeVisible();
+	await page.getByRole('button', { name: 'Approve' }).click();
+	await expect(page.getByRole('heading', { name: 'Authorized' })).toBeVisible();
 
 	// The deselected scope must be missing from the token the device receives and therefore from the userinfo claims
 	await page.waitForTimeout(device.interval * 1000 + 100);
@@ -761,15 +759,13 @@ test('Authorize new client with device authorization flow while not signed in', 
 	await page.goto(`/device?user_code=${userCode}`);
 
 	await (await passkeyUtil.init(page)).addPasskey();
-	await page.getByRole('button', { name: 'Authorize' }).click();
+	await page.getByRole('button', { name: 'Continue', exact: true }).click();
 
 	await expectScopes(page, ['Email address', 'Name, username and picture']);
 
-	await page.getByRole('button', { name: 'Authorize' }).click();
+	await page.getByRole('button', { name: 'Approve' }).click();
 
-	await expect(
-		page.getByRole('paragraph').filter({ hasText: 'The device has been authorized.' })
-	).toBeVisible();
+	await expect(page.getByRole('heading', { name: 'Authorized' })).toBeVisible();
 });
 
 for (const scenario of [
@@ -821,8 +817,10 @@ for (const scenario of [
 			});
 
 			await page.goto(device.verification_uri_complete);
-			await expect(page.getByRole('textbox', { name: 'Code' })).toHaveValue(device.user_code);
-			await expect(page.getByRole('button', { name: 'Authorize', exact: true })).toBeEnabled();
+			await expect(page.getByRole('textbox', { name: 'Device code' })).toHaveValue(
+				device.user_code
+			);
+			await expect(page.getByRole('button', { name: 'Continue', exact: true })).toBeEnabled();
 			expect(approvals).toHaveLength(0);
 			expect(await oidcUtil.exchangeCode(page, tokenRequest)).toMatchObject({
 				error: 'authorization_pending'
@@ -832,14 +830,12 @@ for (const scenario of [
 				await page.getByRole('link', { name: 'Cancel', exact: true }).click();
 				await expect(page).not.toHaveURL(/\/device/);
 			} else {
-				await page.getByRole('button', { name: 'Authorize', exact: true }).click();
+				await page.getByRole('button', { name: 'Continue', exact: true }).click();
 				if (scenario.consentRequired) {
 					await expectScopes(page, ['Email address', 'Name, username and picture']);
-					await page.getByRole('button', { name: 'Authorize', exact: true }).click();
+					await page.getByRole('button', { name: 'Approve', exact: true }).click();
 				}
-				await expect(
-					page.getByText('The device has been authorized.', { exact: true })
-				).toBeVisible();
+				await expect(page.getByRole('heading', { name: 'Authorized' })).toBeVisible();
 			}
 
 			// Respect the device polling interval before checking the result of the user's decision
@@ -871,11 +867,9 @@ test('Authorize existing client with device authorization flow while not signed 
 	await page.goto(`/device?user_code=${userCode}`);
 
 	await (await passkeyUtil.init(page)).addPasskey();
-	await page.getByRole('button', { name: 'Authorize' }).click();
+	await page.getByRole('button', { name: 'Continue', exact: true }).click();
 
-	await expect(
-		page.getByRole('paragraph').filter({ hasText: 'The device has been authorized.' })
-	).toBeVisible();
+	await expect(page.getByRole('heading', { name: 'Authorized' })).toBeVisible();
 });
 
 test('Device authorization submits manually entered codes with Enter', async ({ page }) => {
@@ -887,10 +881,10 @@ test('Device authorization submits manually entered codes with Enter', async ({ 
 	});
 
 	await page.goto('/device');
-	await page.getByRole('textbox', { name: 'Code' }).fill(userCode);
+	await page.getByRole('textbox', { name: 'Device code' }).fill(userCode);
 	expect(approvals).toHaveLength(0);
-	await page.getByRole('textbox', { name: 'Code' }).press('Enter');
-	await expect(page.getByText('The device has been authorized.', { exact: true })).toBeVisible();
+	await page.getByRole('textbox', { name: 'Device code' }).press('Enter');
+	await expect(page.getByRole('heading', { name: 'Authorized' })).toBeVisible();
 	expect(approvals).toHaveLength(1);
 });
 
@@ -930,23 +924,23 @@ test('Device authorization flow forces reauthentication when client requires it'
 	await (await passkeyUtil.init(page)).addPasskey();
 
 	await page.goto(`/device?user_code=${userCode}`);
-	await page.getByRole('button', { name: 'Authorize' }).click();
-	await expect(page.getByText('Do you want to sign in to Nextcloud')).toBeVisible();
+	await page.getByRole('button', { name: 'Continue', exact: true }).click();
+	await expect(page.getByRole('heading', { name: 'Nextcloud' })).toBeVisible();
 
-	await page.getByRole('button', { name: 'Authorize' }).click();
+	await page.getByRole('button', { name: 'Approve' }).click();
 
-	await expect(
-		page.getByRole('paragraph').filter({ hasText: 'The device has been authorized.' })
-	).toBeVisible();
+	await expect(page.getByRole('heading', { name: 'Authorized' })).toBeVisible();
 	expect(reauthCalled).toBe(true);
 });
 
 test('Authorize client with device authorization flow with invalid code', async ({ page }) => {
 	await page.goto('/device?user_code=E0000000');
-	await page.getByRole('button', { name: 'Authorize' }).click();
+	await page.getByRole('button', { name: 'Continue', exact: true }).click();
 
 	await expect(
-		page.getByRole('paragraph').filter({ hasText: 'Device code is invalid. Please try again.' })
+		page
+			.getByRole('paragraph')
+			.filter({ hasText: 'That code didn’t work. Check it and try again.' })
 	).toBeVisible();
 });
 
@@ -960,11 +954,11 @@ test('Authorize new client with device authorization with user group not allowed
 	await page.goto(`/device?user_code=${userCode}`);
 
 	await (await passkeyUtil.init(page)).addPasskey('craig');
-	await page.getByRole('button', { name: 'Authorize' }).click();
+	await page.getByRole('button', { name: 'Continue', exact: true }).click();
 
 	await expectScopes(page, ['Email address', 'Name, username and picture']);
 
-	await page.getByRole('button', { name: 'Authorize' }).click();
+	await page.getByRole('button', { name: 'Approve' }).click();
 
 	await expect(
 		page.getByRole('paragraph').filter({ hasText: "You're not allowed to access this service." })
@@ -994,7 +988,7 @@ test('Authorize existing client with federated identity', async ({ page }) => {
 	const callbackUrl = await expectCallbackRedirect(page, client.callbackUrl, async () => {
 		await page.goto(`/authorize?${urlParams.toString()}`);
 
-		const signInButton = page.getByRole('button', { name: /sign in/i });
+		const signInButton = page.getByRole('button', { name: /^Continue/ });
 		await expect(signInButton).toBeVisible();
 		await signInButton.click();
 	});
@@ -1047,8 +1041,8 @@ test('Forces reauthentication when client requires it', async ({ page, request }
 	await expectCallbackRedirect(page, oidcClients.nextcloud.callbackUrl, async () => {
 		await page.goto(`/authorize?${urlParams.toString()}`);
 		await expect(page.getByTestId('scopes')).not.toBeVisible();
-		await expect(page.getByRole('button', { name: /sign in/i })).toBeVisible();
-		await page.getByRole('button', { name: /sign in/i }).click();
+		await expect(page.getByRole('button', { name: 'Continue with passkey' })).toBeVisible();
+		await page.getByRole('button', { name: 'Continue with passkey' }).click();
 	});
 
 	expect(reauthCalled).toBe(true);
@@ -1067,7 +1061,7 @@ test('Authorize existing client while not signed in with response_mode=form_post
 	await (await passkeyUtil.init(page)).addPasskey();
 
 	await expectFormPostCallback(page, oidcClient.callbackUrl, () =>
-		page.getByRole('button', { name: 'Sign in' }).click()
+		page.getByRole('button', { name: 'Sign in with passkey' }).click()
 	);
 });
 
@@ -1244,7 +1238,7 @@ test.describe('OIDC prompt parameter', () => {
 		await expectScopes(page, ['Name, username and picture', 'Email address']);
 
 		await expectCallbackRedirect(page, oidcClient.callbackUrl, () =>
-			page.getByRole('button', { name: 'Sign in' }).click()
+			page.getByRole('button', { name: /^Continue to / }).click()
 		);
 	});
 
@@ -1266,8 +1260,8 @@ test.describe('OIDC prompt parameter', () => {
 		await (await passkeyUtil.init(page)).addPasskey();
 		await expectCallbackRedirect(page, oidcClient.callbackUrl, async () => {
 			await page.goto(`/authorize?${urlParams.toString()}`);
-			await expect(page.getByRole('button', { name: /sign in/i })).toBeVisible();
-			await page.getByRole('button', { name: /sign in/i }).click();
+			await expect(page.getByRole('button', { name: 'Continue with passkey' })).toBeVisible();
+			await page.getByRole('button', { name: 'Continue with passkey' }).click();
 		});
 
 		expect(reauthCalled).toBe(true);
@@ -1286,7 +1280,7 @@ test.describe('OIDC prompt parameter', () => {
 		await expect(selectionCard).toContainText('Tim Cook');
 
 		await expectCallbackRedirect(page, oidcClient.callbackUrl, () =>
-			page.getByRole('button', { name: /sign in/i }).click()
+			selectionCard.getByRole('button').click()
 		);
 	});
 
@@ -1298,15 +1292,15 @@ test.describe('OIDC prompt parameter', () => {
 		await page.goto(`/authorize?${urlParams.toString()}`);
 
 		await page.getByRole('button', { name: 'Use a different account' }).click();
-		await expect(page.getByText('Do you want to sign in to Nextcloud')).toBeVisible();
+		await expect(page.getByRole('heading', { name: 'Nextcloud' })).toBeVisible();
 
 		(await passkeyUtil.init(page)).addPasskey('craig');
 
-		await page.getByRole('button', { name: 'Sign In' }).click();
-		await expect(page.getByText('Do you want to sign in to Nextcloud')).toBeVisible();
+		await page.getByRole('button', { name: 'Sign in with passkey' }).click();
+		await expect(page.getByRole('button', { name: 'Continue to Nextcloud' })).toBeVisible();
 
 		await expectCallbackRedirect(page, oidcClient.callbackUrl, () =>
-			page.getByRole('button', { name: /sign in/i }).click()
+			page.getByRole('button', { name: 'Continue to Nextcloud' }).click()
 		);
 	});
 
@@ -1536,7 +1530,7 @@ test.describe('Pushed Authorization Requests (PAR)', () => {
 
 		// Confirming proceeds with the authorization
 		await expectCallbackRedirect(page, client.callbackUrl, () =>
-			page.getByRole('button', { name: 'Sign in' }).click()
+			page.getByRole('button', { name: /^Continue to / }).click()
 		);
 	});
 
@@ -1648,6 +1642,8 @@ test.describe('Pushed Authorization Requests (PAR)', () => {
 
 	test('Admin UI: PAR toggle persists after save', async ({ page }) => {
 		await page.goto(`/settings/admin/oidc-clients/${client.id}`);
+		const advanced = page.getByRole('button', { name: /^Advanced/ });
+		if ((await advanced.getAttribute('aria-expanded')) !== 'true') await advanced.click();
 
 		// Enable the PAR toggle
 		const parToggle = page.getByRole('switch', { name: 'Requires Pushed Authorization' });
@@ -1688,7 +1684,7 @@ test.describe('OIDC skip consent', () => {
 		await expectScopes(page, ['Email address', 'Name, username and picture']);
 
 		const callbackUrl = await expectCallbackRedirect(page, client.callbackUrl, () =>
-			page.getByRole('button', { name: 'Sign in' }).click()
+			page.getByRole('button', { name: /^Continue to / }).click()
 		);
 		expect(callbackUrl.searchParams.get('code')).toBeTruthy();
 	});
@@ -1697,7 +1693,7 @@ test.describe('OIDC skip consent', () => {
 		await page.goto(`/settings/admin/oidc-clients/${client.id}`);
 
 		// The seeded client has skip-consent enabled, so the toggle loads checked
-		const toggle = page.getByRole('switch', { name: 'Skip Consent Screen' });
+		const toggle = page.getByRole('switch', { name: 'Skip consent screen' });
 		await expect(toggle).toBeChecked();
 
 		// Disabling it and saving must persist across a reload
@@ -1706,6 +1702,8 @@ test.describe('OIDC skip consent', () => {
 		await saveUnsavedChanges(page);
 		await page.reload();
 
-		await expect(page.getByRole('switch', { name: 'Skip Consent Screen' })).not.toBeChecked();
+		// The Advanced disclosure only opens on its own while it holds a setting changed from its default
+		await page.getByRole('button', { name: /^Advanced/ }).click();
+		await expect(page.getByRole('switch', { name: 'Skip consent screen' })).not.toBeChecked();
 	});
 });

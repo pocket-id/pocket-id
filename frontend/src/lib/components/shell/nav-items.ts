@@ -1,7 +1,6 @@
 import { m } from '#lib/paraglide/messages.js';
 import {
 	Blocks,
-	Braces,
 	FileText,
 	History,
 	IdCard,
@@ -57,11 +56,6 @@ export function navGroups({
 				{ href: '/settings/admin/users', label: m.users(), icon: User },
 				{ href: '/settings/admin/user-groups', label: m.groups(), icon: UsersRound },
 				{ href: '/settings/admin/oidc-clients', label: m.oidc_clients(), icon: Blocks },
-				{
-					href: '/settings/admin/oidc-claim-mapping-policies',
-					label: m.claim_mappings(),
-					icon: Braces
-				},
 				{ href: '/settings/admin/apis', label: m.apis(), icon: Server },
 				{ href: '/settings/admin/api-keys', label: m.api_keys(), icon: Key },
 				{ href: '/settings/audit-log/global', label: m.audit_log(), icon: FileText },

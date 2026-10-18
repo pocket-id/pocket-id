@@ -1,24 +1,29 @@
 import test, { expect, type Page } from '@playwright/test';
 import { cleanupBackend, cleanupScimServiceProvider } from 'utils/cleanup.util';
 import { oidcClients, userGroups, users } from '../data';
+import { setAppConfigValues } from '../utils/app-config.util';
 import { saveUnsavedChanges, unsavedChangesBar } from '../utils/unsaved-changes.util';
 
-async function configureOidcClient(page: Page) {
+async function openScimTab(page: Page) {
+	await setAppConfigValues(page.request, { enabledFeatures: '["scim"]' });
 	await page.goto(`/settings/admin/oidc-clients/${oidcClients.scim.id}`);
+	await page.getByRole('tab', { name: 'SCIM', exact: true }).click();
+	await expect(page.getByRole('heading', { name: 'SCIM provisioning' })).toBeVisible();
+}
 
-	await page.getByRole('tab', { name: 'SCIM Provisioning' }).click();
+async function configureOidcClient(page: Page) {
+	await openScimTab(page);
 
 	await page
-		.getByLabel('SCIM Endpoint')
+		.getByLabel('SCIM endpoint')
 		.fill(process.env.SCIM_SERVICE_PROVIDER_URL_INTERNAL || 'http://scim.provider/api');
 
-	await page.getByRole('button', { name: 'Enable' }).click();
-	await expect(page.locator('[data-type="success"]')).toHaveText('SCIM enabled successfully.');
+	await page.getByRole('button', { name: 'Enable provisioning' }).click();
+	await expect(page.locator('[data-type="success"]')).toHaveText('Provisioning enabled');
 }
 
 async function syncScimServiceProvider(page: Page) {
-	await page.goto(`/settings/admin/oidc-clients/${oidcClients.scim.id}`);
-	await page.getByRole('tab', { name: 'SCIM Provisioning' }).click();
+	await openScimTab(page);
 
 	await page.getByRole('button', { name: 'Sync now' }).click();
 	await page.waitForSelector('[data-type="success"]');
@@ -30,62 +35,61 @@ test.beforeEach(async () => {
 
 test.describe('SCIM Configuration', () => {
 	test('Enable SCIM for OIDC client', async ({ page }) => {
-		await page.goto(`/settings/admin/oidc-clients/${oidcClients.scim.id}`);
+		await openScimTab(page);
 
-		await page.getByRole('tab', { name: 'SCIM Provisioning' }).click();
-
-		await page.getByLabel('SCIM Endpoint').fill('http://scim.provider/api');
-		await page.getByLabel('SCIM Token').fill('supersecrettoken');
+		await page.getByLabel('SCIM endpoint').fill('http://scim.provider/api');
+		await page.getByLabel('SCIM token').fill('supersecrettoken');
 		await expect(unsavedChangesBar(page)).toHaveCount(0);
 
-		await page.getByRole('button', { name: 'Enable' }).click();
+		await page.getByRole('button', { name: 'Enable provisioning' }).click();
 
-		await expect(page.locator('[data-type="success"]')).toHaveText('SCIM enabled successfully.');
+		await expect(page.locator('[data-type="success"]')).toHaveText('Provisioning enabled');
 
-		await page.getByLabel('SCIM Endpoint').fill('http://edited.scim.provider/api');
+		await page.getByLabel('SCIM endpoint').fill('http://edited.scim.provider/api');
 		await expect(unsavedChangesBar(page)).toContainText(/\d+ unsaved changes?/);
 		await page.getByRole('button', { name: 'Discard', exact: true }).click();
-		await expect(page.getByLabel('SCIM Endpoint')).toHaveValue('http://scim.provider/api');
+		await expect(page.getByLabel('SCIM endpoint')).toHaveValue('http://scim.provider/api');
 
 		await page.reload();
 
-		await expect(page.getByLabel('SCIM Endpoint')).toHaveValue('http://scim.provider/api');
-		await expect(page.getByLabel('SCIM Token')).toHaveValue('supersecrettoken');
+		await expect(page.getByLabel('SCIM endpoint')).toHaveValue('http://scim.provider/api');
+		await expect(page.getByLabel('SCIM token')).toHaveValue('supersecrettoken');
 	});
 
 	test('Update SCIM of OIDC client', async ({ page }) => {
 		await configureOidcClient(page);
 
-		await page.goto(`/settings/admin/oidc-clients/${oidcClients.scim.id}`);
-		await page.getByRole('tab', { name: 'SCIM Provisioning' }).click();
+		await openScimTab(page);
 
-		await page.getByLabel('SCIM Endpoint').fill('http://new.scim.provider/api');
-		await page.getByLabel('SCIM Token').fill('evenmoresecrettoken');
+		await page.getByLabel('SCIM endpoint').fill('http://new.scim.provider/api');
+		await page.getByLabel('SCIM token').fill('evenmoresecrettoken');
 
 		await saveUnsavedChanges(page);
 
 		await page.reload();
 
-		await expect(page.getByLabel('SCIM Endpoint')).toHaveValue('http://new.scim.provider/api');
-		await expect(page.getByLabel('SCIM Token')).toHaveValue('evenmoresecrettoken');
+		await expect(page.getByLabel('SCIM endpoint')).toHaveValue('http://new.scim.provider/api');
+		await expect(page.getByLabel('SCIM token')).toHaveValue('evenmoresecrettoken');
 	});
 
 	test('Disable SCIM of OIDC client', async ({ page }) => {
 		await configureOidcClient(page);
 
-		await page.goto(`/settings/admin/oidc-clients/${oidcClients.scim.id}`);
-		await page.getByRole('tab', { name: 'SCIM Provisioning' }).click();
+		await openScimTab(page);
 
-		await page.getByRole('button', { name: 'Disable' }).click();
-		await page.getByRole('button', { name: 'Disable' }).nth(1).click();
+		await page.getByRole('button', { name: 'Disable provisioning…' }).click();
+		await page
+			.getByRole('alertdialog')
+			.getByRole('button', { name: 'Disable provisioning' })
+			.click();
 
-		await expect(page.locator('[data-type="success"]')).toHaveText('SCIM disabled successfully.');
+		await expect(page.locator('[data-type="success"]')).toHaveText('Provisioning disabled');
 
 		await page.reload();
 
-		await expect(page.getByRole('button', { name: 'Enable' })).toBeVisible();
-		await expect(page.getByLabel('SCIM Endpoint')).toHaveValue('');
-		await expect(page.getByLabel('SCIM Token')).toHaveValue('');
+		await expect(page.getByRole('button', { name: 'Enable provisioning' })).toBeVisible();
+		await expect(page.getByLabel('SCIM endpoint')).toHaveValue('');
+		await expect(page.getByLabel('SCIM token')).toHaveValue('');
 	});
 });
 
@@ -159,10 +163,8 @@ test.describe('SCIM Sync', () => {
 		await page.getByRole('tab', { name: 'Access', exact: true }).click();
 
 		await page.getByRole('radio', { name: 'All users' }).click();
-		await page.getByRole('alertdialog').getByRole('button', { name: 'Unrestrict' }).click();
-		await expect(
-			page.getByText('User groups restriction updated successfully', { exact: true })
-		).toBeVisible();
+		await page.getByRole('alertdialog').getByRole('button', { name: 'Allow all users' }).click();
+		await expect(page.getByText('Who can sign in updated', { exact: true })).toBeVisible();
 
 		await syncScimServiceProvider(page);
 

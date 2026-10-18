@@ -72,8 +72,6 @@
 </script>
 
 <script lang="ts">
-	import { mode } from 'mode-watcher';
-
 	let {
 		class: className,
 		taut = 0,
@@ -93,7 +91,7 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 181.05 72.62" class={className}>
 	<g
 		transform="translate(11.145 36.748)"
-		stroke={mode.current == 'dark' ? 'white' : 'black'}
+		stroke="currentColor"
 		stroke-width="2"
 		stroke-linecap="round"
 		fill="none"

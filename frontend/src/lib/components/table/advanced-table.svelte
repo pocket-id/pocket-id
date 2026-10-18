@@ -6,14 +6,13 @@
 	import { Button } from '#lib/components/ui/button/index.ts';
 	import Checkbox from '#lib/components/ui/checkbox/checkbox.svelte';
 	import * as Table from '#lib/components/ui/table/index.js';
-	import Empty from '#lib/icons/empty.svelte';
 	import { m } from '#lib/paraglide/messages.js';
 	import type {
 		AdvancedTableColumn,
 		CreateAdvancedTableActions
 	} from '#lib/types/advanced-table.type.ts';
 	import type { ListRequestOptions, Paginated, SortRequest } from '#lib/types/list-request.type.ts';
-	import { cn } from '#lib/utils/style.ts';
+	import { cn, cssMs } from '#lib/utils/style.ts';
 	import ArrowDownIcon from '@lucide/svelte/icons/arrow-down';
 	import ArrowUpIcon from '@lucide/svelte/icons/arrow-up';
 	import { PersistedState } from 'runed';
@@ -31,7 +30,6 @@
 		filtered = false,
 		onClearQuery,
 		onRowClick,
-		rowSelectionDisabled,
 		fetchCallback,
 		defaultSort,
 		columns,
@@ -82,10 +80,20 @@
 		filters: tablePreferences.current.filters
 	});
 
+	// The identity column always shows, and so does every column of a table without a Display popover, even when an older saved preference hid them
 	let visibleColumns = $derived(
 		columns.filter(
-			(c) => tablePreferences.current.visibleColumns?.includes(c.column ?? c.key!) ?? []
+			(c, i) =>
+				i === 0 ||
+				!hasOptionalColumns ||
+				(tablePreferences.current.visibleColumns?.includes(c.column ?? c.key!) ?? true)
 		)
+	);
+
+	const narrowed = $derived(
+		!!query ||
+			filtered ||
+			Object.values(requestOptions.filters ?? {}).some((values) => values.length > 0)
 	);
 
 	onMount(async () => {
@@ -108,9 +116,7 @@
 	});
 
 	async function onAllCheck(checked: boolean) {
-		const pageIds = items!.data
-			.filter((item) => !rowSelectionDisabled?.(item))
-			.map((item) => item.id);
+		const pageIds = items!.data.map((item) => item.id);
 		const current = selectedIds ?? [];
 
 		if (checked) {
@@ -163,7 +169,8 @@
 
 	async function changePageState(page: number) {
 		const url = new URL(window.location.href);
-		url.searchParams.set(`${id}-page`, page.toString());
+		if (page > 1) url.searchParams.set(`${id}-page`, page.toString());
+		else url.searchParams.delete(`${id}-page`);
 		await goto(url, { shallow: true, replace: true, state: currentPage.state });
 		requestOptions.pagination!.page = page;
 	}
@@ -236,7 +243,11 @@
 	{searchValue}
 	bind:searchInput
 	{withoutSearch}
-	{refresh}
+	onSearch={async (search) => {
+		searchValue = search;
+		requestOptions.search = search;
+		await refresh();
+	}}
 	{onFilterChange}
 />
 
@@ -251,28 +262,89 @@
 		{/each}
 	</div>
 {:else}
-	{#if !items}
-		<div aria-busy="true">
-			<Skeleton class="h-10 w-full rounded-sm" />
-			{#each Array.from({ length: tablePreferences.current.length || 10 }, (_, i) => i) as i (i)}
-				<div class="flex h-(--row-2line) items-center border-b px-4">
-					<Skeleton class="h-3.5 w-2/5" />
-				</div>
-			{/each}
-		</div>
-	{:else}
-		<!-- Refetches keep the old rows dimmed until the new page arrives, after a short delay so fast responses never flash -->
-		<div
-			in:fade={{ duration: 120 }}
-			aria-busy={isRefreshing}
-			class={cn(
-				'@container transition-opacity duration-(--dur-base)',
-				isRefreshing && 'pointer-events-none opacity-50 delay-(--t-dim-delay)'
-			)}
-		>
-			<Table.Root class="min-w-full table-auto">
-				<Table.Header>
-					<Table.Row>
+	<!-- Refetches keep the old rows dimmed until the new page arrives, after a short delay so fast responses never flash -->
+	<div
+		in:fade={{ duration: cssMs('--dur-fast') }}
+		aria-busy={isRefreshing}
+		class={cn(
+			'@container transition-opacity duration-(--dur-base)',
+			isRefreshing && 'pointer-events-none opacity-50 delay-(--t-dim-delay)'
+		)}
+	>
+		<Table.Root class="min-w-full table-auto">
+			<Table.Header>
+				<Table.Row>
+					{#if selectedIds}
+						<Table.Head class="w-10">
+							<Checkbox
+								checked={allChecked}
+								disabled={items.data.length === 0}
+								indeterminate={!allChecked &&
+									items.data.some((item) => selectedIds!.includes(item.id))}
+								aria-label={m.select_all_rows_on_this_page()}
+								onCheckedChange={(c: boolean) => onAllCheck(c as boolean)}
+							/>
+						</Table.Head>
+					{/if}
+
+					{#each visibleColumns as column, i (column.key ?? column.column ?? column.label)}
+						{@const sortDirection =
+							requestOptions.sort?.column === column.column
+								? requestOptions.sort?.direction
+								: undefined}
+						<Table.Head
+							class={columnClass(column, i)}
+							aria-sort={column.sortable
+								? sortDirection === 'asc'
+									? 'ascending'
+									: sortDirection === 'desc'
+										? 'descending'
+										: 'none'
+								: undefined}
+						>
+							{#if column.sortable}
+								<button
+									type="button"
+									class={cn(
+										'hover:text-fg focus-visible:outline-ring inline-flex items-center gap-1 rounded-xs font-medium transition-colors duration-(--dur-fast) focus-visible:outline-2 focus-visible:outline-offset-2',
+										sortDirection && 'text-fg'
+									)}
+									onclick={() => onSort(column.column)}
+								>
+									{column.label}
+									{#if sortDirection === 'asc'}
+										<ArrowUpIcon class="size-3" />
+									{:else if sortDirection === 'desc'}
+										<ArrowDownIcon class="size-3" />
+									{/if}
+								</button>
+							{:else}
+								{column.label}
+							{/if}
+						</Table.Head>
+					{/each}
+					{#if hasStickyColumn}
+						<!-- Pinned to the right edge so the actions stay reachable when the table scrolls horizontally -->
+						<Table.Head class="sticky right-0 z-(--z-sticky) w-px pr-2 pl-2 text-right">
+							{#if hasOptionalColumns}
+								<AdvancedTableColumnSelection
+									{columns}
+									bind:selectedColumns={tablePreferences.current.visibleColumns}
+								/>
+							{/if}
+						</Table.Head>
+					{/if}
+				</Table.Row>
+			</Table.Header>
+			<Table.Body>
+				{#each items.data as item (item.id)}
+					{@const selected = selectedIds?.includes(item.id)}
+					{@const nameId = `${id}-${item.id}-name`}
+					<Table.Row
+						data-state={selected ? 'selected' : undefined}
+						class={cn('group/row', (getPrimaryAction(item) || onRowClick) && 'cursor-pointer')}
+						onclick={onRowClick ? () => onRowClick(item) : getPrimaryAction(item)}
+					>
 						{#if selectedIds}
 							<!-- Selecting a row must not also open it -->
 							<Table.Cell class="w-10" onclick={(e) => e.stopPropagation()}>
@@ -281,7 +353,7 @@
 									aria-labelledby={nameId}
 									onCheckedChange={(c: boolean) => onCheck(c, item.id)}
 								/>
-							</Table.Head>
+							</Table.Cell>
 						{/if}
 						{#each visibleColumns as column, i (column.key ?? column.column ?? column.label)}
 							<Table.Cell class={columnClass(column, i)} id={i === 0 ? nameId : undefined}>
@@ -294,47 +366,9 @@
 								{:else if column.column}
 									{item[column.column]}
 								{/if}
-							</Table.Head>
+							</Table.Cell>
 						{/each}
-						<!-- Pinned to the right edge so the actions stay reachable when the table scrolls horizontally -->
-						<Table.Head class="sticky right-0 z-(--z-sticky) w-px pr-2 pl-2 text-right">
-							<AdvancedTableColumnSelection
-								{columns}
-								bind:selectedColumns={tablePreferences.current.visibleColumns}
-							/>
-						</Table.Head>
-					</Table.Row>
-				</Table.Header>
-				<Table.Body>
-					{#each items.data as item (item.id)}
-						{@const selected = selectedIds?.includes(item.id)}
-						<Table.Row
-							data-state={selected ? 'selected' : undefined}
-							class={cn('group/row', (getPrimaryAction(item) || onRowClick) && 'cursor-pointer')}
-							onclick={onRowClick ? () => onRowClick(item) : getPrimaryAction(item)}
-						>
-							{#if selectedIds}
-								<Table.Cell class="w-10">
-									<Checkbox
-										disabled={selectionDisabled || rowSelectionDisabled?.(item)}
-										checked={selected}
-										onCheckedChange={(c: boolean) => onCheck(c, item.id)}
-									/>
-								</Table.Cell>
-							{/if}
-							{#each visibleColumns as column, i (column.key ?? column.column ?? column.label)}
-								<Table.Cell class={columnClass(column, i)}>
-									{#if column.value}
-										{column.value(item)}
-									{:else if column.cell}
-										{@render column.cell({ item })}
-									{:else if column.column && typeof item[column.column] === 'boolean'}
-										{item[column.column] ? m.yes() : m.no()}
-									{:else if column.column}
-										{item[column.column]}
-									{/if}
-								</Table.Cell>
-							{/each}
+						{#if hasStickyColumn}
 							<!-- The sticky cell is opaque so scrolled cells pass under it, so it repeats the row's hover and selected fills -->
 							<Table.Cell
 								class="bg-surface group-hover/row:bg-fill-row-hover group-has-focus-visible/row:bg-fill-row-hover group-data-[state=selected]/row:bg-fill-muted sticky right-0 z-(--z-sticky) w-px py-0 pr-2 pl-2 text-right transition-colors duration-(--dur-fast)"
@@ -373,3 +407,10 @@
 		{/if}
 	</div>
 {/if}
+
+<ListPagination
+	pagination={items?.pagination.totalItems ? items.pagination : undefined}
+	pageSizes={availablePageSizes}
+	{onPageChange}
+	{onPageSizeChange}
+/>

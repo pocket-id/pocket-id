@@ -51,7 +51,7 @@
 		});
 	});
 
-	export async function refresh() {
+	async function refresh() {
 		isRefreshing = true;
 		try {
 			logs = isAdmin
@@ -355,7 +355,6 @@
 
 	<ListPagination
 		pagination={logs?.pagination.totalItems ? logs.pagination : undefined}
-		hideWhenSinglePage
 		onPageChange={(page) => {
 			requestOptions.pagination!.page = page;
 			refresh();

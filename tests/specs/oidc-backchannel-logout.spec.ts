@@ -109,17 +109,22 @@ test('Saving a logout URL and revoking an app sends a verifiable logout token', 
 	const client = oidcClients.nextcloud;
 	const logoutURL = `${receiver.url}/logout?tenant=test`;
 	await page.goto(`/settings/admin/oidc-clients/${client.id}`);
-	await page.getByLabel('Back-Channel Logout URL', { exact: true }).fill(logoutURL);
+	// The seeded client already has changed advanced settings, so Advanced starts open
+	await expect(page.getByRole('button', { name: /^Advanced/ })).toHaveAttribute(
+		'aria-expanded',
+		'true'
+	);
+	await page.getByLabel('Back-channel logout URL (optional)', { exact: true }).fill(logoutURL);
 	await saveUnsavedChanges(page);
+	// A changed setting keeps Advanced open after the reload
 	await page.reload();
-	await expect(page.getByLabel('Back-Channel Logout URL', { exact: true })).toHaveValue(logoutURL);
+	await expect(page.getByLabel('Back-channel logout URL (optional)', { exact: true })).toHaveValue(
+		logoutURL
+	);
 
 	await page.goto('/settings/apps');
-	await page
-		.getByRole('article', { name: client.name })
-		.getByRole('button', { name: 'Toggle menu' })
-		.click();
-	await page.getByRole('menuitem', { name: 'Revoke' }).click();
+	await page.getByRole('button', { name: `Actions for ${client.name}` }).click();
+	await page.getByRole('menuitem', { name: 'Revoke access…' }).click();
 	await page.getByRole('alertdialog').getByRole('button', { name: 'Revoke' }).click();
 	// Other specs can leave retries for the seeded URLs, so observe this client's updated endpoint
 	const deliveries = () =>
