@@ -36,7 +36,7 @@
 				<a href="/" class="flex items-center transition-opacity hover:opacity-80">
 					<Logo class="size-8" />
 					<Separator orientation="vertical" class="mr-3 ml-2 h-5! bg-neutral-600" />
-					<h1 class="font-gloock text-2xl" data-testid="application-name">
+					<h1 class="font-display text-2xl" data-testid="application-name">
 						{m.settings()}
 					</h1>
 				</a>

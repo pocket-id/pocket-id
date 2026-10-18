@@ -9,7 +9,7 @@
 	import { createForm } from '#lib/utils/form-util.ts';
 	import { trackFormChanges } from '#lib/utils/unsaved-changes-util.svelte.ts';
 	import { z } from 'zod/v4';
-	import AccentColorPicker from './accent-color-picker.svelte';
+	import ColorThemePicker from './color-theme-picker.svelte';
 
 	let {
 		callback,
@@ -30,7 +30,7 @@
 		sessionDuration: appConfig.sessionDuration,
 		allowOwnAccountEdit: appConfig.allowOwnAccountEdit,
 		disableAnimations: appConfig.disableAnimations,
-		accentColor: appConfig.accentColor
+		colorTheme: appConfig.colorTheme
 	};
 
 	const formSchema = z.object({
@@ -39,7 +39,7 @@
 		sessionDuration: z.number().min(1).max(43200),
 		allowOwnAccountEdit: z.boolean(),
 		disableAnimations: z.boolean(),
-		accentColor: z.string()
+		colorTheme: z.string()
 	});
 
 	let formStore = $derived(createForm(formSchema, updatedAppConfig));
@@ -95,16 +95,11 @@
 
 		<Field.Field class="space-y-5">
 			<div>
-				<Field.Label>
-					{m.accent_color()}
-				</Field.Label>
-				<Field.Description>
-					{m.select_an_accent_color_to_customize_the_appearance_of_pocket_id()}
-				</Field.Description>
+				<Field.Label>{m.color_theme()}</Field.Label>
+				<Field.Description>{m.color_theme_description()}</Field.Description>
 			</div>
-			<AccentColorPicker
-				previousColor={appConfig.accentColor}
-				bind:selectedColor={$inputs.accentColor.value}
+			<ColorThemePicker
+				bind:value={$inputs.colorTheme.value}
 				disabled={$appConfigStore.uiConfigDisabled}
 			/>
 		</Field.Field>

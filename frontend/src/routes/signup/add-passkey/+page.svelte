@@ -53,6 +53,7 @@
 			confirm: {
 				label: m.skip_for_now(),
 				destructive: true,
+				icon: LucideSkipForward,
 				action: () => {
 					dismiss();
 					goto('/settings/account');
@@ -76,7 +77,7 @@
 		<div class="flex justify-center">
 			<LoginLogoErrorSuccessIndicator error={!!error} />
 		</div>
-		<h1 class="font-gloock mt-5 text-3xl font-bold sm:text-4xl">
+		<h1 class="font-display mt-5 text-3xl font-bold sm:text-4xl">
 			{m.setup_your_passkey()}
 		</h1>
 		<p class="text-muted-foreground mt-2" in:fade>
