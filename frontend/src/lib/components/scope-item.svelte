@@ -1,54 +1,53 @@
 <script lang="ts">
 	import Checkbox from '#lib/components/ui/checkbox/checkbox.svelte';
-	import * as Item from '#lib/components/ui/item/index.js';
-	import { cn } from '#lib/utils/style.js';
 	import type { LucideIcon } from '@lucide/svelte';
 
-	interface Props {
+	let {
+		icon: Icon,
+		value,
+		category,
+		selected = true,
+		onSelectedChange
+	}: {
 		icon: LucideIcon;
-		name: string;
-		description: string;
+		// The person's real value, such as their email address, shown over the category it belongs to
+		value?: string;
+		category: string;
 		selected?: boolean;
 		onSelectedChange?: (selected: boolean) => void;
-	}
+	} = $props();
 
-	let { icon, name, description, selected = true, onSelectedChange }: Props = $props();
-
-	const SvelteComponent = $derived(icon);
+	const textId = $props.id();
 </script>
 
 {#snippet content()}
-	<Item.Media class="bg-muted h-full !translate-y-0 !self-center rounded-lg p-2">
-		<SvelteComponent class="size-5" />
-	</Item.Media>
-	<Item.Content class="text-start">
-		<Item.Title class="font-semibold">{name}</Item.Title>
-		<Item.Description>{description}</Item.Description>
-	</Item.Content>
+	<Icon class="text-fg-muted size-4 shrink-0" />
+	<span id={textId} class="flex min-w-0 flex-1 flex-col gap-0.5 text-start wrap-anywhere">
+		{#if value}
+			<span class="text-body">{value}</span>
+			<span class="text-control text-fg-muted">{category}</span>
+		{:else}
+			<span class="text-body">{category}</span>
+		{/if}
+	</span>
 {/snippet}
 
 {#if onSelectedChange}
 	<!-- The whole row is a label so clicking anywhere on it toggles the scope -->
-	<Item.Root class="px-0 py-1.5">
-		{#snippet child({ props })}
-			<label
-				{...props}
-				class={cn(props.class as string, 'cursor-pointer', !selected && 'opacity-60')}
-				data-testid="scope-item"
-			>
-				{@render content()}
-				<Item.Actions>
-					<Checkbox
-						aria-label={name}
-						checked={selected}
-						onCheckedChange={(checked: boolean) => onSelectedChange(checked)}
-					/>
-				</Item.Actions>
-			</label>
-		{/snippet}
-	</Item.Root>
-{:else}
-	<Item.Root class="px-0 py-1.5">
+	<label
+		class="hover:bg-fill-row-hover has-focus-visible:bg-fill-row-hover active:bg-fill-hover flex min-h-13 cursor-pointer items-center gap-3 px-4 py-2.5 transition-colors duration-(--dur-fast)"
+		data-testid="scope-item"
+	>
 		{@render content()}
-	</Item.Root>
+		<!-- The checkbox is a button, which a wrapping label does not name -->
+		<Checkbox
+			aria-labelledby={textId}
+			checked={selected}
+			onCheckedChange={(checked: boolean) => onSelectedChange(checked)}
+		/>
+	</label>
+{:else}
+	<div class="flex min-h-13 items-center gap-3 px-4 py-2.5">
+		{@render content()}
+	</div>
 {/if}

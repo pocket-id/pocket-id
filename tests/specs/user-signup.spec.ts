@@ -52,9 +52,9 @@ test.describe('Signup Token Creation', () => {
 
 		await page.getByRole('button', { name: 'Create options' }).click();
 		await page.getByRole('menuitem', { name: 'View Active Signup Tokens' }).click();
-		await page.getByLabel('Manage Signup Tokens').getByRole('button', { name: 'View' }).click();
+		await page.getByLabel('Manage Signup Tokens').getByRole('button', { name: 'Display' }).click();
 
-		await page.getByRole('menuitemcheckbox', { name: 'User Groups' }).click();
+		await page.getByRole('button', { name: 'User Groups', exact: true }).click();
 
 		const row = page.getByRole('row').last();
 		await expect(row.getByRole('cell', { name: '0 of 8' })).toBeVisible();

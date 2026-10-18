@@ -1,5 +1,6 @@
 import test, { expect } from '@playwright/test';
 import { cleanupBackend } from '../utils/cleanup.util';
+import { unsavedChangesBar } from '../utils/unsaved-changes.util';
 
 test.beforeEach(async () => await cleanupBackend());
 
@@ -27,7 +28,7 @@ test('unsaved changes block navigation until they are discarded', async ({ page 
 	const displayName = page.getByLabel('Display Name');
 	const originalDisplayName = await displayName.inputValue();
 	await displayName.fill('Pending navigation');
-	await expect(page.getByText('You have unsaved changes', { exact: true })).toBeVisible();
+	await expect(unsavedChangesBar(page)).toContainText(/\d+ unsaved changes?/);
 
 	const myApps = page.getByRole('link', { name: 'My Apps' }).first();
 	await myApps.click();
@@ -35,9 +36,9 @@ test('unsaved changes block navigation until they are discarded', async ({ page 
 
 	await page.getByRole('button', { name: 'Discard', exact: true }).click();
 	await expect(displayName).toHaveValue(originalDisplayName);
-	await expect(page.getByText('You have unsaved changes', { exact: true })).toHaveCount(0);
+	await expect(unsavedChangesBar(page)).toHaveCount(0);
 
 	await myApps.click();
 	await expect(page).toHaveURL(/\/settings\/apps$/);
-	await expect(page.getByText('You have unsaved changes', { exact: true })).toHaveCount(0);
+	await expect(unsavedChangesBar(page)).toHaveCount(0);
 });

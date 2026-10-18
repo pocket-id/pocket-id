@@ -14,7 +14,11 @@ test('approves the QR link after requester review and fresh reauthentication', a
 	const expectedLoginCodeText = `${waiting.request.userCode.substring(0, 4)} - ${waiting.request.userCode.substring(4, 8)}`;
 	try {
 		await (await passkeyUtil.init(page)).addPasskey();
-		await expect(waiting.page.getByTestId('device-login-code')).toHaveText(expectedLoginCodeText);
+		await expect(waiting.page.getByTestId('device-login-code')).toHaveText(
+			new RegExp(
+				`${waiting.request.userCode.substring(0, 4)}\\s*–\\s*${waiting.request.userCode.substring(4, 8)}`
+			)
+		);
 		await expect(waiting.page.getByLabel('Device login QR code')).toBeVisible();
 
 		await page.goto(waiting.request.verificationUriComplete);

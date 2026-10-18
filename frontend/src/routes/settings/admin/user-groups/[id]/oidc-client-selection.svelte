@@ -1,13 +1,11 @@
 <script lang="ts">
-	import ImageBox from '#lib/components/image-box.svelte';
+	import OidcClientAvatar from '#lib/components/oidc-client-avatar.svelte';
 	import AdvancedTable from '#lib/components/table/advanced-table.svelte';
 	import { m } from '#lib/paraglide/messages.js';
 	import OidcService from '#lib/services/oidc-service.ts';
 	import type { AdvancedTableColumn } from '#lib/types/advanced-table.type.ts';
 	import type { ListRequestOptions } from '#lib/types/list-request.type.ts';
 	import type { OidcClient, OidcClientWithAllowedGroups } from '#lib/types/oidc.type.ts';
-	import { cachedOidcClientLogo } from '#lib/utils/cached-image-util.ts';
-	import { mode } from 'mode-watcher';
 
 	let {
 		selectedGroupIds = $bindable()
@@ -31,8 +29,6 @@
 	export function refresh() {
 		return tableRef?.refresh();
 	}
-
-	const isLightMode = $derived(mode.current === 'light');
 
 	const columns: AdvancedTableColumn<OidcClientWithAllowedGroups>[] = [
 		{ label: 'ID', column: 'id', hidden: true },
@@ -72,17 +68,7 @@
 </script>
 
 {#snippet LogoCell({ item }: { item: OidcClient })}
-	{#if item.hasLogo || item.hasDarkLogo}
-		<ImageBox
-			class="size-12 rounded-lg"
-			src={cachedOidcClientLogo.getUrl(item.id, isLightMode)}
-			alt={m.name_logo({ name: item.name })}
-		/>
-	{:else}
-		<div class="bg-muted flex size-12 items-center justify-center rounded-lg text-lg font-bold">
-			{item.name.charAt(0).toUpperCase()}
-		</div>
-	{/if}
+	<OidcClientAvatar id={item.id} name={item.name} hasLogo={item.hasLogo || item.hasDarkLogo} />
 {/snippet}
 
 <AdvancedTable

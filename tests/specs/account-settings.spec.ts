@@ -3,7 +3,7 @@ import { emailVerificationTokens, users } from '../data';
 import authUtil from '../utils/auth.util';
 import { cleanupBackend } from '../utils/cleanup.util';
 import passkeyUtil from '../utils/passkey.util';
-import { saveUnsavedChanges } from '../utils/unsaved-changes.util';
+import { saveUnsavedChanges, unsavedChangesBar } from '../utils/unsaved-changes.util';
 
 test.beforeEach(async () => await cleanupBackend());
 
@@ -41,7 +41,9 @@ test('Failed account update remains dirty and can be retried', async ({ page }) 
 	await displayName.fill('Retryable Account');
 	await page.getByRole('button', { name: 'Save', exact: true }).click();
 
-	await expect(page.getByText('Temporary account update failure', { exact: true })).toBeVisible();
+	await expect(
+		unsavedChangesBar(page).getByText('Temporary account update failure', { exact: true })
+	).toBeVisible();
 	await expect(page.getByRole('button', { name: 'Save', exact: true })).toBeVisible();
 	expect(failedUpdates).toBe(1);
 
@@ -57,7 +59,9 @@ test('Update account details fails with already taken email', async ({ page }) =
 
 	await page.getByRole('button', { name: 'Save', exact: true }).click();
 
-	await expect(page.getByText('Email is already in use', { exact: true })).toBeVisible();
+	await expect(
+		unsavedChangesBar(page).getByText('Email is already in use', { exact: true })
+	).toBeVisible();
 });
 
 test('Update account details fails with already taken username', async ({ page }) => {
@@ -67,7 +71,9 @@ test('Update account details fails with already taken username', async ({ page }
 
 	await page.getByRole('button', { name: 'Save', exact: true }).click();
 
-	await expect(page.getByText('Username is already in use', { exact: true })).toBeVisible();
+	await expect(
+		unsavedChangesBar(page).getByText('Username is already in use', { exact: true })
+	).toBeVisible();
 });
 
 test('Update account details fails with already taken username in different casing', async ({
@@ -79,7 +85,9 @@ test('Update account details fails with already taken username in different casi
 
 	await page.getByRole('button', { name: 'Save', exact: true }).click();
 
-	await expect(page.getByText('Username is already in use', { exact: true })).toBeVisible();
+	await expect(
+		unsavedChangesBar(page).getByText('Username is already in use', { exact: true })
+	).toBeVisible();
 });
 
 test('Change Locale', async ({ page }) => {
@@ -117,24 +125,32 @@ test('Add passkey to an account', async ({ page }) => {
 	await page.getByLabel('Name', { exact: true }).fill('Test Passkey');
 	await page.getByLabel('Name Passkey').getByRole('button', { name: 'Save' }).click();
 
-	await expect(page.getByText('Test Passkey')).toBeVisible();
+	await expect(page.getByText('Test Passkey', { exact: true })).toBeVisible();
 });
 
 test('Rename passkey', async ({ page }) => {
 	await page.goto('/settings/account');
 
-	await page.getByLabel('Rename').first().click();
+	await page
+		.getByRole('button', { name: /^Actions for / })
+		.first()
+		.click();
+	await page.getByRole('menuitem', { name: 'Rename' }).click();
 
 	await page.getByLabel('Name', { exact: true }).fill('Renamed Passkey');
 	await page.getByLabel('Name Passkey').getByRole('button', { name: 'Save' }).click();
 
-	await expect(page.getByText('Renamed Passkey')).toBeVisible();
+	await expect(page.getByText('Renamed Passkey', { exact: true })).toBeVisible();
 });
 
 test('Delete passkey from account', async ({ page }) => {
 	await page.goto('/settings/account');
 
-	await page.getByLabel('Delete').first().click();
+	await page
+		.getByRole('button', { name: /^Actions for / })
+		.first()
+		.click();
+	await page.getByRole('menuitem', { name: 'Delete' }).click();
 	await page.getByLabel('Delete Passkey').getByRole('button', { name: 'Delete' }).click();
 
 	await expect(page.locator('[data-type="success"]')).toHaveText('Passkey deleted successfully');

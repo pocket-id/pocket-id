@@ -1,6 +1,6 @@
 import { expect, test } from '@playwright/test';
 import { cleanupBackend } from '../utils/cleanup.util';
-import { saveUnsavedChanges } from '../utils/unsaved-changes.util';
+import { saveUnsavedChanges, unsavedChangesBar } from '../utils/unsaved-changes.util';
 
 test.beforeEach(async ({ page }) => {
 	await cleanupBackend();
@@ -116,13 +116,16 @@ test('Invalid hidden configuration prevents every section from being saved', asy
 
 	const emailTab = page.getByRole('tab', { name: 'Email' });
 	const smtpPort = page.getByLabel('SMTP Port');
-	await expect(page.getByText('Please fix the highlighted errors before saving')).toBeVisible();
+	await expect(
+		unsavedChangesBar(page).getByText('Couldn’t save. Check the highlighted fields.')
+	).toBeVisible();
 	await expect(emailTab).toHaveAttribute('aria-selected', 'true');
 	await expect(smtpPort).toHaveAttribute('aria-invalid', 'true');
 	await expect(smtpPort).toBeFocused();
 	expect(updateRequests).toBe(0);
 
 	await smtpPort.fill('587');
+	await expect(smtpPort).toHaveAttribute('aria-invalid', 'false');
 	await saveUnsavedChanges(page);
 
 	await page.reload();
@@ -300,7 +303,7 @@ test('Save LDAP configuration while LDAP remains disabled', async ({ page }) => 
 	const softDeleteUsers = page.getByRole('switch', { name: 'Keep disabled users from LDAP' });
 	const originalValue = await softDeleteUsers.isChecked();
 	await softDeleteUsers.click();
-	await expect(page.getByText('You have unsaved changes', { exact: true })).toBeVisible();
+	await expect(unsavedChangesBar(page)).toContainText(/\d+ unsaved changes?/);
 
 	await page.getByRole('button', { name: 'Discard', exact: true }).click();
 	await expect(softDeleteUsers).toBeChecked({ checked: originalValue });
@@ -326,7 +329,7 @@ test.describe('Update application images', () => {
 		await page
 			.getByRole('button', { name: 'Reset to default Background Image', exact: true })
 			.click();
-		await expect(page.getByText('You have unsaved changes', { exact: true })).toBeVisible();
+		await expect(unsavedChangesBar(page)).toContainText(/\d+ unsaved changes?/);
 
 		await page.getByRole('button', { name: 'Discard', exact: true }).click();
 		await expect(
@@ -415,6 +418,8 @@ test.describe('Update application images', () => {
 		await emailLogoInput.setInputFiles('resources/images/cloud-logo.svg');
 		await page.getByRole('button', { name: 'Save', exact: true }).click();
 
-		await expect(page.getByText('File must be of type PNG or JPEG', { exact: true })).toBeVisible();
+		await expect(
+			unsavedChangesBar(page).getByText('File must be of type PNG or JPEG', { exact: true })
+		).toBeVisible();
 	});
 });

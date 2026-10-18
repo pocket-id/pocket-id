@@ -5,7 +5,7 @@ export type AuditLog = {
 	country?: string;
 	city?: string;
 	device: string;
-	userId: string;
+	userID: string;
 	username?: string;
 	actorUsername?: string;
 	createdAt: string;

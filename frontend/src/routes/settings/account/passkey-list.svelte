@@ -1,14 +1,10 @@
 <script lang="ts">
 	import { openConfirmDialog } from '#lib/components/confirm-dialog/index.ts';
-	import GlassRowItem from '#lib/components/passkey-row.svelte';
-	import * as Item from '#lib/components/ui/item/index.js';
+	import PasskeyRow from '#lib/components/passkey-row.svelte';
 	import { m } from '#lib/paraglide/messages.js';
 	import WebauthnService from '#lib/services/webauthn-service.ts';
 	import type { Passkey } from '#lib/types/passkey.type.ts';
-	import { authenticatorIconUrl } from '#lib/utils/cached-image-util.ts';
 	import { axiosErrorToast } from '#lib/utils/error-util.ts';
-	import { LucideKeyRound } from '@lucide/svelte';
-	import { mode } from 'mode-watcher';
 	import { toast } from 'svelte-sonner';
 	import RenamePasskeyModal from './rename-passkey-modal.svelte';
 
@@ -18,14 +14,12 @@
 
 	let passkeyToRename: Passkey | null = $state(null);
 
-	const isLightMode = $derived(mode.current === 'light');
-
 	async function deletePasskey(passkey: Passkey) {
 		openConfirmDialog({
 			title: m.delete_passkey_name({ passkeyName: passkey.name }),
 			message: m.are_you_sure_you_want_to_delete_this_passkey(),
 			confirm: {
-				label: m.delete(),
+				label: m.delete_name_action({ name: passkey.name }),
 				destructive: true,
 				action: async () => {
 					try {
@@ -41,20 +35,15 @@
 	}
 </script>
 
-<Item.Group class="mt-3">
+<div class="mt-3 divide-y overflow-hidden rounded-md border">
 	{#each passkeys as passkey (passkey.id)}
-		<GlassRowItem
-			label={passkey.name}
-			description={m.added_on() + ' ' + new Date(passkey.createdAt).toLocaleDateString()}
-			icon={LucideKeyRound}
-			providerIconUrl={passkey.hasIcon
-				? authenticatorIconUrl(passkey.aaguid, isLightMode)
-				: undefined}
+		<PasskeyRow
+			{passkey}
 			onRename={() => (passkeyToRename = passkey)}
 			onDelete={() => deletePasskey(passkey)}
 		/>
 	{/each}
-</Item.Group>
+</div>
 
 <RenamePasskeyModal
 	bind:passkey={passkeyToRename}

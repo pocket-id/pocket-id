@@ -3,7 +3,7 @@ import * as jose from 'jose';
 import { oidcClients, userGroups } from '../data';
 import { cleanupBackend } from '../utils/cleanup.util';
 import * as oidcUtil from '../utils/oidc.util';
-import { saveUnsavedChanges } from '../utils/unsaved-changes.util';
+import { saveUnsavedChanges, unsavedChangesBar } from '../utils/unsaved-changes.util';
 
 test.beforeEach(async () => await cleanupBackend());
 
@@ -556,7 +556,7 @@ test('Update OIDC client federated credentials with public keys', async ({ page 
 	const privateKeyUpdate = waitForClientUpdate();
 	await saveButton.click();
 	expect((await privateKeyUpdate).status()).toBe(400);
-	await expect(page.getByText(/private key material/)).toBeVisible();
+	await expect(unsavedChangesBar(page).getByText(/private key material/)).toBeVisible();
 	await publicKeys.last().getByRole('button').click();
 	await expect(publicKeys).toHaveCount(3);
 
@@ -568,7 +568,7 @@ test('Update OIDC client federated credentials with public keys', async ({ page 
 	const missingKeyIdUpdate = waitForClientUpdate();
 	await saveButton.click();
 	expect((await missingKeyIdUpdate).status()).toBe(400);
-	await expect(page.getByText(/missing the "kid" property/)).toBeVisible();
+	await expect(unsavedChangesBar(page).getByText(/missing the "kid" property/)).toBeVisible();
 	await publicKeys.last().getByRole('button').click();
 	await expect(publicKeys).toHaveCount(3);
 
@@ -703,7 +703,7 @@ test('Delete OIDC client', async ({ page }) => {
 
 	await page
 		.getByRole('row', { name: oidcClient.name })
-		.getByRole('button', { name: 'Toggle menu' })
+		.getByRole('button', { name: /^Actions for / })
 		.click();
 
 	await page.getByRole('menuitem', { name: 'Delete' }).click();
@@ -760,9 +760,11 @@ test('Filter OIDC clients by PAR requirement', async ({ page, request }) => {
 	await expect(page.getByRole('row', { name: parClient.name })).toBeVisible();
 	await expect(page.getByRole('row', { name: oidcClients.nextcloud.name })).not.toBeVisible();
 
-	// Deselect "Yes" and select "No" to invert the filter
-	await page.getByTestId('facet-par-option-true').click();
+	// Reset the filter to "Any", then select "No" to invert it
+	await page.getByTestId('facet-par-trigger').click();
+	await page.getByTestId('facet-par-option-any').click();
 	await expect(page.getByRole('row', { name: oidcClients.nextcloud.name })).toBeVisible();
+	await page.getByTestId('facet-par-trigger').click();
 	await page.getByTestId('facet-par-option-false').click();
 
 	// PAR client should be hidden, others visible

@@ -5,7 +5,6 @@ import { z } from 'zod/v4';
 export type FormInput<T> = {
 	value: T;
 	error: string | null;
-	required: boolean;
 };
 
 type FormInputs<T> = {
@@ -26,17 +25,11 @@ export function createForm<T extends z.ZodType<any, any>>(schema: T, initialValu
 	function initializeInputs(): FormInputs<z.infer<T>> {
 		const inputs: FormInputs<z.infer<T>> = {} as FormInputs<z.infer<T>>;
 
-		const shape =
-			schema instanceof z.ZodObject ? (schema.shape as Record<string, z.ZodTypeAny>) : {};
-
 		for (const key in baseline) {
 			if (Object.prototype.hasOwnProperty.call(baseline, key)) {
-				const fieldSchema = shape[key];
-
 				inputs[key as keyof z.infer<T>] = {
 					value: deepCopy(baseline[key as keyof z.infer<T>]),
-					error: null,
-					required: fieldSchema ? isRequired(fieldSchema) : false
+					error: null
 				};
 			}
 		}
@@ -84,11 +77,15 @@ export function createForm<T extends z.ZodType<any, any>>(schema: T, initialValu
 		return values;
 	}
 
-	function isDirty() {
+	function changedCount() {
 		const inputs = get(inputsStore);
-		return Object.keys(inputs).some(
+		return Object.keys(inputs).filter(
 			(key) => !deepEqual(inputs[key as keyof z.infer<T>].value, baseline[key as keyof z.infer<T>])
-		);
+		).length;
+	}
+
+	function isDirty() {
+		return changedCount() > 0;
 	}
 
 	// Moves the baseline forward, e.g. after a successful save whose data isn't reflected back
@@ -143,33 +140,6 @@ export function createForm<T extends z.ZodType<any, any>>(schema: T, initialValu
 		return value;
 	}
 
-	function isRequired(fieldSchema: z.ZodTypeAny): boolean {
-		// Handle string allow empty
-		if (fieldSchema instanceof z.ZodString) {
-			return fieldSchema.minLength !== null && fieldSchema.minLength > 0;
-		}
-
-		// Handle unions
-		// A union that accepts an empty string, like `z.url().or(z.literal(''))`, can be left blank as well
-		if (fieldSchema instanceof z.ZodUnion) {
-			return !fieldSchema.def.options.some((o: any) => {
-				return o.def.type == 'optional' || (o instanceof z.ZodLiteral && o.def.values.includes(''));
-			});
-		}
-
-		// Handle pipes like emptyToUndefined
-		if (fieldSchema instanceof z.ZodPipe) {
-			return isRequired(fieldSchema.def.out as z.ZodTypeAny);
-		}
-
-		// Handle the normal cases
-		if (fieldSchema instanceof z.ZodOptional || fieldSchema instanceof z.ZodDefault) {
-			return false;
-		}
-
-		return true;
-	}
-
 	return {
 		schema,
 		inputs: inputsStore,
@@ -179,6 +149,7 @@ export function createForm<T extends z.ZodType<any, any>>(schema: T, initialValu
 		setValue,
 		reset,
 		clearErrors,
+		changedCount,
 		isDirty,
 		commit
 	};

@@ -2,7 +2,7 @@ import test, { expect } from '@playwright/test';
 import { userGroups, users } from '../data';
 import authUtil from '../utils/auth.util';
 import { cleanupBackend } from '../utils/cleanup.util';
-import { saveUnsavedChanges } from '../utils/unsaved-changes.util';
+import { saveUnsavedChanges, unsavedChangesBar } from '../utils/unsaved-changes.util';
 
 test.beforeEach(async () => await cleanupBackend());
 
@@ -177,7 +177,9 @@ test('Update user fails with already taken email', async ({ page }) => {
 	await page.getByLabel('Email').fill(users.tim.email);
 	await page.getByRole('button', { name: 'Save', exact: true }).click();
 
-	await expect(page.getByText('Email is already in use', { exact: true })).toBeVisible();
+	await expect(
+		unsavedChangesBar(page).getByText('Email is already in use', { exact: true })
+	).toBeVisible();
 });
 
 test('Update user fails with already taken username', async ({ page }) => {
@@ -194,7 +196,9 @@ test('Update user fails with already taken username', async ({ page }) => {
 	await page.getByLabel('Username').fill(users.tim.username);
 	await page.getByRole('button', { name: 'Save', exact: true }).click();
 
-	await expect(page.getByText('Username is already in use', { exact: true })).toBeVisible();
+	await expect(
+		unsavedChangesBar(page).getByText('Username is already in use', { exact: true })
+	).toBeVisible();
 });
 
 test('Update user fails with already taken username in different casing', async ({ page }) => {
@@ -211,7 +215,9 @@ test('Update user fails with already taken username in different casing', async 
 	await page.getByLabel('Username').fill(users.tim.username.toUpperCase());
 	await page.getByRole('button', { name: 'Save', exact: true }).click();
 
-	await expect(page.getByText('Username is already in use', { exact: true })).toBeVisible();
+	await expect(
+		unsavedChangesBar(page).getByText('Username is already in use', { exact: true })
+	).toBeVisible();
 });
 
 test('Update user custom claims', async ({ page }) => {
@@ -275,7 +281,7 @@ test('Admin can view another user passkeys', async ({ page }) => {
 	await page.goto(`/settings/admin/users/${users.craig.id}`);
 	await page.getByRole('tab', { name: 'Passkeys' }).click();
 
-	await expect(page.getByText('Passkey 2')).toBeVisible();
+	await expect(page.getByText('Passkey 2', { exact: true })).toBeVisible();
 	await expect(page.getByText(/Added on/)).toBeVisible();
 });
 
@@ -283,15 +289,11 @@ test('Admin can delete another user passkey and audit log is created', async ({ 
 	await page.goto(`/settings/admin/users/${users.craig.id}`);
 	await page.getByRole('tab', { name: 'Passkeys' }).click();
 
-	await page
-		.locator('[data-slot="item"]')
-		.filter({ hasText: 'Passkey 2' })
-		.getByLabel('Delete')
-		.click();
+	await page.getByRole('button', { name: 'Delete Passkey 2' }).click();
 	await page.getByRole('alertdialog').getByRole('button', { name: 'Delete' }).click();
 
 	await expect(page.locator('[data-type="success"]')).toHaveText('Passkey deleted successfully');
-	await expect(page.getByText('Passkey 2')).not.toBeVisible();
+	await expect(page.getByText('Passkey 2', { exact: true })).not.toBeVisible();
 
 	const auditLogResponse = await page.request.get('/api/audit-logs/all');
 	expect(auditLogResponse.ok()).toBeTruthy();
