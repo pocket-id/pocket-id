@@ -1,23 +1,22 @@
 <script lang="ts">
-	import { cn } from '#lib/utils/style.js';
-	import type { ComponentProps } from 'svelte';
-	import { Input } from '#lib/components/ui/input/index.js';
+	import { cn, type WithElementRef } from '#lib/utils/style.js';
+	import type { HTMLInputAttributes } from 'svelte/elements';
 
 	let {
 		ref = $bindable(null),
 		value = $bindable(),
 		class: className,
-		...props
-	}: ComponentProps<typeof Input> = $props();
+		...restProps
+	}: WithElementRef<HTMLInputAttributes> = $props();
 </script>
 
-<Input
-	bind:ref
+<input
+	bind:this={ref}
+	bind:value
 	data-slot="input-group-control"
 	class={cn(
-		'flex-1 rounded-none border-0 bg-transparent shadow-none ring-0 focus-visible:ring-0 aria-invalid:ring-0 dark:bg-transparent',
+		'text-body text-fg placeholder:text-fg-muted h-full w-full min-w-0 flex-1 bg-transparent px-3.5 outline-hidden max-sm:text-[16px] [&::-webkit-search-cancel-button]:appearance-none',
 		className
 	)}
-	bind:value
-	{...props}
+	{...restProps}
 />

@@ -15,17 +15,15 @@
 	bind:ref
 	data-slot="input-otp-slot"
 	class={cn(
-		'bg-input/50 border-input data-active:border-ring data-active:ring-ring/30 data-active:aria-invalid:ring-destructive/20 dark:data-active:aria-invalid:ring-destructive/40 aria-invalid:border-destructive relative flex h-13 w-10 items-center justify-center rounded-sm border text-sm transition-all outline-none data-active:z-10 data-active:ring-3',
+		'text-code-cell text-fg before:bg-danger-soft aria-invalid:text-danger-fg relative isolate grid h-18 max-w-14 min-w-[30px] flex-1 place-items-center font-mono uppercase tabular-nums before:absolute before:inset-0 before:-z-1 before:opacity-0 before:transition-opacity before:duration-(--dur-fast) before:ease-out after:pointer-events-none after:absolute after:inset-0 after:opacity-0 after:shadow-[inset_0_0_0_1px_var(--ring),inset_0_0_0_calc(1px+var(--halo-width))_var(--ring-halo)] first:after:rounded-l-sm last:after:rounded-r-sm aria-invalid:before:opacity-100 data-active:z-2 data-active:after:opacity-100 [&+&]:shadow-[inset_1px_0_0_var(--border-strong)]',
 		className
 	)}
 	{...restProps}
 >
 	{cell.char}
 	{#if cell.hasFakeCaret}
-		<div
-			class="cn-input-otp-caret pointer-events-none absolute inset-0 flex items-center justify-center"
-		>
-			<div class="animate-caret-blink bg-foreground bg-foreground h-4 w-px duration-1000"></div>
+		<div class="pointer-events-none absolute inset-0 flex items-center justify-center">
+			<div class="animate-caret-blink bg-fg h-5.5 w-px [animation-duration:var(--t-caret)]"></div>
 		</div>
 	{/if}
 </InputOTPPrimitive.Cell>

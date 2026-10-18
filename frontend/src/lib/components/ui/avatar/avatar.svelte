@@ -19,7 +19,7 @@
 	data-slot="avatar"
 	data-size={size}
 	class={cn(
-		'after:border-border group/avatar relative flex size-8 shrink-0 rounded-full select-none after:absolute after:inset-0 after:rounded-full after:border after:mix-blend-darken data-[size=lg]:size-10 data-[size=sm]:size-6 dark:after:mix-blend-lighten',
+		'group/avatar after:inset-ring-border @container relative flex size-8 shrink-0 rounded-full select-none after:pointer-events-none after:absolute after:inset-0 after:rounded-full after:inset-ring data-[size=lg]:size-10 data-[size=sm]:size-6',
 		className
 	)}
 	{...restProps}
