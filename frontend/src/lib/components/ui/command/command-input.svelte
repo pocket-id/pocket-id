@@ -13,14 +13,11 @@
 </script>
 
 <div data-slot="command-input-wrapper" class="p-1 pb-0">
-	<InputGroup.Root class="bg-input/50 h-9">
+	<InputGroup.Root class="bg-fg/5 h-9 rounded-sm">
 		<CommandPrimitive.Input
 			{value}
 			data-slot="command-input"
-			class={cn(
-				'w-full text-sm outline-hidden disabled:cursor-not-allowed disabled:opacity-50',
-				className
-			)}
+			class={cn('w-full outline-hidden disabled:cursor-not-allowed disabled:opacity-50', className)}
 			{...restProps}
 		>
 			{#snippet child({ props })}

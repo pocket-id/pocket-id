@@ -13,14 +13,14 @@
 </script>
 
 {#snippet Fallback()}
-	<span>Next</span>
-	<ChevronRightIcon class={cn('size-4', className)} />
+	<span class="max-sm:sr-only">Next</span>
+	<ChevronRightIcon class="size-4" />
 {/snippet}
 
 <PaginationPrimitive.NextButton
 	bind:ref
 	aria-label="Go to next page"
-	class={cn(buttonVariants({ variant: 'ghost' }), 'pr-2!', className)}
+	class={cn(buttonVariants({ variant: 'secondary', size: 'sm' }), 'max-sm:px-2', className)}
 	{...restProps}
 >
 	{#if children}

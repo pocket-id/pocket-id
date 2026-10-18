@@ -15,7 +15,7 @@
 	aria-hidden="true"
 	data-slot="pagination-ellipsis"
 	class={cn(
-		"flex size-9 items-center items-center justify-center justify-center [&_svg:not([class*='size-'])]:size-4",
+		"text-fg-muted flex size-(--h-sm) items-center justify-center [&_svg:not([class*='size-'])]:size-4",
 		className
 	)}
 	{...restProps}

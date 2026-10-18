@@ -5,7 +5,7 @@
 	let {
 		ref = $bindable(null),
 		class: className,
-		size = 'icon',
+		size = 'icon-sm',
 		isActive,
 		page,
 		children,
@@ -28,8 +28,8 @@
 	data-active={isActive}
 	data-size={size}
 	class={cn(
-		buttonVariants({ size, variant: isActive ? 'outline' : 'ghost' }),
-		'cn-pagination-link',
+		buttonVariants({ size, variant: isActive ? 'secondary' : 'ghost' }),
+		'tabular-nums',
 		className
 	)}
 	{...restProps}

@@ -2,19 +2,18 @@
 	import { tv, type VariantProps } from 'tailwind-variants';
 
 	export const itemVariants = tv({
-		base: '[a]:hover:bg-muted rounded-2xl border text-sm group/item focus-visible:border-ring focus-visible:ring-ring/50 flex w-full flex-wrap items-center transition-colors duration-100 outline-none focus-visible:ring-[3px] [a]:transition-colors',
+		base: 'group/item flex w-full flex-wrap items-center rounded-md border text-control transition-colors duration-(--dur-fast) outline-none focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring [a]:hover:bg-fill-row-hover',
 		variants: {
 			variant: {
 				default: 'border-transparent',
-				outline: 'border-border',
-				muted: 'bg-muted/50 border-transparent',
-				card: 'bg-card shadow-sm border-transparent',
-				transparent: 'bg-transparent border-transparent'
+				outline: 'border-border bg-surface',
+				card: 'border-border bg-surface',
+				transparent: 'border-transparent bg-transparent'
 			},
 			size: {
-				default: 'gap-3.5 px-4 py-3.5',
-				sm: 'gap-3.5 px-3.5 py-3',
-				xs: 'gap-2.5 px-3 py-2.5 in-data-[slot=dropdown-menu-content]:p-0'
+				default: 'gap-4 px-4 py-3',
+				sm: 'gap-3 px-3 py-2.5',
+				xs: 'gap-2.5 px-3 py-2 in-data-[slot=dropdown-menu-content]:p-0'
 			}
 		},
 		defaultVariants: {
