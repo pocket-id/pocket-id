@@ -345,4 +345,33 @@ func TestAppConfigModel_DecodeMsgpack(t *testing.T) {
 		assert.Equal(t, AppConfigValue(LoginNotificationAlways), m.EmailLoginNotificationMode)
 		assert.Equal(t, AppConfigValue(EmailVerificationRequired), m.EmailVerification)
 	})
+
+	t.Run("maps the legacy accent color to a color theme", func(t *testing.T) {
+		tests := map[string]AppConfigValue{
+			"default":            "mono",
+			"oklch(0.6 0.2 240)": "mist",
+			"oklch(0.63 0.2 15)": "custom:oklch(0.63 0.2 15)",
+		}
+		for accent, expected := range tests {
+			data, err := msgpack.Marshal(map[string]string{"AccentColor": accent})
+			require.NoError(t, err)
+
+			var m AppConfigModel
+			err = msgpack.Unmarshal(data, &m)
+			require.NoError(t, err)
+
+			assert.Equal(t, expected, m.ColorTheme)
+		}
+	})
+
+	t.Run("an explicit color theme wins over the legacy accent color", func(t *testing.T) {
+		data, err := msgpack.Marshal(map[string]string{"ColorTheme": "sage", "AccentColor": "default"})
+		require.NoError(t, err)
+
+		var m AppConfigModel
+		err = msgpack.Unmarshal(data, &m)
+		require.NoError(t, err)
+
+		assert.Equal(t, AppConfigValue("sage"), m.ColorTheme)
+	})
 }

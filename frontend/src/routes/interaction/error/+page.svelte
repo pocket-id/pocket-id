@@ -18,7 +18,7 @@
 
 <SignInWrapper>
 	<ClientProviderImages error success={false} />
-	<h1 class="font-gloock mt-5 text-3xl font-bold sm:text-4xl">
+	<h1 class="font-display mt-5 text-3xl font-bold sm:text-4xl">
 		{m.error()}
 	</h1>
 	<p class="text-muted-foreground mt-2 mb-10">

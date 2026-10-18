@@ -122,7 +122,7 @@
 
 <SignInWrapper showAlternativeSignInMethodButton={$userStore == null}>
 	<ClientProviderImages client={interactionSession.client} {success} error={!!errorMessage} />
-	<h1 class="font-gloock mt-5 text-3xl font-bold sm:text-4xl">
+	<h1 class="font-display mt-5 text-3xl font-bold sm:text-4xl">
 		{m.sign_in_to({ name: interactionSession.client.name })}
 	</h1>
 	<p class="text-muted-foreground mt-2 mb-10">

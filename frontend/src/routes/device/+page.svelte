@@ -176,7 +176,7 @@
 			/>
 		{/if}
 	</div>
-	<h1 class="font-gloock mt-5 text-4xl font-bold">
+	<h1 class="font-display mt-5 text-4xl font-bold">
 		{m.authorize_device()}
 	</h1>
 	{#if errorMessage}

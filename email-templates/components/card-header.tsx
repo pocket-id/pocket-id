@@ -15,10 +15,10 @@ export default function CardHeader({ title }: CardHeaderProps) {
 
 const titleStyle = {
 	margin: '0 0 16px 0',
-	fontFamily: fonts.serif,
+	fontFamily: fonts.display,
 	fontSize: '26px',
 	lineHeight: '32px',
-	fontWeight: 400,
+	fontWeight: 600,
 	letterSpacing: '-0.01em',
 	color: colors.foreground
 };

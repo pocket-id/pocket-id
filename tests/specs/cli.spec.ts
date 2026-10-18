@@ -146,7 +146,7 @@ function compareExports(dir1: string, dir2: string): void {
 	expect(files2).toEqual(files1);
 
 	for (const file of files1) {
-		const profilePictures = ['CF.png', 'CR.png'];
+		const profilePictures = ['CF-v3.png', 'CR-v3.png'];
 		if (profilePictures.includes(path.basename(file))) {
 			continue; // Skip profile pictures because they get generated on demand and can differ between exports
 		}

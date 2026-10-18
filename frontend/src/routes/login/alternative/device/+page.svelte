@@ -46,9 +46,12 @@
 		isStarting = true;
 
 		try {
-			request = await deviceLoginService.createRequest(controller.signal);
+			const next = await deviceLoginService.createRequest(controller.signal);
 			// Ignore a response from an attempt replaced while the request was in flight
 			if (requestController !== controller) return;
+			// The old panel stays until the new code arrives, so the card does not collapse in between
+			request = next;
+			ended = undefined;
 			schedulePoll(controller);
 		} catch (error) {
 			if (controller.signal.aborted) return;
@@ -137,7 +140,7 @@
 	<div class="flex justify-center">
 		<LoginLogoErrorSuccessIndicator error={!!errorMessage} />
 	</div>
-	<h1 class="font-gloock mt-5 text-2xl font-bold sm:text-4xl">
+	<h1 class="font-display mt-5 text-2xl font-bold sm:text-4xl">
 		{m.sign_in_with_another_device()}
 	</h1>
 	<p class="text-muted-foreground mt-2">

@@ -11,7 +11,7 @@ export type AppConfig = {
 	ldapEnabled: boolean;
 	disableAnimations: boolean;
 	uiConfigDisabled: boolean;
-	accentColor: string;
+	colorTheme: string;
 	requireUserEmail: boolean;
 	tracingEnabled: boolean;
 	iconLibrary: 'default' | 'custom' | 'disabled';

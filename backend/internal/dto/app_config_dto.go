@@ -23,7 +23,7 @@ type AppConfigUpdateDto struct {
 	AllowUserSignups                           string `json:"allowUserSignups" binding:"required,oneof=disabled withToken open"`
 	SignupDefaultUserGroupIDs                  string `json:"signupDefaultUserGroupIDs" binding:"omitempty,json_string_array"`
 	SignupDefaultCustomClaims                  string `json:"signupDefaultCustomClaims" binding:"omitempty,json_custom_claims"`
-	AccentColor                                string `json:"accentColor"`
+	ColorTheme                                 string `json:"colorTheme"`
 	RequireUserEmail                           string `json:"requireUserEmail" binding:"required,boolean_string"`
 	SmtpHost                                   string `json:"smtpHost"`
 	SmtpPort                                   string `json:"smtpPort"`
