@@ -7,6 +7,12 @@ import { saveUnsavedChanges, unsavedChangesBar } from '../utils/unsaved-changes.
 
 test.beforeEach(async () => await cleanupBackend());
 
+// Untouched advanced settings start tucked away, so tests open the visible disclosure first
+async function openAdvanced(page: Page) {
+	const trigger = page.getByRole('button', { name: /^Advanced/ });
+	if ((await trigger.getAttribute('aria-expanded')) !== 'true') await trigger.click();
+}
+
 // ICON_LIBRARY_URL is fixed when the backend starts, so other states are simulated in the public configuration
 async function stubIconLibrary(page: Page, iconLibrary: 'custom' | 'disabled') {
 	await page.route('**/api/application-configuration', async (route) => {
@@ -25,26 +31,20 @@ test.describe('Create OIDC client', () => {
 	async function createClientTest(page: Page, clientId?: string) {
 		const oidcClient = oidcClients.pingvinShare;
 		await page.goto('/settings/admin/oidc-clients');
-		await page.getByRole('button', { name: 'Add OIDC Client' }).click();
+		await page.getByRole('button', { name: 'Add OIDC client' }).click();
 
-		await page.getByLabel('Name').fill(oidcClient.name);
-
-		await page.getByRole('button', { name: 'Add callback URL' }).click();
-		await page.getByTestId('callback-url-1').fill(oidcClient.callbackUrl);
-
-		await page.getByRole('button', { name: 'Add callback URL' }).click();
-		await page.getByTestId('callback-url-2').fill(oidcClient.secondCallbackUrl);
+		const sheet = page.getByRole('dialog', { name: 'Add OIDC client' });
+		await sheet.getByLabel('Name').fill(oidcClient.name);
+		await sheet.getByLabel('Callback URL').fill(oidcClient.callbackUrl);
 
 		if (clientId) {
-			await page.getByRole('button', { name: 'Set custom client ID' }).click();
-			await page.getByLabel('Client ID').fill(clientId);
+			await sheet.getByRole('button', { name: 'Set a custom client ID' }).click();
+			await sheet.getByLabel('Client ID').fill(clientId);
 		}
 
-		await page.getByRole('button', { name: 'Create', exact: true }).click();
+		await sheet.getByRole('button', { name: 'Create client' }).click();
 
-		await expect(page.locator('[data-type="success"]')).toHaveText(
-			'OIDC client created successfully'
-		);
+		await expect(page.locator('[data-type="success"]')).toHaveText(`${oidcClient.name} created`);
 
 		const resolvedClientId = (await page.getByTestId('client-id').innerText()).trim();
 		const createdSecret = (await page.getByTestId('created-client-secret').innerText()).trim();
@@ -57,8 +57,14 @@ test.describe('Create OIDC client', () => {
 		}
 
 		await expect(page.getByLabel('Name')).toHaveValue(oidcClient.name);
-		await expect(page.getByTestId('callback-url-1')).toHaveValue(oidcClient.callbackUrl);
-		await expect(page.getByTestId('callback-url-2')).toHaveValue(oidcClient.secondCallbackUrl);
+		await expect(page.getByTestId('callback-url-1')).toHaveText(oidcClient.callbackUrl);
+
+		// More callback URLs are added on the details page
+		await page.getByTestId('callback-url-input').fill(oidcClient.secondCallbackUrl);
+		await page.getByTestId('callback-url-input').press('Enter');
+		await saveUnsavedChanges(page);
+		await expect(page.getByTestId('callback-url-1')).toHaveText(oidcClient.secondCallbackUrl);
+		await expect(page.getByTestId('callback-url-2')).toHaveText(oidcClient.callbackUrl);
 
 		// The generated value is available on the creation page and is forgotten after a reload
 		await page.reload();
@@ -85,16 +91,20 @@ test('Edit OIDC client', async ({ page }) => {
 
 	await page.getByLabel('Name').fill('Nextcloud updated');
 	await page.getByLabel('Description').fill('Updated description');
-	await page.getByTestId('callback-url-1').first().fill('http://nextcloud-updated/auth/callback');
+	await page.getByTestId('callback-url-1').getByRole('button').click();
+	await page.getByTestId('callback-url-input').fill('http://nextcloud-updated/auth/callback');
+	await page.getByTestId('callback-url-input').press('Enter');
 	await page.setInputFiles('#oidc-client-logo-light', 'resources/images/cloud-logo.png');
 	await page.setInputFiles('#oidc-client-logo-dark', 'resources/images/cloud-logo.png');
-	await page.getByLabel('Client Launch URL').fill(oidcClient.launchURL);
+	await page.getByLabel('Launch URL').fill(oidcClient.launchURL);
 	await saveUnsavedChanges(page);
 	await expect(page.getByRole('img', { name: 'Nextcloud updated logo' }).first()).toBeVisible();
 	await page.request
 		.get(`/api/oidc/clients/${oidcClient.id}/logo`)
 		.then((res) => expect.soft(res.status()).toBe(200));
 });
+
+const logoField = (page: Page) => page.getByRole('group', { name: 'Logo', exact: true });
 
 test('Upload OIDC client logo from the logo picker', async ({ page }) => {
 	const oidcClient = oidcClients.nextcloud;
@@ -119,9 +129,9 @@ test('Upload OIDC client logo from the logo picker', async ({ page }) => {
 	await uploadLogo('light');
 	await expect(customTileImages.nth(0)).toHaveAttribute('src', /^blob:/);
 
-	// The form only previews the logo of the current theme
+	// The light swatch shows the light upload
 	await page.keyboard.press('Escape');
-	const preview = page.getByRole('img', { name: 'Nextcloud logo' });
+	const preview = logoField(page).getByRole('img', { name: 'Nextcloud logo' });
 	await expect(preview).toHaveCount(1);
 	await expect(preview).toHaveAttribute('src', /^blob:/);
 
@@ -144,15 +154,14 @@ test('A single OIDC client logo shows in both themes', async ({ page }) => {
 	await page.getByRole('button', { name: 'Upload dark logo' }).click();
 	await (await fileChooser).setFiles('resources/images/cloud-logo.png');
 
-	// The light half of the current logo tile and the light preview fall back to the dark logo
+	// The light half of the current logo tile and the light swatch fall back to the dark logo
 	const currentTileImages = page.getByRole('option', { name: 'Current logo' }).locator('img');
 	await expect(currentTileImages.nth(0)).toHaveAttribute('src', /^blob:/);
 	await expect(currentTileImages.nth(1)).toHaveAttribute('src', /^blob:/);
 	await page.keyboard.press('Escape');
-	await expect(page.getByRole('img', { name: `${oidcClient.name} logo` })).toHaveAttribute(
-		'src',
-		/^blob:/
-	);
+	await expect(
+		logoField(page).getByRole('img', { name: `${oidcClient.name} logo` })
+	).toHaveAttribute('src', /^blob:/);
 
 	// After saving, the light logo URL serves the dark logo and the client list shows it
 	await saveUnsavedChanges(page);
@@ -212,7 +221,7 @@ test('Pick OIDC client logo from the icon library', async ({ page }) => {
 
 	await searchInput.fill('nextcloud');
 	await page.getByRole('option', { name: nextcloud.name, exact: true }).click();
-	await expect(page.getByRole('img', { name: 'Nextcloud logo' })).toHaveAttribute(
+	await expect(logoField(page).getByRole('img', { name: 'Nextcloud logo' })).toHaveAttribute(
 		'src',
 		nextcloud.logoUrl
 	);
@@ -377,7 +386,6 @@ test('Displays OIDC client endpoints from discovery configuration', async ({ pag
 		await route.fulfill({ json: oidcConfiguration });
 	});
 	await page.goto(`/settings/admin/oidc-clients/${oidcClients.nextcloud.id}`);
-	await page.getByRole('button', { name: 'Show more details' }).click();
 
 	await expect(page.getByText(oidcConfiguration.token_endpoint, { exact: true })).toBeVisible();
 	await expect(page.getByText(oidcConfiguration.userinfo_endpoint, { exact: true })).toBeVisible();
@@ -386,12 +394,12 @@ test('Displays OIDC client endpoints from discovery configuration', async ({ pag
 
 test('Update OIDC client token lifetimes', async ({ page }) => {
 	await page.goto(`/settings/admin/oidc-clients/${oidcClients.nextcloud.id}`);
+	await openAdvanced(page);
 
-	const card = page.getByTestId('token-lifetimes-card');
-	const accessLifetime = card.getByLabel('Access token lifetime', { exact: true });
-	const accessUnit = card.getByLabel('Access token lifetime unit');
-	const refreshLifetime = card.getByLabel('Refresh token inactivity timeout', { exact: true });
-	const refreshUnit = card.getByLabel('Refresh token inactivity timeout unit');
+	const accessLifetime = page.getByLabel('Access token lifetime', { exact: true });
+	const accessUnit = page.getByLabel('Access token lifetime unit');
+	const refreshLifetime = page.getByLabel('Refresh token inactivity timeout', { exact: true });
+	const refreshUnit = page.getByLabel('Refresh token inactivity timeout unit');
 
 	await expect(accessLifetime).toHaveValue('1');
 	await expect(accessUnit).toHaveText('Hours');
@@ -410,28 +418,32 @@ test('Update OIDC client token lifetimes', async ({ page }) => {
 
 	await saveUnsavedChanges(page);
 
+	// Changed lifetimes keep Advanced open after the reload
 	await page.reload();
-	await expect(card.getByLabel('Access token lifetime', { exact: true })).toHaveValue('90');
-	await expect(card.getByLabel('Access token lifetime unit')).toHaveText('Minutes');
-	await expect(card.getByLabel('Refresh token inactivity timeout', { exact: true })).toHaveValue(
-		'14'
-	);
-	await expect(card.getByLabel('Refresh token inactivity timeout unit')).toHaveText('Days');
+	await expect(accessLifetime).toHaveValue('90');
+	await expect(accessUnit).toHaveText('Minutes');
+	await expect(refreshLifetime).toHaveValue('14');
+	await expect(refreshUnit).toHaveText('Days');
 
-	await card.getByLabel('Access token lifetime', { exact: true }).fill('0');
+	await accessLifetime.fill('0');
 	await page.getByRole('button', { name: 'Save', exact: true }).click();
-	await expect(card.getByText('Token lifetime must be at least 1 minute.')).toBeVisible();
+	await expect(page.getByText('Token lifetime must be at least 1 minute.')).toBeVisible();
 
-	await card.getByLabel('Access token lifetime', { exact: true }).fill('525601');
+	await accessLifetime.fill('525601');
 	await page.getByRole('button', { name: 'Save', exact: true }).click();
-	await expect(card.getByText('Token lifetime cannot exceed 365 days.')).toBeVisible();
+	await expect(page.getByText('Token lifetime cannot exceed 365 days.')).toBeVisible();
 
-	await card.getByLabel('Access token lifetime', { exact: true }).fill('1.5');
+	await accessLifetime.fill('1.5');
 	await page.getByRole('button', { name: 'Save', exact: true }).click();
-	await expect(card.getByText('Token lifetime must use whole-minute increments.')).toBeVisible();
+	await expect(page.getByText('Token lifetime must use whole-minute increments.')).toBeVisible();
 
-	await card.getByLabel('Access token lifetime', { exact: true }).fill('60');
-	await card.getByLabel('Refresh token inactivity timeout', { exact: true }).fill('30');
+	// Resetting to the defaults is the same as typing them
+	await page.getByRole('button', { name: 'Reset Access token lifetime to default' }).click();
+	await page
+		.getByRole('button', { name: 'Reset Refresh token inactivity timeout to default' })
+		.click();
+	await expect(accessLifetime).toHaveValue('1');
+	await expect(refreshLifetime).toHaveValue('30');
 	await saveUnsavedChanges(page);
 });
 
@@ -439,10 +451,9 @@ test('Save OIDC client details and token lifetimes together', async ({ page }) =
 	const client = oidcClients.nextcloud;
 	await page.goto(`/settings/admin/oidc-clients/${client.id}`);
 
+	await openAdvanced(page);
 	const name = page.getByLabel('Name');
-	const accessLifetime = page
-		.getByTestId('token-lifetimes-card')
-		.getByLabel('Access token lifetime', { exact: true });
+	const accessLifetime = page.getByLabel('Access token lifetime', { exact: true });
 	await name.fill('Nextcloud with custom lifetime');
 	await accessLifetime.fill('2');
 	await page.getByRole('button', { name: 'Discard', exact: true }).click();
@@ -462,9 +473,10 @@ test('Save OIDC client details and token lifetimes together', async ({ page }) =
 test('Update OIDC client federated credentials', async ({ page }) => {
 	const client = oidcClients.nextcloud;
 	await page.goto(`/settings/admin/oidc-clients/${client.id}#credentials`);
+	await openAdvanced(page);
 
-	const card = page.getByTestId('federated-credentials-card');
-	await card.getByRole('button', { name: 'Create', exact: true }).click();
+	const card = page.getByTestId('federated-credentials');
+	await page.getByRole('button', { name: 'Add credential' }).first().click();
 	await card.getByLabel('Issuer').fill('https://issuer.example.com');
 	await card.getByLabel('Subject').fill('workload-client');
 	await card.getByLabel('Audience').fill('https://pocket-id.example.com');
@@ -483,7 +495,7 @@ test('Update OIDC client federated credentials', async ({ page }) => {
 	await expect(card.getByLabel('Audience')).toHaveValue('https://pocket-id.example.com');
 
 	await card.getByRole('radio', { name: 'Public keys' }).click();
-	await card.getByRole('button', { name: 'Add another federated client credential' }).click();
+	await page.getByRole('button', { name: 'Add credential' }).click();
 	await expect(card.getByLabel('Issuer')).toHaveCount(2);
 	await page.getByRole('button', { name: 'Discard', exact: true }).click();
 	await expect(card.getByLabel('Issuer')).toHaveCount(1);
@@ -520,9 +532,10 @@ test('Update OIDC client federated credentials with public keys', async ({ page 
 	const third = await generatePublicJwk('agent-key-3');
 
 	await page.goto(`/settings/admin/oidc-clients/${client.id}#credentials`);
+	await openAdvanced(page);
 
-	const card = page.getByTestId('federated-credentials-card');
-	await card.getByRole('button', { name: 'Create', exact: true }).click();
+	const card = page.getByTestId('federated-credentials');
+	await page.getByRole('button', { name: 'Add credential' }).first().click();
 	await card.getByLabel('Issuer').fill(issuer);
 	await card.getByLabel('Audience').fill(audience);
 	await card.getByRole('radio', { name: 'Public keys' }).click();
@@ -622,18 +635,16 @@ test('Create and delete OIDC client secrets', async ({ page }) => {
 	const oidcClient = oidcClients.nextcloud;
 	await page.goto(`/settings/admin/oidc-clients/${oidcClient.id}#credentials`);
 
-	const card = page.getByTestId('client-secrets-card');
 	// The seeded client already has the secret the other tests authenticate with
-	await expect(card.getByTestId('client-secret-row')).toHaveCount(1);
+	await expect(page.getByTestId('client-secret-row')).toHaveCount(1);
 
-	await card.getByRole('button', { name: 'Add client secret' }).click();
-	await expect(page.locator('[data-type="success"]')).toHaveText(
-		'New client secret created successfully'
-	);
+	await page.getByRole('button', { name: 'Generate secret…' }).click();
+	await page.getByRole('dialog').getByRole('button', { name: 'Generate secret' }).click();
+	await expect(page.locator('[data-type="success"]')).toHaveText('New client secret generated');
 
 	// The new secret is the only one whose value is shown in full, and only until the page is left
-	await expect(card.getByTestId('client-secret-row')).toHaveCount(2);
-	const createdSecret = (await card.getByTestId('client-secret').nth(1).innerText()).trim();
+	await expect(page.getByTestId('client-secret-row')).toHaveCount(2);
+	const createdSecret = (await page.getByTestId('new-client-secret').innerText()).trim();
 	expect(createdSecret).toMatch(/^\w{32}$/);
 
 	// Both secrets authenticate the client, so it can be rotated without downtime
@@ -648,21 +659,16 @@ test('Create and delete OIDC client secrets', async ({ page }) => {
 
 	// After a reload only the stored prefix is left
 	await page.reload();
-	await expect(card.getByTestId('client-secret').nth(1)).toHaveText(
-		`${createdSecret.substring(0, 4)}••••••••`
+	const prefix = createdSecret.substring(0, 4);
+	await expect(page.getByTestId('new-client-secret')).toHaveCount(0);
+	await expect(page.getByTestId('client-secret').filter({ hasText: prefix })).toHaveText(
+		`${prefix}••••••••`
 	);
 
-	await card
-		.getByTestId('client-secret-row')
-		.nth(1)
-		.getByRole('button', { name: 'Toggle menu' })
-		.click();
-	await page.getByRole('menuitem', { name: 'Delete' }).click();
-	await page.getByRole('button', { name: 'Delete' }).click();
-	await expect(page.locator('[data-type="success"]')).toHaveText(
-		'Client secret deleted successfully'
-	);
-	await expect(card.getByTestId('client-secret-row')).toHaveCount(1);
+	await page.getByRole('button', { name: `Delete secret ${prefix}…` }).click();
+	await page.getByRole('alertdialog').getByRole('button', { name: 'Delete secret' }).click();
+	await expect(page.locator('[data-type="success"]')).toHaveText('Client secret deleted');
+	await expect(page.getByTestId('client-secret-row')).toHaveCount(1);
 
 	// The deleted secret can no longer authenticate the client
 	const res = await oidcUtil.exchangeCode(page, {
@@ -677,14 +683,13 @@ test('Client secrets can be created with an expiration', async ({ page }) => {
 	const oidcClient = oidcClients.nextcloud;
 	await page.goto(`/settings/admin/oidc-clients/${oidcClient.id}#credentials`);
 
-	const card = page.getByTestId('client-secrets-card');
-	await card.getByRole('combobox', { name: 'Expiration' }).click();
+	await page.getByRole('button', { name: 'Generate secret…' }).click();
+	const dialog = page.getByRole('dialog');
+	await dialog.getByLabel('Expires after').click();
 	await page.getByRole('option', { name: '90 days' }).click();
-	await card.getByRole('button', { name: 'Add client secret' }).click();
+	await dialog.getByRole('button', { name: 'Generate secret' }).click();
 
-	await expect(page.locator('[data-type="success"]')).toHaveText(
-		'New client secret created successfully'
-	);
+	await expect(page.locator('[data-type="success"]')).toHaveText('New client secret generated');
 
 	const secrets = await page.request
 		.get(`/api/oidc/clients/${oidcClient.id}/secrets`)
@@ -706,13 +711,14 @@ test('Delete OIDC client', async ({ page }) => {
 		.getByRole('button', { name: /^Actions for / })
 		.click();
 
-	await page.getByRole('menuitem', { name: 'Delete' }).click();
+	await page.getByRole('menuitem', { name: 'Delete…' }).click();
 
-	await page.getByRole('button', { name: 'Delete' }).click();
+	await page
+		.getByRole('alertdialog')
+		.getByRole('button', { name: `Delete ${oidcClient.name}` })
+		.click();
 
-	await expect(page.locator('[data-type="success"]')).toHaveText(
-		'OIDC client deleted successfully'
-	);
+	await expect(page.locator('[data-type="success"]')).toHaveText(`${oidcClient.name} deleted`);
 	await expect(page.getByRole('row', { name: oidcClient.name })).not.toBeVisible();
 });
 
@@ -720,13 +726,14 @@ test('Delete OIDC client from the details page', async ({ page }) => {
 	const oidcClient = oidcClients.nextcloud;
 	await page.goto(`/settings/admin/oidc-clients/${oidcClient.id}`);
 
-	await page.getByRole('button', { name: 'Actions' }).click();
-	await page.getByRole('menuitem', { name: 'Delete' }).click();
-	await page.getByRole('button', { name: 'Delete' }).click();
+	await page.getByRole('button', { name: 'More actions' }).click();
+	await page.getByRole('menuitem', { name: 'Delete client…' }).click();
+	await page
+		.getByRole('alertdialog')
+		.getByRole('button', { name: `Delete ${oidcClient.name}` })
+		.click();
 
-	await expect(page.locator('[data-type="success"]')).toHaveText(
-		'OIDC client deleted successfully'
-	);
+	await expect(page.locator('[data-type="success"]')).toHaveText(`${oidcClient.name} deleted`);
 	await page.waitForURL((url) => url.pathname === '/settings/admin/oidc-clients');
 	await expect(page.getByRole('row', { name: oidcClient.name })).not.toBeVisible();
 });
@@ -752,7 +759,7 @@ test('Filter OIDC clients by PAR requirement', async ({ page, request }) => {
 
 	await page.goto('/settings/admin/oidc-clients');
 
-	// Open PAR filter and select "Yes"
+	// Open PAR filter and select "On"
 	await page.getByTestId('facet-par-trigger').click();
 	await page.getByTestId('facet-par-option-true').click();
 
@@ -760,7 +767,7 @@ test('Filter OIDC clients by PAR requirement', async ({ page, request }) => {
 	await expect(page.getByRole('row', { name: parClient.name })).toBeVisible();
 	await expect(page.getByRole('row', { name: oidcClients.nextcloud.name })).not.toBeVisible();
 
-	// Reset the filter to "Any", then select "No" to invert it
+	// Reset the filter to "Any", then select "Off" to invert it
 	await page.getByTestId('facet-par-trigger').click();
 	await page.getByTestId('facet-par-option-any').click();
 	await expect(page.getByRole('row', { name: oidcClients.nextcloud.name })).toBeVisible();
@@ -776,7 +783,7 @@ test('Update OIDC client allowed user groups', async ({ page }) => {
 	await page.goto(`/settings/admin/oidc-clients/${oidcClients.nextcloud.id}`);
 	await page.getByRole('tab', { name: 'Access', exact: true }).click();
 
-	await page.getByRole('radio', { name: 'Selected user groups' }).click();
+	await page.getByRole('radio', { name: 'Selected groups' }).click();
 
 	await page.getByRole('row', { name: userGroups.designers.name }).getByRole('checkbox').click();
 	await page.getByRole('row', { name: userGroups.developers.name }).getByRole('checkbox').click();

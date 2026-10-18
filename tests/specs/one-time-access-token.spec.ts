@@ -14,14 +14,14 @@ test('Sign in with login code', async ({ page }) => {
 	await page.goto(`/lc/${token.token}`);
 
 	await page.waitForURL('/settings/account');
-	await expect(page.getByRole('heading', { name: 'Set up your passkey' })).not.toBeVisible();
+	await expect(page.getByRole('heading', { name: 'Add a passkey' })).not.toBeVisible();
 });
 
 test('Sign in with login code without a passkey shows passkey setup', async ({ page }) => {
 	// Remove the existing passkey so the login code is the user's only way to sign in
 	await page.goto('/login');
 	await (await passkeyUtil.init(page)).addPasskey();
-	await page.getByRole('button', { name: 'Authenticate' }).click();
+	await page.getByRole('button', { name: 'Sign in with passkey' }).click();
 	await page.waitForURL('/settings/account');
 	await page
 		.getByRole('button', { name: /^Actions for / })
@@ -36,29 +36,27 @@ test('Sign in with login code without a passkey shows passkey setup', async ({ p
 	const token = oneTimeAccessTokens.find((t) => !t.expired)!;
 	await page.goto(`/lc/${token.token}`);
 	await page.waitForURL('/signup/add-passkey');
-	await expect(page.getByRole('heading', { name: 'Set up your passkey' })).toBeVisible();
+	await expect(page.getByRole('heading', { name: 'Add a passkey' })).toBeVisible();
 
 	// Opening another settings page must still require passkey setup
 	await page.goto('/settings/apps');
 	await expect(page).toHaveURL('/signup/add-passkey');
-	await expect(page.getByRole('heading', { name: 'Set up your passkey' })).toBeVisible();
+	await expect(page.getByRole('heading', { name: 'Add a passkey' })).toBeVisible();
 });
 
 test('Sign in with expired login code fails', async ({ page }) => {
 	const token = oneTimeAccessTokens.filter((t) => t.expired)[0];
 	await page.goto(`/lc/${token.token}`);
 
-	await expect(page.getByRole('paragraph')).toHaveText(
-		'Token is invalid or expired. Please try again.'
-	);
+	await expect(page.getByText('That code didn’t work. Check it and try again.')).toBeVisible();
 });
 
 test('Sign in with login code entered manually', async ({ page }) => {
 	const token = oneTimeAccessTokens.find((t) => !t.expired)!;
 	await page.goto('/lc');
 
-	await page.getByPlaceholder('Code').fill(token.token);
-	await page.getByText('Submit').click();
+	await page.getByLabel('Login code').fill(token.token);
+	await page.getByRole('button', { name: 'Sign in', exact: true }).click();
 
 	await page.waitForURL('/settings/account');
 });
@@ -67,12 +65,10 @@ test('Sign in with login code entered manually fails', async ({ page }) => {
 	const token = oneTimeAccessTokens.find((t) => t.expired)!;
 	await page.goto('/lc');
 
-	await page.getByPlaceholder('Code').fill(token.token);
-	await page.getByText('Submit').click();
+	await page.getByLabel('Login code').fill(token.token);
+	await page.getByRole('button', { name: 'Sign in', exact: true }).click();
 
-	await expect(page.getByRole('paragraph')).toHaveText(
-		'Token is invalid or expired. Please try again.'
-	);
+	await expect(page.getByText('That code didn’t work. Check it and try again.')).toBeVisible();
 });
 
 test('Sign in with login code entered manually when email login is enabled', async ({
@@ -84,9 +80,9 @@ test('Sign in with login code entered manually when email login is enabled', asy
 	const token = oneTimeAccessTokens.find((t) => !t.expired)!;
 	await page.goto('/lc');
 
-	await page.getByText('I have a longer code').click();
-	await page.getByPlaceholder('Code').fill(token.token);
-	await page.getByText('Submit').click();
+	await page.getByText('I have a 12-character code').click();
+	await page.getByLabel('Login code').fill(token.token);
+	await page.getByRole('button', { name: 'Sign in', exact: true }).click();
 
 	await page.waitForURL('/settings/account');
 });

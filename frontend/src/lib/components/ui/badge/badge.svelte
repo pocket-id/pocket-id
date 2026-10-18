@@ -11,7 +11,6 @@
 		variants: {
 			variant: {
 				default: `${tag} bg-fill-muted text-fg`,
-				secondary: `${tag} border-transparent bg-fill-muted text-fg`,
 				outline: `${tag} bg-transparent text-fg`,
 				mono: `${tag} h-5 font-mono text-mono-s`,
 				success: `${status} before:bg-success-solid`,

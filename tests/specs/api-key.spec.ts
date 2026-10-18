@@ -10,7 +10,7 @@ test.describe('API Key Management', () => {
 	});
 
 	test('Create new API key', async ({ page }) => {
-		await page.getByRole('button', { name: 'Add API Key' }).click();
+		await page.getByRole('button', { name: 'Create API key' }).click();
 
 		// Fill out the API key form
 		const name = 'New Test API Key';
@@ -26,29 +26,20 @@ test.describe('API Key Management', () => {
 			})
 		);
 
-		// Submit the form
-		await page.getByRole('button', { name: 'Save' }).click();
+		await page.getByRole('dialog').getByRole('button', { name: 'Create API key' }).click();
 
-		// Verify the success dialog appears
-		await expect(page.getByRole('heading', { name: 'API Key Created' })).toBeVisible();
+		// The sheet turns into the one-time reveal of the new key
+		const sheet = page.getByRole('dialog', { name: 'API key created' });
+		await expect(sheet).toBeVisible();
+		await expect(sheet.getByText(name)).toBeVisible();
+		const token = await sheet.getByRole('textbox', { name: 'API key' }).textContent();
+		expect(token?.trim().length).toBe(32);
 
-		// Verify the key details are shown
-		await expect(page.getByRole('cell', { name })).toBeVisible();
-
-		// Verify the token is displayed (should be 32 characters)
-		const token = await page.locator('.font-mono').textContent();
-		expect(token?.length).toBe(32);
-
-		// Close the dialog
-		await page.getByRole('button', { name: 'Close', exact: true }).nth(1).click();
+		await sheet.getByRole('button', { name: 'Done' }).click();
 
 		await page.reload();
 
-		// Verify the key appears in the list
-		await expect(page.getByRole('cell', { name }).first()).toContainText(name);
-		await expect(
-			page.getByRole('row', { name }).getByRole('cell', { name: expectedDate.toLocaleString() })
-		).toBeVisible();
+		await expect(page.getByRole('row', { name })).toContainText('Expires in 30 days');
 	});
 
 	test('Renew API key', async ({ page }) => {
@@ -56,7 +47,7 @@ test.describe('API Key Management', () => {
 
 		await page
 			.getByRole('row', { name: apiKey.name })
-			.getByRole('button', { name: 'Toggle menu' })
+			.getByRole('button', { name: /^Actions for / })
 			.click();
 
 		await page.getByRole('menuitem', { name: 'Renew' }).click();
@@ -71,15 +62,12 @@ test.describe('API Key Management', () => {
 			})
 		);
 
-		await page.getByRole('button', { name: 'Renew' }).click();
+		await page.getByRole('button', { name: 'Renew key' }).click();
 
 		await expect(page.getByRole('heading', { name: 'API key renewed' })).toBeVisible();
+		await page.getByRole('button', { name: 'Done' }).click();
 
-		// Verify the new expiration date is shown
-		const row = page.getByRole('row', { name: apiKey.name });
-		await expect(
-			row.getByRole('cell', { name: new RegExp(escapeRegExp(expectedDate.toLocaleDateString())) })
-		).toBeVisible();
+		await expect(page.getByRole('row', { name: apiKey.name })).toContainText('Expires in 30 days');
 	});
 
 	test('Revoke API key', async ({ page }) => {
@@ -87,18 +75,17 @@ test.describe('API Key Management', () => {
 
 		await page
 			.getByRole('row', { name: apiKey.name })
-			.getByRole('button', { name: 'Toggle menu' })
+			.getByRole('button', { name: /^Actions for / })
 			.click();
 
 		await page.getByRole('menuitem', { name: 'Revoke' }).click();
 
-		await page.getByRole('button', { name: 'Revoke' }).click();
+		await page.getByRole('alertdialog').getByRole('button', { name: 'Revoke' }).click();
 
-		// Verify success message
-		await expect(page.locator('[data-type="success"]')).toHaveText('API key revoked successfully');
+		await expect(page.locator('[data-type="success"]')).toHaveText(`${apiKey.name} revoked`);
 
 		// Verify key is no longer in the list
-		await expect(page.getByRole('cell', { name: apiKey.name })).not.toBeVisible();
+		await expect(page.getByRole('row', { name: apiKey.name })).not.toBeVisible();
 	});
 });
 
@@ -137,8 +124,4 @@ function getCalendarDayName(date: Date) {
 		day: 'numeric',
 		year: 'numeric'
 	}).format(date);
-}
-
-function escapeRegExp(value: string) {
-	return value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 }

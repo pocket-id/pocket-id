@@ -13,14 +13,12 @@
 		onPageChange,
 		onPageSizeChange,
 		pageSizes = [20, 50, 100],
-		hideWhenSinglePage = false,
 		class: className
 	}: {
 		pagination?: PaginationResponse;
 		onPageChange: (page: number) => void;
 		onPageSizeChange: (size: number) => void;
 		pageSizes?: number[];
-		hideWhenSinglePage?: boolean;
 		class?: string;
 	} = $props();
 
@@ -31,11 +29,10 @@
 	const from = $derived(totalItems ? (currentPage - 1) * perPage + 1 : 0);
 	const to = $derived(Math.min(totalItems, currentPage * perPage));
 
-	// The page size only matters when the items do not all fit on a page of the smallest size
 	const fitsSmallestPage = $derived(totalItems <= Math.min(...pageSizes));
 </script>
 
-{#if pagination && !(hideWhenSinglePage && fitsSmallestPage)}
+{#if pagination && !fitsSmallestPage}
 	<nav
 		aria-label={m.pagination()}
 		class={cn('text-control flex min-h-(--row) items-center gap-3 pt-2', className)}
@@ -44,25 +41,23 @@
 			<span role="status" class="[&_b]:text-fg pr-1 tabular-nums [&_b]:font-medium">
 				<FormattedMessage message={m.pagination_range} inputs={{ from, to, total: totalItems }} />
 			</span>
-			{#if !fitsSmallestPage}
-				<span class="flex items-center gap-1 max-sm:hidden">
-					<span aria-hidden="true">·</span>
-					<Select.Root
-						type="single"
-						value={String(perPage)}
-						onValueChange={(v) => onPageSizeChange(Number(v))}
-					>
-						<Select.Trigger variant="ghost" class="text-fg-muted" aria-label={m.page_size()}>
-							{m.per_page({ count: perPage })}
-						</Select.Trigger>
-						<Select.Content>
-							{#each pageSizes as size (size)}
-								<Select.Item value={String(size)} label={m.per_page({ count: size })} />
-							{/each}
-						</Select.Content>
-					</Select.Root>
-				</span>
-			{/if}
+			<span class="flex items-center gap-1 max-sm:hidden">
+				<span aria-hidden="true">·</span>
+				<Select.Root
+					type="single"
+					value={String(perPage)}
+					onValueChange={(v) => onPageSizeChange(Number(v))}
+				>
+					<Select.Trigger variant="ghost" class="text-fg-muted" aria-label={m.page_size()}>
+						{m.per_page({ count: perPage })}
+					</Select.Trigger>
+					<Select.Content>
+						{#each pageSizes as size (size)}
+							<Select.Item value={String(size)} label={m.per_page({ count: size })} />
+						{/each}
+					</Select.Content>
+				</Select.Root>
+			</span>
 		</span>
 		{#if totalPages > 1}
 			<span class="ml-auto flex gap-2">

@@ -93,7 +93,7 @@ test('Update account details fails with already taken username in different casi
 test('Change Locale', async ({ page }) => {
 	await page.goto('/settings/account');
 
-	await page.getByLabel('Select Locale').click();
+	await page.getByLabel('Language').click();
 	await page.getByRole('option', { name: 'Nederlands' }).click();
 
 	// Check if th language heading now says 'Taal' instead of 'Language'
@@ -163,10 +163,10 @@ test('Email verification succeeds', async ({ page, context }) => {
 	await page.goto(`/verify-email?token=${token}`);
 	await (await passkeyUtil.init(page)).addPasskey('craig');
 
-	await page.getByRole('button', { name: 'Authenticate' }).click();
+	await page.getByRole('button', { name: 'Sign in with passkey' }).click();
 	await page.waitForURL('/settings/account?emailVerificationState=success');
 
-	await expect(page.getByText('Email Verified Successfully')).toBeVisible();
+	await expect(page.getByText(`${users.craig.email} is verified`)).toBeVisible();
 });
 
 test('Email verification fails with expired token', async ({ page, context }) => {
@@ -176,7 +176,7 @@ test('Email verification fails with expired token', async ({ page, context }) =>
 	await page.goto(`/verify-email?token=${token}`);
 	await (await passkeyUtil.init(page)).addPasskey('craig');
 
-	await page.getByRole('button', { name: 'Authenticate' }).click();
+	await page.getByRole('button', { name: 'Sign in with passkey' }).click();
 	await page.waitForURL(
 		'/settings/account?emailVerificationState=Email+verification+token+is+invalid'
 	);

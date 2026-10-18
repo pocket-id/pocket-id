@@ -1,157 +1,154 @@
 <script lang="ts">
 	import FormInput from '#lib/components/form/form-input.svelte';
-	import SwitchWithLabel from '#lib/components/form/switch-with-label.svelte';
-	import { Button } from '#lib/components/ui/button/index.ts';
-	import { Input } from '#lib/components/ui/input/index.ts';
-	import { Toggle } from '#lib/components/ui/toggle/index.ts';
-	import * as Tooltip from '#lib/components/ui/tooltip/index.js';
+	import ProfilePictureSettings from '#lib/components/form/profile-picture-settings.svelte';
+	import SettingRow from '#lib/components/setting-row.svelte';
+	import SettingsSection from '#lib/components/settings-section.svelte';
+	import { Checkbox } from '#lib/components/ui/checkbox/index.ts';
+	import { Switch } from '#lib/components/ui/switch/index.ts';
 	import { m } from '#lib/paraglide/messages.js';
+	import UserService from '#lib/services/user-service.ts';
 	import appConfigStore from '#lib/stores/application-configuration-store.ts';
-	import type { User, UserCreate } from '#lib/types/user.type.ts';
+	import type { User } from '#lib/types/user.type.ts';
 	import { axiosErrorToast } from '#lib/utils/error-util.ts';
-	import { preventDefault } from '#lib/utils/event-util.ts';
 	import { createForm } from '#lib/utils/form-util.ts';
 	import { trackFormChanges } from '#lib/utils/unsaved-changes-util.svelte.ts';
 	import { emptyToUndefined, usernameSchema } from '#lib/utils/zod-util.ts';
-	import { LucideMailCheck, LucideMailWarning } from '@lucide/svelte';
+	import { LucideLock, LucideShieldCheck } from '@lucide/svelte';
+	import { toast } from 'svelte-sonner';
 	import { get } from 'svelte/store';
 	import { z } from 'zod/v4';
 
-	let {
-		callback,
-		existingUser,
-		emailsVerifiedPerDefault = false
-	}: {
-		existingUser?: User;
-		emailsVerifiedPerDefault?: boolean;
-		callback: (user: UserCreate) => Promise<void>;
-	} = $props();
+	let { user = $bindable(), readOnly }: { user: User; readOnly: boolean } = $props();
 
-	let isLoading = $state(false);
-	let inputDisabled = $derived(!!existingUser?.ldapId && $appConfigStore.ldapEnabled);
-	let hasManualDisplayNameEdit = $state(!!existingUser?.displayName);
-
-	const user = {
-		firstName: existingUser?.firstName || '',
-		lastName: existingUser?.lastName || '',
-		displayName: existingUser?.displayName || '',
-		email: existingUser?.email || '',
-		emailVerified: existingUser?.emailVerified ?? emailsVerifiedPerDefault,
-		username: existingUser?.username || '',
-		isAdmin: existingUser?.isAdmin || false,
-		disabled: existingUser?.disabled || false
-	};
+	const userService = new UserService();
+	let displayNameEdited =
+		!!user.displayName &&
+		user.displayName !== [user.firstName, user.lastName].filter(Boolean).join(' ');
 
 	const formSchema = z.object({
 		firstName: z.string().max(50),
-		lastName: emptyToUndefined(z.string().max(50).optional()),
+		lastName: emptyToUndefined(z.string().max(50)),
 		displayName: z.string().max(100),
 		username: usernameSchema,
-		email: get(appConfigStore).requireUserEmail
-			? z.email()
-			: emptyToUndefined(z.email().optional()),
+		email: get(appConfigStore).requireUserEmail ? z.email() : emptyToUndefined(z.email()),
 		emailVerified: z.boolean(),
-		isAdmin: z.boolean(),
-		disabled: z.boolean()
+		isAdmin: z.boolean()
 	});
-	type FormSchema = typeof formSchema;
 
-	const formStore = createForm<FormSchema>(formSchema, user);
+	const formStore = createForm(formSchema, {
+		firstName: user.firstName,
+		lastName: user.lastName ?? '',
+		displayName: user.displayName,
+		username: user.username,
+		email: user.email ?? '',
+		emailVerified: user.emailVerified,
+		isAdmin: user.isAdmin
+	});
 	const { inputs } = formStore;
 
-	async function saveUser(data: z.infer<FormSchema>) {
-		await callback(data);
-		// Reset form if user was successfully created
-		if (!existingUser) formStore.reset();
-	}
-
-	// Create mode has its own Save button rather than going through the unsaved-changes bar.
-	async function onSubmit() {
-		const data = formStore.validate();
-		if (!data) return;
-		isLoading = true;
-		try {
-			await saveUser(data);
-		} catch (e) {
-			axiosErrorToast(e);
-		} finally {
-			isLoading = false;
-		}
-	}
 	function onNameInput() {
-		if (!hasManualDisplayNameEdit) {
-			$inputs.displayName.value = `${$inputs.firstName.value}${
-				$inputs.lastName?.value ? ' ' + $inputs.lastName.value : ''
-			}`.trim();
-		}
+		if (displayNameEdited) return;
+		$inputs.displayName.value = [$inputs.firstName.value, $inputs.lastName?.value]
+			.filter(Boolean)
+			.join(' ')
+			.trim();
 	}
 
-	if (existingUser) {
-		trackFormChanges(() => formStore, saveUser);
+	trackFormChanges(
+		() => formStore,
+		async (data) => {
+			// Disabling is an action of its own, so the saved state is sent along unchanged
+			const saved = await userService.update(user.id, { ...data, disabled: user.disabled });
+			// Groups and claims are edited elsewhere on the page and may hold unsaved edits, so only the profile is taken over
+			Object.assign(user, {
+				...saved,
+				userGroups: user.userGroups,
+				customClaims: user.customClaims
+			});
+		}
+	);
+
+	async function updateProfilePicture(image: File) {
+		await userService
+			.updateProfilePicture(user.id, image)
+			.then(() => toast.success(m.profile_picture_updated_successfully()))
+			.catch(axiosErrorToast);
+	}
+
+	async function resetProfilePicture() {
+		await userService
+			.resetProfilePicture(user.id)
+			.then(() => toast.success(m.profile_picture_has_been_reset()))
+			.catch(axiosErrorToast);
 	}
 </script>
 
-<form onsubmit={preventDefault(onSubmit)}>
-	<fieldset disabled={inputDisabled}>
-		<div class="grid grid-cols-1 items-start gap-5 md:grid-cols-2">
-			<FormInput label={m.username()} bind:input={$inputs.username} />
-			<FormInput label={m.email()} bind:input={$inputs.email} labelFor="email">
-				<div class="flex items-end">
-					<Input
-						id="email"
-						class="rounded-r-none border-r-0"
-						aria-invalid={!!$inputs.email.error}
-						bind:value={$inputs.email.value}
-					/>
-					<Tooltip.Provider>
-						{@const label = $inputs.emailVerified.value
-							? m.mark_as_unverified()
-							: m.mark_as_verified()}
-						<Tooltip.Root>
-							<Tooltip.Trigger>
-								<Toggle
-									bind:pressed={$inputs.emailVerified.value}
-									aria-label={label}
-									class="border-input hover:data-[state=on]:bg-accent flex h-9 items-center rounded-l-none border bg-yellow-100 px-2 py-1 shadow-xs data-[state=on]:bg-green-100 dark:bg-yellow-950 dark:data-[state=on]:bg-green-950"
-								>
-									{#if $inputs.emailVerified.value}
-										<LucideMailCheck class="size-5 text-green-500 dark:text-green-600" />
-									{:else}
-										<LucideMailWarning class="size-5 text-yellow-500 dark:text-yellow-600" />
-									{/if}
-								</Toggle>
-							</Tooltip.Trigger>
-							<Tooltip.Content>{label}</Tooltip.Content>
-						</Tooltip.Root>
-					</Tooltip.Provider>
-				</div>
-			</FormInput>
-			<FormInput label={m.first_name()} oninput={onNameInput} bind:input={$inputs.firstName} />
-			<FormInput label={m.last_name()} oninput={onNameInput} bind:input={$inputs.lastName} />
+<SettingsSection title={m.profile()}>
+	<div class="flex flex-col gap-6 pt-4">
+		<ProfilePictureSettings
+			userId={user.id}
+			isLdapUser={!!user.ldapId}
+			updateCallback={updateProfilePicture}
+			resetCallback={resetProfilePicture}
+		/>
+		{#if readOnly}
+			<p class="text-caption text-fg-muted flex items-start gap-1.5">
+				<LucideLock class="mt-1 size-3 shrink-0" />
+				{m.profile_managed_by_ldap()}
+			</p>
+		{/if}
+		<div class="grid gap-4 sm:grid-cols-2">
+			<FormInput
+				label={m.first_name()}
+				optional
+				bind:input={$inputs.firstName}
+				onInput={onNameInput}
+				readonly={readOnly}
+			/>
+			<FormInput
+				label={m.last_name()}
+				optional
+				bind:input={$inputs.lastName}
+				onInput={onNameInput}
+				readonly={readOnly}
+			/>
 			<FormInput
 				label={m.display_name()}
-				oninput={() => (hasManualDisplayNameEdit = true)}
+				optional
+				description={readOnly ? undefined : m.display_name_follows_names()}
 				bind:input={$inputs.displayName}
+				onInput={() => (displayNameEdited = true)}
+				readonly={readOnly}
 			/>
-		</div>
-		<div class="mt-5 grid grid-cols-1 items-start gap-5 md:grid-cols-2">
-			<SwitchWithLabel
-				id="admin-privileges"
-				label={m.admin_privileges()}
-				description={m.admins_have_full_access_to_the_admin_panel()}
-				bind:checked={$inputs.isAdmin.value}
-			/>
-			<SwitchWithLabel
-				id="user-disabled"
-				label={m.user_disabled()}
-				description={m.disabled_users_cannot_log_in_or_use_services()}
-				bind:checked={$inputs.disabled.value}
-			/>
-		</div>
-		{#if !existingUser}
-			<div class="mt-5 flex justify-end">
-				<Button {isLoading} type="submit">{m.save()}</Button>
+			<FormInput label={m.username()} bind:input={$inputs.username} readonly={readOnly} />
+			<div class="flex flex-col gap-3 sm:col-span-2 sm:max-w-[calc(50%-0.5rem)]">
+				<FormInput
+					label={m.email()}
+					optional={!$appConfigStore.requireUserEmail}
+					type="email"
+					bind:input={$inputs.email}
+					readonly={readOnly}
+				/>
+				{#if $appConfigStore.emailVerification !== 'disabled'}
+					<label class="text-control text-fg flex items-center gap-3 font-medium">
+						<Checkbox bind:checked={$inputs.emailVerified.value} disabled={readOnly} />
+						{m.email_address_is_verified()}
+					</label>
+				{/if}
 			</div>
-		{/if}
-	</fieldset>
-</form>
+		</div>
+	</div>
+</SettingsSection>
+
+<SettingsSection title={m.access()}>
+	<SettingRow
+		title={m.admin_privileges()}
+		description={m.admins_have_full_access_to_the_admin_panel()}
+		icon={LucideShieldCheck}
+		consequence={readOnly ? m.set_by_the_ldap_admin_group() : undefined}
+	>
+		{#snippet control(props)}
+			<Switch {...props} bind:checked={$inputs.isAdmin.value} disabled={readOnly} />
+		{/snippet}
+	</SettingRow>
+</SettingsSection>

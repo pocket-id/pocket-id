@@ -1,78 +1,78 @@
 <script lang="ts">
 	import { page } from '$app/state';
+	import AuthHeading from '#lib/components/auth/auth-heading.svelte';
+	import AuthTile from '#lib/components/auth/auth-tile.svelte';
+	import { authQuietClass, emailedLoginCode } from '#lib/components/auth/auth-util.ts';
 	import SignInWrapper from '#lib/components/login-wrapper.svelte';
-	import Logo from '#lib/components/logo.svelte';
-	import * as Item from '#lib/components/ui/item/index.js';
+	import { Button } from '#lib/components/ui/button/index.ts';
 	import { m } from '#lib/paraglide/messages.js';
 	import appConfigStore from '#lib/stores/application-configuration-store.ts';
-	import {
-		LucideChevronRight,
-		LucideMail,
-		LucideQrCode,
-		LucideRectangleEllipsis
-	} from '@lucide/svelte';
+	import { LucideChevronRight, LucideKeyboard, LucideMail, LucideSmartphone } from '@lucide/svelte';
+
+	const emailCodes = $appConfigStore.emailOneTimeAccessAsUnauthenticatedEnabled;
+
+	// Choosing a method again starts over, so Enter a login code no longer refers to an earlier email
+	emailedLoginCode.sentTo = '';
 
 	const methods = [
 		{
-			icon: LucideQrCode,
-			title: m.sign_in_with_another_device(),
-			description: m.sign_in_with_another_device_description(),
+			icon: LucideSmartphone,
+			title: m.auth_use_another_device(),
+			description: m.auth_use_another_device_description(),
 			href: '/login/alternative/device'
 		},
 		{
-			icon: LucideRectangleEllipsis,
-			title: m.login_code(),
-			description: m.enter_a_login_code_to_sign_in(),
+			icon: LucideKeyboard,
+			title: m.auth_enter_a_login_code(),
+			description: emailCodes
+				? m.auth_enter_a_login_code_description()
+				: m.auth_enter_an_admin_login_code_description(),
 			href: '/login/alternative/code'
-		}
+		},
+		...(emailCodes
+			? [
+					{
+						icon: LucideMail,
+						title: m.auth_email_me_a_login_code(),
+						description: m.auth_email_me_a_login_code_description(),
+						href: '/login/alternative/email'
+					}
+				]
+			: [])
 	];
-
-	if ($appConfigStore.emailOneTimeAccessAsUnauthenticatedEnabled) {
-		methods.push({
-			icon: LucideMail,
-			title: m.email_login(),
-			description: m.request_a_login_code_via_email(),
-			href: '/login/alternative/email'
-		});
-	}
 </script>
 
 <svelte:head>
-	<title>{m.sign_in()}</title>
+	<title>{m.auth_other_ways_to_sign_in()}</title>
 </svelte:head>
 
-<SignInWrapper>
-	<div class="flex h-full flex-col justify-center">
-		<div class="bg-muted mx-auto rounded-2xl p-3">
-			<Logo class="size-10" />
-		</div>
-		<h1 class="font-display mt-5 text-3xl font-bold sm:text-4xl">{m.alternative_sign_in()}</h1>
-		<p class="text-muted-foreground mt-3">
-			{m.if_you_do_not_have_access_to_your_passkey_you_can_sign_in_using_one_of_the_following_methods()}
-		</p>
-		<Item.Group class="mt-5 gap-3">
-			{#each methods as method (method.href)}
-				<Item.Root variant="outline" class="gap-5">
-					{#snippet child({ props })}
-						<a href={method.href + page.url.search} {...props}>
-							<Item.Media class="text-primary !translate-y-0 !self-center">
-								<method.icon class="size-7" />
-							</Item.Media>
-							<Item.Content class="text-start">
-								<Item.Title class="text-lg font-semibold">{method.title}</Item.Title>
-								<Item.Description>{method.description}</Item.Description>
-							</Item.Content>
-							<Item.Actions>
-								<LucideChevronRight class="size-5" />
-							</Item.Actions>
-						</a>
-					{/snippet}
-				</Item.Root>
-			{/each}
-		</Item.Group>
-
-		<a class="text-muted-foreground mt-5 text-xs" href={'/login' + page.url.search}
-			>{m.use_your_passkey_instead()}</a
-		>
-	</div>
+<SignInWrapper back={'/login' + page.url.search}>
+	<AuthTile />
+	<AuthHeading title={m.auth_other_ways_to_sign_in()}>
+		{m.auth_other_ways_to_sign_in_description()}
+	</AuthHeading>
+	<ul class="-mx-3 mb-6 flex flex-col gap-0.5">
+		{#each methods as method (method.href)}
+			<li>
+				<a
+					href={method.href + page.url.search}
+					class="group/method before:bg-fill-row-hover transition-motion focus-visible:outline-ring relative isolate flex min-h-16 items-center gap-3 rounded-md p-3 before:absolute before:inset-0 before:-z-1 before:rounded-[inherit] before:opacity-0 before:transition-opacity before:duration-(--dur-fast) hover:before:opacity-100 focus-visible:outline-2 focus-visible:outline-offset-2 active:scale-(--press-scale)"
+				>
+					<span class="bg-fill-muted grid size-8 shrink-0 place-items-center rounded-[8px]">
+						<method.icon class="size-4" />
+					</span>
+					<span class="flex min-w-0 flex-1 flex-col gap-0.5">
+						<span class="text-heading font-medium">{method.title}</span>
+						<span class="text-control text-fg-muted">{method.description}</span>
+					</span>
+					<LucideChevronRight
+						class="text-fg-muted size-4 shrink-0 transition-transform duration-(--dur-fast) group-hover/method:translate-x-(--nudge)"
+					/>
+				</a>
+			</li>
+		{/each}
+	</ul>
+	<Button variant="link" class={authQuietClass} href={'/login' + page.url.search}>
+		{m.auth_use_your_passkey_instead()}
+	</Button>
 </SignInWrapper>

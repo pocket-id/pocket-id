@@ -1,8 +1,6 @@
-import AppConfigService from '#lib/services/app-config-service.ts';
+import { redirect } from '@sveltejs/kit';
 import type { PageLoad } from './$types';
 
-export const load: PageLoad = async () => {
-	const appConfigService = new AppConfigService();
-	const appConfig = await appConfigService.list(true);
-	return { appConfig };
+export const load: PageLoad = () => {
+	redirect(307, '/settings/admin/application-configuration/general');
 };

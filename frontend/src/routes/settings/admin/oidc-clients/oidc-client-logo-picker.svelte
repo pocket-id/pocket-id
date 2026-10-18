@@ -1,6 +1,6 @@
 <script lang="ts">
 	import FormattedMessage from '#lib/components/formatted-message.svelte';
-	import ImageBox from '#lib/components/image-box.svelte';
+	import { monogram } from '#lib/components/oidc-client-avatar.svelte';
 	import { Button } from '#lib/components/ui/button/index.ts';
 	import * as Command from '#lib/components/ui/command/index.ts';
 	import * as Popover from '#lib/components/ui/popover/index.ts';
@@ -11,9 +11,9 @@
 	import { debounced } from '#lib/utils/debounce-util.ts';
 	import { getAxiosErrorMessage } from '#lib/utils/error-util.ts';
 	import { cn } from '#lib/utils/style.ts';
-	import { LucideMoon, LucideSun, LucideUpload, LucideX } from '@lucide/svelte';
+	import { LucideImageOff, LucideMoon, LucideSun, LucideUpload } from '@lucide/svelte';
 	import { Command as CommandPrimitive } from 'bits-ui';
-	import { mode } from 'mode-watcher';
+	import { SvelteSet } from 'svelte/reactivity';
 
 	let {
 		clientName,
@@ -37,8 +37,8 @@
 
 	const popoverOffset = 4;
 	const viewportMargin = 16;
-	const lightBackground = 'bg-[#F5F5F5]';
-	const darkBackground = 'bg-[#262626]';
+	const lightBackground = 'bg-well-light text-well-light-fg';
+	const darkBackground = 'bg-well-dark text-well-dark-fg';
 
 	let open = $state(false);
 	let alignOffset = $state(0);
@@ -48,17 +48,19 @@
 	let darkFileInput = $state<HTMLInputElement | null>(null);
 	let search = $state('');
 	let presets = $state<OidcClientLogoPreset[]>([]);
+	// The search the shown presets answer, so an empty result keeps its message while the next search loads instead of collapsing the popover
+	let presetsQuery = $state<string | null>(null);
 	let errorMessage = $state<string | null>(null);
 	let latestRequest = 0;
+	// An image that fails to load shows a fallback instead of the browser's broken-image icon
+	const brokenLogos = new SvelteSet<string>();
 
-	const isLightMode = $derived(mode.current === 'light');
 	const presetsEnabled = $derived(iconLibrary !== 'disabled');
 	const imageUrl = $derived(parseImageUrl(search));
 	const showPresets = $derived(presetsEnabled && !imageUrl);
 	const showIconGrid = $derived(showPresets && presets.length > 0);
 	const effectiveLightLogoURL = $derived(logoDataURL ?? darkLogoDataURL);
 	const effectiveDarkLogoURL = $derived(darkLogoDataURL ?? logoDataURL);
-	const previewURL = $derived(isLightMode ? effectiveLightLogoURL : effectiveDarkLogoURL);
 	const hasLogo = $derived(!!(logoDataURL || darkLogoDataURL));
 
 	// Input that parses as an absolute HTTP(S) URL is used as the image itself instead of as a search term
@@ -80,11 +82,13 @@
 			// Responses can arrive out of order, so only the newest search may update the results
 			if (request === latestRequest) {
 				presets = result;
+				presetsQuery = query;
 				errorMessage = null;
 			}
 		} catch (e) {
 			if (request === latestRequest) {
 				presets = [];
+				presetsQuery = query;
 				errorMessage = getAxiosErrorMessage(e);
 			}
 		}
@@ -147,6 +151,7 @@
 
 		// Results of the previous search would otherwise show until the new one finishes
 		presets = [];
+		presetsQuery = null;
 		errorMessage = null;
 		resetSearch();
 	}
@@ -206,9 +211,9 @@
 		{#if src}
 			<img {src} alt="" class="size-7 object-contain" loading="lazy" />
 		{:else if light}
-			<LucideSun class="size-4 text-neutral-400" />
+			<LucideSun class="size-4" />
 		{:else}
-			<LucideMoon class="size-4 text-neutral-500" />
+			<LucideMoon class="size-4" />
 		{/if}
 	</span>
 {/snippet}
@@ -217,8 +222,8 @@
 	<button
 		type="button"
 		class={cn(
-			'flex flex-col items-center justify-center gap-1 text-xs font-medium transition-opacity hover:opacity-80',
-			light ? `${lightBackground} text-neutral-600` : `${darkBackground} text-neutral-300`
+			'text-micro flex flex-col items-center justify-center gap-1 transition-opacity hover:opacity-80',
+			light ? lightBackground : darkBackground
 		)}
 		aria-label={light ? m.upload_light_logo() : m.upload_dark_logo()}
 		onclick={() => (light ? lightFileInput : darkFileInput)?.click()}
@@ -232,125 +237,149 @@
 	<button
 		type="button"
 		class={cn(
-			'flex flex-col items-center justify-center gap-1 text-[10px] font-medium transition-opacity hover:opacity-80',
-			light ? `${lightBackground} text-neutral-600` : `${darkBackground} text-neutral-300`
+			'text-micro flex flex-col items-center justify-center gap-1 transition-opacity hover:opacity-80',
+			light ? lightBackground : darkBackground
 		)}
 		aria-label={light ? m.use_as_light_logo() : m.use_as_dark_logo()}
 		title={light ? m.use_as_light_logo() : m.use_as_dark_logo()}
 		onclick={() => selectUrl(url, light)}
 	>
-		<img src={url} alt="" class="size-6 object-contain" />
+		{#if brokenLogos.has(url)}
+			<LucideImageOff class="size-4" />
+		{:else}
+			<img src={url} alt="" class="size-6 object-contain" onerror={() => brokenLogos.add(url)} />
+		{/if}
 		{light ? m.light() : m.dark()}
 	</button>
 {/snippet}
 
-<div class="relative w-28">
-	<Popover.Root bind:open {onOpenChange}>
-		<Popover.Trigger
-			bind:ref={triggerRef}
-			aria-label={m.choose_logo()}
+<!-- Each swatch sits on its theme's own background, and an empty dark slot borrows the light logo like the client tile does -->
+{#snippet well(src: string | null, light: boolean)}
+	<div class="flex w-[88px] flex-col items-center gap-1.5">
+		<span
 			class={cn(
-				'text-muted-foreground flex size-28 cursor-pointer flex-col items-center justify-center gap-1.5 overflow-hidden rounded-2xl border text-xs transition-opacity hover:opacity-90',
-				previewURL ? (isLightMode ? lightBackground : darkBackground) : 'border-dashed'
+				'grid size-[88px] place-items-center rounded-md shadow-[inset_0_0_0_1px_var(--border-strong)]',
+				light ? lightBackground : darkBackground
 			)}
 		>
-			{#if previewURL}
-				<ImageBox
-					class="size-full bg-transparent"
-					src={previewURL}
-					alt={m.name_logo({ name: clientName })}
+			{#if src && !brokenLogos.has(src)}
+				<img
+					{src}
+					onerror={() => brokenLogos.add(src)}
+					alt={light ? m.name_logo({ name: clientName }) : m.name_dark_logo({ name: clientName })}
+					class={cn('size-14 object-contain', !light && !darkLogoDataURL && 'opacity-50')}
 				/>
 			{:else}
-				<LucideUpload class="size-5" />
-				{m.logo()}
+				<span aria-hidden="true" class="text-[22px] font-medium">{monogram(clientName)}</span>
 			{/if}
-		</Popover.Trigger>
-		<Popover.Content
-			bind:ref={contentRef}
-			class="w-[min(24rem,calc(100vw-2rem))] gap-0 overflow-hidden p-0"
-			align="start"
-			sideOffset={popoverOffset}
-			{alignOffset}
-			avoidCollisions={false}
-		>
-			<!-- The popover isn't positioned yet when the first icon gets selected, so scrolling it into view would scroll the page instead -->
-			<Command.Root shouldFilter={false} columns={3} disableInitialScroll class="rounded-none">
-				<Command.Input
-					placeholder={presetsEnabled ? m.search_icons_or_paste_url() : m.paste_image_url()}
-					aria-label={presetsEnabled ? m.search_icons_or_paste_url() : m.paste_image_url()}
-					bind:value={search}
-					oninput={(e) => onSearch(e.currentTarget.value)}
-					onkeydown={onInputKeydown}
-				/>
-				<!-- Without icons the list shrinks to fit the remaining tiles -->
-				<Command.List class={cn('px-2 pt-4 pb-2', showIconGrid && 'h-80')}>
-					<div class="grid grid-cols-3 gap-2">
-						<!-- The first tile adds a custom image, either from a pasted URL or as an upload -->
-						<div class="grid h-14 grid-cols-2 overflow-hidden rounded-xl">
-							{#if imageUrl}
-								{@render urlHalf(imageUrl, true)}
-								{@render urlHalf(imageUrl, false)}
-							{:else}
-								{@render uploadHalf(true)}
-								{@render uploadHalf(false)}
+		</span>
+		<span class="text-caption text-fg-muted text-center whitespace-nowrap">
+			{light ? m.light() : m.dark()}
+			{#if !light && !darkLogoDataURL && logoDataURL}
+				<span class="text-micro block">{m.using_light_logo()}</span>
+			{/if}
+		</span>
+	</div>
+{/snippet}
+
+<div role="group" aria-labelledby="oidc-client-logo-label" class="flex flex-col gap-1.5">
+	<span id="oidc-client-logo-label" class="text-control font-semibold">{m.logo()}</span>
+	<p class="text-caption text-fg-muted">{m.oidc_client_logo_spec()}</p>
+	<div class="mt-1 flex flex-wrap items-start gap-x-4 gap-y-3">
+		<div class="flex gap-2">
+			{@render well(effectiveLightLogoURL, true)}
+			{@render well(effectiveDarkLogoURL, false)}
+		</div>
+		<div class="flex flex-col items-start gap-2">
+			<Popover.Root bind:open {onOpenChange}>
+				<Popover.Trigger bind:ref={triggerRef}>
+					{#snippet child({ props })}
+						<Button {...props} variant="secondary" size="sm">
+							<LucideUpload />
+							{m.choose_logo()}
+						</Button>
+					{/snippet}
+				</Popover.Trigger>
+				<Popover.Content
+					bind:ref={contentRef}
+					class="w-[min(24rem,calc(100vw-2rem))] gap-0 overflow-hidden p-0"
+					align="start"
+					sideOffset={popoverOffset}
+					{alignOffset}
+					avoidCollisions={false}
+					strategy="fixed"
+				>
+					<!-- The popover isn't positioned yet when the first icon gets selected, so scrolling it into view would scroll the page instead -->
+					<Command.Root shouldFilter={false} columns={3} disableInitialScroll class="rounded-none">
+						<Command.Input
+							placeholder={presetsEnabled ? m.search_icons_or_paste_url() : m.paste_image_url()}
+							aria-label={presetsEnabled ? m.search_icons_or_paste_url() : m.paste_image_url()}
+							bind:value={search}
+							oninput={(e) => onSearch(e.currentTarget.value)}
+							onkeydown={onInputKeydown}
+						/>
+						<!-- Without icons the list shrinks to fit the remaining tiles -->
+						<Command.List class={cn('px-2 pt-4 pb-2', showIconGrid && 'h-80')}>
+							<div class="grid grid-cols-3 gap-2">
+								<!-- The first tile adds a custom image, either from a pasted URL or as an upload -->
+								<div class="grid h-14 grid-cols-2 overflow-hidden rounded-sm">
+									{#if imageUrl}
+										{@render urlHalf(imageUrl, true)}
+										{@render urlHalf(imageUrl, false)}
+									{:else}
+										{@render uploadHalf(true)}
+										{@render uploadHalf(false)}
+									{/if}
+								</div>
+								{#if !imageUrl}
+									<!-- The current logo gets its own tile, even before it is saved, because a picked icon isn't necessarily in the search results -->
+									<!-- As the first item of the list it is what the picker selects, so it shows which logo is in use -->
+									{#if hasLogo}
+										<CommandPrimitive.Item
+											value="custom"
+											onSelect={() => (open = false)}
+											aria-label={m.current_logo()}
+											title={m.current_logo()}
+											class="data-selected:ring-ring grid h-14 cursor-pointer grid-cols-2 overflow-hidden rounded-sm outline-hidden select-none data-selected:ring-2"
+										>
+											{@render tileHalf(effectiveLightLogoURL, true)}
+											{@render tileHalf(effectiveDarkLogoURL, false)}
+										</CommandPrimitive.Item>
+									{/if}
+									{#if presetsEnabled}
+										{#each presets as preset (preset.reference)}
+											<CommandPrimitive.Item
+												value={preset.reference}
+												onSelect={() => selectPreset(preset)}
+												aria-label={preset.name}
+												title={preset.name}
+												class="data-selected:ring-ring grid h-14 cursor-pointer grid-cols-2 overflow-hidden rounded-sm outline-hidden select-none data-selected:ring-2"
+											>
+												{@render tileHalf(preset.logoUrl, true)}
+												{@render tileHalf(preset.darkLogoUrl ?? preset.logoUrl, false)}
+											</CommandPrimitive.Item>
+										{/each}
+									{/if}
+								{/if}
+							</div>
+							{#if showPresets && presets.length === 0 && presetsQuery !== null}
+								<div class="text-fg-muted text-control flex justify-center px-3 py-6 text-center">
+									{errorMessage ?? m.no_matches_for_query({ query: presetsQuery.trim() })}
+								</div>
 							{/if}
-						</div>
-						{#if !imageUrl}
-							<!-- The current logo gets its own tile, even before it is saved, because a picked icon isn't necessarily in the search results -->
-							<!-- As the first item of the list it is what the picker selects, so it shows which logo is in use -->
-							{#if hasLogo}
-								<CommandPrimitive.Item
-									value="custom"
-									onSelect={() => (open = false)}
-									aria-label={m.current_logo()}
-									title={m.current_logo()}
-									class="data-selected:ring-primary grid h-14 cursor-pointer grid-cols-2 overflow-hidden rounded-xl outline-hidden select-none data-selected:ring-2"
-								>
-									{@render tileHalf(effectiveLightLogoURL, true)}
-									{@render tileHalf(effectiveDarkLogoURL, false)}
-								</CommandPrimitive.Item>
-							{/if}
-							{#if presetsEnabled}
-								{#each presets as preset (preset.reference)}
-									<CommandPrimitive.Item
-										value={preset.reference}
-										onSelect={() => selectPreset(preset)}
-										aria-label={preset.name}
-										title={preset.name}
-										class="data-selected:ring-primary grid h-14 cursor-pointer grid-cols-2 overflow-hidden rounded-xl outline-hidden select-none data-selected:ring-2"
-									>
-										{@render tileHalf(preset.logoUrl, true)}
-										{@render tileHalf(preset.darkLogoUrl ?? preset.logoUrl, false)}
-									</CommandPrimitive.Item>
-								{/each}
-							{/if}
-						{/if}
-					</div>
-					{#if showPresets && presets.length === 0}
-						<div class="text-muted-foreground flex justify-center px-3 py-6 text-center text-sm">
-							{#if errorMessage}
-								{errorMessage}
-							{/if}
-						</div>
+						</Command.List>
+					</Command.Root>
+					<!-- A custom icon library isn't necessarily selfh.st's collection, so the credit only applies to the default one while its icons are shown -->
+					{#if iconLibrary === 'default' && showIconGrid}
+						<p class="text-fg-muted text-micro border-t px-3 py-2">
+							<FormattedMessage message={m.icons_provided_by_selfhst} />
+						</p>
 					{/if}
-				</Command.List>
-			</Command.Root>
-			<!-- A custom icon library isn't necessarily selfh.st's collection, so the credit only applies to the default one while its icons are shown -->
-			{#if iconLibrary === 'default' && showIconGrid}
-				<p class="text-muted-foreground border-t px-3 py-2 text-[11px]">
-					<FormattedMessage message={m.icons_provided_by_selfhst} />
-				</p>
-			{/if}
-		</Popover.Content>
-	</Popover.Root>
-	{#if hasLogo}
-		<Button
-			size="icon"
-			onclick={onReset}
-			aria-label={m.remove_logo()}
-			class="absolute -top-2 -right-2 size-6 rounded-full shadow-md"
-		>
-			<LucideX class="size-3" />
-		</Button>
-	{/if}
+				</Popover.Content>
+			</Popover.Root>
+			<Button variant="ghost" size="sm" disabled={!hasLogo} onclick={onReset}>
+				{m.remove_logo()}
+			</Button>
+		</div>
+	</div>
 </div>

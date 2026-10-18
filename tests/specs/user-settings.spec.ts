@@ -1,5 +1,6 @@
 import test, { expect } from '@playwright/test';
 import { userGroups, users } from '../data';
+import { setAppConfigValues } from '../utils/app-config.util';
 import authUtil from '../utils/auth.util';
 import { cleanupBackend } from '../utils/cleanup.util';
 import { saveUnsavedChanges, unsavedChangesBar } from '../utils/unsaved-changes.util';
@@ -11,18 +12,23 @@ test('Create user', async ({ page }) => {
 
 	await page.goto('/settings/admin/users');
 
-	await page.getByRole('button', { name: 'Add User' }).click();
+	await page.getByRole('button', { name: 'Add user' }).click();
 	await page.getByLabel('First name').fill(user.firstname);
 	await page.getByLabel('Last name').fill(user.lastname);
 	await page.getByLabel('Email').fill(user.email);
 	await page.getByLabel('Username').fill(user.username);
 
-	await expect(page.getByLabel('Display Name')).toHaveValue(`${user.firstname} ${user.lastname}`);
+	await expect(page.getByLabel('Display name')).toHaveValue(`${user.firstname} ${user.lastname}`);
 
-	await page.getByRole('button', { name: 'Save' }).click();
+	await page.getByRole('dialog').getByRole('button', { name: 'Add user' }).click();
 
-	await expect(page.getByRole('row', { name: `${user.firstname} ${user.lastname}` })).toBeVisible();
-	await expect(page.locator('[data-type="success"]')).toHaveText('User created successfully');
+	// A new person lands on their own page, ready for a login code
+	await expect(page.locator('[data-type="success"]')).toHaveText(
+		`${user.firstname} ${user.lastname} added`
+	);
+	await expect(
+		page.getByRole('heading', { level: 1, name: `${user.firstname} ${user.lastname}` })
+	).toBeVisible();
 });
 
 test('Create user fails with already taken email', async ({ page }) => {
@@ -30,12 +36,12 @@ test('Create user fails with already taken email', async ({ page }) => {
 
 	await page.goto('/settings/admin/users');
 
-	await page.getByRole('button', { name: 'Add User' }).click();
+	await page.getByRole('button', { name: 'Add user' }).click();
 	await page.getByLabel('First name').fill(user.firstname);
 	await page.getByLabel('Last name').fill(user.lastname);
 	await page.getByLabel('Email').fill(users.tim.email);
 	await page.getByLabel('Username').fill(user.username);
-	await page.getByRole('button', { name: 'Save' }).click();
+	await page.getByRole('dialog').getByRole('button', { name: 'Add user' }).click();
 
 	await expect(page.locator('[data-type="error"]')).toHaveText('Email is already in use');
 });
@@ -45,12 +51,12 @@ test('Create user fails with already taken username', async ({ page }) => {
 
 	await page.goto('/settings/admin/users');
 
-	await page.getByRole('button', { name: 'Add User' }).click();
+	await page.getByRole('button', { name: 'Add user' }).click();
 	await page.getByLabel('First name').fill(user.firstname);
 	await page.getByLabel('Last name').fill(user.lastname);
 	await page.getByLabel('Email').fill(user.email);
 	await page.getByLabel('Username').fill(users.tim.username);
-	await page.getByRole('button', { name: 'Save' }).click();
+	await page.getByRole('dialog').getByRole('button', { name: 'Add user' }).click();
 
 	await expect(page.locator('[data-type="error"]')).toHaveText('Username is already in use');
 });
@@ -60,12 +66,12 @@ test('Create user fails with already taken username in different casing', async 
 
 	await page.goto('/settings/admin/users');
 
-	await page.getByRole('button', { name: 'Add User' }).click();
+	await page.getByRole('button', { name: 'Add user' }).click();
 	await page.getByLabel('First name').fill(user.firstname);
 	await page.getByLabel('Last name').fill(user.lastname);
 	await page.getByLabel('Email').fill(user.email);
 	await page.getByLabel('Username').fill(users.tim.username.toUpperCase());
-	await page.getByRole('button', { name: 'Save' }).click();
+	await page.getByRole('dialog').getByRole('button', { name: 'Add user' }).click();
 
 	await expect(page.locator('[data-type="error"]')).toHaveText('Username is already in use');
 });
@@ -80,11 +86,11 @@ test('Create one time access token', async ({ page, context }) => {
 		.getByRole('button')
 		.click();
 
-	await page.getByRole('menuitem', { name: 'Login Code' }).click();
+	await page.getByRole('menuitem', { name: 'Login code' }).click();
 
-	await page.getByLabel('Expiration').click();
+	await page.getByLabel('Expires after').click();
 	await page.getByRole('option', { name: '12 hours' }).click();
-	await page.getByRole('button', { name: 'Show Code' }).click();
+	await page.getByRole('button', { name: 'Create code' }).click();
 
 	const link = await page.getByTestId('login-code-link').textContent();
 	await context.clearCookies();
@@ -105,7 +111,9 @@ test('Delete user', async ({ page }) => {
 	await page.getByRole('menuitem', { name: 'Delete' }).click();
 	await page.getByRole('alertdialog').getByRole('button', { name: 'Delete' }).click();
 
-	await expect(page.locator('[data-type="success"]')).toHaveText('User deleted successfully');
+	await expect(page.locator('[data-type="success"]')).toHaveText(
+		`${users.craig.firstname} ${users.craig.lastname} deleted`
+	);
 	await expect(
 		page.getByRole('row', {
 			name: `${users.craig.firstname} ${users.craig.lastname}`
@@ -121,11 +129,13 @@ test('Delete user from the details page', async ({ page }) => {
 	// A pending edit must not block leaving the page once the user is gone
 	await page.getByLabel('First name').fill('Changed');
 
-	await page.getByRole('button', { name: 'Actions' }).click();
-	await page.getByRole('menuitem', { name: 'Delete' }).click();
+	await page.getByRole('button', { name: 'More actions' }).click();
+	await page.getByRole('menuitem', { name: 'Delete user' }).click();
 	await page.getByRole('alertdialog').getByRole('button', { name: 'Delete' }).click();
 
-	await expect(page.locator('[data-type="success"]')).toHaveText('User deleted successfully');
+	await expect(page.locator('[data-type="success"]')).toHaveText(
+		`${users.craig.firstname} ${users.craig.lastname} deleted`
+	);
 	await page.waitForURL((url) => url.pathname === '/settings/admin/users');
 	await expect(
 		page.getByRole('row', {
@@ -137,9 +147,8 @@ test('Delete user from the details page', async ({ page }) => {
 test('Create one time access token from the details page', async ({ page }) => {
 	await page.goto(`/settings/admin/users/${users.craig.id}`);
 
-	await page.getByRole('button', { name: 'Actions' }).click();
-	await page.getByRole('menuitem', { name: 'Login Code' }).click();
-	await page.getByRole('button', { name: 'Show Code' }).click();
+	await page.getByRole('button', { name: 'Login code' }).click();
+	await page.getByRole('button', { name: 'Create code' }).click();
 
 	await expect(page.getByTestId('login-code-link')).toBeVisible();
 });
@@ -153,11 +162,11 @@ test('Update user', async ({ page }) => {
 		.getByRole('row', { name: `${user.firstname} ${user.lastname}` })
 		.getByRole('button')
 		.click();
-	await page.getByRole('menuitem', { name: 'Edit' }).click();
+	await page.getByRole('menuitem', { name: 'Open' }).click();
 
 	await page.getByLabel('First name').fill('Crack');
 	await page.getByLabel('Last name').fill('Apple');
-	await page.getByLabel('Display Name').fill('Crack Apple');
+	await page.getByLabel('Display name').fill('Crack Apple');
 	await page.getByLabel('Email').fill('crack.apple@test.com');
 	await page.getByLabel('Username').fill('crack');
 	await saveUnsavedChanges(page);
@@ -172,7 +181,7 @@ test('Update user fails with already taken email', async ({ page }) => {
 		.getByRole('row', { name: `${user.firstname} ${user.lastname}` })
 		.getByRole('button')
 		.click();
-	await page.getByRole('menuitem', { name: 'Edit' }).click();
+	await page.getByRole('menuitem', { name: 'Open' }).click();
 
 	await page.getByLabel('Email').fill(users.tim.email);
 	await page.getByRole('button', { name: 'Save', exact: true }).click();
@@ -191,7 +200,7 @@ test('Update user fails with already taken username', async ({ page }) => {
 		.getByRole('row', { name: `${user.firstname} ${user.lastname}` })
 		.getByRole('button')
 		.click();
-	await page.getByRole('menuitem', { name: 'Edit' }).click();
+	await page.getByRole('menuitem', { name: 'Open' }).click();
 
 	await page.getByLabel('Username').fill(users.tim.username);
 	await page.getByRole('button', { name: 'Save', exact: true }).click();
@@ -210,7 +219,7 @@ test('Update user fails with already taken username in different casing', async 
 		.getByRole('row', { name: `${user.firstname} ${user.lastname}` })
 		.getByRole('button')
 		.click();
-	await page.getByRole('menuitem', { name: 'Edit' }).click();
+	await page.getByRole('menuitem', { name: 'Open' }).click();
 
 	await page.getByLabel('Username').fill(users.tim.username.toUpperCase());
 	await page.getByRole('button', { name: 'Save', exact: true }).click();
@@ -221,9 +230,9 @@ test('Update user fails with already taken username in different casing', async 
 });
 
 test('Update user custom claims', async ({ page }) => {
+	await setAppConfigValues(page.request, { enabledFeatures: '["customClaims"]' });
 	await page.goto(`/settings/admin/users/${users.craig.id}`);
-
-	await page.getByRole('tab', { name: 'Custom Claims' }).click();
+	await page.getByRole('tab', { name: /^Custom claims/ }).click();
 
 	// Add two custom claims
 	await page.getByRole('button', { name: 'Add custom claim' }).click();
@@ -260,21 +269,28 @@ test('Update user group assignments', async ({ page }) => {
 	const user = users.craig;
 	await page.goto(`/settings/admin/users/${user.id}`);
 
-	await page.getByRole('tab', { name: 'User Groups' }).click();
+	await page.getByRole('tab', { name: 'Groups' }).click();
 
-	await page.getByRole('row', { name: userGroups.developers.name }).getByRole('checkbox').click();
-	await page.getByRole('row', { name: userGroups.designers.name }).getByRole('checkbox').click();
+	// Memberships save at once: Designers is added through the picker and Developers is removed from the list
+	await page.getByRole('button', { name: 'Add to groups…' }).click();
+	const picker = page.getByRole('dialog');
+	await picker.getByRole('checkbox', { name: userGroups.designers.friendlyName }).click();
+	await picker.getByRole('button', { name: 'Add to 1 group' }).click();
+	await expect(page.locator('[data-type="success"]')).toHaveText('Group memberships updated');
 
-	await saveUnsavedChanges(page);
+	await page
+		.getByRole('button', {
+			name: `Remove ${user.firstname} from ${userGroups.developers.friendlyName}`
+		})
+		.click();
 
 	await page.reload();
 
-	await expect(
-		page.getByRole('row', { name: userGroups.designers.name }).getByRole('checkbox')
-	).toHaveAttribute('data-state', 'checked');
-	await expect(
-		page.getByRole('row', { name: userGroups.developers.name }).getByRole('checkbox')
-	).toHaveAttribute('data-state', 'unchecked');
+	const groups = page.getByRole('tabpanel');
+	await expect(groups.getByRole('link', { name: userGroups.designers.friendlyName })).toBeVisible();
+	await expect(groups.getByRole('link', { name: userGroups.developers.friendlyName })).toHaveCount(
+		0
+	);
 });
 
 test('Admin can view another user passkeys', async ({ page }) => {

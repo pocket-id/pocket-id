@@ -11,21 +11,19 @@ test('approves the QR link after requester review and fresh reauthentication', a
 	page
 }) => {
 	const waiting = await openWaitingDevice(browser, '/settings/apps');
-	const expectedLoginCodeText = `${waiting.request.userCode.substring(0, 4)} - ${waiting.request.userCode.substring(4, 8)}`;
+	const loginCode = new RegExp(
+		`${waiting.request.userCode.substring(0, 4)}\\s*–\\s*${waiting.request.userCode.substring(4, 8)}`
+	);
 	try {
 		await (await passkeyUtil.init(page)).addPasskey();
-		await expect(waiting.page.getByTestId('device-login-code')).toHaveText(
-			new RegExp(
-				`${waiting.request.userCode.substring(0, 4)}\\s*–\\s*${waiting.request.userCode.substring(4, 8)}`
-			)
-		);
+		await expect(waiting.page.getByTestId('device-login-code')).toHaveText(loginCode);
 		await expect(waiting.page.getByLabel('Device login QR code')).toBeVisible();
 
 		await page.goto(waiting.request.verificationUriComplete);
 
-		await expect(page.getByText(expectedLoginCodeText)).toBeVisible();
-		await expect(page.getByText('Chrome', { exact: false })).toBeVisible();
-		const ipAddress = page.locator('dt', { hasText: 'IP Address' }).locator('..').locator('dd');
+		await expect(page.getByTestId('device-login-code')).toHaveText(loginCode);
+		await expect(page.getByRole('heading', { name: /Chrome/ })).toBeVisible();
+		const ipAddress = page.locator('dt', { hasText: 'IP address' }).locator('..').locator('dd');
 		await expect(ipAddress).not.toHaveText('Unknown');
 
 		const decisionWithoutReauthentication = await page.request.post(
@@ -39,7 +37,7 @@ test('approves the QR link after requester review and fresh reauthentication', a
 		const reauthenticationRequest = page.waitForRequest('/api/webauthn/reauthenticate');
 		await page.getByRole('button', { name: 'Approve' }).click();
 		await reauthenticationRequest;
-		await expect(page.getByText('The requesting device has been signed in.')).toBeVisible();
+		await expect(page.getByRole('heading', { name: 'Signed in' })).toBeVisible();
 		await waiting.page.waitForURL('/settings/apps');
 	} finally {
 		await waiting.context.close();
@@ -59,11 +57,11 @@ test('authenticates a signed-out primary device before manual-code approval', as
 	try {
 		await (await passkeyUtil.init(primaryPage)).addPasskey();
 		await primaryPage.goto('/device');
-		await primaryPage.getByRole('textbox', { name: 'Code' }).fill(waiting.request.userCode);
-		await primaryPage.getByRole('button', { name: 'Authorize' }).click();
+		await primaryPage.getByRole('textbox', { name: 'Device code' }).fill(waiting.request.userCode);
+		await primaryPage.getByRole('button', { name: 'Continue', exact: true }).click();
 
 		await primaryPage.getByRole('button', { name: 'Approve' }).click();
-		await expect(primaryPage.getByText('The requesting device has been signed in.')).toBeVisible();
+		await expect(primaryPage.getByRole('heading', { name: 'Signed in' })).toBeVisible();
 		await waiting.page.waitForURL('/settings/account');
 	} finally {
 		await primaryContext.close();
@@ -84,8 +82,10 @@ test('denies a pending request without passkey reauthentication', async ({ brows
 		await page.goto(waiting.request.verificationUriComplete);
 		await page.getByRole('button', { name: 'Deny' }).click();
 
-		await expect(page.getByText('The sign-in request was denied.')).toBeVisible();
-		await expect(waiting.page.getByText('Device login request was denied')).toBeVisible();
+		await expect(page.getByRole('heading', { name: 'Request denied' })).toBeVisible();
+		await expect(
+			waiting.page.getByText('The sign-in was denied on your other device.')
+		).toBeVisible();
 		expect(reauthenticationCalled).toBe(false);
 	} finally {
 		await waiting.context.close();
@@ -105,8 +105,8 @@ async function openWaitingDevice(browser: Browser, redirect = '/settings') {
 	);
 
 	await page.goto(`/login/alternative?redirect=${encodeURIComponent(redirect)}`);
-	await expect(page.getByText('Sign in with another device', { exact: true })).toBeVisible();
-	await page.getByText('Sign in with another device', { exact: true }).click();
+	await expect(page.getByText('Use another device', { exact: true })).toBeVisible();
+	await page.getByText('Use another device', { exact: true }).click();
 
 	const response = await createResponse;
 	expect(response.status()).toBe(201);
