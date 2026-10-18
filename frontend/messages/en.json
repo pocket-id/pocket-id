@@ -97,10 +97,7 @@
 	"oidc_clients": "OIDC Clients",
 	"api_keys": "API Keys",
 	"application_configuration": "Application Configuration",
-	"settings": "Settings",
-	"update_pocket_id": "Update Pocket ID",
 	"sqlite_storage_warning": "We detected that your SQLite database is stored on a network-attached drive like NFS, SMB, or FUSE. This is unsupported and can lead to your database getting corrupted. {#link href=|https://pocket-id.org/docs/configuration/environment-variables#sqlite|}See docs.{/link}",
-	"powered_by": "Powered by",
 	"see_your_recent_account_activities": "See your account activities within the configured retention period.",
 	"time": "Time",
 	"event": "Event",
@@ -714,5 +711,16 @@
 	"custom_color_note_lightened": "Lightened in dark mode so buttons stand out from the background.",
 	"custom_color_note_edge": "Buttons get a thin border because the color is close to the background.",
 	"custom_color_note_near_status": "This color is close to the error, warning or success color, so buttons may read as a status.",
-	"custom": "Custom"
+	"custom": "Custom",
+	"account": "Account",
+	"activity": "Activity",
+	"claim_mappings": "Claim mappings",
+	"configuration": "Configuration",
+	"main": "Main",
+	"update_available": "Update available",
+	"collapse_sidebar": "Collapse sidebar",
+	"expand_sidebar": "Expand sidebar",
+	"appearance": "Appearance",
+	"account_menu": "Account menu",
+	"more": "More"
 }

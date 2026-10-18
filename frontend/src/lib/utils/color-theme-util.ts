@@ -25,6 +25,9 @@ export type ColorTheme = {
 	accent: string;
 	tokens: Record<Mode, Record<string, string>>;
 	accentInputs: Record<Mode, AccentInputs>;
+	// Mono separates its sidebar with a hairline; Midnight paints a navy sidebar that remaps the neutrals inside it
+	sidebarEdge?: boolean;
+	sidebarVars?: Record<string, string>;
 };
 
 export const DEFAULT_COLOR_THEME = 'mono';
@@ -406,15 +409,22 @@ export function applyColorTheme(value: string) {
 		Object.entries(vars)
 			.map(([k, v]) => `--${k}: ${v};`)
 			.join(' ');
-	const css = (['light', 'dark'] as const)
-		.map((mode) => {
-			const vars = {
-				...theme.tokens[mode],
-				...primaryVars(deriveAccent(theme.accent, theme.accentInputs[mode]))
-			};
-			return `${mode === 'light' ? 'html:root' : 'html.dark'} { ${block(vars)} }`;
-		})
-		.join('\n');
+	const rules = (['light', 'dark'] as const).map((mode) => {
+		const vars = {
+			...theme.tokens[mode],
+			...primaryVars(deriveAccent(theme.accent, theme.accentInputs[mode]))
+		};
+		return `${mode === 'light' ? 'html:root' : 'html.dark'} { ${block(vars)} }`;
+	});
+	if (theme.sidebarEdge) {
+		rules.push('[data-slot="app-sidebar"] { box-shadow: inset -1px 0 0 var(--border); }');
+	}
+	if (theme.sidebarVars) {
+		rules.push(
+			`[data-slot="app-sidebar"], [data-slot="phone-top-bar"] { ${block(theme.sidebarVars)} color: var(--fg); }`
+		);
+	}
+	const css = rules.join('\n');
 
 	let el = document.getElementById('color-theme');
 	if (!el) {

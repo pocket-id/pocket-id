@@ -27,13 +27,14 @@ export const colorThemes: ColorTheme[] = [
 				'surface-raised': '#ffffff',
 				'fill-skeleton': '#eeeeee',
 				'border-control': '#8c8c8c',
-				'border-field': '#8c8c8c',
-				'on-solid': '#ffffff',
 				'info-solid': '#5e5e5e',
 				'info-fg': '#0a0a0a',
 				'info-soft': '#f5f5f5',
 				'info-border': '#e8e8e8',
-				'qr-fg': '#121212'
+				'well-light': '#f5f5f5',
+				'well-dark': '#000000',
+				'well-light-fg': '#5e5e5e',
+				'well-dark-fg': '#a1a1a1'
 			},
 			dark: {
 				sidebar: '#0a0a0a',
@@ -57,13 +58,14 @@ export const colorThemes: ColorTheme[] = [
 				'surface-raised': '#121212',
 				'fill-skeleton': '#1a1a1a',
 				'border-control': '#6b6b6b',
-				'border-field': '#6b6b6b',
-				'on-solid': '#0a0a0a',
 				'info-solid': '#a1a1a1',
 				'info-fg': '#ededed',
 				'info-soft': '#0e0e0e',
 				'info-border': '#1f1f1f',
-				'qr-fg': '#121212'
+				'well-light': '#f5f5f5',
+				'well-dark': '#000000',
+				'well-light-fg': '#5e5e5e',
+				'well-dark-fg': '#a1a1a1'
 			}
 		},
 		accentInputs: {
@@ -117,7 +119,8 @@ export const colorThemes: ColorTheme[] = [
 					success: 150
 				}
 			}
-		}
+		},
+		sidebarEdge: true
 	},
 	{
 		id: 'mist',
@@ -144,13 +147,14 @@ export const colorThemes: ColorTheme[] = [
 				'surface-raised': '#ffffff',
 				'fill-skeleton': '#eceef2',
 				'border-control': '#868d99',
-				'border-field': '#868d99',
-				'on-solid': '#ffffff',
 				'info-solid': '#545b67',
 				'info-fg': '#0f1218',
 				'info-soft': '#f7f8fa',
 				'info-border': '#e3e6eb',
-				'qr-fg': '#121212'
+				'well-light': '#f7f8fa',
+				'well-dark': '#1b1e23',
+				'well-light-fg': '#545b67',
+				'well-dark-fg': '#a3aab5'
 			},
 			dark: {
 				sidebar: '#15171b',
@@ -174,13 +178,14 @@ export const colorThemes: ColorTheme[] = [
 				'surface-raised': '#23272d',
 				'fill-skeleton': '#272b31',
 				'border-control': '#737b87',
-				'border-field': '#737b87',
-				'on-solid': '#15171b',
 				'info-solid': '#a3aab5',
 				'info-fg': '#eef0f3',
 				'info-soft': '#202328',
 				'info-border': '#2e333a',
-				'qr-fg': '#121212'
+				'well-light': '#f7f8fa',
+				'well-dark': '#1b1e23',
+				'well-light-fg': '#545b67',
+				'well-dark-fg': '#a3aab5'
 			}
 		},
 		accentInputs: {
@@ -261,13 +266,14 @@ export const colorThemes: ColorTheme[] = [
 				'surface-raised': '#ffffff',
 				'fill-skeleton': '#e8ede4',
 				'border-control': '#838c7e',
-				'border-field': '#838c7e',
-				'on-solid': '#ffffff',
 				'info-solid': '#515a4e',
 				'info-fg': '#121611',
 				'info-soft': '#f6f8f4',
 				'info-border': '#e0e6db',
-				'qr-fg': '#121212'
+				'well-light': '#f6f8f4',
+				'well-dark': '#1b1f1a',
+				'well-light-fg': '#515a4e',
+				'well-dark-fg': '#a5ad9e'
 			},
 			dark: {
 				sidebar: '#151814',
@@ -291,13 +297,14 @@ export const colorThemes: ColorTheme[] = [
 				'surface-raised': '#242922',
 				'fill-skeleton': '#272c25',
 				'border-control': '#747d6f',
-				'border-field': '#747d6f',
-				'on-solid': '#151814',
 				'info-solid': '#a5ad9e',
 				'info-fg': '#eef2eb',
 				'info-soft': '#20241e',
 				'info-border': '#2f362c',
-				'qr-fg': '#121212'
+				'well-light': '#f6f8f4',
+				'well-dark': '#1b1f1a',
+				'well-light-fg': '#515a4e',
+				'well-dark-fg': '#a5ad9e'
 			}
 		},
 		accentInputs: {
@@ -378,13 +385,23 @@ export const colorThemes: ColorTheme[] = [
 				'surface-raised': '#ffffff',
 				'fill-skeleton': '#ebedf2',
 				'border-control': '#858c9b',
-				'border-field': '#858c9b',
-				'on-solid': '#ffffff',
 				'info-solid': '#535a6b',
 				'info-fg': '#0e1220',
 				'info-soft': '#f6f7fa',
 				'info-border': '#e2e5ec',
-				'qr-fg': '#121212'
+				'well-light': '#f6f7fa',
+				'well-dark': '#161a25',
+				'well-light-fg': '#535a6b',
+				'well-dark-fg': '#a2aabb',
+				'sidebar-fg': '#d6dcea',
+				'sidebar-muted': '#97a2ba',
+				'sidebar-subtle': '#66718a',
+				'sidebar-hover': '#1e2540',
+				'sidebar-selected': '#28304e',
+				'sidebar-border': '#262e48',
+				'sidebar-field': '#1e2540',
+				'sidebar-edge': '#36405f',
+				'sidebar-ring': '#d6dcea'
 			},
 			dark: {
 				sidebar: '#0d111d',
@@ -408,13 +425,23 @@ export const colorThemes: ColorTheme[] = [
 				'surface-raised': '#1f2430',
 				'fill-skeleton': '#232836',
 				'border-control': '#727a8c',
-				'border-field': '#727a8c',
-				'on-solid': '#0d111d',
 				'info-solid': '#a2aabb',
 				'info-fg': '#edf0f6',
 				'info-soft': '#1b1f2a',
 				'info-border': '#2a3040',
-				'qr-fg': '#121212'
+				'well-light': '#f6f7fa',
+				'well-dark': '#161a25',
+				'well-light-fg': '#535a6b',
+				'well-dark-fg': '#a2aabb',
+				'sidebar-fg': '#d6dcea',
+				'sidebar-muted': '#97a2ba',
+				'sidebar-subtle': '#5f6a82',
+				'sidebar-hover': '#161c2e',
+				'sidebar-selected': '#212a43',
+				'sidebar-border': '#1b2236',
+				'sidebar-field': '#141a2b',
+				'sidebar-edge': '#2d3652',
+				'sidebar-ring': '#d6dcea'
 			}
 		},
 		accentInputs: {
@@ -468,6 +495,20 @@ export const colorThemes: ColorTheme[] = [
 					success: 150
 				}
 			}
+		},
+		sidebarVars: {
+			canvas: 'var(--sidebar)',
+			surface: 'var(--sidebar-field)',
+			'surface-raised': 'var(--sidebar-selected)',
+			fg: 'var(--sidebar-fg)',
+			'fg-muted': 'var(--sidebar-muted)',
+			'fg-subtle': 'var(--sidebar-subtle)',
+			'fill-hover': 'var(--sidebar-hover)',
+			'fill-selected': 'var(--sidebar-selected)',
+			'fill-muted': 'var(--sidebar-selected)',
+			border: 'var(--sidebar-border)',
+			'border-strong': 'var(--sidebar-edge)',
+			ring: 'var(--sidebar-ring)'
 		}
 	},
 	{
@@ -495,13 +536,14 @@ export const colorThemes: ColorTheme[] = [
 				'surface-raised': '#ffffff',
 				'fill-skeleton': '#ebe9f3',
 				'border-control': '#888498',
-				'border-field': '#888498',
-				'on-solid': '#ffffff',
 				'info-solid': '#56526a',
 				'info-fg': '#14121b',
 				'info-soft': '#f8f7fb',
 				'info-border': '#e5e2ee',
-				'qr-fg': '#121212'
+				'well-light': '#f8f7fb',
+				'well-dark': '#1c1a23',
+				'well-light-fg': '#56526a',
+				'well-dark-fg': '#aaa5ba'
 			},
 			dark: {
 				sidebar: '#16141c',
@@ -525,13 +567,14 @@ export const colorThemes: ColorTheme[] = [
 				'surface-raised': '#25222e',
 				'fill-skeleton': '#292632',
 				'border-control': '#787387',
-				'border-field': '#787387',
-				'on-solid': '#16141c',
 				'info-solid': '#aaa5ba',
 				'info-fg': '#f1eff6',
 				'info-soft': '#211e29',
 				'info-border': '#312d3c',
-				'qr-fg': '#121212'
+				'well-light': '#f8f7fb',
+				'well-dark': '#1c1a23',
+				'well-light-fg': '#56526a',
+				'well-dark-fg': '#aaa5ba'
 			}
 		},
 		accentInputs: {
