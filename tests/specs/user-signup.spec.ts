@@ -208,9 +208,10 @@ test.describe('User Signup', () => {
 
 			await page.goto('/signup');
 
+			await page.getByLabel('Email').fill('not-an-email');
 			await page.getByRole('button', { name: 'Create account' }).click();
 
-			await expect(page.getByText('Invalid email address').first()).toBeVisible();
+			await expect(page.getByText('Enter a valid email address')).toBeVisible();
 		});
 
 		test('Open signup - duplicate email shows error', async ({ page }) => {
