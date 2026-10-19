@@ -4,12 +4,14 @@ import (
 	"context"
 	"fmt"
 	"log/slog"
+	"time"
 
 	userAgentParser "github.com/mileusna/useragent"
 	"gorm.io/gorm"
 
 	"github.com/pocket-id/pocket-id/backend/internal/appconfig"
 	"github.com/pocket-id/pocket-id/backend/internal/iplocation"
+	datatype "github.com/pocket-id/pocket-id/backend/internal/model/types"
 	"github.com/pocket-id/pocket-id/backend/internal/utils"
 )
 
@@ -66,13 +68,29 @@ func (s *service) Create(ctx context.Context, event Event, ipAddress, userAgent,
 	return auditLog, true
 }
 
+// DateRange bounds a list by creation time, from inclusive and to exclusive; a zero bound is open
+type DateRange struct {
+	From time.Time
+	To   time.Time
+}
+
+func (r DateRange) apply(query *gorm.DB) *gorm.DB {
+	if !r.From.IsZero() {
+		query = query.Where("created_at >= ?", datatype.DateTime(r.From))
+	}
+	if !r.To.IsZero() {
+		query = query.Where("created_at < ?", datatype.DateTime(r.To))
+	}
+	return query
+}
+
 // ListAuditLogsForUser retrieves all audit logs for a given user ID
-func (s *service) ListAuditLogsForUser(ctx context.Context, userID string, listRequestOptions utils.ListRequestOptions) ([]AuditLog, utils.PaginationResponse, error) {
+func (s *service) ListAuditLogsForUser(ctx context.Context, userID string, dateRange DateRange, listRequestOptions utils.ListRequestOptions) ([]AuditLog, utils.PaginationResponse, error) {
 	var logs []AuditLog
-	query := s.db.
+	query := dateRange.apply(s.db.
 		WithContext(ctx).
 		Model(&AuditLog{}).
-		Where("user_id = ?", userID)
+		Where("user_id = ?", userID))
 
 	pagination, err := utils.PaginateFilterAndSort(listRequestOptions, query, &logs)
 	return logs, pagination, err
@@ -83,13 +101,13 @@ func (s *service) DeviceStringFromUserAgent(userAgent string) string {
 	return ua.Name + " on " + ua.OS + " " + ua.OSVersion
 }
 
-func (s *service) ListAllAuditLogs(ctx context.Context, listRequestOptions utils.ListRequestOptions) ([]AuditLog, utils.PaginationResponse, error) {
+func (s *service) ListAllAuditLogs(ctx context.Context, dateRange DateRange, listRequestOptions utils.ListRequestOptions) ([]AuditLog, utils.PaginationResponse, error) {
 	var logs []AuditLog
 
-	query := s.db.
+	query := dateRange.apply(s.db.
 		WithContext(ctx).
 		Preload("User").
-		Model(&AuditLog{})
+		Model(&AuditLog{}))
 
 	if clientName, ok := listRequestOptions.Filters["clientName"]; ok {
 		dialect := s.db.Name()

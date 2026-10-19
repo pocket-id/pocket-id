@@ -2,9 +2,11 @@ package auditlogs
 
 import (
 	"net/http"
+	"time"
 
 	"github.com/gin-gonic/gin"
 
+	"github.com/pocket-id/pocket-id/backend/internal/apperror"
 	"github.com/pocket-id/pocket-id/backend/internal/authz"
 	"github.com/pocket-id/pocket-id/backend/internal/dto"
 	"github.com/pocket-id/pocket-id/backend/internal/utils"
@@ -18,6 +20,23 @@ func newHandler(service *service) *handler {
 	return &handler{service: service}
 }
 
+// parseDateRange reads the optional from and to query parameters, RFC 3339 times that bound the list by creation time
+func parseDateRange(c *gin.Context) (DateRange, error) {
+	var r DateRange
+	for name, bound := range map[string]*time.Time{"from": &r.From, "to": &r.To} {
+		value := c.Query(name)
+		if value == "" {
+			continue
+		}
+		t, err := time.Parse(time.RFC3339, value)
+		if err != nil {
+			return r, apperror.InvalidField(name, "invalid", "must be an RFC 3339 time")
+		}
+		*bound = t
+	}
+	return r, nil
+}
+
 // listAuditLogsForUserHandler godoc
 // @Summary List audit logs
 // @Description Get a paginated list of audit logs for the current user
@@ -26,16 +45,22 @@ func newHandler(service *service) *handler {
 // @Param pagination[limit] query int false "Number of items per page" default(20)
 // @Param sort[column] query string false "Column to sort by"
 // @Param sort[direction] query string false "Sort direction (asc or desc)" default("asc")
+// @Param from query string false "Only entries created at or after this RFC 3339 time"
+// @Param to query string false "Only entries created before this RFC 3339 time"
 // @Success 200 {object} dto.Paginated[auditLogDto]
 // @Failure default {object} dto.ErrorDto "Error"
 // @Router /api/audit-logs [get]
 func (h *handler) listAuditLogsForUserHandler(c *gin.Context) error {
 	listRequestOptions := utils.ParseListRequestOptions(c)
+	dateRange, err := parseDateRange(c)
+	if err != nil {
+		return err
+	}
 
 	userID := authz.PrincipalFrom(c).UserID
 
 	// Fetch audit logs for the user
-	logs, pagination, err := h.service.ListAuditLogsForUser(c.Request.Context(), userID, listRequestOptions)
+	logs, pagination, err := h.service.ListAuditLogsForUser(c.Request.Context(), userID, dateRange, listRequestOptions)
 	if err != nil {
 		return err
 	}
@@ -69,13 +94,19 @@ func (h *handler) listAuditLogsForUserHandler(c *gin.Context) error {
 // @Param pagination[limit] query int false "Number of items per page" default(20)
 // @Param sort[column] query string false "Column to sort by"
 // @Param sort[direction] query string false "Sort direction (asc or desc)" default("asc")
+// @Param from query string false "Only entries created at or after this RFC 3339 time"
+// @Param to query string false "Only entries created before this RFC 3339 time"
 // @Success 200 {object} dto.Paginated[auditLogDto]
 // @Failure default {object} dto.ErrorDto "Error"
 // @Router /api/audit-logs/all [get]
 func (h *handler) listAllAuditLogsHandler(c *gin.Context) error {
 	listRequestOptions := utils.ParseListRequestOptions(c)
+	dateRange, err := parseDateRange(c)
+	if err != nil {
+		return err
+	}
 
-	logs, pagination, err := h.service.ListAllAuditLogs(c.Request.Context(), listRequestOptions)
+	logs, pagination, err := h.service.ListAllAuditLogs(c.Request.Context(), dateRange, listRequestOptions)
 	if err != nil {
 		return err
 	}

@@ -1,22 +1,22 @@
 <script lang="ts">
+	import AuditLogDateFilter from '#lib/components/audit-log-date-filter.svelte';
 	import AuditLogList from '#lib/components/audit-log-list.svelte';
 	import PageHeader from '#lib/components/page-header.svelte';
 	import AdvancedTableFilter from '#lib/components/table/advanced-table-filter.svelte';
 	import { m } from '#lib/paraglide/messages.js';
 	import AuditLogService from '#lib/services/audit-log-service.ts';
 	import appConfigStore from '#lib/stores/application-configuration-store.ts';
-	import type { AuditLogFilter } from '#lib/types/audit-log.type.ts';
+	import type { AuditLogDateRange, AuditLogFilter } from '#lib/types/audit-log.type.ts';
 	import { eventTypes } from '#lib/utils/audit-log-translator.ts';
+	import { revealFocused } from '#lib/utils/event-util.ts';
 
 	const auditLogService = new AuditLogService();
 
-	let filters: AuditLogFilter = $state({
-		userID: '',
-		event: '',
-		location: '',
-		clientName: ''
-	});
+	const noFilters: AuditLogFilter = { userID: '', event: '', location: '', clientName: '' };
+	let filters = $state({ ...noFilters });
 
+	let dateRange: AuditLogDateRange = $state({});
+	let filterRow = $state<HTMLElement>();
 	let userOptions = $state<{ label: string; value: string }[]>([]);
 	let clientOptions = $state<{ label: string; value: string }[]>([]);
 
@@ -67,8 +67,10 @@
 	bind:this={filterRow}
 	role="group"
 	aria-label={m.filters()}
-	class="mt-6 -mb-1 flex items-center gap-1 py-1 max-sm:[scrollbar-width:none] max-sm:overflow-x-auto sm:flex-wrap"
+	onfocusin={revealFocused}
+	class="scroll-fade-x -mx-1 mt-6 -mb-1 flex scroll-px-1 items-center gap-1 p-1 max-sm:[scrollbar-width:none] max-sm:overflow-x-auto sm:flex-wrap"
 >
+	<AuditLogDateFilter bind:range={dateRange} />
 	{#each facets as facet (facet.key)}
 		<AdvancedTableFilter
 			title={facet.title}
@@ -79,4 +81,16 @@
 	{/each}
 </div>
 
-<AuditLogList isAdmin {filters} />
+<!-- The date range is never cleared, since the date filter keeps its own selection -->
+<!-- Focus moves to the filters because the action removes itself -->
+<AuditLogList
+	isAdmin
+	{filters}
+	{dateRange}
+	onClearFilters={Object.values(filters).some(Boolean)
+		? () => {
+				filters = { ...noFilters };
+				filterRow?.querySelector('button')?.focus();
+			}
+		: undefined}
+/>
