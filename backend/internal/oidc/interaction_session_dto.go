@@ -32,6 +32,9 @@ type interactionClient struct {
 
 type completeInteractionRequest struct {
 	Step interactionStep `json:"step"`
+	// Scopes are the scopes the user approved on the consent screen
+	// Omitting them approves every requested scope
+	Scopes []string `json:"scopes"`
 }
 
 type completeInteractionResponse struct {

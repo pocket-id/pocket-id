@@ -9,8 +9,15 @@ import (
 	"github.com/pocket-id/fosite"
 	"github.com/pocket-id/pocket-id/backend/internal/apperror"
 	"github.com/pocket-id/pocket-id/backend/internal/authz"
+	"github.com/pocket-id/pocket-id/backend/internal/httpserver"
 	"github.com/pocket-id/pocket-id/backend/internal/utils/cookie"
 )
+
+type verifyDeviceCodeRequest struct {
+	// Scopes are the scopes the user approved on the consent screen
+	// Omitting them approves every requested scope
+	Scopes []string `json:"scopes"`
+}
 
 type deviceHandler struct {
 	provider      fosite.OAuth2Provider
@@ -48,12 +55,20 @@ func (h *deviceHandler) verifyDeviceCode(c *gin.Context) {
 		return
 	}
 
+	// The body is optional so callers that send no scope selection approve every requested scope
+	var request verifyDeviceCodeRequest
+	if err := httpserver.BindOptionalJSON(c, &request); err != nil {
+		_ = c.Error(err)
+		return
+	}
+
 	err := h.deviceService.acceptDeviceCode(
 		c.Request.Context(),
 		userCode,
 		principal.UserID,
 		principal.AuthenticationMethod,
 		principal.AuthenticationTime,
+		request.Scopes,
 		reauthenticationToken,
 		requestMetaFromGin(c),
 	)

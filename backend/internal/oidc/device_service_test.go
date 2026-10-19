@@ -52,7 +52,7 @@ func TestDeviceServiceAcceptRequiresReauthenticationTokenWhenClientRequiresIt(t 
 	}
 	service, _, _, userCode, _ := newTestDeviceServiceWithCode(t, clientID, userID, true, reauth)
 
-	err := service.acceptDeviceCode(t.Context(), userCode, userID, "phr", time.Now().UTC(), "", requestMeta{})
+	err := service.acceptDeviceCode(t.Context(), userCode, userID, "phr", time.Now().UTC(), nil, "", requestMeta{})
 	require.True(t, apperror.IsCode(err, apperror.CodeReauthenticationRequired))
 	require.Zero(t, reauth.calls)
 
@@ -60,7 +60,7 @@ func TestDeviceServiceAcceptRequiresReauthenticationTokenWhenClientRequiresIt(t 
 	require.NoError(t, err)
 	require.True(t, info.ReauthenticationRequired)
 
-	err = service.acceptDeviceCode(t.Context(), userCode, userID, "phr", time.Now().UTC(), reauth.token, requestMeta{})
+	err = service.acceptDeviceCode(t.Context(), userCode, userID, "phr", time.Now().UTC(), nil, reauth.token, requestMeta{})
 	require.NoError(t, err)
 	require.Equal(t, 1, reauth.calls)
 }
@@ -86,7 +86,7 @@ func TestDeviceServiceAcceptUsesReauthenticationTimeForDeviceSession(t *testing.
 	}
 	service, store, provider, userCode, deviceCode := newTestDeviceServiceWithCode(t, clientID, userID, true, reauth)
 
-	err := service.acceptDeviceCode(t.Context(), userCode, userID, "phr", time.Now().Add(-time.Hour).UTC(), reauth.token, requestMeta{})
+	err := service.acceptDeviceCode(t.Context(), userCode, userID, "phr", time.Now().Add(-time.Hour).UTC(), nil, reauth.token, requestMeta{})
 	require.NoError(t, err)
 
 	deviceCodeSignature, err := provider.deviceStrategy.DeviceCodeSignature(t.Context(), deviceCode)
@@ -95,6 +95,46 @@ func TestDeviceServiceAcceptUsesReauthenticationTimeForDeviceSession(t *testing.
 	require.NoError(t, err)
 	session := acceptedRequest.GetSession().(*Session)
 	require.Equal(t, reauthenticatedAt, session.IDTokenClaims().AuthTime)
+}
+
+// TestDeviceServiceAcceptGrantsOnlyApprovedScopes guards that scopes the user deselects on the device consent screen are neither consented to nor granted, even though the device authorization endpoint granted them up front
+func TestDeviceServiceAcceptGrantsOnlyApprovedScopes(t *testing.T) {
+	const (
+		userID   = "test-user"
+		clientID = "test-client"
+	)
+	service, store, provider := newTestDeviceService(t, clientID, userID, false, nil, nil)
+	userCode, deviceCode := createTestDeviceCode(t, service, clientID, "openid email groups")
+
+	// The user deselects email and does not send openid, which must still be kept
+	require.NoError(t, service.acceptDeviceCode(t.Context(), userCode, userID, "phr", time.Now().UTC(), []string{"groups"}, "", requestMeta{}))
+
+	// Consent is only recorded for the approved scopes
+	var authorizedClient model.UserAuthorizedOidcClient
+	require.NoError(t, store.db.First(&authorizedClient, "user_id = ? AND client_id = ?", userID, clientID).Error)
+	require.ElementsMatch(t, []string{"openid", "groups"}, []string(authorizedClient.Scope))
+
+	// The token the device receives only carries the approved scopes
+	response, err := exchangeDeviceCode(t, provider, clientID, deviceCode)
+	require.NoError(t, err)
+	require.Equal(t, "openid groups", response.GetExtra("scope"))
+}
+
+func TestDeviceServiceAcceptRejectsUnrequestedScopes(t *testing.T) {
+	const (
+		userID   = "test-user"
+		clientID = "test-client"
+	)
+	service, store, _ := newTestDeviceService(t, clientID, userID, false, nil, nil)
+	userCode, _ := createTestDeviceCode(t, service, clientID, "openid email")
+
+	// The approval may only remove scopes, so a scope the device never requested is rejected
+	err := service.acceptDeviceCode(t.Context(), userCode, userID, "phr", time.Now().UTC(), []string{"email", "groups"}, "", requestMeta{})
+	require.Error(t, err)
+
+	// Nothing is consented to and the user code can still be approved
+	require.ErrorIs(t, store.db.First(&model.UserAuthorizedOidcClient{}, "user_id = ? AND client_id = ?", userID, clientID).Error, gorm.ErrRecordNotFound)
+	require.NoError(t, service.acceptDeviceCode(t.Context(), userCode, userID, "phr", time.Now().UTC(), nil, "", requestMeta{}))
 }
 
 func TestDeviceServiceCreateRejectsResourceWithoutUserDelegatedGrant(t *testing.T) {
@@ -129,17 +169,25 @@ func newTestDeviceServiceWithCode(t *testing.T, clientID, userID string, require
 	t.Helper()
 
 	service, store, provider := newTestDeviceService(t, clientID, userID, requiresReauthentication, reauth, nil)
+	userCode, deviceCode := createTestDeviceCode(t, service, clientID, "openid")
+
+	return service, store, provider, userCode, deviceCode
+}
+
+// createTestDeviceCode starts a device authorization for the given scope like a device would
+func createTestDeviceCode(t *testing.T, service *deviceService, clientID, scope string) (userCode string, deviceCode string) {
+	t.Helper()
 
 	form := url.Values{
 		"client_id": {clientID},
-		"scope":     {"openid"},
+		"scope":     {scope},
 	}
 	req := httptest.NewRequestWithContext(t.Context(), http.MethodPost, "/api/oidc/device/authorize", strings.NewReader(form.Encode()))
 	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
 	response, _, err := service.createDeviceAuthorization(t.Context(), req)
 	require.NoError(t, err)
 
-	return service, store, provider, response.UserCode, response.DeviceCode
+	return response.UserCode, response.DeviceCode
 }
 
 func newTestDeviceService(t *testing.T, clientID, userID string, requiresReauthentication bool, reauth ReauthenticationTokenConsumer, apiAccess APIAccessProvider) (*deviceService, *Store, *oidcProvider) {

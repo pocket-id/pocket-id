@@ -120,6 +120,38 @@ test('Authorize client requesting offline_access scope', async ({ page }) => {
 	expect(callbackUrl.searchParams.get('error')).toBeNull();
 });
 
+test('Authorize new client with a deselected scope', async ({ page }) => {
+	const oidcClient = oidcClients.immich;
+	const urlParams = createUrlParams(oidcClient);
+	await page.goto(`/authorize?${urlParams.toString()}`);
+
+	await expectScopes(page, ['Email', 'Profile']);
+	await page.getByRole('checkbox', { name: 'Email' }).click();
+	await expect(page.getByRole('checkbox', { name: 'Email' })).not.toBeChecked();
+	await expect(page.getByRole('checkbox', { name: 'Profile' })).toBeChecked();
+
+	const callbackUrl = await expectCallbackRedirect(page, oidcClient.callbackUrl, () =>
+		page.getByRole('button', { name: 'Sign in' }).click()
+	);
+
+	// The deselected scope must be missing from the issued token and therefore from the userinfo claims
+	const token = (await oidcUtil.exchangeCode(page, {
+		grant_type: 'authorization_code',
+		code: callbackUrl.searchParams.get('code')!,
+		redirect_uri: oidcClient.callbackUrl,
+		client_id: oidcClient.id,
+		client_secret: oidcClient.secret
+	})) as { access_token?: string; scope?: string };
+	expect(token.scope?.split(' ').sort()).toEqual(['openid', 'profile']);
+
+	const userinfo = await page.request
+		.get('/api/oidc/userinfo', { headers: { Authorization: `Bearer ${token.access_token}` } })
+		.then((r) => r.json());
+	expect(userinfo.sub).toBe(users.tim.id);
+	expect(userinfo.given_name).toBeTruthy();
+	expect(userinfo.email).toBeUndefined();
+});
+
 test('Authorize existing client without scopes', async ({ page }) => {
 	const oidcClient = oidcClients.nextcloud;
 	const urlParams = new URLSearchParams({
@@ -676,6 +708,47 @@ test('Authorize new client with device authorization flow', async ({ page }) => 
 	await expect(
 		page.getByRole('paragraph').filter({ hasText: 'The device has been authorized.' })
 	).toBeVisible();
+});
+
+test('Authorize new client with device authorization flow and a deselected scope', async ({
+	page
+}) => {
+	const client = oidcClients.immich;
+	const credentials = { client_id: client.id, client_secret: client.secret };
+	const device = await page.request
+		.post('/api/oidc/device/authorize', {
+			form: { ...credentials, scope: 'openid profile email' }
+		})
+		.then((r) => r.json());
+
+	await page.goto(`/device?user_code=${device.user_code}`);
+	await page.getByRole('button', { name: 'Authorize' }).click();
+
+	await expectScopes(page, ['Email', 'Profile']);
+	await page.getByRole('checkbox', { name: 'Email' }).click();
+	await expect(page.getByRole('checkbox', { name: 'Email' })).not.toBeChecked();
+	await expect(page.getByRole('checkbox', { name: 'Profile' })).toBeChecked();
+
+	await page.getByRole('button', { name: 'Authorize' }).click();
+	await expect(
+		page.getByRole('paragraph').filter({ hasText: 'The device has been authorized.' })
+	).toBeVisible();
+
+	// The deselected scope must be missing from the token the device receives and therefore from the userinfo claims
+	await page.waitForTimeout(device.interval * 1000 + 100);
+	const token = (await oidcUtil.exchangeCode(page, {
+		...credentials,
+		grant_type: 'urn:ietf:params:oauth:grant-type:device_code',
+		device_code: device.device_code
+	})) as { access_token?: string; scope?: string };
+	expect(token.scope?.split(' ').sort()).toEqual(['openid', 'profile']);
+
+	const userinfo = await page.request
+		.get('/api/oidc/userinfo', { headers: { Authorization: `Bearer ${token.access_token}` } })
+		.then((r) => r.json());
+	expect(userinfo.sub).toBe(users.tim.id);
+	expect(userinfo.given_name).toBeTruthy();
+	expect(userinfo.email).toBeUndefined();
 });
 
 test('Authorize new client with device authorization flow while not signed in', async ({
