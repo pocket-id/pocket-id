@@ -5,11 +5,15 @@
 	import { m } from '#lib/paraglide/messages.js';
 	import appConfigStore from '#lib/stores/application-configuration-store.ts';
 	import { commandPalette } from '#lib/stores/command-palette-store.svelte.ts';
+	import { pageTransition } from '#lib/stores/page-transition-store.svelte.ts';
 	import type { AppVersionInformation } from '#lib/types/application-configuration.type.ts';
 	import { modKey } from '#lib/utils/keyboard-util.ts';
 	import { cn } from '#lib/utils/style.ts';
-	import { CircleChevronUp, PanelLeftClose, PanelLeftOpen, Search } from '@lucide/svelte';
+	import AnimatedPanelLeftClose from '@jis3r/icons/icons/panel-left-close';
+	import AnimatedPanelLeftOpen from '@jis3r/icons/icons/panel-left-open';
+	import { CircleChevronUp, Search } from '@lucide/svelte';
 	import AccountMenu from './account-menu.svelte';
+	import NavIcon from './nav-icon.svelte';
 	import { activeHref, type NavGroup } from './nav-items.ts';
 
 	let {
@@ -25,6 +29,36 @@
 	} = $props();
 
 	const current = $derived(activeHref(groups, page.url.pathname));
+
+	// The control whose icon plays: hovering or keyboard focus starts it, a click or tap never does
+	// Hover and keyboard focus are tracked apart, because a click moves focus to the new page and must not make a hovered icon play again
+	let hovered = $state<string | null>(null);
+	let focused = $state<string | null>(null);
+	const playing = $derived(hovered ?? focused);
+	const play = (key: string) => ({
+		'data-icon-play': key,
+		onmouseenter: () => (hovered = key),
+		// A click starts a page transition, which takes the pointer away and back, so a leave during it is not real
+		onmouseleave: () => {
+			if (!pageTransition.running) hovered = null;
+		},
+		// The focusin pair leaves the tooltip's own onfocus and onblur in place
+		onfocusin: (e: FocusEvent) => {
+			if ((e.currentTarget as HTMLElement).matches(':focus-visible')) focused = key;
+		},
+		onfocusout: () => (focused = null)
+	});
+
+	// A row the pointer left during a page transition stops playing on the next move, since the browser restores :hover only after the transition
+	$effect(() => {
+		if (pageTransition.running || !hovered) return;
+		const key = hovered;
+		const check = () => {
+			if (!document.querySelector(`[data-icon-play="${key}"]`)?.matches(':hover')) hovered = null;
+		};
+		window.addEventListener('pointermove', check, { once: true });
+		return () => window.removeEventListener('pointermove', check);
+	});
 	const versionLabel = $derived(`Pocket ID ${versionInformation.currentVersion}`);
 
 	// One shared selected fill slides to the current row instead of every row painting its own
@@ -155,6 +189,10 @@
 			<ul class={cn('flex flex-col gap-0.5', collapsed ? 'items-center' : 'max-lg:items-center')}>
 				{#each group.items as item (item.href)}
 					{@const active = item.href === current}
+					{@const iconClass = cn(
+						'size-[17px] shrink-0 transition-colors',
+						active ? 'text-fg' : 'text-fg-muted group-hover:text-fg'
+					)}
 					<li>
 						<Tooltip.Root>
 							<Tooltip.Trigger>
@@ -163,8 +201,9 @@
 										{...props}
 										href={item.href}
 										aria-current={active ? 'page' : undefined}
+										{...play(item.href)}
 										class={cn(
-											'group text-fg focus-visible:outline-ring relative flex h-9 items-center gap-3 rounded-sm text-sm font-medium outline-offset-[-2px] focus-visible:outline-2',
+											'group text-fg focus-visible:outline-ring relative flex h-9 scroll-my-6 items-center gap-3 rounded-sm text-sm font-medium outline-offset-[-2px] focus-visible:outline-2',
 											'before:bg-fill-hover before:absolute before:inset-0 before:-z-10 before:rounded-[inherit] before:opacity-0 before:transition-opacity before:duration-(--dur-fast) hover:before:opacity-100',
 											active && 'hover:before:opacity-0',
 											collapsed
@@ -172,12 +211,15 @@
 												: 'w-9 justify-center lg:w-full lg:justify-start lg:pr-3 lg:pl-4'
 										)}
 									>
-										<item.icon
-											class={cn(
-												'size-[17px] shrink-0 transition-colors',
-												active ? 'text-fg' : 'text-fg-muted group-hover:text-fg'
-											)}
-										/>
+										{#if item.animated}
+											<NavIcon
+												icon={item.animated}
+												active={playing === item.href}
+												class={iconClass}
+											/>
+										{:else}
+											<item.icon class={iconClass} />
+										{/if}
 										<span
 											class={cn(
 												'min-w-0 flex-1',
@@ -268,10 +310,13 @@
 							class="text-fg-muted hover:bg-fill-hover hover:text-fg focus-visible:outline-ring hidden size-9 shrink-0 items-center justify-center rounded-sm outline-offset-[-2px] focus-visible:outline-2 lg:flex"
 							aria-label={collapsed ? m.expand_sidebar() : m.collapse_sidebar()}
 							onclick={() => (collapsed = !collapsed)}
+							{...play('collapse')}
 						>
-							{#if collapsed}<PanelLeftOpen class="size-[17px]" />{:else}<PanelLeftClose
-									class="size-[17px]"
-								/>{/if}
+							<NavIcon
+								icon={collapsed ? AnimatedPanelLeftOpen : AnimatedPanelLeftClose}
+								active={playing === 'collapse'}
+								class="size-[17px]"
+							/>
 						</button>
 					{/snippet}
 				</Tooltip.Trigger>
