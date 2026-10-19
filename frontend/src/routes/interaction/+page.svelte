@@ -61,7 +61,6 @@
 					? 'verify'
 					: (currentStep ?? 'authenticate')
 	);
-	const cancelHref = document.referrer || '/';
 
 	async function useDifferentAccount() {
 		await webauthnService.logout();
@@ -257,9 +256,7 @@
 				>
 					{m.cancel()}
 				</Button>
-			{/if}
-			<Button variant="link" class={authQuietClass} href={cancelHref}>{m.cancel()}</Button>
-		</div>
+			</div>
 
 			{#if view === 'consent'}
 				<p class="text-control text-fg-muted mt-2 text-center">{m.auth_remove_access_anytime()}</p>

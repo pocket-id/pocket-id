@@ -256,3 +256,84 @@ func testAuthorizationHandlerPAR(t *testing.T, clientType string, tt authorizati
 		}
 	}
 }
+
+func TestAuthorizationHandlerCancelsInteraction(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	const (
+		baseURL     = "https://issuer.example.com"
+		callbackURL = "https://client.example.com/callback"
+		clientID    = "cancel-client"
+	)
+	key, err := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
+	require.NoError(t, err)
+
+	for _, tt := range []struct {
+		name       string
+		cancel     bool
+		wantDenied bool
+	}{
+		{name: "cancel ends the request at the app", cancel: true, wantDenied: true},
+		{name: "resuming without cancel does not deny", cancel: false},
+	} {
+		t.Run(tt.name, func(t *testing.T) {
+			db := testutils.NewDatabaseForTest(t)
+			require.NoError(t, db.Create(&model.OidcClient{
+				Base:         model.Base{ID: clientID},
+				Name:         "Cancel client",
+				CallbackURLs: datatype.StringList{callbackURL},
+				IsPublic:     true,
+				PkceEnabled:  true,
+			}).Error)
+			interaction := InteractionSession{
+				ClientID:               clientID,
+				AuthenticationRequired: true,
+				RequestedAt:            datatype.DateTime(time.Now()),
+				Parameters: InteractionSessionParameters{
+					"client_id":             clientID,
+					"response_type":         "code",
+					"redirect_uri":          callbackURL,
+					"scope":                 "openid",
+					"state":                 "state-with-enough-entropy",
+					"code_challenge":        "E9Melhoa2OwvFrEMTJguCHaoeK1t8URWbuGJSstw-cM",
+					"code_challenge_method": "S256",
+				},
+			}
+			require.NoError(t, db.Create(&interaction).Error)
+
+			provider, err := newProvider(NewStore(db, nil), nil, testTokenSigner{key: key}, Config{
+				BaseURL: baseURL, TokenBaseURL: baseURL, Secret: []byte("test-secret"),
+			}, nil)
+			require.NoError(t, err)
+			service := newAuthorizationService(db, newInteractionSessionService(db), newClaimsService(db, nil, baseURL, nil, appconfig.StaticResolver{}), nil, nil, nil)
+			handler := newAuthorizationHandler(provider, service)
+
+			// A signed-out visitor can cancel too, since the sign-in step offers Cancel
+			target := "/authorize?interaction=" + interaction.ID
+			if tt.cancel {
+				target += "&cancel=true"
+			}
+			req := httptest.NewRequestWithContext(t.Context(), http.MethodGet, target, nil)
+			rec := httptest.NewRecorder()
+			router := gin.New()
+			router.GET("/authorize", func(c *gin.Context) {
+				authz.SetPrincipal(c, &authz.Principal{})
+				handler.authorize(c)
+			})
+			router.ServeHTTP(rec, req)
+
+			location, err := url.Parse(rec.Header().Get("Location"))
+			require.NoError(t, err)
+			var remaining int64
+			require.NoError(t, db.Model(&InteractionSession{}).Where("id = ?", interaction.ID).Count(&remaining).Error)
+			if tt.wantDenied {
+				require.Equal(t, callbackURL, location.Scheme+"://"+location.Host+location.Path, rec.Body.String())
+				require.Equal(t, "access_denied", location.Query().Get("error"))
+				require.Equal(t, "state-with-enough-entropy", location.Query().Get("state"))
+				require.Zero(t, remaining)
+			} else {
+				require.NotEqual(t, "access_denied", location.Query().Get("error"))
+				require.EqualValues(t, 1, remaining)
+			}
+		})
+	}
+}
