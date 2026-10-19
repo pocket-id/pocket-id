@@ -1,14 +1,16 @@
 <script lang="ts">
 	import { onNavigate } from '$app/navigation';
-	import FormattedMessage from '#lib/components/formatted-message.svelte';
+	import { page } from '$app/state';
+	import DocsLink from '#lib/components/docs-link.svelte';
 	import AppSidebar from '#lib/components/shell/app-sidebar.svelte';
 	import CommandPalette from '#lib/components/shell/command-palette.svelte';
-	import { checkApiRows, navGroups } from '#lib/components/shell/nav-items.ts';
+	import { navGroups } from '#lib/components/shell/nav-items.ts';
 	import PhoneNav from '#lib/components/shell/phone-nav.svelte';
 	import * as Alert from '#lib/components/ui/alert/index.ts';
 	import * as Tooltip from '#lib/components/ui/tooltip/index.ts';
 	import { m } from '#lib/paraglide/messages.js';
 	import appConfigStore from '#lib/stores/application-configuration-store.ts';
+	import { pageTransition } from '#lib/stores/page-transition-store.svelte.ts';
 	import userStore from '#lib/stores/user-store.ts';
 	import { isEmailVerificationPending } from '#lib/utils/email-verification-util.ts';
 	import { cn } from '#lib/utils/style.ts';
@@ -30,27 +32,7 @@
 	const isAdmin = $derived(!!($userStore?.isAdmin || user?.isAdmin));
 	const verificationPending = $derived(isEmailVerificationPending(user, $appConfigStore));
 	const showUpdate = $derived(isAdmin && versionInformation.isUpToDate === false);
-	// A writable $derived(data.apiRows) would lose a re-check on the next navigation, because the root load re-runs every time and replaces data
-	let recheckedApiRows = $state<typeof data.apiRows>();
-	const apiRows = $derived(recheckedApiRows ?? data.apiRows);
-	// The page you are on keeps its row, and the palette always lists both (docs/design-system.md, PO11)
-	const groups = $derived(
-		navGroups({
-			isAdmin,
-			verificationPending,
-			showApis:
-				apiRows.apis ||
-				showAdvanced.current ||
-				page.url.pathname.startsWith('/settings/admin/apis'),
-			showApiKeys:
-				apiRows.apiKeys ||
-				showAdvanced.current ||
-				page.url.pathname.startsWith('/settings/admin/api-keys')
-		})
-	);
-	const paletteGroups = $derived(
-		navGroups({ isAdmin, verificationPending, showApis: true, showApiKeys: true })
-	);
+	const groups = $derived(navGroups({ isAdmin, verificationPending, features: data.features }));
 	const collapsed = new PersistedState('sidebar-collapsed', false);
 
 	// List pages run gutter to gutter, the other pages keep the centered column
@@ -68,14 +50,7 @@
 
 	let mainEl: HTMLElement;
 
-	// Navigating from the APIs or API keys pages, their tables' page updates included, re-checks their rows, so a first API or key has its row before you leave
-	// SvelteKit passes a from without a url when the app starts
-	afterNavigate(async ({ from }) => {
-		if (from?.url?.pathname.startsWith('/settings/admin/api'))
-			recheckedApiRows = await checkApiRows();
-	});
-
-	// Only the content region crossfades between pages; the shell never moves (docs/design-system.md, Page transitions)
+	// Only the content region crossfades between pages, so the shell never moves
 	onNavigate((navigation) => {
 		if (
 			navigation.shallow ||
@@ -83,17 +58,25 @@
 			document.documentElement.classList.contains('no-motion') ||
 			window.matchMedia('(prefers-reduced-motion: reduce)').matches ||
 			!navigation.to?.url.pathname.startsWith('/settings/') ||
-			navigation.from?.url.pathname === navigation.to.url.pathname
+			navigation.from?.url.pathname === navigation.to.url.pathname ||
+			// Configuration tabs are routes, but switching them swaps only the tab content
+			(navigation.to.route.id === '/settings/admin/application-configuration/[category]' &&
+				navigation.from?.route.id === navigation.to.route.id)
 		) {
 			return;
 		}
 
 		// onNavigate runs after the load functions resolved, so the transition never delays the new page
 		return new Promise((resolve) => {
-			document.startViewTransition(async () => {
+			pageTransition.running = true;
+			// The outgoing column fades out where it was instead of at the new page's scroll position
+			mainEl.style.viewTransitionName = 'settings-content-old';
+			const transition = document.startViewTransition(async () => {
+				mainEl.style.viewTransitionName = '';
 				resolve();
 				await navigation.complete;
 			});
+			transition.finished.finally(() => (pageTransition.running = false));
 		});
 	});
 </script>
@@ -118,7 +101,10 @@
 					<Alert.Root variant="warning">
 						<LucideTriangleAlert />
 						<Alert.Description>
-							<FormattedMessage message={m.sqlite_storage_warning} />
+							{m.sqlite_network_storage_warning()}
+							<DocsLink
+								href="https://pocket-id.org/docs/configuration/environment-variables#sqlite"
+							/>
 						</Alert.Description>
 					</Alert.Root>
 				{/if}
@@ -129,5 +115,5 @@
 			</main>
 		</div>
 	</div>
-	<CommandPalette groups={paletteGroups} isAdmin={isAdmin && !verificationPending} />
+	<CommandPalette {groups} features={data.features} isAdmin={isAdmin && !verificationPending} />
 </Tooltip.Provider>

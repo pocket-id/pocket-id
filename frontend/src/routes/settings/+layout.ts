@@ -1,4 +1,4 @@
-import { checkApiRows } from '#lib/components/shell/nav-items.ts';
+import FeatureService from '#lib/services/feature-service.ts';
 import StorageService from '#lib/services/storage-service.ts';
 import VersionService from '#lib/services/version-service.ts';
 import WebAuthnService from '#lib/services/webauthn-service.ts';
@@ -6,21 +6,21 @@ import type { AppVersionInformation } from '#lib/types/application-configuration
 import { redirect } from '@sveltejs/kit';
 import type { LayoutLoad } from './$types';
 
-export const load: LayoutLoad = async ({ url, parent, untrack }) => {
+export const load: LayoutLoad = async ({ url, parent, untrack, depends }) => {
+	depends('app:features');
+
 	const versionService = new VersionService();
 	const storageService = new StorageService();
 	const webauthnService = new WebAuthnService();
 
 	const currentVersion = versionService.getCurrentVersion();
 
-	const [newestVersion, sqliteStorageWarning, passkeys, apiRows] = await Promise.all([
+	const [newestVersion, sqliteStorageWarning, passkeys, features] = await Promise.all([
 		versionService.getNewestVersion().catch(() => null),
 		storageService.getSqliteStorageWarning().catch(() => false),
 		webauthnService.listCredentials(),
 		// A tracked parent() would rerun this load on every navigation, because the root load reads the pathname
-		untrack(() => parent()).then(({ user }) =>
-			user?.isAdmin ? checkApiRows() : { apis: false, apiKeys: false }
-		)
+		untrack(() => parent()).then(({ user }) => (user?.isAdmin ? new FeatureService().list() : null))
 	]);
 
 	// If newestVersion is empty, it means the check is disabled or failed.
@@ -45,6 +45,6 @@ export const load: LayoutLoad = async ({ url, parent, untrack }) => {
 		versionInformation,
 		sqliteStorageWarning,
 		passkeys,
-		apiRows
+		features
 	};
 };
