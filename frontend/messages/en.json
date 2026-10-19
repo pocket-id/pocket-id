@@ -1101,5 +1101,15 @@
 	"register_your_first_api": "Register your first API",
 	"create_your_first_api_key": "Create your first API key",
 	"add_your_first_group": "Add your first group",
-	"add_your_first_oidc_client": "Add your first OIDC client"
+	"add_your_first_oidc_client": "Add your first OIDC client",
+	"validation_required": "Required",
+	"validation_min_length": "Enter at least {count} characters",
+	"validation_max_length": "Enter at most {count} characters",
+	"validation_min_number": "Enter {minimum} or more",
+	"validation_max_number": "Enter {maximum} or less",
+	"validation_min_items": "Choose at least {count}",
+	"validation_max_items": "Choose at most {count}",
+	"validation_email": "Enter a valid email address",
+	"validation_url": "Enter a valid URL",
+	"validation_number": "Enter a number"
 }
