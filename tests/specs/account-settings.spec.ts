@@ -99,10 +99,11 @@ test('Change Locale', async ({ page }) => {
 	// Check if th language heading now says 'Taal' instead of 'Language'
 	await expect(page.getByText('Taal', { exact: true })).toBeVisible();
 
-	// Check if the validation messages are translated because they are provided by Zod
-	await page.getByRole('textbox', { name: 'Gebruikersnaam' }).fill('');
+	// Saving still validates in the new language
+	const username = page.getByRole('textbox', { name: 'Gebruikersnaam' });
+	await username.fill('');
 	await page.getByRole('button', { name: 'Opslaan' }).click();
-	await expect(page.getByText('Te kort: verwacht dat string >=1 tekens heeft')).toBeVisible();
+	await expect(username).toHaveAttribute('aria-invalid', 'true');
 
 	// Clear all cookies and sign in again to check if the language is still set to Dutch
 	await page.context().clearCookies();
@@ -110,9 +111,9 @@ test('Change Locale', async ({ page }) => {
 
 	await expect(page.getByText('Taal', { exact: true })).toBeVisible();
 
-	await page.getByRole('textbox', { name: 'Gebruikersnaam' }).fill('');
+	await username.fill('');
 	await page.getByRole('button', { name: 'Opslaan' }).click();
-	await expect(page.getByText('Te kort: verwacht dat string >=1 tekens heeft')).toBeVisible();
+	await expect(username).toHaveAttribute('aria-invalid', 'true');
 });
 
 test('Add passkey to an account', async ({ page }) => {

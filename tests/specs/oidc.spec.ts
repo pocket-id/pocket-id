@@ -103,6 +103,21 @@ test('Authorize new client', async ({ page }) => {
 	);
 });
 
+test('Cancel on the consent screen returns access_denied to the client', async ({ page }) => {
+	const oidcClient = oidcClients.immich;
+	const urlParams = createUrlParams(oidcClient);
+	await page.goto(`/authorize?${urlParams.toString()}`);
+
+	await expectScopes(page, ['Email address', 'Name, username and picture']);
+
+	const callbackUrl = await expectCallbackRedirect(page, oidcClient.callbackUrl, () =>
+		page.getByRole('link', { name: 'Cancel', exact: true }).click()
+	);
+	expect(callbackUrl.searchParams.get('error')).toBe('access_denied');
+	expect(callbackUrl.searchParams.get('code')).toBeNull();
+	expect(callbackUrl.searchParams.get('state')).toBe(urlParams.get('state'));
+});
+
 test('Authorize client requesting offline_access scope', async ({ page }) => {
 	const oidcClient = oidcClients.immich;
 	const urlParams = createUrlParams(oidcClient);
