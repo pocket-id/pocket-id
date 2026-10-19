@@ -1,0 +1,36 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="92 80 364 364">
+  <defs>
+    <linearGradient id="bodyG" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#38496C"/>
+      <stop offset="1" stop-color="#24365F"/>
+    </linearGradient>
+    <radialGradient id="gold" cx="0.42" cy="0.36" r="0.75">
+      <stop offset="0" stop-color="#F7C01C"/>
+      <stop offset="0.55" stop-color="#E2A408"/>
+      <stop offset="1" stop-color="#BE8808"/>
+    </radialGradient>
+  </defs>
+
+  <!-- feet -->
+  <rect x="146" y="408" width="48" height="24" rx="8" fill="#16233E"/>
+  <rect x="318" y="408" width="48" height="24" rx="8" fill="#16233E"/>
+  <!-- handle -->
+  <rect x="402" y="224" width="46" height="54" rx="16" fill="#3C4C6B"/>
+  <!-- body -->
+  <rect x="100" y="92" width="312" height="322" rx="40" fill="url(#bodyG)"/>
+  <!-- door -->
+  <rect x="126" y="112" width="260" height="270" rx="26" fill="#16233E" stroke="#0F1A2E" stroke-width="2"/>
+  <!-- hinges -->
+  <rect x="116" y="166" width="18" height="46" rx="7" fill="#3C4C6B"/>
+  <rect x="116" y="298" width="18" height="46" rx="7" fill="#3C4C6B"/>
+  <!-- dial -->
+  <circle cx="256" cy="250" r="101" fill="#101A2E"/>
+  <circle cx="256" cy="250" r="95" fill="none" stroke="url(#gold)" stroke-width="9"/>
+    <line x1="284.3" y1="278.3" x2="318.2" y2="312.2" stroke="url(#gold)" stroke-width="9" stroke-linecap="round"/>
+    <line x1="227.7" y1="278.3" x2="193.8" y2="312.2" stroke="url(#gold)" stroke-width="9" stroke-linecap="round"/>
+    <line x1="227.7" y1="221.7" x2="193.8" y2="187.8" stroke="url(#gold)" stroke-width="9" stroke-linecap="round"/>
+    <line x1="284.3" y1="221.7" x2="318.2" y2="187.8" stroke="url(#gold)" stroke-width="9" stroke-linecap="round"/>
+  <circle cx="256" cy="250" r="56" fill="none" stroke="url(#gold)" stroke-width="7"/>
+  <circle cx="256" cy="250" r="35" fill="url(#gold)"/>
+  <circle cx="256" cy="250" r="15" fill="#16233E"/>
+</svg>
