@@ -3,12 +3,14 @@
 package frontend
 
 import (
+	"bytes"
 	"net/http"
 	"net/http/httptest"
 	"testing"
 	"testing/fstest"
 
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 func TestIsSPARequest(t *testing.T) {
@@ -109,4 +111,15 @@ func TestFileServerWithCachingDoesNotCompressUnsupportedExtensions(t *testing.T)
 	assert.Equal(t, "font", res.Body.String())
 	assert.Empty(t, res.Header().Get("Content-Encoding"))
 	assert.Empty(t, res.Header().Get("Vary"))
+}
+
+func TestWriteIndexMarksDisabledAnimations(t *testing.T) {
+	var page bytes.Buffer
+	require.NoError(t, writeIndexFn(&page, "abc", true))
+	assert.Contains(t, page.String(), `<html lang="en" class="no-motion">`)
+	assert.Contains(t, page.String(), `<script nonce="abc">`)
+
+	page.Reset()
+	require.NoError(t, writeIndexFn(&page, "", false))
+	assert.NotContains(t, page.String(), "no-motion")
 }

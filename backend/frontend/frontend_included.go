@@ -4,6 +4,7 @@ package frontend
 
 import (
 	"bytes"
+	"context"
 	"embed"
 	"fmt"
 	"io"
@@ -38,10 +39,11 @@ var precompressedExtensions = map[string]struct{}{
 }
 
 // This function, created by the init() method, writes to "w" the index.html page, populating the nonce
-var writeIndexFn func(w io.Writer, nonce string) error
+var writeIndexFn func(w io.Writer, nonce string, noMotion bool) error
 
 func init() {
 	const scriptTag = "<script>"
+	const htmlTag = `<html lang="en">`
 
 	// Read the index.html from the bundle
 	index, iErr := fs.ReadFile(frontendFS, "dist/index.html")
@@ -49,27 +51,27 @@ func init() {
 		panic(fmt.Errorf("failed to read index.html: %w", iErr))
 	}
 
-	writeIndexFn = func(w io.Writer, nonce string) (err error) {
-		// If there's no nonce, write the index as-is
-		if nonce == "" {
-			_, err = w.Write(index)
-			return err
-		}
+	writeIndexFn = func(w io.Writer, nonce string, noMotion bool) (err error) {
+		page := index
 
 		// Add nonce to all <script> tags
 		// We replace "<script" with `<script nonce="..."` everywhere it appears
-		modified := bytes.ReplaceAll(
-			index,
-			[]byte(scriptTag),
-			[]byte(`<script nonce="`+nonce+`">`),
-		)
+		if nonce != "" {
+			page = bytes.ReplaceAll(page, []byte(scriptTag), []byte(`<script nonce="`+nonce+`">`))
+		}
 
-		_, err = w.Write(modified)
+		// Disable animations must hold from the first paint, so the served page carries it instead of waiting for the config request
+		if noMotion {
+			page = bytes.Replace(page, []byte(htmlTag), []byte(`<html lang="en" class="no-motion">`), 1)
+		}
+
+		_, err = w.Write(page)
 		return err
 	}
 }
 
-func RegisterFrontend(router *gin.Engine) error {
+// RegisterFrontend serves the SPA; animationsDisabled reports the Disable animations setting for each page load
+func RegisterFrontend(router *gin.Engine, animationsDisabled func(ctx context.Context) bool) error {
 	distFS, err := fs.Sub(frontendFS, "dist")
 	if err != nil {
 		return fmt.Errorf("failed to create sub FS: %w", err)
@@ -99,7 +101,7 @@ func RegisterFrontend(router *gin.Engine) error {
 			c.Header("Content-Type", "text/html; charset=utf-8")
 			c.Header("Cache-Control", "no-store")
 			c.Status(http.StatusOK)
-			err = writeIndexFn(c.Writer, nonce)
+			err = writeIndexFn(c.Writer, nonce, animationsDisabled(c.Request.Context()))
 			if err != nil {
 				_ = c.Error(fmt.Errorf("failed to write index.html file: %w", err))
 			}
