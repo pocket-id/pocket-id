@@ -1,0 +1,12 @@
+## What and why
+
+## Related issue
+
+## Screenshots
+
+## Contributing Guidelines
+
+Have you read the [Contributing Guidelines](https://github.com/pocket-id/.github/blob/main/CONTRIBUTING.md)?
+
+- [ ] If I'm implementing a new feature, I have opened an issue first, or commented on an existing one, to discuss the implementation details.
+- [ ] I have read the [AI Usage Guidelines](https://github.com/pocket-id/.github/blob/main/CONTRIBUTING.md#ai-usage-policy).
