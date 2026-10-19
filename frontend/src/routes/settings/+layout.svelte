@@ -2,7 +2,8 @@
 	import { onNavigate } from '$app/navigation';
 	import FormattedMessage from '#lib/components/formatted-message.svelte';
 	import AppSidebar from '#lib/components/shell/app-sidebar.svelte';
-	import { navGroups } from '#lib/components/shell/nav-items.ts';
+	import CommandPalette from '#lib/components/shell/command-palette.svelte';
+	import { checkApiRows, navGroups } from '#lib/components/shell/nav-items.ts';
 	import PhoneNav from '#lib/components/shell/phone-nav.svelte';
 	import * as Alert from '#lib/components/ui/alert/index.ts';
 	import * as Tooltip from '#lib/components/ui/tooltip/index.ts';
@@ -27,8 +28,28 @@
 	const { versionInformation, sqliteStorageWarning, user } = data;
 
 	const isAdmin = $derived(!!($userStore?.isAdmin || user?.isAdmin));
+	const verificationPending = $derived(isEmailVerificationPending(user, $appConfigStore));
+	const showUpdate = $derived(isAdmin && versionInformation.isUpToDate === false);
+	// A writable $derived(data.apiRows) would lose a re-check on the next navigation, because the root load re-runs every time and replaces data
+	let recheckedApiRows = $state<typeof data.apiRows>();
+	const apiRows = $derived(recheckedApiRows ?? data.apiRows);
+	// The page you are on keeps its row, and the palette always lists both (docs/design-system.md, PO11)
 	const groups = $derived(
-		navGroups({ isAdmin, verificationPending: isEmailVerificationPending(user, $appConfigStore) })
+		navGroups({
+			isAdmin,
+			verificationPending,
+			showApis:
+				apiRows.apis ||
+				showAdvanced.current ||
+				page.url.pathname.startsWith('/settings/admin/apis'),
+			showApiKeys:
+				apiRows.apiKeys ||
+				showAdvanced.current ||
+				page.url.pathname.startsWith('/settings/admin/api-keys')
+		})
+	);
+	const paletteGroups = $derived(
+		navGroups({ isAdmin, verificationPending, showApis: true, showApiKeys: true })
 	);
 	const collapsed = new PersistedState('sidebar-collapsed', false);
 
@@ -108,4 +129,5 @@
 			</main>
 		</div>
 	</div>
+	<CommandPalette groups={paletteGroups} isAdmin={isAdmin && !verificationPending} />
 </Tooltip.Provider>

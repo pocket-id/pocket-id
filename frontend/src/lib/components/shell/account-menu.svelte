@@ -4,10 +4,10 @@
 	import * as DropdownMenu from '#lib/components/ui/dropdown-menu/index.ts';
 	import * as Tooltip from '#lib/components/ui/tooltip/index.ts';
 	import { m } from '#lib/paraglide/messages.js';
-	import WebAuthnService from '#lib/services/webauthn-service.ts';
-	import unsavedChangesStore from '#lib/stores/unsaved-changes-store.svelte.ts';
 	import userStore from '#lib/stores/user-store.ts';
 	import { cachedProfilePicture } from '#lib/utils/cached-image-util.ts';
+	import { setModeInstantly } from '#lib/utils/color-theme-util.ts';
+	import { signOut } from '#lib/utils/sign-out-util.ts';
 	import { cn } from '#lib/utils/style.ts';
 	import { IdCard, LogOut, SunMoon } from '@lucide/svelte';
 	import { userPrefersMode } from 'mode-watcher';
@@ -21,19 +21,10 @@
 		version?: string;
 	} = $props();
 
-	const webauthnService = new WebAuthnService();
 	let open = $state(false);
+	let jumping = $state(false);
 
 	const appearanceLabels = { light: m.light(), dark: m.dark(), system: m.system() };
-
-	async function signOut() {
-		if (!unsavedChangesStore.hasChanges) {
-			await webauthnService.logout();
-		}
-
-		// With unsaved changes the bar blocks this navigation and shakes instead
-		goto('/login');
-	}
 </script>
 
 {#snippet appearanceOptions()}

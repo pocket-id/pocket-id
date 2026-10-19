@@ -5,10 +5,11 @@
 	import * as DropdownMenu from '#lib/components/ui/dropdown-menu/index.ts';
 	import { m } from '#lib/paraglide/messages.js';
 	import appConfigStore from '#lib/stores/application-configuration-store.ts';
+	import { commandPalette } from '#lib/stores/command-palette-store.svelte.ts';
 	import { cn } from '#lib/utils/style.ts';
-	import { Check, Ellipsis } from '@lucide/svelte';
+	import { Check, CircleChevronUp, Ellipsis, Search } from '@lucide/svelte';
 	import AccountMenu from './account-menu.svelte';
-	import { activeHref, type NavGroup } from './nav-items.ts';
+	import { activeHref, type NavGroup, type NavItem } from './nav-items.ts';
 
 	let {
 		groups,
@@ -43,7 +44,7 @@
 
 <nav
 	aria-label={m.main()}
-	class="bg-surface-raised border-border shadow-overlay fixed inset-x-3 bottom-[calc(12px+env(safe-area-inset-bottom))] z-(--z-nav) flex h-14 items-stretch rounded-lg border p-1 sm:hidden"
+	class="bg-surface-raised border-border shadow-overlay fixed right-[80px] bottom-[calc(12px+env(safe-area-inset-bottom))] left-3 z-(--z-nav) flex h-14 items-stretch rounded-lg border p-1 [view-transition-name:phone-nav] sm:hidden"
 >
 	{#each accountGroup.items as item (item.href)}
 		{@render tab(item.href, item.label, item.icon, item.href === current)}
@@ -108,12 +109,17 @@
 	{/if}
 </nav>
 
-{#snippet tab(
-	href: string,
-	label: string,
-	Icon: NavGroup['items'][number]['icon'],
-	active: boolean
-)}
+<button
+	type="button"
+	aria-label={m.search_or_jump_to()}
+	aria-haspopup="dialog"
+	onclick={() => (commandPalette.open = true)}
+	class="bg-surface-raised border-border shadow-overlay text-fg focus-visible:outline-ring fixed right-3 bottom-[calc(12px+env(safe-area-inset-bottom))] z-(--z-nav) grid size-14 place-items-center rounded-lg border [view-transition-name:phone-search] focus-visible:outline-2 focus-visible:-outline-offset-2 sm:hidden"
+>
+	<Search class="size-5" />
+</button>
+
+{#snippet tab(href: string, label: string, Icon: NavItem['icon'], active: boolean)}
 	<a
 		{href}
 		aria-current={active ? 'page' : undefined}

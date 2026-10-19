@@ -14,6 +14,7 @@
 	} from '#lib/types/advanced-table.type.ts';
 	import type { Api } from '#lib/types/api.type.ts';
 	import type { ListRequestOptions } from '#lib/types/list-request.type.ts';
+	import { openOnCreateParam } from '#lib/utils/create-param-util.ts';
 	import { toast } from 'svelte-sonner';
 	import {
 		LucideArrowRight,
@@ -32,7 +33,8 @@
 
 	let tableRef = $state<AdvancedTable<Api>>();
 	let createOpen = $state(false);
-	let empty = $state(false);
+	openOnCreateParam(() => (createOpen = true));
+	let empty = $state(data.empty);
 
 	const href = (api: Api) => `/settings/admin/apis/${api.id}`;
 

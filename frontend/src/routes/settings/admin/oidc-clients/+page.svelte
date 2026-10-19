@@ -18,6 +18,7 @@
 	import type { ListRequestOptions } from '#lib/types/list-request.type.ts';
 	import type { OidcClientWithAllowedGroups } from '#lib/types/oidc.type.ts';
 	import { encodeClientIdParam } from '#lib/utils/client-id-util.ts';
+	import { openOnCreateParam } from '#lib/utils/create-param-util.ts';
 	import { LucideArrowRight, LucideArrowUpRight, LucidePlus } from '@lucide/svelte';
 	import OidcClientCreateSheet from './oidc-client-create-sheet.svelte';
 	import {
@@ -33,7 +34,8 @@
 	const connectDocsUrl = 'https://pocket-id.org/docs/client-examples';
 	let tableRef = $state<AdvancedTable<OidcClientWithAllowedGroups>>();
 	let createOpen = $state(false);
-	let empty = $state(false);
+	openOnCreateParam(() => (createOpen = true));
+	let empty = $state(data.empty);
 
 	async function fetchClients(options: ListRequestOptions) {
 		const res = await oidcService.listClients(options);
