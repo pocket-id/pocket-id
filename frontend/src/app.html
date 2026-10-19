@@ -19,6 +19,14 @@
 				// Ignore errors
 				// Failing to set theme is not critical
 			}
+
+			// Menus, selects and the palette show their keyboard highlight ring only after keyboard use
+			addEventListener(
+				'keydown',
+				() => (document.documentElement.dataset.modality = 'keyboard'),
+				true
+			);
+			addEventListener('pointerdown', () => delete document.documentElement.dataset.modality, true);
 		</script>
 		%sveltekit.head%
 	</head>

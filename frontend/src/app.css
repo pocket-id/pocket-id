@@ -628,8 +628,130 @@ html.theme-switching *::after {
 	--bloom-tint: var(--danger-solid);
 }
 
-@media (prefers-reduced-motion: reduce) {
-	.animate-bloom {
-		animation: none;
+/* bits-ui moves the highlight in selects and the palette with aria-activedescendant, so :focus-visible never applies there and the tint alone fails 3:1 */
+/* It sits outside the layers so it beats the items' outline-hidden utility */
+html[data-modality='keyboard']
+	:is(
+		[role='option'][data-highlighted],
+		[role^='menuitem'][data-highlighted],
+		[data-slot='command-item'][data-selected]
+	) {
+	outline: 2px solid var(--ring);
+	outline-offset: -2px;
+}
+
+/* Alt+T focuses svelte-sonner's toast list, which has no height, so the newest toast shows the ring instead */
+[data-sonner-toaster]:focus-visible > [data-front='true'] {
+	outline: 2px solid var(--inverse-fg);
+	outline-offset: -2px;
+}
+
+/* Phones show every dropdown as a bottom sheet with its groups as cards */
+/* These rules sit outside the layers so they beat the menu's utility classes, and !important beats bits-ui's inline floating position */
+@media (width < 40rem) {
+	[data-bits-floating-content-wrapper]:has(> [data-slot='dropdown-menu-content']) {
+		position: fixed !important;
+		inset: auto 0 0 !important;
+		transform: none !important;
+		min-width: 0 !important;
+	}
+
+	[data-slot='dropdown-menu-content'] {
+		display: flex;
+		flex-direction: column;
+		width: 100%;
+		max-height: 85dvh;
+		padding: 0 16px calc(16px + env(safe-area-inset-bottom));
+		border: 0;
+		border-radius: var(--radius-lg) var(--radius-lg) 0 0;
+		background: var(--surface-raised);
+		backdrop-filter: none;
+		/* The spread shadow doubles as the scrim, so tapping it lands outside the menu and closes it */
+		box-shadow: 0 0 0 100vmax var(--scrim);
+		scale: 1;
+		transition-property: translate, box-shadow;
+		transition-duration: var(--dur-slow);
+		transition-timing-function: var(--ease-out);
+
+		@starting-style {
+			translate: 0 100%;
+			box-shadow: 0 0 0 100vmax transparent;
+		}
+
+		&[data-state='closed'] {
+			translate: 0 100%;
+			opacity: 1;
+			box-shadow: 0 0 0 100vmax transparent;
+			transition-duration: var(--dur-base);
+			transition-timing-function: var(--ease-in);
+		}
+
+		/* An item that navigates sets data-jumping before the menu closes, because the page crossfade would otherwise show the sheet sliding away under the new page */
+		&[data-state='closed'][data-jumping] {
+			transition: none;
+		}
+
+		&::before {
+			content: '';
+			flex-shrink: 0;
+			align-self: center;
+			width: 36px;
+			height: 4px;
+			margin: 8px 0 12px;
+			border-radius: 2px;
+			background: var(--border-strong);
+		}
+
+		[data-slot='dropdown-menu-group'] + [data-slot='dropdown-menu-group'] {
+			margin-top: 8px;
+		}
+
+		[data-slot='dropdown-menu-separator'] {
+			height: 8px;
+			margin: 0;
+			background: none;
+		}
+
+		[data-slot='dropdown-menu-group-heading'],
+		[data-slot='dropdown-menu-label'] {
+			padding: 8px 4px 6px;
+		}
+
+		/* Consecutive items form one card: each draws its sides and top line, the last one closes the card */
+		[role^='menuitem'] {
+			min-height: var(--h-xl);
+			padding-inline: 16px;
+			border-radius: 0;
+			background-color: var(--surface);
+			box-shadow:
+				inset 1px 0 var(--border),
+				inset -1px 0 var(--border),
+				inset 0 1px var(--border);
+			font-size: var(--text-body);
+			line-height: var(--text-body--line-height);
+		}
+
+		[role^='menuitem']:not([role^='menuitem'] + [role^='menuitem']) {
+			border-top-left-radius: var(--radius-md);
+			border-top-right-radius: var(--radius-md);
+		}
+
+		[role^='menuitem']:not(:has(+ [role^='menuitem'])) {
+			border-bottom-left-radius: var(--radius-md);
+			border-bottom-right-radius: var(--radius-md);
+			box-shadow:
+				inset 1px 0 var(--border),
+				inset -1px 0 var(--border),
+				inset 0 1px var(--border),
+				inset 0 -1px var(--border);
+		}
+
+		[role^='menuitem'][data-highlighted] {
+			background-color: var(--fill-hover);
+		}
+
+		[data-variant='destructive'][data-highlighted] {
+			background-color: var(--danger-soft);
+		}
 	}
 }
