@@ -11,7 +11,7 @@
 	import { getLocale } from '#lib/paraglide/runtime.js';
 	import AuditLogService from '#lib/services/audit-log-service.ts';
 	import appConfigStore from '#lib/stores/application-configuration-store.ts';
-	import type { AuditLog, AuditLogFilter } from '#lib/types/audit-log.type.ts';
+	import type { AuditLog, AuditLogDateRange, AuditLogFilter } from '#lib/types/audit-log.type.ts';
 	import type { ListRequestOptions, Paginated } from '#lib/types/list-request.type.ts';
 	import { translateAuditLogEvent } from '#lib/utils/audit-log-translator.ts';
 	import { cachedProfilePicture } from '#lib/utils/cached-image-util.ts';
@@ -22,10 +22,14 @@
 
 	let {
 		isAdmin = false,
-		filters
+		filters,
+		dateRange = {},
+		onClearFilters
 	}: {
 		isAdmin?: boolean;
 		filters?: AuditLogFilter;
+		dateRange?: AuditLogDateRange;
+		onClearFilters?: () => void;
 	} = $props();
 
 	const auditLogService = new AuditLogService();
@@ -45,6 +49,8 @@
 		void filters?.event;
 		void filters?.location;
 		void filters?.clientName;
+		void dateRange.from;
+		void dateRange.to;
 		untrack(() => {
 			requestOptions.pagination!.page = 1;
 			refresh();
@@ -55,8 +61,11 @@
 		isRefreshing = true;
 		try {
 			logs = isAdmin
-				? await auditLogService.listAllLogs({ ...requestOptions, filters: wrapFilters(filters) })
-				: await auditLogService.list(requestOptions);
+				? await auditLogService.listAllLogs(
+						{ ...requestOptions, filters: wrapFilters(filters) },
+						dateRange
+					)
+				: await auditLogService.list(requestOptions, dateRange);
 		} finally {
 			isRefreshing = false;
 		}
@@ -250,7 +259,10 @@
 								</span>
 								<span class="text-caption text-fg-muted flex min-w-0 items-center gap-x-1.5">
 									{#if isAdmin}
-										<Badge variant="mono">{log.event}</Badge>
+										<Badge variant="mono" class="max-sm:hidden">{log.event}</Badge>
+									{/if}
+									{#if log.data?.newBrowser === 'true'}
+										<Badge variant="warning" title={m.new_browser_hint()}>{m.new_browser()}</Badge>
 									{/if}
 									{#if via}<span class="shrink-0 max-sm:hidden">{via}</span>{/if}
 									<!-- Below xl the Device column folds into this line so the sentence keeps its width -->
@@ -307,7 +319,12 @@
 									{/if}
 									{@render detailItem(m.ip_address(), log.ipAddress, m.copy_ip_address())}
 									{@render detailItem(m.approximate_location(), formatLocation(log))}
-									{@render detailItem(m.device(), log.device)}
+									{@render detailItem(
+										m.device(),
+										log.data?.newBrowser === 'true'
+											? `${log.device} · ${m.new_browser_hint()}`
+											: log.device
+									)}
 									{@render detailItem(m.event_id(), log.id, m.copy_event_id())}
 								</dl>
 								<details class="group/raw mt-4">
