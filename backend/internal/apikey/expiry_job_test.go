@@ -100,3 +100,47 @@ func TestAPIKeyExpiryCronJobNotifiesAndMarksExpiringKeys(t *testing.T) {
 	require.NoError(t, db.First(&laterKey, "id = ?", laterKey.ID).Error)
 	require.False(t, laterKey.ExpirationEmailSent)
 }
+
+func TestAPIKeyExpiryCronJobNotifiesAgainAfterRenewal(t *testing.T) {
+	db := testutils.NewDatabaseForTest(t)
+	userEmail := "renewal@example.com"
+	user := model.User{
+		Username:    "renewal-user",
+		Email:       &userEmail,
+		FirstName:   "Renewal",
+		LastName:    "User",
+		DisplayName: "Renewal User",
+	}
+	require.NoError(t, db.Create(&user).Error)
+
+	// The key already expired, and its owner was notified before that
+	renewedKey := ApiKey{
+		Name:                "Renewed",
+		Key:                 "renewed-hash",
+		ExpiresAt:           datatype.DateTime(time.Now().Add(-time.Hour)),
+		ExpirationEmailSent: true,
+		UserID:              user.ID,
+	}
+	require.NoError(t, db.Create(&renewedKey).Error)
+
+	service, err := newService(t.Context(), db, "")
+	require.NoError(t, err)
+
+	renewed, _, err := service.RenewApiKey(t.Context(), user.ID, renewedKey.ID, time.Now().Add(3*24*time.Hour))
+	require.NoError(t, err)
+	require.False(t, renewed.ExpirationEmailSent)
+
+	sender := &expiryJobTestSender{}
+	job := &expiryJob{
+		service: service,
+		appConfig: expiryJobTestConfig{config: &appconfig.AppConfigModel{
+			EmailApiKeyExpirationEnabled: "true",
+		}},
+		email: sender,
+	}
+	require.NoError(t, job.checkAndNotifyExpiringAPIKeys(t.Context()))
+	require.Equal(t, []string{"Renewed"}, sender.keyNames)
+
+	require.NoError(t, db.First(&renewedKey, "id = ?", renewedKey.ID).Error)
+	require.True(t, renewedKey.ExpirationEmailSent)
+}
