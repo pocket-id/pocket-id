@@ -17,6 +17,7 @@
 	import type { ApiKey } from '#lib/types/api-key.type.ts';
 	import type { ListRequestOptions } from '#lib/types/list-request.type.ts';
 	import { axiosErrorToast } from '#lib/utils/error-util.ts';
+	import { openOnCreateParam } from '#lib/utils/create-param-util.ts';
 	import { LucideArrowUpRight, LucideBan, LucidePlus, LucideRefreshCcw } from '@lucide/svelte';
 	import { toast } from 'svelte-sonner';
 	import ApiKeyCreateSheet from './api-key-create-sheet.svelte';
@@ -30,8 +31,9 @@
 
 	let tableRef = $state<AdvancedTable<ApiKey>>();
 	let createOpen = $state(false);
+	openOnCreateParam(() => (createOpen = true));
 	let renewing = $state<ApiKey | null>(null);
-	let empty = $state(false);
+	let empty = $state(data.empty);
 
 	const formatDate = (date: string) =>
 		new Date(date).toLocaleDateString(getLocale(), { dateStyle: 'medium' });

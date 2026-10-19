@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { modKey } from '#lib/utils/keyboard-util.ts';
 	import { beforeNavigate } from '$app/navigation';
 	import { Button } from '#lib/components/ui/button/index.ts';
 	import * as Tooltip from '#lib/components/ui/tooltip/index.ts';
@@ -47,7 +48,6 @@
 		status?.message ??
 			(blocked ? m.save_or_discard_before_leaving() : showingActions ? pendingText : '')
 	);
-	const modKey = navigator.userAgent.includes('Mac') ? '⌘' : 'Ctrl+';
 
 	// The status line keeps its last message while it slides away, so the bar does not shrink under it
 	let shownStatus = $state<typeof status>(null);

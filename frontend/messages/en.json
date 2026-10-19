@@ -1111,5 +1111,18 @@
 	"validation_max_items": "Choose at most {count}",
 	"validation_email": "Enter a valid email address",
 	"validation_url": "Enter a valid URL",
-	"validation_number": "Enter a number"
+	"validation_number": "Enter a number",
+	"command_menu": "Command menu",
+	"search_or_jump_to": "Search or jump to…",
+	"palette_recent": "Recent",
+	"palette_actions": "Actions",
+	"palette_navigation": "Navigation",
+	"palette_settings": "Settings",
+	"palette_no_results": "No results for “{query}”",
+	"palette_searching": "Searching…",
+	"palette_search_failed": "Couldn’t search users and apps.",
+	"palette_hint_navigate": "to move",
+	"palette_hint_open": "to open",
+	"palette_hint_close": "to close",
+	"hide_advanced_settings": "Hide advanced settings"
 }

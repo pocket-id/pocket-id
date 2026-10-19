@@ -16,6 +16,7 @@
 	} from '#lib/types/advanced-table.type.ts';
 	import type { ListRequestOptions } from '#lib/types/list-request.type.ts';
 	import type { UserGroupMinimal } from '#lib/types/user-group.type.ts';
+	import { openOnCreateParam } from '#lib/utils/create-param-util.ts';
 	import { LucideArrowRight, LucidePlus, LucideTrash2 } from '@lucide/svelte';
 	import { confirmDeleteGroup } from './user-group-actions';
 	import UserGroupCreateSheet from './user-group-create-sheet.svelte';
@@ -25,7 +26,8 @@
 	const userGroupService = new UserGroupService();
 	let tableRef = $state<AdvancedTable<UserGroupMinimal>>();
 	let createOpen = $state(false);
-	let empty = $state(false);
+	openOnCreateParam(() => (createOpen = true));
+	let empty = $state(data.empty);
 
 	const href = (group: UserGroupMinimal) => `/settings/admin/user-groups/${group.id}`;
 	const groupSlug = (group: UserGroupMinimal) =>

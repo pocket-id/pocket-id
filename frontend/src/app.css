@@ -455,6 +455,39 @@ html.theme-switching *::after {
 	}
 }
 
+/* A link inside a sentence stands out by contrast and weight rather than a permanent underline, which appears only on hover */
+@utility inline-link {
+	color: var(--fg);
+	font-weight: 500;
+	text-underline-offset: 3px;
+	text-decoration-line: underline;
+	text-decoration-thickness: 1px;
+	text-decoration-color: transparent;
+	transition: text-decoration-color var(--dur-fast) var(--ease-out);
+
+	&:hover {
+		text-decoration-color: color-mix(in srgb, currentColor 40%, transparent);
+	}
+}
+
+/* A key in a shortcut hint, in the palette footer and on its trigger */
+@utility keycap {
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	min-width: 18px;
+	height: 18px;
+	padding-inline: 4px;
+	border-radius: var(--radius-xs);
+	background: var(--fill-muted);
+	box-shadow: inset 0 0 0 1px var(--border);
+	font-family: var(--font-sans);
+	font-size: 11px;
+	line-height: 14px;
+	font-weight: 500;
+	color: var(--fg-muted);
+}
+
 /* Compositor-only motion; Tailwind 4 writes scale and translate as their own properties, so they are listed next to transform */
 @utility transition-motion {
 	transition-property: opacity, transform, translate, scale;

@@ -4,9 +4,11 @@
 	import * as Tooltip from '#lib/components/ui/tooltip/index.ts';
 	import { m } from '#lib/paraglide/messages.js';
 	import appConfigStore from '#lib/stores/application-configuration-store.ts';
+	import { commandPalette } from '#lib/stores/command-palette-store.svelte.ts';
 	import type { AppVersionInformation } from '#lib/types/application-configuration.type.ts';
+	import { modKey } from '#lib/utils/keyboard-util.ts';
 	import { cn } from '#lib/utils/style.ts';
-	import { CircleChevronUp, PanelLeftClose, PanelLeftOpen } from '@lucide/svelte';
+	import { CircleChevronUp, PanelLeftClose, PanelLeftOpen, Search } from '@lucide/svelte';
 	import AccountMenu from './account-menu.svelte';
 	import { activeHref, type NavGroup } from './nav-items.ts';
 
@@ -83,6 +85,41 @@
 			</span>
 		</a>
 	</div>
+
+	<!-- A field-like trigger in the sidebar, a search icon in the rail -->
+	<Tooltip.Root>
+		<Tooltip.Trigger>
+			{#snippet child({ props })}
+				<button
+					{...props}
+					type="button"
+					aria-label={m.search_or_jump_to()}
+					aria-haspopup="dialog"
+					onclick={() => (commandPalette.open = true)}
+					class={cn(
+						'text-fg-muted focus-visible:outline-ring mt-3 flex h-9 shrink-0 items-center gap-2 rounded-sm outline-offset-[-2px] transition-colors focus-visible:outline-2',
+						collapsed
+							? 'hover:bg-fill-hover hover:text-fg w-9 justify-center'
+							: 'hover:bg-fill-hover hover:text-fg lg:bg-fill-muted lg:hover:bg-fill-hover w-9 justify-center lg:w-full lg:justify-start lg:px-3'
+					)}
+				>
+					<Search class="size-4 shrink-0" />
+					<span
+						class={cn(
+							'text-control flex-1 truncate text-left',
+							collapsed ? 'hidden' : 'hidden lg:inline'
+						)}>{m.search_or_jump_to()}</span
+					>
+					<span class={cn('gap-0.5', collapsed ? 'hidden' : 'hidden lg:flex')} aria-hidden="true">
+						<kbd class="keycap">{modKey.replace('+', '')}</kbd><kbd class="keycap">K</kbd>
+					</span>
+				</button>
+			{/snippet}
+		</Tooltip.Trigger>
+		<Tooltip.Content side="right" class={cn(!collapsed && 'lg:hidden')}>
+			{m.search_or_jump_to()}<span class="text-inverse-muted">{modKey}K</span>
+		</Tooltip.Content>
+	</Tooltip.Root>
 
 	<nav
 		bind:this={navEl}

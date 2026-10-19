@@ -36,6 +36,7 @@
 	} from '@lucide/svelte';
 	import { SvelteMap } from 'svelte/reactivity';
 	import OidcClientAvatar from '#lib/components/oidc-client-avatar.svelte';
+	import { openOnCreateParam } from '#lib/utils/create-param-util.ts';
 	import PickerDialog, { groupsConfirmLabel } from '../user-groups/picker-dialog.svelte';
 	import type { PageProps } from './$types';
 	import LoginCodeDialog from './login-code-dialog.svelte';
@@ -59,6 +60,7 @@
 	let shownCount = $state(0);
 	let selectedIds = $state<string[]>([]);
 	let createOpen = $state(false);
+	openOnCreateParam(() => (createOpen = true));
 	let tokensOpen = $state(false);
 	let tokensStartWithCreate = $state(false);
 	let groupPickerOpen = $state(false);
