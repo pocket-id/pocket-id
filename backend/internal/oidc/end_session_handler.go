@@ -12,12 +12,14 @@ import (
 
 type endSessionHandler struct {
 	endSessionService *endSessionService
+	sessions          SessionEnder
 	baseURL           string
 }
 
-func newEndSessionHandler(endSessionService *endSessionService, baseURL string) *endSessionHandler {
+func newEndSessionHandler(endSessionService *endSessionService, sessions SessionEnder, baseURL string) *endSessionHandler {
 	return &endSessionHandler{
 		endSessionService: endSessionService,
+		sessions:          sessions,
 		baseURL:           baseURL,
 	}
 }
@@ -34,6 +36,14 @@ func (h *endSessionHandler) endSession(c *gin.Context) {
 		slog.WarnContext(c.Request.Context(), "Error getting logout callback URL, the user has to confirm the logout manually", "error", err)
 		c.Redirect(http.StatusFound, h.baseURL+"/logout")
 		return
+	}
+
+	// Deliberately only on this success path, so an unvalidated logout request can't end the session; best-effort because the RP is already owed its redirect
+	if sessionID := authz.PrincipalFrom(c).SessionID; sessionID != "" {
+		err = h.sessions.Delete(c.Request.Context(), sessionID)
+		if err != nil {
+			slog.WarnContext(c.Request.Context(), "Failed to end user session on RP-initiated logout", "error", err)
+		}
 	}
 
 	cookie.AddAccessTokenCookie(c, 0, "")

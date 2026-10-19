@@ -34,6 +34,7 @@ type Service struct {
 	db       *gorm.DB
 	webAuthn *gowebauthn.WebAuthn
 	signer   TokenService
+	sessions SessionManager
 	auditLog AuditLogger
 }
 
@@ -67,6 +68,7 @@ func newService(deps Dependencies) (*Service, error) {
 		db:       deps.DB,
 		webAuthn: wa,
 		signer:   deps.Signer,
+		sessions: deps.Sessions,
 		auditLog: deps.AuditLog,
 	}, nil
 }
@@ -314,6 +316,10 @@ func (s *Service) VerifyLogin(ctx context.Context, dbConfig *appconfig.AppConfig
 	}
 
 	token, err := s.signer.GenerateAccessToken(*user, authenticationMethodPhishingResistant, dbConfig.SessionDuration.AsDurationMinutes())
+	if err != nil {
+		return model.User{}, model.LoginTokens{}, err
+	}
+	err = s.sessions.Track(ctx, tx, token)
 	if err != nil {
 		return model.User{}, model.LoginTokens{}, err
 	}

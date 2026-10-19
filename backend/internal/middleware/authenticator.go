@@ -2,9 +2,11 @@ package middleware
 
 import (
 	"context"
+	"errors"
 	"strings"
 
 	"github.com/gin-gonic/gin"
+	"gorm.io/gorm"
 
 	"github.com/pocket-id/pocket-id/backend/internal/apikey"
 	"github.com/pocket-id/pocket-id/backend/internal/appconfig"
@@ -13,6 +15,7 @@ import (
 	"github.com/pocket-id/pocket-id/backend/internal/emailverification"
 	"github.com/pocket-id/pocket-id/backend/internal/model"
 	"github.com/pocket-id/pocket-id/backend/internal/service"
+	"github.com/pocket-id/pocket-id/backend/internal/usersession"
 	"github.com/pocket-id/pocket-id/backend/internal/utils/cookie"
 )
 
@@ -21,9 +24,9 @@ const apiKeyHeader = "X-API-Key"
 
 // NewAuthorization creates the authorization middleware with every credential Pocket ID accepts
 // A browser session is tried before an API key, so a signed-in browser is never mistaken for an API client
-func NewAuthorization(apiKeyModule *apikey.Module, userService *service.UserService, jwtService *service.JwtService, appConfig appconfig.AppConfigResolver) *authz.Middleware {
+func NewAuthorization(apiKeyModule *apikey.Module, userSessionModule *usersession.Module, userService *service.UserService, jwtService *service.JwtService, appConfig appconfig.AppConfigResolver) *authz.Middleware {
 	return authz.NewMiddleware(
-		NewSessionAuthenticator(jwtService, userService, appConfig),
+		NewSessionAuthenticator(jwtService, userSessionModule, userService, appConfig),
 		NewAPIKeyAuthenticator(apiKeyModule, appConfig),
 	)
 }
@@ -47,13 +50,14 @@ func restrictUnverified(ctx context.Context, appConfig appconfig.AppConfigResolv
 
 // SessionAuthenticator authenticates the session access token Pocket ID issues after sign-in
 type SessionAuthenticator struct {
-	jwtService  *service.JwtService
-	userService *service.UserService
-	appConfig   appconfig.AppConfigResolver
+	jwtService        *service.JwtService
+	userSessionModule *usersession.Module
+	userService       *service.UserService
+	appConfig         appconfig.AppConfigResolver
 }
 
-func NewSessionAuthenticator(jwtService *service.JwtService, userService *service.UserService, appConfig appconfig.AppConfigResolver) *SessionAuthenticator {
-	return &SessionAuthenticator{jwtService: jwtService, userService: userService, appConfig: appConfig}
+func NewSessionAuthenticator(jwtService *service.JwtService, userSessionModule *usersession.Module, userService *service.UserService, appConfig appconfig.AppConfigResolver) *SessionAuthenticator {
+	return &SessionAuthenticator{jwtService: jwtService, userSessionModule: userSessionModule, userService: userService, appConfig: appConfig}
 }
 
 func (a *SessionAuthenticator) Kind() authz.PrincipalKind {
@@ -81,6 +85,16 @@ func (a *SessionAuthenticator) Authenticate(c *gin.Context) (*authz.Principal, e
 		return nil, apperror.TokenInvalid()
 	}
 
+	// A token whose session no longer exists is rejected; an infrastructure error surfaces as a server error instead of signing the user out
+	jti, _ := token.JwtID()
+	err = a.userSessionModule.Validate(c.Request.Context(), jti)
+	if errors.Is(err, gorm.ErrRecordNotFound) {
+		return nil, apperror.NotSignedIn()
+	}
+	if err != nil {
+		return nil, err
+	}
+
 	// Load the user so disabling an account, changing its admin flag or its email verification takes effect before the token expires
 	user, err := a.userService.GetUser(c, subject)
 	if err != nil {
@@ -96,6 +110,7 @@ func (a *SessionAuthenticator) Authenticate(c *gin.Context) (*authz.Principal, e
 		Scopes:               authz.UserScopes(user.IsAdmin, authz.KindSession),
 		AuthenticationMethod: authenticationMethod,
 		AuthenticationTime:   authenticationTime,
+		SessionID:            jti,
 	}
 	err = restrictUnverified(c.Request.Context(), a.appConfig, &user, principal)
 	if err != nil {

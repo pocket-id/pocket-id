@@ -28,6 +28,7 @@ import (
 	"github.com/pocket-id/pocket-id/backend/internal/scimsync"
 	"github.com/pocket-id/pocket-id/backend/internal/service"
 	"github.com/pocket-id/pocket-id/backend/internal/storage"
+	"github.com/pocket-id/pocket-id/backend/internal/usersession"
 	"github.com/pocket-id/pocket-id/backend/internal/usersignup"
 	"github.com/pocket-id/pocket-id/backend/internal/webauthn"
 )
@@ -52,6 +53,7 @@ type services struct {
 	scimSyncModule          *scimsync.Module
 	oidcModule              *oidc.Module
 	webauthnModule          *webauthn.Module
+	userSessionModule       *usersession.Module
 	userSignUpModule        *usersignup.Module
 	oneTimeAccessModule     *onetimeaccess.Module
 	emailVerificationModule *emailverification.Module
@@ -117,12 +119,23 @@ func initServices(
 		return nil, fmt.Errorf("failed to create audit logs module: %w", err)
 	}
 
+	svc.userSessionModule, err = usersession.New(usersession.Dependencies{
+		DB:     db,
+		Actors: actors,
+		// Disable in test environment
+		CleanupDisabled: common.EnvConfig.AppEnv.IsTest(),
+	})
+	if err != nil {
+		return nil, fmt.Errorf("failed to create user session module: %w", err)
+	}
+
 	svc.customClaimService = service.NewCustomClaimService(db)
 	svc.webauthnModule, err = webauthn.New(webauthn.Dependencies{
 		DB:        db,
 		Actors:    actors,
 		AppURL:    common.EnvConfig.AppURL,
 		Signer:    svc.jwtService,
+		Sessions:  svc.userSessionModule,
 		AuditLog:  svc.auditLogsModule,
 		AppConfig: svc.appConfigService,
 		// Disable in test environment
@@ -136,6 +149,7 @@ func initServices(
 		BaseURL:   common.EnvConfig.AppURL,
 		Actors:    actors,
 		Signer:    svc.jwtService,
+		Sessions:  svc.userSessionModule,
 		Reauth:    svc.webauthnModule,
 		AuditLog:  svc.auditLogsModule,
 		IPLocator: svc.ipLocator,
@@ -171,6 +185,7 @@ func initServices(
 			AllowInsecureCallbackURLs: common.EnvConfig.AllowInsecureCallbackURLs,
 		},
 		Signer:       svc.jwtService,
+		Sessions:     svc.userSessionModule,
 		CustomClaims: svc.customClaimService,
 		Reauth:       svc.webauthnModule,
 		AuditLog:     svc.auditLogsModule,
@@ -242,6 +257,7 @@ func initServices(
 		DB:                db,
 		Actors:            actors,
 		Signer:            svc.jwtService,
+		Sessions:          svc.userSessionModule,
 		AuditLog:          svc.auditLogsModule,
 		UserCreator:       svc.userService,
 		AppConfig:         svc.appConfigService,
@@ -259,6 +275,7 @@ func initServices(
 		DB:           db,
 		Actors:       actors,
 		Signer:       svc.jwtService,
+		Sessions:     svc.userSessionModule,
 		AuditLog:     svc.auditLogsModule,
 		UserProvider: svc.userService,
 		EmailSender:  svc.emailModule,

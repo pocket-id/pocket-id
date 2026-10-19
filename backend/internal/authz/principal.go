@@ -20,6 +20,9 @@ type Principal struct {
 	// AuthenticationMethod and AuthenticationTime describe how the session was established and are only set for KindSession
 	AuthenticationMethod string
 	AuthenticationTime   time.Time
+
+	// SessionID is the jti of the session access token, only set for KindSession
+	SessionID string
 }
 
 // RestrictUnverified withholds every scope except those a user needs to verify their email, such as signing out or correcting the address

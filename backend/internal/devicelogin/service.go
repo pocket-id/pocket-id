@@ -37,6 +37,7 @@ type Service struct {
 	actService *actor.Service
 	db         *gorm.DB
 	signer     TokenService
+	sessions   SessionTracker
 	reauth     ReauthenticationTokenConsumer
 	auditLog   AuditLogger
 	ipLocator  iplocation.Resolver
@@ -51,11 +52,12 @@ type VerificationInfo struct {
 	ExpiresAt datatype.DateTime
 }
 
-func NewService(actService *actor.Service, db *gorm.DB, signer TokenService, reauth ReauthenticationTokenConsumer, auditLog AuditLogger, ipLocator iplocation.Resolver) *Service {
+func NewService(actService *actor.Service, db *gorm.DB, signer TokenService, sessions SessionTracker, reauth ReauthenticationTokenConsumer, auditLog AuditLogger, ipLocator iplocation.Resolver) *Service {
 	return &Service{
 		actService: actService,
 		db:         db,
 		signer:     signer,
+		sessions:   sessions,
 		reauth:     reauth,
 		auditLog:   auditLog,
 		ipLocator:  ipLocator,
@@ -205,10 +207,29 @@ func (s *Service) Exchange(ctx context.Context, requestID, deviceToken, ipAddres
 				return dto.UserDto{}, model.LoginTokens{}, consume.Status, err
 			}
 
+			// A failure below must not leave a live session for a token no client ever received
+			tx := s.db.Begin()
+			if tx.Error != nil {
+				return dto.UserDto{}, model.LoginTokens{}, consume.Status, tx.Error
+			}
+			defer func() {
+				tx.Rollback()
+			}()
+
+			err = s.sessions.Track(ctx, tx, accessToken)
+			if err != nil {
+				return dto.UserDto{}, model.LoginTokens{}, consume.Status, err
+			}
+
 			// Record the successful remote sign-in after the request has been consumed
-			signIn := s.auditLog.CreateSignIn(ctx, auditlogs.EventRemoteSignIn, ipAddress, userAgent, user.ID, browserToken, s.db, notificationMode)
+			signIn := s.auditLog.CreateSignIn(ctx, auditlogs.EventRemoteSignIn, ipAddress, userAgent, user.ID, browserToken, tx, notificationMode)
 			if !signIn.Created {
 				return dto.UserDto{}, model.LoginTokens{}, consume.Status, errors.New("failed to create device login audit log")
+			}
+
+			err = tx.Commit().Error
+			if err != nil {
+				return dto.UserDto{}, model.LoginTokens{}, consume.Status, err
 			}
 
 			s.auditLog.SendSignInNotification(ctx, signIn)
