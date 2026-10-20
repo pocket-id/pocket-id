@@ -8,6 +8,7 @@ import (
 	"github.com/stretchr/testify/require"
 	"gorm.io/gorm"
 
+	"github.com/pocket-id/pocket-id/backend/internal/common"
 	"github.com/pocket-id/pocket-id/backend/internal/model"
 	testutils "github.com/pocket-id/pocket-id/backend/internal/utils/testing"
 )
@@ -18,7 +19,16 @@ func forEachDatabase(t *testing.T, test func(t *testing.T, db *gorm.DB)) {
 		test(t, testutils.NewDatabaseForTest(t))
 	})
 	t.Run("postgres", func(t *testing.T) {
-		test(t, testutils.NewPostgresDatabaseForTest(t))
+		db := testutils.NewPostgresDatabaseForTest(t)
+
+		// Column types such as DateTime pick their encoding from the configured provider
+		previousProvider := common.EnvConfig.DbProvider
+		common.EnvConfig.DbProvider = common.DbProviderPostgres
+		t.Cleanup(func() {
+			common.EnvConfig.DbProvider = previousProvider
+		})
+
+		test(t, db)
 	})
 }
 
