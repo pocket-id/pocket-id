@@ -16,8 +16,8 @@ const BuiltInClaimMappingPolicyID = "00000000-0000-0000-0000-000000000000"
 type OidcClaimMappingPolicy struct {
 	Base
 
-	Name      string
-	IsDefault bool
+	Name      string `sortable:"case-insensitive"`
+	IsDefault bool   `sortable:"true"`
 
 	ClaimMappings OidcClaimMappings
 }
