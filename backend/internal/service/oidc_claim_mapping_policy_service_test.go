@@ -23,6 +23,15 @@ func newTestOidcClaimMappingPolicyService(t *testing.T) *OidcClaimMappingPolicyS
 	return NewOidcClaimMappingPolicyService(db)
 }
 
+// getDefaultClaimMappingPolicy loads the policy currently flagged as default
+func getDefaultClaimMappingPolicy(t *testing.T, service *OidcClaimMappingPolicyService) model.OidcClaimMappingPolicy {
+	t.Helper()
+	var policy model.OidcClaimMappingPolicy
+	err := service.db.WithContext(t.Context()).Where("is_default = ?", true).First(&policy).Error
+	require.NoError(t, err)
+	return policy
+}
+
 // TestDeleteClaimMappingPolicyResetsClients checks that clients pointing at a deleted policy are
 // reset to NULL, which makes them fall back to the default policy.
 func TestDeleteClaimMappingPolicyResetsClients(t *testing.T) {
@@ -123,8 +132,7 @@ func TestCreateClaimMappingPolicyWithDefault(t *testing.T) {
 	assert.True(t, result.IsDefault)
 
 	// Verify it's the default
-	defaultPolicy, err := service.GetDefaultClaimMappingPolicy(context.Background())
-	require.NoError(t, err)
+	defaultPolicy := getDefaultClaimMappingPolicy(t, service)
 	assert.Equal(t, result.ID, defaultPolicy.ID)
 }
 
@@ -175,9 +183,8 @@ func TestCreateClaimMappingPolicyDefaultUnsetsOthers(t *testing.T) {
 	require.NoError(t, err)
 	assert.True(t, policy2.IsDefault)
 
-	// Check GetDefaultClaimMappingPolicy returns the second one
-	defaultPolicy, err := service.GetDefaultClaimMappingPolicy(context.Background())
-	require.NoError(t, err)
+	// Check the default policy is the second one
+	defaultPolicy := getDefaultClaimMappingPolicy(t, service)
 	assert.Equal(t, result2.ID, defaultPolicy.ID)
 }
 

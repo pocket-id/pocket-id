@@ -60,47 +60,6 @@ func (s *ClaimsService) isEmailVerificationPending(ctx context.Context, user *mo
 	return emailverification.IsPending(cfg, user), nil
 }
 
-// ValidateUserAccess re-checks, at token-issuance time, that the user behind a grant is
-// still allowed to obtain tokens for the client.
-func (s *ClaimsService) ValidateUserAccess(ctx context.Context, userID string, client Client) error {
-	// Grants without a resource owner (e.g. client_credentials) carry an empty subject
-	// and have no user to validate.
-	if userID == "" {
-		return nil
-	}
-
-	var user model.User
-	err := dbFromContext(ctx, s.db).
-		Preload("UserGroups").
-		First(&user, "id = ?", userID).
-		Error
-	if errors.Is(err, gorm.ErrRecordNotFound) {
-		return fosite.ErrInvalidGrant.WithHint("The user account no longer exists.")
-	}
-	if err != nil {
-		return err
-	}
-
-	if user.Disabled {
-		return fosite.ErrInvalidGrant.WithHint("The user account is disabled.")
-	}
-
-	// The authorization middleware already stops these users at the authorize step, but grants issued before the email became unverified, such as refresh tokens, are only checked here
-	pending, err := s.isEmailVerificationPending(ctx, &user)
-	if err != nil {
-		return err
-	}
-	if pending {
-		return fosite.ErrInvalidGrant.WithHint(emailVerificationRequiredHint)
-	}
-
-	if !IsUserGroupAllowedToAuthorize(user, client.OidcClient) {
-		return fosite.ErrAccessDenied.WithHint("You are not allowed to access this service.")
-	}
-
-	return nil
-}
-
 // errClaimsUserNotFound is returned when the user whose claims are requested no longer exists
 // Callers map it to the error their endpoint expects, e.g. invalid_grant on the token endpoint
 var errClaimsUserNotFound = errors.New("user not found")
@@ -334,7 +293,9 @@ func (s *ClaimsService) applyUserClaims(claims map[string]any, user model.User, 
 				claims[mapping.ClaimName] = *user.Email
 			}
 		case model.UserFieldEmailVerified:
-			claims[mapping.ClaimName] = user.EmailVerified
+			if user.Email != nil {
+				claims[mapping.ClaimName] = user.EmailVerified
+			}
 		case model.UserFieldFirstName:
 			claims[mapping.ClaimName] = user.FirstName
 		case model.UserFieldLastName:
@@ -375,13 +336,6 @@ func (s *ClaimsService) applyUserClaims(claims map[string]any, user model.User, 
 		}
 
 	case model.MappingSourceStatic:
-		// Try to parse as JSON, fall back to string
-		var jsonValue any
-		err := json.Unmarshal([]byte(mapping.SourceValue), &jsonValue)
-		if err == nil {
-			claims[mapping.ClaimName] = jsonValue
-		} else {
-			claims[mapping.ClaimName] = mapping.SourceValue
-		}
+		claims[mapping.ClaimName] = parseCustomClaimValue(mapping.SourceValue)
 	}
 }

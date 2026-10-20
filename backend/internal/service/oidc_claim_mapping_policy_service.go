@@ -3,7 +3,6 @@ package service
 import (
 	"context"
 	"errors"
-	"fmt"
 	"reflect"
 
 	"github.com/pocket-id/pocket-id/backend/internal/apperror"
@@ -235,15 +234,6 @@ func (s *OidcClaimMappingPolicyService) RemoveClientFromClaimMappingPolicy(ctx c
 	return tx.Commit().Error
 }
 
-func (s *OidcClaimMappingPolicyService) GetDefaultClaimMappingPolicy(ctx context.Context) (*model.OidcClaimMappingPolicy, error) {
-	var claimMappingPolicy model.OidcClaimMappingPolicy
-	err := s.db.WithContext(ctx).Where("is_default = ?", true).First(&claimMappingPolicy).Error
-	if err != nil {
-		return nil, err
-	}
-	return &claimMappingPolicy, nil
-}
-
 func (s *OidcClaimMappingPolicyService) CreateClaimMappingPolicy(ctx context.Context, dto dto.OidcClaimMappingPolicyDto) (*dto.OidcClaimMappingPolicyDto, error) {
 	// Validate claim mappings
 	err := validateClaimMappings(dto.ClaimMappings)
@@ -407,39 +397,39 @@ func validateClaimMappings(mappings []dto.OidcClaimMappingDto) error {
 
 	for _, mapping := range mappings {
 		if len(mapping.ClaimName) == 0 || len(mapping.SourceType) == 0 || len(mapping.SourceValue) == 0 {
-			return errors.New("claim name, source type and source value are required")
+			return apperror.ValidationMessage("claim name, source type and source value are required")
 		}
 		// Check for duplicates
 		if seenClaims[mapping.ClaimName] {
-			return fmt.Errorf("duplicate claim mapping for '%s'", mapping.ClaimName)
+			return apperror.ValidationMessage("duplicate claim mapping for '" + mapping.ClaimName + "'")
 		}
 		seenClaims[mapping.ClaimName] = true
 
 		// Check if claim is reserved
 		if isReservedClaimsForMapping(mapping.ClaimName) {
-			return fmt.Errorf("cannot remap reserved claim '%s'", mapping.ClaimName)
+			return apperror.ValidationMessage("cannot remap reserved claim '" + mapping.ClaimName + "'")
 		}
 
 		// Validate source based on type
 		switch mapping.SourceType {
 		case "user_field":
 			if !isValidUserFieldSources(mapping.SourceValue) {
-				return fmt.Errorf("invalid user field '%s' for mapping", mapping.SourceValue)
+				return apperror.ValidationMessage("invalid user field '" + mapping.SourceValue + "' for mapping")
 			}
 		case "custom_claim":
 			// Custom claim key validation
 			if len(mapping.SourceValue) == 0 || len(mapping.SourceValue) > 255 {
-				return errors.New("invalid custom claim key length")
+				return apperror.ValidationMessage("invalid custom claim key length")
 			}
 		case "static":
 			// Static values are always valid (string or JSON)
 		default:
-			return fmt.Errorf("invalid source type '%s'", mapping.SourceType)
+			return apperror.ValidationMessage("invalid source type '" + mapping.SourceType + "'")
 		}
 	}
 
 	if !seenClaims["sub"] {
-		return errors.New("claim mapping must include 'sub' claim")
+		return apperror.ValidationMessage("claim mapping must include 'sub' claim")
 	}
 	return nil
 }
