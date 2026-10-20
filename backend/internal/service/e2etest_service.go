@@ -202,7 +202,6 @@ func (s *TestService) SeedDatabase(baseURL string) error {
 			Name:      "Standard Policy",
 			IsDefault: true,
 			ClaimMappings: model.OidcClaimMappings{
-				{ClaimName: "sub", SourceType: model.MappingSourceUserField, SourceValue: "id", Scope: datatype.StringList{"openid"}, AccessToken: true, IDToken: true, UserInfo: true},
 				{ClaimName: "email", SourceType: model.MappingSourceUserField, SourceValue: "email", Scope: datatype.StringList{"email"}, IDToken: true, UserInfo: true},
 				{ClaimName: "email_verified", SourceType: model.MappingSourceUserField, SourceValue: "email_verified", Scope: datatype.StringList{"email"}, IDToken: true, UserInfo: true},
 				{ClaimName: "given_name", SourceType: model.MappingSourceUserField, SourceValue: "first_name", Scope: datatype.StringList{"profile"}, IDToken: true, UserInfo: true},

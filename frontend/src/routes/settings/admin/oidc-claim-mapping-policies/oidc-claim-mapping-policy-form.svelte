@@ -61,15 +61,6 @@
 	// Claim mappings a new policy starts with, mirroring the standard OIDC claims
 	const defaultClaimMappings: OidcClaimMappingDto[] = [
 		{
-			claimName: 'sub',
-			sourceType: 'user_field',
-			sourceValue: 'id',
-			scope: ['openid'],
-			accessToken: true,
-			idToken: true,
-			userInfo: true
-		},
-		{
 			claimName: 'email',
 			sourceType: 'user_field',
 			sourceValue: 'email',

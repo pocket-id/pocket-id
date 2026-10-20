@@ -223,6 +223,11 @@ func (s *ClaimsService) buildClaims(src *userClaimsSource, scopes []string, toke
 		}
 	}
 
+	// The subject is not mappable: tokens get it from the session, while userinfo must always return it per OIDC Core 5.3.2
+	if tokenType == UserInfoType {
+		claims["sub"] = src.user.ID
+	}
+
 	return claims
 }
 

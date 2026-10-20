@@ -36,7 +36,8 @@ func isValidUserFieldSources(field string) bool {
 // isReservedClaimsForMapping checks if a claim is reserved and cannot be remapped
 func isReservedClaimsForMapping(claim string) bool {
 	switch claim {
-	case "iss",
+	case "sub",
+		"iss",
 		"aud",
 		"exp",
 		"iat",
@@ -428,8 +429,5 @@ func validateClaimMappings(mappings []dto.OidcClaimMappingDto) error {
 		}
 	}
 
-	if !seenClaims["sub"] {
-		return apperror.ValidationMessage("claim mapping must include 'sub' claim")
-	}
 	return nil
 }

@@ -154,16 +154,11 @@
 			<div class="grid grid-cols-1 gap-x-3 gap-y-7 sm:flex-row md:grid-cols-2">
 				<div class="flex flex-col gap-6">
 					<!-- Claim Name -->
-					<FormInput
-						label={m.claim_name()}
-						bind:input={$inputs.claimName}
-						disabled={$inputs.claimName.value === 'sub'}
-					>
+					<FormInput label={m.claim_name()} bind:input={$inputs.claimName}>
 						<AutoCompleteInput
 							placeholder={m.enter_claim_name()}
 							suggestions={claimNameSuggestions}
 							bind:value={$inputs.claimName.value}
-							disabled={$inputs.claimName.value === 'sub'}
 						/>
 					</FormInput>
 					<!-- Source Type -->
@@ -220,16 +215,10 @@
 				</div>
 				<div class="flex flex-col gap-6">
 					<!-- Scope (multi-select) -->
-					<FormInput
-						label={m.scope()}
-						bind:input={$inputs.scope}
-						class="w-auto"
-						disabled={$inputs.claimName.value === 'sub'}
-					>
+					<FormInput label={m.scope()} bind:input={$inputs.scope} class="w-auto">
 						<MultiSelect
 							items={availableScopes.map((scope) => ({ value: scope, label: scope }))}
 							bind:selectedItems={$inputs.scope.value}
-							disabled={$inputs.claimName.value === 'sub'}
 						/>
 					</FormInput>
 					<SwitchWithLabel
@@ -237,21 +226,18 @@
 						label={m.access_token()}
 						description={m.add_to_access_token_description()}
 						bind:checked={$inputs.accessToken.value}
-						disabled={$inputs.claimName.value === 'sub'}
 					/>
 					<SwitchWithLabel
 						id="id_token"
 						label={m.id_token()}
 						description={m.add_to_id_token_description()}
 						bind:checked={$inputs.idToken.value}
-						disabled={$inputs.claimName.value === 'sub'}
 					/>
 					<SwitchWithLabel
 						id="user_info"
 						label={m.userinfo()}
 						description={m.add_to_user_info_description()}
 						bind:checked={$inputs.userInfo.value}
-						disabled={$inputs.claimName.value === 'sub'}
 					/>
 				</div>
 			</div>

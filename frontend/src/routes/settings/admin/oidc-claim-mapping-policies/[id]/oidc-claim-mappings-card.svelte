@@ -189,7 +189,6 @@
 			<LucidePencil class="size-4" />
 		</Button>
 		<Button
-			disabled={item.claimName === 'sub'}
 			variant="ghost"
 			size="sm"
 			aria-label={m.remove_claim_mapping()}

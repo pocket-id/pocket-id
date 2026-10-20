@@ -42,7 +42,7 @@ func TestDeleteClaimMappingPolicyResetsClients(t *testing.T) {
 	policy, err := service.CreateClaimMappingPolicy(context.Background(), dto.OidcClaimMappingPolicyDto{
 		OidcClaimMappingPolicyMetadataDto: dto.OidcClaimMappingPolicyMetadataDto{Name: "Attached"},
 		ClaimMappings: []dto.OidcClaimMappingDto{
-			{ClaimName: "sub", SourceType: "user_field", SourceValue: string(model.UserFieldID)},
+			{ClaimName: "user_id", SourceType: "user_field", SourceValue: string(model.UserFieldID)},
 		},
 	})
 	require.NoError(t, err)
@@ -76,7 +76,7 @@ func TestCreateClaimMappingPolicy(t *testing.T) {
 		},
 		ClaimMappings: []dto.OidcClaimMappingDto{
 			{
-				ClaimName:   "sub",
+				ClaimName:   "user_id",
 				SourceType:  "user_field",
 				SourceValue: string(model.UserFieldID),
 				Scope:       []string{"openid"},
@@ -120,7 +120,7 @@ func TestCreateClaimMappingPolicyWithDefault(t *testing.T) {
 		},
 		ClaimMappings: []dto.OidcClaimMappingDto{
 			{
-				ClaimName:   "sub",
+				ClaimName:   "user_id",
 				SourceType:  "user_field",
 				SourceValue: string(model.UserFieldID),
 			},
@@ -147,7 +147,7 @@ func TestCreateClaimMappingPolicyDefaultUnsetsOthers(t *testing.T) {
 		},
 		ClaimMappings: []dto.OidcClaimMappingDto{
 			{
-				ClaimName:   "sub",
+				ClaimName:   "user_id",
 				SourceType:  "user_field",
 				SourceValue: string(model.UserFieldID),
 			},
@@ -164,7 +164,7 @@ func TestCreateClaimMappingPolicyDefaultUnsetsOthers(t *testing.T) {
 		},
 		ClaimMappings: []dto.OidcClaimMappingDto{
 			{
-				ClaimName:   "sub",
+				ClaimName:   "user_id",
 				SourceType:  "user_field",
 				SourceValue: string(model.UserFieldID),
 			},
@@ -200,7 +200,7 @@ func TestUpdateClaimMappingPolicy(t *testing.T) {
 
 	mappings := []dto.OidcClaimMappingDto{
 		{
-			ClaimName:   "sub",
+			ClaimName:   "user_id",
 			SourceType:  "user_field",
 			SourceValue: string(model.UserFieldID),
 		},
@@ -225,7 +225,7 @@ func TestUpdateClaimMappingPolicy(t *testing.T) {
 		},
 		ClaimMappings: []dto.OidcClaimMappingDto{
 			{
-				ClaimName:   "sub",
+				ClaimName:   "user_id",
 				SourceType:  "user_field",
 				SourceValue: string(model.UserFieldID),
 			},
@@ -257,7 +257,7 @@ func TestUpdateClaimMappingPolicySetAsDefault(t *testing.T) {
 		},
 		ClaimMappings: []dto.OidcClaimMappingDto{
 			{
-				ClaimName:   "sub",
+				ClaimName:   "user_id",
 				SourceType:  "user_field",
 				SourceValue: string(model.UserFieldID),
 			},
@@ -273,7 +273,7 @@ func TestUpdateClaimMappingPolicySetAsDefault(t *testing.T) {
 		},
 		ClaimMappings: []dto.OidcClaimMappingDto{
 			{
-				ClaimName:   "sub",
+				ClaimName:   "user_id",
 				SourceType:  "user_field",
 				SourceValue: string(model.UserFieldID),
 			},
@@ -290,7 +290,7 @@ func TestUpdateClaimMappingPolicySetAsDefault(t *testing.T) {
 		},
 		ClaimMappings: []dto.OidcClaimMappingDto{
 			{
-				ClaimName:   "sub",
+				ClaimName:   "user_id",
 				SourceType:  "user_field",
 				SourceValue: string(model.UserFieldID),
 			},
@@ -322,7 +322,7 @@ func TestDeleteClaimMappingPolicy(t *testing.T) {
 		},
 		ClaimMappings: []dto.OidcClaimMappingDto{
 			{
-				ClaimName:   "sub",
+				ClaimName:   "user_id",
 				SourceType:  "user_field",
 				SourceValue: string(model.UserFieldID),
 			},
@@ -352,7 +352,7 @@ func TestDeleteDefaultClaimMappingPolicyFallsBackToBuiltIn(t *testing.T) {
 		},
 		ClaimMappings: []dto.OidcClaimMappingDto{
 			{
-				ClaimName:   "sub",
+				ClaimName:   "user_id",
 				SourceType:  "user_field",
 				SourceValue: string(model.UserFieldID),
 			},
@@ -381,7 +381,7 @@ func TestUpdateClaimMappingPolicyUnsetDefaultFallsBackToBuiltIn(t *testing.T) {
 	input := dto.OidcClaimMappingPolicyDto{
 		OidcClaimMappingPolicyMetadataDto: dto.OidcClaimMappingPolicyMetadataDto{Name: "Custom", IsDefault: true},
 		ClaimMappings: []dto.OidcClaimMappingDto{
-			{ClaimName: "sub", SourceType: "user_field", SourceValue: string(model.UserFieldID)},
+			{ClaimName: "user_id", SourceType: "user_field", SourceValue: string(model.UserFieldID)},
 		},
 	}
 	created, err := service.CreateClaimMappingPolicy(context.Background(), input)
@@ -464,7 +464,7 @@ func TestUpdateBuiltInClaimMappingPolicyOnlyAllowsDefaultFlag(t *testing.T) {
 		_, err := service.CreateClaimMappingPolicy(context.Background(), dto.OidcClaimMappingPolicyDto{
 			OidcClaimMappingPolicyMetadataDto: dto.OidcClaimMappingPolicyMetadataDto{Name: "New Default", IsDefault: true},
 			ClaimMappings: []dto.OidcClaimMappingDto{
-				{ClaimName: "sub", SourceType: "user_field", SourceValue: string(model.UserFieldID)},
+				{ClaimName: "user_id", SourceType: "user_field", SourceValue: string(model.UserFieldID)},
 			},
 		})
 		require.NoError(t, err)
@@ -478,27 +478,15 @@ func TestUpdateBuiltInClaimMappingPolicyOnlyAllowsDefaultFlag(t *testing.T) {
 
 // Tests for validateClaimMappings
 
-func TestValidateClaimMappingsMissingSubClaim(t *testing.T) {
-	err := validateClaimMappings([]dto.OidcClaimMappingDto{
-		{
-			ClaimName:   "name",
-			SourceType:  "user_field",
-			SourceValue: string(model.UserFieldDisplayName),
-		},
-	})
-	require.Error(t, err)
-	assert.Contains(t, err.Error(), "must include 'sub' claim")
-}
-
 func TestValidateClaimMappingsDuplicateClaims(t *testing.T) {
 	err := validateClaimMappings([]dto.OidcClaimMappingDto{
 		{
-			ClaimName:   "sub",
+			ClaimName:   "user_id",
 			SourceType:  "user_field",
 			SourceValue: string(model.UserFieldID),
 		},
 		{
-			ClaimName:   "sub",
+			ClaimName:   "user_id",
 			SourceType:  "user_field",
 			SourceValue: string(model.UserFieldEmail),
 		},
@@ -508,13 +496,13 @@ func TestValidateClaimMappingsDuplicateClaims(t *testing.T) {
 }
 
 func TestValidateClaimMappingsReservedClaims(t *testing.T) {
-	reservedClaims := []string{"iss", "aud", "exp", "iat", "auth_time", "nonce", "acr", "amr", "azp", "nbf", "jti"}
+	reservedClaims := []string{"sub", "iss", "aud", "exp", "iat", "auth_time", "nonce", "acr", "amr", "azp", "nbf", "jti"}
 
 	for _, claim := range reservedClaims {
 		t.Run(claim, func(t *testing.T) {
 			err := validateClaimMappings([]dto.OidcClaimMappingDto{
 				{
-					ClaimName:   "sub",
+					ClaimName:   "user_id",
 					SourceType:  "user_field",
 					SourceValue: string(model.UserFieldID),
 				},
@@ -542,11 +530,11 @@ func TestValidateClaimMappingsEmptyFields(t *testing.T) {
 		},
 		{
 			name:    "empty source type",
-			mapping: dto.OidcClaimMappingDto{ClaimName: "sub", SourceValue: string(model.UserFieldID)},
+			mapping: dto.OidcClaimMappingDto{ClaimName: "user_id", SourceValue: string(model.UserFieldID)},
 		},
 		{
 			name:    "empty source value",
-			mapping: dto.OidcClaimMappingDto{ClaimName: "sub", SourceType: "user_field"},
+			mapping: dto.OidcClaimMappingDto{ClaimName: "user_id", SourceType: "user_field"},
 		},
 	}
 
@@ -554,7 +542,7 @@ func TestValidateClaimMappingsEmptyFields(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			err := validateClaimMappings([]dto.OidcClaimMappingDto{
 				{
-					ClaimName:   "sub",
+					ClaimName:   "user_id",
 					SourceType:  "user_field",
 					SourceValue: string(model.UserFieldID),
 				},
@@ -569,7 +557,7 @@ func TestValidateClaimMappingsEmptyFields(t *testing.T) {
 func TestValidateClaimMappingsInvalidUserField(t *testing.T) {
 	err := validateClaimMappings([]dto.OidcClaimMappingDto{
 		{
-			ClaimName:   "sub",
+			ClaimName:   "user_id",
 			SourceType:  "user_field",
 			SourceValue: "invalid_field",
 		},
@@ -596,7 +584,7 @@ func TestValidateClaimMappingsValidUserFields(t *testing.T) {
 		t.Run(string(field), func(t *testing.T) {
 			err := validateClaimMappings([]dto.OidcClaimMappingDto{
 				{
-					ClaimName:   "sub",
+					ClaimName:   "user_id",
 					SourceType:  "user_field",
 					SourceValue: string(model.UserFieldID),
 				},
@@ -614,7 +602,7 @@ func TestValidateClaimMappingsValidUserFields(t *testing.T) {
 func TestValidateClaimMappingsCustomClaim(t *testing.T) {
 	err := validateClaimMappings([]dto.OidcClaimMappingDto{
 		{
-			ClaimName:   "sub",
+			ClaimName:   "user_id",
 			SourceType:  "user_field",
 			SourceValue: string(model.UserFieldID),
 		},
@@ -631,7 +619,7 @@ func TestValidateClaimMappingsCustomClaimInvalidLength(t *testing.T) {
 	// Test empty custom claim key
 	err := validateClaimMappings([]dto.OidcClaimMappingDto{
 		{
-			ClaimName:   "sub",
+			ClaimName:   "user_id",
 			SourceType:  "user_field",
 			SourceValue: string(model.UserFieldID),
 		},
@@ -648,7 +636,7 @@ func TestValidateClaimMappingsCustomClaimInvalidLength(t *testing.T) {
 	longKey := strings.Repeat("a", 256)
 	err = validateClaimMappings([]dto.OidcClaimMappingDto{
 		{
-			ClaimName:   "sub",
+			ClaimName:   "user_id",
 			SourceType:  "user_field",
 			SourceValue: string(model.UserFieldID),
 		},
@@ -665,7 +653,7 @@ func TestValidateClaimMappingsCustomClaimInvalidLength(t *testing.T) {
 func TestValidateClaimMappingsStaticSource(t *testing.T) {
 	err := validateClaimMappings([]dto.OidcClaimMappingDto{
 		{
-			ClaimName:   "sub",
+			ClaimName:   "user_id",
 			SourceType:  "user_field",
 			SourceValue: string(model.UserFieldID),
 		},
@@ -681,7 +669,7 @@ func TestValidateClaimMappingsStaticSource(t *testing.T) {
 func TestValidateClaimMappingsInvalidSourceType(t *testing.T) {
 	err := validateClaimMappings([]dto.OidcClaimMappingDto{
 		{
-			ClaimName:   "sub",
+			ClaimName:   "user_id",
 			SourceType:  "user_field",
 			SourceValue: string(model.UserFieldID),
 		},
@@ -698,7 +686,7 @@ func TestValidateClaimMappingsInvalidSourceType(t *testing.T) {
 func TestValidateClaimMappingsValidComplexPolicy(t *testing.T) {
 	err := validateClaimMappings([]dto.OidcClaimMappingDto{
 		{
-			ClaimName:   "sub",
+			ClaimName:   "user_id",
 			SourceType:  "user_field",
 			SourceValue: string(model.UserFieldID),
 			Scope:       []string{"openid"},
@@ -750,7 +738,7 @@ func TestListClaimMappingPolicyWithData(t *testing.T) {
 			},
 			ClaimMappings: []dto.OidcClaimMappingDto{
 				{
-					ClaimName:   "sub",
+					ClaimName:   "user_id",
 					SourceType:  "user_field",
 					SourceValue: string(model.UserFieldID),
 				},
@@ -776,7 +764,7 @@ func TestListClientsByClaimMappingPolicy(t *testing.T) {
 	policy, err := service.CreateClaimMappingPolicy(context.Background(), dto.OidcClaimMappingPolicyDto{
 		OidcClaimMappingPolicyMetadataDto: dto.OidcClaimMappingPolicyMetadataDto{Name: "Attached"},
 		ClaimMappings: []dto.OidcClaimMappingDto{
-			{ClaimName: "sub", SourceType: "user_field", SourceValue: string(model.UserFieldID)},
+			{ClaimName: "user_id", SourceType: "user_field", SourceValue: string(model.UserFieldID)},
 		},
 	})
 	require.NoError(t, err)
@@ -784,7 +772,7 @@ func TestListClientsByClaimMappingPolicy(t *testing.T) {
 	otherPolicy, err := service.CreateClaimMappingPolicy(context.Background(), dto.OidcClaimMappingPolicyDto{
 		OidcClaimMappingPolicyMetadataDto: dto.OidcClaimMappingPolicyMetadataDto{Name: "Other"},
 		ClaimMappings: []dto.OidcClaimMappingDto{
-			{ClaimName: "sub", SourceType: "user_field", SourceValue: string(model.UserFieldID)},
+			{ClaimName: "user_id", SourceType: "user_field", SourceValue: string(model.UserFieldID)},
 		},
 	})
 	require.NoError(t, err)
@@ -822,7 +810,7 @@ func TestListClientsByClaimMappingPolicyFiltersBySearchTerm(t *testing.T) {
 	policy, err := service.CreateClaimMappingPolicy(context.Background(), dto.OidcClaimMappingPolicyDto{
 		OidcClaimMappingPolicyMetadataDto: dto.OidcClaimMappingPolicyMetadataDto{Name: "Attached"},
 		ClaimMappings: []dto.OidcClaimMappingDto{
-			{ClaimName: "sub", SourceType: "user_field", SourceValue: string(model.UserFieldID)},
+			{ClaimName: "user_id", SourceType: "user_field", SourceValue: string(model.UserFieldID)},
 		},
 	})
 	require.NoError(t, err)
@@ -851,7 +839,7 @@ func TestListClientsByClaimMappingPolicyEscapesWildcards(t *testing.T) {
 	policy, err := service.CreateClaimMappingPolicy(context.Background(), dto.OidcClaimMappingPolicyDto{
 		OidcClaimMappingPolicyMetadataDto: dto.OidcClaimMappingPolicyMetadataDto{Name: "Attached"},
 		ClaimMappings: []dto.OidcClaimMappingDto{
-			{ClaimName: "sub", SourceType: "user_field", SourceValue: string(model.UserFieldID)},
+			{ClaimName: "user_id", SourceType: "user_field", SourceValue: string(model.UserFieldID)},
 		},
 	})
 	require.NoError(t, err)
@@ -886,7 +874,7 @@ func TestListClientsByClaimMappingPolicyPaginates(t *testing.T) {
 	policy, err := service.CreateClaimMappingPolicy(context.Background(), dto.OidcClaimMappingPolicyDto{
 		OidcClaimMappingPolicyMetadataDto: dto.OidcClaimMappingPolicyMetadataDto{Name: "Attached"},
 		ClaimMappings: []dto.OidcClaimMappingDto{
-			{ClaimName: "sub", SourceType: "user_field", SourceValue: string(model.UserFieldID)},
+			{ClaimName: "user_id", SourceType: "user_field", SourceValue: string(model.UserFieldID)},
 		},
 	})
 	require.NoError(t, err)
@@ -929,7 +917,7 @@ func newPolicyWithClients(t *testing.T, svc *OidcClaimMappingPolicyService, name
 	policy, err := svc.CreateClaimMappingPolicy(context.Background(), dto.OidcClaimMappingPolicyDto{
 		OidcClaimMappingPolicyMetadataDto: dto.OidcClaimMappingPolicyMetadataDto{Name: name},
 		ClaimMappings: []dto.OidcClaimMappingDto{
-			{ClaimName: "sub", SourceType: "user_field", SourceValue: string(model.UserFieldID)},
+			{ClaimName: "user_id", SourceType: "user_field", SourceValue: string(model.UserFieldID)},
 		},
 	})
 	require.NoError(t, err)

@@ -85,8 +85,8 @@ func requiredEmailVerification() appconfig.StaticResolver {
 	return appconfig.StaticResolver{Config: cfg}
 }
 
-// TestClaimsServiceValidateUserAccessEmailVerification makes sure users who still have to verify their email cannot redeem codes or refresh tokens when verification is required
-func TestClaimsServiceValidateUserAccessEmailVerification(t *testing.T) {
+// TestClaimsServiceLoadGrantClaimsSourceEmailVerification makes sure users who still have to verify their email cannot redeem codes or refresh tokens when verification is required
+func TestClaimsServiceLoadGrantClaimsSourceEmailVerification(t *testing.T) {
 	db := testutils.NewDatabaseForTest(t)
 	claimsService := newClaimsService(db, nil, "", nil, requiredEmailVerification())
 
@@ -100,24 +100,30 @@ func TestClaimsServiceValidateUserAccessEmailVerification(t *testing.T) {
 	client := Client{OidcClient: model.OidcClient{Base: model.Base{ID: "client-open"}, Name: "Open"}}
 
 	t.Run("unverified user is rejected with invalid_grant", func(t *testing.T) {
-		err := claimsService.ValidateUserAccess(t.Context(), unverifiedUser.ID, client)
+		_, err := claimsService.loadGrantClaimsSource(t.Context(), unverifiedUser.ID, client)
 		require.ErrorIs(t, err, fosite.ErrInvalidGrant)
 		require.Contains(t, fosite.ErrorToRFC6749Error(err).GetDescription(), emailVerificationRequiredHint)
 	})
 
 	t.Run("verified user is allowed", func(t *testing.T) {
-		require.NoError(t, claimsService.ValidateUserAccess(t.Context(), verifiedUser.ID, client))
+		src, err := claimsService.loadGrantClaimsSource(t.Context(), verifiedUser.ID, client)
+		require.NoError(t, err)
+		require.Equal(t, verifiedUser.ID, src.user.ID)
 	})
 
 	t.Run("unverified admin is allowed", func(t *testing.T) {
-		require.NoError(t, claimsService.ValidateUserAccess(t.Context(), unverifiedAdmin.ID, client))
+		src, err := claimsService.loadGrantClaimsSource(t.Context(), unverifiedAdmin.ID, client)
+		require.NoError(t, err)
+		require.Equal(t, unverifiedAdmin.ID, src.user.ID)
 	})
 
 	t.Run("unverified user is allowed when verification is optional", func(t *testing.T) {
 		cfg := appconfig.NewTestConfig(nil)
 		cfg.EmailVerification = appconfig.EmailVerificationOptional
 		optional := newClaimsService(db, nil, "", nil, appconfig.StaticResolver{Config: cfg})
-		require.NoError(t, optional.ValidateUserAccess(t.Context(), unverifiedUser.ID, client))
+		src, err := optional.loadGrantClaimsSource(t.Context(), unverifiedUser.ID, client)
+		require.NoError(t, err)
+		require.Equal(t, unverifiedUser.ID, src.user.ID)
 	})
 }
 
@@ -131,7 +137,7 @@ func (f fakeCustomClaimSource) GetCustomClaimsForUserWithUserGroups(_ context.Co
 
 // TestClaimsServiceBuildClaims pins the scope-to-claims mapping that powers both the ID
 // token and the userinfo endpoint: each OIDC scope must only release its own claims, "sub"
-// is always present, and custom claims are emitted as parsed JSON when the stored value is
+// is always present in userinfo, and custom claims are emitted as parsed JSON when the stored value is
 // valid JSON and as a raw string otherwise.
 func TestClaimsServiceBuildClaims(t *testing.T) {
 	db := testutils.NewDatabaseForTest(t)
@@ -165,14 +171,23 @@ func TestClaimsServiceBuildClaims(t *testing.T) {
 	claimsSource, err := service.loadUserClaimsSource(t.Context(), userID, "client-1")
 	require.NoError(t, err)
 
-	t.Run("openid only releases sub", func(t *testing.T) {
+	t.Run("openid alone releases no mapped claim in the ID token", func(t *testing.T) {
 		claims := service.buildClaims(claimsSource, []string{"openid"}, IDTokenType)
+		require.Empty(t, claims)
+	})
+
+	t.Run("userinfo always releases sub", func(t *testing.T) {
+		claims := service.buildClaims(claimsSource, []string{"openid"}, UserInfoType)
+		require.Equal(t, map[string]any{"sub": userID}, claims)
+	})
+
+	t.Run("userinfo sub is set even when no scope matches a mapping", func(t *testing.T) {
+		claims := service.buildClaims(claimsSource, nil, UserInfoType)
 		require.Equal(t, map[string]any{"sub": userID}, claims)
 	})
 
 	t.Run("email scope releases email claims", func(t *testing.T) {
 		claims := service.buildClaims(claimsSource, []string{"openid", "email"}, IDTokenType)
-		require.Equal(t, userID, claims["sub"])
 		require.Equal(t, "tim@example.com", claims["email"])
 		require.Equal(t, true, claims["email_verified"])
 		require.NotContains(t, claims, "given_name")
@@ -258,7 +273,7 @@ func TestClaimsServiceGetClaimMappingPolicyByClientID(t *testing.T) {
 	customPolicy := model.OidcClaimMappingPolicy{
 		Base:          model.Base{ID: "custom-policy"},
 		Name:          "Custom Policy",
-		ClaimMappings: model.OidcClaimMappings{{ClaimName: "sub", SourceType: model.MappingSourceUserField, SourceValue: string(model.UserFieldID)}},
+		ClaimMappings: model.OidcClaimMappings{{ClaimName: "user_id", SourceType: model.MappingSourceUserField, SourceValue: string(model.UserFieldID)}},
 	}
 	require.NoError(t, db.Create(&customPolicy).Error)
 
