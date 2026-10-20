@@ -7,7 +7,6 @@ import (
 	"github.com/pocket-id/pocket-id/backend/internal/authz"
 	"github.com/pocket-id/pocket-id/backend/internal/dto"
 	"github.com/pocket-id/pocket-id/backend/internal/httpserver"
-	"github.com/pocket-id/pocket-id/backend/internal/model"
 	"github.com/pocket-id/pocket-id/backend/internal/service"
 	"github.com/pocket-id/pocket-id/backend/internal/utils"
 )
@@ -203,7 +202,8 @@ func (ocmc *OidcClaimMappingPolicyController) listClientsByClaimMappingPolicyHan
 		return err
 	}
 
-	dtos, err := clientMetaDataDtos(clients)
+	var dtos []dto.OidcClientMetaDataDto
+	err = dto.MapStructList(clients, &dtos)
 	if err != nil {
 		return err
 	}
@@ -239,7 +239,8 @@ func (ocmc *OidcClaimMappingPolicyController) listAssignableClientsHandler(c *gi
 		return err
 	}
 
-	dtos, err := clientMetaDataDtos(clients)
+	var dtos []dto.OidcClientMetaDataDto
+	err = dto.MapStructList(clients, &dtos)
 	if err != nil {
 		return err
 	}
@@ -291,20 +292,4 @@ func (ocmc *OidcClaimMappingPolicyController) removeClientHandler(c *gin.Context
 
 	c.Status(http.StatusNoContent)
 	return nil
-}
-
-// clientMetaDataDtos maps OIDC clients to their metadata DTO, deriving the logo flags the model
-// exposes as methods rather than fields
-func clientMetaDataDtos(clients []model.OidcClient) ([]dto.OidcClientMetaDataDto, error) {
-	dtos := make([]dto.OidcClientMetaDataDto, len(clients))
-	for i, client := range clients {
-		var clientDto dto.OidcClientMetaDataDto
-		if err := dto.MapStruct(client, &clientDto); err != nil {
-			return nil, err
-		}
-
-		clientDto.HasDarkLogo = client.HasDarkLogo()
-		dtos[i] = clientDto
-	}
-	return dtos, nil
 }
