@@ -35,7 +35,8 @@ func (s *UserGroupService) List(ctx context.Context, name string, listRequestOpt
 		Model(&model.UserGroup{})
 
 	if name != "" {
-		query = query.Where("name LIKE ?", "%"+name+"%")
+		searchPattern := "%" + name + "%"
+		query = query.Where("name LIKE ? OR friendly_name LIKE ?", searchPattern, searchPattern)
 	}
 
 	// As userCount is not a column we need to manually sort it

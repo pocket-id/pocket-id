@@ -123,6 +123,8 @@ func (s *Service) RenewApiKey(ctx context.Context, userID, apiKeyID string, expi
 
 	apiKey.Key = utils.CreateSha256Hash(token)
 	apiKey.ExpiresAt = datatype.DateTime(expiration)
+	// The renewed key expires again, so its owner should be notified again
+	apiKey.ExpirationEmailSent = false
 
 	err = tx.WithContext(ctx).Save(&apiKey).Error
 	if err != nil {
