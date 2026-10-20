@@ -4,20 +4,27 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"io"
 	"slices"
 	"strings"
 
 	"github.com/pocket-id/fosite"
+	fositejwt "github.com/pocket-id/fosite/token/jwt"
 	"github.com/pocket-id/pocket-id/backend/internal/appconfig"
+	"github.com/pocket-id/pocket-id/backend/internal/claimmappingpolicy"
 	"github.com/pocket-id/pocket-id/backend/internal/common"
 	"github.com/pocket-id/pocket-id/backend/internal/emailverification"
 	"github.com/pocket-id/pocket-id/backend/internal/model"
 	"gorm.io/gorm"
 )
 
+type TokenType string
+
 const (
-	idTokenType = "id-token"
+	IDTokenType     TokenType = "id-token"
+	AccessTokenType TokenType = "access-token"
+	UserInfoType    TokenType = "user-info"
 )
 
 const emailVerificationRequiredHint = "You must verify your email address before you can access this service."
@@ -54,65 +61,120 @@ func (s *ClaimsService) isEmailVerificationPending(ctx context.Context, user *mo
 	return emailverification.IsPending(cfg, user), nil
 }
 
-// ValidateUserAccess re-checks, at token-issuance time, that the user behind a grant is
-// still allowed to obtain tokens for the client.
-func (s *ClaimsService) ValidateUserAccess(ctx context.Context, userID string, client Client) error {
-	// Grants without a resource owner (e.g. client_credentials) carry an empty subject
-	// and have no user to validate.
-	if userID == "" {
-		return nil
-	}
+// errClaimsUserNotFound is returned when the user whose claims are requested no longer exists
+// Callers map it to the error their endpoint expects, e.g. invalid_grant on the token endpoint
+var errClaimsUserNotFound = errors.New("user not found")
 
-	var user model.User
-	err := dbFromContext(ctx, s.db).
-		Preload("UserGroups").
-		First(&user, "id = ?", userID).
-		Error
-	if errors.Is(err, gorm.ErrRecordNotFound) {
-		return fosite.ErrInvalidGrant.WithHint("The user account no longer exists.")
-	}
-	if err != nil {
+// userClaimsSource holds everything needed to build the claims of a user for a client
+// It is loaded once per request so every token built from it sees the same data and no query is repeated
+type userClaimsSource struct {
+	user         model.User
+	policy       claimmappingpolicy.OidcClaimMappingPolicy
+	customClaims []model.CustomClaim
+}
+
+// loadUserClaimsSource reads the user with its groups, the claim mapping policy of the client and, when the policy needs them, the custom claims of the user
+func (s *ClaimsService) loadUserClaimsSource(ctx context.Context, userID string, clientID string) (*userClaimsSource, error) {
+	var src userClaimsSource
+	err := withTx(ctx, s.db, func(ctx context.Context) error {
+		db := dbFromContext(ctx, s.db)
+
+		// Load the user with its groups, which back the groups claim, the group restriction and the group custom claims
+		err := db.
+			Preload("UserGroups").
+			First(&src.user, "id = ?", userID).
+			Error
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return errClaimsUserNotFound
+		} else if err != nil {
+			return err
+		}
+
+		// Load the policy assigned to the client, falling back to the default one
+		policy, err := s.GetClaimMappingPolicyByClientID(ctx, clientID)
+		if err != nil {
+			return fmt.Errorf("failed to load claim mapping policy: %w", err)
+		}
+		src.policy = *policy
+
+		// Custom claims cost an extra query, so they are only read when the policy can release one
+		// A service wired without a custom claim source simply has none
+		if s.customClaims == nil || !policyHasCustomClaimMapping(src.policy) {
+			return nil
+		}
+
+		src.customClaims, err = s.customClaims.GetCustomClaimsForUserWithUserGroups(ctx, src.user.ID, db)
 		return err
+	})
+	if err != nil {
+		return nil, err
 	}
 
-	if user.Disabled {
-		return fosite.ErrInvalidGrant.WithHint("The user account is disabled.")
+	return &src, nil
+}
+
+func policyHasCustomClaimMapping(policy claimmappingpolicy.OidcClaimMappingPolicy) bool {
+	return slices.ContainsFunc(policy.ClaimMappings, func(mapping claimmappingpolicy.OidcClaimMapping) bool {
+		return mapping.SourceType == claimmappingpolicy.MappingSourceCustomClaim
+	})
+}
+
+// loadGrantClaimsSource loads the claims source of the user behind a grant and re-checks, at token-issuance time, that the user is still allowed to obtain tokens for the client
+// Grants without a resource owner (e.g. client_credentials) carry an empty subject, so they have no user to validate and get a nil source
+func (s *ClaimsService) loadGrantClaimsSource(ctx context.Context, userID string, client Client) (*userClaimsSource, error) {
+	if userID == "" {
+		return nil, nil
+	}
+
+	src, err := s.loadUserClaimsSource(ctx, userID, client.GetID())
+	if errors.Is(err, errClaimsUserNotFound) {
+		return nil, fosite.ErrInvalidGrant.WithHint("The user account no longer exists.")
+	} else if err != nil {
+		return nil, err
+	}
+
+	if src.user.Disabled {
+		return nil, fosite.ErrInvalidGrant.WithHint("The user account is disabled.")
 	}
 
 	// The authorization middleware already stops these users at the authorize step, but grants issued before the email became unverified, such as refresh tokens, are only checked here
-	pending, err := s.isEmailVerificationPending(ctx, &user)
+	pending, err := s.isEmailVerificationPending(ctx, &src.user)
 	if err != nil {
-		return err
+		return nil, err
 	}
 	if pending {
-		return fosite.ErrInvalidGrant.WithHint(emailVerificationRequiredHint)
+		return nil, fosite.ErrInvalidGrant.WithHint(emailVerificationRequiredHint)
 	}
 
-	if !IsUserGroupAllowedToAuthorize(user, client.OidcClient) {
-		return fosite.ErrAccessDenied.WithHint("You are not allowed to access this service.")
+	if !IsUserGroupAllowedToAuthorize(src.user, client.OidcClient) {
+		return nil, fosite.ErrAccessDenied.WithHint("You are not allowed to access this service.")
 	}
 
-	return nil
+	return src, nil
 }
 
-// applyIDTokenClaims applies the claims of a user to the ID token claims in the session based on the requested scopes.
-func (s *ClaimsService) applyIDTokenClaims(ctx context.Context, session *Session, scopes fosite.Arguments) error {
-	userID := session.Subject
-	if userID == "" {
-		return nil
-	}
-
-	claims, err := s.GetUserClaims(ctx, userID, scopes)
+// GetClaimMappingPolicyByClientID returns the claim mapping policy assigned to the client, or the default policy when the client doesn't have one assigned (claim_mapping_policy_id IS NULL)
+// Both candidates are fetched in a single query: the assigned policy is ordered first so it wins over the default whenever it exists
+func (s *ClaimsService) GetClaimMappingPolicyByClientID(ctx context.Context, clientID string) (*claimmappingpolicy.OidcClaimMappingPolicy, error) {
+	var claimMappingPolicy claimmappingpolicy.OidcClaimMappingPolicy
+	err := dbFromContext(ctx, s.db).
+		Model(&claimmappingpolicy.OidcClaimMappingPolicy{}).
+		Where("oidc_claim_mapping_policies.id = (SELECT claim_mapping_policy_id FROM oidc_clients WHERE oidc_clients.id = ?)", clientID).
+		Or("oidc_claim_mapping_policies.is_default = ?", true).
+		Order("oidc_claim_mapping_policies.is_default ASC").
+		First(&claimMappingPolicy).Error
 	if err != nil {
-		return err
+		return nil, err
 	}
+	return &claimMappingPolicy, nil
+}
 
-	// Record the signing algorithm on the ID token header so fosite derives the at_hash/
-	// c_hash digest from it (e.g. RS384 -> SHA-384, ES512 -> SHA-512). Without this the
-	// header is empty and fosite defaults to SHA-256, producing wrong hashes whenever the
-	// signing key is not a 256-bit algorithm. ToMap() strips "alg" before signing, so this
-	// never overrides the real JWS header. The signer is always wired in production; it is
-	// only nil in unit tests that do not assert hash correctness.
+// applyTokenClaims applies the claims of a user to both the ID token and the access token of the session based on the granted scopes
+func (s *ClaimsService) applyTokenClaims(session *Session, scopes fosite.Arguments, src *userClaimsSource) error {
+	// Record the signing algorithm on the ID token header so fosite derives the at_hash/c_hash digest from it (e.g. RS384 -> SHA-384, ES512 -> SHA-512)
+	// Without this the header is empty and fosite defaults to SHA-256, producing wrong hashes whenever the signing key is not a 256-bit algorithm
+	// ToMap() strips "alg" before signing, so this never overrides the real JWS header
+	// The signer is always wired in production: it is only nil in unit tests that do not assert hash correctness
 	if s.signer != nil {
 		alg, err := s.signer.GetKeyAlg()
 		if err != nil {
@@ -121,7 +183,16 @@ func (s *ClaimsService) applyIDTokenClaims(ctx context.Context, session *Session
 		session.IDTokenHeaders().Add("alg", alg.String())
 	}
 
-	applyUserClaimsToIDToken(session, userID, claims)
+	// Both tokens are built from the same source, so they always agree on the user data
+	applyUserClaimsToIDToken(
+		session, src.user.ID,
+		s.buildClaims(src, scopes, IDTokenType),
+	)
+	applyUserClaimsToAccessToken(
+		session,
+		s.buildClaims(src, scopes, AccessTokenType),
+	)
+
 	return nil
 }
 
@@ -129,65 +200,36 @@ func applyUserClaimsToIDToken(session *Session, userID string, claims map[string
 	idTokenClaims := session.IDTokenClaims()
 	idTokenClaims.Subject = userID
 	idTokenClaims.Extra = claims
-	idTokenClaims.Extra[common.TokenTypeClaim] = idTokenType
+	idTokenClaims.Extra[common.TokenTypeClaim] = string(IDTokenType)
 	if session.AuthenticationMethod != "" {
 		idTokenClaims.AuthenticationMethodsReferences = []string{session.AuthenticationMethod}
 	}
 }
 
-// GetUserClaims retrieves the claims for a user based on the requested scopes. It includes standard claims
-// like "sub" and "email" as well as any custom claims defined for the user or their groups.
-func (s *ClaimsService) GetUserClaims(ctx context.Context, userID string, scopes []string) (map[string]any, error) {
-	db := dbFromContext(ctx, s.db)
+func applyUserClaimsToAccessToken(session *Session, claims map[string]any) {
+	jwtClaims := session.GetJWTClaims().(*fositejwt.JWTClaims)
+	jwtClaims.Extra = claims
+}
 
-	var user model.User
-	err := db.
-		Preload("UserGroups").
-		First(&user, "id = ?", userID).
-		Error
-	if err != nil {
-		return nil, err
-	}
-
-	claims := make(map[string]any, 10)
-
-	if slices.Contains(scopes, "profile") {
-		customClaims, err := s.customClaims.GetCustomClaimsForUserWithUserGroups(ctx, user.ID, db)
-		if err != nil {
-			return nil, err
+// buildClaims applies the mappings of the policy that target the token type and match the scopes
+// It works on already loaded data, so it never touches the database and cannot fail
+func (s *ClaimsService) buildClaims(src *userClaimsSource, scopes []string, tokenType TokenType) map[string]any {
+	claims := make(map[string]any, len(src.policy.ClaimMappings))
+	for _, mapping := range src.policy.ClaimMappings {
+		if ((mapping.IDToken && tokenType == IDTokenType) ||
+			(mapping.AccessToken && tokenType == AccessTokenType) ||
+			(mapping.UserInfo && tokenType == UserInfoType)) &&
+			isScopeMatching(scopes, mapping.Scope) {
+			s.applyUserClaims(claims, src.user, src.customClaims, mapping)
 		}
-
-		for _, customClaim := range customClaims {
-			claims[customClaim.Key] = parseCustomClaimValue(customClaim.Value)
-		}
-
-		claims["given_name"] = user.FirstName
-		claims["family_name"] = user.LastName
-		claims["name"] = user.FullName()
-		claims["display_name"] = user.DisplayName
-		claims["preferred_username"] = user.Username
-		claims["picture"] = s.baseURL + "/api/users/" + user.ID + "/profile-picture.png"
 	}
 
-	claims["sub"] = user.ID
-
-	// Only release the email claims when the user actually has an email. Emitting
-	// email_verified alongside a null/absent email (OIDC Core §5.1) is malformed and can
-	// mislead relying parties that key trust decisions on email_verified.
-	if slices.Contains(scopes, "email") && user.Email != nil && *user.Email != "" {
-		claims["email"] = *user.Email
-		claims["email_verified"] = user.EmailVerified
+	// The subject is not mappable: tokens get it from the session, while userinfo must always return it per OIDC Core 5.3.2
+	if tokenType == UserInfoType {
+		claims["sub"] = src.user.ID
 	}
 
-	if slices.Contains(scopes, "groups") {
-		userGroups := make([]string, len(user.UserGroups))
-		for i, group := range user.UserGroups {
-			userGroups[i] = group.Name
-		}
-		claims["groups"] = userGroups
-	}
-
-	return claims, nil
+	return claims
 }
 
 // parseCustomClaimValue decodes a custom claim value that is a JSON document and returns any other value as a plain string
@@ -234,4 +276,72 @@ func normalizeJSONNumbers(value any) (any, error) {
 		}
 	}
 	return value, nil
+}
+
+func isScopeMatching(requestedScopes []string, claimScopes []string) bool {
+	for _, claimScope := range claimScopes {
+		if slices.Contains(requestedScopes, claimScope) {
+			return true
+		}
+	}
+	return false
+}
+
+func (s *ClaimsService) applyUserClaims(claims map[string]any, user model.User, customClaims []model.CustomClaim, mapping claimmappingpolicy.OidcClaimMapping) {
+	switch mapping.SourceType {
+	case claimmappingpolicy.MappingSourceUserField:
+		// Map from user field
+		switch claimmappingpolicy.OidcUserField(mapping.SourceValue) {
+		case claimmappingpolicy.UserFieldID:
+			claims[mapping.ClaimName] = user.ID
+		case claimmappingpolicy.UserFieldEmail:
+			if user.Email != nil {
+				claims[mapping.ClaimName] = *user.Email
+			}
+		case claimmappingpolicy.UserFieldEmailVerified:
+			if user.Email != nil {
+				claims[mapping.ClaimName] = user.EmailVerified
+			}
+		case claimmappingpolicy.UserFieldFirstName:
+			claims[mapping.ClaimName] = user.FirstName
+		case claimmappingpolicy.UserFieldLastName:
+			claims[mapping.ClaimName] = user.LastName
+		case claimmappingpolicy.UserFieldFullName:
+			claims[mapping.ClaimName] = user.FullName()
+		case claimmappingpolicy.UserFieldDisplayName:
+			claims[mapping.ClaimName] = user.DisplayName
+		case claimmappingpolicy.UserFieldUsername:
+			claims[mapping.ClaimName] = user.Username
+		case claimmappingpolicy.UserFieldLocale:
+			if user.Locale != nil {
+				claims[mapping.ClaimName] = user.Locale
+			}
+		case claimmappingpolicy.UserFieldPicture:
+			claims[mapping.ClaimName] = s.baseURL + "/api/users/" + user.ID + "/profile-picture.png"
+		case claimmappingpolicy.UserFieldGroups:
+			userGroups := make([]string, len(user.UserGroups))
+			for i, group := range user.UserGroups {
+				userGroups[i] = group.Name
+			}
+			claims[mapping.ClaimName] = userGroups
+		}
+
+	case claimmappingpolicy.MappingSourceCustomClaim:
+		// Map from custom claim
+		for _, customClaim := range customClaims {
+			if mapping.SourceValue == "*" || customClaim.Key == mapping.SourceValue {
+				claimName := mapping.ClaimName
+				if mapping.ClaimName == "*" {
+					claimName = customClaim.Key
+				}
+				claims[claimName] = parseCustomClaimValue(customClaim.Value)
+				if mapping.SourceValue != "*" {
+					break
+				}
+			}
+		}
+
+	case claimmappingpolicy.MappingSourceStatic:
+		claims[mapping.ClaimName] = parseCustomClaimValue(mapping.SourceValue)
+	}
 }

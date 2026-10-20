@@ -51,6 +51,7 @@ const (
 	CodeLdapDisabled                    Code = "ldap_disabled"
 	CodeLdapUserUpdate                  Code = "ldap_user_update"
 	CodeLdapUserGroupUpdate             Code = "ldap_user_group_update"
+	CodeBuiltInClaimMappingPolicyUpdate Code = "built_in_claim_mapping_policy_update"
 	CodeOidcAccessDenied                Code = "oidc_access_denied"
 	CodeOidcClientIDNotMatching         Code = "oidc_client_id_not_matching"
 	CodeUIConfigDisabled                Code = "ui_config_disabled"

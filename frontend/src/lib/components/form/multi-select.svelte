@@ -12,7 +12,8 @@
 		onSelect,
 		autoClose = false,
 		placeholder = m.select_an_option(),
-		class: className
+		class: className,
+		disabled = false
 	}: {
 		items: {
 			value: string;
@@ -23,6 +24,7 @@
 		autoClose?: boolean;
 		placeholder?: string;
 		class?: string;
+		disabled?: boolean;
 	} = $props();
 
 	const selected = $derived(items.filter((item) => selectedItems.includes(item.value)));
@@ -38,7 +40,7 @@
 </script>
 
 <DropdownMenu.Root>
-	<DropdownMenu.Trigger>
+	<DropdownMenu.Trigger {disabled}>
 		{#snippet child({ props })}
 			<Button {...props} variant="outline" class={cn('w-full px-3 font-normal', className)}>
 				<!-- Button centers its content in an inner span, so this one spreads the badges and the chevron apart -->
@@ -62,6 +64,7 @@
 				checked={selectedItems.includes(item.value)}
 				onCheckedChange={() => handleItemSelect(item.value)}
 				closeOnSelect={autoClose}
+				{disabled}
 			>
 				{item.label}
 			</DropdownMenu.CheckboxItem>

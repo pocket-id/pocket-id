@@ -13,6 +13,7 @@ import (
 	"github.com/pocket-id/pocket-id/backend/internal/appconfig"
 	"github.com/pocket-id/pocket-id/backend/internal/apperror"
 	"github.com/pocket-id/pocket-id/backend/internal/auditlogs"
+	"github.com/pocket-id/pocket-id/backend/internal/claimmappingpolicy"
 	"github.com/pocket-id/pocket-id/backend/internal/model"
 	datatype "github.com/pocket-id/pocket-id/backend/internal/model/types"
 	testutils "github.com/pocket-id/pocket-id/backend/internal/utils/testing"
@@ -29,8 +30,11 @@ func (f *fakeAuditLogger) Create(_ context.Context, event auditlogs.Event, _, _,
 	return auditlogs.AuditLog{}, true
 }
 
+const defaultClaimMappingPolicyId = claimmappingpolicy.BuiltInClaimMappingPolicyID
+
 func TestAuthorizationServiceAuthorizeLogsClientAuthorization(t *testing.T) {
 	db := testutils.NewDatabaseForTest(t)
+	require.NoError(t, claimmappingpolicy.Bootstrap(t.Context(), db))
 	auditLogger := &fakeAuditLogger{}
 	service := newAuthorizationService(db, newInteractionSessionService(db), newClaimsService(db, nil, "", nil, appconfig.StaticResolver{}), nil, auditLogger, nil)
 
@@ -176,6 +180,7 @@ func TestAuthorizationServiceConsentStepLogsNewClientAuthorization(t *testing.T)
 // TestAuthorizationServiceConsentStepGrantsOnlyApprovedScopes guards that scopes the user deselects on the consent screen are neither consented to nor granted when the request resumes
 func TestAuthorizationServiceConsentStepGrantsOnlyApprovedScopes(t *testing.T) {
 	db := testutils.NewDatabaseForTest(t)
+	require.NoError(t, claimmappingpolicy.Bootstrap(t.Context(), db))
 
 	const (
 		userID        = "test-user"
@@ -316,6 +321,7 @@ func TestNarrowInteractionScopes(t *testing.T) {
 
 func TestAuthorizationServiceConsentMergesAudienceQualifiedScopeKeys(t *testing.T) {
 	db := testutils.NewDatabaseForTest(t)
+	require.NoError(t, claimmappingpolicy.Bootstrap(t.Context(), db))
 	auditLogger := &fakeAuditLogger{}
 
 	const (
@@ -384,6 +390,7 @@ func TestAuthorizationServiceConsentMergesAudienceQualifiedScopeKeys(t *testing.
 // its own consent, even when the grant carries no custom scope and the user already consented to a plain login.
 func TestAuthorizationServiceRequiresConsentForScopelessAPIAccess(t *testing.T) {
 	db := testutils.NewDatabaseForTest(t)
+	require.NoError(t, claimmappingpolicy.Bootstrap(t.Context(), db))
 
 	const (
 		userID   = "test-user"
@@ -434,6 +441,7 @@ func TestAuthorizationServiceRequiresConsentForScopelessAPIAccess(t *testing.T) 
 
 func TestAuthorizationServiceAuthorizeConsumesInteractionSession(t *testing.T) {
 	db := testutils.NewDatabaseForTest(t)
+	require.NoError(t, claimmappingpolicy.Bootstrap(t.Context(), db))
 	service := newAuthorizationService(db, newInteractionSessionService(db), newClaimsService(db, nil, "", nil, appconfig.StaticResolver{}), nil, nil, nil)
 
 	const (
@@ -529,6 +537,7 @@ func TestInteractionAPIClassifiesMissingSession(t *testing.T) {
 
 func TestAuthorizationServiceAuthorizeBindsScopesToInteractionSession(t *testing.T) {
 	db := testutils.NewDatabaseForTest(t)
+	require.NoError(t, claimmappingpolicy.Bootstrap(t.Context(), db))
 	service := newAuthorizationService(db, newInteractionSessionService(db), newClaimsService(db, nil, "", nil, appconfig.StaticResolver{}), nil, nil, nil)
 
 	const (
@@ -867,6 +876,7 @@ func TestValidateClientPKCERequirement(t *testing.T) {
 // flag is honored for confidential clients (fosite only enforces PKCE for public clients).
 func TestAuthorizationServiceAuthorizeEnforcesPerClientPKCE(t *testing.T) {
 	db := testutils.NewDatabaseForTest(t)
+	require.NoError(t, claimmappingpolicy.Bootstrap(t.Context(), db))
 	service := newAuthorizationService(db, newInteractionSessionService(db), newClaimsService(db, nil, "", nil, appconfig.StaticResolver{}), nil, nil, nil)
 
 	const (
@@ -903,6 +913,7 @@ func TestAuthorizationServiceAuthorizeEnforcesPerClientPKCE(t *testing.T) {
 
 func TestAuthorizationServiceAuthorizePARRequiredClient(t *testing.T) {
 	db := testutils.NewDatabaseForTest(t)
+	require.NoError(t, claimmappingpolicy.Bootstrap(t.Context(), db))
 	service := newAuthorizationService(db, newInteractionSessionService(db), newClaimsService(db, nil, "", nil, appconfig.StaticResolver{}), nil, nil, nil)
 
 	const (
@@ -1008,6 +1019,7 @@ func TestAuthorizationServiceInteractionRequestQuery(t *testing.T) {
 
 func TestAuthorizationServiceAuthorizeUsesLoginAuthenticationTime(t *testing.T) {
 	db := testutils.NewDatabaseForTest(t)
+	require.NoError(t, claimmappingpolicy.Bootstrap(t.Context(), db))
 	service := newAuthorizationService(db, newInteractionSessionService(db), newClaimsService(db, nil, "", nil, appconfig.StaticResolver{}), nil, nil, nil)
 
 	const (
@@ -1087,6 +1099,7 @@ func TestAuthorizationServiceAuthorizeRequiresReauthenticationWhenMaxAgeExceeded
 
 func TestAuthorizationServiceAuthorizeUsesCompletedReauthenticationTime(t *testing.T) {
 	db := testutils.NewDatabaseForTest(t)
+	require.NoError(t, claimmappingpolicy.Bootstrap(t.Context(), db))
 	service := newAuthorizationService(db, newInteractionSessionService(db), newClaimsService(db, nil, "", nil, appconfig.StaticResolver{}), nil, nil, nil)
 
 	const (
@@ -1134,6 +1147,7 @@ func TestAuthorizationServiceAuthorizeUsesCompletedReauthenticationTime(t *testi
 
 func TestAuthorizationServiceAuthorizeUsesOriginalInteractionRequestTime(t *testing.T) {
 	db := testutils.NewDatabaseForTest(t)
+	require.NoError(t, claimmappingpolicy.Bootstrap(t.Context(), db))
 	service := newAuthorizationService(db, newInteractionSessionService(db), newClaimsService(db, nil, "", nil, appconfig.StaticResolver{}), nil, nil, nil)
 
 	const (
@@ -1284,6 +1298,7 @@ func TestConsentRequired(t *testing.T) {
 // A client with SkipConsent must be granted without a consent interaction even on the first authorization, while consent is still recorded so the user can later see and revoke the client
 func TestAuthorizationServiceSkipConsentGrantsWithoutInteraction(t *testing.T) {
 	db := testutils.NewDatabaseForTest(t)
+	require.NoError(t, claimmappingpolicy.Bootstrap(t.Context(), db))
 	auditLogger := &fakeAuditLogger{}
 	service := newAuthorizationService(db, newInteractionSessionService(db), newClaimsService(db, nil, "", nil, appconfig.StaticResolver{}), nil, auditLogger, nil)
 

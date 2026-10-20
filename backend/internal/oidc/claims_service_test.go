@@ -10,17 +10,19 @@ import (
 	"gorm.io/gorm"
 
 	"github.com/pocket-id/pocket-id/backend/internal/appconfig"
+	"github.com/pocket-id/pocket-id/backend/internal/claimmappingpolicy"
 	"github.com/pocket-id/pocket-id/backend/internal/model"
 	testutils "github.com/pocket-id/pocket-id/backend/internal/utils/testing"
 )
 
-// TestClaimsServiceValidateUserAccess covers the per-grant re-validation that the token
+// TestClaimsServiceLoadGrantClaimsSource covers the per-grant re-validation that the token
 // endpoint performs on every grant (notably refresh_token, which fosite replays without
 // reloading the user). A disabled user, a user removed from a group-restricted client, or
 // a deleted user must be rejected so they cannot keep minting tokens from a still-valid
 // refresh token.
-func TestClaimsServiceValidateUserAccess(t *testing.T) {
+func TestClaimsServiceLoadGrantClaimsSource(t *testing.T) {
 	db := testutils.NewDatabaseForTest(t)
+	require.NoError(t, claimmappingpolicy.Bootstrap(t.Context(), db))
 	claimsService := newClaimsService(db, nil, "", nil, appconfig.StaticResolver{})
 
 	group := model.UserGroup{Base: model.Base{ID: "group-allowed"}, Name: "allowed", FriendlyName: "Allowed"}
@@ -45,29 +47,35 @@ func TestClaimsServiceValidateUserAccess(t *testing.T) {
 	}}
 
 	t.Run("empty subject is allowed (client_credentials)", func(t *testing.T) {
-		require.NoError(t, claimsService.ValidateUserAccess(t.Context(), "", openClient))
+		src, err := claimsService.loadGrantClaimsSource(t.Context(), "", openClient)
+		require.NoError(t, err)
+		require.Nil(t, src)
 	})
 
 	t.Run("enabled user is allowed", func(t *testing.T) {
-		require.NoError(t, claimsService.ValidateUserAccess(t.Context(), enabledUser.ID, openClient))
+		src, err := claimsService.loadGrantClaimsSource(t.Context(), enabledUser.ID, openClient)
+		require.NoError(t, err)
+		require.Equal(t, enabledUser.ID, src.user.ID)
 	})
 
 	t.Run("disabled user is rejected with invalid_grant", func(t *testing.T) {
-		err := claimsService.ValidateUserAccess(t.Context(), disabledUser.ID, openClient)
+		_, err := claimsService.loadGrantClaimsSource(t.Context(), disabledUser.ID, openClient)
 		require.ErrorIs(t, err, fosite.ErrInvalidGrant)
 	})
 
 	t.Run("user in an allowed group may use a group-restricted client", func(t *testing.T) {
-		require.NoError(t, claimsService.ValidateUserAccess(t.Context(), enabledUser.ID, restrictedClient))
+		src, err := claimsService.loadGrantClaimsSource(t.Context(), enabledUser.ID, restrictedClient)
+		require.NoError(t, err)
+		require.Equal(t, enabledUser.ID, src.user.ID)
 	})
 
 	t.Run("user outside the allowed groups is rejected with access_denied", func(t *testing.T) {
-		err := claimsService.ValidateUserAccess(t.Context(), outsiderUser.ID, restrictedClient)
+		_, err := claimsService.loadGrantClaimsSource(t.Context(), outsiderUser.ID, restrictedClient)
 		require.ErrorIs(t, err, fosite.ErrAccessDenied)
 	})
 
 	t.Run("deleted user is rejected with invalid_grant", func(t *testing.T) {
-		err := claimsService.ValidateUserAccess(t.Context(), "does-not-exist", openClient)
+		_, err := claimsService.loadGrantClaimsSource(t.Context(), "does-not-exist", openClient)
 		require.ErrorIs(t, err, fosite.ErrInvalidGrant)
 	})
 }
@@ -79,9 +87,10 @@ func requiredEmailVerification() appconfig.StaticResolver {
 	return appconfig.StaticResolver{Config: cfg}
 }
 
-// TestClaimsServiceValidateUserAccessEmailVerification makes sure users who still have to verify their email cannot redeem codes or refresh tokens when verification is required
-func TestClaimsServiceValidateUserAccessEmailVerification(t *testing.T) {
+// TestClaimsServiceLoadGrantClaimsSourceEmailVerification makes sure users who still have to verify their email cannot redeem codes or refresh tokens when verification is required
+func TestClaimsServiceLoadGrantClaimsSourceEmailVerification(t *testing.T) {
 	db := testutils.NewDatabaseForTest(t)
+	require.NoError(t, claimmappingpolicy.Bootstrap(t.Context(), db))
 	claimsService := newClaimsService(db, nil, "", nil, requiredEmailVerification())
 
 	unverifiedUser := model.User{Base: model.Base{ID: "user-unverified"}, Username: "unverified"}
@@ -94,24 +103,30 @@ func TestClaimsServiceValidateUserAccessEmailVerification(t *testing.T) {
 	client := Client{OidcClient: model.OidcClient{Base: model.Base{ID: "client-open"}, Name: "Open"}}
 
 	t.Run("unverified user is rejected with invalid_grant", func(t *testing.T) {
-		err := claimsService.ValidateUserAccess(t.Context(), unverifiedUser.ID, client)
+		_, err := claimsService.loadGrantClaimsSource(t.Context(), unverifiedUser.ID, client)
 		require.ErrorIs(t, err, fosite.ErrInvalidGrant)
 		require.Contains(t, fosite.ErrorToRFC6749Error(err).GetDescription(), emailVerificationRequiredHint)
 	})
 
 	t.Run("verified user is allowed", func(t *testing.T) {
-		require.NoError(t, claimsService.ValidateUserAccess(t.Context(), verifiedUser.ID, client))
+		src, err := claimsService.loadGrantClaimsSource(t.Context(), verifiedUser.ID, client)
+		require.NoError(t, err)
+		require.Equal(t, verifiedUser.ID, src.user.ID)
 	})
 
 	t.Run("unverified admin is allowed", func(t *testing.T) {
-		require.NoError(t, claimsService.ValidateUserAccess(t.Context(), unverifiedAdmin.ID, client))
+		src, err := claimsService.loadGrantClaimsSource(t.Context(), unverifiedAdmin.ID, client)
+		require.NoError(t, err)
+		require.Equal(t, unverifiedAdmin.ID, src.user.ID)
 	})
 
 	t.Run("unverified user is allowed when verification is optional", func(t *testing.T) {
 		cfg := appconfig.NewTestConfig(nil)
 		cfg.EmailVerification = appconfig.EmailVerificationOptional
 		optional := newClaimsService(db, nil, "", nil, appconfig.StaticResolver{Config: cfg})
-		require.NoError(t, optional.ValidateUserAccess(t.Context(), unverifiedUser.ID, client))
+		src, err := optional.loadGrantClaimsSource(t.Context(), unverifiedUser.ID, client)
+		require.NoError(t, err)
+		require.Equal(t, unverifiedUser.ID, src.user.ID)
 	})
 }
 
@@ -123,12 +138,13 @@ func (f fakeCustomClaimSource) GetCustomClaimsForUserWithUserGroups(_ context.Co
 	return f.claims, nil
 }
 
-// TestClaimsServiceGetUserClaims pins the scope-to-claims mapping that powers both the ID
+// TestClaimsServiceBuildClaims pins the scope-to-claims mapping that powers both the ID
 // token and the userinfo endpoint: each OIDC scope must only release its own claims, "sub"
-// is always present, and custom claims are emitted as parsed JSON when the stored value is
+// is always present in userinfo, and custom claims are emitted as parsed JSON when the stored value is
 // valid JSON and as a raw string otherwise.
-func TestClaimsServiceGetUserClaims(t *testing.T) {
+func TestClaimsServiceBuildClaims(t *testing.T) {
 	db := testutils.NewDatabaseForTest(t)
+	require.NoError(t, claimmappingpolicy.Bootstrap(t.Context(), db))
 	const (
 		baseURL = "https://id.example.com"
 		userID  = "user-1"
@@ -155,16 +171,27 @@ func TestClaimsServiceGetUserClaims(t *testing.T) {
 	require.NoError(t, db.Create(&user).Error)
 	require.NoError(t, db.Model(&user).Association("UserGroups").Append(&group))
 
-	t.Run("openid only releases sub", func(t *testing.T) {
-		claims, err := service.GetUserClaims(t.Context(), userID, []string{"openid"})
-		require.NoError(t, err)
+	// No client is created, so the default policy is used
+	claimsSource, err := service.loadUserClaimsSource(t.Context(), userID, "client-1")
+	require.NoError(t, err)
+
+	t.Run("openid alone releases no mapped claim in the ID token", func(t *testing.T) {
+		claims := service.buildClaims(claimsSource, []string{"openid"}, IDTokenType)
+		require.Empty(t, claims)
+	})
+
+	t.Run("userinfo always releases sub", func(t *testing.T) {
+		claims := service.buildClaims(claimsSource, []string{"openid"}, UserInfoType)
+		require.Equal(t, map[string]any{"sub": userID}, claims)
+	})
+
+	t.Run("userinfo sub is set even when no scope matches a mapping", func(t *testing.T) {
+		claims := service.buildClaims(claimsSource, nil, UserInfoType)
 		require.Equal(t, map[string]any{"sub": userID}, claims)
 	})
 
 	t.Run("email scope releases email claims", func(t *testing.T) {
-		claims, err := service.GetUserClaims(t.Context(), userID, []string{"openid", "email"})
-		require.NoError(t, err)
-		require.Equal(t, userID, claims["sub"])
+		claims := service.buildClaims(claimsSource, []string{"openid", "email"}, IDTokenType)
 		require.Equal(t, "tim@example.com", claims["email"])
 		require.Equal(t, true, claims["email_verified"])
 		require.NotContains(t, claims, "given_name")
@@ -172,14 +199,12 @@ func TestClaimsServiceGetUserClaims(t *testing.T) {
 	})
 
 	t.Run("groups scope releases group names", func(t *testing.T) {
-		claims, err := service.GetUserClaims(t.Context(), userID, []string{"groups"})
-		require.NoError(t, err)
+		claims := service.buildClaims(claimsSource, []string{"groups"}, IDTokenType)
 		require.Equal(t, []string{"developers"}, claims["groups"])
 	})
 
 	t.Run("profile scope releases profile and custom claims", func(t *testing.T) {
-		claims, err := service.GetUserClaims(t.Context(), userID, []string{"profile"})
-		require.NoError(t, err)
+		claims := service.buildClaims(claimsSource, []string{"profile"}, IDTokenType)
 		require.Equal(t, "Tim", claims["given_name"])
 		require.Equal(t, "Cook", claims["family_name"])
 		require.Equal(t, "Tim Cook", claims["name"])
@@ -196,9 +221,10 @@ func TestClaimsServiceGetUserClaims(t *testing.T) {
 	})
 }
 
-// TestClaimsServiceGetUserClaimsKeepsIntegerCustomClaims checks that integer custom claims are not turned into float64
-func TestClaimsServiceGetUserClaimsKeepsIntegerCustomClaims(t *testing.T) {
+// TestClaimsServiceBuildClaimsKeepsIntegerCustomClaims checks that integer custom claims are not turned into float64
+func TestClaimsServiceBuildClaimsKeepsIntegerCustomClaims(t *testing.T) {
 	db := testutils.NewDatabaseForTest(t)
+	require.NoError(t, claimmappingpolicy.Bootstrap(t.Context(), db))
 	require.NoError(t, db.Create(&model.User{Base: model.Base{ID: "user-1"}, Username: "tim"}).Error)
 
 	customClaims := fakeCustomClaimSource{claims: []model.CustomClaim{
@@ -210,8 +236,11 @@ func TestClaimsServiceGetUserClaimsKeepsIntegerCustomClaims(t *testing.T) {
 	}}
 	service := newClaimsService(db, customClaims, "", nil, appconfig.StaticResolver{})
 
-	claims, err := service.GetUserClaims(t.Context(), "user-1", []string{"profile"})
+	// No client is created, so the default policy is used
+	claimsSource, err := service.loadUserClaimsSource(t.Context(), "user-1", "client-1")
 	require.NoError(t, err)
+
+	claims := service.buildClaims(claimsSource, []string{"profile"}, IDTokenType)
 	require.Equal(t, int64(1234567890123456789), claims["discord_id"])
 	require.Equal(t, int64(1000000), claims["uid_number"])
 	require.InDelta(t, 1.5, claims["ratio"], 0)
@@ -232,9 +261,47 @@ func TestClaimsServiceAppliesSigningAlgToIDTokenHeader(t *testing.T) {
 
 			session := NewEmptySession()
 			session.Subject = "alg-user"
+			src := &userClaimsSource{user: model.User{Base: model.Base{ID: "alg-user"}}}
 
-			require.NoError(t, service.applyIDTokenClaims(t.Context(), session, fosite.Arguments{"openid"}))
+			require.NoError(t, service.applyTokenClaims(session, fosite.Arguments{"openid"}, src))
 			require.Equal(t, alg.String(), session.IDTokenHeaders().Get("alg"))
 		})
 	}
+}
+
+// TestClaimsServiceGetClaimMappingPolicyByClientID verifies that a client without an assigned
+// policy falls back to the default one, while an assigned policy takes precedence over it.
+func TestClaimsServiceGetClaimMappingPolicyByClientID(t *testing.T) {
+	db := testutils.NewDatabaseForTest(t)
+	require.NoError(t, claimmappingpolicy.Bootstrap(t.Context(), db))
+	service := newClaimsService(db, nil, "", nil, appconfig.StaticResolver{})
+
+	customPolicy := claimmappingpolicy.OidcClaimMappingPolicy{
+		Base:          model.Base{ID: "custom-policy"},
+		Name:          "Custom Policy",
+		ClaimMappings: claimmappingpolicy.OidcClaimMappings{{ClaimName: "user_id", SourceType: claimmappingpolicy.MappingSourceUserField, SourceValue: string(claimmappingpolicy.UserFieldID)}},
+	}
+	require.NoError(t, db.Create(&customPolicy).Error)
+
+	require.NoError(t, db.Create(&model.OidcClient{Base: model.Base{ID: "client-default"}, Name: "Default Client"}).Error)
+	require.NoError(t, db.Create(&model.OidcClient{Base: model.Base{ID: "client-custom"}, Name: "Custom Client", ClaimMappingPolicyId: new(customPolicy.ID)}).Error)
+
+	t.Run("falls back to the default policy", func(t *testing.T) {
+		policy, err := service.GetClaimMappingPolicyByClientID(t.Context(), "client-default")
+		require.NoError(t, err)
+		require.Equal(t, defaultClaimMappingPolicyId, policy.ID)
+		require.True(t, policy.IsDefault)
+	})
+
+	t.Run("assigned policy wins over the default", func(t *testing.T) {
+		policy, err := service.GetClaimMappingPolicyByClientID(t.Context(), "client-custom")
+		require.NoError(t, err)
+		require.Equal(t, customPolicy.ID, policy.ID)
+	})
+
+	t.Run("unknown client falls back to the default policy", func(t *testing.T) {
+		policy, err := service.GetClaimMappingPolicyByClientID(t.Context(), "missing-client")
+		require.NoError(t, err)
+		require.Equal(t, defaultClaimMappingPolicyId, policy.ID)
+	})
 }

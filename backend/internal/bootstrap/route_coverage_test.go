@@ -10,6 +10,7 @@ import (
 	"github.com/pocket-id/pocket-id/backend/internal/api"
 	"github.com/pocket-id/pocket-id/backend/internal/apikey"
 	"github.com/pocket-id/pocket-id/backend/internal/auditlogs"
+	"github.com/pocket-id/pocket-id/backend/internal/claimmappingpolicy"
 	"github.com/pocket-id/pocket-id/backend/internal/devicelogin"
 	"github.com/pocket-id/pocket-id/backend/internal/emailverification"
 	"github.com/pocket-id/pocket-id/backend/internal/environment"
@@ -29,19 +30,20 @@ func TestEveryAPIRouteDeclaresItsAccess(t *testing.T) {
 
 	// Registration only stores handler references and never calls them, so modules without dependencies are enough
 	svc := &services{
-		apiKeyModule:            &apikey.Module{},
-		auditLogsModule:         &auditlogs.Module{},
-		deviceLoginModule:       &devicelogin.Module{},
-		ldapSyncModule:          &ldapsync.Module{},
-		scimSyncModule:          &scimsync.Module{},
-		oidcModule:              &oidc.Module{},
-		webauthnModule:          &webauthn.Module{},
-		userSignUpModule:        &usersignup.Module{},
-		oneTimeAccessModule:     &onetimeaccess.Module{},
-		emailVerificationModule: &emailverification.Module{},
-		apiModule:               &api.Module{},
-		environmentModule:       &environment.Module{},
-		logoPresetModule:        &logopreset.Module{},
+		apiKeyModule:             &apikey.Module{},
+		auditLogsModule:          &auditlogs.Module{},
+		deviceLoginModule:        &devicelogin.Module{},
+		ldapSyncModule:           &ldapsync.Module{},
+		scimSyncModule:           &scimsync.Module{},
+		oidcModule:               &oidc.Module{},
+		webauthnModule:           &webauthn.Module{},
+		userSignUpModule:         &usersignup.Module{},
+		oneTimeAccessModule:      &onetimeaccess.Module{},
+		emailVerificationModule:  &emailverification.Module{},
+		apiModule:                &api.Module{},
+		claimMappingPolicyModule: &claimmappingpolicy.Module{},
+		environmentModule:        &environment.Module{},
+		logoPresetModule:         &logopreset.Module{},
 	}
 
 	engine := gin.New()
