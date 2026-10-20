@@ -10,12 +10,14 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/pocket-id/pocket-id/backend/internal/appconfig"
+	"github.com/pocket-id/pocket-id/backend/internal/claimmappingpolicy"
 	"github.com/pocket-id/pocket-id/backend/internal/model"
 	testutils "github.com/pocket-id/pocket-id/backend/internal/utils/testing"
 )
 
 func TestClientPreviewBuilderUsesFositeTokenStrategies(t *testing.T) {
 	db := testutils.NewDatabaseForTest(t)
+	require.NoError(t, claimmappingpolicy.Bootstrap(t.Context(), db))
 	signerKey, err := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
 	require.NoError(t, err)
 
@@ -77,6 +79,7 @@ func TestClientPreviewBuilderUsesFositeTokenStrategies(t *testing.T) {
 
 func TestClientPreviewBuilderIgnoresUnknownScopes(t *testing.T) {
 	db := testutils.NewDatabaseForTest(t)
+	require.NoError(t, claimmappingpolicy.Bootstrap(t.Context(), db))
 	signerKey, err := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
 	require.NoError(t, err)
 

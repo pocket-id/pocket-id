@@ -15,6 +15,7 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/pocket-id/pocket-id/backend/internal/appconfig"
+	"github.com/pocket-id/pocket-id/backend/internal/claimmappingpolicy"
 	"github.com/pocket-id/pocket-id/backend/internal/model"
 	testutils "github.com/pocket-id/pocket-id/backend/internal/utils/testing"
 )
@@ -34,6 +35,8 @@ func TestUserInfoHandler(t *testing.T) {
 	)
 
 	db := testutils.NewDatabaseForTest(t)
+
+	require.NoError(t, claimmappingpolicy.Bootstrap(t.Context(), db))
 	require.NoError(t, db.Create(&model.OidcClient{Base: model.Base{ID: clientID}, Name: "Test Client"}).Error)
 	require.NoError(t, db.Create(&model.User{
 		Base:          model.Base{ID: userID},

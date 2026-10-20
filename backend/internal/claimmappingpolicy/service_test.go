@@ -59,6 +59,7 @@ func TestDeleteClaimMappingPolicyResetsClients(t *testing.T) {
 
 func TestListClaimMappingPolicyNotEmpty(t *testing.T) {
 	service := newTestService(t)
+	require.NoError(t, Bootstrap(t.Context(), service.db))
 
 	policies, pagination, err := service.ListClaimMappingPolicy(context.Background(), "", utils.ListRequestOptions{})
 	require.NoError(t, err)
@@ -343,6 +344,7 @@ func TestDeleteClaimMappingPolicy(t *testing.T) {
 // TestDeleteDefaultClaimMappingPolicyFallsBackToBuiltIn checks that deleting the default policy makes the built-in policy the default again
 func TestDeleteDefaultClaimMappingPolicyFallsBackToBuiltIn(t *testing.T) {
 	service := newTestService(t)
+	require.NoError(t, Bootstrap(t.Context(), service.db))
 
 	// Create a default policy, which takes the default flag over from the built-in one
 	dto := OidcClaimMappingPolicyDto{
@@ -377,6 +379,7 @@ func TestDeleteDefaultClaimMappingPolicyFallsBackToBuiltIn(t *testing.T) {
 // TestUpdateClaimMappingPolicyUnsetDefaultFallsBackToBuiltIn checks that unsetting the default flag on a policy makes the built-in policy the default again
 func TestUpdateClaimMappingPolicyUnsetDefaultFallsBackToBuiltIn(t *testing.T) {
 	service := newTestService(t)
+	require.NoError(t, Bootstrap(t.Context(), service.db))
 
 	input := OidcClaimMappingPolicyDto{
 		OidcClaimMappingPolicyMetadataDto: OidcClaimMappingPolicyMetadataDto{Name: "Custom", IsDefault: true},
@@ -420,6 +423,7 @@ func builtInPolicyDto(t *testing.T, service *Service) OidcClaimMappingPolicyDto 
 // TestUpdateBuiltInClaimMappingPolicyOnlyAllowsDefaultFlag checks that the built-in policy inserted by the migrations is read-only except for its default flag
 func TestUpdateBuiltInClaimMappingPolicyOnlyAllowsDefaultFlag(t *testing.T) {
 	service := newTestService(t)
+	require.NoError(t, Bootstrap(t.Context(), service.db))
 
 	t.Run("renaming is rejected", func(t *testing.T) {
 		input := builtInPolicyDto(t, service)
@@ -728,6 +732,7 @@ func TestValidateClaimMappingsValidComplexPolicy(t *testing.T) {
 
 func TestListClaimMappingPolicyWithData(t *testing.T) {
 	service := newTestService(t)
+	require.NoError(t, Bootstrap(t.Context(), service.db))
 
 	// Create multiple policies
 	for i := 0; i < 5; i++ {

@@ -23,6 +23,7 @@ import (
 	"gorm.io/gorm"
 
 	"github.com/pocket-id/pocket-id/backend/internal/appconfig"
+	"github.com/pocket-id/pocket-id/backend/internal/claimmappingpolicy"
 	"github.com/pocket-id/pocket-id/backend/internal/model"
 	datatype "github.com/pocket-id/pocket-id/backend/internal/model/types"
 	testutils "github.com/pocket-id/pocket-id/backend/internal/utils/testing"
@@ -436,6 +437,7 @@ func TestTokenHandlerRefreshGrantRevalidatesUser(t *testing.T) {
 
 	t.Run("enabled user receives rotated tokens", func(t *testing.T) {
 		db := testutils.NewDatabaseForTest(t)
+		require.NoError(t, claimmappingpolicy.Bootstrap(t.Context(), db))
 		const clientID, userID = "client-ok", "user-ok"
 		createClient(t, db, model.OidcClient{Base: model.Base{ID: clientID}, Name: "Client", IsPublic: true})
 		require.NoError(t, db.Create(&model.User{Base: model.Base{ID: userID}, Username: "tim"}).Error)
@@ -450,6 +452,7 @@ func TestTokenHandlerRefreshGrantRevalidatesUser(t *testing.T) {
 
 	t.Run("rotation applies the current client lifetimes", func(t *testing.T) {
 		db := testutils.NewDatabaseForTest(t)
+		require.NoError(t, claimmappingpolicy.Bootstrap(t.Context(), db))
 		const clientID, userID = "client-custom-lifetimes", "user-custom-lifetimes"
 		const accessDuration = 2 * time.Hour
 		const refreshDuration = 7 * 24 * time.Hour
@@ -490,6 +493,7 @@ func TestTokenHandlerRefreshGrantRevalidatesUser(t *testing.T) {
 
 	t.Run("disabled user is rejected on refresh", func(t *testing.T) {
 		db := testutils.NewDatabaseForTest(t)
+		require.NoError(t, claimmappingpolicy.Bootstrap(t.Context(), db))
 		const clientID, userID = "client-disabled", "user-disabled"
 		createClient(t, db, model.OidcClient{Base: model.Base{ID: clientID}, Name: "Client", IsPublic: true})
 		require.NoError(t, db.Create(&model.User{Base: model.Base{ID: userID}, Username: "tim", Disabled: true}).Error)
@@ -503,6 +507,7 @@ func TestTokenHandlerRefreshGrantRevalidatesUser(t *testing.T) {
 
 	t.Run("user removed from a group-restricted client is rejected on refresh", func(t *testing.T) {
 		db := testutils.NewDatabaseForTest(t)
+		require.NoError(t, claimmappingpolicy.Bootstrap(t.Context(), db))
 		const clientID, userID = "client-restricted", "user-outsider"
 		group := model.UserGroup{Base: model.Base{ID: "allowed-group"}, Name: "allowed", FriendlyName: "Allowed"}
 		require.NoError(t, db.Create(&group).Error)
@@ -626,6 +631,7 @@ func TestTokenHandlerRefreshGrantPreservesAudienceAndScope(t *testing.T) {
 
 	t.Run("refresh keeps the API audience and adds the issuer so the token still reaches userinfo", func(t *testing.T) {
 		db := testutils.NewDatabaseForTest(t)
+		require.NoError(t, claimmappingpolicy.Bootstrap(t.Context(), db))
 		const clientID, userID = "client-api", "user-api"
 		seedUserAndClient(t, db, clientID, userID)
 
@@ -648,6 +654,7 @@ func TestTokenHandlerRefreshGrantPreservesAudienceAndScope(t *testing.T) {
 
 	t.Run("refresh cannot upscope beyond the original grant via the scope parameter", func(t *testing.T) {
 		db := testutils.NewDatabaseForTest(t)
+		require.NoError(t, claimmappingpolicy.Bootstrap(t.Context(), db))
 		const clientID, userID = "client-upscope", "user-upscope"
 		seedUserAndClient(t, db, clientID, userID)
 
@@ -667,6 +674,7 @@ func TestTokenHandlerRefreshGrantPreservesAudienceAndScope(t *testing.T) {
 
 	t.Run("revoking the client API grant makes the next refresh fail", func(t *testing.T) {
 		db := testutils.NewDatabaseForTest(t)
+		require.NoError(t, claimmappingpolicy.Bootstrap(t.Context(), db))
 		const clientID, userID = "client-revoked", "user-revoked"
 		seedUserAndClient(t, db, clientID, userID)
 
@@ -683,6 +691,7 @@ func TestTokenHandlerRefreshGrantPreservesAudienceAndScope(t *testing.T) {
 
 	t.Run("revoking only the user-delegated API grant makes the next refresh fail", func(t *testing.T) {
 		db := testutils.NewDatabaseForTest(t)
+		require.NoError(t, claimmappingpolicy.Bootstrap(t.Context(), db))
 		const clientID, userID = "client-user-revoked", "user-user-revoked"
 		seedUserAndClient(t, db, clientID, userID)
 
@@ -703,6 +712,7 @@ func TestTokenHandlerRefreshGrantPreservesAudienceAndScope(t *testing.T) {
 
 	t.Run("refresh rechecks the granted scope against the granted API audience", func(t *testing.T) {
 		db := testutils.NewDatabaseForTest(t)
+		require.NoError(t, claimmappingpolicy.Bootstrap(t.Context(), db))
 		const clientID, userID = "client-split-grant", "user-split-grant"
 		seedUserAndClient(t, db, clientID, userID)
 

@@ -22,6 +22,7 @@ import (
 // refresh token.
 func TestClaimsServiceLoadGrantClaimsSource(t *testing.T) {
 	db := testutils.NewDatabaseForTest(t)
+	require.NoError(t, claimmappingpolicy.Bootstrap(t.Context(), db))
 	claimsService := newClaimsService(db, nil, "", nil, appconfig.StaticResolver{})
 
 	group := model.UserGroup{Base: model.Base{ID: "group-allowed"}, Name: "allowed", FriendlyName: "Allowed"}
@@ -89,6 +90,7 @@ func requiredEmailVerification() appconfig.StaticResolver {
 // TestClaimsServiceLoadGrantClaimsSourceEmailVerification makes sure users who still have to verify their email cannot redeem codes or refresh tokens when verification is required
 func TestClaimsServiceLoadGrantClaimsSourceEmailVerification(t *testing.T) {
 	db := testutils.NewDatabaseForTest(t)
+	require.NoError(t, claimmappingpolicy.Bootstrap(t.Context(), db))
 	claimsService := newClaimsService(db, nil, "", nil, requiredEmailVerification())
 
 	unverifiedUser := model.User{Base: model.Base{ID: "user-unverified"}, Username: "unverified"}
@@ -142,6 +144,7 @@ func (f fakeCustomClaimSource) GetCustomClaimsForUserWithUserGroups(_ context.Co
 // valid JSON and as a raw string otherwise.
 func TestClaimsServiceBuildClaims(t *testing.T) {
 	db := testutils.NewDatabaseForTest(t)
+	require.NoError(t, claimmappingpolicy.Bootstrap(t.Context(), db))
 	const (
 		baseURL = "https://id.example.com"
 		userID  = "user-1"
@@ -221,6 +224,7 @@ func TestClaimsServiceBuildClaims(t *testing.T) {
 // TestClaimsServiceBuildClaimsKeepsIntegerCustomClaims checks that integer custom claims are not turned into float64
 func TestClaimsServiceBuildClaimsKeepsIntegerCustomClaims(t *testing.T) {
 	db := testutils.NewDatabaseForTest(t)
+	require.NoError(t, claimmappingpolicy.Bootstrap(t.Context(), db))
 	require.NoError(t, db.Create(&model.User{Base: model.Base{ID: "user-1"}, Username: "tim"}).Error)
 
 	customClaims := fakeCustomClaimSource{claims: []model.CustomClaim{
@@ -269,6 +273,7 @@ func TestClaimsServiceAppliesSigningAlgToIDTokenHeader(t *testing.T) {
 // policy falls back to the default one, while an assigned policy takes precedence over it.
 func TestClaimsServiceGetClaimMappingPolicyByClientID(t *testing.T) {
 	db := testutils.NewDatabaseForTest(t)
+	require.NoError(t, claimmappingpolicy.Bootstrap(t.Context(), db))
 	service := newClaimsService(db, nil, "", nil, appconfig.StaticResolver{})
 
 	customPolicy := claimmappingpolicy.OidcClaimMappingPolicy{

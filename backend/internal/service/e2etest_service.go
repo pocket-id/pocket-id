@@ -194,29 +194,8 @@ func (s *TestService) SeedDatabase(baseURL string) error {
 			}
 		}
 
-		// The default claim mapping policy is inserted by a migration, so it has to be recreated after the database reset
-		// It mirrors the migration so clients without an assigned policy keep getting the standard claims
-		defaultClaimMappingPolicy := claimmappingpolicy.OidcClaimMappingPolicy{
-			Base: model.Base{
-				ID: claimmappingpolicy.BuiltInClaimMappingPolicyID,
-			},
-			Name:      "Standard Policy",
-			IsDefault: true,
-			ClaimMappings: claimmappingpolicy.OidcClaimMappings{
-				{ClaimName: "email", SourceType: claimmappingpolicy.MappingSourceUserField, SourceValue: "email", Scope: datatype.StringList{"email"}, IDToken: true, UserInfo: true},
-				{ClaimName: "email_verified", SourceType: claimmappingpolicy.MappingSourceUserField, SourceValue: "email_verified", Scope: datatype.StringList{"email"}, IDToken: true, UserInfo: true},
-				{ClaimName: "given_name", SourceType: claimmappingpolicy.MappingSourceUserField, SourceValue: "first_name", Scope: datatype.StringList{"profile"}, IDToken: true, UserInfo: true},
-				{ClaimName: "family_name", SourceType: claimmappingpolicy.MappingSourceUserField, SourceValue: "last_name", Scope: datatype.StringList{"profile"}, IDToken: true, UserInfo: true},
-				{ClaimName: "name", SourceType: claimmappingpolicy.MappingSourceUserField, SourceValue: "full_name", Scope: datatype.StringList{"profile"}, IDToken: true, UserInfo: true},
-				{ClaimName: "display_name", SourceType: claimmappingpolicy.MappingSourceUserField, SourceValue: "display_name", Scope: datatype.StringList{"profile"}, IDToken: true, UserInfo: true},
-				{ClaimName: "preferred_username", SourceType: claimmappingpolicy.MappingSourceUserField, SourceValue: "username", Scope: datatype.StringList{"profile"}, IDToken: true, UserInfo: true},
-				{ClaimName: "locale", SourceType: claimmappingpolicy.MappingSourceUserField, SourceValue: "locale", Scope: datatype.StringList{"profile"}, IDToken: true, UserInfo: true},
-				{ClaimName: "picture", SourceType: claimmappingpolicy.MappingSourceUserField, SourceValue: "picture", Scope: datatype.StringList{"profile"}, IDToken: true, UserInfo: true},
-				{ClaimName: "groups", SourceType: claimmappingpolicy.MappingSourceUserField, SourceValue: "groups", Scope: datatype.StringList{"groups"}, IDToken: true, UserInfo: true},
-				{ClaimName: "*", SourceType: claimmappingpolicy.MappingSourceCustomClaim, SourceValue: "*", Scope: datatype.StringList{"profile"}, IDToken: true, UserInfo: true},
-			},
-		}
-		if err := tx.Create(&defaultClaimMappingPolicy).Error; err != nil {
+		// The built-in claim mapping policy is seeded at boot, so it has to be recreated after the database reset
+		if err := claimmappingpolicy.Bootstrap(context.Background(), tx); err != nil {
 			return err
 		}
 
