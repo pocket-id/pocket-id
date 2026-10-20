@@ -12,6 +12,7 @@ import (
 	"github.com/pocket-id/fosite"
 	fositejwt "github.com/pocket-id/fosite/token/jwt"
 	"github.com/pocket-id/pocket-id/backend/internal/appconfig"
+	"github.com/pocket-id/pocket-id/backend/internal/claimmappingpolicy"
 	"github.com/pocket-id/pocket-id/backend/internal/common"
 	"github.com/pocket-id/pocket-id/backend/internal/emailverification"
 	"github.com/pocket-id/pocket-id/backend/internal/model"
@@ -68,7 +69,7 @@ var errClaimsUserNotFound = errors.New("user not found")
 // It is loaded once per request so every token built from it sees the same data and no query is repeated
 type userClaimsSource struct {
 	user         model.User
-	policy       model.OidcClaimMappingPolicy
+	policy       claimmappingpolicy.OidcClaimMappingPolicy
 	customClaims []model.CustomClaim
 }
 
@@ -112,9 +113,9 @@ func (s *ClaimsService) loadUserClaimsSource(ctx context.Context, userID string,
 	return &src, nil
 }
 
-func policyHasCustomClaimMapping(policy model.OidcClaimMappingPolicy) bool {
-	return slices.ContainsFunc(policy.ClaimMappings, func(mapping model.OidcClaimMapping) bool {
-		return mapping.SourceType == model.MappingSourceCustomClaim
+func policyHasCustomClaimMapping(policy claimmappingpolicy.OidcClaimMappingPolicy) bool {
+	return slices.ContainsFunc(policy.ClaimMappings, func(mapping claimmappingpolicy.OidcClaimMapping) bool {
+		return mapping.SourceType == claimmappingpolicy.MappingSourceCustomClaim
 	})
 }
 
@@ -154,10 +155,10 @@ func (s *ClaimsService) loadGrantClaimsSource(ctx context.Context, userID string
 
 // GetClaimMappingPolicyByClientID returns the claim mapping policy assigned to the client, or the default policy when the client doesn't have one assigned (claim_mapping_policy_id IS NULL)
 // Both candidates are fetched in a single query: the assigned policy is ordered first so it wins over the default whenever it exists
-func (s *ClaimsService) GetClaimMappingPolicyByClientID(ctx context.Context, clientID string) (*model.OidcClaimMappingPolicy, error) {
-	var claimMappingPolicy model.OidcClaimMappingPolicy
+func (s *ClaimsService) GetClaimMappingPolicyByClientID(ctx context.Context, clientID string) (*claimmappingpolicy.OidcClaimMappingPolicy, error) {
+	var claimMappingPolicy claimmappingpolicy.OidcClaimMappingPolicy
 	err := dbFromContext(ctx, s.db).
-		Model(&model.OidcClaimMappingPolicy{}).
+		Model(&claimmappingpolicy.OidcClaimMappingPolicy{}).
 		Where("oidc_claim_mapping_policies.id = (SELECT claim_mapping_policy_id FROM oidc_clients WHERE oidc_clients.id = ?)", clientID).
 		Or("oidc_claim_mapping_policies.is_default = ?", true).
 		Order("oidc_claim_mapping_policies.is_default ASC").
@@ -286,38 +287,38 @@ func isScopeMatching(requestedScopes []string, claimScopes []string) bool {
 	return false
 }
 
-func (s *ClaimsService) applyUserClaims(claims map[string]any, user model.User, customClaims []model.CustomClaim, mapping model.OidcClaimMapping) {
+func (s *ClaimsService) applyUserClaims(claims map[string]any, user model.User, customClaims []model.CustomClaim, mapping claimmappingpolicy.OidcClaimMapping) {
 	switch mapping.SourceType {
-	case model.MappingSourceUserField:
+	case claimmappingpolicy.MappingSourceUserField:
 		// Map from user field
-		switch model.OidcUserField(mapping.SourceValue) {
-		case model.UserFieldID:
+		switch claimmappingpolicy.OidcUserField(mapping.SourceValue) {
+		case claimmappingpolicy.UserFieldID:
 			claims[mapping.ClaimName] = user.ID
-		case model.UserFieldEmail:
+		case claimmappingpolicy.UserFieldEmail:
 			if user.Email != nil {
 				claims[mapping.ClaimName] = *user.Email
 			}
-		case model.UserFieldEmailVerified:
+		case claimmappingpolicy.UserFieldEmailVerified:
 			if user.Email != nil {
 				claims[mapping.ClaimName] = user.EmailVerified
 			}
-		case model.UserFieldFirstName:
+		case claimmappingpolicy.UserFieldFirstName:
 			claims[mapping.ClaimName] = user.FirstName
-		case model.UserFieldLastName:
+		case claimmappingpolicy.UserFieldLastName:
 			claims[mapping.ClaimName] = user.LastName
-		case model.UserFieldFullName:
+		case claimmappingpolicy.UserFieldFullName:
 			claims[mapping.ClaimName] = user.FullName()
-		case model.UserFieldDisplayName:
+		case claimmappingpolicy.UserFieldDisplayName:
 			claims[mapping.ClaimName] = user.DisplayName
-		case model.UserFieldUsername:
+		case claimmappingpolicy.UserFieldUsername:
 			claims[mapping.ClaimName] = user.Username
-		case model.UserFieldLocale:
+		case claimmappingpolicy.UserFieldLocale:
 			if user.Locale != nil {
 				claims[mapping.ClaimName] = user.Locale
 			}
-		case model.UserFieldPicture:
+		case claimmappingpolicy.UserFieldPicture:
 			claims[mapping.ClaimName] = s.baseURL + "/api/users/" + user.ID + "/profile-picture.png"
-		case model.UserFieldGroups:
+		case claimmappingpolicy.UserFieldGroups:
 			userGroups := make([]string, len(user.UserGroups))
 			for i, group := range user.UserGroups {
 				userGroups[i] = group.Name
@@ -325,7 +326,7 @@ func (s *ClaimsService) applyUserClaims(claims map[string]any, user model.User, 
 			claims[mapping.ClaimName] = userGroups
 		}
 
-	case model.MappingSourceCustomClaim:
+	case claimmappingpolicy.MappingSourceCustomClaim:
 		// Map from custom claim
 		for _, customClaim := range customClaims {
 			if mapping.SourceValue == "*" || customClaim.Key == mapping.SourceValue {
@@ -340,7 +341,7 @@ func (s *ClaimsService) applyUserClaims(claims map[string]any, user model.User, 
 			}
 		}
 
-	case model.MappingSourceStatic:
+	case claimmappingpolicy.MappingSourceStatic:
 		claims[mapping.ClaimName] = parseCustomClaimValue(mapping.SourceValue)
 	}
 }

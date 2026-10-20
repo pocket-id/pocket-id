@@ -1,9 +1,10 @@
-package model
+package claimmappingpolicy
 
 import (
 	"database/sql/driver"
 	"encoding/json"
 
+	"github.com/pocket-id/pocket-id/backend/internal/model"
 	datatype "github.com/pocket-id/pocket-id/backend/internal/model/types"
 	"github.com/pocket-id/pocket-id/backend/internal/utils"
 )
@@ -14,13 +15,15 @@ const BuiltInClaimMappingPolicyID = "00000000-0000-0000-0000-000000000000"
 // OidcClaimMappingPolicy defines a set of claim mappings that can be applied to a client.
 // There's only one default claim mapping set, but additional sets can be created for specific clients if needed.
 type OidcClaimMappingPolicy struct {
-	Base
+	model.Base
 
 	Name      string `sortable:"case-insensitive"`
 	IsDefault bool   `sortable:"true"`
 
 	ClaimMappings OidcClaimMappings
 }
+
+func (OidcClaimMappingPolicy) TableName() string { return "oidc_claim_mapping_policies" }
 
 // OidcClaimMappings used to store the claim mappings as json in the database.
 type OidcClaimMappings []OidcClaimMapping //nolint:recvcheck

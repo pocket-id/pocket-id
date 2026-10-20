@@ -1,98 +1,81 @@
-package controller
+package claimmappingpolicy
 
 import (
 	"net/http"
 
 	"github.com/gin-gonic/gin"
-	"github.com/pocket-id/pocket-id/backend/internal/authz"
 	"github.com/pocket-id/pocket-id/backend/internal/dto"
 	"github.com/pocket-id/pocket-id/backend/internal/httpserver"
-	"github.com/pocket-id/pocket-id/backend/internal/service"
 	"github.com/pocket-id/pocket-id/backend/internal/utils"
 )
 
-// NewOidcClaimMappingPolicyController creates a new controller for OIDC claim mapping policy management
-// @Summary OIDC claim mapping policy controller
-// @Description Initializes all OIDC claim mapping policy-related API endpoints
-// @Tags OIDC Claim Mapping Policy
-func NewOidcClaimMappingPolicyController(r *authz.Router, oidcClaimMappingPolicyService *service.OidcClaimMappingPolicyService) {
-	ocmc := &OidcClaimMappingPolicyController{oidcClaimMappingService: oidcClaimMappingPolicyService}
-
-	r.GET("/oidc/claim-mapping-policies", authz.OidcClaimMappingPoliciesRead, httpserver.Handle(ocmc.listClaimMappingPolicyHandler))
-	r.POST("/oidc/claim-mapping-policies", authz.OidcClaimMappingPoliciesWrite, httpserver.Handle(ocmc.createClaimMappingPolicyHandler))
-	r.GET("/oidc/claim-mapping-policies/:id", authz.OidcClaimMappingPoliciesRead, httpserver.Handle(ocmc.getClaimMappingPolicyHandler))
-	r.PUT("/oidc/claim-mapping-policies/:id", authz.OidcClaimMappingPoliciesWrite, httpserver.Handle(ocmc.updateClaimMappingPolicyHandler))
-	r.DELETE("/oidc/claim-mapping-policies/:id", authz.OidcClaimMappingPoliciesWrite, httpserver.Handle(ocmc.deleteClaimMappingPolicyHandler))
-	r.GET("/oidc/claim-mapping-policies/:id/clients", authz.OidcClaimMappingPoliciesRead, httpserver.Handle(ocmc.listClientsByClaimMappingPolicyHandler))
-	r.GET("/oidc/claim-mapping-policies/:id/assignable-clients", authz.OidcClaimMappingPoliciesRead, httpserver.Handle(ocmc.listAssignableClientsHandler))
-	r.POST("/oidc/claim-mapping-policies/:id/clients/:clientId", authz.OidcClaimMappingPoliciesWrite, httpserver.Handle(ocmc.assignClientHandler))
-	r.DELETE("/oidc/claim-mapping-policies/:id/clients/:clientId", authz.OidcClaimMappingPoliciesWrite, httpserver.Handle(ocmc.removeClientHandler))
-
+type handler struct {
+	service *Service
 }
 
-type OidcClaimMappingPolicyController struct {
-	oidcClaimMappingService *service.OidcClaimMappingPolicyService
+func newHandler(service *Service) *handler {
+	return &handler{service: service}
 }
 
-// listClaimMappingPolicyHandler godoc
+// list godoc
 // @Summary List OIDC claim mapping policies
 // @Description Get a paginated list of OIDC claim mapping policies with optional search and sorting
-// @Tags OIDC Claim Mapping Policy
+// @Tags OIDC Claim OidcClaimMapping OidcClaimMappingPolicy
 // @Param search query string false "Search term to filter claim mapping policies by name"
 // @Param pagination[page] query int false "Page number for pagination" default(1)
 // @Param pagination[limit] query int false "Number of items per page" default(20)
 // @Param sort[column] query string false "Column to sort by"
 // @Param sort[direction] query string false "Sort direction (asc or desc)" default("asc")
-// @Success 200 {object} dto.Paginated[dto.OidcClaimMappingPolicyMetadataDto]
+// @Success 200 {object} dto.Paginated[OidcClaimMappingPolicyMetadataDto]
 // @Failure default {object} dto.ErrorDto "Error"
 // @Router /api/oidc/claim-mapping-policies [get]
-func (ocmc *OidcClaimMappingPolicyController) listClaimMappingPolicyHandler(c *gin.Context) error {
+func (h *handler) list(c *gin.Context) error {
 	searchTerm := c.Query("search")
 	listRequestOptions := utils.ParseListRequestOptions(c)
 
-	claimMappingPolicys, pagination, err := ocmc.oidcClaimMappingService.ListClaimMappingPolicy(c.Request.Context(), searchTerm, listRequestOptions)
+	claimMappingPolicys, pagination, err := h.service.ListClaimMappingPolicy(c.Request.Context(), searchTerm, listRequestOptions)
 	if err != nil {
 		return err
 	}
 
-	dtos := make([]dto.OidcClaimMappingPolicyMetadataDto, len(claimMappingPolicys))
+	dtos := make([]OidcClaimMappingPolicyMetadataDto, len(claimMappingPolicys))
 	for i, claimMappingPolicy := range claimMappingPolicys {
-		dtos[i] = dto.OidcClaimMappingPolicyMetadataDto{
+		dtos[i] = OidcClaimMappingPolicyMetadataDto{
 			ID:        claimMappingPolicy.ID,
 			Name:      claimMappingPolicy.Name,
 			IsDefault: claimMappingPolicy.IsDefault,
 		}
 	}
-	c.JSON(http.StatusOK, dto.Paginated[dto.OidcClaimMappingPolicyMetadataDto]{
+	c.JSON(http.StatusOK, dto.Paginated[OidcClaimMappingPolicyMetadataDto]{
 		Data:       dtos,
 		Pagination: pagination,
 	})
 	return nil
 }
 
-// createClaimMappingPolicyHandler godoc
+// create godoc
 // @Summary Create OIDC claim mapping policy
 // @Description Create a new OIDC claim mapping policy
-// @Tags OIDC Claim Mapping Policy
+// @Tags OIDC Claim OidcClaimMapping OidcClaimMappingPolicy
 // @Accept json
 // @Produce json
-// @Param claimMappingPolicy body dto.OidcClaimMappingPolicyDto true "Claim mapping policy information"
-// @Success 201 {object} dto.OidcClaimMappingPolicyDto "Created claim mapping policy"
+// @Param claimMappingPolicy body OidcClaimMappingPolicyDto true "Claim mapping policy information"
+// @Success 201 {object} OidcClaimMappingPolicyDto "Created claim mapping policy"
 // @Failure default {object} dto.ErrorDto "Error"
 // @Router /api/oidc/claim-mapping-policies [post]
-func (ocmc *OidcClaimMappingPolicyController) createClaimMappingPolicyHandler(c *gin.Context) error {
-	var input dto.OidcClaimMappingPolicyDto
+func (h *handler) create(c *gin.Context) error {
+	var input OidcClaimMappingPolicyDto
 	err := httpserver.BindJSON(c, &input)
 	if err != nil {
 		return err
 	}
 
-	claimMappingPolicy, err := ocmc.oidcClaimMappingService.CreateClaimMappingPolicy(c.Request.Context(), input)
+	claimMappingPolicy, err := h.service.CreateClaimMappingPolicy(c.Request.Context(), input)
 	if err != nil {
 		return err
 	}
 
-	var claimMappingPolicyDto dto.OidcClaimMappingPolicyDto
+	var claimMappingPolicyDto OidcClaimMappingPolicyDto
 	err = dto.MapStruct(claimMappingPolicy, &claimMappingPolicyDto)
 	if err != nil {
 		return err
@@ -102,23 +85,23 @@ func (ocmc *OidcClaimMappingPolicyController) createClaimMappingPolicyHandler(c 
 	return nil
 }
 
-// getClaimMappingPolicyHandler godoc
+// get godoc
 // @Summary Get an OIDC claim mapping policy
 // @Description Retrieve an existing OIDC claim mapping policy
-// @Tags OIDC Claim Mapping Policy
+// @Tags OIDC Claim OidcClaimMapping OidcClaimMappingPolicy
 // @Accept json
 // @Produce json
 // @Param id path string true "Claim mapping policy ID"
-// @Success 200 {object} dto.OidcClaimMappingPolicyDto "Retrieved claim mapping policy"
+// @Success 200 {object} OidcClaimMappingPolicyDto "Retrieved claim mapping policy"
 // @Failure default {object} dto.ErrorDto "Error"
 // @Router /api/oidc/claim-mapping-policies/{id} [get]
-func (ocmc *OidcClaimMappingPolicyController) getClaimMappingPolicyHandler(c *gin.Context) error {
-	claimMappingPolicy, err := ocmc.oidcClaimMappingService.GetClaimMappingPolicy(c.Request.Context(), c.Param("id"))
+func (h *handler) get(c *gin.Context) error {
+	claimMappingPolicy, err := h.service.GetClaimMappingPolicy(c.Request.Context(), c.Param("id"))
 	if err != nil {
 		return err
 	}
 
-	var claimMappingPolicyDto dto.OidcClaimMappingPolicyDto
+	var claimMappingPolicyDto OidcClaimMappingPolicyDto
 	err = dto.MapStruct(claimMappingPolicy, &claimMappingPolicyDto)
 	if err != nil {
 		return err
@@ -127,16 +110,16 @@ func (ocmc *OidcClaimMappingPolicyController) getClaimMappingPolicyHandler(c *gi
 	return nil
 }
 
-// deleteClaimMappingPolicyHandler godoc
+// delete godoc
 // @Summary Delete an OIDC claim mapping policy
 // @Description Delete an OIDC claim mapping policy by ID
-// @Tags OIDC Claim Mapping Policy
+// @Tags OIDC Claim OidcClaimMapping OidcClaimMappingPolicy
 // @Param id path string true "Claim mapping policy ID"
 // @Success 204 "No Content"
 // @Failure default {object} dto.ErrorDto "Error"
 // @Router /api/oidc/claim-mapping-policies/{id} [delete]
-func (ocmc *OidcClaimMappingPolicyController) deleteClaimMappingPolicyHandler(c *gin.Context) error {
-	err := ocmc.oidcClaimMappingService.DeleteClaimMappingPolicy(c.Request.Context(), c.Param("id"))
+func (h *handler) delete(c *gin.Context) error {
+	err := h.service.DeleteClaimMappingPolicy(c.Request.Context(), c.Param("id"))
 	if err != nil {
 		return err
 	}
@@ -145,30 +128,30 @@ func (ocmc *OidcClaimMappingPolicyController) deleteClaimMappingPolicyHandler(c 
 	return nil
 }
 
-// updateClaimMappingPolicyHandler godoc
+// update godoc
 // @Summary Update an OIDC claim mapping policy
 // @Description Update an existing OIDC claim mapping policy
-// @Tags OIDC Claim Mapping Policy
+// @Tags OIDC Claim OidcClaimMapping OidcClaimMappingPolicy
 // @Accept json
 // @Produce json
 // @Param id path string true "Claim mapping policy ID"
-// @Param claimMappingPolicy body dto.OidcClaimMappingPolicyDto true "Claim mapping policy information"
-// @Success 200 {object} dto.OidcClaimMappingPolicyDto "Updated claim mapping policy"
+// @Param claimMappingPolicy body OidcClaimMappingPolicyDto true "Claim mapping policy information"
+// @Success 200 {object} OidcClaimMappingPolicyDto "Updated claim mapping policy"
 // @Failure default {object} dto.ErrorDto "Error"
 // @Router /api/oidc/claim-mapping-policies/{id} [put]
-func (ocmc *OidcClaimMappingPolicyController) updateClaimMappingPolicyHandler(c *gin.Context) error {
-	var input dto.OidcClaimMappingPolicyDto
+func (h *handler) update(c *gin.Context) error {
+	var input OidcClaimMappingPolicyDto
 	err := httpserver.BindJSON(c, &input)
 	if err != nil {
 		return err
 	}
 
-	claimMappingPolicy, err := ocmc.oidcClaimMappingService.UpdateClaimMappingPolicy(c.Request.Context(), c.Param("id"), input)
+	claimMappingPolicy, err := h.service.UpdateClaimMappingPolicy(c.Request.Context(), c.Param("id"), input)
 	if err != nil {
 		return err
 	}
 
-	var claimMappingPolicyDto dto.OidcClaimMappingPolicyDto
+	var claimMappingPolicyDto OidcClaimMappingPolicyDto
 	err = dto.MapStruct(claimMappingPolicy, &claimMappingPolicyDto)
 	if err != nil {
 		return err
@@ -178,10 +161,10 @@ func (ocmc *OidcClaimMappingPolicyController) updateClaimMappingPolicyHandler(c 
 	return nil
 }
 
-// listClientsByClaimMappingPolicyHandler godoc
+// listClients godoc
 // @Summary List OIDC clients using a claim mapping policy
 // @Description Get a paginated list of the OIDC clients assigned to a claim mapping policy
-// @Tags OIDC Claim Mapping Policy
+// @Tags OIDC Claim OidcClaimMapping OidcClaimMappingPolicy
 // @Param id path string true "Claim mapping policy ID"
 // @Param search query string false "Search term to filter clients by name"
 // @Param pagination[page] query int false "Page number for pagination" default(1)
@@ -191,11 +174,11 @@ func (ocmc *OidcClaimMappingPolicyController) updateClaimMappingPolicyHandler(c 
 // @Success 200 {object} dto.Paginated[dto.OidcClientMetaDataDto]
 // @Failure default {object} dto.ErrorDto "Error"
 // @Router /api/oidc/claim-mapping-policies/{id}/clients [get]
-func (ocmc *OidcClaimMappingPolicyController) listClientsByClaimMappingPolicyHandler(c *gin.Context) error {
+func (h *handler) listClients(c *gin.Context) error {
 	searchTerm := c.Query("search")
 	listRequestOptions := utils.ParseListRequestOptions(c)
 
-	clients, pagination, err := ocmc.oidcClaimMappingService.ListClientsByClaimMappingPolicy(
+	clients, pagination, err := h.service.ListClientsByClaimMappingPolicy(
 		c.Request.Context(), c.Param("id"), searchTerm, listRequestOptions,
 	)
 	if err != nil {
@@ -215,10 +198,10 @@ func (ocmc *OidcClaimMappingPolicyController) listClientsByClaimMappingPolicyHan
 	return nil
 }
 
-// listAssignableClientsHandler godoc
+// listAssignableClients godoc
 // @Summary List OIDC clients that can still be assigned to a claim mapping policy
 // @Description Get a paginated list of the OIDC clients that are not on this claim mapping policy yet
-// @Tags OIDC Claim Mapping Policy
+// @Tags OIDC Claim OidcClaimMapping OidcClaimMappingPolicy
 // @Param id path string true "Claim mapping policy ID"
 // @Param search query string false "Search term to filter clients by name"
 // @Param pagination[page] query int false "Page number for pagination" default(1)
@@ -228,11 +211,11 @@ func (ocmc *OidcClaimMappingPolicyController) listClientsByClaimMappingPolicyHan
 // @Success 200 {object} dto.Paginated[dto.OidcClientMetaDataDto]
 // @Failure default {object} dto.ErrorDto "Error"
 // @Router /api/oidc/claim-mapping-policies/{id}/assignable-clients [get]
-func (ocmc *OidcClaimMappingPolicyController) listAssignableClientsHandler(c *gin.Context) error {
+func (h *handler) listAssignableClients(c *gin.Context) error {
 	searchTerm := c.Query("search")
 	listRequestOptions := utils.ParseListRequestOptions(c)
 
-	clients, pagination, err := ocmc.oidcClaimMappingService.ListAssignableClients(
+	clients, pagination, err := h.service.ListAssignableClients(
 		c.Request.Context(), c.Param("id"), searchTerm, listRequestOptions,
 	)
 	if err != nil {
@@ -252,17 +235,17 @@ func (ocmc *OidcClaimMappingPolicyController) listAssignableClientsHandler(c *gi
 	return nil
 }
 
-// assignClientHandler godoc
+// assignClient godoc
 // @Summary Assign an OIDC client to a claim mapping policy
 // @Description Point an OIDC client at this claim mapping policy, replacing the policy it was on
-// @Tags OIDC Claim Mapping Policy
+// @Tags OIDC Claim OidcClaimMapping OidcClaimMappingPolicy
 // @Param id path string true "Claim mapping policy ID"
 // @Param clientId path string true "OIDC Client ID"
 // @Success 204 "No Content"
 // @Failure default {object} dto.ErrorDto "Error"
 // @Router /api/oidc/claim-mapping-policies/{id}/clients/{clientId} [post]
-func (ocmc *OidcClaimMappingPolicyController) assignClientHandler(c *gin.Context) error {
-	err := ocmc.oidcClaimMappingService.AssignClientToClaimMappingPolicy(
+func (h *handler) assignClient(c *gin.Context) error {
+	err := h.service.AssignClientToClaimMappingPolicy(
 		c.Request.Context(), c.Param("id"), c.Param("clientId"),
 	)
 	if err != nil {
@@ -273,17 +256,17 @@ func (ocmc *OidcClaimMappingPolicyController) assignClientHandler(c *gin.Context
 	return nil
 }
 
-// removeClientHandler godoc
+// removeClient godoc
 // @Summary Detach an OIDC client from a claim mapping policy
 // @Description Remove an OIDC client from this claim mapping policy, so it falls back to the default one
-// @Tags OIDC Claim Mapping Policy
+// @Tags OIDC Claim OidcClaimMapping OidcClaimMappingPolicy
 // @Param id path string true "Claim mapping policy ID"
 // @Param clientId path string true "OIDC Client ID"
 // @Success 204 "No Content"
 // @Failure default {object} dto.ErrorDto "Error"
 // @Router /api/oidc/claim-mapping-policies/{id}/clients/{clientId} [delete]
-func (ocmc *OidcClaimMappingPolicyController) removeClientHandler(c *gin.Context) error {
-	err := ocmc.oidcClaimMappingService.RemoveClientFromClaimMappingPolicy(
+func (h *handler) removeClient(c *gin.Context) error {
+	err := h.service.RemoveClientFromClaimMappingPolicy(
 		c.Request.Context(), c.Param("id"), c.Param("clientId"),
 	)
 	if err != nil {

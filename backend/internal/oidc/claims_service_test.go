@@ -10,6 +10,7 @@ import (
 	"gorm.io/gorm"
 
 	"github.com/pocket-id/pocket-id/backend/internal/appconfig"
+	"github.com/pocket-id/pocket-id/backend/internal/claimmappingpolicy"
 	"github.com/pocket-id/pocket-id/backend/internal/model"
 	testutils "github.com/pocket-id/pocket-id/backend/internal/utils/testing"
 )
@@ -270,10 +271,10 @@ func TestClaimsServiceGetClaimMappingPolicyByClientID(t *testing.T) {
 	db := testutils.NewDatabaseForTest(t)
 	service := newClaimsService(db, nil, "", nil, appconfig.StaticResolver{})
 
-	customPolicy := model.OidcClaimMappingPolicy{
+	customPolicy := claimmappingpolicy.OidcClaimMappingPolicy{
 		Base:          model.Base{ID: "custom-policy"},
 		Name:          "Custom Policy",
-		ClaimMappings: model.OidcClaimMappings{{ClaimName: "user_id", SourceType: model.MappingSourceUserField, SourceValue: string(model.UserFieldID)}},
+		ClaimMappings: claimmappingpolicy.OidcClaimMappings{{ClaimName: "user_id", SourceType: claimmappingpolicy.MappingSourceUserField, SourceValue: string(claimmappingpolicy.UserFieldID)}},
 	}
 	require.NoError(t, db.Create(&customPolicy).Error)
 

@@ -1,4 +1,4 @@
-package dto
+package claimmappingpolicy
 
 type OidcClaimMappingPolicyMetadataDto struct {
 	ID        string `json:"id"`
