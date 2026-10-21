@@ -1,16 +1,17 @@
 package appconfig
 
-import "encoding/json"
+import "github.com/vmihailenco/msgpack/v5"
 
-// UnmarshalJSON preserves settings stored in actor state before boolean toggles were replaced by modes
-func (m *AppConfigModel) UnmarshalJSON(data []byte) error {
+// DecodeMsgpack preserves settings stored in actor state before boolean toggles were replaced by modes
+// Francis stores actor state as MessagePack keyed by Go field name, so the legacy keys are the old field names
+func (m *AppConfigModel) DecodeMsgpack(dec *msgpack.Decoder) error {
 	type config AppConfigModel
 	value := struct {
 		*config
-		LegacyNotificationEnabled      AppConfigValue `json:"emailLoginNotificationEnabled"`
-		LegacyEmailVerificationEnabled AppConfigValue `json:"emailVerificationEnabled"`
+		LegacyNotificationEnabled      AppConfigValue `msgpack:"EmailLoginNotificationEnabled"`
+		LegacyEmailVerificationEnabled AppConfigValue `msgpack:"EmailVerificationEnabled"`
 	}{config: (*config)(m)}
-	if err := json.Unmarshal(data, &value); err != nil {
+	if err := dec.Decode(&value); err != nil {
 		return err
 	}
 	if m.EmailLoginNotificationMode == "" && value.LegacyNotificationEnabled != "" {

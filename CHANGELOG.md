@@ -1,3 +1,69 @@
+## v2.19.0
+
+### Features
+
+- add configurable login notification modes ([\#1813](https://github.com/pocket-id/pocket-id/pull/1813) by @stonith404)
+- make my apps searchable and sortable ([9c0c304](https://github.com/pocket-id/pocket-id/commit/9c0c304d59369db8370db96cd629a3394f33e5a7) by @stonith404)
+- add ability to override SSRF protection with `OUTBOUND_ALLOWED_HOSTS_*` ([3ffe013](https://github.com/pocket-id/pocket-id/commit/3ffe013886a9af9e60090a1ddbf8cb399a55b948) by @stonith404)
+- use WebAuthn recommended passkey algorithms ([\#1841](https://github.com/pocket-id/pocket-id/pull/1841) by @michaelbeaumont)
+- add ability to force email verification ([\#1837](https://github.com/pocket-id/pocket-id/pull/1837) by @stonith404)
+- add ability to deselect scopes on authorization ([f81d62c](https://github.com/pocket-id/pocket-id/commit/f81d62c16ceba0e0130ff210d663775068f1a0a8) by @stonith404)
+
+### Bug Fixes
+
+- prevent DN collisions from assigning another user's privileges ([be45b1c](https://github.com/pocket-id/pocket-id/commit/be45b1c9a3df571b8b8caa33c888e31d0f83096e) by @stonith404)
+- remove distracting tab switch animation ([69065e7](https://github.com/pocket-id/pocket-id/commit/69065e7cf009b4ac99b5fbc6a11dd6d919560f0a) by @stonith404)
+- export from SQLite fails to import into Postgres because of mismatched schemas ([8ab3dd4](https://github.com/pocket-id/pocket-id/commit/8ab3dd437b3c43371d542ef90f4ec32602f34c42) by @stonith404)
+- limit upload size for profile pictures and application images ([\#1819](https://github.com/pocket-id/pocket-id/pull/1819) by @IonBazan)
+- prevent email enumeration via one-time access email request ([ade5520](https://github.com/pocket-id/pocket-id/commit/ade55206b865042d038e7c5e314eccccdded7197) by @stonith404)
+- rate limit updating the own account to slow down user enumeration ([226648c](https://github.com/pocket-id/pocket-id/commit/226648c7b2ced55d3084366a6297472942b414db) by @stonith404)
+- reject cross-origin state-changing requests ([d31e3e1](https://github.com/pocket-id/pocket-id/commit/d31e3e12866d9c404d6c8323171fe01d80eb83dd) by @stonith404)
+- limit LDAP profile picture downloads to 2 MB ([d8ca4b6](https://github.com/pocket-id/pocket-id/commit/d8ca4b67525f3d656bd5a917af52d5849bd23d94) by @stonith404)
+- remove unused oidc client `/meta` endpoint ([a58ccea](https://github.com/pocket-id/pocket-id/commit/a58ccea6cec3aaa17a643921c5df461fc0886320) by @stonith404)
+- only return minimal client metadata for public interaction endpoint ([03fc844](https://github.com/pocket-id/pocket-id/commit/03fc844d055437e1391b29cdda0b28c8c94e6bdb) by @stonith404)
+- prefix audit log event translation keys to separate them from UI strings ([c7a7bce](https://github.com/pocket-id/pocket-id/commit/c7a7bce426b7abae55613c526ca6dd43fe6b1bdc) by @stonith404)
+- push group removals made on the user page to SCIM ([\#1830](https://github.com/pocket-id/pocket-id/pull/1830) by @jayhemnani9910)
+- push group removals if user gets deleted to SCIM ([d7f58e5](https://github.com/pocket-id/pocket-id/commit/d7f58e5a33f0df528a0df59c63d86e41ffd2578f) by @stonith404)
+- fallback to username if chars in name are not supported for avatars ([e2cacac](https://github.com/pocket-id/pocket-id/commit/e2cacac193968e4fd49b19f5cc62b0cfd9bbfef8) by @stonith404)
+- keep integer custom claim values exact in ID tokens and userinfo ([\#1829](https://github.com/pocket-id/pocket-id/pull/1829) by @jayhemnani9910)
+- push users disabled by the LDAP sync to SCIM ([\#1834](https://github.com/pocket-id/pocket-id/pull/1834) by @jayhemnani9910)
+- skip LDAP users without an email instead of failing the whole sync ([\#1835](https://github.com/pocket-id/pocket-id/pull/1835) by @jayhemnani9910)
+- send the API key expiration email again after a renewal ([\#1847](https://github.com/pocket-id/pocket-id/pull/1847) by @jayhemnani9910)
+- find user groups by their friendly name in the admin search ([\#1854](https://github.com/pocket-id/pocket-id/pull/1854) by @choksi2212)
+- keep login notification and email verification settings on upgrade ([6b9aba1](https://github.com/pocket-id/pocket-id/commit/6b9aba173572aa1ea79a6157e77da3169a3754d8) by @stonith404)
+
+### Documentation
+
+- update README screenshots ([ed45102](https://github.com/pocket-id/pocket-id/commit/ed45102da12110c03ceebb3c9730a68d422f8cfb) by @stonith404)
+
+### Other
+
+- update AAGUIDs ([\#1811](https://github.com/pocket-id/pocket-id/pull/1811) by @pocket-id-bot\[bot\])
+- Bump sharp from 0.35.4 to 0.35.5 ([\#1818](https://github.com/pocket-id/pocket-id/pull/1818) by @dependabot\[bot\])
+- Bump source-map-js from 1.2.1 to 1.2.2 ([\#1817](https://github.com/pocket-id/pocket-id/pull/1817) by @dependabot\[bot\])
+- Bump the "all-dependencies" group with 4 updates across multiple ecosystems ([\#1826](https://github.com/pocket-id/pocket-id/pull/1826) by @dependabot\[bot\])
+- resolve golangci-lint failures ([1bd6f00](https://github.com/pocket-id/pocket-id/commit/1bd6f006c8b92092641a6f1960e966c3cb6b999a) by @stonith404)
+- authorize API routes with per-endpoint scopes ([\#1823](https://github.com/pocket-id/pocket-id/pull/1823) by @stonith404)
+- use crowdin github actions to sync translations ([4416b0c](https://github.com/pocket-id/pocket-id/commit/4416b0c2489119f1eb37fda938951e9bf8ad61f0) by @stonith404)
+- combine CI checks into a single workflow file ([74e08f0](https://github.com/pocket-id/pocket-id/commit/74e08f0253cb619061d74dbeab2895e67d45d54e) by @stonith404)
+- add missing `cache-dependency-path` to go setup ([b0b09ce](https://github.com/pocket-id/pocket-id/commit/b0b09ce6cdbd3f4667389194272a6f7ee876d00b) by @stonith404)
+- add gofmt to stage hook ([54f28f8](https://github.com/pocket-id/pocket-id/commit/54f28f86d09dfbd8dc10702c893ac38a91f79a4f) by @stonith404)
+- update Fosite ([fd7951f](https://github.com/pocket-id/pocket-id/commit/fd7951f70efe0cb4dcaa182956b73e4ab26c543a) by @stonith404)
+- move shared files into `.github` repo ([3355b65](https://github.com/pocket-id/pocket-id/commit/3355b656b5e0eadbfa50089d741d0bd34a16ffb0) by @stonith404)
+- update golangci-lint ([\#1833](https://github.com/pocket-id/pocket-id/pull/1833) by @ItalyPaleAle)
+- upgrade francis to 0.1.1 ([\#1838](https://github.com/pocket-id/pocket-id/pull/1838) by @ItalyPaleAle)
+- upgrade Fosite ([a7f5d80](https://github.com/pocket-id/pocket-id/commit/a7f5d80aea7e6bf76c9e8e207857a315f4441a2f) by @stonith404)
+- fix flaky unit test ([5bf7e1d](https://github.com/pocket-id/pocket-id/commit/5bf7e1d2629788dd520a69a5d87d906293d2d58e) by @stonith404)
+- run CI checks on `v*` branches as well ([80a504b](https://github.com/pocket-id/pocket-id/commit/80a504b454f273efea6b692857f1ceb6a34b2e7f) by @stonith404)
+- remove unused issuer check from refresh token API validation ([03cab69](https://github.com/pocket-id/pocket-id/commit/03cab69d6bf50bbaf0d0255373b3c8362547bce0) by @stonith404)
+- upgrade Fosite ([6b6ef9a](https://github.com/pocket-id/pocket-id/commit/6b6ef9ad004faa8453470293215f9a0424743d84) by @stonith404)
+- Bump the "all-dependencies" group with 4 updates across multiple ecosystems ([\#1851](https://github.com/pocket-id/pocket-id/pull/1851) by @dependabot\[bot\])
+- update AAGUIDs ([\#1856](https://github.com/pocket-id/pocket-id/pull/1856) by @pocket-id-bot\[bot\])
+- restore the PR template in the repo so the PR quality check can read it ([09d4da8](https://github.com/pocket-id/pocket-id/commit/09d4da81a9553561dfeb7cec8a9f5808460fb127) by @stonith404)
+- Bump follow-redirects from 1.16.0 to 1.16.1 ([\#1862](https://github.com/pocket-id/pocket-id/pull/1862) by @dependabot\[bot\])
+- bump Fosite ([b352c81](https://github.com/pocket-id/pocket-id/commit/b352c81c387b0df049ca7b448f4f5b70f2f79b3f) by @stonith404)
+
+**Full Changelog**: https://github.com/pocket-id/pocket-id/compare/v2.18.0...v2.19.0
 ## v2.18.0
 
 ### Features
