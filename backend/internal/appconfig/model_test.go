@@ -1,7 +1,6 @@
 package appconfig
 
 import (
-	"encoding/json"
 	"errors"
 	"reflect"
 	"strings"
@@ -9,6 +8,7 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"github.com/vmihailenco/msgpack/v5"
 
 	"github.com/pocket-id/pocket-id/backend/internal/dto"
 )
@@ -302,26 +302,47 @@ func TestAppConfigModel_Update(t *testing.T) {
 	})
 }
 
-func TestAppConfigModel_UnmarshalJSON(t *testing.T) {
-	t.Run("maps the legacy email verification toggle to a mode", func(t *testing.T) {
-		tests := map[string]AppConfigValue{
-			"true":  EmailVerificationOptional,
-			"false": EmailVerificationDisabled,
+func TestAppConfigModel_DecodeMsgpack(t *testing.T) {
+	t.Run("maps the legacy toggles to modes", func(t *testing.T) {
+		tests := map[string]struct {
+			notification      AppConfigValue
+			emailVerification AppConfigValue
+		}{
+			"true":  {LoginNotificationBrowserRecognition, EmailVerificationOptional},
+			"false": {LoginNotificationDisabled, EmailVerificationDisabled},
 		}
 		for enabled, expected := range tests {
-			var m AppConfigModel
-			err := json.Unmarshal([]byte(`{"emailVerificationEnabled":"`+enabled+`"}`), &m)
+			data, err := msgpack.Marshal(map[string]string{
+				"AppName":                       "Legacy App",
+				"EmailLoginNotificationEnabled": enabled,
+				"EmailVerificationEnabled":      enabled,
+			})
 			require.NoError(t, err)
 
-			assert.Equal(t, expected, m.EmailVerification)
+			var m AppConfigModel
+			err = msgpack.Unmarshal(data, &m)
+			require.NoError(t, err)
+
+			assert.Equal(t, AppConfigValue("Legacy App"), m.AppName)
+			assert.Equal(t, expected.notification, m.EmailLoginNotificationMode)
+			assert.Equal(t, expected.emailVerification, m.EmailVerification)
 		}
 	})
 
-	t.Run("an explicit email verification mode wins over the legacy toggle", func(t *testing.T) {
-		var m AppConfigModel
-		err := json.Unmarshal([]byte(`{"emailVerification":"required","emailVerificationEnabled":"false"}`), &m)
+	t.Run("stored modes win over the legacy toggles", func(t *testing.T) {
+		data, err := msgpack.Marshal(map[string]string{
+			"EmailLoginNotificationMode":    LoginNotificationAlways,
+			"EmailLoginNotificationEnabled": "false",
+			"EmailVerification":             EmailVerificationRequired,
+			"EmailVerificationEnabled":      "false",
+		})
 		require.NoError(t, err)
 
+		var m AppConfigModel
+		err = msgpack.Unmarshal(data, &m)
+		require.NoError(t, err)
+
+		assert.Equal(t, AppConfigValue(LoginNotificationAlways), m.EmailLoginNotificationMode)
 		assert.Equal(t, AppConfigValue(EmailVerificationRequired), m.EmailVerification)
 	})
 }
