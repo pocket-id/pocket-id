@@ -74,6 +74,9 @@ type AppConfigModel struct {
 	LdapAttributeGroupName             AppConfigValue `json:"ldapAttributeGroupName" env:"LDAP_ATTRIBUTE_GROUP_NAME"`
 	LdapAdminGroupName                 AppConfigValue `json:"ldapAdminGroupName" env:"LDAP_ADMIN_GROUP_NAME"`
 	LdapSoftDeleteUsers                AppConfigValue `json:"ldapSoftDeleteUsers" env:"LDAP_SOFT_DELETE_USERS" type:"bool"`
+	// When enabled, users can set their own profile picture and the LDAP sync will not overwrite it
+	// This is public so the frontend can decide whether to allow editing the profile picture of LDAP users
+	LdapAllowProfilePictureOverride AppConfigValue `json:"ldapAllowProfilePictureOverride" env:"LDAP_ALLOW_PROFILE_PICTURE_OVERRIDE" type:"bool" public:"true"`
 	// WebAuthn
 	WebauthnUserVerification        AppConfigValue `json:"webauthnUserVerification" env:"WEBAUTHN_USER_VERIFICATION"`
 	WebauthnAllowSyncedPasskeys     AppConfigValue `json:"webauthnAllowSyncedPasskeys" env:"WEBAUTHN_ALLOW_SYNCED_PASSKEYS" type:"bool"`
@@ -180,6 +183,7 @@ func getDefaultConfig() *AppConfigModel {
 		LdapAttributeGroupName:             "",
 		LdapAdminGroupName:                 "",
 		LdapSoftDeleteUsers:                "true",
+		LdapAllowProfilePictureOverride:    "false",
 		// WebAuthn
 		WebauthnUserVerification:        "required",
 		WebauthnAllowSyncedPasskeys:     "true",
