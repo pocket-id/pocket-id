@@ -1,6 +1,6 @@
 module github.com/pocket-id/pocket-id/backend
 
-go 1.27.2
+go 1.27.3
 
 require (
 	github.com/aws/aws-sdk-go-v2 v1.47.2
@@ -37,7 +37,7 @@ require (
 	github.com/mileusna/useragent v1.3.5
 	github.com/oschwald/maxminddb-golang/v2 v2.7.0
 	github.com/pires/go-proxyproto v0.15.0
-	github.com/pocket-id/fosite v1.4.2
+	github.com/pocket-id/fosite v1.4.3
 	github.com/quic-go/quic-go v0.63.0
 	github.com/spf13/cobra v1.10.2
 	github.com/stretchr/testify v1.12.1
