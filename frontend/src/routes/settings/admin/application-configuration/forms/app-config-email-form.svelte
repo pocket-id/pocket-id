@@ -58,6 +58,21 @@
 		}
 	});
 
+	const emailLoginCodeOptions = $derived({
+		disabled: {
+			label: m.disabled(),
+			description: m.email_login_code_requested_by_user_disabled_description()
+		},
+		nonAdmins: {
+			label: m.email_login_code_requested_by_user_non_admins(),
+			description: m.email_login_code_requested_by_user_non_admins_description()
+		},
+		all: {
+			label: m.email_login_code_requested_by_user_all(),
+			description: m.email_login_code_requested_by_user_all_description()
+		}
+	});
+
 	let isSendingTestEmail = $state(false);
 
 	const formSchema = z
@@ -74,7 +89,7 @@
 			smtpFrom: z.email().or(z.literal('')).optional(),
 			smtpTls: z.enum(['none', 'starttls', 'tls']),
 			smtpSkipCertVerify: z.boolean(),
-			emailOneTimeAccessAsUnauthenticatedEnabled: z.boolean(),
+			emailOneTimeAccessAsUnauthenticated: z.enum(['disabled', 'nonAdmins', 'all']),
 			emailVerification: z.enum(['disabled', 'optional', 'required']),
 			emailOneTimeAccessAsAdminEnabled: z.boolean(),
 			emailLoginNotificationMode: z.enum([
@@ -93,7 +108,6 @@
 			];
 
 			const emailFields: (keyof z.infer<typeof formSchema>)[] = [
-				'emailOneTimeAccessAsUnauthenticatedEnabled',
 				'emailOneTimeAccessAsAdminEnabled',
 				'emailApiKeyExpirationEnabled'
 			];
@@ -118,6 +132,7 @@
 			const emailEnabled =
 				data.emailLoginNotificationMode !== 'disabled' ||
 				data.emailVerification !== 'disabled' ||
+				data.emailOneTimeAccessAsUnauthenticated !== 'disabled' ||
 				emailFields.some((f) => data[f]);
 			requireFieldsWhen(emailEnabled, m.smtp_field_required_when_email_enabled());
 
@@ -323,12 +338,39 @@
 				description={m.send_an_email_to_the_user_when_their_api_key_is_about_to_expire()}
 				bind:checked={$inputs.emailApiKeyExpirationEnabled.value}
 			/>
-			<SwitchWithLabel
-				id="email-login-user"
-				label={m.emai_login_code_requested_by_user()}
-				description={m.allow_users_to_sign_in_with_a_login_code_sent_to_their_email()}
-				bind:checked={$inputs.emailOneTimeAccessAsUnauthenticatedEnabled.value}
-			/>
+			<Field.Field>
+				<div>
+					<Field.Label for="email-login-user">{m.emai_login_code_requested_by_user()}</Field.Label>
+					<Field.Description
+						>{m.allow_users_to_sign_in_with_a_login_code_sent_to_their_email()}</Field.Description
+					>
+				</div>
+				<Select.Root
+					type="single"
+					disabled={$appConfigStore.uiConfigDisabled}
+					value={$inputs.emailOneTimeAccessAsUnauthenticated.value}
+					allowDeselect={false}
+					onValueChange={(value) =>
+						($inputs.emailOneTimeAccessAsUnauthenticated.value =
+							value as AllAppConfig['emailOneTimeAccessAsUnauthenticated'])}
+				>
+					<Select.Trigger id="email-login-user" class="w-full">
+						{emailLoginCodeOptions[$inputs.emailOneTimeAccessAsUnauthenticated.value].label}
+					</Select.Trigger>
+					<Select.Content class="w-[calc(var(--bits-select-anchor-width)+--spacing(3))]">
+						<Select.Group>
+							{#each Object.entries(emailLoginCodeOptions) as [value, option] (value)}
+								<Select.Item {value} label={option.label}>
+									<div class="flex flex-col items-start gap-1 whitespace-normal">
+										<span class="font-medium">{option.label}</span>
+										<span class="text-muted-foreground text-xs">{option.description}</span>
+									</div>
+								</Select.Item>
+							{/each}
+						</Select.Group>
+					</Select.Content>
+				</Select.Root>
+			</Field.Field>
 		</div>
 	</fieldset>
 	<div class="mt-8 flex flex-wrap justify-end gap-3">

@@ -345,4 +345,37 @@ func TestAppConfigModel_DecodeMsgpack(t *testing.T) {
 		assert.Equal(t, AppConfigValue(LoginNotificationAlways), m.EmailLoginNotificationMode)
 		assert.Equal(t, AppConfigValue(EmailVerificationRequired), m.EmailVerification)
 	})
+
+	t.Run("maps the legacy email login code toggle to a mode that keeps admins allowed", func(t *testing.T) {
+		tests := map[string]AppConfigValue{
+			"true":  EmailOneTimeAccessAsUnauthenticatedAll,
+			"false": EmailOneTimeAccessAsUnauthenticatedDisabled,
+		}
+		for enabled, expected := range tests {
+			data, err := msgpack.Marshal(map[string]string{
+				"EmailOneTimeAccessAsUnauthenticatedEnabled": enabled,
+			})
+			require.NoError(t, err)
+
+			var m AppConfigModel
+			err = msgpack.Unmarshal(data, &m)
+			require.NoError(t, err)
+
+			assert.Equal(t, expected, m.EmailOneTimeAccessAsUnauthenticated)
+		}
+	})
+
+	t.Run("an explicit email login code mode wins over the legacy toggle", func(t *testing.T) {
+		data, err := msgpack.Marshal(map[string]string{
+			"EmailOneTimeAccessAsUnauthenticated":        EmailOneTimeAccessAsUnauthenticatedNonAdmins,
+			"EmailOneTimeAccessAsUnauthenticatedEnabled": "true",
+		})
+		require.NoError(t, err)
+
+		var m AppConfigModel
+		err = msgpack.Unmarshal(data, &m)
+		require.NoError(t, err)
+
+		assert.Equal(t, AppConfigValue(EmailOneTimeAccessAsUnauthenticatedNonAdmins), m.EmailOneTimeAccessAsUnauthenticated)
+	})
 }

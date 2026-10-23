@@ -22,7 +22,8 @@
 	const longCodeLength = 12;
 
 	let longCodeRequested = $state(
-		code.length > shortCodeLength || !$appConfigStore.emailOneTimeAccessAsUnauthenticatedEnabled
+		code.length > shortCodeLength ||
+			$appConfigStore.emailOneTimeAccessAsUnauthenticated === 'disabled'
 	);
 	let codeComplete = $derived(
 		longCodeRequested ? code.length === longCodeLength : code.length === shortCodeLength
