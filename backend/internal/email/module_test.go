@@ -20,6 +20,7 @@ import (
 	"github.com/pocket-id/pocket-id/backend/internal/apperror"
 	"github.com/pocket-id/pocket-id/backend/internal/model"
 	testutils "github.com/pocket-id/pocket-id/backend/internal/utils/testing"
+	"github.com/pocket-id/pocket-id/backend/resources"
 )
 
 func TestNewLoadsEveryEmailTemplate(t *testing.T) {
@@ -374,5 +375,24 @@ func TestNewLoginRendersSignInMethodInBothTemplates(t *testing.T) {
 	for _, body := range []string{text, html} {
 		assert.Contains(t, body, "Sign-in method")
 		assert.Contains(t, body, "One-time code")
+	}
+}
+
+// The characters react-email's <Preview> pads the hidden preview line with:
+// providers reject messages carrying them as spam, so the generated templates
+// are checked for each of them.
+const previewPaddingRunes = "\u00a0\u200c\u200b\u200d\u200e\u200f\ufeff"
+
+func TestHTMLTemplatesHaveUnpaddedPreviewText(t *testing.T) {
+	for _, tmpl := range templatePaths {
+		contents, err := resources.FS.ReadFile("email-templates/" + tmpl + "_html.tmpl")
+		require.NoError(t, err)
+
+		assert.Contains(t, string(contents), `data-skip-in-text="true"`,
+			"%s_html.tmpl no longer hides the preview line", tmpl)
+		for _, r := range previewPaddingRunes {
+			assert.NotContains(t, string(contents), string(r),
+				"%s_html.tmpl contains the invisible preview padding %U", tmpl, r)
+		}
 	}
 }

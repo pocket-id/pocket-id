@@ -1,4 +1,4 @@
-import { Body, Column, Container, Head, Html, Img, Link, Preview, Row, Section } from 'react-email';
+import { Body, Column, Container, Head, Html, Img, Link, Row, Section } from 'react-email';
 import type { SharedProps } from '../props';
 import { colors, fonts, radius } from './theme';
 
@@ -18,9 +18,15 @@ export const BaseTemplate = ({
 		<Head>
 			<meta name="color-scheme" content="light" />
 			<meta name="supported-color-schemes" content="light" />
+			{preview && <title>{preview}</title>}
 			<style dangerouslySetInnerHTML={{ __html: fontFaceCss(appURL) }} />
 		</Head>
-		{preview && <Preview>{preview}</Preview>}
+		{preview && (
+			// react-email's Preview pads the preheader with invisible characters; spam filters reject the message for it
+			<div style={previewStyle} data-skip-in-text="true">
+				{preview}
+			</div>
+		)}
 		<Body style={bodyStyle}>
 			<Container style={containerStyle}>
 				<Section style={headerStyle} data-skip-in-text="true">
@@ -52,6 +58,15 @@ export const BaseTemplate = ({
 // Clients without web font support fall back to the serif stack declared on the headings
 const fontFaceCss = (appURL: string) =>
 	`@font-face{font-family:'Gloock';font-style:normal;font-weight:400;mso-font-alt:'Georgia';src:url(${appURL}/fonts/Gloock-Regular.woff) format('woff');}`;
+
+const previewStyle = {
+	display: 'none',
+	overflow: 'hidden',
+	lineHeight: '1px',
+	opacity: 0,
+	maxHeight: 0,
+	maxWidth: 0
+};
 
 const bodyStyle = {
 	margin: 0,
