@@ -31,6 +31,11 @@ type TokenSigner interface {
 	GetKeyID() (string, bool)
 }
 
+// SessionEnder ends a Pocket ID browser session on RP-initiated logout
+type SessionEnder interface {
+	Delete(ctx context.Context, jti string) error
+}
+
 type CustomClaimSource interface {
 	GetCustomClaimsForUserWithUserGroups(ctx context.Context, userID string, tx *gorm.DB) ([]model.CustomClaim, error)
 }
@@ -53,6 +58,7 @@ type Dependencies struct {
 	GetCIMDURLAllowlist func() []string
 
 	Signer       TokenSigner
+	Sessions     SessionEnder
 	CustomClaims CustomClaimSource
 	Reauth       ReauthenticationTokenConsumer
 	AuditLog     AuditLogger
@@ -137,7 +143,7 @@ func New(ctx context.Context, deps Dependencies) (*Module, error) {
 		userInfoHandler:      newUserInfoHandler(provider, claimsService, deps.Config.BaseURL),
 		parHandler:           newPARHandler(provider),
 		introspectionHandler: newIntrospectionHandler(provider, authenticator, deps.Config.BaseURL),
-		endSessionHandler:    newEndSessionHandler(endSessionService, deps.Config.BaseURL),
+		endSessionHandler:    newEndSessionHandler(endSessionService, deps.Sessions, deps.Config.BaseURL),
 		deviceHandler:        newDeviceHandler(provider, deviceService),
 	}, nil
 }

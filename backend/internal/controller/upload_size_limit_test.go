@@ -20,6 +20,7 @@ import (
 	"github.com/pocket-id/pocket-id/backend/internal/middleware"
 	"github.com/pocket-id/pocket-id/backend/internal/model"
 	"github.com/pocket-id/pocket-id/backend/internal/service"
+	"github.com/pocket-id/pocket-id/backend/internal/usersession"
 	testutils "github.com/pocket-id/pocket-id/backend/internal/utils/testing"
 )
 
@@ -43,8 +44,10 @@ func TestImageUploadRoutesLimitRequestSize(t *testing.T) {
 	userService := service.NewUserService(db, jwtService, nil, nil, nil, nil, nil, nil)
 	apiKeyModule, err := apikey.New(t.Context(), apikey.Dependencies{DB: db, CleanupDisabled: true})
 	require.NoError(t, err)
+	userSessionModule, err := usersession.New(usersession.Dependencies{DB: db, CleanupDisabled: true})
+	require.NoError(t, err)
 
-	auth := middleware.NewAuthorization(apiKeyModule, userService, jwtService, appconfig.StaticResolver{})
+	auth := middleware.NewAuthorization(apiKeyModule, userSessionModule, userService, jwtService, appconfig.StaticResolver{})
 	fileSizeLimitMiddleware := middleware.NewFileSizeLimitMiddleware()
 
 	user := model.User{Username: "upload-admin", IsAdmin: true}
@@ -52,6 +55,7 @@ func TestImageUploadRoutesLimitRequestSize(t *testing.T) {
 
 	token, err := jwtService.GenerateAccessToken(user, "", time.Hour)
 	require.NoError(t, err)
+	require.NoError(t, userSessionModule.Track(t.Context(), db, token))
 
 	router := gin.New()
 	router.Use(middleware.NewErrorHandlerMiddleware().Add())

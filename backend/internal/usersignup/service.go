@@ -35,6 +35,7 @@ type Service struct {
 	actorService      *actor.Service
 	userCreator       UserCreator
 	signer            TokenService
+	sessions          SessionTracker
 	auditLog          AuditLogger
 	scimSync          ScimSyncScheduler
 	emailVerification EmailVerificationSender
@@ -46,6 +47,7 @@ func newService(deps Dependencies, actorService *actor.Service) *Service {
 		actorService:      actorService,
 		userCreator:       deps.UserCreator,
 		signer:            deps.Signer,
+		sessions:          deps.Sessions,
 		auditLog:          deps.AuditLog,
 		scimSync:          deps.ScimSync,
 		emailVerification: deps.EmailVerification,
@@ -137,6 +139,10 @@ func (s *Service) createSignedUpUser(ctx context.Context, config *appconfig.AppC
 	if err != nil {
 		return model.User{}, "", err
 	}
+	err = s.sessions.Track(ctx, tx, accessToken)
+	if err != nil {
+		return model.User{}, "", err
+	}
 
 	if tokenProvided {
 		s.auditLog.Create(ctx, auditlogs.EventAccountCreated, ipAddress, userAgent, user.ID, auditlogs.Data{
@@ -210,6 +216,10 @@ func (s *Service) SignUpInitialAdmin(ctx context.Context, config *appconfig.AppC
 
 	// Issue the setup session before committing so failures roll back the transaction
 	token, err := s.signer.GenerateAccessToken(user, authenticationMethodOneTimePassword, config.SessionDuration.AsDurationMinutes())
+	if err != nil {
+		return model.User{}, "", err
+	}
+	err = s.sessions.Track(ctx, tx, token)
 	if err != nil {
 		return model.User{}, "", err
 	}

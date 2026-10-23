@@ -36,6 +36,7 @@ import (
 	"github.com/pocket-id/pocket-id/backend/internal/oidc"
 	"github.com/pocket-id/pocket-id/backend/internal/onetimeaccess"
 	"github.com/pocket-id/pocket-id/backend/internal/storage"
+	"github.com/pocket-id/pocket-id/backend/internal/usersession"
 	"github.com/pocket-id/pocket-id/backend/internal/usersignup"
 	"github.com/pocket-id/pocket-id/backend/internal/utils"
 	jwkutils "github.com/pocket-id/pocket-id/backend/internal/utils/jwk"
@@ -684,6 +685,37 @@ func (s *TestService) seedOneTimeAccessTokens(ctx context.Context) error {
 	}
 
 	return nil
+}
+
+// TrackSession re-records the session for the Playwright suite's shared access token, which ResetDatabase just wiped
+// Invalid tokens and missing users are skipped silently, since the suite's first reset runs before any sign-in exists
+func (s *TestService) TrackSession(ctx context.Context, accessToken string) error {
+	token, err := s.jwtService.VerifyAccessToken(accessToken)
+	if err != nil {
+		return nil
+	}
+	jti, hasJti := token.JwtID()
+	subject, hasSubject := token.Subject()
+	expiration, hasExpiration := token.Expiration()
+	if !hasJti || !hasSubject || !hasExpiration {
+		return nil
+	}
+
+	var userCount int64
+	err = s.db.WithContext(ctx).Model(&model.User{}).Where("id = ?", subject).Count(&userCount).Error
+	if err != nil {
+		return err
+	}
+	if userCount == 0 {
+		return nil
+	}
+
+	session := usersession.UserSession{
+		ExpiresAt: datatype.DateTime(expiration),
+		UserID:    subject,
+	}
+	session.ID = jti
+	return s.db.WithContext(ctx).Create(&session).Error
 }
 
 func (s *TestService) ResetDatabase() error {

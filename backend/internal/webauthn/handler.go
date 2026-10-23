@@ -23,12 +23,14 @@ import (
 
 type handler struct {
 	service   *Service
+	sessions  SessionManager
 	appConfig appconfig.AppConfigResolver
 }
 
-func newHandler(service *Service, appConfig appconfig.AppConfigResolver) *handler {
+func newHandler(service *Service, sessions SessionManager, appConfig appconfig.AppConfigResolver) *handler {
 	return &handler{
 		service:   service,
+		sessions:  sessions,
 		appConfig: appConfig,
 	}
 }
@@ -184,6 +186,13 @@ func (h *handler) updateCredential(c *gin.Context) error {
 }
 
 func (h *handler) logout(c *gin.Context) error {
+	if sessionID := authz.PrincipalFrom(c).SessionID; sessionID != "" {
+		err := h.sessions.Delete(c.Request.Context(), sessionID)
+		if err != nil {
+			return err
+		}
+	}
+
 	cookie.AddAccessTokenCookie(c, 0, "")
 	c.Status(http.StatusNoContent)
 	return nil
