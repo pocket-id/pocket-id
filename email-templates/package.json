@@ -14,7 +14,6 @@
 		"react-email": "6.11.3"
 	},
 	"devDependencies": {
-		"@react-email/preview-server": "5.2.10",
 		"@react-email/ui": "6.11.3",
 		"@types/node": "^25.9.7",
 		"@types/react": "^19.3.0",

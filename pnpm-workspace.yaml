@@ -8,8 +8,6 @@ allowBuilds:
   sharp: true
 
 overrides:
-  esbuild@>=0.27.3 <0.28.1: ">=0.28.1"
-  next: ">=16.3.6"
   vite@*: 'catalog:'
 
 catalog:
