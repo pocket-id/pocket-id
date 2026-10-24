@@ -44,7 +44,8 @@
 		ldapAttributeGroupUniqueIdentifier: z.string().min(1),
 		ldapAttributeGroupName: z.string().min(1),
 		ldapAdminGroupName: z.string().optional(),
-		ldapSoftDeleteUsers: z.boolean()
+		ldapSoftDeleteUsers: z.boolean(),
+		ldapAllowProfilePictureOverride: z.boolean()
 	});
 
 	const formStore = createForm(formSchema, pickSchemaValues(formSchema, appConfig));
@@ -136,6 +137,12 @@
 				label={m.ldap_soft_delete_users()}
 				description={m.ldap_soft_delete_users_description()}
 				bind:checked={$inputs.ldapSoftDeleteUsers.value}
+			/>
+			<SwitchWithLabel
+				id="ldap-allow-profile-picture-override"
+				label={m.ldap_allow_profile_picture_override()}
+				description={m.ldap_allow_profile_picture_override_description()}
+				bind:checked={$inputs.ldapAllowProfilePictureOverride.value}
 			/>
 		</div>
 		<h4 class="mt-10 text-lg font-semibold">{m.attribute_mapping()}</h4>

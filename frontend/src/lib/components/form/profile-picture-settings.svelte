@@ -24,6 +24,12 @@
 
 	let isLoading = $state(false);
 	let imageDataURL = $state('');
+
+	// LDAP users cannot change their own picture while LDAP manages it, unless the override is enabled
+	let ldapManagedPicture = $derived(
+		isLdapUser && $appConfigStore.ldapEnabled && !$appConfigStore.ldapAllowProfilePictureOverride
+	);
+
 	onMount(() => {
 		// The "skipCache" query will only be added to the profile picture url on client-side
 		// because of that we need to set the imageDataURL after the component is mounted
@@ -69,7 +75,7 @@
 
 <div class="flex flex-col items-center gap-6 sm:flex-row">
 	<div class="shrink-0">
-		{#if isLdapUser && $appConfigStore.ldapEnabled}
+		{#if ldapManagedPicture}
 			<Avatar.Root class="size-24">
 				<Avatar.Image class="object-cover" src={imageDataURL} />
 			</Avatar.Root>
@@ -101,7 +107,7 @@
 
 	<div class="grow">
 		<h3 class="font-medium">{m.profile_picture()}</h3>
-		{#if isLdapUser && $appConfigStore.ldapEnabled}
+		{#if ldapManagedPicture}
 			<p class="text-muted-foreground text-sm">
 				{m.profile_picture_is_managed_by_ldap_server()}
 			</p>
@@ -114,7 +120,7 @@
 				variant="outline"
 				size="sm"
 				onclick={onReset}
-				disabled={isLoading || (isLdapUser && $appConfigStore.ldapEnabled)}
+				disabled={isLoading || ldapManagedPicture}
 			>
 				<LucideRefreshCw class="mr-2 size-4" />
 				{m.reset_to_default()}
