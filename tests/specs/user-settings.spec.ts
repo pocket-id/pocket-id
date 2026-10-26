@@ -318,3 +318,38 @@ test('Non-admin cannot use admin passkey endpoints', async ({ page }) => {
 	);
 	expect(deleteResponse.status()).toBe(403);
 });
+
+test('Create user with initial groups and preserve them on profile edit', async ({ page }) => {
+	const user = users.steve;
+	await page.goto('/settings/admin/users');
+	await page.getByRole('button', { name: 'Add User' }).click();
+	await page.getByLabel('First name').fill(user.firstname);
+	await page.getByLabel('Last name').fill(user.lastname);
+	await page.getByLabel('Email').fill(user.email);
+	await page.getByLabel('Username').fill(user.username);
+	await page.getByLabel('User Groups', { exact: true }).click();
+	await page.getByRole('option', { name: userGroups.developers.name, exact: true }).click();
+	await page.getByRole('option', { name: userGroups.designers.name, exact: true }).click();
+	await page.getByLabel('User Groups', { exact: true }).click();
+	const created = page.waitForResponse(
+		(r) => r.url().endsWith('/api/users') && r.request().method() === 'POST'
+	);
+	await page.getByRole('button', { name: 'Save', exact: true }).click();
+	const saved = await (await created).json();
+	expect(saved.userGroups.map((g: { id: string }) => g.id).sort()).toEqual(
+		[userGroups.developers.id, userGroups.designers.id].sort()
+	);
+	await expect(page.getByLabel('User Groups', { exact: true })).not.toContainText(
+		userGroups.developers.name
+	);
+	await page.goto(`/settings/admin/users/${saved.id}`);
+	await page.getByLabel('First name').fill('Updated');
+	await saveUnsavedChanges(page);
+	await page.getByRole('tab', { name: 'User Groups', exact: true }).click();
+	await expect(
+		page.getByRole('row', { name: userGroups.developers.name }).getByRole('checkbox')
+	).toBeChecked();
+	await expect(
+		page.getByRole('row', { name: userGroups.designers.name }).getByRole('checkbox')
+	).toBeChecked();
+});
