@@ -9,6 +9,7 @@ export type AppConfig = {
 	emailOneTimeAccessAsAdminEnabled: boolean;
 	emailVerification: 'disabled' | 'optional' | 'required';
 	ldapEnabled: boolean;
+	ldapAllowProfilePictureOverride: boolean;
 	disableAnimations: boolean;
 	uiConfigDisabled: boolean;
 	accentColor: string;
