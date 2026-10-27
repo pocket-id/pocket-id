@@ -62,6 +62,7 @@ type AppConfigUpdateDto struct {
 	EmailVerification                          string `json:"emailVerification" binding:"required,oneof=disabled optional required,email_verification"`
 	CIMDURLAllowlist                           string `json:"cimdUrlAllowlist" binding:"omitempty,cimd_url_allowlist"`
 	AutoCreateOIDCClientSecret                 string `json:"autoCreateOidcClientSecret" binding:"required,boolean_string"`
+	EnabledFeatures                            string `json:"enabledFeatures" binding:"omitempty,json_string_array"`
 }
 
 func (a AppConfigUpdateDto) Validate() error {

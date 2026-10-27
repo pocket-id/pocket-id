@@ -181,6 +181,7 @@ func registerRoutes(r *gin.Engine, db *gorm.DB, svc *services, auth *authz.Middl
 	controller.NewCustomClaimController(apiRouter, svc.customClaimService)
 	svc.environmentModule.RegisterRoutes(apiRouter)
 	svc.logoPresetModule.RegisterRoutes(apiRouter)
+	svc.featureModule.RegisterRoutes(apiRouter)
 	svc.scimSyncModule.RegisterRoutes(apiRouter)
 	svc.userSignUpModule.RegisterRoutes(apiRouter, rateLimitMiddleware.Add(middleware.RateLimitSignup))
 	svc.oneTimeAccessModule.RegisterRoutes(apiRouter,

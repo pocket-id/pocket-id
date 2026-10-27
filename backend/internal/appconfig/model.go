@@ -81,6 +81,8 @@ type AppConfigModel struct {
 	// OIDC
 	CIMDURLAllowlist           AppConfigValue `json:"cimdUrlAllowlist" env:"CIMD_URL_ALLOWLIST"` // JSON-encoded array of strings
 	AutoCreateOIDCClientSecret AppConfigValue `json:"autoCreateOidcClientSecret" env:"AUTO_CREATE_OIDC_CLIENT_SECRET" type:"bool"`
+	// Features
+	EnabledFeatures AppConfigValue `json:"enabledFeatures" env:"ENABLED_FEATURES"` // JSON-encoded array of feature ids
 }
 
 // appConfigEnvName returns the explicit environment variable name for a JSON configuration field
@@ -187,6 +189,9 @@ func getDefaultConfig() *AppConfigModel {
 		// OIDC
 		CIMDURLAllowlist:           "[]",
 		AutoCreateOIDCClientSecret: "true",
+		// Features
+		// Left unset so the feature module can tell a saved value from one it still has to derive from usage
+		EnabledFeatures: "",
 	}
 }
 
