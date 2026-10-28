@@ -26,8 +26,7 @@
 	import { z } from 'zod/v4';
 	import { expirations } from './login-code-dialog.svelte';
 
-	let { open = $bindable(), startWithCreate }: { open: boolean; startWithCreate: boolean } =
-		$props();
+	let { open = $bindable() }: { open: boolean } = $props();
 
 	const userService = new UserService();
 	const appConfigService = new AppConfigService();
@@ -96,8 +95,7 @@
 		if (!open) return;
 		untrack(() => {
 			tokens = undefined;
-			if (startWithCreate) showCreate();
-			else view = 'list';
+			view = 'list';
 			loadTokens();
 		});
 	});

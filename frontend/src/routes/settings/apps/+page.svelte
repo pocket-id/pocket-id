@@ -4,7 +4,6 @@
 	import PageHeader from '#lib/components/page-header.svelte';
 	import { Button, buttonVariants } from '#lib/components/ui/button/index.ts';
 	import * as DropdownMenu from '#lib/components/ui/dropdown-menu/index.js';
-	import * as Empty from '#lib/components/ui/empty/index.ts';
 	import * as InputGroup from '#lib/components/ui/input-group/index.js';
 	import { m } from '#lib/paraglide/messages.js';
 	import OIDCService from '#lib/services/oidc-service.ts';
@@ -17,9 +16,9 @@
 	import { cn } from '#lib/utils/style.ts';
 	import {
 		LucideArrowDownUp,
+		LucideArrowUpRight,
 		LucideBan,
 		LucideChevronDown,
-		LucideLayoutGrid,
 		LucidePlus,
 		LucideSearch
 	} from '@lucide/svelte';
@@ -187,25 +186,48 @@
 />
 
 {#if !hasAnyApps}
-	<Empty.Root class="mt-6">
-		<Empty.Header>
-			<Empty.Media variant="icon">
-				<LucideLayoutGrid />
-			</Empty.Media>
-			<Empty.Title>{m.no_apps_yet()}</Empty.Title>
-			<Empty.Description>
-				{$userStore?.isAdmin ? m.no_apps_yet_admin_description() : m.no_apps_yet_description()}
-			</Empty.Description>
-		</Empty.Header>
-		{#if $userStore?.isAdmin}
-			<Empty.Content>
-				<Button variant="secondary" href="/settings/admin/oidc-clients?new">
-					<LucidePlus />
-					{m.connect_an_app()}
-				</Button>
-			</Empty.Content>
-		{/if}
-	</Empty.Root>
+	<!-- Ghost tiles in the shape of the app grid, matching the ghost rows of the admin lists' empty states -->
+	<div class="mt-10">
+		<div
+			aria-hidden="true"
+			class="pointer-events-none grid grid-cols-2 gap-3 mask-b-from-30% sm:grid-cols-[repeat(auto-fill,minmax(200px,1fr))]"
+		>
+			{#each ['w-24', 'w-30', 'w-20', 'w-28'] as name, i (i)}
+				<div
+					class="bg-surface flex min-h-[140px] flex-col gap-2 rounded-md p-4 shadow-[inset_0_0_0_1px_var(--border)]"
+				>
+					<div class="bg-fill-selected mb-1 size-10 rounded-[8px]"></div>
+					<div class="bg-fill-selected h-2 max-w-full rounded-xs {name}"></div>
+					<div class="bg-fill-selected h-1.5 w-16 rounded-xs"></div>
+				</div>
+			{/each}
+		</div>
+		<div class="-mt-6 flex flex-col items-center gap-2 pb-12 text-center">
+			{#if $userStore?.isAdmin}
+				<h2 class="text-title">{m.connect_your_first_app()}</h2>
+				<p class="text-body text-fg-muted max-w-[380px]">{m.no_apps_yet_admin_description()}</p>
+				<div class="mt-4 flex flex-wrap items-center justify-center gap-4">
+					<Button href="/settings/admin/oidc-clients?new">
+						<LucidePlus />
+						{m.connect_an_app()}
+					</Button>
+					<Button
+						variant="link"
+						class="gap-1"
+						href="https://pocket-id.org/docs/client-examples"
+						target="_blank"
+						rel="noreferrer"
+					>
+						{m.docs()}
+						<LucideArrowUpRight />
+					</Button>
+				</div>
+			{:else}
+				<h2 class="text-title">{m.no_apps_yet()}</h2>
+				<p class="text-body text-fg-muted max-w-[380px]">{m.no_apps_yet_description()}</p>
+			{/if}
+		</div>
+	</div>
 {:else}
 	<div class="mt-6 flex flex-col gap-3">
 		<InputGroup.Root>
