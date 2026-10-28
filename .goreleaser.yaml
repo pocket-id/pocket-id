@@ -184,7 +184,7 @@ dockers_v2:
       - "pocketid/pocket-id"
       - "ghcr.io/{{ .Env.GITHUB_REPOSITORY_OWNER }}/pocket-id"
     tags:
-      - "next"
+      - "{{ .Env.BUILD_NEXT }}"
     platforms:
       - linux/amd64
       - linux/arm64
@@ -212,7 +212,7 @@ dockers_v2:
       - "pocketid/pocket-id"
       - "ghcr.io/{{ .Env.GITHUB_REPOSITORY_OWNER }}/pocket-id"
     tags:
-      - "next-distroless"
+      - "{{ .Env.BUILD_NEXT }}-distroless"
     platforms:
       - linux/amd64
       - linux/arm64

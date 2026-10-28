@@ -4,10 +4,11 @@ on:
   push:
     branches:
       - main
+      - "v[0-9]+"
   workflow_dispatch:
 
 concurrency:
-  group: build-next-image
+  group: build-next-image-${{ github.ref_name }}
   cancel-in-progress: true
 
 permissions:
@@ -66,7 +67,7 @@ jobs:
           args: release --clean --skip=announce,validate --parallelism=4
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          BUILD_NEXT: "true"
+          BUILD_NEXT: ${{ github.ref_name == 'main' && 'next' || format('next-{0}', github.ref_name) }}
           SKIP_RELEASE: "true"
           SKIP_CHANGELOG: "true"
           GORELEASER_KEY: ${{ secrets.GORELEASER_KEY }}
