@@ -61,42 +61,30 @@
 
 <SettingsSection title={m.passkeys()} description={m.passkeys_section_description()}>
 	{#snippet action()}
-		{#if passkeys.length > 0}
-			<Button variant="secondary" size="sm" usePromiseLoading onclick={createPasskey}>
-				<LucidePlus />
-				{m.add_passkey()}
-			</Button>
-		{/if}
+		<Button variant="secondary" size="sm" usePromiseLoading onclick={createPasskey}>
+			<LucidePlus />
+			{m.add_passkey()}
+		</Button>
 	{/snippet}
 
-	<div class="flex flex-col gap-3 pt-2">
-		{#if passkeys.length > 0}
-			<!-- Collections inside a section are open rows with hairlines, so the shared row loses its own inset -->
-			<div
-				role="list"
-				aria-label={m.passkeys()}
-				class="*:*:min-h-[68px] *:*:px-0 *:shadow-[inset_0_-1px_0_var(--border)] *:last:shadow-none"
-			>
-				{#each passkeys as passkey (passkey.id)}
-					<div role="listitem">
-						<PasskeyRow
-							{passkey}
-							onRename={() => (passkeyToRename = passkey)}
-							onDelete={() => deletePasskey(passkey)}
-						/>
-					</div>
-				{/each}
-			</div>
-		{:else}
-			<div class="flex min-h-11 flex-wrap items-center justify-between gap-2">
-				<p class="text-control text-fg-muted">{m.no_passkeys_yet()}</p>
-				<Button variant="ghost" size="sm" usePromiseLoading onclick={createPasskey}>
-					<LucidePlus />
-					{m.add_passkey()}
-				</Button>
-			</div>
-		{/if}
-	</div>
+	{#if passkeys.length > 0}
+		<!-- Collections inside a section are open rows with hairlines, so the shared row loses its own inset -->
+		<div
+			role="list"
+			aria-label={m.passkeys()}
+			class="pt-2 *:*:min-h-[68px] *:*:px-0 *:shadow-[inset_0_-1px_0_var(--border)] *:last:shadow-none"
+		>
+			{#each passkeys as passkey (passkey.id)}
+				<div role="listitem">
+					<PasskeyRow
+						{passkey}
+						onRename={() => (passkeyToRename = passkey)}
+						onDelete={() => deletePasskey(passkey)}
+					/>
+				</div>
+			{/each}
+		</div>
+	{/if}
 </SettingsSection>
 
 <RenamePasskeyModal bind:passkey={passkeyToRename} callback={refresh} />

@@ -4,7 +4,6 @@
 	import AdvancedTable from '#lib/components/table/advanced-table.svelte';
 	import { Badge } from '#lib/components/ui/badge/index.ts';
 	import { Button } from '#lib/components/ui/button/index.ts';
-	import * as Empty from '#lib/components/ui/empty/index.ts';
 	import * as InputGroup from '#lib/components/ui/input-group/index.ts';
 	import * as Tabs from '#lib/components/ui/tabs/index.ts';
 	import { m } from '#lib/paraglide/messages.js';
@@ -31,7 +30,6 @@
 		LucideTrash2,
 		LucideUserCheck,
 		LucideUserX,
-		LucideUsers,
 		LucideUsersRound
 	} from '@lucide/svelte';
 	import { SvelteMap } from 'svelte/reactivity';
@@ -62,7 +60,6 @@
 	let createOpen = $state(false);
 	openOnCreateParam(() => (createOpen = true));
 	let tokensOpen = $state(false);
-	let tokensStartWithCreate = $state(false);
 	let groupPickerOpen = $state(false);
 	let loginCodeUser = $state<User | null>(null);
 
@@ -74,7 +71,6 @@
 	const verificationOn = $derived($appConfigStore.emailVerification !== 'disabled');
 	const ldapManaged = (user: User) => !!user.ldapId && $appConfigStore.ldapEnabled;
 	const isMe = (user: User) => user.id === $userStore?.id;
-	const onlyYou = $derived(counts.all === 1);
 
 	const scopes = $derived(
 		(
@@ -183,11 +179,6 @@
 		toast.success(m.group_memberships_updated());
 		await afterBulk();
 	}
-
-	function openTokens(create: boolean) {
-		tokensStartWithCreate = create;
-		tokensOpen = true;
-	}
 </script>
 
 <svelte:head>
@@ -253,166 +244,139 @@
 		description={m.users_page_description({ appName: $appConfigStore.appName })}
 	>
 		{#snippet actions()}
-			{#if !onlyYou}
-				{#if signupsOn}
-					<Button variant="secondary" onclick={() => openTokens(false)}>
-						{m.signup_tokens()}
-					</Button>
-				{/if}
-				<Button onclick={() => (createOpen = true)}>
-					<LucidePlus />
-					{m.add_user()}
+			{#if signupsOn}
+				<Button variant="secondary" onclick={() => (tokensOpen = true)}>
+					{m.signup_tokens()}
 				</Button>
 			{/if}
+			<Button onclick={() => (createOpen = true)}>
+				<LucidePlus />
+				{m.add_user()}
+			</Button>
 		{/snippet}
 	</PageHeader>
 
-	{#if !onlyYou}
-		<!-- On phones the selection bar sticks below the 52px top bar, above the table's sticky action cells -->
-		<div
-			class={cn(
-				'mt-10 flex min-h-(--h-md) flex-wrap items-center gap-x-3 gap-y-2',
-				selectedIds.length > 0 &&
-					'max-sm:bg-surface max-sm:sticky max-sm:top-[52px] max-sm:z-(--z-nav) max-sm:py-2'
-			)}
-		>
-			{#if selectedIds.length > 0}
-				<span class="text-control text-fg font-medium tabular-nums" aria-live="polite">
-					{m.count_selected({ count: selectedIds.length })}
-				</span>
-				<Button variant="ghost" size="sm" class="text-fg-muted" onclick={() => (selectedIds = [])}>
-					{m.clear_selection()}
-				</Button>
-				<Button variant="secondary" size="sm" onclick={() => (groupPickerOpen = true)}>
-					<LucideUsersRound />
-					{m.add_to_groups_ellipsis()}
-				</Button>
-				{#if bulkEditable.some((u) => !u.disabled)}
-					<Button
-						variant="secondary"
-						size="sm"
-						onclick={() =>
-							confirmDisableUsers(
-								bulkEditable.filter((u) => !u.disabled),
-								afterBulk
-							)}
-					>
-						<LucideUserX />
-						{m.disable_ellipsis()}
-					</Button>
-				{/if}
-				{#if bulkEditable.some((u) => u.disabled)}
-					<Button
-						variant="secondary"
-						size="sm"
-						onclick={() =>
-							enableUsers(
-								bulkEditable.filter((u) => u.disabled),
-								afterBulk
-							)}
-					>
-						<LucideUserCheck />
-						{m.enable()}
-					</Button>
-				{/if}
-				{#if bulkDeletable.length > 0}
-					<Button
-						variant="secondary"
-						size="sm"
-						onclick={() => confirmDeleteUsers(bulkDeletable, afterBulk)}
-					>
-						<LucideTrash2 />
-						{m.delete_ellipsis()}
-					</Button>
-				{/if}
-			{:else}
-				<InputGroup.Root class="w-full sm:w-75">
-					<InputGroup.Input
-						bind:ref={searchInput}
-						bind:value={search}
-						placeholder={m.search_users()}
-						aria-label={m.search_users()}
-						type="search"
-						oninput={() => onSearch()}
-					/>
-					<InputGroup.Addon><LucideSearch /></InputGroup.Addon>
-				</InputGroup.Root>
-				<!-- The padding keeps focus rings visible inside the horizontal phone scroller -->
-				<div
-					class="scroll-fade-x -m-1 max-w-full scroll-px-1 [scrollbar-width:none] overflow-x-auto p-1"
-					onfocusin={revealFocused}
+	<!-- On phones the selection bar sticks below the 52px top bar, above the table's sticky action cells -->
+	<div
+		class={cn(
+			'mt-10 flex min-h-(--h-md) flex-wrap items-center gap-x-3 gap-y-2',
+			selectedIds.length > 0 &&
+				'max-sm:bg-surface max-sm:sticky max-sm:top-[52px] max-sm:z-(--z-nav) max-sm:py-2'
+		)}
+	>
+		{#if selectedIds.length > 0}
+			<span class="text-control text-fg font-medium tabular-nums" aria-live="polite">
+				{m.count_selected({ count: selectedIds.length })}
+			</span>
+			<Button variant="ghost" size="sm" class="text-fg-muted" onclick={() => (selectedIds = [])}>
+				{m.clear_selection()}
+			</Button>
+			<Button variant="secondary" size="sm" onclick={() => (groupPickerOpen = true)}>
+				<LucideUsersRound />
+				{m.add_to_groups_ellipsis()}
+			</Button>
+			{#if bulkEditable.some((u) => !u.disabled)}
+				<Button
+					variant="secondary"
+					size="sm"
+					onclick={() =>
+						confirmDisableUsers(
+							bulkEditable.filter((u) => !u.disabled),
+							afterBulk
+						)}
 				>
-					<Tabs.Root
-						bind:value={scope}
-						onValueChange={() => {
-							selectedIds = [];
-							tableRef?.refresh();
-						}}
-					>
-						<Tabs.List aria-label={m.user_scopes()}>
-							{#each scopes as [value, label] (value)}
-								<Tabs.Trigger {value}>
-									{label}
-									<span class="text-fg-muted tabular-nums">{counts[value]}</span>
-								</Tabs.Trigger>
-							{/each}
-						</Tabs.List>
-					</Tabs.Root>
-				</div>
+					<LucideUserX />
+					{m.disable_ellipsis()}
+				</Button>
 			{/if}
-		</div>
-
-		<p class="text-caption text-fg-muted mt-4 mb-3 min-h-[18px] tabular-nums" aria-live="polite">
-			{countLine}
-		</p>
-	{/if}
-
-	<div class={cn(onlyYou && 'mt-10')}>
-		<AdvancedTable
-			id="user-list"
-			bind:this={tableRef}
-			bind:selectedIds={
-				() => (onlyYou ? undefined : selectedIds), (ids) => (selectedIds = ids ?? [])
-			}
-			withoutSearch
-			query={search}
-			filtered={scope !== 'all'}
-			onClearQuery={() => {
-				search = '';
-				scope = 'all';
-				searchInput?.focus();
-				tableRef?.refresh();
-			}}
-			fetchCallback={fetchUsers}
-			defaultSort={{ column: 'displayName', direction: 'asc' }}
-			onRowClick={(user) => goto(`/settings/admin/users/${user.id}`)}
-			{columns}
-			{actions}
-		/>
+			{#if bulkEditable.some((u) => u.disabled)}
+				<Button
+					variant="secondary"
+					size="sm"
+					onclick={() =>
+						enableUsers(
+							bulkEditable.filter((u) => u.disabled),
+							afterBulk
+						)}
+				>
+					<LucideUserCheck />
+					{m.enable()}
+				</Button>
+			{/if}
+			{#if bulkDeletable.length > 0}
+				<Button
+					variant="secondary"
+					size="sm"
+					onclick={() => confirmDeleteUsers(bulkDeletable, afterBulk)}
+				>
+					<LucideTrash2 />
+					{m.delete_ellipsis()}
+				</Button>
+			{/if}
+		{:else}
+			<InputGroup.Root class="w-full sm:w-75">
+				<InputGroup.Input
+					bind:ref={searchInput}
+					bind:value={search}
+					placeholder={m.search_users()}
+					aria-label={m.search_users()}
+					type="search"
+					oninput={() => onSearch()}
+				/>
+				<InputGroup.Addon><LucideSearch /></InputGroup.Addon>
+			</InputGroup.Root>
+			<!-- The padding keeps focus rings visible inside the horizontal phone scroller -->
+			<div
+				class="scroll-fade-x -m-1 max-w-full scroll-px-1 [scrollbar-width:none] overflow-x-auto p-1"
+				onfocusin={revealFocused}
+			>
+				<Tabs.Root
+					bind:value={scope}
+					onValueChange={() => {
+						selectedIds = [];
+						tableRef?.refresh();
+					}}
+				>
+					<Tabs.List aria-label={m.user_scopes()}>
+						{#each scopes as [value, label] (value)}
+							<Tabs.Trigger {value}>
+								{label}
+								<span class="text-fg-muted tabular-nums">{counts[value]}</span>
+							</Tabs.Trigger>
+						{/each}
+					</Tabs.List>
+				</Tabs.Root>
+			</div>
+		{/if}
 	</div>
 
-	{#if onlyYou}
-		<Empty.Root>
-			<Empty.Media variant="icon"><LucideUsers /></Empty.Media>
-			<Empty.Title>{m.only_you_so_far()}</Empty.Title>
-			<Empty.Description>
-				{m.only_you_so_far_description({ appName: $appConfigStore.appName })}
-			</Empty.Description>
-			<Empty.Content class="flex-row items-center gap-4">
-				<Button onclick={() => (createOpen = true)}>
-					<LucidePlus />
-					{m.add_user()}
-				</Button>
-				{#if signupsOn}
-					<Button variant="link" onclick={() => openTokens(true)}>{m.create_signup_token()}</Button>
-				{/if}
-			</Empty.Content>
-		</Empty.Root>
-	{/if}
+	<p class="text-caption text-fg-muted mt-4 mb-3 min-h-[18px] tabular-nums" aria-live="polite">
+		{countLine}
+	</p>
+
+	<AdvancedTable
+		id="user-list"
+		bind:this={tableRef}
+		bind:selectedIds
+		withoutSearch
+		query={search}
+		filtered={scope !== 'all'}
+		onClearQuery={() => {
+			search = '';
+			scope = 'all';
+			searchInput?.focus();
+			tableRef?.refresh();
+		}}
+		fetchCallback={fetchUsers}
+		defaultSort={{ column: 'displayName', direction: 'asc' }}
+		onRowClick={(user) => goto(`/settings/admin/users/${user.id}`)}
+		{columns}
+		{actions}
+	/>
 </div>
 
 <UserCreateSheet bind:open={createOpen} emailsVerifiedPerDefault={data.emailsVerifiedPerDefault} />
-<SignupTokensSheet bind:open={tokensOpen} startWithCreate={tokensStartWithCreate} />
+<SignupTokensSheet bind:open={tokensOpen} />
 <LoginCodeDialog bind:user={loginCodeUser} />
 <PickerDialog
 	bind:open={groupPickerOpen}
