@@ -150,7 +150,12 @@ func (cimdPolicy) ValidateCIMDClient(_ context.Context, doc *fosite.ClientMetada
 
 // validateCIMDAuthMethod requires a mutually supported public-client method without changing the published metadata
 func validateCIMDAuthMethod(doc *fosite.ClientMetadataDocument) error {
-	// The plural extension advertises capabilities while the singular member is only a legacy preference
+	// The registered client metadata member is authoritative when it already selects public-client authentication
+	if doc.TokenEndpointAuthMethod == "none" {
+		return nil
+	}
+
+	// Otherwise the plural extension may still advertise public-client authentication as an alternative
 	if raw, present := doc.AdditionalMetadata["token_endpoint_auth_methods_supported"]; present {
 		var methods []string
 		if err := json.Unmarshal(raw, &methods); err != nil || len(methods) == 0 {
@@ -167,11 +172,7 @@ func validateCIMDAuthMethod(doc *fosite.ClientMetadataDocument) error {
 		return errors.New("client metadata documents must support token endpoint authentication method \"none\"")
 	}
 
-	// Legacy documents without the extension retain their explicit authentication requirement
-	if doc.TokenEndpointAuthMethod != "none" {
-		return fmt.Errorf("client metadata documents only support token_endpoint_auth_method %q, got %q", "none", doc.TokenEndpointAuthMethod)
-	}
-	return nil
+	return fmt.Errorf("client metadata documents only support token_endpoint_auth_method %q, got %q", "none", doc.TokenEndpointAuthMethod)
 }
 
 var errInitiatingGrantRequired = errors.New("client metadata document must enable authorization_code or device_code")

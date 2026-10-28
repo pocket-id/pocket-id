@@ -801,12 +801,13 @@ func TestCIMDAuthMethodNegotiation(t *testing.T) {
 		{"explicit public alternative", "private_key_jwt", `["none","private_key_jwt"]`, true},
 		{"alternative order is irrelevant", "private_key_jwt", `["private_key_jwt","none"]`, true},
 		{"no mutual method", "private_key_jwt", `["private_key_jwt"]`, false},
-		{"plural list excludes legacy public", "none", `["private_key_jwt"]`, false},
-		{"empty supported methods", "none", `[]`, false},
-		{"null supported methods", "none", `null`, false},
-		{"supported methods must be array", "none", `"none"`, false},
-		{"supported methods must be strings", "none", `["none",1]`, false},
-		{"empty method is invalid", "none", `["none",""]`, false},
+		{"singular public ignores plural list", "none", `["private_key_jwt"]`, true},
+		{"singular public ignores malformed plural list", "none", `"private_key_jwt"`, true},
+		{"empty supported methods", "private_key_jwt", `[]`, false},
+		{"null supported methods", "private_key_jwt", `null`, false},
+		{"supported methods must be array", "private_key_jwt", `"none"`, false},
+		{"supported methods must be strings", "private_key_jwt", `["none",1]`, false},
+		{"empty method is invalid", "private_key_jwt", `["none",""]`, false},
 	} {
 		t.Run(scenario.name, func(t *testing.T) {
 			doc := &fosite.ClientMetadataDocument{ClientID: "https://client.example.com/metadata", TokenEndpointAuthMethod: scenario.primary}
