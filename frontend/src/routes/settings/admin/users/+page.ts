@@ -7,6 +7,7 @@ export const load: PageLoad = async () => {
 	const appConfigData = await appConfigService.list(true);
 
 	return {
-		emailsVerifiedPerDefault: appConfigData.emailsVerified
+		emailsVerifiedPerDefault: appConfigData.emailsVerified,
+		signupDefaultUserGroupIds: appConfigData.signupDefaultUserGroupIDs ?? []
 	};
 };

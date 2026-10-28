@@ -1,5 +1,6 @@
 import test, { expect } from '@playwright/test';
 import { userGroups, users } from '../data';
+import { setAppConfigValues } from '../utils/app-config.util';
 import authUtil from '../utils/auth.util';
 import { cleanupBackend } from '../utils/cleanup.util';
 import { saveUnsavedChanges } from '../utils/unsaved-changes.util';
@@ -352,4 +353,32 @@ test('Create user with initial groups and preserve them on profile edit', async 
 	await expect(
 		page.getByRole('row', { name: userGroups.designers.name }).getByRole('checkbox')
 	).toBeChecked();
+});
+
+test('Create user starts from the signup default groups', async ({ page }) => {
+	await setAppConfigValues(page.request, {
+		signupDefaultUserGroupIDs: JSON.stringify([userGroups.developers.id])
+	});
+	const user = users.steve;
+	await page.goto('/settings/admin/users');
+	await page.getByRole('button', { name: 'Add User' }).click();
+	const groupPicker = page.getByLabel('User Groups', { exact: true });
+	await expect(groupPicker).toContainText(userGroups.developers.name);
+	await page.getByLabel('First name').fill(user.firstname);
+	await page.getByLabel('Last name').fill(user.lastname);
+	await page.getByLabel('Email').fill(user.email);
+	await page.getByLabel('Username').fill(user.username);
+	await groupPicker.click();
+	await page.getByRole('option', { name: userGroups.designers.name, exact: true }).click();
+	await groupPicker.click();
+	const created = page.waitForResponse(
+		(r) => r.url().endsWith('/api/users') && r.request().method() === 'POST'
+	);
+	await page.getByRole('button', { name: 'Save', exact: true }).click();
+	const saved = await (await created).json();
+	expect(saved.userGroups.map((g: { id: string }) => g.id).sort()).toEqual(
+		[userGroups.developers.id, userGroups.designers.id].sort()
+	);
+	await expect(groupPicker).toContainText(userGroups.developers.name);
+	await expect(groupPicker).not.toContainText(userGroups.designers.name);
 });

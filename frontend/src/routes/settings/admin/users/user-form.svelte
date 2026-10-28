@@ -21,10 +21,12 @@
 	let {
 		callback,
 		existingUser,
-		emailsVerifiedPerDefault = false
+		emailsVerifiedPerDefault = false,
+		defaultUserGroupIds = []
 	}: {
 		existingUser?: User;
 		emailsVerifiedPerDefault?: boolean;
+		defaultUserGroupIds?: string[];
 		callback: (user: UserCreate) => Promise<void>;
 	} = $props();
 
@@ -41,7 +43,8 @@
 		username: existingUser?.username || '',
 		isAdmin: existingUser?.isAdmin || false,
 		disabled: existingUser?.disabled || false,
-		userGroupIds: [] as string[]
+		// Start from the signup default groups so that they stay visible and editable
+		userGroupIds: existingUser ? [] : [...defaultUserGroupIds]
 	};
 
 	const formSchema = z.object({
