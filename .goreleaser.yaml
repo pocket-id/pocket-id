@@ -78,7 +78,7 @@ builds:
     ldflags:
       - -w -s
       - -buildid={{ .Version }}
-      - -X github.com/pocket-id/pocket-id/backend/internal/common.Version={{ .Version }}
+      - -X github.com/pocket-id/pocket-id/backend/internal/common.Version={{ .Env.NEXT_VERSION }}
     flags:
       - -trimpath
       - -p=2
@@ -193,7 +193,7 @@ dockers_v2:
       "org.opencontainers.image.url": "https://github.com/pocket-id/pocket-id"
       "org.opencontainers.image.documentation": "https://github.com/pocket-id/pocket-id/blob/main/README.md"
       "org.opencontainers.image.source": "https://github.com/pocket-id/pocket-id"
-      "org.opencontainers.image.version": "{{ .Version }}"
+      "org.opencontainers.image.version": "{{ .Env.NEXT_VERSION }}"
       "org.opencontainers.image.revision": "{{ .FullCommit }}"
       "org.opencontainers.image.licenses": "BSD-2-Clause"
       "org.opencontainers.image.ref.name": "pocket-id"
@@ -221,7 +221,7 @@ dockers_v2:
       "org.opencontainers.image.url": "https://github.com/pocket-id/pocket-id"
       "org.opencontainers.image.documentation": "https://github.com/pocket-id/pocket-id/blob/main/README.md"
       "org.opencontainers.image.source": "https://github.com/pocket-id/pocket-id"
-      "org.opencontainers.image.version": "{{ .Version }}"
+      "org.opencontainers.image.version": "{{ .Env.NEXT_VERSION }}"
       "org.opencontainers.image.revision": "{{ .FullCommit }}"
       "org.opencontainers.image.licenses": "BSD-2-Clause"
       "org.opencontainers.image.ref.name": "pocket-id"

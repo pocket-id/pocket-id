@@ -59,6 +59,16 @@ jobs:
           username: ${{ secrets.DOCKERHUB_USERNAME }}
           password: ${{ secrets.DOCKERHUB_TOKEN }}
 
+      - name: Determine next tag and version
+        run: |
+          if [ "$GITHUB_REF_NAME" = main ]; then
+            echo "BUILD_NEXT=next" >> "$GITHUB_ENV"
+            echo "NEXT_VERSION=v$(cat .version)-next" >> "$GITHUB_ENV"
+          else
+            echo "BUILD_NEXT=next-$GITHUB_REF_NAME" >> "$GITHUB_ENV"
+            echo "NEXT_VERSION=$GITHUB_REF_NAME-next" >> "$GITHUB_ENV"
+          fi
+
       - name: Run GoReleaser
         uses: goreleaser/goreleaser-action@a4f02ab5355a589de60d917a659ce617ed19b3de # v7.3.0
         with:
@@ -67,7 +77,6 @@ jobs:
           args: release --clean --skip=announce,validate --parallelism=4
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          BUILD_NEXT: ${{ github.ref_name == 'main' && 'next' || format('next-{0}', github.ref_name) }}
           SKIP_RELEASE: "true"
           SKIP_CHANGELOG: "true"
           GORELEASER_KEY: ${{ secrets.GORELEASER_KEY }}
