@@ -51,6 +51,7 @@ type AppConfigModel struct {
 	EmailLoginNotificationMode                 AppConfigValue `json:"emailLoginNotificationMode" env:"EMAIL_LOGIN_NOTIFICATION_MODE"`
 	EmailOneTimeAccessAsUnauthenticatedEnabled AppConfigValue `json:"emailOneTimeAccessAsUnauthenticatedEnabled" env:"EMAIL_ONE_TIME_ACCESS_AS_UNAUTHENTICATED_ENABLED" type:"bool" public:"true"`
 	EmailOneTimeAccessAsAdminEnabled           AppConfigValue `json:"emailOneTimeAccessAsAdminEnabled" env:"EMAIL_ONE_TIME_ACCESS_AS_ADMIN_ENABLED" type:"bool" public:"true"`
+	EmailOneTimeAccessRequireConfirmation      AppConfigValue `json:"emailOneTimeAccessRequireConfirmation" env:"EMAIL_ONE_TIME_ACCESS_REQUIRE_CONFIRMATION" type:"bool" public:"true"`
 	EmailApiKeyExpirationEnabled               AppConfigValue `json:"emailApiKeyExpirationEnabled" env:"EMAIL_API_KEY_EXPIRATION_ENABLED" type:"bool"`
 	EmailVerification                          AppConfigValue `json:"emailVerification" env:"EMAIL_VERIFICATION" public:"true"`
 	// LDAP
@@ -157,6 +158,7 @@ func getDefaultConfig() *AppConfigModel {
 		EmailLoginNotificationMode: LoginNotificationDisabled,
 		EmailOneTimeAccessAsUnauthenticatedEnabled: "false",
 		EmailOneTimeAccessAsAdminEnabled:           "false",
+		EmailOneTimeAccessRequireConfirmation:      "false",
 		EmailApiKeyExpirationEnabled:               "false",
 		EmailVerification:                          EmailVerificationDisabled,
 		// LDAP

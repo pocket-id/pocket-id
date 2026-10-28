@@ -57,6 +57,7 @@ type AppConfigUpdateDto struct {
 	WebauthnAuthenticatorAttachment            string `json:"webauthnAuthenticatorAttachment" binding:"required,oneof=any platform cross-platform"`
 	EmailOneTimeAccessAsAdminEnabled           string `json:"emailOneTimeAccessAsAdminEnabled" binding:"required,boolean_string"`
 	EmailOneTimeAccessAsUnauthenticatedEnabled string `json:"emailOneTimeAccessAsUnauthenticatedEnabled" binding:"required,boolean_string"`
+	EmailOneTimeAccessRequireConfirmation      string `json:"emailOneTimeAccessRequireConfirmation" binding:"omitempty,boolean_string"`
 	EmailLoginNotificationMode                 string `json:"emailLoginNotificationMode" binding:"required,oneof=disabled always ipAndUserAgent browserRecognition"`
 	EmailApiKeyExpirationEnabled               string `json:"emailApiKeyExpirationEnabled" binding:"required,boolean_string"`
 	EmailVerification                          string `json:"emailVerification" binding:"required,oneof=disabled optional required,email_verification"`

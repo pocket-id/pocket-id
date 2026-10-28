@@ -40,6 +40,26 @@ test('Sign in with login code without a passkey shows passkey setup', async ({ p
 	await expect(page.getByRole('heading', { name: 'Set up your passkey' })).toBeVisible();
 });
 
+test('Login code from a link waits for confirmation when required', async ({
+	page,
+	context,
+	browser
+}) => {
+	await updateAppConfig(browser, { emailOneTimeAccessRequireConfirmation: 'true' });
+	const token = oneTimeAccessTokens.find((t) => !t.expired)!;
+
+	// Simulate a mail scanner opening the link in a headless browser without interacting
+	const scannerPage = await context.newPage();
+	await scannerPage.goto(`/lc/${token.token}`);
+	await expect(scannerPage.getByRole('button', { name: 'Sign in' })).toBeVisible();
+	await scannerPage.close();
+
+	// The code must still be usable afterwards
+	await page.goto(`/lc/${token.token}`);
+	await page.getByRole('button', { name: 'Sign in' }).click();
+	await page.waitForURL('/settings/account');
+});
+
 test('Sign in with expired login code fails', async ({ page }) => {
 	const token = oneTimeAccessTokens.filter((t) => t.expired)[0];
 	await page.goto(`/lc/${token.token}`);
@@ -75,7 +95,7 @@ test('Sign in with login code entered manually when email login is enabled', asy
 	browser,
 	page
 }) => {
-	await setEmailLoginEnabled(browser);
+	await updateAppConfig(browser, { emailOneTimeAccessAsUnauthenticatedEnabled: 'true' });
 
 	const token = oneTimeAccessTokens.find((t) => !t.expired)!;
 	await page.goto('/lc');
@@ -87,7 +107,7 @@ test('Sign in with login code entered manually when email login is enabled', asy
 	await page.waitForURL('/settings/account');
 });
 
-async function setEmailLoginEnabled(browser: Browser) {
+async function updateAppConfig(browser: Browser, values: Record<string, string>) {
 	const context = await browser.newContext({
 		baseURL: test.info().project.use.baseURL,
 		storageState: pathFromRoot('.tmp/auth/user.json')
@@ -103,7 +123,7 @@ async function setEmailLoginEnabled(browser: Browser) {
 				({ key, value }) => [key, value]
 			)
 		);
-		config.emailOneTimeAccessAsUnauthenticatedEnabled = 'true';
+		Object.assign(config, values);
 
 		const updateResponse = await page.request.put('/api/application-configuration', {
 			data: config
