@@ -179,8 +179,7 @@
 		return availableActions.length > 0 ? () => availableActions[0].onClick(item) : null;
 	}
 
-	export async function refresh(resetPage = false) {
-		if (resetPage) await changePageState(1);
+	export async function refresh() {
 		items = await fetchCallback(requestOptions);
 		await changePageState(items.pagination.currentPage);
 		updateListLength(items.pagination.totalItems);

@@ -2,7 +2,6 @@
 	import { goto } from '$app/navigation';
 	import { openConfirmDialog } from '#lib/components/confirm-dialog/index.ts';
 	import OneTimeLinkModal from '#lib/components/one-time-link-modal.svelte';
-	import UserGroupInput from '#lib/components/form/user-group-input.svelte';
 	import AdvancedTable from '#lib/components/table/advanced-table.svelte';
 	import * as Avatar from '#lib/components/ui/avatar/index.ts';
 	import { Badge } from '#lib/components/ui/badge/index.ts';
@@ -15,7 +14,6 @@
 		CreateAdvancedTableActions
 	} from '#lib/types/advanced-table.type.ts';
 	import type { User } from '#lib/types/user.type.ts';
-	import type { ListRequestOptions } from '#lib/types/list-request.type.ts';
 	import { cachedProfilePicture } from '#lib/utils/cached-image-util.ts';
 	import { axiosErrorToast } from '#lib/utils/error-util.ts';
 	import { LucidePencil, LucideUserCheck, LucideUserX } from '@lucide/svelte';
@@ -24,16 +22,8 @@
 
 	let userIdToCreateOneTimeLink: string | null = $state(null);
 	let tableRef: AdvancedTable<User>;
-	let selectedGroupIds = $state<string[]>([]);
 
 	const userService = new UserService();
-
-	async function loadUsers(options: ListRequestOptions) {
-		return userService.list({
-			...options,
-			filters: { ...options.filters, userGroups: selectedGroupIds }
-		});
-	}
 
 	export function refresh() {
 		return tableRef?.refresh();
@@ -113,12 +103,6 @@
 				}
 			]
 		},
-		{
-			label: m.user_groups(),
-			key: 'userGroups',
-			hidden: true,
-			value: (item) => item.userGroups.map((group) => group.friendlyName || group.name).join(', ')
-		},
 		{ label: m.ldap_id(), column: 'ldapId', hidden: true },
 		{ label: m.locale(), column: 'locale', hidden: true },
 		{ label: m.source(), key: 'source', hidden: !$appConfigStore.ldapEnabled, cell: SourceCell }
@@ -161,15 +145,12 @@
 	</Badge>
 {/snippet}
 
-<div class="mb-4 max-w-md space-y-2">
-	<label for="user-group-filter" class="text-sm font-medium">{m.filter_by_user_groups()}</label>
-	<UserGroupInput
-		id="user-group-filter"
-		bind:selectedGroupIds
-		onChange={() => tableRef?.refresh(true).catch(axiosErrorToast)}
-	/>
-</div>
-
-<AdvancedTable id="user-list" bind:this={tableRef} fetchCallback={loadUsers} {actions} {columns} />
+<AdvancedTable
+	id="user-list"
+	bind:this={tableRef}
+	fetchCallback={userService.list}
+	{actions}
+	{columns}
+/>
 
 <OneTimeLinkModal bind:userId={userIdToCreateOneTimeLink} />

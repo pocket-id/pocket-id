@@ -42,10 +42,10 @@ test.describe('Signup Token Creation', () => {
 
 		await page.getByLabel('Usage Limit').fill('8');
 
-		await page.getByLabel('User Groups', { exact: true }).click();
+		await page.getByLabel('User Groups').click();
 		await page.getByRole('option', { name: userGroups.developers.name }).click();
 		await page.getByRole('option', { name: userGroups.designers.name }).click();
-		await page.getByLabel('User Groups', { exact: true }).click();
+		await page.getByLabel('User Groups').click();
 
 		await page.getByRole('button', { name: 'Create', exact: true }).click();
 		await page.getByRole('button', { name: 'Close' }).click();

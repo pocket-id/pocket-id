@@ -5,13 +5,9 @@
 	import { onMount } from 'svelte';
 
 	let {
-		id = 'default-groups',
-		selectedGroupIds = $bindable(),
-		onChange
+		selectedGroupIds = $bindable()
 	}: {
-		id?: string;
 		selectedGroupIds: string[];
-		onChange?: () => void;
 	} = $props();
 
 	const userGroupService = new UserGroupService();
@@ -44,14 +40,11 @@
 </script>
 
 <SearchableMultiSelect
-	{id}
+	id="default-groups"
 	items={userGroups}
 	oninput={(e) => onUserGroupSearch(e.currentTarget.value)}
 	selectedItems={selectedGroupIds}
-	onSelect={(selected) => {
-		selectedGroupIds = selected;
-		onChange?.();
-	}}
+	onSelect={(selected) => (selectedGroupIds = selected)}
 	{isLoading}
 	disableInternalSearch
 />

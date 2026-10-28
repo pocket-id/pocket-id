@@ -94,7 +94,6 @@
 	"audit_log": "Audit Log",
 	"users": "Users",
 	"user_groups": "User Groups",
-	"filter_by_user_groups": "Filter by user groups",
 	"oidc_clients": "OIDC Clients",
 	"api_keys": "API Keys",
 	"application_configuration": "Application Configuration",
