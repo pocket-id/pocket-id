@@ -1,7 +1,8 @@
 import { afterNavigate, goto } from '$app/navigation';
 import unsavedChanges from '#lib/stores/unsaved-changes-store.svelte.ts';
 
-export const backNavigate = (defaultRoute: string) => {
+// Leaves a deleted entity's page for its list, going back in history when the list was the previous page so its scroll and filters stay
+export const backNavigate = (listRoute: string) => {
 	let previousUrl: URL | undefined;
 	afterNavigate((e) => {
 		if (e.from && !e.shallow) {
@@ -9,20 +10,15 @@ export const backNavigate = (defaultRoute: string) => {
 		}
 	});
 
-	const go = () => {
-		if (previousUrl && previousUrl.pathname === defaultRoute) {
-			window.history.back();
-		} else {
-			goto(defaultRoute);
-		}
-	};
-
 	return {
-		go,
-		// Used once the entity is deleted, so pending edits are dropped instead of blocking the navigation
+		// Pending edits are dropped, so they don't block leaving a page whose entity is gone
 		leave: () => {
 			unsavedChanges.discardAll();
-			go();
+			if (previousUrl?.pathname === listRoute) {
+				window.history.back();
+			} else {
+				goto(listRoute);
+			}
 		}
 	};
 };

@@ -92,11 +92,13 @@ test.describe('Required email verification', () => {
 		// Sign out so the sign-in happens on the interaction page, with the passkey the setup already registered for Craig
 		await page.context().clearCookies();
 		await page.goto(`/authorize?${nextcloudAuthorizeParams().toString()}`);
-		await page.getByRole('button', { name: 'Sign in' }).click();
+		await page.getByRole('button', { name: 'Sign in with passkey' }).click();
 
 		// Completing the sign-in step already requires a verified email, so the consent screen is never shown
 		await expect(
-			page.getByText('You must verify your email address before you can sign in to applications.')
+			page.getByText('You must verify your email address before you can sign in to applications', {
+				exact: true
+			})
 		).toBeVisible();
 		await expect(page.getByTestId('scopes')).toHaveCount(0);
 
@@ -111,7 +113,7 @@ test.describe('Required email verification', () => {
 
 		await page.goto('/settings/apps');
 		await expect(page).toHaveURL('/settings/apps');
-		await expect(page.getByRole('link', { name: 'My Apps' })).toBeVisible();
+		await expect(page.getByRole('link', { name: 'My apps', exact: true })).toBeVisible();
 	});
 });
 
@@ -130,7 +132,7 @@ test.describe('Email change with required verification', () => {
 		await saveUnsavedChanges(page);
 
 		// The verified email stays in effect and the account keeps full access until the change is confirmed
-		await expect(page.getByText('Confirm your new email address')).toBeVisible();
+		await expect(page.getByText(`Waiting for you to confirm ${newEmail}`)).toBeVisible();
 		await expect(page.getByLabel('Email')).toHaveValue(users.craig.email);
 		await page.goto('/settings/apps');
 		await expect(page).toHaveURL('/settings/apps');
@@ -139,7 +141,7 @@ test.describe('Email change with required verification', () => {
 		await page.waitForURL('/settings/account?emailVerificationState=success');
 
 		await expect(page.getByLabel('Email')).toHaveValue(newEmail);
-		await expect(page.getByText('Confirm your new email address')).toHaveCount(0);
+		await expect(page.getByText(`Waiting for you to confirm ${newEmail}`)).toHaveCount(0);
 	});
 
 	test('A canceled email change can no longer be confirmed', async ({ page, smtp }) => {
@@ -150,7 +152,7 @@ test.describe('Email change with required verification', () => {
 
 		await page.getByRole('button', { name: 'Cancel change' }).click();
 		await expect(page.getByText('Email change canceled.')).toBeVisible();
-		await expect(page.getByText('Confirm your new email address')).toHaveCount(0);
+		await expect(page.getByText(`Waiting for you to confirm ${newEmail}`)).toHaveCount(0);
 
 		await page.goto(verificationLinkPath(smtp, newEmail));
 		await page.waitForURL(
@@ -172,12 +174,12 @@ test('Signing up sends a verification link that unlocks the account', async ({ p
 	await page.getByLabel('Last name').fill('Signup');
 	await page.getByLabel('Username').fill('verifiedsignup');
 	await page.getByLabel('Email').fill(email);
-	await page.getByRole('button', { name: 'Sign Up' }).click();
+	await page.getByRole('button', { name: 'Create account' }).click();
 
 	await page.waitForURL('/signup/add-passkey');
 	await page.getByRole('button', { name: 'Skip for now' }).click();
 	await page
-		.getByRole('alertdialog', { name: 'Skip Passkey Setup' })
+		.getByRole('alertdialog', { name: 'Skip adding a passkey?' })
 		.getByRole('button', { name: 'Skip for now' })
 		.click();
 	await page.waitForURL('/settings/account');

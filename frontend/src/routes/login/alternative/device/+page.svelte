@@ -1,30 +1,33 @@
 <script lang="ts">
 	import { goto } from '$app/navigation';
 	import { page } from '$app/state';
-	import CopyToClipboard from '#lib/components/copy-to-clipboard.svelte';
+	import AuthHeading from '#lib/components/auth/auth-heading.svelte';
+	import AuthTile from '#lib/components/auth/auth-tile.svelte';
+	import {
+		authPrimaryClass,
+		authQuietClass,
+		successHold,
+		takingYouMessage
+	} from '#lib/components/auth/auth-util.ts';
 	import SignInWrapper from '#lib/components/login-wrapper.svelte';
-	import Qrcode from '#lib/components/qrcode/qrcode.svelte';
+	import QrPanel from '#lib/components/qrcode/qr-panel.svelte';
 	import { Button } from '#lib/components/ui/button/index.ts';
-	import * as Card from '#lib/components/ui/card/index.ts';
-	import { Separator } from '#lib/components/ui/separator/index.ts';
 	import { Spinner } from '#lib/components/ui/spinner/index.ts';
 	import { m } from '#lib/paraglide/messages.js';
 	import DeviceLoginService from '#lib/services/device-login-service.ts';
 	import userStore from '#lib/stores/user-store.ts';
 	import type { DeviceLoginRequest } from '#lib/types/device-login.type.ts';
-	import { getAxiosErrorMessage } from '#lib/utils/error-util.ts';
+	import { getAxiosErrorCode, getAxiosErrorMessage } from '#lib/utils/error-util.ts';
 	import { isAxiosError } from 'axios';
-	import { mode } from 'mode-watcher';
 	import { onMount } from 'svelte';
-	import LoginLogoErrorSuccessIndicator from '../../components/login-logo-error-success-indicator.svelte';
 
 	let { data } = $props();
 
 	const deviceLoginService = new DeviceLoginService();
 
 	let request: DeviceLoginRequest | undefined = $state();
-	let errorMessage: string | null = $state(null);
-	let isStarting = $state(true);
+	let ended: { kind: 'expired' | 'denied' | 'failed'; message?: string } | undefined = $state();
+	let success = $state(false);
 	let pollTimer: ReturnType<typeof setTimeout> | undefined;
 	let requestController: AbortController | undefined;
 
@@ -41,23 +44,18 @@
 		// Track this attempt so stale responses cannot update the current page
 		const controller = new AbortController();
 		requestController = controller;
-		request = undefined;
-		errorMessage = null;
-		isStarting = true;
 
 		try {
-			request = await deviceLoginService.createRequest(controller.signal);
+			const next = await deviceLoginService.createRequest(controller.signal);
 			// Ignore a response from an attempt replaced while the request was in flight
 			if (requestController !== controller) return;
+			// The old panel stays until the new code arrives, so the card does not collapse in between
+			request = next;
+			ended = undefined;
 			schedulePoll(controller);
 		} catch (error) {
 			if (controller.signal.aborted) return;
-			errorMessage = getAxiosErrorMessage(error);
-		} finally {
-			// Stop the initial loading state only if this attempt still owns the page
-			if (requestController === controller) {
-				isStarting = false;
-			}
+			ended = { kind: 'failed', message: getAxiosErrorMessage(error) };
 		}
 	}
 
@@ -85,6 +83,8 @@
 			await userStore.setUser(user);
 			// Navigate only after confirming that this attempt is still active
 			if (requestController !== controller) return;
+			success = true;
+			await successHold();
 			await goto(data.redirect);
 		} catch (error) {
 			if (controller.signal.aborted) return;
@@ -96,11 +96,10 @@
 			// Stop retrying when the server reports a non-transient failure
 			clearTimers();
 
-			if (isAxiosError(error) && error.response?.status === 401) {
-				errorMessage = m.device_login_request_expired();
-				return;
-			}
-			errorMessage = getAxiosErrorMessage(error);
+			const code = getAxiosErrorCode(error);
+			if (code === 'device_login_denied') ended = { kind: 'denied' };
+			else if (code === 'device_login_expired') ended = { kind: 'expired' };
+			else ended = { kind: 'failed', message: getAxiosErrorMessage(error) };
 		}
 	}
 
@@ -133,57 +132,55 @@
 	<title>{m.sign_in_with_another_device()}</title>
 </svelte:head>
 
-<SignInWrapper>
-	<div class="flex justify-center">
-		<LoginLogoErrorSuccessIndicator error={!!errorMessage} />
-	</div>
-	<h1 class="font-gloock mt-5 text-2xl font-bold sm:text-4xl">
-		{m.sign_in_with_another_device()}
-	</h1>
-	<p class="text-muted-foreground mt-2">
-		{errorMessage ? errorMessage : m.sign_in_with_another_device_description()}
-	</p>
-
-	{#if isStarting}
-		<div class="mt-10 flex items-center gap-2 text-sm">
-			<Spinner />
-			{m.creating_device_login_request()}
-		</div>
-	{:else if request && !errorMessage}
-		<Card.Root class="mt-8 w-full max-w-sm shrink-0">
-			<Card.Content class="flex flex-col items-center gap-5">
-				<Qrcode
-					value={request.verificationUriComplete}
-					color={mode.current === 'dark' ? '#FFFFFF' : '#000000'}
-					aria-label={m.device_login_qr_code()}
-					class="h-[12dvh]"
-				/>
-				<div class="flex w-full items-center gap-3">
-					<Separator class="flex-1" />
-					<span class="text-muted-foreground text-xs">{m.or()}</span>
-					<Separator class="flex-1" />
-				</div>
-				<div>
-					<p class="text-muted-foreground mb-2 text-sm">
-						{m.visit_and_enter({ url: request.verificationUri })}
-					</p>
-					<CopyToClipboard value={request.userCode}>
-						<p class="text-xl font-bold tracking-wider sm:text-2xl" data-testid="device-login-code">
-							{request.userCode.substring(0, 4)}
-							<span class="text-muted-foreground font-normal">-</span>
-							{request.userCode.substring(4, 8)}
-						</p>
-					</CopyToClipboard>
-				</div>
-			</Card.Content>
-		</Card.Root>
-	{/if}
-	<div class="mt-7 flex w-full max-w-112.5 gap-3 md:mt-15">
-		<Button class="flex-1" href={'/login/alternative' + page.url.search} variant="secondary"
-			>{m.go_back()}</Button
-		>
-		<Button class="flex-1" isLoading={!errorMessage} onclick={startRequest}>
-			{errorMessage ? m.try_again() : m.waiting_for_approval()}
-		</Button>
+<SignInWrapper back={'/login/alternative' + page.url.search}>
+	<AuthTile {success} />
+	<AuthHeading
+		title={success ? m.auth_signed_in() : m.sign_in_with_another_device()}
+		tone={ended ? (ended.kind === 'failed' ? 'danger' : 'info') : undefined}
+	>
+		{#if success}
+			{takingYouMessage(data.redirect)}
+		{:else if ended?.kind === 'expired'}
+			{m.auth_another_device_expired()}
+		{:else if ended?.kind === 'denied'}
+			{m.auth_another_device_denied()}
+		{:else if ended}
+			{ended.message}
+		{:else}
+			{m.auth_use_another_device_description()}
+		{/if}
+	</AuthHeading>
+	<div
+		class="flex flex-col items-center transition-opacity duration-(--dur-fast)"
+		class:opacity-0={success}
+		inert={success}
+	>
+		{#if request}
+			<div class="mb-6 w-full">
+				<QrPanel {request} ended={!!ended} />
+			</div>
+		{/if}
+		{#if ended}
+			<Button class={authPrimaryClass} usePromiseLoading onclick={startRequest}>
+				{ended.kind === 'denied' ? m.try_again() : m.auth_get_a_new_code()}
+			</Button>
+		{:else}
+			<!-- While the request is alive there is nothing to press, so the primary's place holds the wait as a status line -->
+			<p
+				class="text-body flex min-h-(--h-xl) items-center justify-center gap-2 text-center lg:min-h-13"
+				aria-live="polite"
+			>
+				<Spinner class="size-3 shrink-0" />
+				{request ? m.auth_waiting_for_approval() : m.auth_creating_sign_in_request()}
+			</p>
+			<Button
+				variant="link"
+				class={authQuietClass + ' mt-3'}
+				disabled={!request}
+				onclick={startRequest}
+			>
+				{m.auth_get_a_new_code()}
+			</Button>
+		{/if}
 	</div>
 </SignInWrapper>

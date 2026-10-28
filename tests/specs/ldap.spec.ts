@@ -10,18 +10,17 @@ test.describe('LDAP Integration', () => {
 	);
 
 	test('LDAP configuration is working properly', async ({ page }) => {
-		await page.goto('/settings/admin/application-configuration');
+		await page.goto('/settings/admin/application-configuration/ldap');
 
-		await page.getByRole('tab', { name: 'LDAP' }).click();
+		await expect(page.getByText('Connected', { exact: true })).toBeVisible();
+		await expect(page.getByRole('button', { name: 'Disable LDAP…' })).toBeVisible();
+		await expect(page.getByLabel('Server URL')).toHaveValue(/ldap:\/\/.*/);
+		await expect(page.getByLabel('Base DN')).not.toBeEmpty();
 
-		await expect(page.getByRole('button', { name: 'Disable', exact: true })).toBeVisible();
-		await expect(page.getByLabel('LDAP URL')).toHaveValue(/ldap:\/\/.*/);
-		await expect(page.getByLabel('LDAP Base DN')).not.toBeEmpty();
-
-		await expect(page.getByLabel('User Unique Identifier Attribute')).not.toBeEmpty();
-		await expect(page.getByLabel('Username Attribute')).not.toBeEmpty();
-		await expect(page.getByLabel('User Mail Attribute')).not.toBeEmpty();
-		await expect(page.getByLabel('Group RDN Attribute (in DN)')).not.toBeEmpty();
+		await expect(page.getByLabel('User ID')).not.toBeEmpty();
+		await expect(page.getByLabel('Username', { exact: true })).not.toBeEmpty();
+		await expect(page.getByLabel('Email', { exact: true })).not.toBeEmpty();
+		await expect(page.getByLabel('Group name')).not.toBeEmpty();
 
 		const syncButton = page.getByRole('button', { name: 'Sync now' });
 		await syncButton.click();
@@ -38,7 +37,7 @@ test.describe('LDAP Integration', () => {
 
 		// Check LDAP user details
 		await page.getByRole('row', { name: 'testuser1' }).getByRole('button').click();
-		await page.getByRole('menuitem', { name: 'Edit' }).click();
+		await page.getByRole('menuitem', { name: 'Open' }).click();
 
 		// Verify user source is LDAP
 		await expect(page.getByText('LDAP').first()).toBeVisible();
@@ -58,9 +57,9 @@ test.describe('LDAP Integration', () => {
 
 		await page
 			.getByRole('row', { name: 'test_group' })
-			.getByRole('button', { name: 'Toggle menu' })
+			.getByRole('button', { name: /^Actions for / })
 			.click();
-		await page.getByRole('menuitem', { name: 'Edit' }).click();
+		await page.getByRole('menuitem', { name: 'Open' }).click();
 
 		// Verify group source is LDAP
 		await expect(page.getByText('LDAP').first()).toBeVisible();
@@ -72,11 +71,11 @@ test.describe('LDAP Integration', () => {
 		await page.waitForLoadState('networkidle');
 
 		await page.getByRole('row', { name: 'testuser1' }).getByRole('button').click();
-		await page.getByRole('menuitem', { name: 'Edit' }).click();
+		await page.getByRole('menuitem', { name: 'Open' }).click();
 
 		// Verify key fields are disabled
 		const usernameInput = page.getByLabel('Username');
-		await expect(usernameInput).toBeDisabled();
+		await expect(usernameInput).not.toBeEditable();
 	});
 
 	test('LDAP groups cannot be modified in PocketID', async ({ page }) => {
@@ -86,12 +85,12 @@ test.describe('LDAP Integration', () => {
 
 		await page
 			.getByRole('row', { name: 'test_group' })
-			.getByRole('button', { name: 'Toggle menu' })
+			.getByRole('button', { name: /^Actions for / })
 			.click();
-		await page.getByRole('menuitem', { name: 'Edit' }).click();
+		await page.getByRole('menuitem', { name: 'Open' }).click();
 
 		// Verify key fields are disabled
 		const nameInput = page.getByLabel('Name', { exact: true });
-		await expect(nameInput).toBeDisabled();
+		await expect(nameInput).not.toBeEditable();
 	});
 });

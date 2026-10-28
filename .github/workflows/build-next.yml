@@ -4,10 +4,11 @@ on:
   push:
     branches:
       - main
+      - "v[0-9]+"
   workflow_dispatch:
 
 concurrency:
-  group: build-next-image
+  group: build-next-image-${{ github.ref_name }}
   cancel-in-progress: true
 
 permissions:
@@ -28,7 +29,7 @@ jobs:
           fetch-depth: 0
 
       - name: Setup Vite+
-        uses: voidzero-dev/setup-vp@3754dd7dbdb32bd8f6d28b6043de13ad3a75f21f # v1.21.1
+        uses: voidzero-dev/setup-vp@68f39c78aaf39be468cabd2afb09c162574c84af # v1.21.2
         with:
           node-version-file: .node-version
           cache: true
@@ -58,15 +59,24 @@ jobs:
           username: ${{ secrets.DOCKERHUB_USERNAME }}
           password: ${{ secrets.DOCKERHUB_TOKEN }}
 
+      - name: Determine next tag and version
+        run: |
+          if [ "$GITHUB_REF_NAME" = main ]; then
+            echo "BUILD_NEXT=next" >> "$GITHUB_ENV"
+            echo "NEXT_VERSION=v$(cat .version)-next" >> "$GITHUB_ENV"
+          else
+            echo "BUILD_NEXT=next-$GITHUB_REF_NAME" >> "$GITHUB_ENV"
+            echo "NEXT_VERSION=$GITHUB_REF_NAME-next" >> "$GITHUB_ENV"
+          fi
+
       - name: Run GoReleaser
-        uses: goreleaser/goreleaser-action@f06c13b6b1a9625abc9e6e439d9c05a8f2190e94 # v7.2.3
+        uses: goreleaser/goreleaser-action@a4f02ab5355a589de60d917a659ce617ed19b3de # v7.3.0
         with:
           distribution: goreleaser-pro
           version: "~> v2"
           args: release --clean --skip=announce,validate --parallelism=4
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          BUILD_NEXT: "true"
           SKIP_RELEASE: "true"
           SKIP_CHANGELOG: "true"
           GORELEASER_KEY: ${{ secrets.GORELEASER_KEY }}

@@ -4,7 +4,7 @@ import { isAxiosError } from 'axios';
 import { SvelteSet } from 'svelte/reactivity';
 
 export interface UnsavedSection {
-	readonly dirty: boolean;
+	readonly changes: number;
 	validate?: () => boolean;
 	save: () => Promise<void>;
 	discard: () => void;
@@ -19,7 +19,7 @@ let saving = $state(false);
 let status = $state<{ type: 'success' | 'error'; message: string } | null>(null);
 let statusTimeout: ReturnType<typeof setTimeout> | undefined;
 
-const dirtyCount = $derived([...sections].filter((section) => section.dirty).length);
+const dirtyCount = $derived([...sections].reduce((count, section) => count + section.changes, 0));
 const hasChanges = $derived(dirtyCount > 0);
 
 function register(section: UnsavedSection) {
@@ -42,18 +42,18 @@ function showStatus(type: 'success' | 'error', message: string) {
 }
 
 function errorMessage(e: unknown) {
-	if (isAxiosError(e)) return getAxiosErrorMessage(e);
+	if (isAxiosError(e)) return getAxiosErrorMessage(e, m.could_not_save_check_your_connection());
 	return e instanceof Error ? e.message : m.an_unknown_error_occurred();
 }
 
 async function saveAll(): Promise<SaveResult> {
-	const dirtySections = [...sections].filter((section) => section.dirty);
+	const dirtySections = [...sections].filter((section) => section.changes > 0);
 	if (dirtySections.length === 0) return 'saved';
 
 	// Every section is validated before anything is persisted, so that a validation error in one section can't leave the page half-saved.
 	const allValid = dirtySections.map((section) => section.validate?.() ?? true).every(Boolean);
 	if (!allValid) {
-		showStatus('error', m.please_fix_the_errors_before_saving());
+		showStatus('error', m.could_not_save_check_the_highlighted_fields());
 		return 'invalid';
 	}
 
@@ -73,14 +73,14 @@ async function saveAll(): Promise<SaveResult> {
 		showStatus('error', errorMessage(failure.error));
 		return 'failed';
 	}
-	showStatus('success', m.changes_saved_successfully());
+	showStatus('success', m.changes_saved());
 	return 'saved';
 }
 
 function discardAll() {
 	clearStatus();
 	for (const section of sections) {
-		if (section.dirty) section.discard();
+		if (section.changes > 0) section.discard();
 	}
 }
 

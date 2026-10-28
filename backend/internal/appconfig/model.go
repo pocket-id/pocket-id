@@ -32,7 +32,7 @@ type AppConfigModel struct {
 	SessionDuration     AppConfigValue `json:"sessionDuration" env:"SESSION_DURATION" type:"int"` // In minutes
 	HomePageURL         AppConfigValue `json:"homePageUrl" env:"HOME_PAGE_URL" public:"true"`
 	EmailsVerified      AppConfigValue `json:"emailsVerified" env:"EMAILS_VERIFIED" type:"bool"`
-	AccentColor         AppConfigValue `json:"accentColor" env:"ACCENT_COLOR" public:"true"`
+	ColorTheme          AppConfigValue `json:"colorTheme" env:"COLOR_THEME" public:"true"` // A theme id, or custom:<css color> with an optional :dark suffix for a dark sidebar
 	DisableAnimations   AppConfigValue `json:"disableAnimations" env:"DISABLE_ANIMATIONS" type:"bool" public:"true"`
 	AllowOwnAccountEdit AppConfigValue `json:"allowOwnAccountEdit" env:"ALLOW_OWN_ACCOUNT_EDIT" type:"bool" public:"true"`
 	AllowUserSignups    AppConfigValue `json:"allowUserSignups" env:"ALLOW_USER_SIGNUPS" public:"true"`
@@ -81,6 +81,8 @@ type AppConfigModel struct {
 	// OIDC
 	CIMDURLAllowlist           AppConfigValue `json:"cimdUrlAllowlist" env:"CIMD_URL_ALLOWLIST"` // JSON-encoded array of strings
 	AutoCreateOIDCClientSecret AppConfigValue `json:"autoCreateOidcClientSecret" env:"AUTO_CREATE_OIDC_CLIENT_SECRET" type:"bool"`
+	// Features
+	EnabledFeatures AppConfigValue `json:"enabledFeatures" env:"ENABLED_FEATURES"` // JSON-encoded array of feature ids
 }
 
 // appConfigEnvName returns the explicit environment variable name for a JSON configuration field
@@ -144,7 +146,7 @@ func getDefaultConfig() *AppConfigModel {
 		AllowUserSignups:          "disabled",
 		SignupDefaultUserGroupIDs: "[]",
 		SignupDefaultCustomClaims: "[]",
-		AccentColor:               "default",
+		ColorTheme:                "mono",
 		// Email
 		RequireUserEmail:           "true",
 		SmtpHost:                   "",
@@ -187,6 +189,9 @@ func getDefaultConfig() *AppConfigModel {
 		// OIDC
 		CIMDURLAllowlist:           "[]",
 		AutoCreateOIDCClientSecret: "true",
+		// Features
+		// Left unset so the feature module can tell a saved value from one it still has to derive from usage
+		EnabledFeatures: "",
 	}
 }
 

@@ -1,143 +1,368 @@
 @import 'tailwindcss';
 @import 'tw-animate-css';
 @import 'shadcn-svelte/tailwind.css';
+@import './fonts.css';
 
 @variant dark (&:where(.dark, .dark *));
 
-/*
-  The default border color has changed to `currentcolor` in Tailwind CSS v4,
-  so we've added these compatibility styles to make sure everything still
-  looks the same as it did with Tailwind CSS v3.
-
-  If we ever want to remove these styles, we need to add an explicit border
-  color utility to any element that depends on these defaults.
-*/
-@layer base {
-	*,
-	::after,
-	::before,
-	::backdrop,
-	::file-selector-button {
-		border-color: var(--color-gray-200, currentcolor);
-	}
-
-	* {
-		@apply border-border outline-ring/50;
-	}
-
-	body {
-		@apply bg-background text-foreground;
-	}
-
-	html {
-		@apply font-sans;
-	}
-}
-
+/* The values below are the Mono color theme; applyColorTheme in color-theme-util.ts overrides the neutrals and the primary family at runtime */
 :root {
-	--radius: 0.625rem;
-	--background: oklch(1 0 0);
-	--foreground: oklch(0.145 0 0);
-	--card: oklch(1 0 0);
-	--card-foreground: oklch(0.145 0 0);
-	--popover: oklch(1 0 0);
-	--popover-foreground: oklch(0.145 0 0);
-	--primary: oklch(0.205 0 0);
-	--primary-foreground: oklch(0.985 0 0);
-	--secondary: oklch(0.97 0 0);
-	--secondary-foreground: oklch(0.205 0 0);
-	--muted: oklch(0.97 0 0);
-	--muted-foreground: oklch(0.556 0 0);
-	--accent: oklch(0.97 0 0);
-	--accent-foreground: oklch(0.205 0 0);
-	--destructive: oklch(0.577 0.245 27.325);
-	--warning: oklch(0.96 0.06 85);
-	--warning-foreground: oklch(0.32 0.07 70);
-	--border: oklch(0.922 0 0);
-	--input: oklch(0.922 0 0);
-	--ring: oklch(0.708 0 0);
-	--chart-1: oklch(0.646 0.222 41.116);
-	--chart-2: oklch(0.6 0.118 184.704);
-	--chart-3: oklch(0.398 0.07 227.392);
-	--chart-4: oklch(0.828 0.189 84.429);
-	--chart-5: oklch(0.769 0.188 70.08);
-	--sidebar: oklch(0.985 0 0);
-	--sidebar-foreground: oklch(0.145 0 0);
-	--sidebar-primary: oklch(0.205 0 0);
-	--sidebar-primary-foreground: oklch(0.985 0 0);
-	--sidebar-accent: oklch(0.97 0 0);
-	--sidebar-accent-foreground: oklch(0.205 0 0);
-	--sidebar-border: oklch(0.922 0 0);
-	--sidebar-ring: oklch(0.708 0 0);
+	--h-xs: 26px;
+	--h-sm: 34px;
+	--h-md: 42px;
+	--h-xl: 48px;
+	--row-dense: 36px;
+	--row: 44px;
+	--row-2line: 52px;
+	--col-auth: 464px;
+	--col-content: 1120px;
+	/* The identity column gives way on tablets so the other columns fit without scrolling sideways */
+	--table-id-max: clamp(240px, 36vw, 440px);
+	--sidebar-w: 256px;
+	--rail-w: 60px;
+	--dialog-sm: 420px;
+	--dialog-md: 480px;
+	--dialog-lg: 560px;
+	--sheet-w: 560px;
+	--palette-w: 640px;
+	--toast-w: 340px;
+	--clear-end-phone: 148px;
+	--z-sticky: 10;
+	--z-nav: 20;
+	--z-bar: 30;
+	--z-overlay: 40;
+	--z-popover: 50;
+	--z-toast: 60;
+	--z-tooltip: 70;
+	--z-progress: 80;
+	--halo-width: 3px;
+	--selection-border: 1.5px;
+	--dur-fast: 120ms;
+	--dur-base: 200ms;
+	--dur-slow: 280ms;
+	--rise: 4px;
+	--nudge: 2px;
+	--slide: 24px;
+	--press-scale: 0.98;
+	--pop-scale: 0.96;
+	--t-success-hold: 800ms;
+	--t-redirect-fallback: 3000ms;
+	--t-dim-delay: 200ms;
+	--t-skeleton-delay: 150ms;
+	--t-pulse: 1600ms;
+	--t-spin: 800ms;
+	--t-caret: 1000ms;
+	--t-progress: 3000ms;
+
+	--canvas: #ffffff;
+	--surface: #ffffff;
+	--surface-raised: #ffffff;
+	--surface-sunken: #f5f5f5;
+	--fill-muted: #f2f2f2;
+	--fill-hover: #eeeeee;
+	--fill-row-hover: #fafafa;
+	--fill-selected: #ebebeb;
+	--fill-skeleton: #eeeeee;
+	--border: #e8e8e8;
+	--border-strong: #8c8c8c;
+	--border-control: #8c8c8c;
+	--fg: #0a0a0a;
+	--fg-muted: #5e5e5e;
+	--fg-subtle: #a3a3a3;
+	--inverse: #111111;
+	--inverse-fg: #fafafa;
+	--inverse-muted: #b5b5b5;
+	--inverse-hover: #262626;
+	--inverse-border: transparent;
+	--success-solid: #319751;
+	--success-fg: #206b38;
+	--success-soft: #ebfaed;
+	--success-border: #bcdfc2;
+	--warning-solid: #c5770f;
+	--warning-fg: #864e18;
+	--warning-soft: #fff6e4;
+	--warning-border: #eecf9c;
+	--danger-solid: #d73337;
+	--danger-fg: #b32228;
+	--danger-soft: #fff1f0;
+	--danger-border: #f9c1bf;
+	--danger-fill: #c52b30;
+	--danger-fill-hover: #b32228;
+	--danger-fill-fg: #ffffff;
+	--info-solid: #5e5e5e;
+	--info-fg: #0a0a0a;
+	--info-soft: #f5f5f5;
+	--info-border: #e8e8e8;
+	--well-light: #f5f5f5;
+	--well-dark: #000000;
+	--well-light-fg: #5e5e5e;
+	--well-dark-fg: #a1a1a1;
+	--qr-bg: #ffffff;
+	--scrim: rgb(18 17 16 / 0.4);
+	--ring: #0a0a0a;
+	--ring-halo: rgb(10 10 10 / 0.24);
+	--elevation-popover: 0 1px 2px rgb(31 29 27 / 0.06), 0 8px 24px -6px rgb(31 29 27 / 0.14);
+	--elevation-overlay: 0 2px 4px rgb(31 29 27 / 0.06), 0 16px 40px -8px rgb(31 29 27 / 0.2);
+	--elevation-thumb: 0 1px 2px rgb(0 0 0 / 0.2);
+	--elevation-selected: 0 1px 2px rgb(31 29 27 / 0.06), 0 4px 14px rgb(31 29 27 / 0.07);
+	--border-selected: color-mix(in oklab, var(--border-strong) 40%, var(--border));
+	--sidebar: #fafafa;
+	--primary: #0a0a0a;
+	--primary-foreground: #ffffff;
+	--primary-hover: #262626;
+	--primary-control: #0a0a0a;
+	--primary-control-foreground: #ffffff;
+	--primary-edge: transparent;
+	--fw-display-l: 600;
+	--fw-display-m: 600;
+
+	/* shadcn-svelte variables, mapped onto the tokens above so the ui/ components keep their class names */
+	--background: var(--canvas);
+	--foreground: var(--fg);
+	--card: var(--surface);
+	--card-foreground: var(--fg);
+	--popover: var(--surface-raised);
+	--popover-foreground: var(--fg);
+	--secondary: var(--fill-muted);
+	--secondary-foreground: var(--fg);
+	--muted: var(--fill-muted);
+	--muted-foreground: var(--fg-muted);
+	--accent: var(--fill-hover);
+	--accent-foreground: var(--fg);
+	--destructive: var(--danger-fg);
+	--destructive-foreground: var(--danger-fill-fg);
+	--warning: var(--warning-soft);
+	--warning-foreground: var(--warning-fg);
+	--input: var(--fill-muted);
+	--sidebar-foreground: var(--fg);
+	--sidebar-primary: var(--primary);
+	--sidebar-primary-foreground: var(--primary-foreground);
+	--sidebar-accent: var(--fill-selected);
+	--sidebar-accent-foreground: var(--fg);
+	--sidebar-border: var(--border);
+	--sidebar-ring: var(--ring);
 }
 
 .dark {
-	--background: oklch(0.145 0 0);
-	--foreground: oklch(0.985 0 0);
-	--card: oklch(0.205 0 0);
-	--card-foreground: oklch(0.985 0 0);
-	--popover: oklch(0.205 0 0);
-	--popover-foreground: oklch(0.985 0 0);
-	--primary: oklch(0.922 0 0);
-	--primary-foreground: oklch(0.205 0 0);
-	--secondary: oklch(0.269 0 0);
-	--secondary-foreground: oklch(0.985 0 0);
-	--muted: oklch(0.269 0 0);
-	--muted-foreground: oklch(0.708 0 0);
-	--accent: oklch(0.269 0 0);
-	--accent-foreground: oklch(0.985 0 0);
-	--destructive: oklch(0.704 0.191 22.216);
-	--warning: oklch(0.42 0.09 70);
-	--warning-foreground: oklch(0.93 0.03 85);
-	--border: oklch(1 0 0 / 10%);
-	--input: oklch(1 0 0 / 15%);
-	--ring: oklch(0.556 0 0);
-	--chart-1: oklch(0.488 0.243 264.376);
-	--chart-2: oklch(0.696 0.17 162.48);
-	--chart-3: oklch(0.769 0.188 70.08);
-	--chart-4: oklch(0.627 0.265 303.9);
-	--chart-5: oklch(0.645 0.246 16.439);
-	--sidebar: oklch(0.205 0 0);
-	--sidebar-foreground: oklch(0.985 0 0);
-	--sidebar-primary: oklch(0.488 0.243 264.376);
-	--sidebar-primary-foreground: oklch(0.985 0 0);
-	--sidebar-accent: oklch(0.269 0 0);
-	--sidebar-accent-foreground: oklch(0.985 0 0);
-	--sidebar-border: oklch(1 0 0 / 10%);
-	--sidebar-ring: oklch(0.556 0 0);
+	--canvas: #000000;
+	--surface: #000000;
+	--surface-raised: #121212;
+	--surface-sunken: #0e0e0e;
+	--fill-muted: #171717;
+	--fill-hover: #1a1a1a;
+	--fill-row-hover: #0c0c0c;
+	--fill-selected: #1f1f1f;
+	--fill-skeleton: #1a1a1a;
+	--border: #1f1f1f;
+	--border-strong: #6b6b6b;
+	--border-control: #6b6b6b;
+	--fg: #ededed;
+	--fg-muted: #a1a1a1;
+	--fg-subtle: #5c5c5c;
+	--inverse: #1f1f1f;
+	--inverse-fg: #ededed;
+	--inverse-muted: #b5b5b5;
+	--inverse-hover: #2e2e2e;
+	--inverse-border: #333333;
+	--success-solid: #54b66e;
+	--success-fg: #83d494;
+	--success-soft: #1a2b1d;
+	--success-border: #2c5235;
+	--warning-solid: #eba941;
+	--warning-fg: #f5ca7a;
+	--warning-soft: #342611;
+	--warning-border: #68491a;
+	--danger-solid: #f45a56;
+	--danger-fg: #ff8f8d;
+	--danger-soft: #3b1e1e;
+	--danger-border: #813939;
+	--danger-fill: #c52b30;
+	--danger-fill-hover: #b32228;
+	--danger-fill-fg: #ffffff;
+	--info-solid: #a1a1a1;
+	--info-fg: #ededed;
+	--info-soft: #0e0e0e;
+	--info-border: #1f1f1f;
+	--well-light: #f5f5f5;
+	--well-dark: #000000;
+	--well-light-fg: #5e5e5e;
+	--well-dark-fg: #a1a1a1;
+	--qr-bg: #ffffff;
+	--scrim: rgb(0 0 0 / 0.6);
+	--ring: #ededed;
+	--ring-halo: rgb(237 237 237 / 0.24);
+	--elevation-popover: 0 1px 2px rgb(0 0 0 / 0.4), 0 8px 24px -6px rgb(0 0 0 / 0.6);
+	--elevation-overlay: 0 2px 4px rgb(0 0 0 / 0.4), 0 16px 40px -8px rgb(0 0 0 / 0.7);
+	--elevation-thumb: 0 1px 2px rgb(0 0 0 / 0.5);
+	--elevation-selected: 0 1px 2px rgb(0 0 0 / 0.4), 0 4px 14px rgb(0 0 0 / 0.5);
+	--sidebar: #0a0a0a;
+	--primary: #ededed;
+	--primary-foreground: #000000;
+	--primary-hover: #d6d6d6;
+	--primary-control: #ededed;
+	--primary-control-foreground: #000000;
+	--primary-edge: transparent;
+	--fw-display-l: 500;
+	--fw-display-m: 500;
+	color-scheme: dark;
+}
+
+/* Reduced motion: the OS setting and the Disable animations setting share one token collapse */
+html.no-motion {
+	--dur-fast: 0ms;
+	--dur-base: 0ms;
+	--dur-slow: 0ms;
+	--rise: 0px;
+	--nudge: 0px;
+	--slide: 0px;
+	--press-scale: 1;
+	--pop-scale: 1;
+	--t-pulse: 0ms;
+	--t-caret: 0ms;
+	--t-progress: 0ms;
+	--t-spin: 1200ms;
+}
+
+@media (prefers-reduced-motion: reduce) {
+	:root {
+		--dur-fast: 0ms;
+		--dur-base: 0ms;
+		--dur-slow: 0ms;
+		--rise: 0px;
+		--nudge: 0px;
+		--slide: 0px;
+		--press-scale: 1;
+		--pop-scale: 1;
+		--t-pulse: 0ms;
+		--t-caret: 0ms;
+		--t-progress: 0ms;
+		--t-spin: 1200ms;
+	}
+}
+
+/* Safety net for motion that does not read the tokens (bits-ui keyframes, svelte-sonner): only spinners and scroll-linked fades keep moving */
+html.no-motion *:not(.animate-spin, .scroll-fade-x, .scroll-fade-y),
+html.no-motion *::before,
+html.no-motion *::after {
+	animation-duration: 0s !important;
+	transition-duration: 0s !important;
+}
+
+@media (prefers-reduced-motion: reduce) {
+	*:not(.animate-spin, .scroll-fade-x, .scroll-fade-y),
+	*::before,
+	*::after {
+		animation-duration: 0s !important;
+		transition-duration: 0s !important;
+	}
+}
+
+/* Set for two frames by setModeInstantly, so light and dark swap at once instead of fading control by control */
+html.theme-switching *,
+html.theme-switching *::before,
+html.theme-switching *::after {
+	transition: none !important;
+}
+
+@theme {
+	--font-sans: 'Funnel Sans', ui-sans-serif, system-ui, -apple-system, 'Segoe UI', sans-serif;
+	--font-display: 'Funnel Display', 'Funnel Sans', ui-sans-serif, system-ui, sans-serif;
+	--font-mono: 'JetBrains Mono', ui-monospace, 'SF Mono', Menlo, Consolas, monospace;
+
+	--radius-xs: 6px;
+	--radius-sm: 10px;
+	--radius-md: 12px;
+	--radius-lg: 16px;
+	--radius-xl: 20px;
+	--radius-2xl: 24px;
+	--radius-3xl: 28px;
+	--radius-4xl: 32px;
+
+	--ease-out: cubic-bezier(0.2, 0, 0, 1);
+	--ease-in-out: cubic-bezier(0.4, 0, 0.2, 1);
+	--ease-in: cubic-bezier(0.4, 0, 1, 1);
 }
 
 @theme inline {
-	/* Radius (for rounded-*) */
-	--radius-sm: calc(var(--radius) - 4px);
-	--radius-md: calc(var(--radius) - 2px);
-	--radius-lg: var(--radius);
-	--radius-xl: calc(var(--radius) + 4px);
+	--text-display-l: 34px;
+	--text-display-l--line-height: 42px;
+	--text-display-l--font-weight: var(--fw-display-l);
+	--text-display-l--letter-spacing: -0.02em;
+	--text-display-m: 28px;
+	--text-display-m--line-height: 36px;
+	--text-display-m--font-weight: var(--fw-display-m);
+	--text-display-m--letter-spacing: -0.015em;
+	--text-display-s: 22px;
+	--text-display-s--line-height: 30px;
+	--text-display-s--font-weight: 500;
+	--text-display-s--letter-spacing: -0.01em;
+	--text-title: 18px;
+	--text-title--line-height: 26px;
+	--text-title--font-weight: 600;
+	--text-title--letter-spacing: 0em;
+	--text-heading: 15px;
+	--text-heading--line-height: 22px;
+	--text-heading--font-weight: 600;
+	--text-heading--letter-spacing: 0em;
+	--text-body-l: 17px;
+	--text-body-l--line-height: 26px;
+	--text-body-l--font-weight: 400;
+	--text-body-l--letter-spacing: 0em;
+	--text-body: 15px;
+	--text-body--line-height: 22px;
+	--text-body--font-weight: 400;
+	--text-body--letter-spacing: 0em;
+	--text-control: 14px;
+	--text-control--line-height: 20px;
+	--text-control--font-weight: 400;
+	--text-control--letter-spacing: 0em;
+	--text-caption: 13px;
+	--text-caption--line-height: 18px;
+	--text-caption--font-weight: 400;
+	--text-caption--letter-spacing: 0em;
+	--text-micro: 12px;
+	--text-micro--line-height: 16px;
+	--text-micro--font-weight: 500;
+	--text-micro--letter-spacing: 0.01em;
+	--text-mono: 14px;
+	--text-mono--line-height: 20px;
+	--text-mono--font-weight: 400;
+	--text-mono--letter-spacing: 0em;
+	--text-mono-s: 13px;
+	--text-mono-s--line-height: 18px;
+	--text-mono-s--font-weight: 400;
+	--text-mono-s--letter-spacing: 0em;
+	--text-code-cell: 30px;
+	--text-code-cell--line-height: 38px;
+	--text-code-cell--font-weight: 500;
+	--text-code-cell--letter-spacing: 0em;
 
-	/* Colors */
+	--shadow-popover: var(--elevation-popover);
+	--shadow-overlay: var(--elevation-overlay);
+	--shadow-thumb: var(--elevation-thumb);
+	--shadow-selected: var(--elevation-selected);
+
 	--color-background: var(--background);
 	--color-foreground: var(--foreground);
-	--color-muted: var(--muted);
-	--color-muted-foreground: var(--muted-foreground);
-	--color-popover: var(--popover);
-	--color-popover-foreground: var(--popover-foreground);
 	--color-card: var(--card);
 	--color-card-foreground: var(--card-foreground);
-	--color-border: var(--border);
-	--color-input: var(--input);
+	--color-popover: var(--popover);
+	--color-popover-foreground: var(--popover-foreground);
 	--color-primary: var(--primary);
 	--color-primary-foreground: var(--primary-foreground);
 	--color-secondary: var(--secondary);
 	--color-secondary-foreground: var(--secondary-foreground);
+	--color-muted: var(--muted);
+	--color-muted-foreground: var(--muted-foreground);
 	--color-accent: var(--accent);
 	--color-accent-foreground: var(--accent-foreground);
 	--color-destructive: var(--destructive);
 	--color-destructive-foreground: var(--destructive-foreground);
 	--color-warning: var(--warning);
 	--color-warning-foreground: var(--warning-foreground);
+	--color-input: var(--input);
 	--color-ring: var(--ring);
-	--color-radius: var(--radius);
-	--color-sidebar-background: var(--sidebar-background);
+	--color-ring-halo: var(--ring-halo);
 	--color-sidebar-foreground: var(--sidebar-foreground);
 	--color-sidebar-primary: var(--sidebar-primary);
 	--color-sidebar-primary-foreground: var(--sidebar-primary-foreground);
@@ -145,53 +370,189 @@
 	--color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
 	--color-sidebar-border: var(--sidebar-border);
 	--color-sidebar-ring: var(--sidebar-ring);
-
-	/* Font */
-	--font-gloock: 'gloock', serif;
+	--color-scrim: var(--scrim);
+	--color-canvas: var(--canvas);
+	--color-surface: var(--surface);
+	--color-surface-raised: var(--surface-raised);
+	--color-surface-sunken: var(--surface-sunken);
+	--color-fill-muted: var(--fill-muted);
+	--color-fill-hover: var(--fill-hover);
+	--color-fill-row-hover: var(--fill-row-hover);
+	--color-fill-selected: var(--fill-selected);
+	--color-fill-skeleton: var(--fill-skeleton);
+	--color-border: var(--border);
+	--color-border-strong: var(--border-strong);
+	--color-border-selected: var(--border-selected);
+	--color-fg: var(--fg);
+	--color-fg-muted: var(--fg-muted);
+	--color-fg-subtle: var(--fg-subtle);
+	--color-inverse: var(--inverse);
+	--color-inverse-fg: var(--inverse-fg);
+	--color-inverse-muted: var(--inverse-muted);
+	--color-inverse-hover: var(--inverse-hover);
+	--color-inverse-border: var(--inverse-border);
+	--color-success-solid: var(--success-solid);
+	--color-success-soft: var(--success-soft);
+	--color-warning-solid: var(--warning-solid);
+	--color-warning-fg: var(--warning-fg);
+	--color-danger-solid: var(--danger-solid);
+	--color-danger-fg: var(--danger-fg);
+	--color-danger-soft: var(--danger-soft);
+	--color-danger-fill: var(--danger-fill);
+	--color-danger-fill-hover: var(--danger-fill-hover);
+	--color-danger-fill-fg: var(--danger-fill-fg);
+	--color-well-light: var(--well-light);
+	--color-well-dark: var(--well-dark);
+	--color-well-light-fg: var(--well-light-fg);
+	--color-well-dark-fg: var(--well-dark-fg);
+	--color-qr-bg: var(--qr-bg);
 	--color-sidebar: var(--sidebar);
-	--color-chart-5: var(--chart-5);
-	--color-chart-4: var(--chart-4);
-	--color-chart-3: var(--chart-3);
-	--color-chart-2: var(--chart-2);
-	--color-chart-1: var(--chart-1);
-	--radius-2xl: calc(var(--radius) * 1.8);
-	--radius-3xl: calc(var(--radius) * 2.2);
-	--radius-4xl: calc(var(--radius) * 2.6);
+	--color-primary-hover: var(--primary-hover);
+	--color-primary-control: var(--primary-control);
+	--color-primary-control-foreground: var(--primary-control-foreground);
 }
 
 @layer base {
 	* {
-		@apply border-border;
+		@apply border-border outline-ring;
 	}
 
+	/* Links and anything else without its own focus style get the standard ring, which component utilities override */
+	:focus-visible {
+		outline: 2px solid var(--ring);
+		outline-offset: 2px;
+	}
+
+	html {
+		font-family: var(--font-sans);
+		-webkit-font-smoothing: antialiased;
+		-moz-osx-font-smoothing: grayscale;
+		text-rendering: optimizeLegibility;
+	}
+
+	/* Names are interpolated into sentences, so a long unbroken one wraps instead of pushing the page sideways */
 	body {
-		@apply bg-background text-foreground;
+		@apply bg-canvas text-body text-fg wrap-break-word;
 	}
 
 	button {
 		@apply cursor-pointer;
 	}
 
-	@font-face {
-		font-family: 'Gloock';
-		src: url('/fonts/Gloock-Regular.woff') format('woff');
+	/* Text selection stays neutral: the accent marks state, never decoration */
+	::selection {
+		background: var(--fill-selected);
+		color: var(--fg);
+	}
+
+	/* Lucide icons keep a constant stroke regardless of their rendered size */
+	svg.lucide {
+		stroke-width: 1.5px;
+	}
+
+	svg.lucide * {
+		vector-effect: non-scaling-stroke;
 	}
 }
 
-.animate-fade-in {
-	animation: fadeIn 0.3s ease-out forwards;
-	opacity: 0;
+/* A link inside a sentence stands out by contrast and weight rather than a permanent underline, which appears only on hover */
+@utility inline-link {
+	color: var(--fg);
+	font-weight: 500;
+	text-underline-offset: 3px;
+	text-decoration-line: underline;
+	text-decoration-thickness: 1px;
+	text-decoration-color: transparent;
+	transition: text-decoration-color var(--dur-fast) var(--ease-out);
+
+	&:hover {
+		text-decoration-color: color-mix(in srgb, currentColor 40%, transparent);
+	}
 }
 
-@keyframes fadeIn {
-	from {
-		opacity: 0;
-		transform: translateY(10px);
+/* A key in a shortcut hint, in the palette footer and on its trigger */
+@utility keycap {
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	min-width: 18px;
+	height: 18px;
+	padding-inline: 4px;
+	border-radius: var(--radius-xs);
+	background: var(--fill-muted);
+	box-shadow: inset 0 0 0 1px var(--border);
+	font-family: var(--font-sans);
+	font-size: 11px;
+	line-height: 14px;
+	font-weight: 500;
+	color: var(--fg-muted);
+}
+
+/* Compositor-only motion; Tailwind 4 writes scale and translate as their own properties, so they are listed next to transform */
+@utility transition-motion {
+	transition-property: opacity, transform, translate, scale;
+	transition-duration: var(--dur-fast);
+	transition-timing-function: var(--ease-out);
+}
+
+/* A scroller fades at the edge that has more content; without overflow its scroll timeline is inactive, so nothing fades */
+@property --fade-start {
+	syntax: '<length>';
+	inherits: false;
+	initial-value: 0px;
+}
+
+@property --fade-end {
+	syntax: '<length>';
+	inherits: false;
+	initial-value: 0px;
+}
+
+@supports (animation-timeline: scroll()) {
+	.scroll-fade-x,
+	.scroll-fade-y {
+		animation:
+			scroll-fade-start linear both,
+			scroll-fade-end linear both;
+		animation-range:
+			0 24px,
+			calc(100% - 24px) 100%;
 	}
 
+	.scroll-fade-x {
+		mask-image: linear-gradient(
+			to right,
+			transparent,
+			#000 var(--fade-start),
+			#000 calc(100% - var(--fade-end)),
+			transparent
+		);
+		animation-timeline: scroll(self inline), scroll(self inline);
+	}
+
+	.scroll-fade-y {
+		mask-image: linear-gradient(
+			transparent,
+			#000 var(--fade-start),
+			#000 calc(100% - var(--fade-end)),
+			transparent
+		);
+		animation-timeline: scroll(self), scroll(self);
+	}
+}
+
+@keyframes scroll-fade-start {
 	to {
-		opacity: 1;
-		transform: translateY(0);
+		--fade-start: 24px;
+	}
+}
+
+@keyframes scroll-fade-end {
+	from {
+		--fade-end: 24px;
+	}
+	to {
+		--fade-end: 0px;
 	}
 }
 
@@ -204,11 +565,15 @@
 	animation: none;
 }
 
-::view-transition-group(settings-content) {
+/* The phone bars swap instantly and stay above the content, whose new snapshot is otherwise painted last because only the new page has its name */
+::view-transition-group(phone-top-bar),
+::view-transition-group(phone-nav),
+::view-transition-group(phone-search) {
+	z-index: 1;
 	animation: none;
 }
 
-::view-transition-old(settings-content) {
+::view-transition-old(settings-content-old) {
 	animation: 120ms ease-out both vt-fade-out;
 }
 
@@ -226,37 +591,6 @@
 	from {
 		opacity: 0;
 	}
-}
-
-@keyframes bg-zoom {
-	0% {
-		transform: scale(1.3);
-	}
-
-	100% {
-		transform: scale(1);
-	}
-}
-
-.animate-bg-zoom {
-	transform-origin: center;
-	will-change: transform;
-	animation: bg-zoom 0.7s cubic-bezier(0.25, 0.1, 0.25, 1) forwards;
-}
-
-@keyframes delayed-fade {
-	0%,
-	40% {
-		opacity: 0;
-	}
-
-	100% {
-		opacity: 1;
-	}
-}
-
-.animate-delayed-fade {
-	animation: delayed-fade 0.5s ease-out forwards;
 }
 
 @keyframes shake {
@@ -282,21 +616,6 @@
 	animation: shake 0.5s ease-in-out;
 }
 
-/* The bar shares its surface token with the cards it floats over, so it needs an elevation of its own */
-.shadow-raised {
-	box-shadow:
-		inset 0 1px 0 rgb(255 255 255 / 0.5),
-		0 1px 2px rgb(0 0 0 / 0.08),
-		0 12px 32px -10px rgb(0 0 0 / 0.25);
-}
-
-.dark .shadow-raised {
-	box-shadow:
-		inset 0 1px 0 rgb(255 255 255 / 0.07),
-		0 1px 2px rgb(0 0 0 / 0.6),
-		0 16px 40px -12px rgb(0 0 0 / 0.9);
-}
-
 /* Marks a moment: the bar arriving, a save settling, a blocked navigation */
 @keyframes bloom {
 	0% {
@@ -316,47 +635,156 @@
 	animation: bloom 1.5s ease-out forwards;
 }
 
-/* Dark mode has glow headroom: a luminous colour over a near-black pill reads as light spilling out of it */
-/* Light mode has none, so the same gradient washes out to almost nothing there */
-/* The light values keep the same origin below the pill, so the bloom rises the same way in both, but spread wider and carry more colour to register against white */
-.bloom-pending {
-	background: radial-gradient(150% 260% at 50% 140%, rgb(217 119 6 / 0.26), transparent 72%);
+/* The bar's inverse surface is dark in both themes, so one glow rising from under it reads as light in light and dark mode */
+.bloom-pending,
+.bloom-success,
+.bloom-error {
+	background: radial-gradient(
+		130% 150% at 50% 130%,
+		color-mix(in srgb, var(--bloom-tint) 30%, transparent),
+		transparent 70%
+	);
 }
 
-/* Waits out the bar's 380ms motion so it blooms after the pill settles */
-/* `both` keeps it hidden during that wait */
+.bloom-pending {
+	--bloom-tint: var(--warning-solid);
+}
+
+/* Waits out the bar's 380ms motion so it blooms after the width settles, and `both` keeps it hidden during that wait */
 .bloom-success {
-	background: radial-gradient(150% 260% at 50% 140%, rgb(22 163 74 / 0.3), transparent 72%);
+	--bloom-tint: var(--success-solid);
 	animation-delay: 380ms;
 	animation-fill-mode: both;
 }
 
 .bloom-error {
-	background: radial-gradient(
-		150% 260% at 50% 140%,
-		color-mix(in oklab, var(--destructive) 28%, transparent),
-		transparent 72%
-	);
+	--bloom-tint: var(--danger-solid);
 }
 
-.dark .bloom-pending {
-	background: radial-gradient(130% 150% at 50% 130%, rgb(251 191 36 / 0.24), transparent 70%);
+/* bits-ui moves the highlight in selects and the palette with aria-activedescendant, so :focus-visible never applies there and the tint alone fails 3:1 */
+/* It sits outside the layers so it beats the items' outline-hidden utility */
+html[data-modality='keyboard']
+	:is(
+		[role='option'][data-highlighted],
+		[role^='menuitem'][data-highlighted],
+		[data-slot='command-item'][data-selected]
+	) {
+	outline: 2px solid var(--ring);
+	outline-offset: -2px;
 }
 
-.dark .bloom-success {
-	background: radial-gradient(130% 150% at 50% 130%, rgb(34 197 94 / 0.24), transparent 70%);
+/* Alt+T focuses svelte-sonner's toast list, which has no height, so the newest toast shows the ring instead */
+[data-sonner-toaster]:focus-visible > [data-front='true'] {
+	outline: 2px solid var(--inverse-fg);
+	outline-offset: -2px;
 }
 
-.dark .bloom-error {
-	background: radial-gradient(
-		130% 150% at 50% 130%,
-		color-mix(in oklab, var(--destructive) 26%, transparent),
-		transparent 70%
-	);
-}
+/* Phones show every dropdown as a bottom sheet with its groups as cards */
+/* These rules sit outside the layers so they beat the menu's utility classes, and !important beats bits-ui's inline floating position */
+@media (width < 40rem) {
+	[data-bits-floating-content-wrapper]:has(> [data-slot='dropdown-menu-content']) {
+		position: fixed !important;
+		inset: auto 0 0 !important;
+		transform: none !important;
+		min-width: 0 !important;
+	}
 
-@media (prefers-reduced-motion: reduce) {
-	.animate-bloom {
-		animation: none;
+	[data-slot='dropdown-menu-content'] {
+		display: flex;
+		flex-direction: column;
+		width: 100%;
+		max-height: 85dvh;
+		padding: 0 16px calc(16px + env(safe-area-inset-bottom));
+		border: 0;
+		border-radius: var(--radius-lg) var(--radius-lg) 0 0;
+		background: var(--surface-raised);
+		backdrop-filter: none;
+		/* The spread shadow doubles as the scrim, so tapping it lands outside the menu and closes it */
+		box-shadow: 0 0 0 100vmax var(--scrim);
+		scale: 1;
+		transition-property: translate, box-shadow;
+		transition-duration: var(--dur-slow);
+		transition-timing-function: var(--ease-out);
+
+		@starting-style {
+			translate: 0 100%;
+			box-shadow: 0 0 0 100vmax transparent;
+		}
+
+		&[data-state='closed'] {
+			translate: 0 100%;
+			opacity: 1;
+			box-shadow: 0 0 0 100vmax transparent;
+			transition-duration: var(--dur-base);
+			transition-timing-function: var(--ease-in);
+		}
+
+		/* An item that navigates sets data-jumping before the menu closes, because the page crossfade would otherwise show the sheet sliding away under the new page */
+		&[data-state='closed'][data-jumping] {
+			transition: none;
+		}
+
+		&::before {
+			content: '';
+			flex-shrink: 0;
+			align-self: center;
+			width: 36px;
+			height: 4px;
+			margin: 8px 0 12px;
+			border-radius: 2px;
+			background: var(--border-strong);
+		}
+
+		[data-slot='dropdown-menu-group'] + [data-slot='dropdown-menu-group'] {
+			margin-top: 8px;
+		}
+
+		[data-slot='dropdown-menu-separator'] {
+			height: 8px;
+			margin: 0;
+			background: none;
+		}
+
+		[data-slot='dropdown-menu-group-heading'],
+		[data-slot='dropdown-menu-label'] {
+			padding: 8px 4px 6px;
+		}
+
+		/* Consecutive items form one card: each draws its sides and top line, the last one closes the card */
+		[role^='menuitem'] {
+			min-height: var(--h-xl);
+			padding-inline: 16px;
+			border-radius: 0;
+			background-color: var(--surface);
+			box-shadow:
+				inset 1px 0 var(--border),
+				inset -1px 0 var(--border),
+				inset 0 1px var(--border);
+			font-size: var(--text-body);
+			line-height: var(--text-body--line-height);
+		}
+
+		[role^='menuitem']:not([role^='menuitem'] + [role^='menuitem']) {
+			border-top-left-radius: var(--radius-md);
+			border-top-right-radius: var(--radius-md);
+		}
+
+		[role^='menuitem']:not(:has(+ [role^='menuitem'])) {
+			border-bottom-left-radius: var(--radius-md);
+			border-bottom-right-radius: var(--radius-md);
+			box-shadow:
+				inset 1px 0 var(--border),
+				inset -1px 0 var(--border),
+				inset 0 1px var(--border),
+				inset 0 -1px var(--border);
+		}
+
+		[role^='menuitem'][data-highlighted] {
+			background-color: var(--fill-hover);
+		}
+
+		[data-variant='destructive'][data-highlighted] {
+			background-color: var(--danger-soft);
+		}
 	}
 }

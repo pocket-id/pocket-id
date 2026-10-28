@@ -19,6 +19,7 @@ import (
 	"github.com/pocket-id/pocket-id/backend/internal/email"
 	"github.com/pocket-id/pocket-id/backend/internal/emailverification"
 	"github.com/pocket-id/pocket-id/backend/internal/environment"
+	"github.com/pocket-id/pocket-id/backend/internal/feature"
 	"github.com/pocket-id/pocket-id/backend/internal/geolite"
 	"github.com/pocket-id/pocket-id/backend/internal/iplocation"
 	"github.com/pocket-id/pocket-id/backend/internal/ldapsync"
@@ -60,6 +61,7 @@ type services struct {
 	apiModule               *api.Module
 	environmentModule       *environment.Module
 	logoPresetModule        *logopreset.Module
+	featureModule           *feature.Module
 	actors                  francishost.Host
 }
 
@@ -285,6 +287,8 @@ func initServices(
 		HTTPClient: httpClient,
 		BaseURL:    iconLibraryURL,
 	})
+
+	svc.featureModule = feature.New(feature.Dependencies{DB: db, AppConfig: svc.appConfigService})
 
 	return svc, nil
 }

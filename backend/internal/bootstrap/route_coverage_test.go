@@ -14,6 +14,7 @@ import (
 	"github.com/pocket-id/pocket-id/backend/internal/devicelogin"
 	"github.com/pocket-id/pocket-id/backend/internal/emailverification"
 	"github.com/pocket-id/pocket-id/backend/internal/environment"
+	"github.com/pocket-id/pocket-id/backend/internal/feature"
 	"github.com/pocket-id/pocket-id/backend/internal/ldapsync"
 	"github.com/pocket-id/pocket-id/backend/internal/logopreset"
 	"github.com/pocket-id/pocket-id/backend/internal/middleware"
@@ -44,6 +45,7 @@ func TestEveryAPIRouteDeclaresItsAccess(t *testing.T) {
 		claimMappingPolicyModule: &claimmappingpolicy.Module{},
 		environmentModule:        &environment.Module{},
 		logoPresetModule:         &logopreset.Module{},
+		featureModule:            &feature.Module{},
 	}
 
 	engine := gin.New()

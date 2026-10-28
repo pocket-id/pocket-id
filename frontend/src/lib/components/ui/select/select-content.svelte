@@ -11,6 +11,7 @@
 		ref = $bindable(null),
 		class: className,
 		sideOffset = 4,
+		collisionPadding = 8,
 		portalProps,
 		children,
 		preventScroll = true,
@@ -24,10 +25,11 @@
 	<SelectPrimitive.Content
 		bind:ref
 		{sideOffset}
+		{collisionPadding}
 		{preventScroll}
 		data-slot="select-content"
 		class={cn(
-			'text-popover-foreground data-open:animate-in data-closed:animate-out data-closed:fade-out-0 data-open:fade-in-0 data-closed:zoom-out-95 data-open:zoom-in-95 data-[side=bottom]:slide-in-from-top-2 data-[side=left]:slide-in-from-right-2 data-[side=right]:slide-in-from-left-2 data-[side=top]:slide-in-from-bottom-2 ring-foreground/5 dark:ring-foreground/10 data-[side=inline-start]:slide-in-from-right-2 data-[side=inline-end]:slide-in-from-left-2 bg-popover/70 **:data-[slot$=-item]:focus:bg-foreground/10 **:data-[slot$=-item]:data-highlighted:bg-foreground/10 **:data-[slot$=-separator]:bg-foreground/5 **:data-[slot$=-trigger]:focus:bg-foreground/10 **:data-[slot$=-trigger]:aria-expanded:bg-foreground/10! **:data-[variant=destructive]:focus:bg-foreground/10! **:data-[variant=destructive]:text-accent-foreground! **:data-[variant=destructive]:**:text-accent-foreground! relative isolate z-50 min-w-36 animate-none! overflow-x-hidden overflow-y-auto rounded-2xl p-1.5 shadow-lg ring-1 duration-100 before:pointer-events-none before:absolute before:inset-0 before:-z-1 before:rounded-[inherit] before:backdrop-blur-2xl before:backdrop-saturate-150',
+			'text-popover-foreground shadow-popover bg-popover/72 border-fg/6 dark:border-fg/10 [@media(prefers-reduced-transparency:reduce)]:bg-popover! transition-motion **:data-[slot=select-item]:data-highlighted:bg-fg/6 relative z-(--z-popover) max-h-(--bits-select-content-available-height) max-w-(--bits-select-content-available-width) min-w-36 origin-(--bits-select-content-transform-origin) overflow-x-hidden overflow-y-auto rounded-md border p-1 backdrop-blur-[40px] backdrop-saturate-150 duration-(--dur-base) outline-none data-closed:pointer-events-none data-closed:opacity-0 data-closed:duration-(--dur-fast) data-closed:ease-in starting:scale-(--pop-scale) starting:opacity-0 [@media(prefers-reduced-transparency:reduce)]:backdrop-filter-none!',
 			className
 		)}
 		{...restProps}

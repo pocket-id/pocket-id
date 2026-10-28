@@ -1,43 +1,42 @@
 <script lang="ts">
 	import { openConfirmDialog } from '#lib/components/confirm-dialog/index.ts';
 	import PasskeyRow from '#lib/components/passkey-row.svelte';
-	import * as Item from '#lib/components/ui/item/index.js';
 	import { m } from '#lib/paraglide/messages.js';
 	import UserService from '#lib/services/user-service.ts';
 	import type { Passkey } from '#lib/types/passkey.type.ts';
-	import { authenticatorIconUrl } from '#lib/utils/cached-image-util.ts';
 	import { axiosErrorToast } from '#lib/utils/error-util.ts';
-	import { LucideKeyRound } from '@lucide/svelte';
-	import { mode } from 'mode-watcher';
 	import { toast } from 'svelte-sonner';
 
 	let {
 		userId,
+		firstName,
 		passkeys = $bindable()
 	}: {
 		userId: string;
+		firstName: string;
 		passkeys: Passkey[];
 	} = $props();
 
 	const userService = new UserService();
 
-	const isLightMode = $derived(mode.current === 'light');
-
-	async function refreshPasskeys() {
-		passkeys = await userService.listUserPasskeys(userId);
-	}
+	const sorted = $derived(
+		[...passkeys].sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
+	);
 
 	function deletePasskey(passkey: Passkey) {
 		openConfirmDialog({
-			title: m.delete_passkey_name({ passkeyName: passkey.name }),
-			message: m.are_you_sure_you_want_to_delete_this_passkey(),
+			title: m.delete_name_question({ name: passkey.name }),
+			message:
+				passkeys.length === 1
+					? m.delete_last_user_passkey_consequence({ name: firstName })
+					: m.delete_user_passkey_consequence({ name: firstName }),
 			confirm: {
-				label: m.delete(),
+				label: m.delete_name_action({ name: passkey.name }),
 				destructive: true,
 				action: async () => {
 					try {
 						await userService.removeUserPasskey(userId, passkey.id);
-						await refreshPasskeys();
+						passkeys = await userService.listUserPasskeys(userId);
 						toast.success(m.passkey_deleted_successfully());
 					} catch (e) {
 						axiosErrorToast(e);
@@ -48,17 +47,14 @@
 	}
 </script>
 
-<Item.Group class="mt-3">
-	{#each [...passkeys].sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()) as passkey (passkey.id)}
-		<PasskeyRow
-			label={passkey.name}
-			description={m.added_on() + ' ' + new Date(passkey.createdAt).toLocaleDateString()}
-			icon={LucideKeyRound}
-			providerIconUrl={passkey.hasIcon
-				? authenticatorIconUrl(passkey.aaguid, isLightMode)
-				: undefined}
-			showRenameAction={false}
-			onDelete={() => deletePasskey(passkey)}
-		/>
+<div class="border-t">
+	{#each sorted as passkey (passkey.id)}
+		<div class="border-b">
+			<PasskeyRow {passkey} onDelete={() => deletePasskey(passkey)} />
+		</div>
+	{:else}
+		<p class="text-control text-fg-muted flex min-h-(--row-2line) items-center border-b px-4">
+			{m.user_has_no_passkeys_yet_give_login_code({ name: firstName })}
+		</p>
 	{/each}
-</Item.Group>
+</div>

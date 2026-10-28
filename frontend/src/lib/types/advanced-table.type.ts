@@ -10,9 +10,10 @@ export type AdvancedTableColumn<T extends Record<string, any>> = {
 	filterableValues?: {
 		label: string;
 		value: string | boolean;
-		icon?: Component;
 	}[];
 	hidden?: boolean;
+	// The table width in pixels below which the column gives way
+	hideBelow?: 520 | 760 | 900;
 };
 export type CreateAdvancedTableActions<T extends Record<string, any>> = (
 	item: T

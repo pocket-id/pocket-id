@@ -11,13 +11,16 @@
 		class: className,
 		...restProps
 	}: WithoutChildrenOrChild<CheckboxPrimitive.RootProps> = $props();
+
+	const markClass =
+		'col-start-1 row-start-1 size-3 transition-[opacity,scale] duration-(--dur-base) ease-out';
 </script>
 
 <CheckboxPrimitive.Root
 	bind:ref
 	data-slot="checkbox"
 	class={cn(
-		'bg-input/90 data-checked:bg-primary data-checked:text-primary-foreground dark:data-checked:bg-primary data-checked:border-primary aria-invalid:aria-checked:border-primary aria-invalid:border-destructive dark:aria-invalid:border-destructive/50 focus-visible:border-ring focus-visible:ring-ring/30 aria-invalid:ring-destructive/20 dark:aria-invalid:ring-destructive/40 peer relative flex size-4 shrink-0 items-center justify-center rounded-[5px] border border-transparent transition-shadow outline-none group-has-disabled/field:opacity-50 after:absolute after:-inset-x-3 after:-inset-y-2 focus-visible:ring-3 disabled:cursor-not-allowed disabled:opacity-50 aria-invalid:ring-3',
+		'peer bg-surface text-primary-control-foreground before:bg-primary-control focus-visible:outline-ring relative isolate grid size-4.5 shrink-0 place-items-center rounded-xs shadow-[inset_0_0_0_1px_var(--border-control)] group-has-disabled/field:opacity-45 before:absolute before:inset-0 before:-z-1 before:rounded-[inherit] before:opacity-0 before:transition-opacity before:duration-(--dur-base) before:ease-out after:absolute after:-inset-x-3 after:-inset-y-2 focus-visible:outline-2 focus-visible:outline-offset-2 disabled:cursor-not-allowed disabled:opacity-45 aria-invalid:shadow-[inset_0_0_0_1px_var(--danger-solid)] data-checked:before:opacity-100 data-[state=indeterminate]:before:opacity-100',
 		className
 	)}
 	bind:checked
@@ -25,15 +28,9 @@
 	{...restProps}
 >
 	{#snippet children({ checked, indeterminate })}
-		<div
-			data-slot="checkbox-indicator"
-			class="grid place-content-center text-current transition-none [&>svg]:size-3.5"
-		>
-			{#if checked}
-				<CheckIcon />
-			{:else if indeterminate}
-				<MinusIcon />
-			{/if}
-		</div>
+		<span data-slot="checkbox-indicator" class="grid">
+			<CheckIcon class={cn(markClass, !checked && 'scale-60 opacity-0')} />
+			<MinusIcon class={cn(markClass, (checked || !indeterminate) && 'scale-60 opacity-0')} />
+		</span>
 	{/snippet}
 </CheckboxPrimitive.Root>

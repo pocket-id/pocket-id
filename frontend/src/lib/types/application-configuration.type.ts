@@ -1,4 +1,5 @@
 import type { CustomClaim } from './custom-claim.type';
+import type { Feature } from './feature.type';
 
 export type AppConfig = {
 	appName: string;
@@ -11,7 +12,7 @@ export type AppConfig = {
 	ldapEnabled: boolean;
 	disableAnimations: boolean;
 	uiConfigDisabled: boolean;
-	accentColor: string;
+	colorTheme: string;
 	requireUserEmail: boolean;
 	tracingEnabled: boolean;
 	iconLibrary: 'default' | 'custom' | 'disabled';
@@ -60,6 +61,8 @@ export type AllAppConfig = AppConfig & {
 	// OIDC
 	cimdUrlAllowlist: string[];
 	autoCreateOidcClientSecret: boolean;
+	// Features
+	enabledFeatures: Feature[];
 };
 
 export type AppConfigRawResponse = {

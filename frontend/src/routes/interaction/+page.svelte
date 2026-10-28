@@ -1,23 +1,32 @@
 <script lang="ts">
 	import { refreshAll } from '$app/navigation';
-	import FormattedMessage from '#lib/components/formatted-message.svelte';
+	import ActionPanel from '#lib/components/auth/action-panel.svelte';
+	import AuthHeading from '#lib/components/auth/auth-heading.svelte';
+	import {
+		alternativeSignInHref,
+		authPrimaryClass,
+		authQuietClass,
+		isPasskeyPromptClosed,
+		successHold
+	} from '#lib/components/auth/auth-util.ts';
+	import AuthorizeTiles from '#lib/components/auth/authorize-tiles.svelte';
+	import TrustLine from '#lib/components/auth/trust-line.svelte';
+	import IdentityRow from '#lib/components/identity-row.svelte';
 	import SignInWrapper from '#lib/components/login-wrapper.svelte';
 	import ScopeList from '#lib/components/scope-list.svelte';
-	import * as Avatar from '#lib/components/ui/avatar/index.ts';
 	import { Button } from '#lib/components/ui/button/index.ts';
-	import * as Card from '#lib/components/ui/card/index.ts';
+	import { Spinner } from '#lib/components/ui/spinner/index.ts';
 	import { m } from '#lib/paraglide/messages.js';
 	import OidcService from '#lib/services/oidc-service.ts';
 	import WebAuthnService from '#lib/services/webauthn-service.ts';
 	import appConfigStore from '#lib/stores/application-configuration-store.ts';
 	import userStore from '#lib/stores/user-store.ts';
 	import type { InteractionStep } from '#lib/types/oidc.type.ts';
-	import { cachedProfilePicture } from '#lib/utils/cached-image-util.ts';
 	import { getClientIDHost } from '#lib/utils/client-id-util.ts';
 	import { getAxiosErrorCode, getWebauthnErrorMessage } from '#lib/utils/error-util.ts';
+	import { cssMs } from '#lib/utils/style.ts';
 	import { startAuthentication } from '@simplewebauthn/browser';
-	import { slide } from 'svelte/transition';
-	import ClientProviderImages from '../authorize/components/client-provider-images.svelte';
+	import { LucideChevronRight } from '@lucide/svelte';
 	import type { PageProps } from './$types';
 
 	const webauthnService = new WebAuthnService();
@@ -26,37 +35,43 @@
 	let { data }: PageProps = $props();
 	let interactionSession = $state(data.interactionSession);
 	let isLoading = $state(false);
-	let success = $state(false);
-	let errorMessage: string | null = $state(null);
-	let errorCode: string | undefined = $state();
+	// Signing in keeps the sign-in step on screen until the next step is known, so the card changes size once
+	let signingIn = $state(false);
+	let redirectUrl: string | undefined = $state();
+	let showFallback = $state(false);
+	let failure: { message: string; code?: string; closed: boolean } | undefined = $state();
 	let currentStep = $derived(interactionSession.currentStep);
 	// Every requested scope starts selected so the user only has to deselect the ones they do not want to grant
 	let selectedScopes = $state([...(data.interactionSession.scopes ?? [])]);
 
-	const fullName = $derived.by(() => {
-		if (!$userStore) {
-			return '';
-		}
-
-		if ($userStore.displayName) {
-			return $userStore.displayName;
-		}
-
-		return [$userStore.firstName, $userStore.lastName].filter(Boolean).join(' ').trim();
-	});
-	const primaryName = $derived(fullName || $userStore?.email || '');
+	const client = $derived(interactionSession.client);
+	// Metadata-document clients go by their host in body copy, because their display name is self-declared
+	const clientName = $derived(getClientIDHost(client) ?? client.name);
+	// openid and offline_access show nothing, so a request for only those keeps the compact card
+	const hasScopes = $derived(
+		(interactionSession.scopes ?? []).some((s) => s !== 'openid' && s !== 'offline_access')
+	);
+	const emailVerificationRequired = $derived(failure?.code === 'email_verification_required');
+	const view = $derived(
+		redirectUrl
+			? 'success'
+			: !$userStore || signingIn
+				? 'sign-in'
+				: emailVerificationRequired
+					? 'verify'
+					: (currentStep ?? 'authenticate')
+	);
 
 	async function useDifferentAccount() {
 		await webauthnService.logout();
 		await completeInteraction('select_account', true);
-		userStore.clearUser();
 		await refreshAll();
 	}
 
 	async function handlePipeline() {
 		isLoading = true;
-		errorMessage = null;
-		errorCode = undefined;
+		signingIn = !$userStore;
+		failure = undefined;
 		try {
 			if (!$userStore) {
 				await authenticate();
@@ -68,11 +83,14 @@
 
 			await completeInteraction(currentStep!);
 		} catch (e) {
-			success = false;
-			errorMessage = getWebauthnErrorMessage(e);
-			errorCode = getAxiosErrorCode(e);
+			failure = {
+				message: getWebauthnErrorMessage(e),
+				code: getAxiosErrorCode(e),
+				closed: isPasskeyPromptClosed(e)
+			};
 		} finally {
 			isLoading = false;
+			signingIn = false;
 		}
 	}
 
@@ -109,112 +127,140 @@
 		}
 
 		if (result.redirectUrl && !skipRedirect) {
-			success = true;
-			await new Promise((r) => setTimeout(r, 800));
+			redirectUrl = result.redirectUrl;
+			// The way forward becomes a link when the browser has not left after a few seconds
+			setTimeout(() => (showFallback = true), cssMs('--t-redirect-fallback'));
+			await successHold();
 			window.location.href = result.redirectUrl;
 		}
 	}
 </script>
 
 <svelte:head>
-	<title>{m.sign_in_to({ name: interactionSession.client.name })}</title>
+	<title>{m.sign_in_to({ name: client.name })}</title>
 </svelte:head>
 
-<SignInWrapper showAlternativeSignInMethodButton={$userStore == null}>
-	<ClientProviderImages client={interactionSession.client} {success} error={!!errorMessage} />
-	<h1 class="font-gloock mt-5 text-3xl font-bold sm:text-4xl">
-		{m.sign_in_to({ name: interactionSession.client.name })}
-	</h1>
-	<p class="text-muted-foreground mt-2 mb-10">
-		{#if errorMessage}
-			{errorMessage}.
-		{:else if currentStep == 'select_account' && $userStore}
-			<FormattedMessage
-				message={m.account_selection_signin_confirmation}
-				inputs={{
-					name: getClientIDHost(interactionSession.client) ?? interactionSession.client.name
-				}}
-			/>
-		{:else}
-			<FormattedMessage
-				message={m.do_you_want_to_sign_in_to_client_with_your_app_name_account}
-				inputs={{
-					client: getClientIDHost(interactionSession.client) ?? interactionSession.client.name,
-					appName: $appConfigStore.appName
-				}}
-			/>
-		{/if}
-	</p>
-	{#if !$userStore || errorMessage}
-		<!-- Return nothing -->
-	{:else if currentStep === 'select_account'}
+<SignInWrapper wide={view === 'consent' && hasScopes}>
+	<AuthorizeTiles {client} success={!!redirectUrl} error={!!failure && !failure.closed} />
+
+	{#if view === 'success'}
+		<AuthHeading title={m.auth_signed_in()}>
+			{m.auth_taking_you_to({ name: clientName })}
+		</AuthHeading>
 		<div
-			transition:slide={{ duration: 300 }}
-			class="flex flex-col items-center"
-			data-testid="account-selection"
+			class="transition-opacity duration-(--dur-base)"
+			class:invisible={!showFallback}
+			class:opacity-0={!showFallback}
 		>
-			{#if $userStore}
-				<Card.Root class="mx-5 mb-2 w-full py-4 sm:min-w-sm">
-					<Card.Content class="flex items-center gap-4">
-						<Avatar.Root class="size-11 shrink-0">
-							<Avatar.Image src={cachedProfilePicture.getUrl($userStore.id)} />
-						</Avatar.Root>
-						<div class="flex min-w-0 flex-col text-start">
-							<p class="truncate text-base leading-tight font-medium">
-								{primaryName}
-							</p>
-							{#if fullName && $userStore.email}
-								<p class="text-muted-foreground mt-1 truncate text-sm leading-tight">
-									{$userStore.email}
-								</p>
-							{/if}
-						</div>
-					</Card.Content>
-				</Card.Root>
+			<Button variant="link" class="text-body h-(--h-xl) max-w-full gap-1" href={redirectUrl}>
+				<span class="truncate">{m.auth_continue_to({ name: clientName })}</span>
+				<LucideChevronRight />
+			</Button>
+		</div>
+	{:else}
+		<AuthHeading
+			title={view === 'select_account'
+				? m.auth_choose_an_account()
+				: view === 'reauthenticate'
+					? m.auth_confirm_its_you()
+					: client.name}
+			tone={failure ? (failure.closed ? 'info' : 'danger') : undefined}
+		>
+			{#if failure}
+				{failure.closed ? m.auth_passkey_prompt_closed() : failure.message}
+			{:else if view === 'select_account'}
+				{m.auth_to_continue_to({ name: clientName })}
+			{:else if view === 'reauthenticate'}
+				{m.auth_confirm_with_passkey({ name: clientName })}
+			{:else}
+				{m.auth_wants_to_sign_you_in({ appName: $appConfigStore.appName })}
 			{/if}
-			<div class="mb-10 flex justify-center">
+		</AuthHeading>
+
+		{#if view === 'consent' || view === 'authenticate'}
+			<TrustLine {client} />
+		{/if}
+
+		{#if view === 'select_account'}
+			<div class="mb-6" data-testid="account-selection">
 				<button
 					type="button"
-					class="text-muted-foreground text-xs transition-colors hover:underline"
-					onclick={useDifferentAccount}
+					class="group/account focus-visible:outline-ring after:bg-fg/4 transition-motion relative block w-full rounded-md text-start after:pointer-events-none after:absolute after:inset-0 after:rounded-[inherit] after:opacity-0 after:transition-opacity after:duration-(--dur-fast) hover:after:opacity-100 focus-visible:outline-2 focus-visible:outline-offset-2 active:scale-(--press-scale)"
+					aria-busy={isLoading || undefined}
+					disabled={isLoading}
+					onclick={handlePipeline}
 				>
-					{m.use_a_different_account()}
+					<IdentityRow user={$userStore!}>
+						<span class="text-fg-muted shrink-0">
+							{#if isLoading}
+								<Spinner class="size-4" />
+							{:else}
+								<LucideChevronRight
+									class="size-4 transition-transform duration-(--dur-fast) group-hover/account:translate-x-(--nudge)"
+								/>
+							{/if}
+						</span>
+					</IdentityRow>
 				</button>
 			</div>
-		</div>
-	{:else if currentStep === 'consent'}
-		<div class="w-full max-w-md" transition:slide={{ duration: 300 }}>
-			<Card.Root class="mb-10 gap-3">
-				<Card.Header>
-					<p class="text-muted-foreground text-start">
-						<FormattedMessage
-							message={m.client_wants_to_access_the_following_information}
-							inputs={{
-								client: getClientIDHost(interactionSession.client) ?? interactionSession.client.name
-							}}
-						/>
-					</p>
-				</Card.Header>
-				<Card.Content>
-					<ScopeList
-						scopes={interactionSession.scopes || []}
-						scopeInfo={interactionSession.scopeInfo ?? []}
-						bind:selectedScopes
-					/>
-				</Card.Content>
-			</Card.Root>
-		</div>
-	{/if}
-	<div class="flex w-full max-w-md flex-row-reverse gap-2">
-		{#if errorCode === 'email_verification_required'}
-			<Button class="flex-1" href="/settings/account">{m.verify_email_address()}</Button>
-		{:else}
-			<Button class="flex-1" {isLoading} onclick={handlePipeline} autofocus={true}>
-				{errorMessage ? m.try_again() : m.sign_in()}
-			</Button>
+		{:else if $userStore && view !== 'verify' && view !== 'sign-in'}
+			<div class="mb-6">
+				<IdentityRow user={$userStore} />
+			</div>
 		{/if}
-		<Button class="flex-1" variant="secondary" href={document.referrer || '/'}>
-			{m.cancel()}
-		</Button>
-	</div>
+
+		{#if view === 'consent' && hasScopes}
+			<div class="mb-6 lg:break-before-column">
+				<ScopeList
+					scopes={interactionSession.scopes || []}
+					scopeInfo={interactionSession.scopeInfo ?? []}
+					bind:selectedScopes
+				/>
+			</div>
+		{/if}
+
+		<ActionPanel>
+			<div class="flex flex-col items-center gap-3">
+				{#if view === 'verify'}
+					<Button class={authPrimaryClass} href="/settings/account">
+						{m.verify_email_address()}
+					</Button>
+				{:else if view === 'sign-in'}
+					<Button class={authPrimaryClass} {isLoading} onclick={handlePipeline}>
+						{failure ? m.try_again() : m.auth_sign_in_with_passkey()}
+					</Button>
+					<Button variant="link" class={authQuietClass} href={alternativeSignInHref()}>
+						{m.auth_other_ways_to_sign_in()}
+					</Button>
+				{:else if view === 'select_account'}
+					<Button variant="link" class={authQuietClass} onclick={useDifferentAccount}>
+						{m.use_a_different_account()}
+					</Button>
+				{:else}
+					<!-- A metadata-document client goes by its host, which can be longer than the button -->
+					<Button class={authPrimaryClass} {isLoading} onclick={handlePipeline}>
+						<span class="truncate">
+							{failure
+								? m.try_again()
+								: view === 'reauthenticate'
+									? m.auth_continue_with_passkey()
+									: m.auth_continue_to({ name: clientName })}
+						</span>
+					</Button>
+				{/if}
+				<!-- Cancel goes back through authorize, so the app hears access_denied instead of the person being left on Pocket ID -->
+				<Button
+					variant="link"
+					class={authQuietClass}
+					href={`/authorize?interaction=${encodeURIComponent(interactionSession.id)}&cancel=true`}
+				>
+					{m.cancel()}
+				</Button>
+			</div>
+
+			{#if view === 'consent'}
+				<p class="text-control text-fg-muted mt-2 text-center">{m.auth_remove_access_anytime()}</p>
+			{/if}
+		</ActionPanel>
+	{/if}
 </SignInWrapper>

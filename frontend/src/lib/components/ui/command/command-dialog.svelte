@@ -33,7 +33,10 @@
 		<Dialog.Description>{description}</Dialog.Description>
 	</Dialog.Header>
 	<Dialog.Content
-		class={cn('top-1/3 translate-y-0 overflow-hidden rounded-4xl! p-0 p-0', className)}
+		class={cn(
+			'bg-popover/72 border-fg/6 dark:border-fg/10 [@media(prefers-reduced-transparency:reduce)]:bg-popover! top-[15%] max-w-(--palette-w) translate-y-0 gap-0 overflow-hidden rounded-lg p-0 backdrop-blur-[40px] backdrop-saturate-150 [@media(prefers-reduced-transparency:reduce)]:backdrop-filter-none!',
+			className
+		)}
 		{showCloseButton}
 		{portalProps}
 	>
