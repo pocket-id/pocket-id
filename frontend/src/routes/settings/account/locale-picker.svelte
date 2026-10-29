@@ -5,6 +5,8 @@
 	import userStore from '#lib/stores/user-store.ts';
 	import { setLocale } from '#lib/utils/locale.util.ts';
 
+	let controlProps: { id: string; 'aria-describedby': string | undefined } = $props();
+
 	const userService = new UserService();
 	const currentLocale = getLocale();
 
@@ -47,10 +49,10 @@
 </script>
 
 <Select.Root type="single" value={currentLocale} onValueChange={(v) => updateLocale(v as Locale)}>
-	<Select.Trigger class="max-w-[200px]" aria-label="Select locale">
+	<Select.Trigger {...controlProps}>
 		{locales[currentLocale]}
 	</Select.Trigger>
-	<Select.Content class="max-h-100">
+	<Select.Content align="end" collisionPadding={16} class="max-h-100">
 		{#each Object.entries(locales) as [value, label] (value)}
 			<Select.Item {value}>{label}</Select.Item>
 		{/each}

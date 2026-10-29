@@ -1,6 +1,7 @@
 <script lang="ts">
 	import Input from '#lib/components/ui/input/input.svelte';
 	import * as Popover from '#lib/components/ui/popover/index.js';
+	import { cn } from '#lib/utils/style.ts';
 
 	let {
 		value = $bindable(''),
@@ -81,7 +82,7 @@
 	<Popover.Root open={isOpen}>
 		<Popover.Trigger tabindex={-1} class="h-0 w-full" aria-hidden />
 		<Popover.Content
-			class="gap-0! px-1 py-2"
+			class="bg-popover/72 border-fg/6 dark:border-fg/10 gap-0! p-1 backdrop-blur-[40px] backdrop-saturate-150"
 			sameWidth
 			sideOffset={5}
 			trapFocus={false}
@@ -99,10 +100,10 @@
 					onkeydown={(e) => {
 						if (e.key === 'Enter') handleSuggestionClick(suggestion);
 					}}
-					class="hover:bg-accent hover:text-accent-foreground relative flex w-full cursor-default items-center rounded-full py-1.5 pr-2 pl-8 text-sm outline-none select-none data-[disabled]:pointer-events-none data-[disabled]:opacity-50 {selectedIndex ===
-					index
-						? 'bg-accent text-accent-foreground'
-						: ''}"
+					class={cn(
+						'text-mono hover:bg-fg/6 flex min-h-9 w-full cursor-default items-center rounded-sm px-2.5 font-mono select-none',
+						selectedIndex === index && 'bg-fg/6 outline-ring outline-2 -outline-offset-2'
+					)}
 				>
 					{suggestion}
 				</div>

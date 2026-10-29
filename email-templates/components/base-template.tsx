@@ -49,9 +49,9 @@ export const BaseTemplate = ({
 );
 
 // The heading font is self-hosted by the app, so it loads from the same origin as the logo and works without third-party requests
-// Clients without web font support fall back to the serif stack declared on the headings
+// Clients without web font support fall back to the system stack declared on the headings
 const fontFaceCss = (appURL: string) =>
-	`@font-face{font-family:'Gloock';font-style:normal;font-weight:400;mso-font-alt:'Georgia';src:url(${appURL}/fonts/Gloock-Regular.woff) format('woff');}`;
+	`@font-face{font-family:'Funnel Display';font-style:normal;font-weight:300 800;mso-font-alt:'Arial';src:url(${appURL}/fonts/FunnelDisplay-latin.woff2) format('woff2');}`;
 
 const bodyStyle = {
 	margin: 0,
@@ -84,9 +84,10 @@ const logoStyle = {
 };
 
 const appNameStyle = {
-	fontFamily: fonts.serif,
+	fontFamily: fonts.display,
 	fontSize: '20px',
 	lineHeight: '28px',
+	fontWeight: 600,
 	color: colors.foreground,
 	textDecoration: 'none'
 };

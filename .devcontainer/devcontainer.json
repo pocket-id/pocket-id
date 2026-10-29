@@ -3,7 +3,7 @@
   "image": "ghcr.io/voidzero-dev/vite-plus:1.0.0",
   "features": {
     "ghcr.io/devcontainers/features/go:1": {
-      "version": "1.27"
+      "version": "1.27.3"
     }
   },
   "customizations": {

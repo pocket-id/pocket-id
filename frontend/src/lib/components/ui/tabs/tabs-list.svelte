@@ -2,11 +2,11 @@
 	import { tv, type VariantProps } from 'tailwind-variants';
 
 	export const tabsListVariants = tv({
-		base: 'rounded-full p-1 group-data-horizontal/tabs:h-9 group-data-vertical/tabs:rounded-2xl data-[variant=line]:rounded-none group/tabs-list text-muted-foreground inline-flex w-fit items-center justify-center group-data-[orientation=vertical]/tabs:h-fit group-data-[orientation=vertical]/tabs:flex-col',
+		base: 'group/tabs-list relative isolate flex w-fit items-center group-data-[orientation=vertical]/tabs:flex-col',
 		variants: {
 			variant: {
-				default: 'cn-tabs-list-variant-default bg-muted',
-				line: 'cn-tabs-list-variant-line gap-1 bg-transparent'
+				default: 'gap-1',
+				line: 'w-full gap-6 shadow-[inset_0_-1px_0_var(--border)]'
 			}
 		},
 		defaultVariants: {
@@ -18,7 +18,6 @@
 </script>
 
 <script lang="ts">
-	import appConfigStore from '#lib/stores/application-configuration-store.ts';
 	import { cn } from '#lib/utils/style.js';
 	import { Tabs as TabsPrimitive } from 'bits-ui';
 	import { onMount } from 'svelte';
@@ -33,56 +32,76 @@
 		variant?: TabsListVariant;
 	} = $props();
 
-	let indicatorOffset = $state(0);
-	let indicatorSize = $state(0);
+	let indicator = $state<HTMLElement | null>(null);
 	let indicatorVisible = $state(false);
-	let indicatorOrientation = $state<'horizontal' | 'vertical'>('horizontal');
 
-	function updateIndicator() {
-		if (!ref || variant !== 'line') {
-			indicatorVisible = false;
-			return;
-		}
-
-		const activeTrigger = ref.querySelector<HTMLElement>(
+	// Moves the indicator by FLIP so only transform animates, and never on first paint or on resize
+	function updateIndicator(animate: boolean) {
+		if (!ref || !indicator) return;
+		const active = ref.querySelector<HTMLElement>(
 			'[data-slot="tabs-trigger"][data-state="active"]'
 		);
-		if (!activeTrigger) {
+		if (!active || ref.dataset.orientation === 'vertical') {
 			indicatorVisible = false;
 			return;
 		}
 
 		const listRect = ref.getBoundingClientRect();
-		const triggerRect = activeTrigger.getBoundingClientRect();
-		indicatorOrientation = ref.dataset.orientation === 'vertical' ? 'vertical' : 'horizontal';
+		const targetRect = active.getBoundingClientRect();
+		const from = indicator.getBoundingClientRect();
 
-		if (indicatorOrientation === 'vertical') {
-			indicatorOffset = triggerRect.top - listRect.top;
-			indicatorSize = triggerRect.height;
+		indicator.style.transition = 'none';
+		indicator.style.transform = '';
+		indicator.style.left = `${targetRect.left - listRect.left}px`;
+		indicator.style.width = `${targetRect.width}px`;
+		if (variant === 'default') {
+			indicator.style.top = `${targetRect.top - listRect.top}px`;
+			indicator.style.height = `${targetRect.height}px`;
+		}
+
+		const to = indicator.getBoundingClientRect();
+		if (animate && indicatorVisible && from.width > 0 && to.width > 0) {
+			indicator.style.transform = `translateX(${from.left - to.left}px) scaleX(${from.width / to.width})`;
+			indicator.getBoundingClientRect();
+			indicator.style.transition = '';
+			indicator.style.transform = '';
 		} else {
-			const triggerStyle = getComputedStyle(activeTrigger);
-			const paddingLeft = Number.parseFloat(triggerStyle.paddingLeft);
-			const paddingRight = Number.parseFloat(triggerStyle.paddingRight);
-			indicatorOffset = triggerRect.left - listRect.left + paddingLeft;
-			indicatorSize = triggerRect.width - paddingLeft - paddingRight;
+			indicator.style.transition = '';
 		}
 		indicatorVisible = true;
 	}
 
-	onMount(() => {
-		if (!ref || variant !== 'line') return;
+	// Tab rows scroll sideways on phones, so the active tab is brought into view on load and whenever it changes
+	function scrollActiveIntoView() {
+		ref
+			?.querySelector('[data-slot="tabs-trigger"][data-state="active"]')
+			?.scrollIntoView({ block: 'nearest', inline: 'nearest' });
+	}
 
-		const resizeObserver = new ResizeObserver(updateIndicator);
+	onMount(() => {
+		if (!ref) return;
+
+		const resizeObserver = new ResizeObserver(() => updateIndicator(false));
 		const observeTriggers = () => {
 			ref
 				?.querySelectorAll<HTMLElement>('[data-slot="tabs-trigger"]')
 				.forEach((trigger) => resizeObserver.observe(trigger));
-			updateIndicator();
 		};
-		const mutationObserver = new MutationObserver(observeTriggers);
+		const mutationObserver = new MutationObserver((mutations) => {
+			observeTriggers();
+			updateIndicator(true);
+			const activated = mutations.some(
+				(mutation) =>
+					mutation.type === 'attributes' &&
+					(mutation.target as HTMLElement).dataset.state === 'active'
+			);
+			if (activated) scrollActiveIntoView();
+		});
 
 		resizeObserver.observe(ref);
 		observeTriggers();
+		updateIndicator(false);
+		scrollActiveIntoView();
 		mutationObserver.observe(ref, {
 			attributes: true,
 			attributeFilter: ['data-state'],
@@ -101,26 +120,20 @@
 	bind:ref
 	data-slot="tabs-list"
 	data-variant={variant}
-	class={cn(tabsListVariants({ variant }), variant === 'line' && 'relative', className)}
+	class={cn(tabsListVariants({ variant }), className)}
 	{...restProps}
 >
+	<span
+		bind:this={indicator}
+		aria-hidden="true"
+		data-slot="tabs-indicator"
+		class={cn(
+			'pointer-events-none absolute left-0 origin-left opacity-0 transition-transform duration-(--dur-base) ease-in-out',
+			variant === 'line'
+				? 'bg-fg bottom-0 h-0.5'
+				: 'bg-surface-raised top-0 -z-10 rounded-sm shadow-[inset_0_0_0_1px_var(--border-selected),var(--elevation-selected)]',
+			indicatorVisible && 'opacity-100'
+		)}
+	></span>
 	{@render children?.()}
-	{#if variant === 'line'}
-		<span
-			aria-hidden="true"
-			data-slot="tabs-indicator"
-			class={cn(
-				'bg-foreground pointer-events-none absolute rounded-full opacity-0',
-				!$appConfigStore?.disableAnimations &&
-					'transition-[transform,width,height,opacity] duration-300 ease-out motion-reduce:transition-none',
-				indicatorOrientation === 'horizontal' ? 'bottom-0 left-0 h-0.5' : 'top-0 right-0 w-0.5',
-				indicatorVisible && 'opacity-100'
-			)}
-			style:width={indicatorOrientation === 'horizontal' ? `${indicatorSize}px` : undefined}
-			style:height={indicatorOrientation === 'vertical' ? `${indicatorSize}px` : undefined}
-			style:transform={indicatorOrientation === 'horizontal'
-				? `translate3d(${indicatorOffset}px, 0, 0)`
-				: `translate3d(0, ${indicatorOffset}px, 0)`}
-		></span>
-	{/if}
 </TabsPrimitive.List>

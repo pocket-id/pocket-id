@@ -1,29 +1,36 @@
 <script lang="ts">
 	import { navigating } from '$app/state';
-	import { fade } from 'svelte/transition';
+	import { cssMs } from '#lib/utils/style.ts';
+	import { cubicOut } from 'svelte/easing';
 
-	// Skip the fade when the bar never became visible, otherwise it would start growing during the fade and flash on fast navigations
-	function fadeIfVisible(node: HTMLElement) {
-		const visible = new DOMMatrixReadOnly(getComputedStyle(node).transform).a > 0;
-		return fade(node, { duration: visible ? 200 : 0 });
+	// Run the bar to the end in the first half and fade it out in the second, so a finished navigation reads as complete
+	// Skip it when the bar never became visible, otherwise it would start growing during the fade and flash on fast navigations
+	function finish(node: HTMLElement) {
+		const from = new DOMMatrixReadOnly(getComputedStyle(node).transform).a;
+		return {
+			duration: from > 0 ? cssMs('--dur-slow') : 0,
+			easing: cubicOut,
+			css: (t: number, u: number) =>
+				`transform: scaleX(${from + (1 - from) * Math.min(1, u * 2)}); opacity: ${Math.min(1, t * 2)}`
+		};
 	}
 </script>
 
 {#if navigating.to && !navigating.shallow}
-	<div class="nav-progress" aria-hidden="true" out:fadeIfVisible></div>
+	<div class="nav-progress" aria-hidden="true" out:finish></div>
 {/if}
 
 <style>
 	.nav-progress {
 		position: fixed;
 		inset: 0 0 auto 0;
-		z-index: 100;
+		z-index: var(--z-progress);
 		height: 2px;
-		background: var(--primary);
+		background: linear-gradient(to right, transparent, var(--primary));
 		transform: scaleX(0);
 		transform-origin: left;
 		pointer-events: none;
-		animation: progress 3s cubic-bezier(0.1, 0.6, 0.3, 1) 100ms forwards;
+		animation: progress var(--t-progress) cubic-bezier(0.1, 0.6, 0.3, 1) 100ms forwards;
 	}
 
 	@keyframes progress {
@@ -32,7 +39,7 @@
 		}
 
 		to {
-			transform: scaleX(0.85);
+			transform: scaleX(0.9);
 		}
 	}
 </style>

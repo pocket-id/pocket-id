@@ -18,7 +18,7 @@
 	data-slot="field-legend"
 	data-variant={variant}
 	class={cn(
-		'mb-3 font-medium data-[variant=label]:text-sm data-[variant=legend]:text-base',
+		'text-fg data-[variant=label]:text-control data-[variant=legend]:text-heading mb-3 data-[variant=label]:font-semibold',
 		className
 	)}
 	{...restProps}

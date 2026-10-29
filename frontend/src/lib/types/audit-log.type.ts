@@ -5,11 +5,17 @@ export type AuditLog = {
 	country?: string;
 	city?: string;
 	device: string;
-	userId: string;
+	userID: string;
 	username?: string;
 	actorUsername?: string;
 	createdAt: string;
 	data: any;
+};
+
+// RFC 3339 bounds of the date filter: from is inclusive, to exclusive, and a missing bound is open
+export type AuditLogDateRange = {
+	from?: string;
+	to?: string;
 };
 
 export type AuditLogFilter = {

@@ -29,7 +29,7 @@ export default defineConfig(() => {
 					precompress: true
 				}),
 				version: {
-					name: packageJson.version,
+					name: process.env.NEXT_VERSION ?? packageJson.version,
 					pollInterval: 0
 				}
 			}),

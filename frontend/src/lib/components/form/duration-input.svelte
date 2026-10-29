@@ -20,12 +20,14 @@
 		id,
 		label,
 		description,
-		input = $bindable()
+		input = $bindable(),
+		changed = false
 	}: {
 		id: string;
 		label: string;
-		description: string;
+		description?: string;
 		input: FormInput<number>;
+		changed?: boolean;
 	} = $props();
 
 	function preferredUnit(minutes: number): DurationUnit {
@@ -59,6 +61,7 @@
 		amount = (event.currentTarget as HTMLInputElement).value;
 		displayedMinutes = amount === '' ? Number.NaN : Number(amount) * minutesPerUnit[unit];
 		input.value = displayedMinutes;
+		input.error = null;
 	}
 
 	function updateUnit(value: string | undefined) {
@@ -83,11 +86,14 @@
 </script>
 
 <Field.Field>
-	<div>
+	<div class="flex items-center gap-2">
 		<Field.Label for={id}>{label}</Field.Label>
-		<Field.Description>{description}</Field.Description>
+		{#if changed}
+			<span class="bg-fg size-1.5 shrink-0 rounded-full"></span>
+			<span class="sr-only">{m.changed_from_the_default()}</span>
+		{/if}
 	</div>
-	<div>
+	<div class="flex flex-col gap-1.5">
 		<ButtonGroup.Root class="w-full">
 			<Input
 				{id}
@@ -118,6 +124,8 @@
 		</ButtonGroup.Root>
 		{#if input.error}
 			<Field.Error>{input.error}</Field.Error>
+		{:else if description}
+			<Field.Description>{description}</Field.Description>
 		{/if}
 	</div>
 </Field.Field>

@@ -1,10 +1,22 @@
 <script lang="ts">
-	import FormattedMessage from '#lib/components/formatted-message.svelte';
+	import ActionPanel from '#lib/components/auth/action-panel.svelte';
+	import AuthHeading from '#lib/components/auth/auth-heading.svelte';
+	import AuthTile from '#lib/components/auth/auth-tile.svelte';
+	import {
+		alternativeSignInHref,
+		authPrimaryClass,
+		authQuietClass,
+		isPasskeyPromptClosed
+	} from '#lib/components/auth/auth-util.ts';
+	import AuthorizeTiles from '#lib/components/auth/authorize-tiles.svelte';
+	import CodeGroup from '#lib/components/auth/code-group.svelte';
+	import CodeLine from '#lib/components/auth/code-line.svelte';
+	import TrustLine from '#lib/components/auth/trust-line.svelte';
+	import IdentityRow from '#lib/components/identity-row.svelte';
 	import SignInWrapper from '#lib/components/login-wrapper.svelte';
 	import ScopeList from '#lib/components/scope-list.svelte';
 	import { Button } from '#lib/components/ui/button/index.ts';
-	import * as Card from '#lib/components/ui/card/index.ts';
-	import * as InputOTP from '#lib/components/ui/input-otp/index.ts';
+	import { Label } from '#lib/components/ui/label/index.ts';
 	import { m } from '#lib/paraglide/messages.js';
 	import DeviceLoginService from '#lib/services/device-login-service.ts';
 	import OIDCService from '#lib/services/oidc-service.ts';
@@ -17,10 +29,7 @@
 	import { getAxiosErrorCode, getWebauthnErrorMessage } from '#lib/utils/error-util.ts';
 	import { preventDefault } from '#lib/utils/event-util.ts';
 	import { startAuthentication } from '@simplewebauthn/browser';
-	import { onMount } from 'svelte';
-	import { slide } from 'svelte/transition';
-	import ClientProviderImages from '../authorize/components/client-provider-images.svelte';
-	import LoginLogoErrorSuccessIndicator from '../login/components/login-logo-error-success-indicator.svelte';
+	import { onMount, untrack } from 'svelte';
 
 	let { data } = $props();
 
@@ -35,7 +44,7 @@
 	let success = $state(false);
 	let deviceLoginOutcome: 'approved' | 'denied' | undefined = $state();
 	let deviceLoginDecision: 'approve' | 'deny' | undefined = $state();
-	let errorMessage: string | null = $state(null);
+	let failure: { message: string; code?: string; closed: boolean } | undefined = $state();
 	let authorizationRequired = $state(false);
 	let selectedScopes: string[] = $state([]);
 	let reauthenticationRequired = $state(false);
@@ -44,14 +53,45 @@
 		userCode.trim().toUpperCase().replaceAll('I', '1').replaceAll('O', '0')
 	);
 	let codeComplete = $derived(normalizedUserCode.length === 8);
-	let completed = $derived(success || deviceLoginOutcome !== undefined);
-	let errorCode: string | undefined = $state();
-	let emailVerificationRequired = $derived(errorCode === 'email_verification_required');
+	let signedInName = $derived($userStore?.displayName || $userStore?.username || '');
 	let deviceLoginLocation = $derived(
 		deviceLoginInfo?.city && deviceLoginInfo.country
 			? `${deviceLoginInfo.city}, ${deviceLoginInfo.country}`
 			: deviceLoginInfo?.city || deviceLoginInfo?.country || m.unknown()
 	);
+
+	const client = $derived(deviceInfo?.client);
+	const clientName = $derived(client ? (getClientIDHost(client) ?? client.name) : '');
+	const view = $derived(
+		deviceLoginOutcome
+			? deviceLoginOutcome
+			: success
+				? 'authorized'
+				: deviceLoginInfo
+					? 'review'
+					: client && (authorizationRequired || reauthenticationRequired)
+						? 'consent'
+						: 'enter'
+	);
+	// Failures of the code itself show under the cells, everything else in the status line
+	const codeFailure = $derived(
+		view === 'enter' &&
+			(failure?.code === 'oidc_device_code_expired'
+				? 'expired'
+				: failure?.code === 'oidc_invalid_device_code' || failure?.code === 'device_login_expired'
+					? 'invalid'
+					: undefined)
+	);
+	const statusFailure = $derived(codeFailure ? undefined : failure);
+	const statusTone = $derived(
+		statusFailure ? (statusFailure.closed ? 'info' : 'danger') : undefined
+	);
+
+	// Typing again clears the last outcome
+	$effect(() => {
+		void userCode;
+		untrack(() => (failure = undefined));
+	});
 
 	onMount(() => {
 		// Device login codes always show a confirmation before approval
@@ -61,11 +101,14 @@
 	});
 
 	async function authorize() {
-		if (!data.code && !codeComplete) return;
+		if (!codeComplete) return;
+		if (codeFailure === 'expired') {
+			userCode = '';
+			return;
+		}
 
 		isLoading = true;
-		errorMessage = null;
-		errorCode = undefined;
+		failure = undefined;
 		try {
 			await authenticateUserIfNeeded();
 
@@ -101,8 +144,7 @@
 			);
 			success = true;
 		} catch (error) {
-			errorMessage = getWebauthnErrorMessage(error);
-			errorCode = getAxiosErrorCode(error);
+			setFailure(error);
 		} finally {
 			isLoading = false;
 		}
@@ -120,8 +162,7 @@
 	async function decideDeviceLogin(decision: 'approve' | 'deny') {
 		isLoading = true;
 		deviceLoginDecision = decision;
-		errorMessage = null;
-		errorCode = undefined;
+		failure = undefined;
 		try {
 			if (decision === 'approve') {
 				await reauthenticate();
@@ -129,8 +170,7 @@
 			await deviceLoginService.decideRequest(normalizedUserCode, decision);
 			deviceLoginOutcome = decision === 'approve' ? 'approved' : 'denied';
 		} catch (error) {
-			errorMessage = getWebauthnErrorMessage(error);
-			errorCode = getAxiosErrorCode(error);
+			setFailure(error);
 		} finally {
 			isLoading = false;
 			deviceLoginDecision = undefined;
@@ -147,179 +187,183 @@
 		}
 	}
 
-	function retry() {
-		errorMessage = null;
-		errorCode = undefined;
-		if (!deviceLoginInfo) {
-			userCode = '';
-		}
-		if (!deviceLoginInfo) {
-			deviceInfo = undefined;
-			authorizationRequired = false;
-			reauthenticationRequired = false;
-		}
+	function setFailure(error: unknown) {
+		failure = {
+			message: getWebauthnErrorMessage(error),
+			code: getAxiosErrorCode(error),
+			closed: isPasskeyPromptClosed(error)
+		};
 	}
 </script>
 
 <svelte:head>
-	<title>{m.authorize_device()}</title>
+	<title>{m.auth_connect_a_device()}</title>
 </svelte:head>
 
-<SignInWrapper showAlternativeSignInMethodButton={$userStore == null}>
-	<div class="flex justify-center">
-		{#if deviceInfo?.client}
-			<ClientProviderImages client={deviceInfo.client} {success} error={!!errorMessage} />
-		{:else}
-			<LoginLogoErrorSuccessIndicator
-				success={success || deviceLoginOutcome === 'approved'}
-				error={!!errorMessage}
-			/>
-		{/if}
-	</div>
-	<h1 class="font-gloock mt-5 text-4xl font-bold">
-		{m.authorize_device()}
-	</h1>
-	{#if errorMessage}
-		<p class="text-muted-foreground mt-2">
-			{errorMessage}. {#if !emailVerificationRequired}{m.please_try_again()}{/if}
-		</p>
-	{:else if deviceLoginOutcome === 'approved'}
-		<p class="text-muted-foreground mt-2">{m.the_requesting_device_has_been_signed_in()}</p>
-	{:else if deviceLoginOutcome === 'denied'}
-		<p class="text-muted-foreground mt-2">{m.the_sign_in_request_was_denied()}</p>
-	{:else if success}
-		<p class="text-muted-foreground mt-2">{m.the_device_has_been_authorized()}</p>
-	{:else if deviceLoginInfo}
-		<p class="text-muted-foreground mt-2">{m.review_the_request_before_approving_it()}</p>
-		<div class="w-full max-w-112.5" transition:slide={{ duration: 300 }}>
-			<Card.Root class="mt-6 text-start">
-				<Card.Content>
-					<dl class="flex flex-col gap-4 text-sm">
-						<div class="flex items-start justify-between gap-6">
-							<dt class="text-muted-foreground">{m.code()}</dt>
-							<dd class="font-medium">
-								{deviceLoginInfo.userCode.substring(0, 4)} - {deviceLoginInfo.userCode.substring(
-									4,
-									8
-								)}
-							</dd>
-						</div>
-						<div class="flex items-start justify-between gap-6">
-							<dt class="text-muted-foreground">{m.device()}</dt>
-							<dd class="text-right font-medium">{deviceLoginInfo.device}</dd>
-						</div>
-						<div class="flex items-start justify-between gap-6">
-							<dt class="text-muted-foreground">{m.ip_address()}</dt>
-							<dd class="font-medium">{deviceLoginInfo.ipAddress || m.unknown()}</dd>
-						</div>
-						<div class="flex items-start justify-between gap-6">
-							<dt class="text-muted-foreground">{m.approximate_location()}</dt>
-							<dd class="text-right font-medium">{deviceLoginLocation}</dd>
-						</div>
-					</dl>
-				</Card.Content>
-			</Card.Root>
-		</div>
-	{:else if reauthenticationRequired && deviceInfo?.client}
-		<p class="text-muted-foreground mt-2">
-			<FormattedMessage
-				message={m.do_you_want_to_sign_in_to_client_with_your_app_name_account}
-				inputs={{
-					client: getClientIDHost(deviceInfo!.client) ?? deviceInfo!.client.name,
-					appName: $appConfigStore.appName
-				}}
-			/>
-		</p>
-	{:else if authorizationRequired}
-		<div class="w-full max-w-112.5" transition:slide={{ duration: 300 }}>
-			<Card.Root class="mt-6 gap-2">
-				<Card.Header>
-					<Card.Description class="text-start">
-						<FormattedMessage
-							message={m.client_wants_to_access_the_following_information}
-							inputs={{ client: getClientIDHost(deviceInfo!.client) ?? deviceInfo!.client.name }}
-						/>
-					</Card.Description>
-				</Card.Header>
-				<Card.Content data-testid="scopes">
-					<ScopeList
-						scopes={deviceInfo!.scope || []}
-						scopeInfo={deviceInfo!.scopeInfo || []}
-						bind:selectedScopes
-					/>
-				</Card.Content>
-			</Card.Root>
-		</div>
+{#snippet status(fallback: string)}
+	{#if statusFailure}
+		{statusFailure.closed ? m.auth_passkey_prompt_closed() : statusFailure.message}
 	{:else}
-		<p class="text-muted-foreground mt-2">{m.enter_code_displayed_in_previous_step()}</p>
-		<form
-			id="device-code-form"
-			onsubmit={preventDefault(authorize)}
-			class="mt-7 flex w-full max-w-112.5 justify-center"
-		>
-			<InputOTP.Root
-				class="gap-1 sm:gap-2"
-				maxlength={8}
-				aria-label={m.code()}
-				bind:value={userCode}
-				onValueChange={(value) => (userCode = value.toUpperCase())}
-				pasteTransformer={(value) => value.replace(/[^a-zA-Z0-9]/g, '').toUpperCase()}
-			>
-				{#snippet children({ cells })}
-					<InputOTP.Group class="gap-0.5 sm:gap-1.5">
-						{#each cells.slice(0, 4) as cell (cell)}
-							<InputOTP.Slot class="h-12 w-8 sm:h-13 sm:w-10" {cell} />
-						{/each}
-					</InputOTP.Group>
-					<InputOTP.Separator />
-					<InputOTP.Group class="gap-0.5 sm:gap-1.5">
-						{#each cells.slice(4) as cell (cell)}
-							<InputOTP.Slot class="h-12 w-8 sm:h-13 sm:w-10" {cell} />
-						{/each}
-					</InputOTP.Group>
-				{/snippet}
-			</InputOTP.Root>
-		</form>
+		{fallback}
 	{/if}
-	{#if !completed}
-		<div class="mt-10 flex w-full max-w-112.5 gap-2">
-			{#if errorMessage}
-				<Button class="flex-1" variant="secondary" href="/">{m.cancel()}</Button>
-				{#if emailVerificationRequired}
-					<Button class="flex-1" href="/settings/account">{m.verify_email_address()}</Button>
-				{:else}
-					<Button class="flex-1" onclick={retry}>{m.try_again()}</Button>
+{/snippet}
+
+<SignInWrapper wide={view === 'consent' && authorizationRequired}>
+	{#if client && (view === 'consent' || view === 'authorized')}
+		<AuthorizeTiles
+			{client}
+			success={view === 'authorized'}
+			error={!!statusFailure && !statusFailure.closed}
+		/>
+	{:else}
+		<AuthTile success={view === 'approved'} />
+	{/if}
+
+	{#if view === 'authorized'}
+		<AuthHeading title={m.auth_authorized()}>
+			{m.auth_device_authorized_description({ name: clientName })}
+		</AuthHeading>
+	{:else if view === 'approved'}
+		<AuthHeading title={m.auth_signed_in()}>
+			{m.auth_other_device_signed_in({ device: deviceLoginInfo!.device, name: signedInName })}
+		</AuthHeading>
+	{:else if view === 'denied'}
+		<AuthHeading title={m.auth_request_denied()}>
+			{m.auth_other_device_denied({ device: deviceLoginInfo!.device })}
+		</AuthHeading>
+	{:else if view === 'review'}
+		<AuthHeading
+			title={m.auth_device_wants_to_sign_in({ device: deviceLoginInfo!.device })}
+			tone={statusTone}
+		>
+			{@render status(m.auth_does_this_code_match())}
+		</AuthHeading>
+		<div
+			class="mb-4 flex items-center font-mono text-xl font-medium"
+			data-testid="device-login-code"
+		>
+			{#each [deviceLoginInfo!.userCode.slice(0, 4), deviceLoginInfo!.userCode.slice(4)] as group, i (i)}
+				{#if i > 0}
+					<span class="text-fg-muted w-7 shrink-0 text-center text-xs">–</span>
 				{/if}
-			{:else if deviceLoginInfo}
+				<span class="bg-surface-sunken flex min-w-0 flex-1 rounded-sm">
+					{#each group as char, j (j)}
+						<span class="grid h-13 min-w-0 flex-1 place-items-center max-lg:h-11">{char}</span>
+					{/each}
+				</span>
+			{/each}
+		</div>
+		<dl class="mb-6 flex flex-col gap-1.5">
+			<div class="grid grid-cols-[100px_minmax(0,1fr)] items-baseline gap-2">
+				<dt class="text-caption text-fg-muted">{m.auth_location()}</dt>
+				<dd class="text-control">{deviceLoginLocation}</dd>
+			</div>
+			<div class="grid grid-cols-[100px_minmax(0,1fr)] items-baseline gap-2">
+				<dt class="text-caption text-fg-muted">{m.auth_ip_address()}</dt>
+				<dd class="text-mono-s font-mono">{deviceLoginInfo!.ipAddress || m.unknown()}</dd>
+			</div>
+		</dl>
+		<div class="mb-6">
+			<IdentityRow user={$userStore!} />
+		</div>
+		<!-- Refusing a security request is an answer, so Deny is a full-width button rather than a text action -->
+		<ActionPanel>
+			<div class="flex flex-col gap-3">
 				<Button
-					class="flex-1"
+					class={authPrimaryClass}
+					disabled={isLoading}
+					isLoading={deviceLoginDecision === 'approve'}
+					onclick={() => decideDeviceLogin('approve')}
+				>
+					{statusFailure ? m.try_again() : m.approve()}
+				</Button>
+				<Button
 					variant="secondary"
+					class={authPrimaryClass}
 					disabled={isLoading}
 					isLoading={deviceLoginDecision === 'deny'}
 					onclick={() => decideDeviceLogin('deny')}
 				>
 					{m.deny()}
 				</Button>
-				<Button
-					class="flex-1"
-					disabled={isLoading}
-					isLoading={deviceLoginDecision === 'approve'}
-					onclick={() => decideDeviceLogin('approve')}
-				>
-					{m.approve()}
-				</Button>
-			{:else}
-				<Button href="/" class="flex-1" variant="secondary">{m.cancel()}</Button>
-				<Button
-					form="device-code-form"
-					class="flex-1"
-					disabled={!codeComplete}
-					{isLoading}
-					onclick={authorize}
-				>
-					{m.authorize()}
-				</Button>
-			{/if}
+			</div>
+			<p class="text-control text-fg-muted mt-2 text-center">
+				{m.auth_approving_asks_for_passkey()}
+			</p>
+		</ActionPanel>
+	{:else if view === 'consent' && client}
+		<AuthHeading title={client.name} tone={statusTone}>
+			{@render status(m.auth_wants_to_use_account_on_device({ appName: $appConfigStore.appName }))}
+		</AuthHeading>
+		<TrustLine {client} />
+		<div class="mb-6">
+			<IdentityRow user={$userStore!} />
 		</div>
+		{#if authorizationRequired}
+			<div class="mb-6 lg:break-before-column">
+				<ScopeList
+					scopes={deviceInfo!.scope || []}
+					scopeInfo={deviceInfo!.scopeInfo || []}
+					bind:selectedScopes
+				/>
+			</div>
+		{/if}
+		<ActionPanel>
+			<div class="flex flex-col items-center gap-3">
+				{#if failure?.code === 'email_verification_required'}
+					<Button class={authPrimaryClass} href="/settings/account">
+						{m.verify_email_address()}
+					</Button>
+				{:else}
+					<Button class={authPrimaryClass} {isLoading} onclick={authorize}>
+						{statusFailure ? m.try_again() : m.approve()}
+					</Button>
+				{/if}
+				<Button variant="link" class={authQuietClass} href="/">{m.cancel()}</Button>
+			</div>
+		</ActionPanel>
+	{:else}
+		<AuthHeading title={m.auth_connect_a_device()} tone={statusTone}>
+			{@render status(
+				codeFailure === 'expired'
+					? m.auth_device_code_expired_description()
+					: m.auth_enter_device_code()
+			)}
+		</AuthHeading>
+		<form onsubmit={preventDefault(authorize)} class="flex flex-col">
+			<Label for="device-code" class="mb-2">{m.auth_device_code()}</Label>
+			<CodeGroup
+				id="device-code"
+				groups={[4, 4]}
+				uppercase
+				bind:value={userCode}
+				invalid={codeFailure === 'invalid'}
+				expired={codeFailure === 'expired'}
+				readonly={isLoading}
+				aria-describedby="device-code-line"
+				autofocus={!userCode}
+			/>
+			<CodeLine
+				id="device-code-line"
+				tone={codeFailure === 'invalid' ? 'error' : codeFailure === 'expired' ? 'info' : undefined}
+			>
+				{#if codeFailure === 'invalid'}
+					{m.auth_code_did_not_work()}
+				{:else if codeFailure === 'expired'}
+					{m.auth_code_has_expired()}
+				{/if}
+			</CodeLine>
+			<div class="mt-6 flex flex-col items-center gap-3">
+				<Button type="submit" class={authPrimaryClass} disabled={!codeComplete} {isLoading}>
+					{codeFailure === 'expired' ? m.auth_enter_a_new_code() : m.auth_continue()}
+				</Button>
+				{#if !$userStore}
+					<Button variant="link" class={authQuietClass} href={alternativeSignInHref()}>
+						{m.auth_other_ways_to_sign_in()}
+					</Button>
+				{/if}
+				<Button variant="link" class={authQuietClass} href="/">{m.cancel()}</Button>
+			</div>
+		</form>
 	{/if}
 </SignInWrapper>

@@ -1,6 +1,6 @@
 {
 	"name": "pocket-id-frontend",
-	"version": "2.18.0",
+	"version": "2.19.1",
 	"private": true,
 	"type": "module",
 	"imports": {
@@ -19,6 +19,7 @@
 	},
 	"dependencies": {
 		"@inlang/paraglide-js-svelte": "^1.0.3",
+		"@jis3r/icons": "^2.9.0",
 		"@opentelemetry/api": "^1.9.1",
 		"@opentelemetry/exporter-trace-otlp-http": "^0.223.0",
 		"@opentelemetry/resources": "^2.8.0",

@@ -44,6 +44,7 @@ func initApplicationImages(ctx context.Context, fileStorage storage.FileStorage)
 		},
 		"background.webp": {
 			mustDecodeHex("3fc436a66d6b872b01d96a4e75046c46b5c3e2daccd51e98ecdf98fd445599ab"),
+			mustDecodeHex("fc9ea4a7d9ac36321d9d5a34e7f0c346f5cb47254e1ee8fb75aac8b58db04230"),
 		},
 	}
 
