@@ -1,9 +1,16 @@
 package claimmappingpolicy
 
+import datatype "github.com/pocket-id/pocket-id/backend/internal/model/types"
+
 type OidcClaimMappingPolicyMetadataDto struct {
-	ID        string `json:"id"`
-	Name      string `json:"name"`
-	IsDefault bool   `json:"isDefault"`
+	ID        string            `json:"id"`
+	Name      string            `json:"name"`
+	IsDefault bool              `json:"isDefault"`
+	CreatedAt datatype.DateTime `json:"createdAt"`
+	// ClaimCount and ClientCount are only set when reading policies
+	ClaimCount int `json:"claimCount"`
+	// ClientCount includes every client without a policy of its own when the policy is the default
+	ClientCount int64 `json:"clientCount"`
 }
 
 type OidcClaimMappingPolicyDto struct {

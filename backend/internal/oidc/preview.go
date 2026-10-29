@@ -43,16 +43,25 @@ func (b *ClientPreviewBuilder) BuildClientPreview(ctx context.Context, client mo
 		return nil, err
 	}
 
-	userInfo := b.claimsService.buildClaims(claimsSource, scopeArgs, UserInfoType)
-
 	request := b.newPreviewRequest(ctx, client, userID, scopeArgs, authenticationMethod)
 	session := request.GetSession().(*Session)
+	preview := &ClientPreview{}
 
-	applyUserClaimsToIDToken(session, userID, b.claimsService.buildClaims(claimsSource, scopeArgs, IDTokenType))
+	// Without openid a real authorization issues no ID token and /userinfo rejects the access token, so the preview leaves both out
+	if scopeArgs.Has("openid") {
+		preview.UserInfo = b.claimsService.buildClaims(claimsSource, scopeArgs, UserInfoType)
 
-	idToken, err := b.strategies.idToken.GenerateIDToken(ctx, b.strategies.config.GetIDTokenLifespan(ctx), request)
-	if err != nil {
-		return nil, fmt.Errorf("failed to generate preview ID token: %w", err)
+		applyUserClaimsToIDToken(session, userID, b.claimsService.buildClaims(claimsSource, scopeArgs, IDTokenType))
+
+		idToken, err := b.strategies.idToken.GenerateIDToken(ctx, b.strategies.config.GetIDTokenLifespan(ctx), request)
+		if err != nil {
+			return nil, fmt.Errorf("failed to generate preview ID token: %w", err)
+		}
+
+		preview.IDToken, err = claimsFromJWTString(idToken)
+		if err != nil {
+			return nil, fmt.Errorf("failed to decode preview ID token: %w", err)
+		}
 	}
 
 	applyUserClaimsToAccessToken(session, b.claimsService.buildClaims(claimsSource, scopeArgs, AccessTokenType))
@@ -62,21 +71,12 @@ func (b *ClientPreviewBuilder) BuildClientPreview(ctx context.Context, client mo
 		return nil, fmt.Errorf("failed to generate preview access token: %w", err)
 	}
 
-	idTokenPayload, err := claimsFromJWTString(idToken)
-	if err != nil {
-		return nil, fmt.Errorf("failed to decode preview ID token: %w", err)
-	}
-
-	accessTokenPayload, err := claimsFromJWTString(accessToken)
+	preview.AccessToken, err = claimsFromJWTString(accessToken)
 	if err != nil {
 		return nil, fmt.Errorf("failed to decode preview access token: %w", err)
 	}
 
-	return &ClientPreview{
-		IDToken:     idTokenPayload,
-		AccessToken: accessTokenPayload,
-		UserInfo:    userInfo,
-	}, nil
+	return preview, nil
 }
 
 func (b *ClientPreviewBuilder) validatedScopes(ctx context.Context, client model.OidcClient, scopes []string) (fosite.Arguments, error) {

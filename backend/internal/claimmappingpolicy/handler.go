@@ -38,12 +38,20 @@ func (h *handler) list(c *gin.Context) error {
 		return err
 	}
 
+	clientCounts, err := h.service.ClientCounts(c.Request.Context(), claimMappingPolicys)
+	if err != nil {
+		return err
+	}
+
 	dtos := make([]OidcClaimMappingPolicyMetadataDto, len(claimMappingPolicys))
 	for i, claimMappingPolicy := range claimMappingPolicys {
 		dtos[i] = OidcClaimMappingPolicyMetadataDto{
-			ID:        claimMappingPolicy.ID,
-			Name:      claimMappingPolicy.Name,
-			IsDefault: claimMappingPolicy.IsDefault,
+			ID:          claimMappingPolicy.ID,
+			Name:        claimMappingPolicy.Name,
+			IsDefault:   claimMappingPolicy.IsDefault,
+			CreatedAt:   claimMappingPolicy.CreatedAt,
+			ClaimCount:  len(claimMappingPolicy.ClaimMappings),
+			ClientCount: clientCounts[claimMappingPolicy.ID],
 		}
 	}
 	c.JSON(http.StatusOK, dto.Paginated[OidcClaimMappingPolicyMetadataDto]{
@@ -101,11 +109,18 @@ func (h *handler) get(c *gin.Context) error {
 		return err
 	}
 
+	clientCounts, err := h.service.ClientCounts(c.Request.Context(), []OidcClaimMappingPolicy{claimMappingPolicy})
+	if err != nil {
+		return err
+	}
+
 	var claimMappingPolicyDto OidcClaimMappingPolicyDto
 	err = dto.MapStruct(claimMappingPolicy, &claimMappingPolicyDto)
 	if err != nil {
 		return err
 	}
+	claimMappingPolicyDto.ClaimCount = len(claimMappingPolicy.ClaimMappings)
+	claimMappingPolicyDto.ClientCount = clientCounts[claimMappingPolicy.ID]
 	c.JSON(http.StatusOK, claimMappingPolicyDto)
 	return nil
 }

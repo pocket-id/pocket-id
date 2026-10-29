@@ -1041,3 +1041,31 @@ func TestRemoveClientFromClaimMappingPolicyLeavesClientsOfOtherPolicies(t *testi
 	require.NotNil(t, client.ClaimMappingPolicyId)
 	assert.Equal(t, otherPolicy.ID, *client.ClaimMappingPolicyId)
 }
+
+func TestClientCountsAddsUnassignedClientsToTheDefault(t *testing.T) {
+	db := testutils.NewDatabaseForTest(t)
+	service := newService(db)
+	require.NoError(t, Bootstrap(t.Context(), db))
+
+	policy, err := service.CreateClaimMappingPolicy(t.Context(), OidcClaimMappingPolicyDto{
+		OidcClaimMappingPolicyMetadataDto: OidcClaimMappingPolicyMetadataDto{Name: "Attached"},
+	})
+	require.NoError(t, err)
+
+	require.NoError(t, db.Create(&model.OidcClient{
+		Base: model.Base{ID: "client-a"}, Name: "Grafana", ClaimMappingPolicyId: &policy.ID,
+	}).Error)
+	require.NoError(t, db.Create(&model.OidcClient{
+		Base: model.Base{ID: "client-b"}, Name: "Immich",
+	}).Error)
+	require.NoError(t, db.Create(&model.OidcClient{
+		Base: model.Base{ID: "client-c"}, Name: "Gitea",
+	}).Error)
+
+	policies, _, err := service.ListClaimMappingPolicy(t.Context(), "", utils.ListRequestOptions{})
+	require.NoError(t, err)
+
+	counts, err := service.ClientCounts(t.Context(), policies)
+	require.NoError(t, err)
+	assert.Equal(t, map[string]int64{policy.ID: 1, BuiltInClaimMappingPolicyID: 2}, counts)
+}

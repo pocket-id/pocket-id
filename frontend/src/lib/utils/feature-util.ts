@@ -2,6 +2,7 @@ import { m } from '#lib/paraglide/messages.js';
 import type { Feature } from '#lib/types/feature.type.ts';
 import {
 	LucideBookUser,
+	LucideBraces,
 	LucideFileCode,
 	LucideKey,
 	LucideRefreshCw,
@@ -77,6 +78,14 @@ export function featureSections(appName: string): {
 					adds: m.feature_federated_credentials_adds(),
 					inUse: m.feature_federated_credentials_in_use(),
 					icon: LucideWaypoints
+				},
+				{
+					id: 'claimMappings',
+					title: m.claim_mappings(),
+					description: m.feature_claim_mappings_description(),
+					adds: m.feature_claim_mappings_adds(),
+					inUse: m.feature_claim_mappings_in_use(),
+					icon: LucideBraces
 				}
 			]
 		},

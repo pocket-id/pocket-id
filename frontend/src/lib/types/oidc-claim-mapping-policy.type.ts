@@ -2,9 +2,10 @@ export type OidcClaimMappingPolicySourceType = 'user_field' | 'custom_claim' | '
 
 /**
  * Claims the OIDC layer issues itself, which a mapping must not overwrite. Kept in sync with
- * `reservedClaimsForMapping` in the backend's oidc_claim_mapping_policy_service.go.
+ * `isReservedClaimsForMapping` in the backend's claimmappingpolicy service.
  */
 export const RESERVED_CLAIM_NAMES = [
+	'sub',
 	'iss',
 	'aud',
 	'exp',
@@ -16,29 +17,35 @@ export const RESERVED_CLAIM_NAMES = [
 	'azp',
 	'nbf',
 	'jti'
+];
+
+export const USER_FIELDS = [
+	'id',
+	'email',
+	'email_verified',
+	'first_name',
+	'last_name',
+	'full_name',
+	'display_name',
+	'username',
+	'locale',
+	'picture',
+	'groups'
 ] as const;
 
-export type OidcUserField =
-	| 'id'
-	| 'email'
-	| 'email_verified'
-	| 'first_name'
-	| 'last_name'
-	| 'full_name'
-	| 'display_name'
-	| 'username'
-	| 'locale'
-	| 'picture'
-	| 'groups';
+export type OidcUserField = (typeof USER_FIELDS)[number];
 
-export type OidcScope =
-	| 'openid'
-	| 'profile'
-	| 'email'
-	| 'address'
-	| 'phone'
-	| 'offline_access'
-	| 'groups';
+export const MAPPING_SCOPES = [
+	'openid',
+	'profile',
+	'email',
+	'groups',
+	'address',
+	'phone',
+	'offline_access'
+] as const;
+
+export type OidcScope = (typeof MAPPING_SCOPES)[number];
 
 export type OidcClaimMappingDto = {
 	claimName: string;
@@ -50,23 +57,31 @@ export type OidcClaimMappingDto = {
 	userInfo: boolean;
 };
 
-// ID of the policy inserted by the migrations, which is read-only except for its default flag
+// ID of the policy the backend inserts on startup, which is read-only except for its default flag
 export const builtInClaimMappingPolicyId = '00000000-0000-0000-0000-000000000000';
 
 export type OidcClaimMappingPolicyMetadataDto = {
 	id: string;
 	name: string;
 	isDefault: boolean;
+	createdAt: string;
+	claimCount: number;
+	// Includes every client without a policy of its own when the policy is the default
+	clientCount: number;
 };
 
-export type OidcClaimMappingPolicyDto = OidcClaimMappingPolicyCreate & {
-	id?: string;
+export type OidcClaimMappingPolicy = OidcClaimMappingPolicyMetadataDto & {
+	claimMappings: OidcClaimMappingDto[];
 };
 
-export type OidcClaimMappingPolicy = OidcClaimMappingPolicyDto;
-
-export type OidcClaimMappingPolicyCreate = {
+export type OidcClaimMappingPolicyInput = {
 	name: string;
 	isDefault: boolean;
 	claimMappings: OidcClaimMappingDto[];
+};
+
+export type OidcClaimMappingsPreview = {
+	idToken: Record<string, unknown> | null;
+	accessToken: Record<string, unknown>;
+	userInfo: Record<string, unknown> | null;
 };

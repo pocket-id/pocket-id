@@ -275,7 +275,13 @@
 					testId="created-client-secret"
 				/>
 			{/if}
-			<OidcForm existingClient={client} callback={updateClient} />
+			<OidcForm
+				existingClient={client}
+				claimMappingPolicies={data.features?.claimMappings.enabled
+					? data.claimMappingPolicies
+					: undefined}
+				callback={updateClient}
+			/>
 		</Tabs.Content>
 
 		<Tabs.Content value="access" class="flex flex-col gap-10">

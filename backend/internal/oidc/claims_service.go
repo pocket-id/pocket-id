@@ -12,6 +12,7 @@ import (
 	"github.com/pocket-id/fosite"
 	fositejwt "github.com/pocket-id/fosite/token/jwt"
 	"github.com/pocket-id/pocket-id/backend/internal/appconfig"
+	"github.com/pocket-id/pocket-id/backend/internal/apperror"
 	"github.com/pocket-id/pocket-id/backend/internal/claimmappingpolicy"
 	"github.com/pocket-id/pocket-id/backend/internal/common"
 	"github.com/pocket-id/pocket-id/backend/internal/emailverification"
@@ -75,6 +76,13 @@ type userClaimsSource struct {
 
 // loadUserClaimsSource reads the user with its groups, the claim mapping policy of the client and, when the policy needs them, the custom claims of the user
 func (s *ClaimsService) loadUserClaimsSource(ctx context.Context, userID string, clientID string) (*userClaimsSource, error) {
+	return s.loadClaimsSource(ctx, userID, func(ctx context.Context) (*claimmappingpolicy.OidcClaimMappingPolicy, error) {
+		return s.GetClaimMappingPolicyByClientID(ctx, clientID)
+	})
+}
+
+// loadClaimsSource is loadUserClaimsSource with the policy coming from loadPolicy, which runs inside the same transaction
+func (s *ClaimsService) loadClaimsSource(ctx context.Context, userID string, loadPolicy func(ctx context.Context) (*claimmappingpolicy.OidcClaimMappingPolicy, error)) (*userClaimsSource, error) {
 	var src userClaimsSource
 	err := withTx(ctx, s.db, func(ctx context.Context) error {
 		db := dbFromContext(ctx, s.db)
@@ -90,8 +98,7 @@ func (s *ClaimsService) loadUserClaimsSource(ctx context.Context, userID string,
 			return err
 		}
 
-		// Load the policy assigned to the client, falling back to the default one
-		policy, err := s.GetClaimMappingPolicyByClientID(ctx, clientID)
+		policy, err := loadPolicy(ctx)
 		if err != nil {
 			return fmt.Errorf("failed to load claim mapping policy: %w", err)
 		}
@@ -151,6 +158,38 @@ func (s *ClaimsService) loadGrantClaimsSource(ctx context.Context, userID string
 	}
 
 	return src, nil
+}
+
+// ClaimMappingsPreview holds the claims that a list of claim mappings releases into each token type
+type ClaimMappingsPreview struct {
+	IDToken     map[string]any `json:"idToken"`
+	AccessToken map[string]any `json:"accessToken"`
+	UserInfo    map[string]any `json:"userInfo"`
+}
+
+// PreviewClaimMappings builds the claims that mappings release for a user and set of scopes, so a policy can be checked before it is saved
+// Only the mapped claims are returned: the ones Pocket ID sets itself depend on the client and the session
+func (s *ClaimsService) PreviewClaimMappings(ctx context.Context, userID string, scopes []string, mappings claimmappingpolicy.OidcClaimMappings) (*ClaimMappingsPreview, error) {
+	src, err := s.loadClaimsSource(ctx, userID, func(context.Context) (*claimmappingpolicy.OidcClaimMappingPolicy, error) {
+		return &claimmappingpolicy.OidcClaimMappingPolicy{ClaimMappings: mappings}, nil
+	})
+	if errors.Is(err, errClaimsUserNotFound) {
+		return nil, apperror.NotFound("User")
+	} else if err != nil {
+		return nil, err
+	}
+
+	preview := &ClaimMappingsPreview{
+		AccessToken: s.buildClaims(src, scopes, AccessTokenType),
+	}
+
+	// Without openid a real authorization issues no ID token and /userinfo rejects the access token, so the preview leaves both out
+	if slices.Contains(scopes, "openid") {
+		preview.IDToken = s.buildClaims(src, scopes, IDTokenType)
+		preview.UserInfo = s.buildClaims(src, scopes, UserInfoType)
+	}
+
+	return preview, nil
 }
 
 // GetClaimMappingPolicyByClientID returns the claim mapping policy assigned to the client, or the default policy when the client doesn't have one assigned (claim_mapping_policy_id IS NULL)

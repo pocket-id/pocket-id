@@ -10,6 +10,7 @@ import (
 
 	"github.com/pocket-id/pocket-id/backend/internal/api"
 	"github.com/pocket-id/pocket-id/backend/internal/appconfig"
+	"github.com/pocket-id/pocket-id/backend/internal/claimmappingpolicy"
 	"github.com/pocket-id/pocket-id/backend/internal/model"
 	testutils "github.com/pocket-id/pocket-id/backend/internal/utils/testing"
 )
@@ -39,6 +40,9 @@ func TestListCombinesEnabledFeaturesWithUsage(t *testing.T) {
 	userID := "user-1"
 	require.NoError(t, db.Create(&model.CustomClaim{Key: "level", Value: "1", UserID: &userID}).Error)
 
+	require.NoError(t, claimmappingpolicy.Bootstrap(t.Context(), db))
+	require.NoError(t, db.Create(&claimmappingpolicy.OidcClaimMappingPolicy{Name: "Roles"}).Error)
+
 	require.NoError(t, db.Create(&model.OidcClient{
 		Base:        model.Base{ID: "client-1"},
 		Name:        "Grafana",
@@ -55,6 +59,7 @@ func TestListCombinesEnabledFeaturesWithUsage(t *testing.T) {
 		APIKeys:              {Enabled: true, InUse: false},
 		CIMD:                 {Enabled: false, InUse: false},
 		FederatedCredentials: {Enabled: true, InUse: true},
+		ClaimMappings:        {Enabled: true, InUse: true},
 	}, statuses)
 
 	// A metadata document client alone puts CIMD in use, and its own federated identities do not count
@@ -79,6 +84,7 @@ func TestListSavesFeaturesInUseOnce(t *testing.T) {
 
 	orders := api.API{Name: "Orders", Audience: "https://orders.example.com"}
 	require.NoError(t, db.Create(&orders).Error)
+	require.NoError(t, claimmappingpolicy.Bootstrap(t.Context(), db))
 	_, err := svc.List(t.Context())
 	require.NoError(t, err)
 	assert.JSONEq(t, `["apis"]`, cfg.EnabledFeatures.String())

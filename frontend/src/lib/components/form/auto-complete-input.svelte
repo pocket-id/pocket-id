@@ -5,16 +5,16 @@
 
 	let {
 		value = $bindable(''),
+		id,
 		placeholder,
 		suggestionLimit = 5,
-		suggestions,
-		disabled = false
+		suggestions
 	}: {
 		value: string;
+		id?: string;
 		placeholder: string;
 		suggestionLimit?: number;
 		suggestions: string[];
-		disabled?: boolean;
 	} = $props();
 
 	let filteredSuggestions: string[] = $state(suggestions.slice(0, suggestionLimit));
@@ -75,8 +75,8 @@
 	tabindex="-1"
 >
 	<Input
+		{id}
 		{placeholder}
-		{disabled}
 		bind:value
 		oninput={handleOnInput}
 		onfocus={() => (isInputFocused = true)}

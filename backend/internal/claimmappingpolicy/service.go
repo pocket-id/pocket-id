@@ -80,6 +80,42 @@ func (s *Service) ListClaimMappingPolicy(ctx context.Context, name string, listR
 	return claimMappingPolicys, response, err
 }
 
+// ClientCounts returns how many clients get their claims from each of the policies, where the default one also counts every client without a policy of its own
+func (s *Service) ClientCounts(ctx context.Context, policies []OidcClaimMappingPolicy) (map[string]int64, error) {
+	var rows []struct {
+		ClaimMappingPolicyID *string
+		Count                int64
+	}
+	err := s.db.WithContext(ctx).
+		Model(&model.OidcClient{}).
+		Select("claim_mapping_policy_id, COUNT(*) AS count").
+		Group("claim_mapping_policy_id").
+		Scan(&rows).
+		Error
+	if err != nil {
+		return nil, err
+	}
+
+	assigned := make(map[string]int64, len(rows))
+	var unassigned int64
+	for _, row := range rows {
+		if row.ClaimMappingPolicyID == nil {
+			unassigned = row.Count
+		} else {
+			assigned[*row.ClaimMappingPolicyID] = row.Count
+		}
+	}
+
+	counts := make(map[string]int64, len(policies))
+	for _, policy := range policies {
+		counts[policy.ID] = assigned[policy.ID]
+		if policy.IsDefault {
+			counts[policy.ID] += unassigned
+		}
+	}
+	return counts, nil
+}
+
 func (s *Service) GetClaimMappingPolicy(ctx context.Context, policyID string) (OidcClaimMappingPolicy, error) {
 	return s.getClaimMappingPolicyInternal(ctx, s.db, policyID, false)
 }
@@ -339,9 +375,13 @@ func (s *Service) UpdateClaimMappingPolicy(ctx context.Context, policyID string,
 func updateClaimMappingPolicyFromDto(claimMappingPolicy *OidcClaimMappingPolicy, dto OidcClaimMappingPolicyDto) {
 	claimMappingPolicy.Name = dto.Name
 	claimMappingPolicy.IsDefault = dto.IsDefault
-	claimMappingPolicy.ClaimMappings = make([]OidcClaimMapping, len(dto.ClaimMappings))
-	for i, mapping := range dto.ClaimMappings {
-		claimMappingPolicy.ClaimMappings[i] = OidcClaimMapping{
+	claimMappingPolicy.ClaimMappings = ClaimMappingsFromDto(dto.ClaimMappings)
+}
+
+func ClaimMappingsFromDto(dtos []OidcClaimMappingDto) OidcClaimMappings {
+	mappings := make(OidcClaimMappings, len(dtos))
+	for i, mapping := range dtos {
+		mappings[i] = OidcClaimMapping{
 			ClaimName:   mapping.ClaimName,
 			SourceType:  OidcClaimMappingSourceType(mapping.SourceType),
 			SourceValue: mapping.SourceValue,
@@ -351,6 +391,7 @@ func updateClaimMappingPolicyFromDto(claimMappingPolicy *OidcClaimMappingPolicy,
 			UserInfo:    mapping.UserInfo,
 		}
 	}
+	return mappings
 }
 
 func (s *Service) DeleteClaimMappingPolicy(ctx context.Context, policyID string) error {

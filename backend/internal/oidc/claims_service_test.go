@@ -305,3 +305,39 @@ func TestClaimsServiceGetClaimMappingPolicyByClientID(t *testing.T) {
 		require.Equal(t, defaultClaimMappingPolicyId, policy.ID)
 	})
 }
+
+func TestClaimsServicePreviewClaimMappingsIgnoresTheDefaultPolicy(t *testing.T) {
+	db := testutils.NewDatabaseForTest(t)
+	require.NoError(t, claimmappingpolicy.Bootstrap(t.Context(), db))
+	require.NoError(t, db.Create(&model.User{Base: model.Base{ID: "user-1"}, Username: "tim", Email: stringPointer("tim@example.com")}).Error)
+
+	customClaims := fakeCustomClaimSource{claims: []model.CustomClaim{{Key: "department", Value: "engineering"}}}
+	service := newClaimsService(db, customClaims, "", nil, appconfig.StaticResolver{})
+
+	preview, err := service.PreviewClaimMappings(t.Context(), "user-1", []string{"openid", "email"}, claimmappingpolicy.OidcClaimMappings{
+		{ClaimName: "mail", SourceType: claimmappingpolicy.MappingSourceUserField, SourceValue: "email", Scope: []string{"email"}, AccessToken: true},
+		{ClaimName: "dept", SourceType: claimmappingpolicy.MappingSourceCustomClaim, SourceValue: "department", Scope: []string{"email"}, IDToken: true},
+	})
+	require.NoError(t, err)
+	require.Equal(t, map[string]any{"dept": "engineering"}, preview.IDToken)
+	require.Equal(t, map[string]any{"mail": "tim@example.com"}, preview.AccessToken)
+	require.Equal(t, map[string]any{"sub": "user-1"}, preview.UserInfo)
+
+	_, err = service.PreviewClaimMappings(t.Context(), "missing", nil, nil)
+	require.ErrorContains(t, err, "User")
+}
+
+func TestClaimsServicePreviewClaimMappingsWithoutOpenIDScope(t *testing.T) {
+	db := testutils.NewDatabaseForTest(t)
+	require.NoError(t, claimmappingpolicy.Bootstrap(t.Context(), db))
+	require.NoError(t, db.Create(&model.User{Base: model.Base{ID: "user-1"}, Username: "tim", Email: stringPointer("tim@example.com")}).Error)
+	service := newClaimsService(db, nil, "", nil, appconfig.StaticResolver{})
+
+	preview, err := service.PreviewClaimMappings(t.Context(), "user-1", []string{"email"}, claimmappingpolicy.OidcClaimMappings{
+		{ClaimName: "mail", SourceType: claimmappingpolicy.MappingSourceUserField, SourceValue: "email", Scope: []string{"email"}, AccessToken: true, IDToken: true, UserInfo: true},
+	})
+	require.NoError(t, err)
+	require.Nil(t, preview.IDToken, "no ID token is issued without the openid scope")
+	require.Nil(t, preview.UserInfo, "userinfo rejects tokens without the openid scope")
+	require.Equal(t, map[string]any{"mail": "tim@example.com"}, preview.AccessToken)
+}

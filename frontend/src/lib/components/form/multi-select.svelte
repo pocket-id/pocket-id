@@ -12,8 +12,7 @@
 		onSelect,
 		autoClose = false,
 		placeholder = m.select_an_option(),
-		class: className,
-		disabled = false
+		class: className
 	}: {
 		items: {
 			value: string;
@@ -24,7 +23,6 @@
 		autoClose?: boolean;
 		placeholder?: string;
 		class?: string;
-		disabled?: boolean;
 	} = $props();
 
 	const selected = $derived(items.filter((item) => selectedItems.includes(item.value)));
@@ -40,7 +38,7 @@
 </script>
 
 <DropdownMenu.Root>
-	<DropdownMenu.Trigger {disabled}>
+	<DropdownMenu.Trigger>
 		{#snippet child({ props })}
 			<button
 				{...props}
@@ -69,7 +67,6 @@
 				checked={selectedItems.includes(item.value)}
 				onCheckedChange={() => handleItemSelect(item.value)}
 				closeOnSelect={autoClose}
-				{disabled}
 			>
 				{item.label}
 			</DropdownMenu.CheckboxItem>

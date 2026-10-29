@@ -5,9 +5,11 @@
 	import FormattedMessage from '#lib/components/formatted-message.svelte';
 	import SettingRow from '#lib/components/setting-row.svelte';
 	import SettingsSection from '#lib/components/settings-section.svelte';
+	import * as Select from '#lib/components/ui/select/index.ts';
 	import { Switch } from '#lib/components/ui/switch/index.ts';
 	import { m } from '#lib/paraglide/messages.js';
 	import appConfigStore from '#lib/stores/application-configuration-store.ts';
+	import type { OidcClaimMappingPolicyMetadataDto } from '#lib/types/oidc-claim-mapping-policy.type.ts';
 	import type {
 		OidcClient,
 		OidcClientCreateWithLogo,
@@ -19,7 +21,9 @@
 	import { createForm } from '#lib/utils/form-util.ts';
 	import { trackFormChanges } from '#lib/utils/unsaved-changes-util.svelte.ts';
 	import { callbackUrlSchema, optionalUrl } from '#lib/utils/zod-util.ts';
+	import { LucideArrowRight } from '@lucide/svelte';
 	import { z } from 'zod/v4';
+	import { claimsCount, policyHref } from '../claim-mappings/claim-mapping-util';
 	import ChangedMarker from './changed-marker.svelte';
 	import ClientTypeTiles from './client-type-tiles.svelte';
 	import OidcCallbackUrlInput from './oidc-callback-url-input.svelte';
@@ -27,9 +31,12 @@
 
 	let {
 		callback,
-		existingClient
+		existingClient,
+		claimMappingPolicies
 	}: {
 		existingClient: OidcClient;
+		// Left out while the claim mappings feature is off, which hides the Claims section
+		claimMappingPolicies?: OidcClaimMappingPolicyMetadataDto[];
 		callback: (client: OidcClientCreateWithLogo) => Promise<void>;
 	} = $props();
 
@@ -73,7 +80,8 @@
 		logoUrl: optionalUrl,
 		darkLogoUrl: optionalUrl,
 		accessTokenDurationMinutes: durationSchema,
-		refreshTokenDurationMinutes: durationSchema
+		refreshTokenDurationMinutes: durationSchema,
+		claimMappingPolicyId: z.string()
 	});
 
 	type FormSchema = typeof formSchema;
@@ -92,7 +100,8 @@
 		logoUrl: '',
 		darkLogoUrl: '',
 		accessTokenDurationMinutes: existingClient.accessTokenDurationMinutes,
-		refreshTokenDurationMinutes: existingClient.refreshTokenDurationMinutes
+		refreshTokenDurationMinutes: existingClient.refreshTokenDurationMinutes,
+		claimMappingPolicyId: existingClient.claimMappingPolicyId || ''
 	});
 	const { inputs } = formStore;
 
@@ -102,9 +111,16 @@
 		consent: $inputs.skipConsent.value,
 		par: $inputs.requiresPushedAuthorizationRequests.value,
 		access: $inputs.accessTokenDurationMinutes.value !== defaultAccessTokenMinutes,
-		refresh: $inputs.refreshTokenDurationMinutes.value !== defaultRefreshTokenMinutes
+		refresh: $inputs.refreshTokenDurationMinutes.value !== defaultRefreshTokenMinutes,
+		claims: !!$inputs.claimMappingPolicyId.value
 	});
 	const changedCount = $derived(Object.values(changed).filter(Boolean).length);
+	const defaultPolicy = claimMappingPolicies?.find((p) => p.isDefault);
+	const selectedPolicy = $derived(
+		claimMappingPolicies?.find((p) => p.id === $inputs.claimMappingPolicyId.value)
+	);
+	// The policy whose claims the client gets, which is the default one while none is selected
+	const appliedPolicy = $derived(selectedPolicy ?? defaultPolicy);
 	const pkceRecommended = $derived(
 		existingClient.pkceSupported && !$inputs.isPublic.value && !$inputs.pkceEnabled.value
 	);
@@ -208,6 +224,13 @@
 		if (isPublic) $inputs.pkceEnabled.value = true;
 	}
 </script>
+
+{#snippet policyOption(label: string, description: string)}
+	<span class="flex min-w-0 flex-col">
+		<span class="truncate">{label}</span>
+		<span class="text-caption text-fg-muted truncate">{description}</span>
+	</span>
+{/snippet}
 
 {#snippet callbackUrlDescription()}
 	<FormattedMessage message={m.callback_url_description} />
@@ -414,5 +437,55 @@
 				</div>
 			</div>
 		</SettingsSection>
+
+		{#if claimMappingPolicies}
+			<SettingsSection
+				title={m.claims()}
+				description={m.claims_section_description({ name: existingClient.name })}
+			>
+				<div class="flex flex-col gap-3 pt-2">
+					<div class="relative max-w-100 min-w-0">
+						<FormInput
+							label={m.claim_mapping_policy()}
+							description={m.claim_mapping_policy_helper()}
+							labelFor="claim-mapping-policy"
+							changed={changed.claims}
+							input={$inputs.claimMappingPolicyId}
+						>
+							<Select.Root type="single" bind:value={$inputs.claimMappingPolicyId.value}>
+								<Select.Trigger id="claim-mapping-policy" class="w-full">
+									{selectedPolicy?.name ?? m.default_policy()}
+								</Select.Trigger>
+								<Select.Content>
+									<Select.Item value="" label={m.default_policy()}>
+										{@render policyOption(m.default_policy(), defaultPolicy?.name ?? '')}
+									</Select.Item>
+									{#each claimMappingPolicies as policy (policy.id)}
+										<Select.Item value={policy.id} label={policy.name}>
+											{@render policyOption(policy.name, claimsCount(policy.claimCount))}
+										</Select.Item>
+									{/each}
+								</Select.Content>
+							</Select.Root>
+						</FormInput>
+						{#if changed.claims}
+							<ChangedMarker
+								label={m.claim_mapping_policy()}
+								onReset={() => ($inputs.claimMappingPolicyId.value = '')}
+							/>
+						{/if}
+					</div>
+					{#if appliedPolicy}
+						<a
+							href={policyHref(appliedPolicy.id)}
+							class="text-control text-fg focus-visible:outline-ring inline-flex w-fit items-center gap-1 rounded-xs font-medium hover:underline focus-visible:outline-2 focus-visible:outline-offset-2"
+						>
+							{m.see_the_claims_in_name({ name: appliedPolicy.name })}
+							<LucideArrowRight class="size-3.5" />
+						</a>
+					{/if}
+				</div>
+			</SettingsSection>
+		{/if}
 	</AdvancedDisclosure>
 </form>
