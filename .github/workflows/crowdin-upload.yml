@@ -26,7 +26,7 @@ jobs:
           persist-credentials: false
 
       - name: Upload sources
-        uses: crowdin/github-action@9c23991700c0ec5256fd41089b9d9d7d540e424e # v3.3.0
+        uses: crowdin/github-action@72955432d4aa4f6dd64cf17eeb88dd34d6ba064c # v3.4.0
         with:
           upload_sources: true
           upload_translations: false
