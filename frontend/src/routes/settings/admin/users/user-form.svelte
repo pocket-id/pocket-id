@@ -1,5 +1,6 @@
 <script lang="ts">
 	import FormInput from '#lib/components/form/form-input.svelte';
+	import UserGroupInput from '#lib/components/form/user-group-input.svelte';
 	import SwitchWithLabel from '#lib/components/form/switch-with-label.svelte';
 	import { Button } from '#lib/components/ui/button/index.ts';
 	import { Input } from '#lib/components/ui/input/index.ts';
@@ -20,10 +21,12 @@
 	let {
 		callback,
 		existingUser,
-		emailsVerifiedPerDefault = false
+		emailsVerifiedPerDefault = false,
+		defaultUserGroupIds = []
 	}: {
 		existingUser?: User;
 		emailsVerifiedPerDefault?: boolean;
+		defaultUserGroupIds?: string[];
 		callback: (user: UserCreate) => Promise<void>;
 	} = $props();
 
@@ -39,7 +42,9 @@
 		emailVerified: existingUser?.emailVerified ?? emailsVerifiedPerDefault,
 		username: existingUser?.username || '',
 		isAdmin: existingUser?.isAdmin || false,
-		disabled: existingUser?.disabled || false
+		disabled: existingUser?.disabled || false,
+		// Start from the signup default groups so that they stay visible and editable
+		userGroupIds: existingUser ? [] : [...defaultUserGroupIds]
 	};
 
 	const formSchema = z.object({
@@ -52,7 +57,8 @@
 			: emptyToUndefined(z.email().optional()),
 		emailVerified: z.boolean(),
 		isAdmin: z.boolean(),
-		disabled: z.boolean()
+		disabled: z.boolean(),
+		userGroupIds: z.array(z.string())
 	});
 	type FormSchema = typeof formSchema;
 
@@ -60,7 +66,9 @@
 	const { inputs } = formStore;
 
 	async function saveUser(data: z.infer<FormSchema>) {
-		await callback(data);
+		// General profile edits must leave membership changes to the dedicated Groups tab
+		const { userGroupIds, ...profile } = data;
+		await callback(existingUser ? profile : { ...profile, userGroupIds });
 		// Reset form if user was successfully created
 		if (!existingUser) formStore.reset();
 	}
@@ -149,6 +157,11 @@
 			/>
 		</div>
 		{#if !existingUser}
+			<div class="mt-5">
+				<FormInput labelFor="default-groups" label={m.user_groups()} input={$inputs.userGroupIds}>
+					<UserGroupInput bind:selectedGroupIds={$inputs.userGroupIds.value} />
+				</FormInput>
+			</div>
 			<div class="mt-5 flex justify-end">
 				<Button {isLoading} type="submit">{m.save()}</Button>
 			</div>

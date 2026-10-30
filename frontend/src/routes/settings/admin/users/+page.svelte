@@ -97,6 +97,7 @@
 					<UserForm
 						callback={createUser}
 						emailsVerifiedPerDefault={data.emailsVerifiedPerDefault}
+						defaultUserGroupIds={data.signupDefaultUserGroupIds}
 					/>
 				</Card.Content>
 			</div>
