@@ -11,7 +11,7 @@ test('Update general configuration', async ({ page }) => {
 	await page.getByLabel('Application Name', { exact: true }).fill('Updated Name');
 	await page.getByLabel('Session Duration').fill('30');
 
-	await page.getByRole('button', { name: 'Home Page' }).click();
+	await page.getByRole('combobox', { name: 'Home Page' }).click();
 	await page.getByRole('option', { name: 'My Apps' }).click();
 
 	await saveUnsavedChanges(page);
@@ -50,10 +50,10 @@ test('Disable automatic client secret creation', async ({ page }) => {
 test('Save configuration from every editable tab together', async ({ page }) => {
 	await page.getByLabel('Application Name', { exact: true }).fill('Combined Settings');
 	await page.getByRole('tab', { name: 'User Creation' }).click();
-	await page.getByRole('button', { name: 'Enable User Signups' }).click();
+	await page.getByRole('combobox', { name: 'Enable User Signups' }).click();
 	await page.getByRole('option', { name: 'Open Signup' }).click();
 	await page.getByRole('tab', { name: 'Passkeys' }).click();
-	await page.getByRole('button', { name: 'User verification' }).click();
+	await page.getByRole('combobox', { name: 'User verification' }).click();
 	await page.getByRole('option', { name: 'Preferred' }).click();
 	await page.getByRole('tab', { name: 'Email' }).click();
 	await page.getByLabel('SMTP Host').fill('smtp.combined.test');
@@ -71,7 +71,9 @@ test('Save configuration from every editable tab together', async ({ page }) => 
 	await page.getByRole('tab', { name: 'Email' }).click();
 	await expect(page.getByLabel('SMTP Host')).toHaveValue('smtp.combined.test');
 	await page.getByRole('tab', { name: 'Passkeys' }).click();
-	await expect(page.getByRole('button', { name: 'User verification' })).toContainText('Preferred');
+	await expect(page.getByRole('combobox', { name: 'User verification' })).toContainText(
+		'Preferred'
+	);
 	await page.getByRole('tab', { name: 'OIDC' }).click();
 	await expect(page.getByRole('textbox')).toHaveValue('https://combined.example.com/*');
 
@@ -81,7 +83,7 @@ test('Save configuration from every editable tab together', async ({ page }) => 
 		'Combined Settings'
 	);
 	await page.getByRole('tab', { name: 'User Creation' }).click();
-	await page.getByRole('button', { name: 'Enable User Signups' }).click();
+	await page.getByRole('combobox', { name: 'Enable User Signups' }).click();
 	await expect(page.getByRole('option', { name: 'Open Signup' })).toHaveAttribute(
 		'aria-selected',
 		'true'
@@ -90,7 +92,9 @@ test('Save configuration from every editable tab together', async ({ page }) => 
 	await page.getByRole('tab', { name: 'Email' }).click();
 	await expect(page.getByLabel('SMTP Host')).toHaveValue('smtp.combined.test');
 	await page.getByRole('tab', { name: 'Passkeys' }).click();
-	await expect(page.getByRole('button', { name: 'User verification' })).toContainText('Preferred');
+	await expect(page.getByRole('combobox', { name: 'User verification' })).toContainText(
+		'Preferred'
+	);
 	await page.getByRole('tab', { name: 'OIDC' }).click();
 	await expect(page.getByRole('textbox')).toHaveValue('https://combined.example.com/*');
 });
@@ -142,14 +146,14 @@ test.describe('Update user creation configuration', () => {
 	});
 
 	test('should save sign up mode', async ({ page }) => {
-		await page.getByRole('button', { name: 'Enable User Signups' }).click();
+		await page.getByRole('combobox', { name: 'Enable User Signups' }).click();
 		await page.getByRole('option', { name: 'Open Signup' }).click();
 
 		await saveUnsavedChanges(page);
 
 		await page.reload();
 
-		await expect(page.getByRole('button', { name: 'Enable User Signups' })).toBeVisible();
+		await expect(page.getByRole('combobox', { name: 'Enable User Signups' })).toBeVisible();
 	});
 
 	test('should save default user groups for new signups', async ({ page }) => {

@@ -13,7 +13,7 @@ async function setSignupMode(
 	await page.goto('/settings/admin/application-configuration');
 
 	await page.getByRole('tab', { name: 'User Creation' }).click();
-	const signupMode = page.getByRole('button', { name: 'Enable User Signups' });
+	const signupMode = page.getByRole('combobox', { name: 'Enable User Signups' });
 	if (!(await signupMode.textContent())?.includes(mode)) {
 		await signupMode.click();
 		await page.getByRole('option', { name: mode }).click();
