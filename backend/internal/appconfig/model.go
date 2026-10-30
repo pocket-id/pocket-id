@@ -26,6 +26,12 @@ const (
 	EmailVerificationRequired = "required"
 )
 
+const (
+	EmailOneTimeAccessAsUnauthenticatedDisabled  = "disabled"
+	EmailOneTimeAccessAsUnauthenticatedNonAdmins = "nonAdmins"
+	EmailOneTimeAccessAsUnauthenticatedAll       = "all"
+)
+
 type AppConfigModel struct {
 	// General
 	AppName             AppConfigValue `json:"appName" env:"APP_NAME" public:"true"`
@@ -40,19 +46,19 @@ type AppConfigModel struct {
 	SignupDefaultUserGroupIDs AppConfigValue `json:"signupDefaultUserGroupIDs" env:"SIGNUP_DEFAULT_USER_GROUP_IDS"` // JSON-encoded array of strings
 	SignupDefaultCustomClaims AppConfigValue `json:"signupDefaultCustomClaims" env:"SIGNUP_DEFAULT_CUSTOM_CLAIMS"`  // JSON-encoded array of {key:string,value:string}
 	// Email
-	RequireUserEmail                           AppConfigValue `json:"requireUserEmail" env:"REQUIRE_USER_EMAIL" type:"bool" public:"true"`
-	SmtpHost                                   AppConfigValue `json:"smtpHost" env:"SMTP_HOST"`
-	SmtpPort                                   AppConfigValue `json:"smtpPort" env:"SMTP_PORT"`
-	SmtpFrom                                   AppConfigValue `json:"smtpFrom" env:"SMTP_FROM"`
-	SmtpUser                                   AppConfigValue `json:"smtpUser" env:"SMTP_USER"`
-	SmtpPassword                               AppConfigValue `json:"smtpPassword" env:"SMTP_PASSWORD" sensitive:"true"`
-	SmtpTls                                    AppConfigValue `json:"smtpTls" env:"SMTP_TLS"`
-	SmtpSkipCertVerify                         AppConfigValue `json:"smtpSkipCertVerify" env:"SMTP_SKIP_CERT_VERIFY" type:"bool"`
-	EmailLoginNotificationMode                 AppConfigValue `json:"emailLoginNotificationMode" env:"EMAIL_LOGIN_NOTIFICATION_MODE"`
-	EmailOneTimeAccessAsUnauthenticatedEnabled AppConfigValue `json:"emailOneTimeAccessAsUnauthenticatedEnabled" env:"EMAIL_ONE_TIME_ACCESS_AS_UNAUTHENTICATED_ENABLED" type:"bool" public:"true"`
-	EmailOneTimeAccessAsAdminEnabled           AppConfigValue `json:"emailOneTimeAccessAsAdminEnabled" env:"EMAIL_ONE_TIME_ACCESS_AS_ADMIN_ENABLED" type:"bool" public:"true"`
-	EmailApiKeyExpirationEnabled               AppConfigValue `json:"emailApiKeyExpirationEnabled" env:"EMAIL_API_KEY_EXPIRATION_ENABLED" type:"bool"`
-	EmailVerification                          AppConfigValue `json:"emailVerification" env:"EMAIL_VERIFICATION" public:"true"`
+	RequireUserEmail                    AppConfigValue `json:"requireUserEmail" env:"REQUIRE_USER_EMAIL" type:"bool" public:"true"`
+	SmtpHost                            AppConfigValue `json:"smtpHost" env:"SMTP_HOST"`
+	SmtpPort                            AppConfigValue `json:"smtpPort" env:"SMTP_PORT"`
+	SmtpFrom                            AppConfigValue `json:"smtpFrom" env:"SMTP_FROM"`
+	SmtpUser                            AppConfigValue `json:"smtpUser" env:"SMTP_USER"`
+	SmtpPassword                        AppConfigValue `json:"smtpPassword" env:"SMTP_PASSWORD" sensitive:"true"`
+	SmtpTls                             AppConfigValue `json:"smtpTls" env:"SMTP_TLS"`
+	SmtpSkipCertVerify                  AppConfigValue `json:"smtpSkipCertVerify" env:"SMTP_SKIP_CERT_VERIFY" type:"bool"`
+	EmailLoginNotificationMode          AppConfigValue `json:"emailLoginNotificationMode" env:"EMAIL_LOGIN_NOTIFICATION_MODE"`
+	EmailOneTimeAccessAsUnauthenticated AppConfigValue `json:"emailOneTimeAccessAsUnauthenticated" env:"EMAIL_ONE_TIME_ACCESS_AS_UNAUTHENTICATED" public:"true"`
+	EmailOneTimeAccessAsAdminEnabled    AppConfigValue `json:"emailOneTimeAccessAsAdminEnabled" env:"EMAIL_ONE_TIME_ACCESS_AS_ADMIN_ENABLED" type:"bool" public:"true"`
+	EmailApiKeyExpirationEnabled        AppConfigValue `json:"emailApiKeyExpirationEnabled" env:"EMAIL_API_KEY_EXPIRATION_ENABLED" type:"bool"`
+	EmailVerification                   AppConfigValue `json:"emailVerification" env:"EMAIL_VERIFICATION" public:"true"`
 	// LDAP
 	LdapEnabled                        AppConfigValue `json:"ldapEnabled" env:"LDAP_ENABLED" type:"bool" public:"true"`
 	LdapUrl                            AppConfigValue `json:"ldapUrl" env:"LDAP_URL"`
@@ -146,19 +152,19 @@ func getDefaultConfig() *AppConfigModel {
 		SignupDefaultCustomClaims: "[]",
 		AccentColor:               "default",
 		// Email
-		RequireUserEmail:           "true",
-		SmtpHost:                   "",
-		SmtpPort:                   "",
-		SmtpFrom:                   "",
-		SmtpUser:                   "",
-		SmtpPassword:               "",
-		SmtpTls:                    "none",
-		SmtpSkipCertVerify:         "false",
-		EmailLoginNotificationMode: LoginNotificationDisabled,
-		EmailOneTimeAccessAsUnauthenticatedEnabled: "false",
-		EmailOneTimeAccessAsAdminEnabled:           "false",
-		EmailApiKeyExpirationEnabled:               "false",
-		EmailVerification:                          EmailVerificationDisabled,
+		RequireUserEmail:                    "true",
+		SmtpHost:                            "",
+		SmtpPort:                            "",
+		SmtpFrom:                            "",
+		SmtpUser:                            "",
+		SmtpPassword:                        "",
+		SmtpTls:                             "none",
+		SmtpSkipCertVerify:                  "false",
+		EmailLoginNotificationMode:          LoginNotificationDisabled,
+		EmailOneTimeAccessAsUnauthenticated: EmailOneTimeAccessAsUnauthenticatedDisabled,
+		EmailOneTimeAccessAsAdminEnabled:    "false",
+		EmailApiKeyExpirationEnabled:        "false",
+		EmailVerification:                   EmailVerificationDisabled,
 		// LDAP
 		LdapEnabled:                        "false",
 		LdapUrl:                            "",

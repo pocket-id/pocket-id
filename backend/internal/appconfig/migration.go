@@ -65,6 +65,9 @@ func fromLegacyConfig(legacyCfg map[string]string) (*AppConfigModel, error) {
 	if legacyCfg["emailVerification"] == "" {
 		dest.EmailVerification = legacyEmailVerification(AppConfigValue(legacyCfg["emailVerificationEnabled"]))
 	}
+	if legacyCfg["emailOneTimeAccessAsUnauthenticated"] == "" {
+		dest.EmailOneTimeAccessAsUnauthenticated = legacyEmailOneTimeAccessAsUnauthenticated(AppConfigValue(legacyCfg["emailOneTimeAccessAsUnauthenticatedEnabled"]))
+	}
 
 	rt := reflect.ValueOf(dest).Elem().Type()
 	rv := reflect.ValueOf(dest).Elem()
