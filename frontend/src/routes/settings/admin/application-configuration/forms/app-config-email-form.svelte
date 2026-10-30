@@ -77,6 +77,7 @@
 			emailOneTimeAccessAsUnauthenticatedEnabled: z.boolean(),
 			emailVerification: z.enum(['disabled', 'optional', 'required']),
 			emailOneTimeAccessAsAdminEnabled: z.boolean(),
+			emailOneTimeAccessRequireConfirmation: z.boolean(),
 			emailLoginNotificationMode: z.enum([
 				'disabled',
 				'always',
@@ -328,6 +329,12 @@
 				label={m.emai_login_code_requested_by_user()}
 				description={m.allow_users_to_sign_in_with_a_login_code_sent_to_their_email()}
 				bind:checked={$inputs.emailOneTimeAccessAsUnauthenticatedEnabled.value}
+			/>
+			<SwitchWithLabel
+				id="email-login-require-confirmation"
+				label={m.require_confirmation_for_login_code_links()}
+				description={m.require_confirmation_for_login_code_links_description()}
+				bind:checked={$inputs.emailOneTimeAccessRequireConfirmation.value}
 			/>
 		</div>
 	</fieldset>

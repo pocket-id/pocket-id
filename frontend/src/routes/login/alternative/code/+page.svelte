@@ -28,6 +28,10 @@
 		longCodeRequested ? code.length === longCodeLength : code.length === shortCodeLength
 	);
 
+	// When enabled, a code prefilled from an email link waits for the user to click sign in
+	// Mail scanners such as Microsoft Defender Safe Links open links in a headless browser, which would otherwise consume the one-time code before the user sees it
+	const confirmCodeFromLink = !!data.code && $appConfigStore.emailOneTimeAccessRequireConfirmation;
+
 	const userService = new UserService();
 
 	// If the previous page is a Pocket ID page, go back there instead of the generic alternative login page
@@ -58,7 +62,7 @@
 	}
 
 	onMount(() => {
-		if (code) {
+		if (code && !confirmCodeFromLink) {
 			authenticate();
 		}
 	});
@@ -77,6 +81,8 @@
 		<p class="text-muted-foreground mt-2">
 			{error}. {m.please_try_again()}
 		</p>
+	{:else if confirmCodeFromLink}
+		<p class="text-muted-foreground mt-2">{m.click_sign_in_to_continue_with_login_code()}</p>
 	{:else}
 		<p class="text-muted-foreground mt-2">{m.enter_the_code_you_received_to_sign_in()}</p>
 	{/if}
@@ -122,7 +128,7 @@
 				{m.go_back()}
 			</Button>
 			<Button class="flex-1" type="submit" disabled={!codeComplete} {isLoading}>
-				{m.submit()}
+				{confirmCodeFromLink ? m.sign_in() : m.submit()}
 			</Button>
 		</div>
 	</form>
