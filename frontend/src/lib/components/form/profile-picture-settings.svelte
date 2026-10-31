@@ -24,13 +24,17 @@
 		updateCallback: (image: File) => Promise<void>;
 	} = $props();
 
-	const managedByLdap = $derived(isLdapUser && $appConfigStore.ldapEnabled);
+	// LDAP users cannot change their own picture while LDAP manages it, unless the override is enabled
+	const managedByLdap = $derived(
+		isLdapUser && $appConfigStore.ldapEnabled && !$appConfigStore.ldapAllowProfilePictureOverride
+	);
 	const labelId = $props.id();
 
 	let fileInput = $state<HTMLInputElement>();
 	let pickedFile = $state<File | null>(null);
 	let isLoading = $state(false);
 	let imageDataURL = $state('');
+
 	onMount(() => {
 		// The "skipCache" query will only be added to the profile picture url on client-side
 		// because of that we need to set the imageDataURL after the component is mounted

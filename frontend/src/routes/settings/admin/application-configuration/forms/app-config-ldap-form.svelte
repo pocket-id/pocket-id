@@ -15,7 +15,13 @@
 	import { axiosErrorToast, getAxiosErrorMessage } from '#lib/utils/error-util.ts';
 	import { createForm, pickSchemaValues } from '#lib/utils/form-util.ts';
 	import { trackFormChanges } from '#lib/utils/unsaved-changes-util.svelte.ts';
-	import { LucideBan, LucideRefreshCw, LucideShieldOff, LucideUserX } from '@lucide/svelte';
+	import {
+		LucideBan,
+		LucideImage,
+		LucideRefreshCw,
+		LucideShieldOff,
+		LucideUserX
+	} from '@lucide/svelte';
 	import { tick } from 'svelte';
 	import { toast } from 'svelte-sonner';
 	import { z } from 'zod/v4';
@@ -54,7 +60,8 @@
 		ldapAttributeGroupUniqueIdentifier: z.string().min(1),
 		ldapAttributeGroupName: z.string().min(1),
 		ldapAdminGroupName: z.string().optional(),
-		ldapSoftDeleteUsers: z.boolean()
+		ldapSoftDeleteUsers: z.boolean(),
+		ldapAllowProfilePictureOverride: z.boolean()
 	});
 
 	const formStore = createForm(formSchema, pickSchemaValues(formSchema, appConfig));
@@ -304,6 +311,15 @@
 			>
 				{#snippet control(props)}
 					<Switch {...props} bind:checked={$inputs.ldapSoftDeleteUsers.value} />
+				{/snippet}
+			</SettingRow>
+			<SettingRow
+				title={m.ldap_allow_profile_picture_override()}
+				description={m.ldap_allow_profile_picture_override_description()}
+				icon={LucideImage}
+			>
+				{#snippet control(props)}
+					<Switch {...props} bind:checked={$inputs.ldapAllowProfilePictureOverride.value} />
 				{/snippet}
 			</SettingRow>
 		</SettingsSection>
