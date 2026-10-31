@@ -55,7 +55,7 @@ test('Map preferred username to email in the access token of an assigned client'
 	// The client's form names the policy it now uses
 	await page.getByRole('link', { name: client.name }).click();
 	await expect(
-		page.getByRole('button', { name: 'Claim mapping policy', exact: true })
+		page.getByRole('combobox', { name: 'Claim mapping policy', exact: true })
 	).toContainText('Email as username');
 });
 

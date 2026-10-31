@@ -2,12 +2,13 @@
 	import AdvancedDisclosure from '#lib/components/advanced-disclosure.svelte';
 	import DurationInput from '#lib/components/form/duration-input.svelte';
 	import FormInput from '#lib/components/form/form-input.svelte';
+	import SearchableSelect from '#lib/components/form/searchable-select.svelte';
 	import FormattedMessage from '#lib/components/formatted-message.svelte';
 	import SettingRow from '#lib/components/setting-row.svelte';
 	import SettingsSection from '#lib/components/settings-section.svelte';
-	import * as Select from '#lib/components/ui/select/index.ts';
 	import { Switch } from '#lib/components/ui/switch/index.ts';
 	import { m } from '#lib/paraglide/messages.js';
+	import OidcClaimMappingPolicyService from '#lib/services/oidc-claim-mapping-policy-service.ts';
 	import appConfigStore from '#lib/stores/application-configuration-store.ts';
 	import type { OidcClaimMappingPolicyMetadataDto } from '#lib/types/oidc-claim-mapping-policy.type.ts';
 	import type {
@@ -16,6 +17,7 @@
 		OidcClientLogoPreset
 	} from '#lib/types/oidc.type.ts';
 	import { cachedOidcClientLogo } from '#lib/utils/cached-image-util.ts';
+	import { debounced } from '#lib/utils/debounce-util.ts';
 	import { axiosErrorToast } from '#lib/utils/error-util.ts';
 	import { preventDefault } from '#lib/utils/event-util.ts';
 	import { createForm } from '#lib/utils/form-util.ts';
@@ -115,10 +117,40 @@
 		claims: !!$inputs.claimMappingPolicyId.value
 	});
 	const changedCount = $derived(Object.values(changed).filter(Boolean).length);
+	const policyService = new OidcClaimMappingPolicyService();
 	const defaultPolicy = claimMappingPolicies?.find((p) => p.isDefault);
-	const selectedPolicy = $derived(
-		claimMappingPolicies?.find((p) => p.id === $inputs.claimMappingPolicyId.value)
+	let policyResults = $state(claimMappingPolicies ?? []);
+	// Every policy loaded so far, so the selected one keeps its label when a search no longer returns it
+	let knownPolicies = $state(claimMappingPolicies ?? []);
+	let isPolicySearchLoading = $state(false);
+	const onPolicySearch = debounced(
+		async (search: string) => {
+			const result = await policyService.listClaimMappingPolicies({
+				search,
+				pagination: { page: 1, limit: 20 },
+				sort: { column: 'isDefault', direction: 'desc' }
+			});
+			policyResults = result.data;
+			knownPolicies = [
+				...knownPolicies,
+				...result.data.filter((p) => !knownPolicies.some((known) => known.id === p.id))
+			];
+		},
+		300,
+		(loading) => (isPolicySearchLoading = loading)
 	);
+	const selectedPolicy = $derived(
+		knownPolicies.find((p) => p.id === $inputs.claimMappingPolicyId.value)
+	);
+	const policyItems = $derived([
+		{ value: '', label: m.default_policy(), description: defaultPolicy?.name ?? '' },
+		...[
+			...(selectedPolicy && !policyResults.some((p) => p.id === selectedPolicy.id)
+				? [selectedPolicy]
+				: []),
+			...policyResults
+		].map((p) => ({ value: p.id, label: p.name, description: claimsCount(p.claimCount) }))
+	]);
 	// The policy whose claims the client gets, which is the default one while none is selected
 	const appliedPolicy = $derived(selectedPolicy ?? defaultPolicy);
 	const pkceRecommended = $derived(
@@ -224,13 +256,6 @@
 		if (isPublic) $inputs.pkceEnabled.value = true;
 	}
 </script>
-
-{#snippet policyOption(label: string, description: string)}
-	<span class="flex min-w-0 flex-col">
-		<span class="truncate">{label}</span>
-		<span class="text-caption text-fg-muted truncate">{description}</span>
-	</span>
-{/snippet}
 
 {#snippet callbackUrlDescription()}
 	<FormattedMessage message={m.callback_url_description} />
@@ -452,21 +477,13 @@
 							changed={changed.claims}
 							input={$inputs.claimMappingPolicyId}
 						>
-							<Select.Root type="single" bind:value={$inputs.claimMappingPolicyId.value}>
-								<Select.Trigger id="claim-mapping-policy" class="w-full">
-									{selectedPolicy?.name ?? m.default_policy()}
-								</Select.Trigger>
-								<Select.Content>
-									<Select.Item value="" label={m.default_policy()}>
-										{@render policyOption(m.default_policy(), defaultPolicy?.name ?? '')}
-									</Select.Item>
-									{#each claimMappingPolicies as policy (policy.id)}
-										<Select.Item value={policy.id} label={policy.name}>
-											{@render policyOption(policy.name, claimsCount(policy.claimCount))}
-										</Select.Item>
-									{/each}
-								</Select.Content>
-							</Select.Root>
+							<SearchableSelect
+								id="claim-mapping-policy"
+								items={policyItems}
+								bind:value={$inputs.claimMappingPolicyId.value}
+								isLoading={isPolicySearchLoading}
+								oninput={(e) => onPolicySearch(e.currentTarget.value)}
+							/>
 						</FormInput>
 						{#if changed.claims}
 							<ChangedMarker

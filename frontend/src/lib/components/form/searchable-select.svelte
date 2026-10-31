@@ -9,6 +9,7 @@
 	import type { FormEventHandler, HTMLAttributes } from 'svelte/elements';
 
 	let {
+		id,
 		items,
 		value = $bindable(),
 		onSelect,
@@ -21,6 +22,7 @@
 		items: {
 			value: string;
 			label: string;
+			description?: string;
 		}[];
 		value: string;
 		oninput?: FormEventHandler<HTMLInputElement>;
@@ -57,6 +59,7 @@
 		{#snippet child({ props })}
 			<button
 				{...props}
+				{id}
 				type="button"
 				role="combobox"
 				aria-expanded={open}
@@ -103,8 +106,17 @@
 							open = false;
 						}}
 					>
-						<LucideCheck class={cn('size-4', value !== item.value && 'text-transparent')} />
-						{item.label}
+						<LucideCheck
+							class={cn('size-4 shrink-0', value !== item.value && 'text-transparent')}
+						/>
+						{#if item.description === undefined}
+							{item.label}
+						{:else}
+							<span class="flex min-w-0 flex-col">
+								<span class="truncate">{item.label}</span>
+								<span class="text-caption text-fg-muted truncate">{item.description}</span>
+							</span>
+						{/if}
 					</Command.Item>
 				{/each}
 			</Command.Group>
