@@ -2,6 +2,7 @@ package oidc
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"net/http"
@@ -124,10 +125,8 @@ func (p cimdPolicy) AllowCIMDClient(_ context.Context, id string) error {
 // ValidateCIMDClient restricts generic CIMD features to those supported by Pocket ID's client model
 func (cimdPolicy) ValidateCIMDClient(_ context.Context, doc *fosite.ClientMetadataDocument) error {
 	// Require public-client authentication because Pocket ID does not persist CIMD key material
-	switch doc.TokenEndpointAuthMethod {
-	case "none":
-	default:
-		return fmt.Errorf("client metadata documents only support token_endpoint_auth_method %q, got %q", "none", doc.TokenEndpointAuthMethod)
+	if err := validateCIMDAuthMethod(doc); err != nil {
+		return err
 	}
 
 	// Require a flow that can initiate authorization (ignoring the grant types Pocket ID does not implement)
@@ -147,6 +146,33 @@ func (cimdPolicy) ValidateCIMDClient(_ context.Context, doc *fosite.ClientMetada
 	}
 
 	return nil
+}
+
+// validateCIMDAuthMethod requires a mutually supported public-client method without changing the published metadata
+func validateCIMDAuthMethod(doc *fosite.ClientMetadataDocument) error {
+	// The registered client metadata member is authoritative when it already selects public-client authentication
+	if doc.TokenEndpointAuthMethod == "none" {
+		return nil
+	}
+
+	// Otherwise the plural extension may still advertise public-client authentication as an alternative
+	if raw, present := doc.AdditionalMetadata["token_endpoint_auth_methods_supported"]; present {
+		var methods []string
+		if err := json.Unmarshal(raw, &methods); err != nil || len(methods) == 0 {
+			return errors.New("token_endpoint_auth_methods_supported must be a nonempty array of authentication methods")
+		}
+		for _, method := range methods {
+			if method == "" {
+				return errors.New("token_endpoint_auth_methods_supported must not contain an empty authentication method")
+			}
+		}
+		if slices.Contains(methods, "none") {
+			return nil
+		}
+		return errors.New("client metadata documents must support token endpoint authentication method \"none\"")
+	}
+
+	return fmt.Errorf("client metadata documents only support token_endpoint_auth_method %q, got %q", "none", doc.TokenEndpointAuthMethod)
 }
 
 var errInitiatingGrantRequired = errors.New("client metadata document must enable authorization_code or device_code")
@@ -197,6 +223,9 @@ func validateMetadataRedirectURIs(field string, uris []string) error {
 
 // buildClientFromMetadata applies Pocket ID's persisted-client projection to validated generic metadata
 func buildClientFromMetadata(doc *fosite.ClientMetadataDocument, rawURL string) (model.OidcClient, error) {
+	if err := validateCIMDAuthMethod(doc); err != nil {
+		return model.OidcClient{}, err
+	}
 	if err := validateMetadataRedirectURIs("redirect_uris", doc.RedirectURIs); err != nil {
 		return model.OidcClient{}, err
 	}
@@ -216,17 +245,11 @@ func buildClientFromMetadata(doc *fosite.ClientMetadataDocument, rawURL string) 
 		CallbackURLs:                datatype.StringList(doc.RedirectURIs),
 		LogoutCallbackURLs:          datatype.StringList(doc.PostLogoutRedirectURIs),
 		ClientType:                  model.OidcClientTypeCIMD,
+		IsPublic:                    true,
+		PkceEnabled:                 true,
 		MetadataGrantTypes:          datatype.StringList(grantTypes),
 		AccessTokenDurationMinutes:  model.DefaultAccessTokenDurationMinutes,
 		RefreshTokenDurationMinutes: model.DefaultRefreshTokenDurationMinutes,
-	}
-
-	switch doc.TokenEndpointAuthMethod {
-	case "none":
-		client.IsPublic = true
-		client.PkceEnabled = true
-	default:
-		return model.OidcClient{}, fmt.Errorf("client metadata documents only support token_endpoint_auth_method %q, got %q", "none", doc.TokenEndpointAuthMethod)
 	}
 
 	if client.Name == "" {
