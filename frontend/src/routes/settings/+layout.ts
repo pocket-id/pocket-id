@@ -25,8 +25,12 @@ export const load: LayoutLoad = async ({ url, parent, untrack, depends }) => {
 
 	// If newestVersion is empty, it means the check is disabled or failed.
 	// In this case, we assume the version is up to date.
+	// Next builds (e.g. "v2.19.1-next") are built ahead of the latest release, so they never need an update.
 	const isUpToDate =
-		newestVersion === null || newestVersion === '' || newestVersion === currentVersion;
+		newestVersion === null ||
+		newestVersion === '' ||
+		newestVersion === currentVersion ||
+		currentVersion.endsWith('-next');
 
 	const versionInformation: AppVersionInformation = {
 		currentVersion: versionService.getCurrentVersion(),
