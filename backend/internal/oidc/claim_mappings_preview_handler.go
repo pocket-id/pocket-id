@@ -5,6 +5,8 @@ import (
 
 	"github.com/gin-gonic/gin"
 
+	"github.com/pocket-id/pocket-id/backend/internal/apperror"
+	"github.com/pocket-id/pocket-id/backend/internal/authz"
 	"github.com/pocket-id/pocket-id/backend/internal/claimmappingpolicy"
 	"github.com/pocket-id/pocket-id/backend/internal/httpserver"
 )
@@ -30,8 +32,18 @@ type claimMappingsPreviewInput struct {
 // @Failure default {object} dto.ErrorDto "Error"
 // @Router /api/oidc/claim-mapping-policies/preview [post]
 func (h *claimMappingsPreviewHandler) previewClaimMappings(c *gin.Context) error {
+	// The route already requires users:read, and a route can only declare one scope, so the policy scope is checked here
+	if !authz.PrincipalFrom(c).Scopes.Has(authz.OidcClaimMappingPoliciesRead) {
+		return apperror.MissingScope(string(authz.OidcClaimMappingPoliciesRead))
+	}
+
 	var input claimMappingsPreviewInput
 	err := httpserver.BindJSON(c, &input)
+	if err != nil {
+		return err
+	}
+
+	err = claimmappingpolicy.ValidateClaimMappings(input.ClaimMappings)
 	if err != nil {
 		return err
 	}

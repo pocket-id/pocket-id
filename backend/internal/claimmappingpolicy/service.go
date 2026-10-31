@@ -6,14 +6,15 @@ import (
 	"reflect"
 
 	"github.com/pocket-id/pocket-id/backend/internal/apperror"
+	"github.com/pocket-id/pocket-id/backend/internal/common"
 	"github.com/pocket-id/pocket-id/backend/internal/model"
 	"github.com/pocket-id/pocket-id/backend/internal/utils"
 	"gorm.io/gorm"
 	"gorm.io/gorm/clause"
 )
 
-// isValidUserFieldSources checks if a user field name can be used as a mapping source
-func isValidUserFieldSources(field string) bool {
+// isValidUserFieldSource checks if a user field name can be used as a mapping source
+func isValidUserFieldSource(field string) bool {
 	switch OidcUserField(field) {
 	case UserFieldID,
 		UserFieldEmail,
@@ -32,27 +33,6 @@ func isValidUserFieldSources(field string) bool {
 	}
 }
 
-// isReservedClaimsForMapping checks if a claim is reserved and cannot be remapped
-func isReservedClaimsForMapping(claim string) bool {
-	switch claim {
-	case "sub",
-		"iss",
-		"aud",
-		"exp",
-		"iat",
-		"auth_time",
-		"nonce",
-		"acr",
-		"amr",
-		"azp",
-		"nbf",
-		"jti":
-		return true
-	default:
-		return false
-	}
-}
-
 type Service struct {
 	db *gorm.DB
 }
@@ -63,21 +43,21 @@ func newService(db *gorm.DB) *Service {
 	}
 }
 
-// ListClaimMappingPolicy returns a paginated list of claim mapping policys with their metadata
+// ListClaimMappingPolicy returns a paginated list of claim mapping policies with their metadata
 func (s *Service) ListClaimMappingPolicy(ctx context.Context, name string, listRequestOptions utils.ListRequestOptions) ([]OidcClaimMappingPolicy, utils.PaginationResponse, error) {
-	var claimMappingPolicys []OidcClaimMappingPolicy
+	var claimMappingPolicies []OidcClaimMappingPolicy
 	query := s.db.WithContext(ctx).Model(&OidcClaimMappingPolicy{})
 
 	if name != "" {
 		query = query.Where(`name LIKE ? ESCAPE '\'`, utils.LikeContainsPattern(name))
 	}
 
-	response, err := utils.PaginateFilterAndSort(listRequestOptions, query, &claimMappingPolicys)
+	response, err := utils.PaginateFilterAndSort(listRequestOptions, query, &claimMappingPolicies)
 	if err != nil {
 		return nil, utils.PaginationResponse{}, err
 	}
 
-	return claimMappingPolicys, response, err
+	return claimMappingPolicies, response, err
 }
 
 // ClientCounts returns how many clients get their claims from each of the policies, where the default one also counts every client without a policy of its own
@@ -142,19 +122,14 @@ func (s *Service) getClaimMappingPolicyInternal(ctx context.Context, tx *gorm.DB
 // ListClientsByClaimMappingPolicy returns a paginated list of the OIDC clients assigned to a claim
 // mapping policy, optionally filtered by client name
 func (s *Service) ListClientsByClaimMappingPolicy(ctx context.Context, policyID string, name string, listRequestOptions utils.ListRequestOptions) ([]model.OidcClient, utils.PaginationResponse, error) {
-	tx := s.db.Begin()
-	defer func() {
-		tx.Rollback()
-	}()
-
 	// Resolve the policy first, so an unknown ID reports a 404 instead of an empty page
-	_, err := s.getClaimMappingPolicyInternal(ctx, tx, policyID, false)
+	_, err := s.GetClaimMappingPolicy(ctx, policyID)
 	if err != nil {
 		return nil, utils.PaginationResponse{}, err
 	}
 
 	var clients []model.OidcClient
-	query := tx.WithContext(ctx).
+	query := s.db.WithContext(ctx).
 		Model(&model.OidcClient{}).
 		Where("claim_mapping_policy_id = ?", policyID)
 
@@ -167,30 +142,20 @@ func (s *Service) ListClientsByClaimMappingPolicy(ctx context.Context, policyID 
 		return nil, utils.PaginationResponse{}, err
 	}
 
-	err = tx.Commit().Error
-	if err != nil {
-		return nil, utils.PaginationResponse{}, err
-	}
-
 	return clients, response, nil
 }
 
 // ListAssignableClients returns a paginated list of the OIDC clients that are not on this claim
 // mapping policy yet, so they can be offered for assignment
 func (s *Service) ListAssignableClients(ctx context.Context, policyID string, name string, listRequestOptions utils.ListRequestOptions) ([]model.OidcClient, utils.PaginationResponse, error) {
-	tx := s.db.Begin()
-	defer func() {
-		tx.Rollback()
-	}()
-
 	// Resolve the policy first, so an unknown ID reports a 404 instead of listing every client
-	_, err := s.getClaimMappingPolicyInternal(ctx, tx, policyID, false)
+	_, err := s.GetClaimMappingPolicy(ctx, policyID)
 	if err != nil {
 		return nil, utils.PaginationResponse{}, err
 	}
 
 	var clients []model.OidcClient
-	query := tx.WithContext(ctx).
+	query := s.db.WithContext(ctx).
 		Model(&model.OidcClient{}).
 		Where("claim_mapping_policy_id IS NULL OR claim_mapping_policy_id <> ?", policyID)
 
@@ -199,11 +164,6 @@ func (s *Service) ListAssignableClients(ctx context.Context, policyID string, na
 	}
 
 	response, err := utils.PaginateFilterAndSort(listRequestOptions, query, &clients)
-	if err != nil {
-		return nil, utils.PaginationResponse{}, err
-	}
-
-	err = tx.Commit().Error
 	if err != nil {
 		return nil, utils.PaginationResponse{}, err
 	}
@@ -270,17 +230,29 @@ func (s *Service) RemoveClientFromClaimMappingPolicy(ctx context.Context, policy
 	return tx.Commit().Error
 }
 
-func (s *Service) CreateClaimMappingPolicy(ctx context.Context, dto OidcClaimMappingPolicyDto) (*OidcClaimMappingPolicyDto, error) {
+func (s *Service) CreateClaimMappingPolicy(ctx context.Context, dto OidcClaimMappingPolicyDto) (OidcClaimMappingPolicy, error) {
 	// Validate claim mappings
-	err := validateClaimMappings(dto.ClaimMappings)
+	err := ValidateClaimMappings(dto.ClaimMappings)
 	if err != nil {
-		return &dto, err
+		return OidcClaimMappingPolicy{}, err
 	}
 
 	tx := s.db.Begin()
 	defer func() {
 		tx.Rollback()
 	}()
+
+	// Unset the current default first, because the unique index allows only one default at a time
+	if dto.IsDefault {
+		err = lockDefaultChanges(ctx, tx)
+		if err != nil {
+			return OidcClaimMappingPolicy{}, err
+		}
+		err = tx.WithContext(ctx).Model(&OidcClaimMappingPolicy{}).Where("is_default = ?", true).Update("is_default", false).Error
+		if err != nil {
+			return OidcClaimMappingPolicy{}, err
+		}
+	}
 
 	// Create the claim mapping policy
 	claimMappingPolicy := OidcClaimMappingPolicy{}
@@ -288,31 +260,22 @@ func (s *Service) CreateClaimMappingPolicy(ctx context.Context, dto OidcClaimMap
 
 	err = tx.WithContext(ctx).Create(&claimMappingPolicy).Error
 	if err != nil {
-		return &dto, err
-	}
-
-	// Unset default for other claim mapping policies, in the same transaction so there is never more than one default
-	if claimMappingPolicy.IsDefault {
-		err := tx.WithContext(ctx).Model(&OidcClaimMappingPolicy{}).Where("id != ?", claimMappingPolicy.ID).Update("is_default", false).Error
-		if err != nil {
-			return &dto, err
-		}
+		return OidcClaimMappingPolicy{}, err
 	}
 
 	err = tx.Commit().Error
 	if err != nil {
-		return &dto, err
+		return OidcClaimMappingPolicy{}, err
 	}
 
-	dto.ID = claimMappingPolicy.ID
-	return &dto, nil
+	return claimMappingPolicy, nil
 }
 
-func (s *Service) UpdateClaimMappingPolicy(ctx context.Context, policyID string, dto OidcClaimMappingPolicyDto) (*OidcClaimMappingPolicyDto, error) {
+func (s *Service) UpdateClaimMappingPolicy(ctx context.Context, policyID string, dto OidcClaimMappingPolicyDto) (OidcClaimMappingPolicy, error) {
 	// Validate claim mappings
-	err := validateClaimMappings(dto.ClaimMappings)
+	err := ValidateClaimMappings(dto.ClaimMappings)
 	if err != nil {
-		return &dto, err
+		return OidcClaimMappingPolicy{}, err
 	}
 
 	tx := s.db.Begin()
@@ -320,56 +283,73 @@ func (s *Service) UpdateClaimMappingPolicy(ctx context.Context, policyID string,
 		tx.Rollback()
 	}()
 
+	// The update can move the default flag, so take that lock before the policy's own one
+	err = lockDefaultChanges(ctx, tx)
+	if err != nil {
+		return OidcClaimMappingPolicy{}, err
+	}
+
 	// Lock the policy so concurrent updates and deletes on it are serialized
 	claimMappingPolicy, err := s.getClaimMappingPolicyInternal(ctx, tx, policyID, true)
 	if err != nil {
-		return &dto, err
+		return OidcClaimMappingPolicy{}, err
 	}
 
 	// Apply the changes
 	original := claimMappingPolicy
 	updateClaimMappingPolicyFromDto(&claimMappingPolicy, dto)
 
-	// The built-in policy is managed by the migrations, so only its default flag may change
+	// The built-in policy is rewritten from the code on every startup, so only its default flag may change
 	if original.ID == BuiltInClaimMappingPolicyID &&
 		(claimMappingPolicy.Name != original.Name || !reflect.DeepEqual(claimMappingPolicy.ClaimMappings, original.ClaimMappings)) {
-		return &dto, apperror.BuiltInClaimMappingPolicyUpdate()
+		return OidcClaimMappingPolicy{}, apperror.BuiltInClaimMappingPolicyReadOnly("The built-in claim mapping policy can only be set as default")
 	}
 
 	// There must always be a default policy, and the built-in one is the fallback when the current default is unset
 	unsetDefault := original.IsDefault && !claimMappingPolicy.IsDefault
 	if unsetDefault && original.ID == BuiltInClaimMappingPolicyID {
-		return &dto, apperror.ValidationMessage("The built-in claim mapping policy can't be unset as default, set another policy as default instead")
+		return OidcClaimMappingPolicy{}, apperror.BuiltInClaimMappingPolicyReadOnly("The built-in claim mapping policy can't be unset as default, set another policy as default instead")
+	}
+
+	// Unset the current default first, because the unique index allows only one default at a time
+	if claimMappingPolicy.IsDefault {
+		err = tx.WithContext(ctx).Model(&OidcClaimMappingPolicy{}).Where("is_default = ? AND id != ?", true, claimMappingPolicy.ID).Update("is_default", false).Error
+		if err != nil {
+			return OidcClaimMappingPolicy{}, err
+		}
 	}
 
 	err = tx.WithContext(ctx).Save(&claimMappingPolicy).Error
 	if err != nil {
-		return &dto, err
-	}
-
-	// Unset default for other claim mapping policies, in the same transaction so there is never more than one default
-	if claimMappingPolicy.IsDefault {
-		err = tx.WithContext(ctx).Model(&OidcClaimMappingPolicy{}).Where("id != ?", claimMappingPolicy.ID).Update("is_default", false).Error
-		if err != nil {
-			return &dto, err
-		}
+		return OidcClaimMappingPolicy{}, err
 	}
 
 	// Promote the built-in policy when the default one is unset, so clients without a policy keep getting claims
 	if unsetDefault {
 		err = tx.WithContext(ctx).Model(&OidcClaimMappingPolicy{}).Where("id = ?", BuiltInClaimMappingPolicyID).Update("is_default", true).Error
 		if err != nil {
-			return &dto, err
+			return OidcClaimMappingPolicy{}, err
 		}
 	}
 
 	err = tx.Commit().Error
 	if err != nil {
-		return &dto, err
+		return OidcClaimMappingPolicy{}, err
 	}
 
-	dto.ID = claimMappingPolicy.ID
-	return &dto, nil
+	return claimMappingPolicy, nil
+}
+
+// lockDefaultChanges locks the built-in policy's row, which always exists, so concurrent changes of the default flag run one after another instead of failing on the unique index
+// Callers take it before any other policy lock, so two transactions never wait on each other's locks
+func lockDefaultChanges(ctx context.Context, tx *gorm.DB) error {
+	var policies []OidcClaimMappingPolicy
+	return tx.WithContext(ctx).
+		Clauses(clause.Locking{Strength: "UPDATE"}).
+		Select("id").
+		Where("id = ?", BuiltInClaimMappingPolicyID).
+		Find(&policies).
+		Error
 }
 
 func updateClaimMappingPolicyFromDto(claimMappingPolicy *OidcClaimMappingPolicy, dto OidcClaimMappingPolicyDto) {
@@ -400,23 +380,24 @@ func (s *Service) DeleteClaimMappingPolicy(ctx context.Context, policyID string)
 		tx.Rollback()
 	}()
 
+	// Deleting the default promotes the built-in policy, so take that lock before the policy's own one
+	err := lockDefaultChanges(ctx, tx)
+	if err != nil {
+		return err
+	}
+
 	// Lock the policy so no client can be assigned to it, and it cannot become the default, while it is being deleted
 	claimMappingPolicy, err := s.getClaimMappingPolicyInternal(ctx, tx, policyID, true)
 	if err != nil {
 		return err
 	}
 
-	// The built-in policy is managed by the migrations and must always exist
+	// The built-in policy is the fallback default and must always exist
 	if claimMappingPolicy.ID == BuiltInClaimMappingPolicyID {
-		return apperror.BuiltInClaimMappingPolicyUpdate()
+		return apperror.BuiltInClaimMappingPolicyReadOnly("The built-in claim mapping policy can't be deleted")
 	}
 
-	// Clear the reference on any client that was using this policy, so they fall back to the default one
-	err = tx.WithContext(ctx).Model(&model.OidcClient{}).Where("claim_mapping_policy_id = ?", policyID).Update("claim_mapping_policy_id", nil).Error
-	if err != nil {
-		return err
-	}
-
+	// The foreign key clears the policy of its clients, so they fall back to the default one
 	err = tx.WithContext(ctx).Delete(&claimMappingPolicy).Error
 	if err != nil {
 		return err
@@ -433,39 +414,26 @@ func (s *Service) DeleteClaimMappingPolicy(ctx context.Context, policyID string)
 	return tx.Commit().Error
 }
 
-func validateClaimMappings(mappings []OidcClaimMappingDto) error {
+// ValidateClaimMappings checks the rules the request binding cannot express, such as duplicate and reserved claim names
+func ValidateClaimMappings(mappings []OidcClaimMappingDto) error {
 	seenClaims := make(map[string]bool)
 
 	for _, mapping := range mappings {
-		if len(mapping.ClaimName) == 0 || len(mapping.SourceType) == 0 || len(mapping.SourceValue) == 0 {
-			return apperror.ValidationMessage("claim name, source type and source value are required")
-		}
-		// Check for duplicates
 		if seenClaims[mapping.ClaimName] {
 			return apperror.ValidationMessage("duplicate claim mapping for '" + mapping.ClaimName + "'")
 		}
 		seenClaims[mapping.ClaimName] = true
 
-		// Check if claim is reserved
-		if isReservedClaimsForMapping(mapping.ClaimName) {
+		if common.IsProtocolClaim(mapping.ClaimName) {
 			return apperror.ValidationMessage("cannot remap reserved claim '" + mapping.ClaimName + "'")
 		}
 
-		// Validate source based on type
-		switch mapping.SourceType {
-		case "user_field":
-			if !isValidUserFieldSources(mapping.SourceValue) {
-				return apperror.ValidationMessage("invalid user field '" + mapping.SourceValue + "' for mapping")
-			}
-		case "custom_claim":
-			// Custom claim key validation
-			if len(mapping.SourceValue) == 0 || len(mapping.SourceValue) > 255 {
-				return apperror.ValidationMessage("invalid custom claim key length")
-			}
-		case "static":
-			// Static values are always valid (string or JSON)
-		default:
-			return apperror.ValidationMessage("invalid source type '" + mapping.SourceType + "'")
+		if mapping.SourceType == string(MappingSourceUserField) && !isValidUserFieldSource(mapping.SourceValue) {
+			return apperror.ValidationMessage("invalid user field '" + mapping.SourceValue + "' for mapping")
+		}
+
+		if !mapping.AccessToken && !mapping.IDToken && !mapping.UserInfo {
+			return apperror.ValidationMessage("claim mapping for '" + mapping.ClaimName + "' must target at least one of the access token, ID token or userinfo")
 		}
 	}
 

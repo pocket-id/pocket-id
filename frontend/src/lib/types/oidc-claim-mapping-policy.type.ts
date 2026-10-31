@@ -1,22 +1,27 @@
 export type OidcClaimMappingPolicySourceType = 'user_field' | 'custom_claim' | 'static';
 
-/**
- * Claims the OIDC layer issues itself, which a mapping must not overwrite. Kept in sync with
- * `isReservedClaimsForMapping` in the backend's claimmappingpolicy service.
- */
+// Kept in sync with IsProtocolClaim in backend/internal/common/claims.go
 export const RESERVED_CLAIM_NAMES = [
 	'sub',
 	'iss',
 	'aud',
 	'exp',
 	'iat',
+	'nbf',
+	'jti',
 	'auth_time',
 	'nonce',
 	'acr',
 	'amr',
 	'azp',
-	'nbf',
-	'jti'
+	'at_hash',
+	'c_hash',
+	'rat',
+	'sid',
+	'scope',
+	'scp',
+	'client_id',
+	'type'
 ];
 
 export const USER_FIELDS = [
@@ -35,15 +40,7 @@ export const USER_FIELDS = [
 
 export type OidcUserField = (typeof USER_FIELDS)[number];
 
-export const MAPPING_SCOPES = [
-	'openid',
-	'profile',
-	'email',
-	'groups',
-	'address',
-	'phone',
-	'offline_access'
-] as const;
+export const MAPPING_SCOPES = ['openid', 'profile', 'email', 'groups', 'offline_access'] as const;
 
 export type OidcScope = (typeof MAPPING_SCOPES)[number];
 

@@ -10,5 +10,5 @@ export const load: PageLoad = async ({ params }) => {
 			sort: { column: 'name', direction: 'asc' }
 		})
 	]);
-	return { policy, clients: clients.data };
+	return { policy, clients: clients.data, assignedCount: clients.pagination.totalItems };
 };

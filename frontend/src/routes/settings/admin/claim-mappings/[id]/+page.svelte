@@ -61,6 +61,7 @@
 	let { data } = $props();
 	let policy = $state(data.policy);
 	let clients = $state(data.clients);
+	let assignedCount = $state(data.assignedCount);
 	let tab = $state('claims');
 	let sheetOpen = $state(false);
 	let editing = $state<DraftMapping | null>(null);
@@ -147,6 +148,7 @@
 		]);
 		policy = fresh;
 		clients = assigned.data;
+		assignedCount = assigned.pagination.totalItems;
 	}
 
 	function openSheet(mapping: DraftMapping | null) {
@@ -170,7 +172,7 @@
 
 	async function makeDefault() {
 		if (!(await makeDefaultPolicy(policy))) return;
-		formStore.commit({ name: $inputs.name.value, isDefault: true });
+		formStore.commit({ name: policy.name, isDefault: true });
 		$inputs.isDefault.value = true;
 		await reloadPolicy().catch(axiosErrorToast);
 	}
@@ -201,7 +203,7 @@
 		}
 	}
 
-	const unassignedCount = $derived(policy.isDefault ? policy.clientCount - clients.length : 0);
+	const unassignedCount = $derived(policy.isDefault ? policy.clientCount - assignedCount : 0);
 
 	function sourceOf(mapping: OidcClaimMappingDto) {
 		if (mapping.sourceType === 'user_field') {
@@ -352,7 +354,7 @@
 			<div class="scroll-fade-x min-w-0 [scrollbar-width:none] overflow-x-auto">
 				<Tabs.List variant="line" class="shadow-none max-sm:gap-4" aria-label={m.policy_sections()}>
 					<Tabs.Trigger value="claims">{m.claims()} {@render count(draft.length)}</Tabs.Trigger>
-					<Tabs.Trigger value="clients">{m.clients()} {@render count(clients.length)}</Tabs.Trigger>
+					<Tabs.Trigger value="clients">{m.clients()} {@render count(assignedCount)}</Tabs.Trigger>
 					<Tabs.Trigger value="settings">{m.settings()}</Tabs.Trigger>
 				</Tabs.List>
 			</div>

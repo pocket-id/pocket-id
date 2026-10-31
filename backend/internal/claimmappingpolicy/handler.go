@@ -33,18 +33,18 @@ func (h *handler) list(c *gin.Context) error {
 	searchTerm := c.Query("search")
 	listRequestOptions := utils.ParseListRequestOptions(c)
 
-	claimMappingPolicys, pagination, err := h.service.ListClaimMappingPolicy(c.Request.Context(), searchTerm, listRequestOptions)
+	claimMappingPolicies, pagination, err := h.service.ListClaimMappingPolicy(c.Request.Context(), searchTerm, listRequestOptions)
 	if err != nil {
 		return err
 	}
 
-	clientCounts, err := h.service.ClientCounts(c.Request.Context(), claimMappingPolicys)
+	clientCounts, err := h.service.ClientCounts(c.Request.Context(), claimMappingPolicies)
 	if err != nil {
 		return err
 	}
 
-	dtos := make([]OidcClaimMappingPolicyMetadataDto, len(claimMappingPolicys))
-	for i, claimMappingPolicy := range claimMappingPolicys {
+	dtos := make([]OidcClaimMappingPolicyMetadataDto, len(claimMappingPolicies))
+	for i, claimMappingPolicy := range claimMappingPolicies {
 		dtos[i] = OidcClaimMappingPolicyMetadataDto{
 			ID:          claimMappingPolicy.ID,
 			Name:        claimMappingPolicy.Name,
@@ -83,8 +83,7 @@ func (h *handler) create(c *gin.Context) error {
 		return err
 	}
 
-	var claimMappingPolicyDto OidcClaimMappingPolicyDto
-	err = dto.MapStruct(claimMappingPolicy, &claimMappingPolicyDto)
+	claimMappingPolicyDto, err := h.toDto(c, claimMappingPolicy)
 	if err != nil {
 		return err
 	}
@@ -109,20 +108,29 @@ func (h *handler) get(c *gin.Context) error {
 		return err
 	}
 
-	clientCounts, err := h.service.ClientCounts(c.Request.Context(), []OidcClaimMappingPolicy{claimMappingPolicy})
+	claimMappingPolicyDto, err := h.toDto(c, claimMappingPolicy)
 	if err != nil {
 		return err
+	}
+
+	c.JSON(http.StatusOK, claimMappingPolicyDto)
+	return nil
+}
+
+func (h *handler) toDto(c *gin.Context, claimMappingPolicy OidcClaimMappingPolicy) (OidcClaimMappingPolicyDto, error) {
+	clientCounts, err := h.service.ClientCounts(c.Request.Context(), []OidcClaimMappingPolicy{claimMappingPolicy})
+	if err != nil {
+		return OidcClaimMappingPolicyDto{}, err
 	}
 
 	var claimMappingPolicyDto OidcClaimMappingPolicyDto
 	err = dto.MapStruct(claimMappingPolicy, &claimMappingPolicyDto)
 	if err != nil {
-		return err
+		return OidcClaimMappingPolicyDto{}, err
 	}
 	claimMappingPolicyDto.ClaimCount = len(claimMappingPolicy.ClaimMappings)
 	claimMappingPolicyDto.ClientCount = clientCounts[claimMappingPolicy.ID]
-	c.JSON(http.StatusOK, claimMappingPolicyDto)
-	return nil
+	return claimMappingPolicyDto, nil
 }
 
 // delete godoc
@@ -166,8 +174,7 @@ func (h *handler) update(c *gin.Context) error {
 		return err
 	}
 
-	var claimMappingPolicyDto OidcClaimMappingPolicyDto
-	err = dto.MapStruct(claimMappingPolicy, &claimMappingPolicyDto)
+	claimMappingPolicyDto, err := h.toDto(c, claimMappingPolicy)
 	if err != nil {
 		return err
 	}

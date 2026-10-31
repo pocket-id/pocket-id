@@ -9,7 +9,7 @@ import (
 	"github.com/pocket-id/pocket-id/backend/internal/utils"
 )
 
-// BuiltInClaimMappingPolicyID is the ID of the policy inserted by the migrations, which is read-only except for its default flag
+// BuiltInClaimMappingPolicyID is the ID of the policy that Bootstrap writes on every startup, which is read-only except for its default flag
 const BuiltInClaimMappingPolicyID = "00000000-0000-0000-0000-000000000000"
 
 // OidcClaimMappingPolicy defines a set of claim mappings that can be applied to a client.

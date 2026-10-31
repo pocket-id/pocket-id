@@ -4,13 +4,15 @@ package claimmappingpolicy
 
 import (
 	"context"
-	"strings"
+	"fmt"
+	"sync"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
 	"github.com/pocket-id/pocket-id/backend/internal/apperror"
+	"github.com/pocket-id/pocket-id/backend/internal/common"
 	"github.com/pocket-id/pocket-id/backend/internal/dto"
 	"github.com/pocket-id/pocket-id/backend/internal/model"
 	"github.com/pocket-id/pocket-id/backend/internal/utils"
@@ -42,7 +44,7 @@ func TestDeleteClaimMappingPolicyResetsClients(t *testing.T) {
 	policy, err := service.CreateClaimMappingPolicy(context.Background(), OidcClaimMappingPolicyDto{
 		OidcClaimMappingPolicyMetadataDto: OidcClaimMappingPolicyMetadataDto{Name: "Attached"},
 		ClaimMappings: []OidcClaimMappingDto{
-			{ClaimName: "user_id", SourceType: "user_field", SourceValue: string(UserFieldID)},
+			{ClaimName: "user_id", SourceType: "user_field", SourceValue: string(UserFieldID), IDToken: true},
 		},
 	})
 	require.NoError(t, err)
@@ -124,6 +126,7 @@ func TestCreateClaimMappingPolicyWithDefault(t *testing.T) {
 				ClaimName:   "user_id",
 				SourceType:  "user_field",
 				SourceValue: string(UserFieldID),
+				IDToken:     true,
 			},
 		},
 	}
@@ -151,6 +154,7 @@ func TestCreateClaimMappingPolicyDefaultUnsetsOthers(t *testing.T) {
 				ClaimName:   "user_id",
 				SourceType:  "user_field",
 				SourceValue: string(UserFieldID),
+				IDToken:     true,
 			},
 		},
 	}
@@ -168,6 +172,7 @@ func TestCreateClaimMappingPolicyDefaultUnsetsOthers(t *testing.T) {
 				ClaimName:   "user_id",
 				SourceType:  "user_field",
 				SourceValue: string(UserFieldID),
+				IDToken:     true,
 			},
 		},
 	}
@@ -204,11 +209,13 @@ func TestUpdateClaimMappingPolicy(t *testing.T) {
 			ClaimName:   "user_id",
 			SourceType:  "user_field",
 			SourceValue: string(UserFieldID),
+			IDToken:     true,
 		},
 		{
 			ClaimName:   "email",
 			SourceType:  "user_field",
 			SourceValue: string(UserFieldEmail),
+			IDToken:     true,
 		},
 	}
 	updateDto := OidcClaimMappingPolicyDto{
@@ -229,6 +236,7 @@ func TestUpdateClaimMappingPolicy(t *testing.T) {
 				ClaimName:   "user_id",
 				SourceType:  "user_field",
 				SourceValue: string(UserFieldID),
+				IDToken:     true,
 			},
 		},
 	}
@@ -261,6 +269,7 @@ func TestUpdateClaimMappingPolicySetAsDefault(t *testing.T) {
 				ClaimName:   "user_id",
 				SourceType:  "user_field",
 				SourceValue: string(UserFieldID),
+				IDToken:     true,
 			},
 		},
 	}
@@ -277,6 +286,7 @@ func TestUpdateClaimMappingPolicySetAsDefault(t *testing.T) {
 				ClaimName:   "user_id",
 				SourceType:  "user_field",
 				SourceValue: string(UserFieldID),
+				IDToken:     true,
 			},
 		},
 	}
@@ -294,6 +304,7 @@ func TestUpdateClaimMappingPolicySetAsDefault(t *testing.T) {
 				ClaimName:   "user_id",
 				SourceType:  "user_field",
 				SourceValue: string(UserFieldID),
+				IDToken:     true,
 			},
 		},
 	}
@@ -326,6 +337,7 @@ func TestDeleteClaimMappingPolicy(t *testing.T) {
 				ClaimName:   "user_id",
 				SourceType:  "user_field",
 				SourceValue: string(UserFieldID),
+				IDToken:     true,
 			},
 		},
 	}
@@ -357,6 +369,7 @@ func TestDeleteDefaultClaimMappingPolicyFallsBackToBuiltIn(t *testing.T) {
 				ClaimName:   "user_id",
 				SourceType:  "user_field",
 				SourceValue: string(UserFieldID),
+				IDToken:     true,
 			},
 		},
 	}
@@ -384,7 +397,7 @@ func TestUpdateClaimMappingPolicyUnsetDefaultFallsBackToBuiltIn(t *testing.T) {
 	input := OidcClaimMappingPolicyDto{
 		OidcClaimMappingPolicyMetadataDto: OidcClaimMappingPolicyMetadataDto{Name: "Custom", IsDefault: true},
 		ClaimMappings: []OidcClaimMappingDto{
-			{ClaimName: "user_id", SourceType: "user_field", SourceValue: string(UserFieldID)},
+			{ClaimName: "user_id", SourceType: "user_field", SourceValue: string(UserFieldID), IDToken: true},
 		},
 	}
 	created, err := service.CreateClaimMappingPolicy(context.Background(), input)
@@ -432,7 +445,7 @@ func TestUpdateBuiltInClaimMappingPolicyOnlyAllowsDefaultFlag(t *testing.T) {
 		_, err := service.UpdateClaimMappingPolicy(context.Background(), BuiltInClaimMappingPolicyID, input)
 		var appErr *apperror.Error
 		require.ErrorAs(t, err, &appErr)
-		assert.Equal(t, apperror.CodeBuiltInClaimMappingPolicyUpdate, appErr.Code())
+		assert.Equal(t, apperror.CodeBuiltInClaimMappingPolicyReadOnly, appErr.Code())
 	})
 
 	t.Run("changing the mappings is rejected", func(t *testing.T) {
@@ -442,7 +455,7 @@ func TestUpdateBuiltInClaimMappingPolicyOnlyAllowsDefaultFlag(t *testing.T) {
 		_, err := service.UpdateClaimMappingPolicy(context.Background(), BuiltInClaimMappingPolicyID, input)
 		var appErr *apperror.Error
 		require.ErrorAs(t, err, &appErr)
-		assert.Equal(t, apperror.CodeBuiltInClaimMappingPolicyUpdate, appErr.Code())
+		assert.Equal(t, apperror.CodeBuiltInClaimMappingPolicyReadOnly, appErr.Code())
 
 		policy, err := service.GetClaimMappingPolicy(context.Background(), BuiltInClaimMappingPolicyID)
 		require.NoError(t, err)
@@ -456,7 +469,7 @@ func TestUpdateBuiltInClaimMappingPolicyOnlyAllowsDefaultFlag(t *testing.T) {
 		_, err := service.UpdateClaimMappingPolicy(context.Background(), BuiltInClaimMappingPolicyID, input)
 		var appErr *apperror.Error
 		require.ErrorAs(t, err, &appErr)
-		assert.Equal(t, apperror.CodeValidationFailed, appErr.Code())
+		assert.Equal(t, apperror.CodeBuiltInClaimMappingPolicyReadOnly, appErr.Code())
 
 		policy, err := service.GetClaimMappingPolicy(context.Background(), BuiltInClaimMappingPolicyID)
 		require.NoError(t, err)
@@ -468,7 +481,7 @@ func TestUpdateBuiltInClaimMappingPolicyOnlyAllowsDefaultFlag(t *testing.T) {
 		_, err := service.CreateClaimMappingPolicy(context.Background(), OidcClaimMappingPolicyDto{
 			OidcClaimMappingPolicyMetadataDto: OidcClaimMappingPolicyMetadataDto{Name: "New Default", IsDefault: true},
 			ClaimMappings: []OidcClaimMappingDto{
-				{ClaimName: "user_id", SourceType: "user_field", SourceValue: string(UserFieldID)},
+				{ClaimName: "user_id", SourceType: "user_field", SourceValue: string(UserFieldID), IDToken: true},
 			},
 		})
 		require.NoError(t, err)
@@ -476,23 +489,25 @@ func TestUpdateBuiltInClaimMappingPolicyOnlyAllowsDefaultFlag(t *testing.T) {
 		err = service.DeleteClaimMappingPolicy(context.Background(), BuiltInClaimMappingPolicyID)
 		var appErr *apperror.Error
 		require.ErrorAs(t, err, &appErr)
-		assert.Equal(t, apperror.CodeBuiltInClaimMappingPolicyUpdate, appErr.Code())
+		assert.Equal(t, apperror.CodeBuiltInClaimMappingPolicyReadOnly, appErr.Code())
 	})
 }
 
 // Tests for validateClaimMappings
 
 func TestValidateClaimMappingsDuplicateClaims(t *testing.T) {
-	err := validateClaimMappings([]OidcClaimMappingDto{
+	err := ValidateClaimMappings([]OidcClaimMappingDto{
 		{
 			ClaimName:   "user_id",
 			SourceType:  "user_field",
 			SourceValue: string(UserFieldID),
+			IDToken:     true,
 		},
 		{
 			ClaimName:   "user_id",
 			SourceType:  "user_field",
 			SourceValue: string(UserFieldEmail),
+			IDToken:     true,
 		},
 	})
 	require.Error(t, err)
@@ -500,20 +515,23 @@ func TestValidateClaimMappingsDuplicateClaims(t *testing.T) {
 }
 
 func TestValidateClaimMappingsReservedClaims(t *testing.T) {
-	reservedClaims := []string{"sub", "iss", "aud", "exp", "iat", "auth_time", "nonce", "acr", "amr", "azp", "nbf", "jti"}
+	// A mapped "type" claim would let an access token pass as an ID token hint at logout
+	reservedClaims := []string{"sub", "type"}
 
 	for _, claim := range reservedClaims {
 		t.Run(claim, func(t *testing.T) {
-			err := validateClaimMappings([]OidcClaimMappingDto{
+			err := ValidateClaimMappings([]OidcClaimMappingDto{
 				{
 					ClaimName:   "user_id",
 					SourceType:  "user_field",
 					SourceValue: string(UserFieldID),
+					IDToken:     true,
 				},
 				{
 					ClaimName:   claim,
 					SourceType:  "user_field",
 					SourceValue: string(UserFieldEmail),
+					IDToken:     true,
 				},
 			})
 			require.Error(t, err)
@@ -523,51 +541,25 @@ func TestValidateClaimMappingsReservedClaims(t *testing.T) {
 	}
 }
 
-func TestValidateClaimMappingsEmptyFields(t *testing.T) {
-	tests := []struct {
-		name    string
-		mapping OidcClaimMappingDto
-	}{
-		{
-			name:    "empty claim name",
-			mapping: OidcClaimMappingDto{SourceType: "user_field", SourceValue: string(UserFieldID)},
-		},
-		{
-			name:    "empty source type",
-			mapping: OidcClaimMappingDto{ClaimName: "user_id", SourceValue: string(UserFieldID)},
-		},
-		{
-			name:    "empty source value",
-			mapping: OidcClaimMappingDto{ClaimName: "user_id", SourceType: "user_field"},
-		},
-	}
-
-	for _, tc := range tests {
-		t.Run(tc.name, func(t *testing.T) {
-			err := validateClaimMappings([]OidcClaimMappingDto{
-				{
-					ClaimName:   "user_id",
-					SourceType:  "user_field",
-					SourceValue: string(UserFieldID),
-				},
-				tc.mapping,
-			})
-			require.Error(t, err)
-			assert.Contains(t, err.Error(), "claim name, source type and source value are required")
-		})
-	}
-}
-
 func TestValidateClaimMappingsInvalidUserField(t *testing.T) {
-	err := validateClaimMappings([]OidcClaimMappingDto{
+	err := ValidateClaimMappings([]OidcClaimMappingDto{
 		{
 			ClaimName:   "user_id",
 			SourceType:  "user_field",
 			SourceValue: "invalid_field",
+			IDToken:     true,
 		},
 	})
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "invalid user field")
+}
+
+func TestValidateClaimMappingsWithoutTarget(t *testing.T) {
+	err := ValidateClaimMappings([]OidcClaimMappingDto{
+		{ClaimName: "user_id", SourceType: "user_field", SourceValue: string(UserFieldID), Scope: []string{"openid"}},
+	})
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "must target at least one")
 }
 
 func TestValidateClaimMappingsValidUserFields(t *testing.T) {
@@ -586,16 +578,18 @@ func TestValidateClaimMappingsValidUserFields(t *testing.T) {
 
 	for _, field := range validFields {
 		t.Run(string(field), func(t *testing.T) {
-			err := validateClaimMappings([]OidcClaimMappingDto{
+			err := ValidateClaimMappings([]OidcClaimMappingDto{
 				{
 					ClaimName:   "user_id",
 					SourceType:  "user_field",
 					SourceValue: string(UserFieldID),
+					IDToken:     true,
 				},
 				{
 					ClaimName:   string(field),
 					SourceType:  "user_field",
 					SourceValue: string(field),
+					IDToken:     true,
 				},
 			})
 			require.NoError(t, err)
@@ -604,91 +598,43 @@ func TestValidateClaimMappingsValidUserFields(t *testing.T) {
 }
 
 func TestValidateClaimMappingsCustomClaim(t *testing.T) {
-	err := validateClaimMappings([]OidcClaimMappingDto{
+	err := ValidateClaimMappings([]OidcClaimMappingDto{
 		{
 			ClaimName:   "user_id",
 			SourceType:  "user_field",
 			SourceValue: string(UserFieldID),
+			IDToken:     true,
 		},
 		{
 			ClaimName:   "custom_claim",
 			SourceType:  "custom_claim",
 			SourceValue: "my_custom_key",
+			IDToken:     true,
 		},
 	})
 	require.NoError(t, err)
 }
 
-func TestValidateClaimMappingsCustomClaimInvalidLength(t *testing.T) {
-	// Test empty custom claim key
-	err := validateClaimMappings([]OidcClaimMappingDto{
-		{
-			ClaimName:   "user_id",
-			SourceType:  "user_field",
-			SourceValue: string(UserFieldID),
-		},
-		{
-			ClaimName:   "custom",
-			SourceType:  "custom_claim",
-			SourceValue: "",
-		},
-	})
-	require.Error(t, err)
-	assert.Contains(t, err.Error(), "claim name, source type and source value are required")
-
-	// Test too long custom claim key (256 chars)
-	longKey := strings.Repeat("a", 256)
-	err = validateClaimMappings([]OidcClaimMappingDto{
-		{
-			ClaimName:   "user_id",
-			SourceType:  "user_field",
-			SourceValue: string(UserFieldID),
-		},
-		{
-			ClaimName:   "custom",
-			SourceType:  "custom_claim",
-			SourceValue: longKey,
-		},
-	})
-	require.Error(t, err)
-	assert.Contains(t, err.Error(), "invalid custom claim key length")
-}
-
 func TestValidateClaimMappingsStaticSource(t *testing.T) {
-	err := validateClaimMappings([]OidcClaimMappingDto{
+	err := ValidateClaimMappings([]OidcClaimMappingDto{
 		{
 			ClaimName:   "user_id",
 			SourceType:  "user_field",
 			SourceValue: string(UserFieldID),
+			IDToken:     true,
 		},
 		{
 			ClaimName:   "static_claim",
 			SourceType:  "static",
 			SourceValue: `{"role": "admin"}`,
+			IDToken:     true,
 		},
 	})
 	require.NoError(t, err)
 }
 
-func TestValidateClaimMappingsInvalidSourceType(t *testing.T) {
-	err := validateClaimMappings([]OidcClaimMappingDto{
-		{
-			ClaimName:   "user_id",
-			SourceType:  "user_field",
-			SourceValue: string(UserFieldID),
-		},
-		{
-			ClaimName:   "invalid",
-			SourceType:  "invalid_type",
-			SourceValue: "some_value",
-		},
-	})
-	require.Error(t, err)
-	assert.Contains(t, err.Error(), "invalid source type")
-}
-
 func TestValidateClaimMappingsValidComplexPolicy(t *testing.T) {
-	err := validateClaimMappings([]OidcClaimMappingDto{
+	err := ValidateClaimMappings([]OidcClaimMappingDto{
 		{
 			ClaimName:   "user_id",
 			SourceType:  "user_field",
@@ -725,6 +671,7 @@ func TestValidateClaimMappingsValidComplexPolicy(t *testing.T) {
 			ClaimName:   "app_version",
 			SourceType:  "static",
 			SourceValue: "1.0.0",
+			IDToken:     true,
 		},
 	})
 	require.NoError(t, err)
@@ -746,6 +693,7 @@ func TestListClaimMappingPolicyWithData(t *testing.T) {
 					ClaimName:   "user_id",
 					SourceType:  "user_field",
 					SourceValue: string(UserFieldID),
+					IDToken:     true,
 				},
 			},
 		}
@@ -769,7 +717,7 @@ func TestListClientsByClaimMappingPolicy(t *testing.T) {
 	policy, err := service.CreateClaimMappingPolicy(context.Background(), OidcClaimMappingPolicyDto{
 		OidcClaimMappingPolicyMetadataDto: OidcClaimMappingPolicyMetadataDto{Name: "Attached"},
 		ClaimMappings: []OidcClaimMappingDto{
-			{ClaimName: "user_id", SourceType: "user_field", SourceValue: string(UserFieldID)},
+			{ClaimName: "user_id", SourceType: "user_field", SourceValue: string(UserFieldID), IDToken: true},
 		},
 	})
 	require.NoError(t, err)
@@ -777,7 +725,7 @@ func TestListClientsByClaimMappingPolicy(t *testing.T) {
 	otherPolicy, err := service.CreateClaimMappingPolicy(context.Background(), OidcClaimMappingPolicyDto{
 		OidcClaimMappingPolicyMetadataDto: OidcClaimMappingPolicyMetadataDto{Name: "Other"},
 		ClaimMappings: []OidcClaimMappingDto{
-			{ClaimName: "user_id", SourceType: "user_field", SourceValue: string(UserFieldID)},
+			{ClaimName: "user_id", SourceType: "user_field", SourceValue: string(UserFieldID), IDToken: true},
 		},
 	})
 	require.NoError(t, err)
@@ -815,7 +763,7 @@ func TestListClientsByClaimMappingPolicyFiltersBySearchTerm(t *testing.T) {
 	policy, err := service.CreateClaimMappingPolicy(context.Background(), OidcClaimMappingPolicyDto{
 		OidcClaimMappingPolicyMetadataDto: OidcClaimMappingPolicyMetadataDto{Name: "Attached"},
 		ClaimMappings: []OidcClaimMappingDto{
-			{ClaimName: "user_id", SourceType: "user_field", SourceValue: string(UserFieldID)},
+			{ClaimName: "user_id", SourceType: "user_field", SourceValue: string(UserFieldID), IDToken: true},
 		},
 	})
 	require.NoError(t, err)
@@ -844,7 +792,7 @@ func TestListClientsByClaimMappingPolicyEscapesWildcards(t *testing.T) {
 	policy, err := service.CreateClaimMappingPolicy(context.Background(), OidcClaimMappingPolicyDto{
 		OidcClaimMappingPolicyMetadataDto: OidcClaimMappingPolicyMetadataDto{Name: "Attached"},
 		ClaimMappings: []OidcClaimMappingDto{
-			{ClaimName: "user_id", SourceType: "user_field", SourceValue: string(UserFieldID)},
+			{ClaimName: "user_id", SourceType: "user_field", SourceValue: string(UserFieldID), IDToken: true},
 		},
 	})
 	require.NoError(t, err)
@@ -879,7 +827,7 @@ func TestListClientsByClaimMappingPolicyPaginates(t *testing.T) {
 	policy, err := service.CreateClaimMappingPolicy(context.Background(), OidcClaimMappingPolicyDto{
 		OidcClaimMappingPolicyMetadataDto: OidcClaimMappingPolicyMetadataDto{Name: "Attached"},
 		ClaimMappings: []OidcClaimMappingDto{
-			{ClaimName: "user_id", SourceType: "user_field", SourceValue: string(UserFieldID)},
+			{ClaimName: "user_id", SourceType: "user_field", SourceValue: string(UserFieldID), IDToken: true},
 		},
 	})
 	require.NoError(t, err)
@@ -917,12 +865,12 @@ func TestListClientsByClaimMappingPolicyNotFound(t *testing.T) {
 
 // newPolicyWithClients creates a policy plus the given clients, each attached to the policy passed
 // as its value (nil for a client on no policy at all).
-func newPolicyWithClients(t *testing.T, svc *Service, name string) *OidcClaimMappingPolicyDto {
+func newPolicyWithClients(t *testing.T, svc *Service, name string) OidcClaimMappingPolicy {
 	t.Helper()
 	policy, err := svc.CreateClaimMappingPolicy(context.Background(), OidcClaimMappingPolicyDto{
 		OidcClaimMappingPolicyMetadataDto: OidcClaimMappingPolicyMetadataDto{Name: name},
 		ClaimMappings: []OidcClaimMappingDto{
-			{ClaimName: "user_id", SourceType: "user_field", SourceValue: string(UserFieldID)},
+			{ClaimName: "user_id", SourceType: "user_field", SourceValue: string(UserFieldID), IDToken: true},
 		},
 	})
 	require.NoError(t, err)
@@ -1068,4 +1016,34 @@ func TestClientCountsAddsUnassignedClientsToTheDefault(t *testing.T) {
 	counts, err := service.ClientCounts(t.Context(), policies)
 	require.NoError(t, err)
 	assert.Equal(t, map[string]int64{policy.ID: 1, BuiltInClaimMappingPolicyID: 2}, counts)
+}
+
+func TestCreateClaimMappingPolicyConcurrentDefaults(t *testing.T) {
+	// SQLite runs write transactions one at a time, so only Postgres can race here
+	db := testutils.NewPostgresDatabaseForTest(t)
+	previousProvider := common.EnvConfig.DbProvider
+	common.EnvConfig.DbProvider = common.DbProviderPostgres
+	t.Cleanup(func() {
+		common.EnvConfig.DbProvider = previousProvider
+	})
+	require.NoError(t, Bootstrap(t.Context(), db))
+	service := newService(db)
+
+	var wg sync.WaitGroup
+	errs := make([]error, 10)
+	for i := range errs {
+		wg.Go(func() {
+			_, errs[i] = service.CreateClaimMappingPolicy(t.Context(), OidcClaimMappingPolicyDto{
+				OidcClaimMappingPolicyMetadataDto: OidcClaimMappingPolicyMetadataDto{Name: fmt.Sprintf("Policy %d", i), IsDefault: true},
+			})
+		})
+	}
+	wg.Wait()
+
+	for _, err := range errs {
+		require.NoError(t, err)
+	}
+	var defaults int64
+	require.NoError(t, db.Model(&OidcClaimMappingPolicy{}).Where("is_default = ?", true).Count(&defaults).Error)
+	assert.Equal(t, int64(1), defaults)
 }
