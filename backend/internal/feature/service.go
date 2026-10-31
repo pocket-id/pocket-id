@@ -10,6 +10,7 @@ import (
 	"github.com/pocket-id/pocket-id/backend/internal/api"
 	"github.com/pocket-id/pocket-id/backend/internal/apikey"
 	"github.com/pocket-id/pocket-id/backend/internal/appconfig"
+	"github.com/pocket-id/pocket-id/backend/internal/claimmappingpolicy"
 	"github.com/pocket-id/pocket-id/backend/internal/common"
 	"github.com/pocket-id/pocket-id/backend/internal/model"
 	"github.com/pocket-id/pocket-id/backend/internal/scimsync"
@@ -26,9 +27,10 @@ const (
 	APIKeys              Feature = "apiKeys"
 	CIMD                 Feature = "cimd"
 	FederatedCredentials Feature = "federatedCredentials"
+	ClaimMappings        Feature = "claimMappings"
 )
 
-var features = []Feature{LDAP, SCIM, CustomClaims, APIs, APIKeys, CIMD, FederatedCredentials}
+var features = []Feature{LDAP, SCIM, CustomClaims, APIs, APIKeys, CIMD, FederatedCredentials, ClaimMappings}
 
 type Status struct {
 	Enabled bool `json:"enabled"`
@@ -125,6 +127,8 @@ func (s *Service) usage(ctx context.Context, cfg *appconfig.AppConfigModel) (map
 		// An API that admits metadata document clients keeps its CIMD access tab even while no such client exists
 		{CIMD, db.Model(&model.OidcClient{}).Where("client_type = ?", model.OidcClientTypeCIMD)},
 		{CIMD, db.Model(&api.API{}).Where("allow_cimd_clients = ?", true)},
+		// The built-in policy always exists, so only the policies an admin added count
+		{ClaimMappings, db.Model(&claimmappingpolicy.OidcClaimMappingPolicy{}).Where("id <> ?", claimmappingpolicy.BuiltInClaimMappingPolicyID)},
 	}
 	for _, q := range queries {
 		var count int64

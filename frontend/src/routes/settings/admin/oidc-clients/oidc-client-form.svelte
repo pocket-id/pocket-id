@@ -2,24 +2,30 @@
 	import AdvancedDisclosure from '#lib/components/advanced-disclosure.svelte';
 	import DurationInput from '#lib/components/form/duration-input.svelte';
 	import FormInput from '#lib/components/form/form-input.svelte';
+	import SearchableSelect from '#lib/components/form/searchable-select.svelte';
 	import FormattedMessage from '#lib/components/formatted-message.svelte';
 	import SettingRow from '#lib/components/setting-row.svelte';
 	import SettingsSection from '#lib/components/settings-section.svelte';
 	import { Switch } from '#lib/components/ui/switch/index.ts';
 	import { m } from '#lib/paraglide/messages.js';
+	import OidcClaimMappingPolicyService from '#lib/services/oidc-claim-mapping-policy-service.ts';
 	import appConfigStore from '#lib/stores/application-configuration-store.ts';
+	import type { OidcClaimMappingPolicyMetadataDto } from '#lib/types/oidc-claim-mapping-policy.type.ts';
 	import type {
 		OidcClient,
 		OidcClientCreateWithLogo,
 		OidcClientLogoPreset
 	} from '#lib/types/oidc.type.ts';
 	import { cachedOidcClientLogo } from '#lib/utils/cached-image-util.ts';
+	import { debounced } from '#lib/utils/debounce-util.ts';
 	import { axiosErrorToast } from '#lib/utils/error-util.ts';
 	import { preventDefault } from '#lib/utils/event-util.ts';
 	import { createForm } from '#lib/utils/form-util.ts';
 	import { trackFormChanges } from '#lib/utils/unsaved-changes-util.svelte.ts';
 	import { callbackUrlSchema, optionalUrl } from '#lib/utils/zod-util.ts';
+	import { LucideArrowRight } from '@lucide/svelte';
 	import { z } from 'zod/v4';
+	import { claimsCount, policyHref } from '../claim-mappings/claim-mapping-util';
 	import ChangedMarker from './changed-marker.svelte';
 	import ClientTypeTiles from './client-type-tiles.svelte';
 	import OidcCallbackUrlInput from './oidc-callback-url-input.svelte';
@@ -27,9 +33,12 @@
 
 	let {
 		callback,
-		existingClient
+		existingClient,
+		claimMappingPolicies
 	}: {
 		existingClient: OidcClient;
+		// Left out while the claim mappings feature is off, which hides the Claims section
+		claimMappingPolicies?: OidcClaimMappingPolicyMetadataDto[];
 		callback: (client: OidcClientCreateWithLogo) => Promise<void>;
 	} = $props();
 
@@ -73,7 +82,8 @@
 		logoUrl: optionalUrl,
 		darkLogoUrl: optionalUrl,
 		accessTokenDurationMinutes: durationSchema,
-		refreshTokenDurationMinutes: durationSchema
+		refreshTokenDurationMinutes: durationSchema,
+		claimMappingPolicyId: z.string()
 	});
 
 	type FormSchema = typeof formSchema;
@@ -92,7 +102,8 @@
 		logoUrl: '',
 		darkLogoUrl: '',
 		accessTokenDurationMinutes: existingClient.accessTokenDurationMinutes,
-		refreshTokenDurationMinutes: existingClient.refreshTokenDurationMinutes
+		refreshTokenDurationMinutes: existingClient.refreshTokenDurationMinutes,
+		claimMappingPolicyId: existingClient.claimMappingPolicyId || ''
 	});
 	const { inputs } = formStore;
 
@@ -102,9 +113,46 @@
 		consent: $inputs.skipConsent.value,
 		par: $inputs.requiresPushedAuthorizationRequests.value,
 		access: $inputs.accessTokenDurationMinutes.value !== defaultAccessTokenMinutes,
-		refresh: $inputs.refreshTokenDurationMinutes.value !== defaultRefreshTokenMinutes
+		refresh: $inputs.refreshTokenDurationMinutes.value !== defaultRefreshTokenMinutes,
+		claims: !!$inputs.claimMappingPolicyId.value
 	});
 	const changedCount = $derived(Object.values(changed).filter(Boolean).length);
+	const policyService = new OidcClaimMappingPolicyService();
+	const defaultPolicy = claimMappingPolicies?.find((p) => p.isDefault);
+	let policyResults = $state(claimMappingPolicies ?? []);
+	// Every policy loaded so far, so the selected one keeps its label when a search no longer returns it
+	let knownPolicies = $state(claimMappingPolicies ?? []);
+	let isPolicySearchLoading = $state(false);
+	const onPolicySearch = debounced(
+		async (search: string) => {
+			const result = await policyService.listClaimMappingPolicies({
+				search,
+				pagination: { page: 1, limit: 20 },
+				sort: { column: 'isDefault', direction: 'desc' }
+			});
+			policyResults = result.data;
+			knownPolicies = [
+				...knownPolicies,
+				...result.data.filter((p) => !knownPolicies.some((known) => known.id === p.id))
+			];
+		},
+		300,
+		(loading) => (isPolicySearchLoading = loading)
+	);
+	const selectedPolicy = $derived(
+		knownPolicies.find((p) => p.id === $inputs.claimMappingPolicyId.value)
+	);
+	const policyItems = $derived([
+		{ value: '', label: m.default_policy(), description: defaultPolicy?.name ?? '' },
+		...[
+			...(selectedPolicy && !policyResults.some((p) => p.id === selectedPolicy.id)
+				? [selectedPolicy]
+				: []),
+			...policyResults
+		].map((p) => ({ value: p.id, label: p.name, description: claimsCount(p.claimCount) }))
+	]);
+	// The policy whose claims the client gets, which is the default one while none is selected
+	const appliedPolicy = $derived(selectedPolicy ?? defaultPolicy);
 	const pkceRecommended = $derived(
 		existingClient.pkceSupported && !$inputs.isPublic.value && !$inputs.pkceEnabled.value
 	);
@@ -414,5 +462,47 @@
 				</div>
 			</div>
 		</SettingsSection>
+
+		{#if claimMappingPolicies}
+			<SettingsSection
+				title={m.claims()}
+				description={m.claims_section_description({ name: existingClient.name })}
+			>
+				<div class="flex flex-col gap-3 pt-2">
+					<div class="relative max-w-100 min-w-0">
+						<FormInput
+							label={m.claim_mapping_policy()}
+							description={m.claim_mapping_policy_helper()}
+							labelFor="claim-mapping-policy"
+							changed={changed.claims}
+							input={$inputs.claimMappingPolicyId}
+						>
+							<SearchableSelect
+								id="claim-mapping-policy"
+								items={policyItems}
+								bind:value={$inputs.claimMappingPolicyId.value}
+								isLoading={isPolicySearchLoading}
+								oninput={(e) => onPolicySearch(e.currentTarget.value)}
+							/>
+						</FormInput>
+						{#if changed.claims}
+							<ChangedMarker
+								label={m.claim_mapping_policy()}
+								onReset={() => ($inputs.claimMappingPolicyId.value = '')}
+							/>
+						{/if}
+					</div>
+					{#if appliedPolicy}
+						<a
+							href={policyHref(appliedPolicy.id)}
+							class="text-control text-fg focus-visible:outline-ring inline-flex w-fit items-center gap-1 rounded-xs font-medium hover:underline focus-visible:outline-2 focus-visible:outline-offset-2"
+						>
+							{m.see_the_claims_in_name({ name: appliedPolicy.name })}
+							<LucideArrowRight class="size-3.5" />
+						</a>
+					{/if}
+				</div>
+			</SettingsSection>
+		{/if}
 	</AdvancedDisclosure>
 </form>

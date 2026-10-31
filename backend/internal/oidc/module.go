@@ -15,6 +15,7 @@ import (
 	"github.com/pocket-id/pocket-id/backend/internal/appconfig"
 	"github.com/pocket-id/pocket-id/backend/internal/auditlogs"
 	"github.com/pocket-id/pocket-id/backend/internal/authz"
+	"github.com/pocket-id/pocket-id/backend/internal/httpserver"
 	"github.com/pocket-id/pocket-id/backend/internal/model"
 )
 
@@ -77,6 +78,8 @@ type Module struct {
 	introspectionHandler *introspectionHandler
 	endSessionHandler    *endSessionHandler
 	deviceHandler        *deviceHandler
+
+	claimMappingsPreviewHandler *claimMappingsPreviewHandler
 }
 
 func New(ctx context.Context, deps Dependencies) (*Module, error) {
@@ -139,6 +142,8 @@ func New(ctx context.Context, deps Dependencies) (*Module, error) {
 		introspectionHandler: newIntrospectionHandler(provider, authenticator, deps.Config.BaseURL),
 		endSessionHandler:    newEndSessionHandler(endSessionService, deps.Config.BaseURL),
 		deviceHandler:        newDeviceHandler(provider, deviceService),
+
+		claimMappingsPreviewHandler: &claimMappingsPreviewHandler{claimsService: claimsService},
 	}, nil
 }
 
@@ -171,4 +176,7 @@ func (m *Module) RegisterRoutes(root, api *authz.Router) {
 	api.Public().POST("/oidc/device/authorize", m.deviceHandler.authorizeDevice)
 	api.POST("/oidc/device/verify", authz.AccountAuthorize, m.deviceHandler.verifyDeviceCode)
 	api.GET("/oidc/device/info", authz.AccountAuthorize, m.deviceHandler.deviceCodeInfo)
+
+	// The preview renders a user's claims, so it is guarded by the user scope like the client preview
+	api.POST("/oidc/claim-mapping-policies/preview", authz.UsersRead, httpserver.Handle(m.claimMappingsPreviewHandler.previewClaimMappings))
 }

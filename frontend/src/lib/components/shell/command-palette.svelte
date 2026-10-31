@@ -167,6 +167,7 @@
 					create(m.add_user(), 'users'),
 					create(m.add_group(), 'user-groups'),
 					create(m.add_oidc_client(), 'oidc-clients'),
+					...(features?.claimMappings.enabled ? [create(m.add_policy(), 'claim-mappings')] : []),
 					...(features?.apis.enabled ? [create(m.add_api(), 'apis')] : []),
 					...(features?.apiKeys.enabled ? [create(m.create_api_key(), 'api-keys')] : [])
 				]

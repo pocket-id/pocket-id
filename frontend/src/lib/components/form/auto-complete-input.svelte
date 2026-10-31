@@ -5,11 +5,13 @@
 
 	let {
 		value = $bindable(''),
+		id,
 		placeholder,
 		suggestionLimit = 5,
 		suggestions
 	}: {
 		value: string;
+		id?: string;
 		placeholder: string;
 		suggestionLimit?: number;
 		suggestions: string[];
@@ -73,6 +75,7 @@
 	tabindex="-1"
 >
 	<Input
+		{id}
 		{placeholder}
 		bind:value
 		oninput={handleOnInput}

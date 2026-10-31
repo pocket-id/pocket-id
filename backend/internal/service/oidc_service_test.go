@@ -14,6 +14,7 @@ import (
 	"gorm.io/gorm"
 
 	"github.com/pocket-id/pocket-id/backend/internal/apperror"
+	"github.com/pocket-id/pocket-id/backend/internal/claimmappingpolicy"
 	"github.com/pocket-id/pocket-id/backend/internal/common"
 	"github.com/pocket-id/pocket-id/backend/internal/dto"
 	"github.com/pocket-id/pocket-id/backend/internal/model"
@@ -935,6 +936,7 @@ func TestOidcService_UpdateClient_CIMDPreservesMetadataFields(t *testing.T) {
 		ClientType: model.OidcClientTypeCIMD,
 	}
 	require.NoError(t, db.Create(&client).Error)
+	require.NoError(t, claimmappingpolicy.Bootstrap(t.Context(), db))
 
 	launchURL := "https://app.example.com"
 	accessDuration := int64(2 * 60)
@@ -953,6 +955,7 @@ func TestOidcService_UpdateClient_CIMDPreservesMetadataFields(t *testing.T) {
 		IsGroupRestricted:                   true,
 		AccessTokenDurationMinutes:          accessDuration,
 		RefreshTokenDurationMinutes:         refreshDuration,
+		ClaimMappingPolicyId:                claimmappingpolicy.BuiltInClaimMappingPolicyID,
 		Credentials: dto.OidcClientCredentialsDto{
 			FederatedIdentities: []dto.OidcClientFederatedIdentityDto{{
 				Issuer: "https://override.example.com",
@@ -980,6 +983,7 @@ func TestOidcService_UpdateClient_CIMDPreservesMetadataFields(t *testing.T) {
 	assert.Equal(t, input.IsGroupRestricted, fetched.IsGroupRestricted)
 	assert.Equal(t, accessDuration, fetched.AccessTokenDurationMinutes)
 	assert.Equal(t, refreshDuration, fetched.RefreshTokenDurationMinutes)
+	assert.Equal(t, new(claimmappingpolicy.BuiltInClaimMappingPolicyID), fetched.ClaimMappingPolicyId)
 }
 
 func TestOidcService_UpdateClient_CIMDDoesNotOverwriteConcurrentMetadataRefresh(t *testing.T) {
@@ -1308,4 +1312,23 @@ func TestOidcService_GetClientLogo(t *testing.T) {
 			require.True(t, apperror.IsCode(err, apperror.CodeImageNotFound), "light=%t", requestLight)
 		}
 	})
+}
+
+func TestOidcService_UpdateClient_unknownClaimMappingPolicy(t *testing.T) {
+	db := testutils.NewDatabaseForTest(t)
+
+	s, err := NewOidcService(db, nil, nil, nil, nil, nil, nil, nil)
+	require.NoError(t, err)
+
+	client := model.OidcClient{Name: "Test Client", CallbackURLs: datatype.StringList{"https://example.com/callback"}}
+	require.NoError(t, db.Create(&client).Error)
+
+	_, err = s.UpdateClient(t.Context(), client.ID, dto.OidcClientUpdateDto{
+		Name:                 "Test Client",
+		CallbackURLs:         []string{"https://example.com/callback"},
+		ClaimMappingPolicyId: "00000000-0000-0000-0000-000000000099",
+	})
+	var appErr *apperror.Error
+	require.ErrorAs(t, err, &appErr)
+	assert.Equal(t, http.StatusNotFound, appErr.HTTPStatus())
 }
