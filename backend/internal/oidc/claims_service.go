@@ -334,11 +334,12 @@ func (s *ClaimsService) applyUserClaims(claims map[string]any, user model.User, 
 		case claimmappingpolicy.UserFieldID:
 			claims[mapping.ClaimName] = user.ID
 		case claimmappingpolicy.UserFieldEmail:
-			if user.Email != nil {
+			if user.Email != nil && *user.Email != "" {
 				claims[mapping.ClaimName] = *user.Email
 			}
 		case claimmappingpolicy.UserFieldEmailVerified:
-			if user.Email != nil {
+			// Emitting email_verified without an email (OIDC Core §5.1) is malformed and can mislead relying parties that key trust decisions on it
+			if user.Email != nil && *user.Email != "" {
 				claims[mapping.ClaimName] = user.EmailVerified
 			}
 		case claimmappingpolicy.UserFieldFirstName:

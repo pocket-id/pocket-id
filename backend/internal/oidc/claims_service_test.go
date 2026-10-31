@@ -327,6 +327,20 @@ func TestClaimsServicePreviewClaimMappingsIgnoresTheDefaultPolicy(t *testing.T) 
 	require.ErrorContains(t, err, "User")
 }
 
+func TestClaimsServiceOmitsEmailClaimsForEmptyEmail(t *testing.T) {
+	db := testutils.NewDatabaseForTest(t)
+	require.NoError(t, claimmappingpolicy.Bootstrap(t.Context(), db))
+	require.NoError(t, db.Create(&model.User{Base: model.Base{ID: "user-1"}, Username: "tim", Email: stringPointer(""), EmailVerified: true}).Error)
+	service := newClaimsService(db, nil, "", nil, appconfig.StaticResolver{})
+
+	preview, err := service.PreviewClaimMappings(t.Context(), "user-1", []string{"openid", "email"}, claimmappingpolicy.OidcClaimMappings{
+		{ClaimName: "email", SourceType: claimmappingpolicy.MappingSourceUserField, SourceValue: "email", Scope: []string{"email"}, IDToken: true},
+		{ClaimName: "email_verified", SourceType: claimmappingpolicy.MappingSourceUserField, SourceValue: "email_verified", Scope: []string{"email"}, IDToken: true},
+	})
+	require.NoError(t, err)
+	require.Empty(t, preview.IDToken)
+}
+
 func TestClaimsServicePreviewClaimMappingsWithoutOpenIDScope(t *testing.T) {
 	db := testutils.NewDatabaseForTest(t)
 	require.NoError(t, claimmappingpolicy.Bootstrap(t.Context(), db))
