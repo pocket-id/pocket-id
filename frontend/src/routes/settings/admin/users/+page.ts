@@ -10,6 +10,7 @@ export const load: PageLoad = async () => {
 
 	return {
 		emailsVerifiedPerDefault: appConfigData.emailsVerified,
+		defaultUserGroupIds: appConfigData.signupDefaultUserGroupIDs ?? [],
 		counts
 	};
 };
