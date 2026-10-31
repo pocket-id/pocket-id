@@ -7,7 +7,6 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"github.com/pocket-id/fosite"
-	"gorm.io/gorm"
 )
 
 type userInfoHandler struct {
@@ -65,10 +64,10 @@ func (h *userInfoHandler) userInfo(c *gin.Context) {
 		return
 	}
 
-	claims, err := h.claimsService.GetUserClaims(ctx, session.GetSubject(), accessRequest.GetGrantedScopes())
+	claimsSource, err := h.claimsService.loadUserClaimsSource(ctx, session.GetSubject(), accessRequest.GetClient().GetID())
 	if err != nil {
 		// A token whose subject no longer resolves to a user is an authentication failure, not a missing resource
-		if errors.Is(err, gorm.ErrRecordNotFound) {
+		if errors.Is(err, errClaimsUserNotFound) {
 			writeUserInfoError(c, fosite.ErrRequestUnauthorized.WithDescription("The access token is invalid"))
 			return
 		}
@@ -76,7 +75,7 @@ func (h *userInfoHandler) userInfo(c *gin.Context) {
 		return
 	}
 
-	c.JSON(http.StatusOK, claims)
+	c.JSON(http.StatusOK, h.claimsService.buildClaims(claimsSource, accessRequest.GetGrantedScopes(), UserInfoType))
 }
 
 func writeUserInfoError(c *gin.Context, err error) {

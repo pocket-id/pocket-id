@@ -12,6 +12,7 @@ import AnimatedSlidersHorizontal from '@jis3r/icons/icons/sliders-horizontal';
 import type { IconProps } from '@jis3r/icons';
 import {
 	Blocks,
+	Braces,
 	FileText,
 	History,
 	IdCard,
@@ -103,6 +104,9 @@ export function navGroups({
 					icon: Blocks,
 					animated: AnimatedBlocks
 				},
+				...(features?.claimMappings.enabled
+					? [{ href: '/settings/admin/claim-mappings', label: m.claim_mappings(), icon: Braces }]
+					: []),
 				...(features?.apis.enabled
 					? [{ href: '/settings/admin/apis', label: m.apis(), icon: Server }]
 					: []),

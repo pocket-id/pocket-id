@@ -167,6 +167,10 @@ func LdapUserGroupUpdate() *Error {
 	return New(CodeLdapUserGroupUpdate, http.StatusForbidden, "LDAP user groups can't be updated")
 }
 
+func BuiltInClaimMappingPolicyReadOnly(message string) *Error {
+	return New(CodeBuiltInClaimMappingPolicyReadOnly, http.StatusForbidden, message)
+}
+
 func OidcAccessDenied() *Error {
 	return New(CodeOidcAccessDenied, http.StatusForbidden, "You're not allowed to access this service")
 }

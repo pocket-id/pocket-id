@@ -10,12 +10,14 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/pocket-id/pocket-id/backend/internal/appconfig"
+	"github.com/pocket-id/pocket-id/backend/internal/claimmappingpolicy"
 	"github.com/pocket-id/pocket-id/backend/internal/model"
 	testutils "github.com/pocket-id/pocket-id/backend/internal/utils/testing"
 )
 
 func TestClientPreviewBuilderUsesFositeTokenStrategies(t *testing.T) {
 	db := testutils.NewDatabaseForTest(t)
+	require.NoError(t, claimmappingpolicy.Bootstrap(t.Context(), db))
 	signerKey, err := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
 	require.NoError(t, err)
 
@@ -40,6 +42,11 @@ func TestClientPreviewBuilderUsesFositeTokenStrategies(t *testing.T) {
 		Email:         &email,
 		EmailVerified: true,
 	}).Error)
+	require.NoError(t, db.Create(&model.OidcClient{
+		Base:                       model.Base{ID: clientID},
+		Name:                       "Test Client",
+		AccessTokenDurationMinutes: 2 * 60,
+	}).Error)
 
 	preview, err := builder.BuildClientPreview(t.Context(), model.OidcClient{
 		Base:                       model.Base{ID: clientID},
@@ -63,7 +70,7 @@ func TestClientPreviewBuilderUsesFositeTokenStrategies(t *testing.T) {
 	require.Equal(t, userID, preview.IDToken["sub"])
 	// ID tokens carry the "type" marker (so the end-session endpoint can reject access tokens
 	// passed as id_token_hint) and the amr from the authentication method.
-	require.Equal(t, idTokenType, preview.IDToken["type"])
+	require.Equal(t, string(IDTokenType), preview.IDToken["type"])
 	require.ElementsMatch(t, []string{"phr"}, stringSliceClaim(t, preview.IDToken["amr"]))
 
 	require.Equal(t, email, preview.UserInfo["email"])
@@ -72,6 +79,7 @@ func TestClientPreviewBuilderUsesFositeTokenStrategies(t *testing.T) {
 
 func TestClientPreviewBuilderIgnoresUnknownScopes(t *testing.T) {
 	db := testutils.NewDatabaseForTest(t)
+	require.NoError(t, claimmappingpolicy.Bootstrap(t.Context(), db))
 	signerKey, err := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
 	require.NoError(t, err)
 
@@ -87,6 +95,10 @@ func TestClientPreviewBuilderIgnoresUnknownScopes(t *testing.T) {
 		Base:     model.Base{ID: "test-user"},
 		Username: "test-user",
 	}).Error)
+	require.NoError(t, db.Create(&model.OidcClient{
+		Base: model.Base{ID: "test-client"},
+		Name: "Test Client",
+	}).Error)
 
 	// The preview mirrors the authorize endpoint: unknown scopes are dropped
 	// from the previewed tokens instead of failing the preview.
@@ -97,6 +109,41 @@ func TestClientPreviewBuilderIgnoresUnknownScopes(t *testing.T) {
 	}, "test-user", []string{"openid", "unknown"}, "")
 	require.NoError(t, err)
 	require.ElementsMatch(t, []string{"openid"}, stringSliceClaim(t, preview.AccessToken["scp"]))
+}
+
+func TestClientPreviewBuilderWithoutOpenIDScope(t *testing.T) {
+	db := testutils.NewDatabaseForTest(t)
+	require.NoError(t, claimmappingpolicy.Bootstrap(t.Context(), db))
+	signerKey, err := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
+	require.NoError(t, err)
+
+	// #nosec G101
+	provider, err := newProvider(NewStore(db, nil), nil, testTokenSigner{key: signerKey}, Config{
+		BaseURL:      "https://issuer.example.com",
+		TokenBaseURL: "https://issuer.example.com",
+		Secret:       []byte("test-secret"),
+	}, nil)
+	require.NoError(t, err)
+
+	require.NoError(t, db.Create(&model.User{
+		Base:     model.Base{ID: "test-user"},
+		Username: "test-user",
+	}).Error)
+	require.NoError(t, db.Create(&model.OidcClient{
+		Base: model.Base{ID: "test-client"},
+		Name: "Test Client",
+	}).Error)
+
+	builder := newClientPreviewBuilder(newClaimsService(db, nil, "https://issuer.example.com", nil, appconfig.StaticResolver{}), provider.tokenStrategies)
+	preview, err := builder.BuildClientPreview(t.Context(), model.OidcClient{
+		Base: model.Base{ID: "test-client"},
+		Name: "Test Client",
+	}, "test-user", []string{"email"}, "")
+	require.NoError(t, err)
+
+	require.Nil(t, preview.IDToken, "no ID token is issued without the openid scope")
+	require.Nil(t, preview.UserInfo, "userinfo rejects tokens without the openid scope")
+	require.ElementsMatch(t, []string{"email"}, stringSliceClaim(t, preview.AccessToken["scp"]))
 }
 
 func stringSliceClaim(t *testing.T, value any) []string {

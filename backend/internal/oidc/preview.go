@@ -37,40 +37,46 @@ func (b *ClientPreviewBuilder) BuildClientPreview(ctx context.Context, client mo
 		return nil, err
 	}
 
-	userInfo, err := b.claimsService.GetUserClaims(ctx, userID, scopeArgs)
+	// Load the user and the policy once, the three previews are then built from the same data
+	claimsSource, err := b.claimsService.loadUserClaimsSource(ctx, userID, client.ID)
 	if err != nil {
 		return nil, err
 	}
 
 	request := b.newPreviewRequest(ctx, client, userID, scopeArgs, authenticationMethod)
 	session := request.GetSession().(*Session)
-	applyUserClaimsToIDToken(session, userID, userInfo)
+	preview := &ClientPreview{}
 
-	idToken, err := b.strategies.idToken.GenerateIDToken(ctx, b.strategies.config.GetIDTokenLifespan(ctx), request)
-	if err != nil {
-		return nil, fmt.Errorf("failed to generate preview ID token: %w", err)
+	// Without openid a real authorization issues no ID token and /userinfo rejects the access token, so the preview leaves both out
+	if scopeArgs.Has("openid") {
+		preview.UserInfo = b.claimsService.buildClaims(claimsSource, scopeArgs, UserInfoType)
+
+		applyUserClaimsToIDToken(session, userID, b.claimsService.buildClaims(claimsSource, scopeArgs, IDTokenType))
+
+		idToken, err := b.strategies.idToken.GenerateIDToken(ctx, b.strategies.config.GetIDTokenLifespan(ctx), request)
+		if err != nil {
+			return nil, fmt.Errorf("failed to generate preview ID token: %w", err)
+		}
+
+		preview.IDToken, err = claimsFromJWTString(idToken)
+		if err != nil {
+			return nil, fmt.Errorf("failed to decode preview ID token: %w", err)
+		}
 	}
+
+	applyUserClaimsToAccessToken(session, b.claimsService.buildClaims(claimsSource, scopeArgs, AccessTokenType))
 
 	accessToken, _, err := b.strategies.accessToken.GenerateAccessToken(ctx, request)
 	if err != nil {
 		return nil, fmt.Errorf("failed to generate preview access token: %w", err)
 	}
 
-	idTokenPayload, err := claimsFromJWTString(idToken)
-	if err != nil {
-		return nil, fmt.Errorf("failed to decode preview ID token: %w", err)
-	}
-
-	accessTokenPayload, err := claimsFromJWTString(accessToken)
+	preview.AccessToken, err = claimsFromJWTString(accessToken)
 	if err != nil {
 		return nil, fmt.Errorf("failed to decode preview access token: %w", err)
 	}
 
-	return &ClientPreview{
-		IDToken:     idTokenPayload,
-		AccessToken: accessTokenPayload,
-		UserInfo:    userInfo,
-	}, nil
+	return preview, nil
 }
 
 func (b *ClientPreviewBuilder) validatedScopes(ctx context.Context, client model.OidcClient, scopes []string) (fosite.Arguments, error) {

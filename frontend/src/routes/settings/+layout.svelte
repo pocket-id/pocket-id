@@ -41,6 +41,7 @@
 			'/settings/admin/users',
 			'/settings/admin/user-groups',
 			'/settings/admin/oidc-clients',
+			'/settings/admin/claim-mappings',
 			'/settings/admin/apis',
 			'/settings/admin/api-keys',
 			'/settings/audit-log',

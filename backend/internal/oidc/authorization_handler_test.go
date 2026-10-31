@@ -17,6 +17,7 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/pocket-id/pocket-id/backend/internal/appconfig"
 	"github.com/pocket-id/pocket-id/backend/internal/authz"
+	"github.com/pocket-id/pocket-id/backend/internal/claimmappingpolicy"
 	"github.com/pocket-id/pocket-id/backend/internal/model"
 	datatype "github.com/pocket-id/pocket-id/backend/internal/model/types"
 	testutils "github.com/pocket-id/pocket-id/backend/internal/utils/testing"
@@ -128,6 +129,7 @@ func testAuthorizationHandlerPAR(t *testing.T, clientType string, tt authorizati
 
 	// Use the real provider and an authenticated user so a bypass would issue an authorization code
 	db := testutils.NewDatabaseForTest(t)
+	require.NoError(t, claimmappingpolicy.Bootstrap(t.Context(), db))
 	require.NoError(t, db.Create(&model.User{Base: model.Base{ID: userID}}).Error)
 	require.NoError(t, db.Create(&model.OidcClient{
 		Base:                                model.Base{ID: clientID},
