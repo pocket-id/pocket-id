@@ -6,9 +6,10 @@
 </script>
 
 <script lang="ts">
-	import { beforeNavigate } from '$app/navigation';
+	import { beforeNavigate, onNavigate } from '$app/navigation';
 	import { Button } from '#lib/components/ui/button/index.ts';
 	import { m } from '#lib/paraglide/messages.js';
+	import { appReveal } from '#lib/stores/app-reveal-store.svelte.ts';
 	import { cachedBackgroundImage } from '#lib/utils/cached-image-util.ts';
 	import { cn, cssMs, cssVar } from '#lib/utils/style.ts';
 	import { LucideChevronLeft } from '@lucide/svelte';
@@ -36,6 +37,7 @@
 	let card = $state<HTMLDivElement>();
 	let column = $state<HTMLDivElement>();
 	let stack = $state<HTMLDivElement>();
+	let surface = $state<HTMLDivElement>();
 	// The strip starts at the previous step's height so it follows the sheet instead of zooming out from full height
 	let cardHeight = $state(previousCard?.rect.height ?? 0);
 	let innerHeight = $state(0);
@@ -49,6 +51,50 @@
 	beforeNavigate(() => {
 		if (card) previousCard = { rect: card.getBoundingClientRect(), at: performance.now() };
 	});
+
+	// Leaving sign-up for the app unfolds the card into the app's surface, and the settings shell then fades in on it
+	// onNavigate runs once the app's data has loaded, so the app swaps in the moment the card covers the screen
+	onNavigate((navigation) => {
+		if (
+			!card ||
+			!column ||
+			!surface ||
+			!navigation.from?.route.id?.startsWith('/signup') ||
+			!navigation.to?.route.id?.startsWith('/settings')
+		) {
+			return;
+		}
+		appReveal.pending = true;
+		return unfold(card, column, surface);
+	});
+
+	async function unfold(card: HTMLDivElement, column: HTMLDivElement, surface: HTMLDivElement) {
+		await column.animate([{ opacity: 1 }, { opacity: 0 }], {
+			duration: cssMs('--dur-fast'),
+			easing: cssVar('--ease-in'),
+			fill: 'forwards'
+		}).finished;
+
+		// A sheet that already fills the phone screen has nothing left to unfold
+		const from = card.getBoundingClientRect();
+		if (from.width >= innerWidth - 1 && from.height >= innerHeight - 1) return;
+
+		// A separate surface grows over the card, so the card's own resize handling never sees the change
+		surface.hidden = false;
+		await surface.animate(
+			[
+				{
+					left: `${from.left}px`,
+					top: `${from.top}px`,
+					width: `${from.width}px`,
+					height: `${from.height}px`,
+					borderRadius: getComputedStyle(card).borderRadius
+				},
+				{ left: '0px', top: '0px', width: '100%', height: '100%', borderRadius: '0px' }
+			],
+			{ duration: cssMs('--dur-unfold'), easing: cssVar('--ease-in-out'), fill: 'forwards' }
+		).finished;
+	}
 
 	// The stack keeps its final layout while the card animates, so a step that changes mid-animation is still noticed
 	$effect(() => {
@@ -244,4 +290,6 @@
 			<div class="shrink-0 max-lg:hidden lg:min-h-12 lg:pb-4"></div>
 		</div>
 	</div>
+
+	<div bind:this={surface} class="bg-surface absolute" hidden></div>
 </div>

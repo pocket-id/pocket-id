@@ -9,6 +9,7 @@
 	import * as Alert from '#lib/components/ui/alert/index.ts';
 	import * as Tooltip from '#lib/components/ui/tooltip/index.ts';
 	import { m } from '#lib/paraglide/messages.js';
+	import { appReveal } from '#lib/stores/app-reveal-store.svelte.ts';
 	import appConfigStore from '#lib/stores/application-configuration-store.ts';
 	import { pageTransition } from '#lib/stores/page-transition-store.svelte.ts';
 	import userStore from '#lib/stores/user-store.ts';
@@ -51,6 +52,10 @@
 
 	let mainEl: HTMLElement;
 
+	// Only the first render after the sign-up card unfolded plays the shell's entrance
+	const revealing = appReveal.pending;
+	appReveal.pending = false;
+
 	// Only the content region crossfades between pages, so the shell never moves
 	onNavigate((navigation) => {
 		if (
@@ -83,7 +88,7 @@
 </script>
 
 <Tooltip.Provider>
-	<div class="bg-surface flex min-h-dvh">
+	<div class={cn('bg-surface flex min-h-dvh', revealing && 'app-reveal')}>
 		<AppSidebar {groups} {versionInformation} {showUpdate} bind:collapsed={collapsed.current} />
 		<div class="flex min-w-0 flex-1 flex-col">
 			<PhoneNav

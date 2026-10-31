@@ -40,6 +40,7 @@
 	--dur-fast: 120ms;
 	--dur-base: 200ms;
 	--dur-slow: 280ms;
+	--dur-unfold: 420ms;
 	--rise: 4px;
 	--nudge: 2px;
 	--slide: 24px;
@@ -212,6 +213,7 @@ html.no-motion {
 	--dur-fast: 0ms;
 	--dur-base: 0ms;
 	--dur-slow: 0ms;
+	--dur-unfold: 0ms;
 	--rise: 0px;
 	--nudge: 0px;
 	--slide: 0px;
@@ -228,6 +230,7 @@ html.no-motion {
 		--dur-fast: 0ms;
 		--dur-base: 0ms;
 		--dur-slow: 0ms;
+		--dur-unfold: 0ms;
 		--rise: 0px;
 		--nudge: 0px;
 		--slide: 0px;
@@ -590,6 +593,40 @@ html.theme-switching *::after {
 @keyframes vt-fade-in {
 	from {
 		opacity: 0;
+	}
+}
+
+/* The sign-up card unfolds into a bare surface, so the shell's bars take on their fill and contents on it */
+/* Backwards fill only, so no animated translate lingers and turns the content into a containing block for fixed elements */
+.app-reveal :is([data-slot='app-sidebar'], [data-slot='phone-top-bar']) {
+	animation: app-reveal-fill var(--dur-slow) var(--ease-out) backwards;
+}
+
+.app-reveal :is([data-slot='app-sidebar'], [data-slot='phone-top-bar']) > * {
+	animation: app-reveal-slide var(--dur-slow) var(--ease-out) backwards;
+}
+
+.app-reveal :is(.settings-content, [data-slot='phone-nav'], [data-slot='phone-search']) {
+	animation: app-reveal-rise var(--dur-slow) var(--ease-out) 40ms backwards;
+}
+
+@keyframes app-reveal-fill {
+	from {
+		background-color: var(--surface);
+	}
+}
+
+@keyframes app-reveal-slide {
+	from {
+		opacity: 0;
+		translate: calc(var(--rise) * -1) 0;
+	}
+}
+
+@keyframes app-reveal-rise {
+	from {
+		opacity: 0;
+		translate: 0 var(--rise);
 	}
 }
 

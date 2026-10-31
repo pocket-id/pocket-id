@@ -1,5 +1,6 @@
 <script lang="ts">
 	import { navigating } from '$app/state';
+	import { appReveal } from '#lib/stores/app-reveal-store.svelte.ts';
 	import { cssMs } from '#lib/utils/style.ts';
 	import { cubicOut } from 'svelte/easing';
 
@@ -16,7 +17,8 @@
 	}
 </script>
 
-{#if navigating.to && !navigating.shallow}
+<!-- The app has already loaded when the sign-up card starts unfolding, so the bar finishes then instead of running over the unfold -->
+{#if navigating.to && !navigating.shallow && !appReveal.pending}
 	<div class="nav-progress" aria-hidden="true" out:finish></div>
 {/if}
 

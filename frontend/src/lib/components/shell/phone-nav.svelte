@@ -43,6 +43,7 @@
 </header>
 
 <nav
+	data-slot="phone-nav"
 	aria-label={m.main()}
 	class="bg-surface-raised border-border shadow-overlay fixed right-[80px] bottom-[calc(12px+env(safe-area-inset-bottom))] left-3 z-(--z-nav) flex h-14 items-stretch rounded-lg border p-1 [view-transition-name:phone-nav] sm:hidden"
 >
@@ -110,6 +111,7 @@
 </nav>
 
 <button
+	data-slot="phone-search"
 	type="button"
 	aria-label={m.search_or_jump_to()}
 	aria-haspopup="dialog"
