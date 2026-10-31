@@ -25,34 +25,25 @@ defaults:
     shell: bash
 
 jobs:
-  translations:
-    name: Download translations
-    uses: ./.github/workflows/crowdin-download.yml
-    secrets:
-      CROWDIN_PERSONAL_TOKEN: ${{ secrets.CROWDIN_PERSONAL_TOKEN }}
-      BOT_APP_PRIVATE_KEY: ${{ secrets.BOT_APP_PRIVATE_KEY }}
-
+  # Translations aren't downloaded because Crowdin tracks the strings of main, which would drop the translations of strings that only exist in v2
   prepare:
     name: Prepare release
-    needs: translations
     runs-on: depot-ubuntu-latest
     outputs:
       tag: ${{ steps.version.outputs.tag }}
       commit: ${{ steps.commit.outputs.commit }}
 
     steps:
-      - name: Require the main branch
+      - name: Require the v2 branch
         run: |
-          if [[ "$GITHUB_REF" != refs/heads/main ]]; then
-            echo "::error::Releases must be triggered from main."
+          if [[ "$GITHUB_REF" != refs/heads/v2 ]]; then
+            echo "::error::v2 releases must be triggered from the v2 branch."
             exit 1
           fi
 
-      # Release from the translations commit because it may have been added on top of the triggering commit
       - name: Checkout release source
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
-          ref: ${{ needs.translations.outputs.commit }}
           fetch-depth: 0
           persist-credentials: false
 
@@ -131,8 +122,8 @@ jobs:
           git commit -m "release: $VERSION"
           git tag "$RELEASE_TAG"
 
-          # Publish both refs together so a concurrent main update cannot leave an orphaned release tag
-          git push --atomic origin HEAD:refs/heads/main "refs/tags/$RELEASE_TAG"
+          # Publish both refs together so a concurrent v2 update cannot leave an orphaned release tag
+          git push --atomic origin HEAD:refs/heads/v2 "refs/tags/$RELEASE_TAG"
           echo "commit=$(git rev-parse HEAD)" >> "$GITHUB_OUTPUT"
 
   build:
