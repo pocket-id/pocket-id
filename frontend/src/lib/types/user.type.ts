@@ -27,13 +27,18 @@ export type EmailChange = {
 export type UserCreate = Omit<
 	User,
 	'id' | 'customClaims' | 'ldapId' | 'userGroups' | 'emailVerificationDeadline'
->;
+> & {
+	userGroupIds?: string[];
+};
 
-export type AccountUpdate = Omit<UserCreate, 'isAdmin' | 'disabled' | 'emailVerified'>;
+export type AccountUpdate = Omit<
+	UserCreate,
+	'isAdmin' | 'disabled' | 'emailVerified' | 'userGroupIds'
+>;
 
 export type UserSignUp = Omit<
 	UserCreate,
-	'isAdmin' | 'disabled' | 'displayName' | 'emailVerified'
+	'isAdmin' | 'disabled' | 'displayName' | 'emailVerified' | 'userGroupIds'
 > & {
 	token?: string;
 };
