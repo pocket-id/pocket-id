@@ -19,6 +19,7 @@ import (
 	"github.com/pocket-id/pocket-id/backend/internal/model"
 	datatype "github.com/pocket-id/pocket-id/backend/internal/model/types"
 	"github.com/pocket-id/pocket-id/backend/internal/service"
+	"github.com/pocket-id/pocket-id/backend/internal/usersession"
 	"github.com/pocket-id/pocket-id/backend/internal/utils"
 	"github.com/pocket-id/pocket-id/backend/internal/utils/cookie"
 	testutils "github.com/pocket-id/pocket-id/backend/internal/utils/testing"
@@ -45,6 +46,8 @@ func TestAuthorizationWithRealCredentials(t *testing.T) {
 	userService := service.NewUserService(db, jwtService, nil, nil, nil, nil, nil, nil)
 	apiKeyModule, err := apikey.New(t.Context(), apikey.Dependencies{DB: db, CleanupDisabled: true})
 	require.NoError(t, err)
+	userSessionModule, err := usersession.New(usersession.Dependencies{DB: db, CleanupDisabled: true})
+	require.NoError(t, err)
 
 	// Create one credential of each kind for a regular user, an admin and a disabled user
 	// The regular users and the admin have a verified email, the others still have to verify theirs
@@ -56,7 +59,11 @@ func TestAuthorizationWithRealCredentials(t *testing.T) {
 
 	userSession, err := jwtService.GenerateAccessToken(user, "", time.Hour)
 	require.NoError(t, err)
+	require.NoError(t, userSessionModule.Track(t.Context(), db, userSession))
 	unverifiedSession, err := jwtService.GenerateAccessToken(unverified, "", time.Hour)
+	require.NoError(t, err)
+	require.NoError(t, userSessionModule.Track(t.Context(), db, unverifiedSession))
+	untrackedSession, err := jwtService.GenerateAccessToken(user, "", time.Hour)
 	require.NoError(t, err)
 	userAPIKey := createAPIKeyForAuthorizationTest(t, db, user, "user-raw-api-key")
 	adminAPIKey := createAPIKeyForAuthorizationTest(t, db, admin, "admin-raw-api-key")
@@ -70,7 +77,7 @@ func TestAuthorizationWithRealCredentials(t *testing.T) {
 	cfg.EmailVerification = appconfig.EmailVerificationRequired
 	router := gin.New()
 	router.Use(NewErrorHandlerMiddleware().Add())
-	apiRouter := NewAuthorization(apiKeyModule, userService, jwtService, appconfig.StaticResolver{Config: cfg}).Router(router.Group("/api"))
+	apiRouter := NewAuthorization(apiKeyModule, userSessionModule, userService, jwtService, appconfig.StaticResolver{Config: cfg}).Router(router.Group("/api"))
 	ok := func(c *gin.Context) {
 		c.String(http.StatusOK, authz.PrincipalFrom(c).UserID)
 	}
@@ -107,6 +114,7 @@ func TestAuthorizationWithRealCredentials(t *testing.T) {
 		{name: "unverified user API key on account route", path: "/api/account", apiKey: unverifiedAPIKey, status: http.StatusOK, userID: unverified.ID},
 		{name: "unverified user API key on apps route", path: "/api/apps", apiKey: unverifiedAPIKey, status: http.StatusForbidden, errorCode: "email_verification_required"},
 		{name: "unverified admin API key on admin route", path: "/api/admin", apiKey: unverifiedAdminAPIKey, status: http.StatusOK, userID: unverifiedAdmin.ID},
+		{name: "session token without a live session", path: "/api/session-only", authorization: "Bearer " + untrackedSession, status: http.StatusUnauthorized, errorCode: "not_signed_in"},
 		{name: "unknown API key", path: "/api/account", apiKey: "unknown", status: http.StatusUnauthorized, errorCode: "not_signed_in"},
 		{name: "no credentials", path: "/api/account", status: http.StatusUnauthorized, errorCode: "not_signed_in"},
 	}

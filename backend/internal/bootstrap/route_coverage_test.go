@@ -49,7 +49,7 @@ func TestEveryAPIRouteDeclaresItsAccess(t *testing.T) {
 	}
 
 	engine := gin.New()
-	auth := middleware.NewAuthorization(nil, nil, nil, nil)
+	auth := middleware.NewAuthorization(nil, nil, nil, nil, nil)
 	require.NoError(t, registerRoutes(engine, nil, svc, auth, nil))
 
 	// Collect every API route that bypassed the authz routers

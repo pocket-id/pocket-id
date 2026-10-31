@@ -42,6 +42,12 @@ func (f *fakeReauthenticationTokenConsumer) ConsumeReauthenticationToken(_ conte
 	return time.Now(), nil
 }
 
+type fakeSessionTracker struct{}
+
+func (fakeSessionTracker) Track(_ context.Context, _ *gorm.DB, _ string) error {
+	return nil
+}
+
 type fakeTokenService struct {
 	mu                   sync.Mutex
 	userID               string
@@ -496,6 +502,7 @@ func newServiceFixture(t *testing.T, db *gorm.DB) serviceFixture {
 			DB:        db,
 			Actors:    host,
 			Signer:    signer,
+			Sessions:  fakeSessionTracker{},
 			AuditLog:  auditLog,
 			IPLocator: ipLocator,
 			Reauth:    reauth,
@@ -534,6 +541,7 @@ func persistentTestDependencies(db *gorm.DB) Dependencies {
 	return Dependencies{
 		DB:        db,
 		Signer:    &fakeTokenService{},
+		Sessions:  fakeSessionTracker{},
 		AuditLog:  &fakeAuditLogger{},
 		IPLocator: &fakeIPLocationResolver{},
 		Reauth:    &fakeReauthenticationTokenConsumer{expectedValue: "fresh-proof"},

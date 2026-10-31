@@ -21,6 +21,10 @@ type TokenService interface {
 	GenerateAccessToken(user model.User, authenticationMethod string, sessionDuration time.Duration) (string, error)
 }
 
+type SessionTracker interface {
+	Track(ctx context.Context, tx *gorm.DB, accessToken string) error
+}
+
 type AuditLogger interface {
 	Create(ctx context.Context, event auditlogs.Event, ipAddress, userAgent, userID string, data auditlogs.Data, tx *gorm.DB) (auditlogs.AuditLog, bool)
 }
@@ -43,6 +47,7 @@ type Dependencies struct {
 	Actors francishost.Host
 
 	Signer      TokenService
+	Sessions    SessionTracker
 	AuditLog    AuditLogger
 	UserCreator UserCreator
 	AppConfig   appconfig.AppConfigResolver

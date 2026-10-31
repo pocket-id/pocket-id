@@ -21,6 +21,10 @@ type TokenService interface {
 	GenerateAccessToken(user model.User, authenticationMethod string, sessionDuration time.Duration) (string, error)
 }
 
+type SessionTracker interface {
+	Track(ctx context.Context, tx *gorm.DB, accessToken string) error
+}
+
 type ReauthenticationTokenConsumer interface {
 	ConsumeReauthenticationToken(ctx context.Context, tx *gorm.DB, token string, userID string) (time.Time, error)
 }
@@ -38,6 +42,7 @@ type Dependencies struct {
 	BaseURL string
 
 	Signer    TokenService
+	Sessions  SessionTracker
 	Reauth    ReauthenticationTokenConsumer
 	AuditLog  AuditLogger
 	IPLocator iplocation.Resolver
@@ -50,7 +55,7 @@ type Module struct {
 }
 
 func New(deps Dependencies) (*Module, error) {
-	service := NewService(deps.Actors.Service(), deps.DB, deps.Signer, deps.Reauth, deps.AuditLog, deps.IPLocator)
+	service := NewService(deps.Actors.Service(), deps.DB, deps.Signer, deps.Sessions, deps.Reauth, deps.AuditLog, deps.IPLocator)
 	module := &Module{
 		service: service,
 		handler: newHandler(service, deps.BaseURL, deps.AppConfig),

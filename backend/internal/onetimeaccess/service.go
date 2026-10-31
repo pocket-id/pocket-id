@@ -40,6 +40,7 @@ type Service struct {
 	actorService *actor.Service
 	userProvider UserProvider
 	signer       TokenService
+	sessions     SessionTracker
 	auditLog     AuditLogger
 	emailSender  EmailSender
 }
@@ -50,6 +51,7 @@ func newService(deps Dependencies, actorService *actor.Service) *Service {
 		actorService: actorService,
 		userProvider: deps.UserProvider,
 		signer:       deps.Signer,
+		sessions:     deps.Sessions,
 		auditLog:     deps.AuditLog,
 		emailSender:  deps.EmailSender,
 	}
@@ -216,6 +218,10 @@ func (s *Service) completeTokenExchange(ctx context.Context, dbConfig *appconfig
 		authenticationMethodOneTimePassword,
 		dbConfig.SessionDuration.AsDurationMinutes(),
 	)
+	if err != nil {
+		return model.User{}, model.LoginTokens{}, err
+	}
+	err = s.sessions.Track(ctx, s.db, accessToken)
 	if err != nil {
 		return model.User{}, model.LoginTokens{}, err
 	}

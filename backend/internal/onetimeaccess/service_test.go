@@ -43,6 +43,12 @@ func (f fakeUserProvider) GetUser(ctx context.Context, userID string) (model.Use
 	return user, err
 }
 
+type fakeSessionTracker struct{}
+
+func (fakeSessionTracker) Track(_ context.Context, _ *gorm.DB, _ string) error {
+	return nil
+}
+
 type fakeEmailSender struct{}
 
 func (fakeEmailSender) SendOneTimeAccessEmail(_ context.Context, _ *appconfig.AppConfigModel, _, _, _, _, _, _ string) error {
@@ -63,6 +69,7 @@ func newServiceForTest(t *testing.T, db *gorm.DB) (*Service, *local.Host, *fakeA
 		svc = newService(Dependencies{
 			DB:           db,
 			Signer:       fakeSigner{},
+			Sessions:     fakeSessionTracker{},
 			AuditLog:     auditLog,
 			UserProvider: fakeUserProvider{db: db},
 			EmailSender:  fakeEmailSender{},

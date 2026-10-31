@@ -24,6 +24,11 @@ type TokenService interface {
 	GetAuthenticationMethod(token jwt.Token) (string, error)
 }
 
+type SessionManager interface {
+	Track(ctx context.Context, tx *gorm.DB, accessToken string) error
+	Delete(ctx context.Context, jti string) error
+}
+
 type AuditLogger interface {
 	CreateSignIn(ctx context.Context, event auditlogs.Event, ipAddress, userAgent, userID, browserToken string, tx *gorm.DB, notificationMode appconfig.AppConfigValue) auditlogs.SignInResult
 	SendSignInNotification(ctx context.Context, result auditlogs.SignInResult)
@@ -36,6 +41,7 @@ type Dependencies struct {
 	AppURL string
 
 	Signer    TokenService
+	Sessions  SessionManager
 	AuditLog  AuditLogger
 	AppConfig appconfig.AppConfigResolver
 
@@ -75,7 +81,7 @@ func New(deps Dependencies) (*Module, error) {
 
 	return &Module{
 		service: service,
-		handler: newHandler(service, deps.AppConfig),
+		handler: newHandler(service, deps.Sessions, deps.AppConfig),
 	}, nil
 }
 
@@ -87,7 +93,8 @@ func (m *Module) RegisterRoutes(r *authz.Router, loginRateLimit, reauthRateLimit
 	r.Public().GET("/webauthn/login/start", httpserver.Handle(m.handler.beginLogin))
 	r.Public().POST("/webauthn/login/finish", loginRateLimit, httpserver.Handle(m.handler.verifyLogin))
 
-	r.POST("/webauthn/logout", authz.AccountSession, httpserver.Handle(m.handler.logout))
+	// Logout is optional-auth so a cookie whose session is already gone still gets cleared, keeping logout idempotent
+	r.Optional().POST("/webauthn/logout", authz.AccountSession, httpserver.Handle(m.handler.logout))
 
 	r.POST("/webauthn/reauthenticate", authz.AccountSession, reauthRateLimit, httpserver.Handle(m.handler.reauthenticate))
 

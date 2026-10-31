@@ -55,6 +55,12 @@ func (fakeSigner) GenerateAccessToken(_ model.User, _ string, _ time.Duration) (
 	return "access-token", nil
 }
 
+type fakeSessionTracker struct{}
+
+func (fakeSessionTracker) Track(_ context.Context, _ *gorm.DB, _ string) error {
+	return nil
+}
+
 type fakeAuditLogger struct{}
 
 func (fakeAuditLogger) Create(_ context.Context, _ auditlogs.Event, _, _, _ string, _ auditlogs.Data, _ *gorm.DB) (auditlogs.AuditLog, bool) {
@@ -68,6 +74,7 @@ func newSignupServiceForTest(t *testing.T, db *gorm.DB, userCreator UserCreator)
 		DB:          db,
 		UserCreator: userCreator,
 		Signer:      fakeSigner{},
+		Sessions:    fakeSessionTracker{},
 		AuditLog:    fakeAuditLogger{},
 	}, actorService)
 }

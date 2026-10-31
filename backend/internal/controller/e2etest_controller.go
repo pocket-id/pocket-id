@@ -4,6 +4,7 @@ package controller
 
 import (
 	"net/http"
+	"strings"
 
 	"github.com/gin-gonic/gin"
 
@@ -48,6 +49,13 @@ func (tc *TestController) resetAndSeedHandler(c *gin.Context) error {
 
 	if !skipSeed {
 		if err := tc.TestService.SeedDatabase(baseURL); err != nil {
+			return err
+		}
+	}
+
+	// Re-track the suite's shared session, which the reset just wiped
+	if _, token, found := strings.Cut(c.GetHeader("Authorization"), " "); found && token != "" {
+		if err := tc.TestService.TrackSession(c.Request.Context(), token); err != nil {
 			return err
 		}
 	}
