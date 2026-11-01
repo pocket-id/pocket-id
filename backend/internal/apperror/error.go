@@ -58,7 +58,6 @@ const (
 	CodeOneTimeAccessDisabled             Code = "one_time_access_disabled"
 	CodeDeviceLoginDenied                 Code = "device_login_denied"
 	CodeNoAPIKeyProvided                  Code = "no_api_key_provided"
-	CodeAPIKeyNotExpired                  Code = "api_key_not_expired"
 	CodeInvalidAPIKeyExpiration           Code = "invalid_api_key_expiration"
 	CodeInvalidAPIKeyScope                Code = "invalid_api_key_scope"
 	CodeAPIKeyAuthNotAllowed              Code = "api_key_auth_not_allowed"

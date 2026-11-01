@@ -129,6 +129,46 @@ test.describe('API Key Management', () => {
 		await expect(page.getByRole('row', { name: apiKey.name })).toContainText('Expires in 30 days');
 	});
 
+	test('Rotate API key with a grace period', async ({ page, playwright, baseURL }) => {
+		await page.getByRole('button', { name: 'Create API key' }).click();
+		await page.getByLabel('Name').fill('Rotating key');
+		await page.getByRole('dialog').getByRole('button', { name: 'Create API key' }).click();
+		const createdSheet = page.getByRole('dialog', { name: 'API key created' });
+		const oldToken = (await createdSheet
+			.getByRole('textbox', { name: 'API key' })
+			.textContent())!.trim();
+		await createdSheet.getByRole('button', { name: 'Done' }).click();
+
+		await page
+			.getByRole('row', { name: 'Rotating key' })
+			.getByRole('button', { name: /^Actions for / })
+			.click();
+		await page.getByRole('menuitem', { name: 'Rotate' }).click();
+		await expect(page.getByLabel('Grace period')).toHaveText('1 day');
+		await page.getByRole('button', { name: 'Rotate key' }).click();
+
+		const dialog = page.getByRole('dialog', { name: 'API key rotated' });
+		await expect(dialog).toContainText('Old key works until');
+		const newToken = (await dialog.getByRole('textbox', { name: 'API key' }).textContent())!.trim();
+		expect(newToken).not.toBe(oldToken);
+		await dialog.getByRole('button', { name: 'Done' }).click();
+
+		await expect(page.getByRole('row', { name: 'Rotating key' })).toContainText(
+			'Old key works until'
+		);
+
+		// Both keys work during the grace period
+		for (const token of [oldToken, newToken]) {
+			const api = await playwright.request.newContext({
+				baseURL,
+				storageState: { cookies: [], origins: [] },
+				extraHTTPHeaders: { 'X-API-Key': token }
+			});
+			expect((await api.get('/api/users/me')).status()).toBe(200);
+			await api.dispose();
+		}
+	});
+
 	test('Revoke API key', async ({ page }) => {
 		const apiKey = apiKeys[0];
 

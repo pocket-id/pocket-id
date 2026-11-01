@@ -2,6 +2,7 @@ package apikey
 
 import (
 	"net/http"
+	"time"
 
 	"github.com/gin-gonic/gin"
 
@@ -132,9 +133,11 @@ func grantableScopes(held authz.ScopeSet) authz.ScopeSet {
 
 // renew godoc
 // @Summary Renew API key
-// @Description Renew an existing API key by ID
+// @Description Replace the token of an API key, which also rotates a key that has not expired yet
+// @Description While a key has not expired, its old token keeps working for the given grace period, but never past the key's previous expiration
 // @Tags API Keys
 // @Param id path string true "API Key ID"
+// @Param api_key body apiKeyRenewDto true "New expiration and grace period"
 // @Success 200 {object} apiKeyResponseDto "Renewed API key with new token"
 // @Router /api/api-keys/{id}/renew [post]
 func (h *handler) renew(c *gin.Context) error {
@@ -147,7 +150,7 @@ func (h *handler) renew(c *gin.Context) error {
 		return err
 	}
 
-	apiKey, token, err := h.service.RenewApiKey(c.Request.Context(), userID, apiKeyID, input.ExpiresAt.ToTime())
+	apiKey, token, err := h.service.RenewApiKey(c.Request.Context(), userID, apiKeyID, input.ExpiresAt.ToTime(), time.Duration(input.GracePeriodHours)*time.Hour)
 	if err != nil {
 		return err
 	}

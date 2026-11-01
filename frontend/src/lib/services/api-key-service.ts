@@ -23,9 +23,14 @@ export default class ApiKeyService extends APIService {
 		return res.data as ApiKey;
 	};
 
-	renew = async (id: string, expiresAt: Date): Promise<ApiKeyResponse> => {
+	renew = async (
+		id: string,
+		expiresAt: Date,
+		gracePeriodHours: number
+	): Promise<ApiKeyResponse> => {
 		const res = await this.api.post(`/api-keys/${id}/renew`, {
-			expiresAt
+			expiresAt,
+			gracePeriodHours
 		});
 		return res.data as ApiKeyResponse;
 	};

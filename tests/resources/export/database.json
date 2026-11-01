@@ -78,6 +78,8 @@
 				"id": "98900330-7a7b-48fe-881b-2cc6ad049976",
 				"last_used_at": null,
 				"name": "Expired API Key",
+				"previous_key": null,
+				"previous_key_expires_at": null,
 				"scopes": "WyJhY2NvdW50OmFwaS1rZXlzIiwiYWNjb3VudDphcHBzIiwiYWNjb3VudDphdWRpdC1sb2dzIiwiYWNjb3VudDpwYXNza2V5cyIsImFjY291bnQ6cmVhZCIsImFjY291bnQ6d3JpdGUiLCJhcGlzOnJlYWQiLCJhcGlzOndyaXRlIiwiYXVkaXQtbG9nczpyZWFkIiwiY29uZmlnOnJlYWQiLCJjb25maWc6d3JpdGUiLCJncm91cHM6cmVhZCIsImdyb3Vwczp3cml0ZSIsIm9pZGMtY2xhaW0tbWFwcGluZy1wb2xpY2llczpyZWFkIiwib2lkYy1jbGFpbS1tYXBwaW5nLXBvbGljaWVzOndyaXRlIiwib2lkYy1jbGllbnRzOnJlYWQiLCJvaWRjLWNsaWVudHM6d3JpdGUiLCJ1c2VyczpyZWFkIiwidXNlcnM6d3JpdGUiXQ==",
 				"user_id": "f4b89dc2-62fb-46bf-9f5f-c34f4eafe93e"
 			},
@@ -90,6 +92,8 @@
 				"key": "6c34966f57ef2bb7857649aff0e7ab3ad67af93c846342ced3f5a07be8706c20",
 				"last_used_at": null,
 				"name": "Test API Key",
+				"previous_key": null,
+				"previous_key_expires_at": null,
 				"scopes": "WyJhY2NvdW50OmFwaS1rZXlzIiwiYWNjb3VudDphcHBzIiwiYWNjb3VudDphdWRpdC1sb2dzIiwiYWNjb3VudDpwYXNza2V5cyIsImFjY291bnQ6cmVhZCIsImFjY291bnQ6d3JpdGUiLCJhcGlzOnJlYWQiLCJhcGlzOndyaXRlIiwiYXVkaXQtbG9nczpyZWFkIiwiY29uZmlnOnJlYWQiLCJjb25maWc6d3JpdGUiLCJncm91cHM6cmVhZCIsImdyb3Vwczp3cml0ZSIsIm9pZGMtY2xhaW0tbWFwcGluZy1wb2xpY2llczpyZWFkIiwib2lkYy1jbGFpbS1tYXBwaW5nLXBvbGljaWVzOndyaXRlIiwib2lkYy1jbGllbnRzOnJlYWQiLCJvaWRjLWNsaWVudHM6d3JpdGUiLCJ1c2VyczpyZWFkIiwidXNlcnM6d3JpdGUiXQ==",
 				"user_id": "f4b89dc2-62fb-46bf-9f5f-c34f4eafe93e"
 			}

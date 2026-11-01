@@ -6,6 +6,7 @@ export type ApiKey = {
 	lastUsedAt?: string;
 	createdAt: string;
 	scopes: string[];
+	previousKeyExpiresAt?: string;
 };
 
 export type ApiKeyCreate = {

@@ -46,6 +46,8 @@
 
 	const formatDate = (date: string) =>
 		new Date(date).toLocaleDateString(getLocale(), { dateStyle: 'medium' });
+	const formatDateTime = (date: string) =>
+		new Date(date).toLocaleString(getLocale(), { dateStyle: 'medium', timeStyle: 'short' });
 
 	// Expiry reads as a status only when it needs attention; later dates are plain
 	function expiryStatus(key: ApiKey) {
@@ -105,13 +107,11 @@
 		}
 	];
 
-	// The backend renews only expired keys
 	const actions: CreateAdvancedTableActions<ApiKey> = (key) => [
 		{ label: m.edit_ellipsis(), icon: LucidePencil, onClick: () => (editing = key) },
 		{
-			label: m.renew_ellipsis(),
+			label: new Date(key.expiresAt) > new Date() ? m.rotate_ellipsis() : m.renew_ellipsis(),
 			icon: LucideRefreshCcw,
-			hidden: new Date(key.expiresAt) > new Date(),
 			onClick: () => (renewing = key)
 		},
 		{ label: m.revoke_ellipsis(), icon: LucideBan, variant: 'danger', onClick: revoke }
@@ -159,6 +159,11 @@
 		<Badge variant={status.variant} title={formatDate(item.expiresAt)}>{status.label}</Badge>
 	{:else}
 		<span class="tabular-nums">{formatDate(item.expiresAt)}</span>
+	{/if}
+	{#if item.previousKeyExpiresAt && new Date(item.previousKeyExpiresAt) > new Date()}
+		<span class="text-caption text-fg-muted block">
+			{m.old_key_works_until({ date: formatDateTime(item.previousKeyExpiresAt) })}
+		</span>
 	{/if}
 {/snippet}
 

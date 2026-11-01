@@ -220,10 +220,6 @@ func APIKeyNotFound() *Error {
 	return New(CodeAPIKeyNotFound, http.StatusNotFound, "API key not found")
 }
 
-func APIKeyNotExpired() *Error {
-	return New(CodeAPIKeyNotExpired, http.StatusConflict, "API key is not expired yet")
-}
-
 func InvalidAPIKeyExpiration() *Error {
 	return New(CodeInvalidAPIKeyExpiration, http.StatusBadRequest, "API key expiration time must be in the future").WithFields([]FieldError{{
 		Field:   "expiresAt",

@@ -20,7 +20,7 @@ func TestMissingManagedAPIKeyReturnsNotFound(t *testing.T) {
 	err = service.RevokeApiKey(t.Context(), "user-id", "missing-key")
 	require.True(t, apperror.IsCode(err, apperror.CodeAPIKeyNotFound))
 
-	_, _, err = service.RenewApiKey(t.Context(), "user-id", "missing-key", time.Now().Add(time.Hour))
+	_, _, err = service.RenewApiKey(t.Context(), "user-id", "missing-key", time.Now().Add(time.Hour), 0)
 	require.True(t, apperror.IsCode(err, apperror.CodeAPIKeyNotFound))
 
 	_, err = service.UpdateApiKey(t.Context(), "user-id", "missing-key", authz.NewScopeSet(authz.AccountRead), apiKeyUpdateDto{Name: "key", Scopes: datatype.StringList{"account:read"}})
@@ -68,5 +68,86 @@ func TestAPIKeyScopes(t *testing.T) {
 		require.Equal(t, datatype.StringList{"account:read"}, stored.Scopes)
 		require.Equal(t, created.Key, stored.Key)
 		require.Equal(t, updated.Scopes, stored.Scopes)
+	})
+}
+
+func TestRenewApiKeyRotation(t *testing.T) {
+	db := testutils.NewDatabaseForTest(t)
+	service, err := newService(t.Context(), db, "")
+	require.NoError(t, err)
+
+	user := model.User{Username: "rotating-key-owner", FirstName: "Rotating", DisplayName: "Rotating"}
+	require.NoError(t, db.Create(&user).Error)
+
+	createKey := func(t *testing.T, expiresAt time.Time) (ApiKey, string) {
+		t.Helper()
+		key, token, err := service.CreateApiKey(t.Context(), user.ID, authz.NewScopeSet(authz.AccountRead), apiKeyCreateDto{
+			Name:      "rotating",
+			ExpiresAt: datatype.DateTime(expiresAt),
+			Scopes:    datatype.StringList{string(authz.AccountRead)},
+		})
+		require.NoError(t, err)
+		return key, token
+	}
+	requireValid := func(t *testing.T, token string, valid bool) {
+		t.Helper()
+		_, err := service.ValidateApiKey(t.Context(), token)
+		if valid {
+			require.NoError(t, err)
+		} else {
+			require.True(t, apperror.IsCode(err, apperror.CodeInvalidAPIKey))
+		}
+	}
+	newExpiry := time.Now().Add(90 * 24 * time.Hour)
+
+	t.Run("without a grace period the old token stops working", func(t *testing.T) {
+		key, oldToken := createKey(t, time.Now().Add(time.Hour))
+
+		_, newToken, err := service.RenewApiKey(t.Context(), user.ID, key.ID, newExpiry, 0)
+		require.NoError(t, err)
+
+		requireValid(t, oldToken, false)
+		requireValid(t, newToken, true)
+	})
+
+	t.Run("the old token works during the grace period, capped at its expiration", func(t *testing.T) {
+		oldExpiry := time.Now().Add(time.Hour)
+		key, oldToken := createKey(t, oldExpiry)
+
+		renewed, newToken, err := service.RenewApiKey(t.Context(), user.ID, key.ID, newExpiry, 24*time.Hour)
+		require.NoError(t, err)
+		require.WithinDuration(t, oldExpiry, renewed.PreviousKeyExpiresAt.ToTime(), time.Second)
+
+		requireValid(t, oldToken, true)
+		requireValid(t, newToken, true)
+
+		// Rotating again replaces the token that is still in its grace period
+		_, newestToken, err := service.RenewApiKey(t.Context(), user.ID, key.ID, newExpiry, 24*time.Hour)
+		require.NoError(t, err)
+		requireValid(t, oldToken, false)
+		requireValid(t, newToken, true)
+		requireValid(t, newestToken, true)
+	})
+
+	t.Run("the old token stops working once the grace period ends", func(t *testing.T) {
+		key, oldToken := createKey(t, time.Now().Add(time.Hour))
+
+		_, _, err := service.RenewApiKey(t.Context(), user.ID, key.ID, newExpiry, time.Hour)
+		require.NoError(t, err)
+		require.NoError(t, db.Model(&ApiKey{}).Where("id = ?", key.ID).Update("previous_key_expires_at", datatype.DateTime(time.Now().Add(-time.Minute))).Error)
+
+		requireValid(t, oldToken, false)
+	})
+
+	t.Run("renewing an expired key ignores the grace period", func(t *testing.T) {
+		key, oldToken := createKey(t, time.Now().Add(time.Hour))
+		require.NoError(t, db.Model(&ApiKey{}).Where("id = ?", key.ID).Update("expires_at", datatype.DateTime(time.Now().Add(-time.Hour))).Error)
+
+		renewed, newToken, err := service.RenewApiKey(t.Context(), user.ID, key.ID, newExpiry, 24*time.Hour)
+		require.NoError(t, err)
+		require.Nil(t, renewed.PreviousKey)
+
+		requireValid(t, oldToken, false)
+		requireValid(t, newToken, true)
 	})
 }

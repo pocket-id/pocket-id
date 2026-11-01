@@ -18,18 +18,20 @@ type apiKeyUpdateDto struct {
 }
 
 type apiKeyRenewDto struct {
-	ExpiresAt datatype.DateTime `json:"expiresAt" binding:"required"`
+	ExpiresAt        datatype.DateTime `json:"expiresAt" binding:"required"`
+	GracePeriodHours int               `json:"gracePeriodHours" binding:"min=0"`
 }
 
 type apiKeyDto struct {
-	ID                  string              `json:"id"`
-	Name                string              `json:"name"`
-	Description         *string             `json:"description"`
-	ExpiresAt           datatype.DateTime   `json:"expiresAt"`
-	LastUsedAt          *datatype.DateTime  `json:"lastUsedAt"`
-	CreatedAt           datatype.DateTime   `json:"createdAt"`
-	ExpirationEmailSent bool                `json:"expirationEmailSent"`
-	Scopes              datatype.StringList `json:"scopes"`
+	ID                   string              `json:"id"`
+	Name                 string              `json:"name"`
+	Description          *string             `json:"description"`
+	ExpiresAt            datatype.DateTime   `json:"expiresAt"`
+	LastUsedAt           *datatype.DateTime  `json:"lastUsedAt"`
+	CreatedAt            datatype.DateTime   `json:"createdAt"`
+	ExpirationEmailSent  bool                `json:"expirationEmailSent"`
+	Scopes               datatype.StringList `json:"scopes"`
+	PreviousKeyExpiresAt *datatype.DateTime  `json:"previousKeyExpiresAt"`
 }
 
 type apiKeyResponseDto struct {

@@ -144,9 +144,14 @@ func grantedScopes(requested []string, grantable authz.ScopeSet) (datatype.Strin
 	return slices.Compact(scopes), nil
 }
 
-func (s *Service) RenewApiKey(ctx context.Context, userID, apiKeyID string, expiration time.Time) (ApiKey, string, error) {
+// RenewApiKey replaces a key's token
+// If the key has not expired yet, its old token keeps working for gracePeriod, capped at the key's previous expiration
+// The token replaced by an earlier rotation stops working right away
+func (s *Service) RenewApiKey(ctx context.Context, userID, apiKeyID string, expiration time.Time, gracePeriod time.Duration) (ApiKey, string, error) {
+	now := time.Now()
+
 	// Check if expiration is in the future
-	if !expiration.After(time.Now()) {
+	if !expiration.After(now) {
 		return ApiKey{}, "", apperror.InvalidAPIKeyExpiration()
 	}
 
@@ -166,15 +171,22 @@ func (s *Service) RenewApiKey(ctx context.Context, userID, apiKeyID string, expi
 		return ApiKey{}, "", fmt.Errorf("error loading API key: %w", err)
 	}
 
-	// Only allow renewal if the key has already expired
-	if apiKey.ExpiresAt.ToTime().After(time.Now()) {
-		return ApiKey{}, "", apperror.APIKeyNotExpired()
-	}
-
 	// Generate a secure random API key
 	token, err := utils.GenerateRandomAlphanumericString(32)
 	if err != nil {
 		return ApiKey{}, "", fmt.Errorf("error generating API key token: %w", err)
+	}
+
+	// Keep the old token working during the grace period so its integrations can switch over without downtime
+	apiKey.PreviousKey = nil
+	apiKey.PreviousKeyExpiresAt = nil
+	previousExpiresAt := now.Add(gracePeriod)
+	if previousExpiresAt.After(apiKey.ExpiresAt.ToTime()) {
+		previousExpiresAt = apiKey.ExpiresAt.ToTime()
+	}
+	if previousExpiresAt.After(now) {
+		apiKey.PreviousKey = new(apiKey.Key)
+		apiKey.PreviousKeyExpiresAt = new(datatype.DateTime(previousExpiresAt))
 	}
 
 	apiKey.Key = utils.CreateSha256Hash(token)
@@ -233,7 +245,7 @@ func (s *Service) ValidateApiKey(ctx context.Context, apiKey string) (ApiKey, er
 		WithContext(ctx).
 		Model(&ApiKey{}).
 		Clauses(clause.Returning{}).
-		Where("key = ? AND expires_at > ?", hashedKey, datatype.DateTime(now)).
+		Where("(key = ? AND expires_at > ?) OR (previous_key = ? AND previous_key_expires_at > ?)", hashedKey, datatype.DateTime(now), hashedKey, datatype.DateTime(now)).
 		Updates(&ApiKey{
 			LastUsedAt: new(datatype.DateTime(now)),
 		}).
