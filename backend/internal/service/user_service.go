@@ -42,6 +42,7 @@ type UserService struct {
 
 // EmailVerificationSender emails verification links for a user's current email or for an email they want to change to
 type EmailVerificationSender interface {
+	AllowSend(ctx context.Context, userID string) error
 	Send(ctx context.Context, dbConfig *appconfig.AppConfigModel, userID string) error
 	RequestEmailChange(ctx context.Context, dbConfig *appconfig.AppConfigModel, userID, newEmail string) error
 }
@@ -604,6 +605,12 @@ func (s *UserService) prepareOwnEmailChange(ctx context.Context, cfg *appconfig.
 	}
 	if taken {
 		return change, apperror.AlreadyInUse("email")
+	}
+
+	// The link is only sent after the update is saved, so a throttled change rejects the whole update instead of saving it without the email
+	err = s.emailVerification.AllowSend(ctx, userID)
+	if err != nil {
+		return change, err
 	}
 
 	change.deferred = updatedUser.Email

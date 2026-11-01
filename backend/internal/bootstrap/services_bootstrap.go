@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"net/http"
 
+	"github.com/italypaleale/francis/builtin/ratelimit"
 	francishost "github.com/italypaleale/francis/host"
 	"gorm.io/gorm"
 
@@ -24,6 +25,7 @@ import (
 	"github.com/pocket-id/pocket-id/backend/internal/iplocation"
 	"github.com/pocket-id/pocket-id/backend/internal/ldapsync"
 	"github.com/pocket-id/pocket-id/backend/internal/logopreset"
+	"github.com/pocket-id/pocket-id/backend/internal/middleware"
 	"github.com/pocket-id/pocket-id/backend/internal/oidc"
 	"github.com/pocket-id/pocket-id/backend/internal/onetimeaccess"
 	"github.com/pocket-id/pocket-id/backend/internal/outbound"
@@ -75,6 +77,7 @@ func initServices(
 	outboundClients *outbound.Clients,
 	imageExtensions map[string]string,
 	fileStorage storage.FileStorage,
+	rateLimitServices map[string]*ratelimit.RateLimitService,
 ) (svc *services, err error) {
 	svc = &services{
 		actors: actors,
@@ -200,11 +203,16 @@ func initServices(
 	svc.claimMappingPolicyModule = claimmappingpolicy.New(claimmappingpolicy.Dependencies{DB: db})
 	svc.userGroupService = service.NewUserGroupService(db, svc.scimSyncModule, backchannelLogoutService)
 	// The user service sends verification links through this module, so it's created first and never depends on the user service itself
+	var sendLimiter emailverification.SendLimiter
+	if middleware.RateLimitingEnabled() {
+		sendLimiter = rateLimitServices[middleware.RateLimitSendEmailVerification]
+	}
 	svc.emailVerificationModule, err = emailverification.New(emailverification.Dependencies{
 		DB:          db,
 		Actors:      actors,
 		EmailSender: svc.emailModule,
 		ScimSync:    svc.scimSyncModule,
+		SendLimiter: sendLimiter,
 		AppConfig:   svc.appConfigService,
 		AppURL:      common.EnvConfig.AppURL,
 	})

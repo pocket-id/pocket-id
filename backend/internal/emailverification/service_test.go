@@ -44,6 +44,12 @@ func (s *testEmailSender) SendEmailVerification(_ context.Context, _ *appconfig.
 	return nil
 }
 
+type exhaustedSendLimiter struct{}
+
+func (exhaustedSendLimiter) Allow(_ context.Context, _ string) (bool, time.Duration, error) {
+	return false, time.Minute, nil
+}
+
 func newServiceForTest(t *testing.T, emailSender *testEmailSender) (*Service, *local.Host, *gorm.DB) {
 	t.Helper()
 
@@ -52,7 +58,7 @@ func newServiceForTest(t *testing.T, emailSender *testEmailSender) (*Service, *l
 	var service *Service
 	host := testutils.NewActorHostForTest(t, func(t *testing.T, host *local.Host) {
 		require.NoError(t, host.RegisterActor(ActorType, NewActor))
-		service = newService(db, host.Service(), emailSender, nil, "https://id.example.test")
+		service = newService(db, host.Service(), emailSender, nil, nil, "https://id.example.test")
 	})
 	require.NotNil(t, service)
 
@@ -258,6 +264,20 @@ func TestSendDiscardsTokenWhenEmailDeliveryFails(t *testing.T) {
 	user := createTestUser(t, db, "user-5", "user@example.test")
 
 	require.ErrorContains(t, service.Send(t.Context(), &appconfig.AppConfigModel{}, user.ID), "delivery failed")
+
+	var state State
+	require.ErrorIs(t, host.GetState(t.Context(), ActorType, user.ID, &state), actor.ErrStateNotFound)
+}
+
+func TestSendRejectsThrottledUserWithoutIssuingToken(t *testing.T) {
+	emailSender := &testEmailSender{}
+	service, host, db := newServiceForTest(t, emailSender)
+	service.sendLimiter = exhaustedSendLimiter{}
+	user := createTestUser(t, db, "user-throttled", "user@example.test")
+
+	err := service.Send(t.Context(), &appconfig.AppConfigModel{}, user.ID)
+	require.True(t, apperror.IsCode(err, apperror.CodeRateLimited))
+	require.Empty(t, emailSender.sent)
 
 	var state State
 	require.ErrorIs(t, host.GetState(t.Context(), ActorType, user.ID, &state), actor.ErrStateNotFound)

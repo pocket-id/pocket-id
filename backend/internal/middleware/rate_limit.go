@@ -33,6 +33,7 @@ const (
 
 // RateLimitPolicy is the configuration for a single rate-limit actor
 // Each policy maps to one Francis rate-limit actor type and requests are keyed by client IP, so every IP is limited independently and policies can be shared across routes
+// The send-email-verification policy is the exception: the emailverification module keys it by user ID instead of applying it to routes
 type RateLimitPolicy struct {
 	// Name must be unique across policies and must not contain '/'
 	Name string
@@ -57,10 +58,15 @@ func RateLimitPolicies() []RateLimitPolicy {
 		{Name: RateLimitDeviceLoginCreate, Rate: 1, Per: 10 * time.Second, Burst: 5},
 		{Name: RateLimitDeviceLoginExchange, Rate: 1, Per: 2 * time.Second, Burst: 10},
 		{Name: RateLimitDeviceLoginVerification, Rate: 1, Per: 10 * time.Second, Burst: 5},
-		{Name: RateLimitSendEmailVerification, Rate: 2, Per: 10 * time.Minute, Burst: 1},
+		{Name: RateLimitSendEmailVerification, Rate: 2, Per: 10 * time.Minute, Burst: 3},
 		{Name: RateLimitVerifyEmail, Rate: 1, Per: 10 * time.Second, Burst: 5},
 		{Name: RateLimitInternal, Rate: 20, Per: time.Second, Burst: 20},
 	}
+}
+
+// RateLimitingEnabled reports whether rate limits apply, which they don't when disabled by config or in test environments
+func RateLimitingEnabled() bool {
+	return !common.EnvConfig.DisableRateLimiting && !common.EnvConfig.AppEnv.IsTest()
 }
 
 type RateLimitMiddleware struct {
@@ -74,7 +80,7 @@ func NewRateLimitMiddleware(services map[string]*ratelimit.RateLimitService) *Ra
 }
 
 func (m *RateLimitMiddleware) Add(policy string) gin.HandlerFunc {
-	if common.EnvConfig.DisableRateLimiting {
+	if !RateLimitingEnabled() {
 		return func(c *gin.Context) {
 			c.Next()
 		}
@@ -91,12 +97,6 @@ func (m *RateLimitMiddleware) Add(policy string) gin.HandlerFunc {
 
 	return func(c *gin.Context) {
 		ip := c.ClientIP()
-
-		// Skip rate limiting in test environments
-		if common.EnvConfig.AppEnv == common.AppEnvTest {
-			c.Next()
-			return
-		}
 
 		// Allow is a non-blocking token-bucket check keyed by client IP: it consumes a slot and reports whether the call is admitted right now
 		allowed, retryAfter, err := svc.Allow(c.Request.Context(), ip)

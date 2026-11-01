@@ -115,7 +115,7 @@ func Bootstrap(ctx context.Context) error {
 	services = append(services, actorsRun)
 
 	// Create all services
-	svc, err := initServices(ctx, db, instanceID, actors, httpClient, outboundClients, imageExtensions, fileStorage)
+	svc, err := initServices(ctx, db, instanceID, actors, httpClient, outboundClients, imageExtensions, fileStorage, rateLimitServices)
 	if err != nil {
 		return fmt.Errorf("failed to initialize services: %w", err)
 	}

@@ -174,7 +174,7 @@ func registerRoutes(r *gin.Engine, db *gorm.DB, svc *services, auth *authz.Middl
 		rateLimitMiddleware.Add(middleware.RateLimitDeviceLoginVerification),
 	)
 	controller.NewOidcController(apiRouter, fileSizeLimitMiddleware, svc.oidcService, svc.appConfigService)
-	controller.NewUserController(apiRouter, fileSizeLimitMiddleware, svc.appConfigService, svc.userService, svc.webauthnModule, rateLimitMiddleware.Add(middleware.RateLimitSendEmailVerification))
+	controller.NewUserController(apiRouter, fileSizeLimitMiddleware, svc.appConfigService, svc.userService, svc.webauthnModule)
 	svc.claimMappingPolicyModule.RegisterRoutes(apiRouter)
 	controller.NewAppConfigController(apiRouter, svc.appConfigService, svc.emailModule)
 	svc.ldapSyncModule.RegisterRoutes(apiRouter)
@@ -192,10 +192,7 @@ func registerRoutes(r *gin.Engine, db *gorm.DB, svc *services, auth *authz.Middl
 		rateLimitMiddleware.Add(middleware.RateLimitOneTimeAccessToken),
 		rateLimitMiddleware.Add(middleware.RateLimitOneTimeAccessEmail),
 	)
-	svc.emailVerificationModule.RegisterRoutes(apiRouter,
-		rateLimitMiddleware.Add(middleware.RateLimitSendEmailVerification),
-		rateLimitMiddleware.Add(middleware.RateLimitVerifyEmail),
-	)
+	svc.emailVerificationModule.RegisterRoutes(apiRouter, rateLimitMiddleware.Add(middleware.RateLimitVerifyEmail))
 	svc.oidcModule.RegisterRoutes(baseRouter, apiRouter)
 
 	registerTestRoutes(apiRouter, db, svc)

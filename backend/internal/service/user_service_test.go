@@ -211,7 +211,12 @@ func TestDeleteUserBumpsGroupUpdatedAt(t *testing.T) {
 type recordingEmailVerificationSender struct {
 	sent       []string
 	requested  []string
+	allowErr   error
 	requestErr error
+}
+
+func (r *recordingEmailVerificationSender) AllowSend(_ context.Context, _ string) error {
+	return r.allowErr
 }
 
 func (r *recordingEmailVerificationSender) Send(_ context.Context, _ *appconfig.AppConfigModel, userID string) error {
@@ -296,6 +301,20 @@ func TestUpdateOwnEmailWithVerification(t *testing.T) {
 
 		require.Equal(t, "Renamed", updated.FirstName)
 		require.Equal(t, "old@example.com", *updated.Email)
+	})
+
+	t.Run("a throttled email change rejects the whole update", func(t *testing.T) {
+		userService, sender, config, user, update := setup(t, appconfig.EmailVerificationRequired, true)
+		sender.allowErr = apperror.TooManyRequests()
+		update.FirstName = "Renamed"
+
+		_, err := userService.UpdateUser(t.Context(), config, user.ID, update, true, false)
+		require.True(t, apperror.IsCode(err, apperror.CodeRateLimited))
+		require.Empty(t, sender.requested)
+
+		stored, err := userService.GetUser(t.Context(), user.ID)
+		require.NoError(t, err)
+		require.Equal(t, user.FirstName, stored.FirstName)
 	})
 
 	t.Run("a change link that can't be sent is reported apart from the saved fields", func(t *testing.T) {
