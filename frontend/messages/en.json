@@ -359,6 +359,7 @@
 	"filters": "Filters",
 	"display": "Display",
 	"columns": "Columns",
+	"select_all": "Select all",
 	"select_all_rows_on_this_page": "Select all rows on this page",
 	"pagination": "Pagination",
 	"pagination_range": "{#b}{from}–{to}{/b} of {#b}{total}{/b}",

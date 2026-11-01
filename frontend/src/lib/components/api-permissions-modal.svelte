@@ -49,6 +49,10 @@
 	const toggle = (ids: string[], id: string, checked: boolean) =>
 		checked ? [...ids, id] : ids.filter((existing) => existing !== id);
 
+	const permissionIds = $derived(api.permissions.map((permission) => permission.id));
+	// Permissions granted through CIMD access stay checked, so "Select all" leaves them out
+	const selectableUserIds = $derived(permissionIds.filter((id) => !implicitUserIds.includes(id)));
+
 	async function save() {
 		saving = true;
 		try {
@@ -137,6 +141,40 @@
 					</tr>
 				</thead>
 				<tbody>
+					{#if api.permissions.length > 1}
+						{@const allUser = selectableUserIds.every((id) => userIds.includes(id))}
+						{@const allClient = permissionIds.every((id) => clientIds.includes(id))}
+						<tr class="border-b">
+							<th scope="row" class="text-fg py-2.5 pe-3 text-start font-medium">
+								{m.select_all()}
+							</th>
+							<td>
+								<Checkbox
+									aria-label={`${m.on_behalf_of_people()}: ${m.select_all()}`}
+									checked={allUser}
+									indeterminate={!allUser && selectableUserIds.some((id) => userIds.includes(id))}
+									disabled={selectableUserIds.length === 0}
+									onCheckedChange={(checked) => {
+										userIds = checked ? selectableUserIds : [];
+										if (checked) userAccess = true;
+									}}
+								/>
+							</td>
+							{#if showClientAccess}
+								<td>
+									<Checkbox
+										aria-label={`${m.as_itself()}: ${m.select_all()}`}
+										checked={allClient}
+										indeterminate={!allClient && clientIds.length > 0}
+										onCheckedChange={(checked) => {
+											clientIds = checked ? permissionIds : [];
+											if (checked) clientAccess = true;
+										}}
+									/>
+								</td>
+							{/if}
+						</tr>
+					{/if}
 					{#each api.permissions as permission (permission.id)}
 						{@const implicit = implicitUserIds.includes(permission.id)}
 						<tr class="border-b">
