@@ -4,10 +4,8 @@
 	import { Input, type FormInputEvent } from '#lib/components/ui/input/index.ts';
 	import { m } from '#lib/paraglide/messages.js';
 	import type { FormInput } from '#lib/utils/form-util.ts';
-	import { LucideExternalLink } from '@lucide/svelte';
 	import type { Snippet } from 'svelte';
-	import type { HTMLAttributes } from 'svelte/elements';
-	import { cn } from '#lib/utils/style.ts';
+	import type { HTMLAttributes, HTMLInputAttributes } from 'svelte/elements';
 
 	type WithoutChildren = {
 		children?: undefined;
@@ -24,8 +22,8 @@
 		input = $bindable(),
 		label,
 		description,
-		docsLink,
 		placeholder,
+		autocomplete,
 		disabled = false,
 		type = 'text',
 		children,
@@ -33,55 +31,40 @@
 		labelFor,
 		readonly = false,
 		inputClass,
+		changed = false,
+		optional = false,
 		class: className,
 		...restProps
 	}: HTMLAttributes<HTMLDivElement> &
 		(WithChildren | WithoutChildren) & {
 			label?: string;
 			description?: string | Snippet;
-			docsLink?: string;
 			placeholder?: string;
+			autocomplete?: HTMLInputAttributes['autocomplete'];
 			disabled?: boolean;
 			inputClass?: string;
 			type?: 'text' | 'password' | 'email' | 'number' | 'checkbox' | 'date' | 'url';
 			readonly?: boolean;
+			changed?: boolean;
+			optional?: boolean;
 			onInput?: (e: FormInputEvent) => void;
 		} = $props();
 
 	const id = label?.toLowerCase().replace(/ /g, '-');
 </script>
 
-<Field.Field
-	data-disabled={disabled}
-	class={cn('flex flex-col justify-between', className)}
-	{...restProps}
->
-	<div>
-		{#if label}
-			<Field.Label required={input?.required} class="mb-0" for={labelFor ?? id}>{label}</Field.Label
-			>
-		{/if}
-		{#if description}
-			<Field.Description>
-				{#if typeof description === 'string'}
-					{description}
-				{:else}
-					{@render description()}
-				{/if}
-				{#if docsLink}
-					<a
-						class="relative text-black after:absolute after:bottom-0 after:left-0 after:h-px after:w-full after:-translate-y-px after:bg-white dark:text-white"
-						href={docsLink}
-						target="_blank"
-					>
-						{m.docs()}
-						<LucideExternalLink class="inline size-3 align-text-top" />
-					</a>
-				{/if}
-			</Field.Description>
-		{/if}
-	</div>
-	<div>
+<Field.Field data-disabled={disabled} class={className} {...restProps}>
+	{#if label}
+		<div class="flex items-center gap-2">
+			<Field.Label optional={optional && !readonly} for={labelFor ?? id}>{label}</Field.Label>
+			<!-- Outside the label, so the changed state doesn't become part of the input's name -->
+			{#if changed}
+				<span class="bg-fg size-1.5 shrink-0 rounded-full"></span>
+				<span class="sr-only">{m.changed_from_the_default()}</span>
+			{/if}
+		</div>
+	{/if}
+	<div class="flex flex-col gap-1.5">
 		{#if children}
 			{@render children()}
 		{:else if input}
@@ -92,6 +75,7 @@
 						() => input.value as Date | undefined,
 						(value) => {
 							input.value = value;
+							input.error = null;
 						}
 					}
 				/>
@@ -102,10 +86,12 @@
 					{id}
 					{placeholder}
 					{type}
+					{autocomplete}
 					bind:value={
 						() => input.value as string | number | undefined,
 						(value) => {
 							input.value = value;
+							input.error = null;
 						}
 					}
 					{disabled}
@@ -116,6 +102,10 @@
 		{/if}
 		{#if input?.error}
 			<Field.Error class="text-start">{input.error}</Field.Error>
+		{:else if description}
+			<Field.Description>
+				{#if typeof description === 'string'}{description}{:else}{@render description()}{/if}
+			</Field.Description>
 		{/if}
 	</div>
 </Field.Field>

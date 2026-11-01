@@ -13,11 +13,13 @@ import (
 	"github.com/pocket-id/pocket-id/backend/internal/appconfig"
 	"github.com/pocket-id/pocket-id/backend/internal/auditlogs"
 	"github.com/pocket-id/pocket-id/backend/internal/backchannellogout"
+	"github.com/pocket-id/pocket-id/backend/internal/claimmappingpolicy"
 	"github.com/pocket-id/pocket-id/backend/internal/common"
 	"github.com/pocket-id/pocket-id/backend/internal/devicelogin"
 	"github.com/pocket-id/pocket-id/backend/internal/email"
 	"github.com/pocket-id/pocket-id/backend/internal/emailverification"
 	"github.com/pocket-id/pocket-id/backend/internal/environment"
+	"github.com/pocket-id/pocket-id/backend/internal/feature"
 	"github.com/pocket-id/pocket-id/backend/internal/geolite"
 	"github.com/pocket-id/pocket-id/backend/internal/iplocation"
 	"github.com/pocket-id/pocket-id/backend/internal/ldapsync"
@@ -33,17 +35,18 @@ import (
 )
 
 type services struct {
-	appConfigService   *appconfig.AppConfigService
-	appImagesService   *service.AppImagesService
-	emailModule        *email.Module
-	geoLiteModule      *geolite.Module
-	ipLocator          iplocation.Resolver
-	jwtService         *service.JwtService
-	userService        *service.UserService
-	customClaimService *service.CustomClaimService
-	oidcService        *service.OidcService
-	userGroupService   *service.UserGroupService
-	fileStorage        storage.FileStorage
+	appConfigService         *appconfig.AppConfigService
+	appImagesService         *service.AppImagesService
+	emailModule              *email.Module
+	geoLiteModule            *geolite.Module
+	ipLocator                iplocation.Resolver
+	jwtService               *service.JwtService
+	userService              *service.UserService
+	customClaimService       *service.CustomClaimService
+	claimMappingPolicyModule *claimmappingpolicy.Module
+	oidcService              *service.OidcService
+	userGroupService         *service.UserGroupService
+	fileStorage              storage.FileStorage
 
 	apiKeyModule            *apikey.Module
 	auditLogsModule         *auditlogs.Module
@@ -58,6 +61,7 @@ type services struct {
 	apiModule               *api.Module
 	environmentModule       *environment.Module
 	logoPresetModule        *logopreset.Module
+	featureModule           *feature.Module
 	actors                  francishost.Host
 }
 
@@ -193,6 +197,7 @@ func initServices(
 		return nil, fmt.Errorf("failed to create OIDC service: %w", err)
 	}
 
+	svc.claimMappingPolicyModule = claimmappingpolicy.New(claimmappingpolicy.Dependencies{DB: db})
 	svc.userGroupService = service.NewUserGroupService(db, svc.scimSyncModule, backchannelLogoutService)
 	// The user service sends verification links through this module, so it's created first and never depends on the user service itself
 	svc.emailVerificationModule, err = emailverification.New(emailverification.Dependencies{
@@ -282,6 +287,8 @@ func initServices(
 		HTTPClient: httpClient,
 		BaseURL:    iconLibraryURL,
 	})
+
+	svc.featureModule = feature.New(feature.Dependencies{DB: db, AppConfig: svc.appConfigService})
 
 	return svc, nil
 }

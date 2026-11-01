@@ -2,6 +2,7 @@
 	import { cn, type WithElementRef } from '#lib/utils/style.js';
 	import type { HTMLAttributes } from 'svelte/elements';
 	import type { Snippet } from 'svelte';
+	import CircleAlertIcon from '@lucide/svelte/icons/circle-alert';
 
 	let {
 		ref = $bindable(null),
@@ -38,9 +39,10 @@
 		bind:this={ref}
 		role="alert"
 		data-slot="field-error"
-		class={cn('text-destructive text-sm font-normal', className)}
+		class={cn('text-caption text-danger-fg flex items-start gap-1', className)}
 		{...restProps}
 	>
+		<CircleAlertIcon class="mt-[3px] size-3 shrink-0" />
 		{#if children}
 			{@render children()}
 		{:else if singleErrorMessage}

@@ -327,6 +327,29 @@ func TestUpdatePermissionsRejectsInvalidKeyCharacters(t *testing.T) {
 	require.NoError(t, err)
 }
 
+func TestPermissionsAreReturnedByKey(t *testing.T) {
+	db := testutils.NewDatabaseForTest(t)
+	svc := New(Dependencies{DB: db}).service
+
+	orders, err := svc.Create(t.Context(), apiCreateDto{Name: "Orders", Resource: "https://api.orders.example.com"})
+	require.NoError(t, err)
+
+	var input []apiPermissionInputDto
+	for _, key := range []string{"epsilon", "alpha", "delta", "beta", "gamma"} {
+		input = append(input, apiPermissionInputDto{Key: key, Name: key})
+	}
+	_, err = svc.UpdatePermissions(t.Context(), orders.ID, apiPermissionsUpdateDto{Permissions: input})
+	require.NoError(t, err)
+	got, err := svc.Get(t.Context(), nil, orders.ID)
+	require.NoError(t, err)
+
+	keys := make([]string, len(got.Permissions))
+	for i, p := range got.Permissions {
+		keys[i] = p.Key
+	}
+	assert.Equal(t, []string{"alpha", "beta", "delta", "epsilon", "gamma"}, keys)
+}
+
 func TestCreateRejectsIssuerResource(t *testing.T) {
 	db := testutils.NewDatabaseForTest(t)
 	const issuer = "https://id.example.com"

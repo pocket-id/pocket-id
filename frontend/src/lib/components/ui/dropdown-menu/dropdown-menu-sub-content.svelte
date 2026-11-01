@@ -1,6 +1,7 @@
 <script lang="ts">
 	import { DropdownMenu as DropdownMenuPrimitive } from 'bits-ui';
 	import { cn } from '#lib/utils/style.js';
+	import DropdownMenuPortal from './dropdown-menu-portal.svelte';
 
 	let {
 		ref = $bindable(null),
@@ -9,12 +10,15 @@
 	}: DropdownMenuPrimitive.SubContentProps = $props();
 </script>
 
-<DropdownMenuPrimitive.SubContent
-	bind:ref
-	data-slot="dropdown-menu-sub-content"
-	class={cn(
-		'data-open:animate-in data-closed:animate-out data-closed:fade-out-0 data-open:fade-in-0 data-closed:zoom-out-95 data-open:zoom-in-95 data-[side=bottom]:slide-in-from-top-2 data-[side=left]:slide-in-from-right-2 data-[side=right]:slide-in-from-left-2 data-[side=top]:slide-in-from-bottom-2 ring-foreground/5 dark:ring-foreground/10 text-popover-foreground bg-popover/70 **:data-[slot$=-item]:focus:bg-foreground/10 **:data-[slot$=-item]:data-highlighted:bg-foreground/10 **:data-[slot$=-separator]:bg-foreground/5 **:data-[slot$=-trigger]:focus:bg-foreground/10 **:data-[slot$=-trigger]:aria-expanded:bg-foreground/10! **:data-[variant=destructive]:data-highlighted:bg-destructive/10! dark:**:data-[variant=destructive]:data-highlighted:bg-destructive/20! relative w-auto min-w-36 animate-none! rounded-3xl p-1.5 shadow-lg ring-1 duration-100 before:pointer-events-none before:absolute before:inset-0 before:-z-1 before:rounded-[inherit] before:backdrop-blur-2xl before:backdrop-saturate-150',
-		className
-	)}
-	{...restProps}
-/>
+<!-- The parent menu's backdrop blur and scroll container would otherwise clip the submenu -->
+<DropdownMenuPortal>
+	<DropdownMenuPrimitive.SubContent
+		bind:ref
+		data-slot="dropdown-menu-sub-content"
+		class={cn(
+			'text-popover-foreground shadow-popover bg-popover/72 border-fg/6 dark:border-fg/10 [@media(prefers-reduced-transparency:reduce)]:bg-popover! transition-motion z-(--z-popover) w-auto min-w-50 origin-(--bits-menu-content-transform-origin) rounded-md border p-1 backdrop-blur-[40px] backdrop-saturate-150 duration-(--dur-base) outline-none data-closed:pointer-events-none data-closed:opacity-0 data-closed:duration-(--dur-fast) data-closed:ease-in starting:scale-(--pop-scale) starting:opacity-0 [@media(prefers-reduced-transparency:reduce)]:backdrop-filter-none!',
+			className
+		)}
+		{...restProps}
+	/>
+</DropdownMenuPortal>

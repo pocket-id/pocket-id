@@ -1,9 +1,10 @@
 {
 	"provider": "sqlite",
-	"version": 20261011120000,
+	"version": 20261028120000,
 	"tableOrder": [
 		"users",
 		"user_groups",
+		"oidc_claim_mapping_policies",
 		"oidc_clients",
 		"oauth2_sessions",
 		"signup_tokens",
@@ -105,6 +106,15 @@
 				"value": "6puTIBpn0u2Y8FJQ9C4gxuzORTgMmac9Tz9B2epw212hlaepET06ca/CPnwdirCNNg/tLG1wXd2MNSEMgZAnl1cPkF9hPabrRW+SUYpFDLu4yE9w5uc6ns//9pphedK5vS190oXcE7FaWBoso789JuQ0yoicNEnjAAjBWExnp0dXXufmXzUZSnKQ"
 			}
 		],
+		"oidc_claim_mapping_policies": [
+			{
+				"id": "00000000-0000-0000-0000-000000000000",
+				"created_at": "2025-11-25T12:39:02Z",
+				"name": "Built-in Policy",
+				"is_default": true,
+				"claim_mappings": "W3siY2xhaW1OYW1lIjoiZW1haWwiLCJzb3VyY2VUeXBlIjoidXNlcl9maWVsZCIsInNvdXJjZVZhbHVlIjoiZW1haWwiLCJzY29wZSI6WyJlbWFpbCJdLCJhY2Nlc3NUb2tlbiI6ZmFsc2UsImlkVG9rZW4iOnRydWUsInVzZXJJbmZvIjp0cnVlfSx7ImNsYWltTmFtZSI6ImVtYWlsX3ZlcmlmaWVkIiwic291cmNlVHlwZSI6InVzZXJfZmllbGQiLCJzb3VyY2VWYWx1ZSI6ImVtYWlsX3ZlcmlmaWVkIiwic2NvcGUiOlsiZW1haWwiXSwiYWNjZXNzVG9rZW4iOmZhbHNlLCJpZFRva2VuIjp0cnVlLCJ1c2VySW5mbyI6dHJ1ZX0seyJjbGFpbU5hbWUiOiJnaXZlbl9uYW1lIiwic291cmNlVHlwZSI6InVzZXJfZmllbGQiLCJzb3VyY2VWYWx1ZSI6ImZpcnN0X25hbWUiLCJzY29wZSI6WyJwcm9maWxlIl0sImFjY2Vzc1Rva2VuIjpmYWxzZSwiaWRUb2tlbiI6dHJ1ZSwidXNlckluZm8iOnRydWV9LHsiY2xhaW1OYW1lIjoiZmFtaWx5X25hbWUiLCJzb3VyY2VUeXBlIjoidXNlcl9maWVsZCIsInNvdXJjZVZhbHVlIjoibGFzdF9uYW1lIiwic2NvcGUiOlsicHJvZmlsZSJdLCJhY2Nlc3NUb2tlbiI6ZmFsc2UsImlkVG9rZW4iOnRydWUsInVzZXJJbmZvIjp0cnVlfSx7ImNsYWltTmFtZSI6Im5hbWUiLCJzb3VyY2VUeXBlIjoidXNlcl9maWVsZCIsInNvdXJjZVZhbHVlIjoiZnVsbF9uYW1lIiwic2NvcGUiOlsicHJvZmlsZSJdLCJhY2Nlc3NUb2tlbiI6ZmFsc2UsImlkVG9rZW4iOnRydWUsInVzZXJJbmZvIjp0cnVlfSx7ImNsYWltTmFtZSI6ImRpc3BsYXlfbmFtZSIsInNvdXJjZVR5cGUiOiJ1c2VyX2ZpZWxkIiwic291cmNlVmFsdWUiOiJkaXNwbGF5X25hbWUiLCJzY29wZSI6WyJwcm9maWxlIl0sImFjY2Vzc1Rva2VuIjpmYWxzZSwiaWRUb2tlbiI6dHJ1ZSwidXNlckluZm8iOnRydWV9LHsiY2xhaW1OYW1lIjoicHJlZmVycmVkX3VzZXJuYW1lIiwic291cmNlVHlwZSI6InVzZXJfZmllbGQiLCJzb3VyY2VWYWx1ZSI6InVzZXJuYW1lIiwic2NvcGUiOlsicHJvZmlsZSJdLCJhY2Nlc3NUb2tlbiI6ZmFsc2UsImlkVG9rZW4iOnRydWUsInVzZXJJbmZvIjp0cnVlfSx7ImNsYWltTmFtZSI6ImxvY2FsZSIsInNvdXJjZVR5cGUiOiJ1c2VyX2ZpZWxkIiwic291cmNlVmFsdWUiOiJsb2NhbGUiLCJzY29wZSI6WyJwcm9maWxlIl0sImFjY2Vzc1Rva2VuIjpmYWxzZSwiaWRUb2tlbiI6dHJ1ZSwidXNlckluZm8iOnRydWV9LHsiY2xhaW1OYW1lIjoicGljdHVyZSIsInNvdXJjZVR5cGUiOiJ1c2VyX2ZpZWxkIiwic291cmNlVmFsdWUiOiJwaWN0dXJlIiwic2NvcGUiOlsicHJvZmlsZSJdLCJhY2Nlc3NUb2tlbiI6ZmFsc2UsImlkVG9rZW4iOnRydWUsInVzZXJJbmZvIjp0cnVlfSx7ImNsYWltTmFtZSI6Imdyb3VwcyIsInNvdXJjZVR5cGUiOiJ1c2VyX2ZpZWxkIiwic291cmNlVmFsdWUiOiJncm91cHMiLCJzY29wZSI6WyJncm91cHMiXSwiYWNjZXNzVG9rZW4iOmZhbHNlLCJpZFRva2VuIjp0cnVlLCJ1c2VySW5mbyI6dHJ1ZX0seyJjbGFpbU5hbWUiOiIqIiwic291cmNlVHlwZSI6ImN1c3RvbV9jbGFpbSIsInNvdXJjZVZhbHVlIjoiKiIsInNjb3BlIjpbInByb2ZpbGUiXSwiYWNjZXNzVG9rZW4iOmZhbHNlLCJpZFRva2VuIjp0cnVlLCJ1c2VySW5mbyI6dHJ1ZX1d"
+			}
+		],
 		"oidc_clients": [
 			{
 				"access_token_duration_minutes": 60,
@@ -130,7 +140,8 @@
 				"requires_pushed_authorization_requests": false,
 				"requires_reauthentication": false,
 				"refresh_token_duration_minutes": 43200,
-				"skip_consent": false
+				"skip_consent": false,
+				"claim_mapping_policy_id": null
 			},
 			{
 				"access_token_duration_minutes": 60,
@@ -156,7 +167,8 @@
 				"requires_pushed_authorization_requests": false,
 				"requires_reauthentication": false,
 				"refresh_token_duration_minutes": 43200,
-				"skip_consent": false
+				"skip_consent": false,
+				"claim_mapping_policy_id": null
 			},
 			{
 				"access_token_duration_minutes": 60,
@@ -182,7 +194,8 @@
 				"requires_pushed_authorization_requests": false,
 				"requires_reauthentication": false,
 				"refresh_token_duration_minutes": 43200,
-				"skip_consent": false
+				"skip_consent": false,
+				"claim_mapping_policy_id": null
 			},
 			{
 				"access_token_duration_minutes": 60,
@@ -208,7 +221,8 @@
 				"requires_pushed_authorization_requests": false,
 				"requires_reauthentication": false,
 				"refresh_token_duration_minutes": 43200,
-				"skip_consent": false
+				"skip_consent": false,
+				"claim_mapping_policy_id": null
 			},
 			{
 				"access_token_duration_minutes": 60,
@@ -234,7 +248,8 @@
 				"requires_reauthentication": false,
 				"refresh_token_duration_minutes": 43200,
 				"skip_consent": false,
-				"credentials": "eyJzZWNyZXRzIjpbeyJpZCI6IjJmMWI4ZjFhLTFkM2UtNGYwYy05YzFhLTAwMDAwMDAwMDAwNSIsImFsZyI6InNoYTI1NiIsImhhc2giOiJiZWM3ZjA4YTI4MDhlZmNkYmU2ZmIwYjFmM2EwZjFhMDFjNjYwMGQxMTc1MjYyOTNjMTlhOWRlZDNkOGVjMGZiIiwicHJlZml4IjoiblFiaSIsImNyZWF0ZWRBdCI6IjIwMjUtMTEtMjVUMTI6Mzk6MDJaIn1dfQ=="
+				"credentials": "eyJzZWNyZXRzIjpbeyJpZCI6IjJmMWI4ZjFhLTFkM2UtNGYwYy05YzFhLTAwMDAwMDAwMDAwNSIsImFsZyI6InNoYTI1NiIsImhhc2giOiJiZWM3ZjA4YTI4MDhlZmNkYmU2ZmIwYjFmM2EwZjFhMDFjNjYwMGQxMTc1MjYyOTNjMTlhOWRlZDNkOGVjMGZiIiwicHJlZml4IjoiblFiaSIsImNyZWF0ZWRBdCI6IjIwMjUtMTEtMjVUMTI6Mzk6MDJaIn1dfQ==",
+				"claim_mapping_policy_id": null
 			},
 			{
 				"access_token_duration_minutes": 60,
@@ -260,7 +275,8 @@
 				"requires_pushed_authorization_requests": false,
 				"requires_reauthentication": false,
 				"refresh_token_duration_minutes": 43200,
-				"skip_consent": false
+				"skip_consent": false,
+				"claim_mapping_policy_id": null
 			},
 			{
 				"access_token_duration_minutes": 60,
@@ -286,7 +302,8 @@
 				"requires_pushed_authorization_requests": false,
 				"requires_reauthentication": false,
 				"refresh_token_duration_minutes": 43200,
-				"skip_consent": true
+				"skip_consent": true,
+				"claim_mapping_policy_id": null
 			}
 		],
 		"oidc_clients_allowed_user_groups": [

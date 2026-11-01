@@ -13,7 +13,7 @@
 <div
 	bind:this={ref}
 	data-slot="empty-header"
-	class={cn('flex max-w-sm flex-col items-center gap-2', className)}
+	class={cn('flex flex-col items-start gap-2', className)}
 	{...restProps}
 >
 	{@render children?.()}

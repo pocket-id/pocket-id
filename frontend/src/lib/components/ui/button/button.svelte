@@ -3,33 +3,39 @@
 	import type { HTMLAnchorAttributes, HTMLButtonAttributes } from 'svelte/elements';
 	import { type VariantProps, tv } from 'tailwind-variants';
 
+	const accentWash = 'bg-primary/12 text-fg before:bg-primary/6';
+
 	export const buttonVariants = tv({
-		base: "focus-visible:border-ring focus-visible:ring-ring/30 aria-invalid:ring-destructive/20 dark:aria-invalid:ring-destructive/40 aria-invalid:border-destructive dark:aria-invalid:border-destructive/50 rounded-4xl border border-transparent bg-clip-padding text-sm font-medium focus-visible:ring-3 active:not-aria-[haspopup]:translate-y-px aria-invalid:ring-3 [&_svg:not([class*='size-'])]:size-4 group/button inline-flex shrink-0 items-center justify-center whitespace-nowrap transition-all outline-none select-none disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:shrink-0",
+		base: "group/button relative isolate inline-flex shrink-0 items-center justify-center gap-2 rounded-sm text-control font-medium whitespace-nowrap select-none transition-motion before:absolute before:inset-0 before:-z-1 before:rounded-[inherit] before:opacity-0 before:transition-opacity before:duration-(--dur-fast) before:ease-out hover:not-disabled:before:opacity-100 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring active:not-disabled:scale-(--press-scale) disabled:cursor-not-allowed disabled:opacity-45 aria-disabled:pointer-events-none aria-disabled:opacity-45 aria-busy:cursor-progress aria-busy:opacity-100 aria-expanded:before:opacity-100 [&_svg]:pointer-events-none [&_svg]:shrink-0 [&_svg:not([class*='size-'])]:size-4",
 		variants: {
 			variant: {
-				default: 'bg-primary text-primary-foreground hover:bg-primary/80',
-				outline:
-					'border-border bg-background hover:bg-muted hover:text-foreground dark:hover:bg-input/30 aria-expanded:bg-muted aria-expanded:text-foreground dark:bg-transparent',
-				secondary:
-					'bg-secondary text-secondary-foreground hover:bg-secondary/80 aria-expanded:bg-secondary aria-expanded:text-secondary-foreground',
-				ghost:
-					'hover:bg-muted hover:text-foreground dark:hover:bg-muted/50 aria-expanded:bg-muted aria-expanded:text-foreground',
-				destructive:
-					'bg-destructive/10 hover:bg-destructive/20 focus-visible:ring-destructive/20 dark:focus-visible:ring-destructive/40 dark:bg-destructive/20 text-destructive focus-visible:border-destructive/40 dark:hover:bg-destructive/30',
-				link: 'text-primary underline-offset-4 hover:underline'
+				default:
+					'bg-primary text-primary-foreground shadow-[inset_0_0_0_1px_var(--primary-edge)] before:bg-primary-hover',
+				secondary: accentWash,
+				outline: accentWash,
+				ghost: 'text-fg before:bg-fill-hover',
+				destructive: 'bg-danger-fill text-danger-fill-fg before:bg-danger-fill-hover',
+				inverse:
+					'bg-inverse-fg text-inverse before:bg-[color-mix(in_srgb,var(--inverse-fg)_88%,var(--inverse))] focus-visible:outline-inverse-fg',
+				link: 'text-fg before:hidden hover:text-fg-muted active:not-disabled:scale-100'
 			},
 			size: {
-				default:
-					'h-9.5 gap-1.5 px-3 has-data-[icon=inline-end]:pr-2.5 has-data-[icon=inline-start]:pl-2.5',
-				xs: "h-6 gap-1 px-2.5 text-xs has-data-[icon=inline-end]:pr-2 has-data-[icon=inline-start]:pl-2 [&_svg:not([class*='size-'])]:size-3",
-				sm: 'h-8 gap-1 px-3 has-data-[icon=inline-end]:pr-2 has-data-[icon=inline-start]:pl-2',
-				lg: 'h-10 gap-1.5 px-4 has-data-[icon=inline-end]:pr-3 has-data-[icon=inline-start]:pl-3',
-				icon: 'size-9.5',
-				'icon-xs': "size-6 [&_svg:not([class*='size-'])]:size-3",
-				'icon-sm': 'size-8',
-				'icon-lg': 'size-10'
+				default: 'h-(--h-md) px-4',
+				sm: "h-(--h-sm) px-3 [&_svg:not([class*='size-'])]:size-3.5",
+				icon: 'size-(--h-md)',
+				'icon-sm': 'size-(--h-sm)',
+				'icon-xs': "size-(--h-xs) [&_svg:not([class*='size-'])]:size-3.5"
 			}
 		},
+		compoundVariants: [
+			{ variant: 'link', class: 'h-auto px-0' },
+			{
+				variant: 'ghost',
+				size: ['icon', 'icon-sm', 'icon-xs'],
+				class:
+					'text-fg-muted hover:text-fg aria-expanded:text-fg aria-expanded:before:bg-fill-selected'
+			}
+		],
 		defaultVariants: {
 			variant: 'default',
 			size: 'default'
@@ -112,18 +118,27 @@
 		class={cn(buttonVariants({ variant, size }), className)}
 		{type}
 		disabled={disabled || isLoading}
+		aria-busy={isLoading || undefined}
 		onclick={handleOnClick}
 		{...restProps}
 	>
-		<span class="flex w-full items-center justify-center">
+		<!-- Label and spinner share one grid cell, so the width never changes while busy -->
+		<!-- Both spans may shrink below their content, so a truncating label can end at the button's edge -->
+		<span class="inline-grid max-w-full min-w-0 place-items-center">
+			<span
+				class={cn(
+					'col-start-1 row-start-1 inline-flex max-w-full min-w-0 items-center justify-center gap-2 transition-opacity duration-(--dur-fast) ease-out',
+					isLoading && 'opacity-0'
+				)}
+			>
+				{@render children?.()}
+			</span>
 			<Spinner
 				class={cn(
-					'grid overflow-hidden transition-[width,opacity,margin-right] duration-400 ease-[linear(0,0.897_14.4%,1.311_31.2%,1.338_46%,1.054_80.4%,1)]',
-					isLoading ? 'mr-2 w-4 opacity-100' : 'w-0 opacity-0'
+					'col-start-1 row-start-1 size-3.5 transition-opacity duration-(--dur-fast) ease-out',
+					isLoading ? 'delay-60' : 'opacity-0 [animation-play-state:paused]'
 				)}
-				aria-hidden={!isLoading}
 			/>
-			{@render children?.()}
 		</span>
 	</button>
 {/if}

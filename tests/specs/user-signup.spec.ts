@@ -5,18 +5,22 @@ import { cleanupBackend } from '../utils/cleanup.util';
 import passkeyUtil from '../utils/passkey.util';
 import { saveUnsavedChanges } from '../utils/unsaved-changes.util';
 
+const signupModeOptions = {
+	Disabled: 'Only admins',
+	'Signup with token': 'People with a signup token',
+	'Open Signup': 'Anyone'
+};
+
 async function setSignupMode(
 	page: Page,
 	mode: 'Disabled' | 'Signup with token' | 'Open Signup',
 	signout = true
 ) {
-	await page.goto('/settings/admin/application-configuration');
+	await page.goto('/settings/admin/application-configuration/signup');
 
-	await page.getByRole('tab', { name: 'User Creation' }).click();
-	const signupMode = page.getByRole('button', { name: 'Enable User Signups' });
-	if (!(await signupMode.textContent())?.includes(mode)) {
-		await signupMode.click();
-		await page.getByRole('option', { name: mode }).click();
+	const option = page.getByRole('radio', { name: new RegExp(`^${signupModeOptions[mode]}`) });
+	if (!(await option.isChecked())) {
+		await option.click();
 		await saveUnsavedChanges(page);
 	}
 
@@ -35,33 +39,29 @@ test.describe('Signup Token Creation', () => {
 	test('Create signup token', async ({ page }) => {
 		await page.goto('/settings/admin/users');
 
-		await page.getByRole('button', { name: 'Create options' }).click();
-		await page.getByRole('menuitem', { name: 'Create Signup Token' }).click();
-		await page.getByLabel('Expiration').click();
-		await page.getByRole('option', { name: 'week' }).click();
+		await page.getByRole('button', { name: 'Signup tokens' }).click();
+		const sheet = page.getByRole('dialog', { name: 'Signup tokens' });
+		await sheet.getByRole('button', { name: 'Create signup token' }).click();
 
-		await page.getByLabel('Usage Limit').fill('8');
+		await page.getByLabel('Expires after').click();
+		await page.getByRole('option', { name: '1 week' }).click();
 
-		await page.getByLabel('User Groups').click();
-		await page.getByRole('option', { name: userGroups.developers.name }).click();
-		await page.getByRole('option', { name: userGroups.designers.name }).click();
-		await page.getByLabel('User Groups').click();
+		await page.getByLabel('Usage limit').fill('8');
 
-		await page.getByRole('button', { name: 'Create', exact: true }).click();
-		await page.getByRole('button', { name: 'Close' }).click();
+		await page.getByLabel('Groups').click();
+		await page.getByRole('option', { name: userGroups.developers.friendlyName }).click();
+		await page.getByRole('option', { name: userGroups.designers.friendlyName }).click();
+		await page.getByLabel('Groups').click();
 
-		await page.getByRole('button', { name: 'Create options' }).click();
-		await page.getByRole('menuitem', { name: 'View Active Signup Tokens' }).click();
-		await page.getByLabel('Manage Signup Tokens').getByRole('button', { name: 'View' }).click();
+		await page.getByRole('button', { name: 'Create signup token' }).click();
+		await expect(page.getByRole('dialog', { name: 'Signup token created' })).toBeVisible();
+		await expect(page.getByTestId('signup-token-link')).toContainText('/st/');
+		await page.getByRole('button', { name: 'Done' }).click();
 
-		await page.getByRole('menuitemcheckbox', { name: 'User Groups' }).click();
-
-		const row = page.getByRole('row').last();
-		await expect(row.getByRole('cell', { name: '0 of 8' })).toBeVisible();
-		const dateInAWeek = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toLocaleDateString('en-US');
-		await expect(row.getByRole('cell', { name: dateInAWeek })).toBeVisible();
-		await expect(row.getByRole('cell', { name: userGroups.developers.name })).toBeVisible();
-		await expect(row.getByRole('cell', { name: userGroups.designers.name })).toBeVisible();
+		const row = page.getByRole('dialog', { name: 'Signup tokens' }).getByText('0 of 8 used');
+		await expect(row).toBeVisible();
+		await expect(row).toContainText(userGroups.developers.friendlyName);
+		await expect(row).toContainText(userGroups.designers.friendlyName);
 	});
 });
 
@@ -77,9 +77,21 @@ test.describe('Initial User Signup', () => {
 		await page.getByLabel('Last name').fill('Smith');
 		await page.getByLabel('Username').fill('janesmith');
 		await page.getByLabel('Email').fill('jane.smith@test.com');
-		await page.getByRole('button', { name: 'Sign Up' }).click();
+		await page.getByRole('button', { name: 'Create admin account' }).click();
+
+		// The new admin picks the optional features before adding a passkey
+		await page.waitForURL('/signup/welcome');
+		await expect(
+			page.getByRole('heading', { name: 'Which features do you want to enable?' })
+		).toBeVisible();
+		await page.getByRole('checkbox', { name: /^APIs/ }).click();
+		await page.getByRole('button', { name: 'Continue' }).click();
+
 		await page.waitForURL('/signup/add-passkey');
-		await expect(page.getByRole('heading', { name: 'Set up your passkey' })).toBeVisible();
+		await expect(page.getByRole('heading', { name: 'Add a passkey' })).toBeVisible();
+		const features = await (await page.request.get('/api/features')).json();
+		expect(features.apis.enabled).toBe(true);
+		expect(features.apiKeys.enabled).toBe(false);
 	});
 
 	test('Initial Signup - concurrent requests create one administrator', async ({ request }) => {
@@ -116,8 +128,8 @@ test.describe('Initial User Signup', () => {
 	test('Initial Signup - setup route unavailable after completion', async ({ page }) => {
 		await cleanupBackend();
 		await page.goto('/setup');
-		await expect(page.getByText('Not found')).toBeVisible();
-		await expect(page.getByRole('button', { name: 'Sign Up' })).not.toBeVisible();
+		await expect(page.getByText('This page doesn’t exist.')).toBeVisible();
+		await expect(page.getByRole('button', { name: 'Create admin account' })).not.toBeVisible();
 	});
 });
 
@@ -130,7 +142,7 @@ test.describe('User Signup', () => {
 
 			await page.goto('/signup');
 
-			await expect(page.getByText('User signups are currently disabled')).toBeVisible();
+			await expect(page.getByRole('heading', { name: 'Sign-ups are closed' })).toBeVisible();
 		});
 
 		test('Signup with token - success flow', async ({ page }) => {
@@ -143,10 +155,10 @@ test.describe('User Signup', () => {
 			await page.getByLabel('Username').fill('johndoe');
 			await page.getByLabel('Email').fill('john.doe@test.com');
 
-			await page.getByRole('button', { name: 'Sign Up' }).click();
+			await page.getByRole('button', { name: 'Create account' }).click();
 
 			await page.waitForURL('/signup/add-passkey');
-			await expect(page.getByRole('heading', { name: 'Set up your passkey' })).toBeVisible();
+			await expect(page.getByRole('heading', { name: 'Add a passkey' })).toBeVisible();
 
 			const response = await page.request.get('/api/users/me').then((res) => res.json());
 			expect(response.userGroups.map((g) => g.id)).toContain(userGroups.developers.id);
@@ -160,9 +172,9 @@ test.describe('User Signup', () => {
 			await page.getByLabel('Last name').fill('User');
 			await page.getByLabel('Username').fill('completeuser');
 			await page.getByLabel('Email').fill('complete.user@test.com');
-			await page.getByRole('button', { name: 'Sign Up' }).click();
+			await page.getByRole('button', { name: 'Create account' }).click();
 
-			await expect(page.getByText('Token is invalid or expired.')).toBeVisible();
+			await expect(page.getByText('Token is invalid or expired', { exact: true })).toBeVisible();
 		});
 
 		test('Signup with token - no token in URL shows error', async ({ page }) => {
@@ -170,9 +182,7 @@ test.describe('User Signup', () => {
 
 			await page.goto('/signup');
 
-			await expect(
-				page.getByText('A valid signup token is required to create an account.')
-			).toBeVisible();
+			await expect(page.getByRole('heading', { name: 'Sign-ups are invite-only' })).toBeVisible();
 		});
 
 		test('Open signup - success flow', async ({ page }) => {
@@ -180,17 +190,17 @@ test.describe('User Signup', () => {
 
 			await page.goto('/signup');
 
-			await expect(page.getByText('Create your account to get started')).toBeVisible();
+			await expect(page.getByText('You’ll add a passkey next.')).toBeVisible();
 
 			await page.getByLabel('First name').fill('Jane');
 			await page.getByLabel('Last name').fill('Smith');
 			await page.getByLabel('Username').fill('janesmith');
 			await page.getByLabel('Email').fill('jane.smith@test.com');
 
-			await page.getByRole('button', { name: 'Sign Up' }).click();
+			await page.getByRole('button', { name: 'Create account' }).click();
 
 			await page.waitForURL('/signup/add-passkey');
-			await expect(page.getByRole('heading', { name: 'Set up your passkey' })).toBeVisible();
+			await expect(page.getByRole('heading', { name: 'Add a passkey' })).toBeVisible();
 		});
 
 		test('Open signup - validation errors', async ({ page }) => {
@@ -198,9 +208,10 @@ test.describe('User Signup', () => {
 
 			await page.goto('/signup');
 
-			await page.getByRole('button', { name: 'Sign Up' }).click();
+			await page.getByLabel('Email').fill('not-an-email');
+			await page.getByRole('button', { name: 'Create account' }).click();
 
-			await expect(page.getByText('Invalid email address').first()).toBeVisible();
+			await expect(page.getByText('Enter a valid email address')).toBeVisible();
 		});
 
 		test('Open signup - duplicate email shows error', async ({ page }) => {
@@ -213,9 +224,9 @@ test.describe('User Signup', () => {
 			await page.getByLabel('Username').fill('testuser123');
 			await page.getByLabel('Email').fill(users.tim.email);
 
-			await page.getByRole('button', { name: 'Sign Up' }).click();
+			await page.getByRole('button', { name: 'Create account' }).click();
 
-			await expect(page.getByText('Email is already in use.')).toBeVisible();
+			await expect(page.getByText('Email is already in use', { exact: true })).toBeVisible();
 		});
 
 		test('Open signup - duplicate username shows error', async ({ page }) => {
@@ -228,9 +239,9 @@ test.describe('User Signup', () => {
 			await page.getByLabel('Username').fill(users.tim.username);
 			await page.getByLabel('Email').fill('newuser@test.com');
 
-			await page.getByRole('button', { name: 'Sign Up' }).click();
+			await page.getByRole('button', { name: 'Create account' }).click();
 
-			await expect(page.getByText('Username is already in use.')).toBeVisible();
+			await expect(page.getByText('Username is already in use', { exact: true })).toBeVisible();
 		});
 
 		test('Complete signup flow with passkey creation', async ({ page }) => {
@@ -241,15 +252,15 @@ test.describe('User Signup', () => {
 			await page.getByLabel('Last name').fill('User');
 			await page.getByLabel('Username').fill('completeuser');
 			await page.getByLabel('Email').fill('complete.user@test.com');
-			await page.getByRole('button', { name: 'Sign Up' }).click();
+			await page.getByRole('button', { name: 'Create account' }).click();
 
 			await page.waitForURL('/signup/add-passkey');
 
 			await (await passkeyUtil.init(page)).addPasskey('timNew');
-			await page.getByRole('button', { name: 'Add Passkey' }).click();
+			await page.getByRole('button', { name: 'Add passkey' }).click();
 
 			await page.waitForURL('/settings/account');
-			await expect(page.getByText('Single Passkey Configured')).toBeVisible();
+			await expect(page.getByText('Add a backup passkey')).toBeVisible();
 		});
 
 		test('Dismiss passkey setup during signup for one day', async ({ page }) => {
@@ -260,18 +271,18 @@ test.describe('User Signup', () => {
 			await page.getByLabel('Last name').fill('User');
 			await page.getByLabel('Username').fill('skipuser');
 			await page.getByLabel('Email').fill('skip.user@test.com');
-			await page.getByRole('button', { name: 'Sign Up' }).click();
+			await page.getByRole('button', { name: 'Create account' }).click();
 
 			await page.waitForURL('/signup/add-passkey');
-			await expect(page.getByRole('heading', { name: 'Set up your passkey' })).toBeVisible();
+			await expect(page.getByRole('heading', { name: 'Add a passkey' })).toBeVisible();
 
 			// Cancelling the confirmation must keep passkey setup open
 			await page.getByRole('button', { name: 'Skip for now' }).click();
-			const dialog = page.getByRole('alertdialog', { name: 'Skip Passkey Setup' });
+			const dialog = page.getByRole('alertdialog', { name: 'Skip adding a passkey?' });
 			await dialog.getByRole('button', { name: 'Cancel' }).click();
 			await page.reload();
 			await expect(page).toHaveURL('/signup/add-passkey');
-			await expect(page.getByRole('heading', { name: 'Set up your passkey' })).toBeVisible();
+			await expect(page.getByRole('heading', { name: 'Add a passkey' })).toBeVisible();
 
 			// Confirming dismissal allows settings access without creating a passkey
 			const dismissedAt = Date.now();
@@ -280,21 +291,22 @@ test.describe('User Signup', () => {
 			await dialog.getByRole('button', { name: 'Skip for now' }).click();
 
 			await page.waitForURL('/settings/account');
-			await expect(page.getByText('Passkey missing')).toBeVisible();
+			await expect(page.getByRole('button', { name: 'Add passkey' })).toBeVisible();
+			await expect(page.getByRole('list', { name: 'Passkeys' })).toHaveCount(0);
 			await page.reload();
 			await expect(page).toHaveURL('/settings/account');
-			await expect(page.getByText('Passkey missing')).toBeVisible();
+			await expect(page.getByRole('button', { name: 'Add passkey' })).toBeVisible();
 
 			// Dismissal persists across settings pages until the one-day grace period expires
 			await page.clock.setFixedTime(dismissedAt + 24 * 60 * 60 * 1000 - 1000);
 			await page.goto('/settings/apps');
 			await expect(page).toHaveURL('/settings/apps');
-			await expect(page.getByRole('heading', { name: 'Set up your passkey' })).not.toBeVisible();
+			await expect(page.getByRole('heading', { name: 'Add a passkey' })).not.toBeVisible();
 
 			await page.clock.setFixedTime(dismissedAt + 24 * 60 * 60 * 1000);
 			await page.reload();
 			await expect(page).toHaveURL('/signup/add-passkey');
-			await expect(page.getByRole('heading', { name: 'Set up your passkey' })).toBeVisible();
+			await expect(page.getByRole('heading', { name: 'Add a passkey' })).toBeVisible();
 		});
 
 		test('Open signup with required email verification restricts the new account', async ({
@@ -313,12 +325,12 @@ test.describe('User Signup', () => {
 			await page.getByLabel('Last name').fill('User');
 			await page.getByLabel('Username').fill('pendinguser');
 			await page.getByLabel('Email').fill('pending.user@test.com');
-			await page.getByRole('button', { name: 'Sign Up' }).click();
+			await page.getByRole('button', { name: 'Create account' }).click();
 
 			await page.waitForURL('/signup/add-passkey');
 			await page.getByRole('button', { name: 'Skip for now' }).click();
 			await page
-				.getByRole('alertdialog', { name: 'Skip Passkey Setup' })
+				.getByRole('alertdialog', { name: 'Skip adding a passkey?' })
 				.getByRole('button', { name: 'Skip for now' })
 				.click();
 
@@ -338,9 +350,9 @@ test.describe('User Signup', () => {
 			await page.getByLabel('Last name').fill('User');
 			await page.getByLabel('Username').fill('completeuser');
 			await page.getByLabel('Email').fill('complete.user@test.com');
-			await page.getByRole('button', { name: 'Sign Up' }).click();
+			await page.getByRole('button', { name: 'Create account' }).click();
 
-			await expect(page.getByText('Token is invalid or expired.')).toBeVisible();
+			await expect(page.getByText('Token is invalid or expired', { exact: true })).toBeVisible();
 		});
 	});
 });

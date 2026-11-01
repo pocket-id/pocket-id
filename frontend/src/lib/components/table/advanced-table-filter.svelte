@@ -1,130 +1,63 @@
 <script lang="ts">
-	import { Badge } from '#lib/components/ui/badge/index.js';
 	import { Button } from '#lib/components/ui/button/index.js';
-	import * as Command from '#lib/components/ui/command/index.js';
-	import * as Popover from '#lib/components/ui/popover/index.js';
-	import { Separator } from '#lib/components/ui/separator/index.js';
+	import * as Select from '#lib/components/ui/select/index.js';
 	import { m } from '#lib/paraglide/messages.js';
-	import { cn } from '#lib/utils/style.ts';
-	import CheckIcon from '@lucide/svelte/icons/check';
-	import ListFilterIcon from '@lucide/svelte/icons/list-filter';
-	import type { Component } from 'svelte';
+	import XIcon from '@lucide/svelte/icons/x';
 
 	let {
 		title,
 		options,
-		selectedValues = new Set<string | boolean>(),
-		showCheckboxes = true,
-		onChanged = () => {}
+		value,
+		onChange
 	}: {
 		title: string;
-		options: {
-			label: string;
-			value: string | boolean;
-			icon?: Component;
-		}[];
-		selectedValues?: Set<string | boolean>;
-		showCheckboxes?: boolean;
-		onChanged?: (selected: Set<string | boolean>) => void;
+		options: { label: string; value: string | boolean }[];
+		value?: string | boolean;
+		onChange: (value?: string | boolean) => void;
 	} = $props();
 
-	let open = $state(false);
+	// Select values are strings, so "Any" needs a sentinel that no option value uses
+	const ANY = '__any';
+
+	const testId = $derived(`facet-${title.toLowerCase()}`);
+	const selected = $derived(options.find((o) => o.value === value));
+	const valueLabel = $derived(selected?.label ?? m.any());
 </script>
 
-<Popover.Root bind:open>
-	<Popover.Trigger>
-		{#snippet child({ props })}
-			<Button
-				{...props}
-				variant="outline"
-				size="sm"
-				class="order-dashed"
-				data-testid={`facet-${title.toLowerCase()}-trigger`}
-			>
-				<span class="flex items-center gap-2">
-					<ListFilterIcon />
-					{title}
-				</span>
-				{#if selectedValues.size > 0}
-					<Separator orientation="vertical" class="mx-2 h-4" />
-					<Badge variant="secondary" class="rounded-sm px-1 font-normal lg:hidden">
-						{selectedValues.size}
-					</Badge>
-					<div class="hidden space-x-1 lg:flex">
-						{#if selectedValues.size > 2}
-							<Badge variant="secondary" class="rounded-sm px-1 font-normal">
-								Count: {selectedValues.size}
-							</Badge>
-						{:else}
-							{#each options.filter((opt) => selectedValues.has(opt.value)) as option (option)}
-								<Badge variant="secondary" class="rounded-sm px-1 font-normal">
-									{option.label}
-								</Badge>
-							{/each}
-						{/if}
-					</div>
-				{/if}
-			</Button>
-		{/snippet}
-	</Popover.Trigger>
-	<Popover.Content
-		class="w-[200px] p-0"
-		align="start"
-		data-testid={`facet-${title.toLowerCase()}-content`}
+<span class="inline-flex shrink-0 items-center gap-0.5">
+	<Select.Root
+		type="single"
+		value={selected ? String(selected.value) : ANY}
+		onValueChange={(v) => onChange(options.find((o) => String(o.value) === v)?.value)}
 	>
-		<Command.Root>
-			<Command.List>
-				<Command.Empty>{m.no_items_found()}</Command.Empty>
-				<Command.Group>
-					{#each options as option (option)}
-						{@const isSelected = selectedValues.has(option.value)}
-						<Command.Item
-							data-testid={`facet-${title.toLowerCase()}-option-${String(option.value)}`}
-							onSelect={() => {
-								if (isSelected) {
-									selectedValues = new Set([...selectedValues].filter((v) => v !== option.value));
-								} else {
-									selectedValues = new Set([...selectedValues, option.value]);
-								}
-								onChanged(selectedValues);
-							}}
-						>
-							{#if showCheckboxes}
-								<div
-									class={cn(
-										'border-primary mr-2 flex size-4 items-center justify-center rounded-sm border',
-										isSelected
-											? 'bg-primary text-primary-foreground'
-											: 'opacity-50 [&_svg]:invisible'
-									)}
-								>
-									<CheckIcon class="size-4" />
-								</div>
-							{/if}
-							{#if option.icon}
-								{@const Icon = option.icon}
-								<Icon class="text-muted-foreground" />
-							{/if}
-
-							<span>{option.label}</span>
-						</Command.Item>
-					{/each}
-				</Command.Group>
-				{#if selectedValues.size > 0}
-					<Command.Separator />
-					<Command.Group>
-						<Command.Item
-							onSelect={() => {
-								selectedValues = new Set();
-								onChanged(selectedValues);
-								open = false;
-							}}
-						>
-							{m.clear_filters()}
-						</Command.Item>
-					</Command.Group>
-				{/if}
-			</Command.List>
-		</Command.Root>
-	</Popover.Content>
-</Popover.Root>
+		<Select.Trigger
+			variant="ghost"
+			aria-label={m.facet_filter_label({ name: title, value: valueLabel })}
+			data-testid={`${testId}-trigger`}
+		>
+			<span class="text-fg-muted">{title}:</span>
+			<span class={selected ? 'text-fg font-medium' : 'text-fg-muted'}>{valueLabel}</span>
+		</Select.Trigger>
+		<Select.Content align="start">
+			<Select.Item value={ANY} label={m.any()} data-testid={`${testId}-option-any`} />
+			{#each options as option (option.value)}
+				<Select.Item
+					value={String(option.value)}
+					label={option.label}
+					data-testid={`${testId}-option-${String(option.value)}`}
+				/>
+			{/each}
+		</Select.Content>
+	</Select.Root>
+	{#if selected}
+		<Button
+			variant="ghost"
+			size="icon-xs"
+			class="size-5 max-sm:hidden"
+			aria-label={m.clear_name_filter({ name: title })}
+			onclick={() => onChange(undefined)}
+		>
+			<XIcon class="size-3" />
+		</Button>
+	{/if}
+</span>

@@ -1,38 +1,25 @@
 <script lang="ts">
 	import { cn } from '#lib/utils/style.ts';
 	import QRCode from 'qrcode';
-	import { onMount } from 'svelte';
 	import type { HTMLAttributes } from 'svelte/elements';
 
 	let canvasEl: HTMLCanvasElement | null;
 	let {
 		value,
 		size = 200,
-		color = '#000000',
-		backgroundColor = 'transparent',
 		...restProps
 	}: HTMLAttributes<HTMLCanvasElement> & {
 		value: string | null;
 		size?: number;
-		color?: string;
-		backgroundColor?: string;
 	} = $props();
 
-	onMount(() => {
+	$effect(() => {
 		if (value && canvasEl) {
-			// Convert "transparent" to a valid value for the QR code library
-			const lightColor = backgroundColor === 'transparent' ? '#00000000' : backgroundColor;
-
-			const options = {
+			QRCode.toCanvas(canvasEl, value, {
 				width: size,
 				margin: 0,
-				color: {
-					dark: color,
-					light: lightColor
-				}
-			};
-
-			QRCode.toCanvas(canvasEl, value, options)
+				color: { dark: '#121212', light: '#ffffff' }
+			})
 				.then(() => {
 					canvasEl?.style.removeProperty('height');
 					canvasEl?.style.removeProperty('width');
@@ -44,4 +31,9 @@
 	});
 </script>
 
-<canvas {...restProps} bind:this={canvasEl} class={cn('rounded', restProps.class)}></canvas>
+<!-- Scanners need dark modules on a light quiet zone, so the code sits on a white tile in both themes -->
+<canvas
+	{...restProps}
+	bind:this={canvasEl}
+	class={cn('bg-qr-bg box-content rounded-md p-2', restProps.class)}
+></canvas>

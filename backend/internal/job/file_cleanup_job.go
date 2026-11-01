@@ -62,7 +62,7 @@ type FileCleanupJobs struct {
 	fileStorage storage.FileStorage
 }
 
-// ClearUnusedDefaultProfilePictures deletes default profile pictures that don't match any user's initials
+// ClearUnusedDefaultProfilePictures deletes default profile pictures that don't match any user's initials or were rendered by an earlier version
 func (j *FileCleanupJobs) clearUnusedDefaultProfilePictures(ctx context.Context) error {
 	var users []model.User
 	err := j.db.
@@ -73,10 +73,10 @@ func (j *FileCleanupJobs) clearUnusedDefaultProfilePictures(ctx context.Context)
 		return fmt.Errorf("failed to fetch users: %w", err)
 	}
 
-	// Create a map to track which initials are in use
-	initialsInUse := make(map[string]struct{})
+	// Create a map to track which pictures are in use
+	filesInUse := make(map[string]struct{})
 	for _, user := range users {
-		initialsInUse[profilepicture.Initials(user.FirstName, user.LastName, user.Username)] = struct{}{}
+		filesInUse[profilepicture.DefaultPictureFile(profilepicture.Initials(user.FirstName, user.LastName, user.Username))] = struct{}{}
 	}
 
 	defaultPicturesDir := path.Join("profile-pictures", "defaults")
@@ -91,10 +91,8 @@ func (j *FileCleanupJobs) clearUnusedDefaultProfilePictures(ctx context.Context)
 		if filename == "" {
 			continue
 		}
-		initials := strings.TrimSuffix(filename, ".png")
-
-		// If these initials aren't used by any user, delete the file
-		if _, ok := initialsInUse[initials]; !ok {
+		// If no user needs this picture, delete the file
+		if _, ok := filesInUse[filename]; !ok {
 			filePath := path.Join(defaultPicturesDir, filename)
 			err = j.fileStorage.Delete(ctx, filePath)
 			if err != nil {

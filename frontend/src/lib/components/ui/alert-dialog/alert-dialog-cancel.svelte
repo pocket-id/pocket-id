@@ -10,7 +10,7 @@
 	let {
 		ref = $bindable(null),
 		class: className,
-		variant = 'outline',
+		variant = 'ghost',
 		size = 'default',
 		...restProps
 	}: AlertDialogPrimitive.CancelProps & {
@@ -22,6 +22,6 @@
 <AlertDialogPrimitive.Cancel
 	bind:ref
 	data-slot="alert-dialog-cancel"
-	class={cn(buttonVariants({ variant, size }), 'cn-alert-dialog-cancel', className)}
+	class={cn(buttonVariants({ variant, size }), className)}
 	{...restProps}
 />

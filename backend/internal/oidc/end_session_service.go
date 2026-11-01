@@ -117,7 +117,7 @@ func (s *endSessionService) verifyIDTokenHint(tokenString string) (jwt.Token, er
 	// id_token_hint must be an ID token, never an access token (both are signed with the same
 	// key). An expired ID token is still accepted here, as required by OIDC RP-Initiated Logout.
 	tokenType, err := jwt.Get[string](token, common.TokenTypeClaim)
-	if err != nil || tokenType != idTokenType {
+	if err != nil || tokenType != string(IDTokenType) {
 		return nil, apperror.TokenInvalid()
 	}
 

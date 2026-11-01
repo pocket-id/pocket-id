@@ -1,83 +1,76 @@
 <script lang="ts">
+	import { goto } from '$app/navigation';
 	import { page } from '$app/state';
+	import AuthHeading from '#lib/components/auth/auth-heading.svelte';
+	import AuthTile from '#lib/components/auth/auth-tile.svelte';
+	import { authPrimaryClass, emailedLoginCode } from '#lib/components/auth/auth-util.ts';
+	import CodeLine from '#lib/components/auth/code-line.svelte';
 	import SignInWrapper from '#lib/components/login-wrapper.svelte';
 	import { Button } from '#lib/components/ui/button/index.ts';
-	import Input from '#lib/components/ui/input/input.svelte';
+	import { Input } from '#lib/components/ui/input/index.ts';
+	import { Label } from '#lib/components/ui/label/index.ts';
 	import { m } from '#lib/paraglide/messages.js';
 	import UserService from '#lib/services/user-service.ts';
-	import { preventDefault } from '#lib/utils/event-util.ts';
+	import appConfigStore from '#lib/stores/application-configuration-store.ts';
 	import { getAxiosErrorMessage } from '#lib/utils/error-util.ts';
-	import { fade } from 'svelte/transition';
-	import LoginLogoErrorSuccessIndicator from '../../components/login-logo-error-success-indicator.svelte';
+	import { preventDefault } from '#lib/utils/event-util.ts';
+	import { createForm } from '#lib/utils/form-util.ts';
+	import { z } from 'zod/v4';
 
 	const { data } = $props();
 
 	const userService = new UserService();
+	const { inputs, ...form } = createForm(
+		z.object({ email: z.email(m.auth_enter_a_full_email_address()) }),
+		{ email: emailedLoginCode.sentTo }
+	);
 
-	let email = $state('');
 	let isLoading = $state(false);
-	let error: string | undefined = $state(undefined);
-	let success = $state(false);
+	let error: string | undefined = $state();
 
 	async function requestEmail() {
+		const values = form.validate();
+		if (!values) return;
 		isLoading = true;
-		await userService
-			.requestOneTimeAccessEmailAsUnauthenticatedUser(email, data.redirect)
-			.then(() => (success = true))
-			.catch((e) => (error = getAxiosErrorMessage(e)));
-
+		error = undefined;
+		try {
+			await userService.requestOneTimeAccessEmailAsUnauthenticatedUser(values.email, data.redirect);
+			emailedLoginCode.sentTo = values.email;
+			await goto('/login/alternative/code' + page.url.search);
+		} catch (e) {
+			error = getAxiosErrorMessage(e);
+		}
 		isLoading = false;
 	}
 </script>
 
 <svelte:head>
-	<title>{m.email_login()}</title>
+	<title>{m.auth_get_a_login_code_by_email()}</title>
 </svelte:head>
 
-<SignInWrapper>
-	<div class="flex justify-center">
-		<LoginLogoErrorSuccessIndicator {success} error={!!error} />
-	</div>
-	<h1 class="font-gloock mt-5 text-3xl font-bold sm:text-4xl">{m.email_login()}</h1>
-	{#if error}
-		<p class="text-muted-foreground mt-2" in:fade>
-			{error}. {m.please_try_again()}
-		</p>
-		<div class="mt-10 flex justify-between gap-2">
-			<Button variant="secondary" class="flex-1" href="/">{m.go_back()}</Button>
-			<Button class="flex-1" onclick={() => (error = undefined)}>{m.try_again()}</Button>
-		</div>
-	{:else if success}
-		<p class="text-muted-foreground mt-2" in:fade>
-			{m.an_email_has_been_sent_to_the_provided_email_if_it_exists_in_the_system()}
-		</p>
-		<div class="mt-8 flex justify-between gap-2">
-			<Button variant="secondary" class="flex-1" href={'/login/alternative' + page.url.search}
-				>{m.go_back()}</Button
-			>
-			<Button class="flex-1" href={'/login/alternative/code' + page.url.search}
-				>{m.enter_code()}</Button
-			>
-		</div>
-	{:else}
-		<form onsubmit={preventDefault(requestEmail)} class="w-full max-w-[450px]">
-			<p class="text-muted-foreground mt-2" in:fade>
-				{m.enter_your_email_address_to_receive_an_email_with_a_login_code()}
-			</p>
-			<Input
-				id="Email"
-				class="mt-7"
-				placeholder={m.your_email()}
-				aria-label={m.email()}
-				bind:value={email}
-				type="email"
-			/>
-			<div class="mt-8 flex justify-between gap-2">
-				<Button variant="secondary" class="flex-1" href={'/login/alternative' + page.url.search}
-					>{m.go_back()}</Button
-				>
-				<Button class="flex-1" type="submit" {isLoading}>{m.submit()}</Button>
-			</div>
-		</form>
-	{/if}
+<SignInWrapper back={'/login/alternative' + page.url.search}>
+	<AuthTile />
+	<AuthHeading title={m.auth_get_a_login_code_by_email()} tone={error ? 'danger' : undefined}>
+		{error ?? m.auth_email_login_description({ appName: $appConfigStore.appName })}
+	</AuthHeading>
+	<form onsubmit={preventDefault(requestEmail)} class="flex flex-col" novalidate>
+		<Label for="email" class="mb-2">{m.email_address()}</Label>
+		<Input
+			id="email"
+			type="email"
+			autocomplete="email"
+			class="h-(--h-xl)"
+			bind:value={$inputs.email.value}
+			oninput={() => ($inputs.email.error = null)}
+			aria-invalid={!!$inputs.email.error}
+			aria-describedby="email-line"
+			autofocus
+		/>
+		<CodeLine id="email-line" tone={$inputs.email.error ? 'error' : undefined}>
+			{$inputs.email.error ?? m.auth_email_login_helper()}
+		</CodeLine>
+		<Button type="submit" class={authPrimaryClass + ' mt-6'} {isLoading}>
+			{error ? m.try_again() : m.auth_email_me_a_code()}
+		</Button>
+	</form>
 </SignInWrapper>

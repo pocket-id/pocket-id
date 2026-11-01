@@ -88,7 +88,7 @@ func centerSquare(img image.Image) image.Image {
 }
 
 var loadInitialsFont = sync.OnceValues(func() (*opentype.Font, error) {
-	fontBytes, err := resources.FS.ReadFile("fonts/Gloock.ttf")
+	fontBytes, err := resources.FS.ReadFile("fonts/FunnelDisplay-SemiBold.ttf")
 	if err != nil {
 		return nil, fmt.Errorf("failed to read font file: %w", err)
 	}
@@ -130,6 +130,12 @@ func canRenderInitials(initials string) bool {
 	return true
 }
 
+// DefaultPictureFile returns the cache file name of the default picture for the initials
+// The suffix changes whenever the rendering changes, so the cleanup job deletes pictures cached by an earlier version
+func DefaultPictureFile(initials string) string {
+	return initials + "-v3.png"
+}
+
 // CreateDefaultProfilePicture creates a profile picture with the initials
 func CreateDefaultProfilePicture(initials string) (*bytes.Buffer, error) {
 	// Create a blank image with a white background
@@ -142,7 +148,8 @@ func CreateDefaultProfilePicture(initials string) (*bytes.Buffer, error) {
 	}
 
 	// Create a font.Face with a specific size
-	fontSize := 160.0
+	// Clients often crop the picture to a circle, so the initials keep clear of its edge
+	fontSize := 120.0
 	face, err := opentype.NewFace(fontFace, &opentype.FaceOptions{
 		Size: fontSize,
 		DPI:  72,

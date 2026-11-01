@@ -13,10 +13,7 @@
 <div
 	bind:this={ref}
 	data-slot="empty-content"
-	class={cn(
-		'flex w-full max-w-sm min-w-0 flex-col items-center gap-4 text-sm text-balance',
-		className
-	)}
+	class={cn('flex w-full min-w-0 flex-wrap items-center gap-3', className)}
 	{...restProps}
 >
 	{@render children?.()}

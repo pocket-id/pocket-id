@@ -15,9 +15,11 @@
 	} = $props();
 
 	// Follows the hash on load and on later hash changes, so that links like `#credentials` elsewhere on the page can switch the tab
+	// Tab changes write the hash with a shallow goto, so when Back restores such an entry page.url has no hash and the browser's own hash is the fallback
 	$effect(() => {
-		if (useHash && page.url.hash) {
-			value = page.url.hash.substring(1);
+		const hash = page.url.hash || location.hash;
+		if (useHash && hash) {
+			value = hash.substring(1);
 		}
 	});
 

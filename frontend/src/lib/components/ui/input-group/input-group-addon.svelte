@@ -1,15 +1,13 @@
 <script lang="ts" module>
 	import { tv, type VariantProps } from 'tailwind-variants';
 	export const inputGroupAddonVariants = tv({
-		base: "text-muted-foreground **:data-[slot=kbd]:bg-muted-foreground/10 h-auto gap-2 py-2 text-sm font-medium group-data-[disabled=true]/input-group:opacity-50 **:data-[slot=kbd]:rounded-3xl **:data-[slot=kbd]:px-1.5 [&>svg:not([class*='size-'])]:size-4 flex cursor-text items-center justify-center select-none",
+		base: "flex h-auto cursor-text items-center justify-center gap-2 text-control text-fg-muted select-none group-data-[disabled=true]/input-group:opacity-45 [&>svg:not([class*='size-'])]:size-4",
 		variants: {
 			align: {
-				'inline-start': 'pl-3 has-[>button]:-ml-1 has-[>kbd]:-ml-1 order-first',
-				'inline-end': 'pr-3 has-[>button]:-mr-1 has-[>kbd]:-mr-1 order-last',
-				'block-start':
-					'px-3 pt-3 group-has-[>input]/input-group:pt-3.5 [.border-b]:pb-3.5 order-first w-full justify-start',
-				'block-end':
-					'px-3 pb-3 group-has-[>input]/input-group:pb-3.5 [.border-t]:pt-3.5 order-last w-full justify-start'
+				'inline-start': 'order-first pl-3 has-[>button]:pl-1',
+				'inline-end': 'order-last pr-3.5 has-[>button]:pr-1',
+				'block-start': 'order-first w-full justify-start px-3.5 pt-2.5',
+				'block-end': 'order-last w-full justify-start px-3.5 pb-2.5'
 			}
 		},
 		defaultVariants: {

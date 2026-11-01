@@ -19,6 +19,7 @@ import (
 	"gorm.io/gorm"
 
 	"github.com/pocket-id/pocket-id/backend/internal/appconfig"
+	"github.com/pocket-id/pocket-id/backend/internal/claimmappingpolicy"
 	"github.com/pocket-id/pocket-id/backend/internal/model"
 	datatype "github.com/pocket-id/pocket-id/backend/internal/model/types"
 	testutils "github.com/pocket-id/pocket-id/backend/internal/utils/testing"
@@ -38,6 +39,7 @@ func TestRefreshTokenRotationGrace(t *testing.T) {
 	for _, scenario := range []string{"retry", "concurrent", "reuse after grace", "expired token", "wrong client", "disabled user", "token revocation", "logout", "app revocation"} {
 		t.Run(scenario, func(t *testing.T) {
 			db := testutils.NewConcurrentDatabaseForTest(t)
+			require.NoError(t, claimmappingpolicy.Bootstrap(t.Context(), db))
 			store := NewStore(db, nil)
 			require.NoError(t, db.Create(&model.OidcClient{Base: model.Base{ID: clientID}, Name: "Grace client", IsPublic: true}).Error)
 			require.NoError(t, db.Create(&model.User{Base: model.Base{ID: userID}, Username: "grace"}).Error)
@@ -158,7 +160,8 @@ func TestRefreshTokenRotationGrace(t *testing.T) {
 func TestRefreshTokenGraceMigrationPreservesExistingSessions(t *testing.T) {
 	const previousVersion = 20260923183637
 	db := testutils.NewDatabaseForTestWithMigrationSeed(t, previousVersion, func(t *testing.T, db *gorm.DB) {
-		require.NoError(t, db.Create(&model.OidcClient{Base: model.Base{ID: "old-client"}, Name: "Old client"}).Error)
+		// The claim mapping policy column doesn't exist yet at this schema version
+		require.NoError(t, db.Omit("ClaimMappingPolicyId").Create(&model.OidcClient{Base: model.Base{ID: "old-client"}, Name: "Old client"}).Error)
 		require.NoError(t, db.Exec(`INSERT INTO oauth2_sessions (id, created_at, kind, key, request_id, client_id, active, request_data) VALUES ('old-refresh', 1, 'refresh_token', 'old-signature', 'old-request', 'old-client', false, '{}')`).Error)
 	})
 	var session OAuth2Session

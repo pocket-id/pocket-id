@@ -1,5 +1,6 @@
 <script lang="ts">
 	import { Calendar } from '#lib/components/ui/calendar/index.ts';
+	import { filledFieldClass } from '#lib/components/ui/input/index.ts';
 	import * as Popover from '#lib/components/ui/popover/index.ts';
 	import { m } from '#lib/paraglide/messages.js';
 	import { getLocale } from '#lib/paraglide/runtime.js';
@@ -8,6 +9,7 @@
 		CalendarDate,
 		DateFormatter,
 		getLocalTimeZone,
+		today,
 		type DateValue
 	} from '@internationalized/date';
 	import CalendarIcon from '@lucide/svelte/icons/calendar';
@@ -70,12 +72,13 @@
 				<button
 					{...props}
 					class={cn(
-						'bg-input/50 flex h-9 w-full items-center justify-start rounded-full p-3 font-normal',
-						!value && 'text-muted-foreground'
+						filledFieldClass,
+						'text-body flex h-(--h-md) w-full items-center gap-2 rounded-sm px-3.5 max-sm:text-[16px]',
+						!value && 'text-fg-muted'
 					)}
 					aria-label={m.select_a_date()}
 				>
-					<CalendarIcon class="mr-2 size-4" />
+					<CalendarIcon class="text-fg-muted size-4 shrink-0" />
 					{calendarDisplayDate
 						? df.format(calendarDisplayDate.toDate(getLocalTimeZone()))
 						: m.select_a_date()}
@@ -83,9 +86,11 @@
 			{/snippet}
 		</Popover.Trigger>
 		<Popover.Content class="w-auto p-0" align="start">
+			<!-- Every picked date is an expiry that takes effect at the start of that day, so today is already too late -->
 			<Calendar
 				type="single"
 				bind:value={() => calendarDisplayDate, (newValue) => handleCalendarInteraction(newValue)}
+				minValue={today(getLocalTimeZone()).add({ days: 1 })}
 				initialFocus
 			/>
 		</Popover.Content>

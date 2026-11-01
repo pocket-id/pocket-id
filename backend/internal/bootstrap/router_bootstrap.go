@@ -139,7 +139,10 @@ func registerGlobalMiddleware(r *gin.Engine) {
 
 func registerRoutes(r *gin.Engine, db *gorm.DB, svc *services, auth *authz.Middleware, rateLimitServices map[string]*ratelimit.RateLimitService) error {
 
-	err := frontend.RegisterFrontend(r)
+	err := frontend.RegisterFrontend(r, func(ctx context.Context) bool {
+		cfg, err := svc.appConfigService.GetConfig(ctx)
+		return err == nil && cfg.DisableAnimations.IsTrue()
+	})
 	if errors.Is(err, frontend.ErrFrontendNotIncluded) {
 		slog.Warn("Frontend is not included in the build. Skipping frontend registration.")
 	} else if err != nil {
@@ -172,6 +175,7 @@ func registerRoutes(r *gin.Engine, db *gorm.DB, svc *services, auth *authz.Middl
 	)
 	controller.NewOidcController(apiRouter, fileSizeLimitMiddleware, svc.oidcService, svc.appConfigService)
 	controller.NewUserController(apiRouter, fileSizeLimitMiddleware, svc.appConfigService, svc.userService, svc.webauthnModule, rateLimitMiddleware.Add(middleware.RateLimitSendEmailVerification))
+	svc.claimMappingPolicyModule.RegisterRoutes(apiRouter)
 	controller.NewAppConfigController(apiRouter, svc.appConfigService, svc.emailModule)
 	svc.ldapSyncModule.RegisterRoutes(apiRouter)
 	controller.NewAppImagesController(apiRouter, fileSizeLimitMiddleware, svc.appImagesService)
@@ -181,6 +185,7 @@ func registerRoutes(r *gin.Engine, db *gorm.DB, svc *services, auth *authz.Middl
 	controller.NewCustomClaimController(apiRouter, svc.customClaimService)
 	svc.environmentModule.RegisterRoutes(apiRouter)
 	svc.logoPresetModule.RegisterRoutes(apiRouter)
+	svc.featureModule.RegisterRoutes(apiRouter)
 	svc.scimSyncModule.RegisterRoutes(apiRouter)
 	svc.userSignUpModule.RegisterRoutes(apiRouter, rateLimitMiddleware.Add(middleware.RateLimitSignup))
 	svc.oneTimeAccessModule.RegisterRoutes(apiRouter,

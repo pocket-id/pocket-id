@@ -258,7 +258,15 @@ func (s *AppConfigService) loadDbConfigFromEnv() (*AppConfigModel, error) {
 		}
 	}
 
-	// TODO: Remove in next major version (v3)
+	// TODO: Remove in next major version (v4)
+	// Preserve the old accent color setting unless an explicit color theme replaces it
+	if _, ok := os.LookupEnv("COLOR_THEME"); !ok {
+		if accent, exists := os.LookupEnv("ACCENT_COLOR"); exists {
+			dest.ColorTheme = legacyColorTheme(AppConfigValue(accent))
+		}
+	}
+
+	// TODO: Remove in next major version (v4)
 	// Preserve the old environment setting unless an explicit email login code mode replaces it
 	if _, ok := os.LookupEnv("EMAIL_ONE_TIME_ACCESS_AS_UNAUTHENTICATED"); !ok {
 		if enabled, exists := os.LookupEnv("EMAIL_ONE_TIME_ACCESS_AS_UNAUTHENTICATED_ENABLED"); exists {

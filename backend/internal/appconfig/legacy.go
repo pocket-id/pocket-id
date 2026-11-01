@@ -10,6 +10,7 @@ func (m *AppConfigModel) DecodeMsgpack(dec *msgpack.Decoder) error {
 		*config
 		LegacyNotificationEnabled                        AppConfigValue `msgpack:"EmailLoginNotificationEnabled"`
 		LegacyEmailVerificationEnabled                   AppConfigValue `msgpack:"EmailVerificationEnabled"`
+		LegacyAccentColor                                AppConfigValue `msgpack:"AccentColor"`
 		LegacyEmailOneTimeAccessAsUnauthenticatedEnabled AppConfigValue `msgpack:"EmailOneTimeAccessAsUnauthenticatedEnabled"`
 	}{config: (*config)(m)}
 	if err := dec.Decode(&value); err != nil {
@@ -20,6 +21,9 @@ func (m *AppConfigModel) DecodeMsgpack(dec *msgpack.Decoder) error {
 	}
 	if m.EmailVerification == "" && value.LegacyEmailVerificationEnabled != "" {
 		m.EmailVerification = legacyEmailVerification(value.LegacyEmailVerificationEnabled)
+	}
+	if m.ColorTheme == "" && value.LegacyAccentColor != "" {
+		m.ColorTheme = legacyColorTheme(value.LegacyAccentColor)
 	}
 	if m.EmailOneTimeAccessAsUnauthenticated == "" && value.LegacyEmailOneTimeAccessAsUnauthenticatedEnabled != "" {
 		m.EmailOneTimeAccessAsUnauthenticated = legacyEmailOneTimeAccessAsUnauthenticated(value.LegacyEmailOneTimeAccessAsUnauthenticatedEnabled)
@@ -39,6 +43,24 @@ func legacyEmailVerification(enabled AppConfigValue) AppConfigValue {
 		return EmailVerificationOptional
 	}
 	return EmailVerificationDisabled
+}
+
+// legacyColorTheme maps an accent color from before color themes to the theme built around it, or to a custom theme with that color
+func legacyColorTheme(accent AppConfigValue) AppConfigValue {
+	switch accent {
+	case "", "default":
+		return "mono"
+	case "oklch(0.6 0.2 240)":
+		return "mist"
+	case "oklch(0.65 0.2 150)":
+		return "sage"
+	case "oklch(0.6 0.15 180)":
+		return "midnight"
+	case "oklch(0.6 0.24 300)":
+		return "lavender"
+	default:
+		return "custom:" + accent
+	}
 }
 
 // legacyEmailOneTimeAccessAsUnauthenticated maps the old toggle to the mode that keeps its behavior, which allowed admins as well

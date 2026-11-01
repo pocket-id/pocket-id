@@ -146,3 +146,10 @@ func LoadDBSchemaTypes(db *gorm.DB) (result DBSchemaTypes, err error) {
 
 	return result, nil
 }
+
+// LikeContainsPattern builds a LIKE pattern that matches values containing the given text literally
+// The wildcards and the escape character are escaped, so the query must use ESCAPE '\' for both SQLite and Postgres to honor them
+func LikeContainsPattern(value string) string {
+	escaped := strings.NewReplacer(`\`, `\\`, `%`, `\%`, `_`, `\_`).Replace(value)
+	return "%" + escaped + "%"
+}

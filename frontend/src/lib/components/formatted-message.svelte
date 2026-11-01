@@ -37,12 +37,7 @@
 		<b>{@render children?.()}</b>
 	{/snippet}
 	{#snippet link({ children, options })}
-		<a
-			class="text-black underline dark:text-white"
-			href={options.href}
-			target="_blank"
-			rel="noopener noreferrer"
-		>
+		<a class="inline-link" href={options.href} target="_blank" rel="noopener noreferrer">
 			{@render children?.()}
 		</a>
 	{/snippet}

@@ -6,6 +6,7 @@ import (
 	"fmt"
 
 	"github.com/pocket-id/pocket-id/backend/internal/apperror"
+	"github.com/pocket-id/pocket-id/backend/internal/common"
 	"github.com/pocket-id/pocket-id/backend/internal/dto"
 	"github.com/pocket-id/pocket-id/backend/internal/model"
 	"gorm.io/gorm"
@@ -29,24 +30,11 @@ func isReservedClaim(key string) bool {
 		"email_verified",
 		"preferred_username",
 		"display_name",
-		"groups",
-		TokenTypeClaim,
-		"sub",
-		"iss",
-		"aud",
-		"exp",
-		"iat",
-		"auth_time",
-		"nonce",
-		"acr",
-		"amr",
-		"azp",
-		"client_id",
-		"nbf",
-		"jti":
+		"picture",
+		"groups":
 		return true
 	default:
-		return false
+		return common.IsProtocolClaim(key)
 	}
 }
 

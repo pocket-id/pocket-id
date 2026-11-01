@@ -1,4 +1,7 @@
 <script lang="ts">
+	import AuthHeading from '#lib/components/auth/auth-heading.svelte';
+	import AuthTile from '#lib/components/auth/auth-tile.svelte';
+	import { authPrimaryClass } from '#lib/components/auth/auth-util.ts';
 	import SignInWrapper from '#lib/components/login-wrapper.svelte';
 	import SignupForm from '#lib/components/signup/signup-form.svelte';
 	import { Button } from '#lib/components/ui/button/index.ts';
@@ -10,76 +13,58 @@
 	import { getAxiosErrorMessage } from '#lib/utils/error-util.ts';
 	import { tryCatch } from '#lib/utils/try-catch-util.ts';
 	import { goto } from '$app/navigation';
-	import { LucideChevronLeft } from '@lucide/svelte';
-	import { onMount } from 'svelte';
-	import { fade } from 'svelte/transition';
-	import LoginLogoErrorSuccessIndicator from '../login/components/login-logo-error-success-indicator.svelte';
 
 	let { data } = $props();
 	const userService = new UserService();
 
+	const mode = $appConfigStore.allowUserSignups;
+	const closed = !data.token && mode !== 'open';
+
 	let error: string | undefined = $state();
 
 	async function handleSignup(userData: UserSignUp) {
+		error = undefined;
 		const result = await tryCatch(userService.signup({ ...userData, token: data.token }));
 
 		if (result.error) {
 			error = getAxiosErrorMessage(result.error);
-			return false;
-		}
-
-		await userStore.setUser(result.data);
-
-		goto('/');
-		return true;
-	}
-
-	onMount(() => {
-		if (!$appConfigStore.allowUserSignups || $appConfigStore.allowUserSignups === 'disabled') {
-			error = m.user_signups_are_disabled();
 			return;
 		}
 
-		// For token-based signups, check if we have a valid token
-		if ($appConfigStore.allowUserSignups === 'withToken' && !data.token) {
-			error = m.signup_requires_valid_token();
-		}
-	});
+		await userStore.setUser(result.data);
+		await goto('/');
+	}
 </script>
 
 <svelte:head>
 	<title>{m.signup()}</title>
 </svelte:head>
 
-<SignInWrapper>
-	<div class="flex justify-center">
-		<LoginLogoErrorSuccessIndicator error={!!error} />
-	</div>
-
-	<h1 class="font-gloock mt-5 text-3xl font-bold sm:text-4xl">
-		{m.signup_to_appname({ appName: $appConfigStore.appName })}
-	</h1>
-
-	{#if !error}
-		<p class="text-muted-foreground mt-2" in:fade>
-			{m.create_your_account_to_get_started()}
-		</p>
+<SignInWrapper back={closed ? undefined : '/login'}>
+	<AuthTile />
+	{#if closed}
+		<AuthHeading
+			title={mode === 'withToken' ? m.auth_signups_invite_only() : m.auth_signups_closed()}
+		>
+			{mode === 'withToken'
+				? m.auth_signups_invite_only_description()
+				: m.auth_signups_closed_description({ appName: $appConfigStore.appName })}
+		</AuthHeading>
+		<Button class={authPrimaryClass} href="/login">{m.auth_go_to_sign_in()}</Button>
 	{:else}
-		<p class="text-muted-foreground mt-2" in:fade>
-			{error}.
-		</p>
-	{/if}
-	{#if $appConfigStore.allowUserSignups === 'open' || data.token}
-		<SignupForm callback={handleSignup} />
-		<div class="mt-10 flex w-full items-center justify-between gap-2">
-			<a class="text-muted-foreground mt-5 flex text-sm" href="/login"
-				><LucideChevronLeft class="size-5" /> {m.back()}</a
-			>
-			<Button type="submit" form="sign-up-form" onclick={() => (error = undefined)}
-				>{m.signup()}</Button
-			>
-		</div>
-	{:else}
-		<Button class="mt-10" href="/login">{m.go_to_login()}</Button>
+		<AuthHeading
+			title={data.token ? invite : m.auth_create_your_account({ appName: $appConfigStore.appName })}
+			tone={error ? 'danger' : undefined}
+		>
+			{error ?? m.auth_signup_description()}
+		</AuthHeading>
+		<SignupForm callback={handleSignup} submitLabel={m.auth_create_account()} />
 	{/if}
 </SignInWrapper>
+
+{#snippet invite()}
+	<span class="text-control text-fg-muted block font-sans font-normal tracking-normal">
+		{m.auth_invited_to()}
+	</span>
+	<span class="block">{$appConfigStore.appName}</span>
+{/snippet}

@@ -15,7 +15,7 @@
 	data-slot="table-head"
 	scope="col"
 	class={cn(
-		'text-foreground h-12 px-3 text-left align-middle font-medium whitespace-nowrap [&:has([role=checkbox])]:pr-0',
+		'bg-surface-sunken text-caption text-fg-muted h-10 px-4 text-left align-middle font-medium whitespace-nowrap first:rounded-l-sm last:rounded-r-sm [&:has([role=checkbox])]:pr-0',
 		className
 	)}
 	{...restProps}

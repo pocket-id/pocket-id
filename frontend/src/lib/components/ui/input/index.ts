@@ -1,4 +1,4 @@
-import Root from './input.svelte';
+import Root, { filledFieldClass, readOnlyFieldClass } from './input.svelte';
 
 export type FormInputEvent<T extends Event = Event> = T & {
 	currentTarget: EventTarget & HTMLInputElement;
@@ -6,6 +6,8 @@ export type FormInputEvent<T extends Event = Event> = T & {
 
 export {
 	Root,
+	filledFieldClass,
+	readOnlyFieldClass,
 	//
 	Root as Input
 };

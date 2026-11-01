@@ -559,7 +559,7 @@ func (oc *OidcController) listOwnAccessibleClientsHandler(c *gin.Context) error 
 // @Produce json
 // @Param id path string true "Client ID"
 // @Param userId path string true "User ID to preview data for"
-// @Param scopes query string false "Scopes to include in the preview (comma-separated)"
+// @Param scopes query string false "Scopes to include in the preview (space-separated)"
 // @Success 200 {object} dto.OidcClientPreviewDto "Preview data including ID token, access token, and userinfo payloads"
 // @Security BearerAuth
 // @Failure default {object} dto.ErrorDto "Error"
@@ -575,10 +575,6 @@ func (oc *OidcController) getClientPreviewHandler(c *gin.Context) error {
 
 	if userID == "" {
 		return apperror.MissingField("userId")
-	}
-
-	if scopes == "" {
-		return apperror.MissingField("scopes")
 	}
 
 	preview, err := oc.oidcService.GetClientPreview(

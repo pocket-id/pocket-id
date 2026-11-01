@@ -10,11 +10,12 @@
 	}: WithElementRef<HTMLTableAttributes> = $props();
 </script>
 
-<div data-slot="table-container" class="relative w-full overflow-x-auto">
+<!-- The block padding keeps focus rings in the header row visible inside the horizontal scroller -->
+<div data-slot="table-container" class="relative -my-1 w-full overflow-x-auto py-1">
 	<table
 		bind:this={ref}
 		data-slot="table"
-		class={cn('w-full caption-bottom text-sm', className)}
+		class={cn('text-control w-full caption-bottom', className)}
 		{...restProps}
 	>
 		{@render children?.()}
