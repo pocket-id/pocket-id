@@ -3,7 +3,6 @@ package api
 import (
 	"context"
 	"fmt"
-	"log/slog"
 
 	"gorm.io/gorm"
 	"gorm.io/gorm/clause"
@@ -19,15 +18,15 @@ const builtInAPIName = "Pocket ID"
 func Bootstrap(ctx context.Context, db *gorm.DB, appURL string) error {
 	audience := authz.ResourceURI(appURL)
 	err := db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
-		// A custom API created before the resource was reserved can hold it, and failing here would keep the instance from starting
-		var conflicts int64
-		err := tx.Model(&API{}).Where("audience = ? AND id <> ?", audience, BuiltInAPIID).Count(&conflicts).Error
+		// A custom API created before the resource was reserved, or before APP_URL changed, can hold it
+		// Starting anyway would let that API's tokens call Pocket ID's API with whatever permission keys it defines
+		var conflict API
+		err := tx.Select("id", "name").Where("audience = ? AND id <> ?", audience, BuiltInAPIID).Limit(1).Find(&conflict).Error
 		if err != nil {
 			return err
 		}
-		if conflicts > 0 {
-			slog.WarnContext(ctx, "Pocket ID's built-in API is unavailable because a custom API already uses its resource; delete that API to enable it", slog.String("resource", audience))
-			return nil
+		if conflict.ID != "" {
+			return fmt.Errorf("the custom API %q (ID %s) uses the resource %s, which is reserved for Pocket ID's own API; delete that API from the database before starting Pocket ID", conflict.Name, conflict.ID, audience)
 		}
 
 		// Upsert on the fixed ID so concurrent instances booting at the same time converge on a single row, leaving the CIMD opt-in to the admin

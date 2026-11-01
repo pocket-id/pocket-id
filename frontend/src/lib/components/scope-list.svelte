@@ -1,9 +1,16 @@
 <script lang="ts">
+	import * as Alert from '#lib/components/ui/alert/index.ts';
 	import { m } from '#lib/paraglide/messages.js';
 	import userStore from '#lib/stores/user-store.ts';
 	import type { InteractionScopeInfo } from '#lib/types/oidc.type.ts';
-	import { scopeLabel } from '#lib/utils/api-key-scopes.ts';
-	import { LucideKeyRound, LucideMail, LucideUserRound, LucideUsersRound } from '@lucide/svelte';
+	import { isAdminEquivalentScope, scopeLabel } from '#lib/utils/api-key-scopes.ts';
+	import {
+		LucideKeyRound,
+		LucideMail,
+		LucideTriangleAlert,
+		LucideUserRound,
+		LucideUsersRound
+	} from '@lucide/svelte';
 	import ScopeItem from './scope-item.svelte';
 
 	let {
@@ -20,6 +27,12 @@
 	const standardScopes = ['openid', 'profile', 'email', 'groups', 'offline_access'];
 	const infoByKey = $derived(new Map((scopeInfo || []).map((info) => [info.key, info])));
 	const customScopes = $derived((scopes || []).filter((scope) => !standardScopes.includes(scope)));
+	// Only Pocket ID's own scopes carry this risk, since a custom API's permission can share a key without meaning the same
+	const grantsAdminEquivalent = $derived(
+		(selectedScopes ?? scopes ?? []).some(
+			(scope) => infoByKey.get(scope)?.builtIn && isAdminEquivalentScope(scope)
+		)
+	);
 
 	const profileValue = $derived(
 		$userStore
@@ -83,7 +96,16 @@
 			icon={LucideKeyRound}
 			value={label?.name ?? scope}
 			category={label?.description || m.access_an_api_on_your_behalf()}
+			adminAccess={info?.builtIn && isAdminEquivalentScope(scope)}
 			{...selectionProps(scope)}
 		/>
 	{/each}
 </fieldset>
+
+{#if grantsAdminEquivalent}
+	<Alert.Root variant="warning" class="mt-3">
+		<LucideTriangleAlert />
+		<Alert.Title>{m.app_can_gain_full_admin_access()}</Alert.Title>
+		<Alert.Description>{m.app_can_gain_full_admin_access_description()}</Alert.Description>
+	</Alert.Root>
+{/if}

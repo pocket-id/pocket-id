@@ -154,12 +154,15 @@ func (s *OidcService) ListClients(ctx context.Context, name string, listRequestO
 	return clients, response, err
 }
 
+// CreateClient creates a client on behalf of userID, which is empty when a client acting as itself creates it
 func (s *OidcService) CreateClient(ctx context.Context, input dto.OidcClientCreateDto, userID string, autoCreateSecret bool) (model.OidcClient, string, error) {
 	client := model.OidcClient{
 		Base: model.Base{
 			ID: input.ID,
 		},
-		CreatedByID: new(userID),
+	}
+	if userID != "" {
+		client.CreatedByID = &userID
 	}
 	err := updateOIDCClientModelFromDto(&client, &input.OidcClientUpdateDto)
 	if err != nil {

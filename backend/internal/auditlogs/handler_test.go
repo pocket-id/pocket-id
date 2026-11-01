@@ -73,7 +73,7 @@ func TestAuditLogRoutesPreservePermissionsAndResponses(t *testing.T) {
 // auditLogTestAuthenticator signs in as alice with the role named in the X-Test-Role header
 type auditLogTestAuthenticator struct{}
 
-func (auditLogTestAuthenticator) Kind() authz.PrincipalKind {
+func (auditLogTestAuthenticator) Kinds() authz.PrincipalKind {
 	return authz.KindSession
 }
 

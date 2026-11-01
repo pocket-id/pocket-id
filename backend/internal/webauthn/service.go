@@ -16,6 +16,7 @@ import (
 	"github.com/pocket-id/pocket-id/backend/internal/appconfig"
 	"github.com/pocket-id/pocket-id/backend/internal/apperror"
 	"github.com/pocket-id/pocket-id/backend/internal/auditlogs"
+	"github.com/pocket-id/pocket-id/backend/internal/authz"
 	"github.com/pocket-id/pocket-id/backend/internal/model"
 	datatype "github.com/pocket-id/pocket-id/backend/internal/model/types"
 	"github.com/pocket-id/pocket-id/backend/internal/utils"
@@ -346,7 +347,8 @@ func (s *Service) ListCredentials(ctx context.Context, userID string) ([]model.W
 	return credentials, nil
 }
 
-func (s *Service) DeleteCredential(ctx context.Context, userID string, credentialID string, ipAddress string, userAgent string, actorUserID string) error {
+// DeleteCredential removes a passkey of userID on behalf of actor, who is named in the audit log when it isn't the passkey's owner
+func (s *Service) DeleteCredential(ctx context.Context, userID string, credentialID string, ipAddress string, userAgent string, actor authz.Principal) error {
 	tx := s.db.Begin()
 	defer func() {
 		tx.Rollback()
@@ -365,11 +367,23 @@ func (s *Service) DeleteCredential(ctx context.Context, userID string, credentia
 	}
 
 	auditLogData := auditlogs.Data{"credentialID": hex.EncodeToString(credential.CredentialID), "passkeyName": credential.Name}
-	if actorUserID != "" && actorUserID != userID {
-		var actor model.User
+	if actor.Kind == authz.KindOAuthClient {
+		var client model.OidcClient
 		err := tx.
 			WithContext(ctx).
-			First(&actor, "id = ?", actorUserID).
+			Select("name").
+			First(&client, "id = ?", actor.ClientID).
+			Error
+		if err != nil {
+			return fmt.Errorf("failed to load actor client: %w", err)
+		}
+		auditLogData["actorClientID"] = actor.ClientID
+		auditLogData["actorClientName"] = client.Name
+	} else if actor.UserID != "" && actor.UserID != userID {
+		var actorUser model.User
+		err := tx.
+			WithContext(ctx).
+			First(&actorUser, "id = ?", actor.UserID).
 			Error
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			return apperror.UserNotFound()
@@ -377,8 +391,8 @@ func (s *Service) DeleteCredential(ctx context.Context, userID string, credentia
 		if err != nil {
 			return fmt.Errorf("failed to load actor user: %w", err)
 		}
-		auditLogData["actorUserID"] = actorUserID
-		auditLogData["actorUsername"] = actor.Username
+		auditLogData["actorUserID"] = actor.UserID
+		auditLogData["actorUsername"] = actorUser.Username
 	}
 	s.auditLog.Create(ctx, auditlogs.EventPasskeyRemoved, ipAddress, userAgent, userID, auditLogData, tx)
 

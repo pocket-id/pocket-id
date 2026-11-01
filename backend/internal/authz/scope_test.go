@@ -32,10 +32,10 @@ func TestCatalogInvariants(t *testing.T) {
 	require.Len(t, definitions, len(catalog))
 }
 
-func TestClientCredentialsCannotHoldAnyScope(t *testing.T) {
-	// Service identities are not supported yet, see the scope-authorization plan
+func TestClientCredentialsHoldOnlyAdminScopes(t *testing.T) {
+	// A client acting as itself has no account, so account scopes stay out of its reach
 	for _, entry := range catalog {
-		require.False(t, entry.scope.GrantableTo(KindOAuthClient), entry.scope)
+		require.Equal(t, entry.category == CategoryAdmin, entry.scope.GrantableTo(KindOAuthClient), entry.scope)
 	}
 }
 

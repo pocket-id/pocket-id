@@ -41,7 +41,7 @@ type fakeSessionAuthenticator struct {
 	unverified bool
 }
 
-func (fakeSessionAuthenticator) Kind() authz.PrincipalKind { return authz.KindSession }
+func (fakeSessionAuthenticator) Kinds() authz.PrincipalKind { return authz.KindSession }
 
 func (fakeSessionAuthenticator) Present(*gin.Context) bool { return true }
 

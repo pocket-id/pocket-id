@@ -14,6 +14,7 @@ import (
 	"github.com/pocket-id/pocket-id/backend/internal/common"
 	"github.com/pocket-id/pocket-id/backend/internal/emailverification"
 	"github.com/pocket-id/pocket-id/backend/internal/model"
+	"github.com/pocket-id/pocket-id/backend/internal/oidc"
 	"github.com/pocket-id/pocket-id/backend/internal/service"
 	"github.com/pocket-id/pocket-id/backend/internal/utils/cookie"
 )
@@ -60,7 +61,7 @@ func NewSessionAuthenticator(jwtService *service.JwtService, userService *servic
 	return &SessionAuthenticator{jwtService: jwtService, userService: userService, appConfig: appConfig}
 }
 
-func (a *SessionAuthenticator) Kind() authz.PrincipalKind {
+func (a *SessionAuthenticator) Kinds() authz.PrincipalKind {
 	return authz.KindSession
 }
 
@@ -130,7 +131,7 @@ func NewAPIKeyAuthenticator(apiKeyModule *apikey.Module, appConfig appconfig.App
 	return &APIKeyAuthenticator{apiKeyModule: apiKeyModule, appConfig: appConfig}
 }
 
-func (a *APIKeyAuthenticator) Kind() authz.PrincipalKind {
+func (a *APIKeyAuthenticator) Kinds() authz.PrincipalKind {
 	return authz.KindAPIKey
 }
 
@@ -171,7 +172,7 @@ type AccessTokenVerifier interface {
 	VerifyAccessToken(ctx context.Context, token string) (fosite.AccessRequester, error)
 }
 
-// OAuthAuthenticator authenticates an OAuth access token that a client obtained for Pocket ID's own API on behalf of a user
+// OAuthAuthenticator authenticates an OAuth access token that a client obtained for Pocket ID's own API, either on behalf of a user or for itself
 type OAuthAuthenticator struct {
 	verifier    AccessTokenVerifier
 	userService *service.UserService
@@ -183,8 +184,8 @@ func NewOAuthAuthenticator(verifier AccessTokenVerifier, userService *service.Us
 	return &OAuthAuthenticator{verifier: verifier, userService: userService, appConfig: appConfig, audience: authz.ResourceURI(common.EnvConfig.AppURL)}
 }
 
-func (a *OAuthAuthenticator) Kind() authz.PrincipalKind {
-	return authz.KindOAuthUser
+func (a *OAuthAuthenticator) Kinds() authz.PrincipalKind {
+	return authz.KindOAuthUser | authz.KindOAuthClient
 }
 
 func (a *OAuthAuthenticator) Present(c *gin.Context) bool {
@@ -203,8 +204,24 @@ func (a *OAuthAuthenticator) Authenticate(c *gin.Context) (*authz.Principal, err
 		return nil, apperror.NotSignedIn()
 	}
 
+	tokenScopes := make(authz.ScopeSet, len(accessRequest.GetGrantedScopes()))
+	for _, scope := range accessRequest.GetGrantedScopes() {
+		tokenScopes[authz.Scope(scope)] = struct{}{}
+	}
+
+	// A client acting as itself has no user or role, so its token is only limited to the scopes a client can ever hold
+	clientID := accessRequest.GetClient().GetID()
+	subject := accessRequest.GetSession().GetSubject()
+	if subject == oidc.ClientSubject(clientID) {
+		return &authz.Principal{
+			Kind:     authz.KindOAuthClient,
+			ClientID: clientID,
+			Scopes:   authz.UserScopes(true, authz.KindOAuthClient).Intersect(tokenScopes),
+		}, nil
+	}
+
 	// Load the user so disabling the account or changing its role takes effect before the token expires
-	user, err := a.userService.GetUser(ctx, accessRequest.GetSession().GetSubject())
+	user, err := a.userService.GetUser(ctx, subject)
 	if err != nil {
 		return nil, apperror.NotSignedIn()
 	}
@@ -213,10 +230,6 @@ func (a *OAuthAuthenticator) Authenticate(c *gin.Context) (*authz.Principal, err
 	}
 
 	// A token never holds more than its user currently does, so demoting the user narrows their tokens right away
-	tokenScopes := make(authz.ScopeSet, len(accessRequest.GetGrantedScopes()))
-	for _, scope := range accessRequest.GetGrantedScopes() {
-		tokenScopes[authz.Scope(scope)] = struct{}{}
-	}
 	principal := &authz.Principal{
 		Kind:   authz.KindOAuthUser,
 		UserID: user.ID,

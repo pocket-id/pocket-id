@@ -63,6 +63,9 @@ const (
 // delegated lists the kinds that act for a user, which is every kind except a client acting as itself
 const delegated = KindSession | KindAPIKey | KindOAuthUser
 
+// delegatedOrClient also admits a client acting as itself, which can hold admin scopes but none that act on an account, since it has none
+const delegatedOrClient = delegated | KindOAuthClient
+
 type definition struct {
 	scope       Scope
 	category    Category
@@ -84,19 +87,19 @@ var catalog = []definition{
 	{AccountPasskeysEnroll, CategoryAccount, KindSession},
 	{AccountAPIKeysCreate, CategoryAccount, KindSession},
 
-	{UsersRead, CategoryAdmin, delegated},
-	{UsersWrite, CategoryAdmin, delegated},
-	{GroupsRead, CategoryAdmin, delegated},
-	{GroupsWrite, CategoryAdmin, delegated},
-	{OidcClientsRead, CategoryAdmin, delegated},
-	{OidcClientsWrite, CategoryAdmin, delegated},
-	{OidcClaimMappingPoliciesRead, CategoryAdmin, delegated},
-	{OidcClaimMappingPoliciesWrite, CategoryAdmin, delegated},
-	{APIsRead, CategoryAdmin, delegated},
-	{APIsWrite, CategoryAdmin, delegated},
-	{ConfigRead, CategoryAdmin, delegated},
-	{ConfigWrite, CategoryAdmin, delegated},
-	{AuditLogsRead, CategoryAdmin, delegated},
+	{UsersRead, CategoryAdmin, delegatedOrClient},
+	{UsersWrite, CategoryAdmin, delegatedOrClient},
+	{GroupsRead, CategoryAdmin, delegatedOrClient},
+	{GroupsWrite, CategoryAdmin, delegatedOrClient},
+	{OidcClientsRead, CategoryAdmin, delegatedOrClient},
+	{OidcClientsWrite, CategoryAdmin, delegatedOrClient},
+	{OidcClaimMappingPoliciesRead, CategoryAdmin, delegatedOrClient},
+	{OidcClaimMappingPoliciesWrite, CategoryAdmin, delegatedOrClient},
+	{APIsRead, CategoryAdmin, delegatedOrClient},
+	{APIsWrite, CategoryAdmin, delegatedOrClient},
+	{ConfigRead, CategoryAdmin, delegatedOrClient},
+	{ConfigWrite, CategoryAdmin, delegatedOrClient},
+	{AuditLogsRead, CategoryAdmin, delegatedOrClient},
 }
 
 var definitions = indexCatalog(catalog)

@@ -20,6 +20,7 @@ import (
 	"github.com/pocket-id/pocket-id/backend/internal/instanceid"
 	"github.com/pocket-id/pocket-id/backend/internal/model"
 	datatype "github.com/pocket-id/pocket-id/backend/internal/model/types"
+	"github.com/pocket-id/pocket-id/backend/internal/oidc"
 	"github.com/pocket-id/pocket-id/backend/internal/service"
 	"github.com/pocket-id/pocket-id/backend/internal/utils"
 	"github.com/pocket-id/pocket-id/backend/internal/utils/cookie"
@@ -82,6 +83,7 @@ func TestAuthorizationWithRealCredentials(t *testing.T) {
 		"session-scope-token":  oauthAccessRequest(admin.ID, fosite.Arguments{resource}, string(authz.AccountSession)),
 		"custom-api-token":     oauthAccessRequest(admin.ID, fosite.Arguments{"https://api.example.com", common.EnvConfig.AppURL}, "openid", string(authz.UsersRead)),
 		"unverified-api-token": oauthAccessRequest(unverified.ID, fosite.Arguments{resource}, string(authz.AccountRead), string(authz.AccountApps)),
+		"machine-token":        oauthAccessRequest(oidc.ClientSubject(oauthTestClientID), fosite.Arguments{resource}, string(authz.UsersRead), string(authz.AccountRead)),
 	}
 	apiRouter := NewAuthorization(apiKeyModule, accessTokens, userService, jwtService, appconfig.StaticResolver{Config: cfg}).Router(router.Group("/api"))
 	ok := func(c *gin.Context) {
@@ -131,6 +133,9 @@ func TestAuthorizationWithRealCredentials(t *testing.T) {
 		{name: "custom API token with a colliding scope key", path: "/api/admin", authorization: "Bearer custom-api-token", status: http.StatusUnauthorized, errorCode: "not_signed_in"},
 		{name: "unverified user OAuth token on apps route", path: "/api/apps", authorization: "Bearer unverified-api-token", status: http.StatusForbidden, errorCode: "email_verification_required"},
 		{name: "unknown OAuth token", path: "/api/account", authorization: "Bearer unknown", status: http.StatusUnauthorized, errorCode: "not_signed_in"},
+		{name: "client acting as itself on admin route", path: "/api/admin", authorization: "Bearer machine-token", status: http.StatusOK, userID: ""},
+		{name: "client acting as itself on account route", path: "/api/account", authorization: "Bearer machine-token", status: http.StatusForbidden, errorCode: "client_token_auth_not_allowed"},
+		{name: "client acting as itself on session-only route", path: "/api/session-only", authorization: "Bearer machine-token", status: http.StatusForbidden, errorCode: "oauth_token_auth_not_allowed"},
 		{name: "no credentials", path: "/api/account", status: http.StatusUnauthorized, errorCode: "not_signed_in"},
 	}
 
@@ -174,8 +179,11 @@ func (f fakeAccessTokenVerifier) VerifyAccessToken(_ context.Context, token stri
 	return accessRequest, nil
 }
 
+const oauthTestClientID = "machine-client"
+
 func oauthAccessRequest(subject string, audience fosite.Arguments, scopes ...string) fosite.AccessRequester {
 	accessRequest := fosite.NewAccessRequest(&fosite.DefaultSession{Subject: subject})
+	accessRequest.Client = &fosite.DefaultClient{ID: oauthTestClientID}
 	accessRequest.GrantedAudience = audience
 	accessRequest.GrantedScope = scopes
 	return accessRequest

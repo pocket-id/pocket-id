@@ -63,6 +63,7 @@ const (
 	CodeInvalidAPIKeyScope                Code = "invalid_api_key_scope"
 	CodeAPIKeyAuthNotAllowed              Code = "api_key_auth_not_allowed"
 	CodeOAuthTokenAuthNotAllowed          Code = "oauth_token_auth_not_allowed"
+	CodeClientTokenAuthNotAllowed         Code = "client_token_auth_not_allowed"
 	CodeOidcDeviceCodeExpired             Code = "oidc_device_code_expired"
 	CodeOidcInvalidDeviceCode             Code = "oidc_invalid_device_code"
 	CodeOpenSignupDisabled                Code = "open_signup_disabled"

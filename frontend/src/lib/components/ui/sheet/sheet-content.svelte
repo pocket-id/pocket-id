@@ -10,12 +10,15 @@
 	let {
 		ref = $bindable(null),
 		title,
+		notice,
 		footer,
 		class: className,
 		children,
 		...restProps
 	}: WithoutChildrenOrChild<DialogPrimitive.ContentProps> & {
 		title: string;
+		// Sticky content between the scrolling body and the footer, for a warning that must stay in view while the body scrolls
+		notice?: Snippet;
 		// Sticky actions under the scrolling body, right-aligned: the ghost Cancel, then the primary
 		footer?: Snippet;
 		children: Snippet;
@@ -64,8 +67,15 @@
 		<div class="flex min-h-0 flex-1 flex-col gap-6 overflow-y-auto px-6 pt-2 pb-6">
 			{@render children()}
 		</div>
+		{#if notice}
+			<div class="shrink-0 border-t px-6 pt-4">
+				{@render notice()}
+			</div>
+		{/if}
 		{#if footer}
-			<div class="flex h-14 shrink-0 items-center justify-end gap-2 border-t px-6">
+			<div
+				class={cn('flex h-14 shrink-0 items-center justify-end gap-2 px-6', !notice && 'border-t')}
+			>
 				{@render footer()}
 			</div>
 		{/if}

@@ -581,6 +581,22 @@ func TestOidcService_CreateClient_withDescription(t *testing.T) {
 	assert.Equal(t, description, fetched.Description)
 }
 
+func TestOidcService_CreateClient_byClientActingForItself(t *testing.T) {
+	db := testutils.NewDatabaseForTest(t)
+	require.NoError(t, db.Exec("PRAGMA foreign_keys = ON").Error)
+
+	s, err := NewOidcService(db, nil, nil, nil, nil, nil, nil, nil)
+	require.NoError(t, err)
+
+	input := dto.OidcClientCreateDto{OidcClientUpdateDto: dto.OidcClientUpdateDto{Name: "Provisioned Client"}}
+	client, _, err := s.CreateClient(t.Context(), input, "", true)
+	require.NoError(t, err)
+
+	var fetched model.OidcClient
+	require.NoError(t, db.First(&fetched, "id = ?", client.ID).Error)
+	assert.Nil(t, fetched.CreatedByID)
+}
+
 func TestOidcService_CreateClient_withoutDescription(t *testing.T) {
 	db := testutils.NewDatabaseForTest(t)
 

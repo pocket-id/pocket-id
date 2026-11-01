@@ -148,6 +148,14 @@ export function presetLabel(scopes: string[], isAdmin: boolean) {
 	return m.custom_scope_count({ count });
 }
 
+// A client acting as itself has no account, so it can only hold admin scopes
+export const isAdminScope = (scope: string) =>
+	scopeResources.some((r) => r.admin && (r.read === scope || r.write === scope));
+
+// Each of these lets a client acting as itself reach full admin access, for example by making a user an admin or granting itself more scopes
+const adminEquivalentScopes = ['users:write', 'config:write', 'oidc-clients:write', 'apis:write'];
+export const isAdminEquivalentScope = (scope: string) => adminEquivalentScopes.includes(scope);
+
 // Labels a single scope, such as a permission of the built-in Pocket ID API, with the same words the API key picker uses
 export function scopeLabel(scope: string): { name: string; description?: string } {
 	const resource = scopeResources.find((r) => r.read === scope || r.write === scope);

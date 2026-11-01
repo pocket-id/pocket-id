@@ -48,10 +48,14 @@ test.describe('API Key Management', () => {
 		await page.getByRole('button', { name: 'Create API key' }).click();
 		await page.getByLabel('Name').fill('Read users');
 		await page.getByRole('tab', { name: 'Custom' }).click();
-		await page
-			.getByRole('radiogroup', { name: 'Users', exact: true })
-			.getByRole('radio', { name: 'Read' })
-			.click();
+		const users = page.getByRole('radiogroup', { name: 'Users', exact: true });
+
+		// Writing users lets a key issue a sign-in code for its owner, which undoes every other limit
+		await users.getByRole('radio', { name: 'Write' }).click();
+		await expect(page.getByText('This key can gain full access')).toBeVisible();
+		await users.getByRole('radio', { name: 'Read' }).click();
+		await expect(page.getByText('This key can gain full access')).toHaveCount(0);
+
 		await page.getByRole('dialog').getByRole('button', { name: 'Create API key' }).click();
 
 		const sheet = page.getByRole('dialog', { name: 'API key created' });

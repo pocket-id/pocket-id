@@ -89,15 +89,12 @@ func TestBootstrapRemovesScopesThatLeftTheCatalog(t *testing.T) {
 	})
 }
 
-func TestBootstrapSkipsWhenACustomAPIHoldsTheResource(t *testing.T) {
+func TestBootstrapRefusesACustomAPIHoldingTheResource(t *testing.T) {
 	db := testutils.NewDatabaseForTest(t)
 	require.NoError(t, db.Create(&API{Name: "Legacy", Audience: "https://id.example.com/api"}).Error)
 
-	require.NoError(t, Bootstrap(t.Context(), db, bootstrapTestAppURL))
-
-	var count int64
-	require.NoError(t, db.Model(&API{}).Where("id = ?", BuiltInAPIID).Count(&count).Error)
-	assert.Zero(t, count)
+	err := Bootstrap(t.Context(), db, bootstrapTestAppURL)
+	require.ErrorContains(t, err, `"Legacy"`)
 }
 
 func TestBuiltInAPIIsReadOnly(t *testing.T) {
@@ -111,19 +108,36 @@ func TestBuiltInAPIIsReadOnly(t *testing.T) {
 	require.True(t, apperror.IsCode(err, apperror.CodeBuiltInAPIReadOnly))
 	err = svc.Delete(t.Context(), BuiltInAPIID)
 	require.True(t, apperror.IsCode(err, apperror.CodeBuiltInAPIReadOnly))
+}
 
-	// A confidential client only gets user-delegated access, since Pocket ID's API doesn't accept client credentials tokens
+func TestBuiltInAPICantBeDeletedThroughAnotherSpellingOfItsID(t *testing.T) {
+	testutils.ForEachDatabase(t, func(t *testing.T, db *gorm.DB) {
+		svc := New(Dependencies{DB: db, Issuer: bootstrapTestAppURL}).service
+		require.NoError(t, Bootstrap(t.Context(), db, bootstrapTestAppURL))
+
+		// Postgres accepts a UUID without hyphens, while SQLite finds no row at all
+		require.Error(t, svc.Delete(t.Context(), strings.ReplaceAll(BuiltInAPIID, "-", "")))
+		loadBuiltInAPI(t, db)
+	})
+}
+
+func TestBuiltInAPIGrantsClientsOnlyAdminScopesForThemselves(t *testing.T) {
+	db := testutils.NewDatabaseForTest(t)
+	svc := New(Dependencies{DB: db, Issuer: bootstrapTestAppURL}).service
+	require.NoError(t, Bootstrap(t.Context(), db, bootstrapTestAppURL))
 	require.NoError(t, db.Create(&model.OidcClient{Base: model.Base{ID: "confidential-1"}, Name: "Confidential"}).Error)
-	usersRead := findPermission(loadBuiltInAPI(t, db), string(authz.UsersRead))
+
+	builtIn := loadBuiltInAPI(t, db)
+	usersRead := findPermission(builtIn, string(authz.UsersRead))
+	accountRead := findPermission(builtIn, string(authz.AccountRead))
 	applied, err := svc.SetAPIClientAccess(t.Context(), BuiltInAPIID, "confidential-1", APIClientGrant{
-		UserDelegatedPermissionIDs: []string{usersRead.ID},
-		ClientAccess:               true,
-		ClientPermissionIDs:        []string{usersRead.ID},
+		UserDelegatedPermissionIDs: []string{accountRead.ID},
+		ClientPermissionIDs:        []string{usersRead.ID, accountRead.ID},
 	})
 	require.NoError(t, err)
-	assert.True(t, applied.UserDelegatedAccess)
-	assert.False(t, applied.ClientAccess)
-	assert.Empty(t, applied.ClientPermissionIDs)
+	assert.Equal(t, []string{accountRead.ID}, applied.UserDelegatedPermissionIDs)
+	assert.True(t, applied.ClientAccess)
+	assert.Equal(t, []string{usersRead.ID}, applied.ClientPermissionIDs, "a client acting as itself has no account")
 }
 
 func TestListPutsTheBuiltInAPIFirstWithoutASort(t *testing.T) {

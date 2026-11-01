@@ -10,9 +10,11 @@ const principalContextKey = "authz.principal"
 
 // Principal is the authenticated caller of a request together with the scopes it holds
 type Principal struct {
-	Kind   PrincipalKind
-	UserID string
-	Scopes ScopeSet
+	Kind PrincipalKind
+	// UserID is empty for KindOAuthClient, where ClientID identifies the client acting as itself instead
+	UserID   string
+	ClientID string
+	Scopes   ScopeSet
 
 	// WithheldUntilVerified are the scopes the user's role grants but that are withheld until the user verifies their email
 	WithheldUntilVerified ScopeSet

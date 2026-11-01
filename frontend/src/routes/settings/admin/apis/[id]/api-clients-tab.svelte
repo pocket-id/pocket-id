@@ -1,6 +1,6 @@
 <script lang="ts">
 	import ActionsMenu from '#lib/components/actions-menu.svelte';
-	import ApiPermissionsModal from '#lib/components/api-permissions-modal.svelte';
+	import ApiPermissionsSheet from '#lib/components/api-permissions-sheet.svelte';
 	import { openConfirmDialog } from '#lib/components/confirm-dialog/index.ts';
 	import OidcClientAvatar from '#lib/components/oidc-client-avatar.svelte';
 	import SettingsSection from '#lib/components/settings-section.svelte';
@@ -10,13 +10,7 @@
 	import * as InputGroup from '#lib/components/ui/input-group/index.ts';
 	import { m } from '#lib/paraglide/messages.js';
 	import ApisService from '#lib/services/apis-service.ts';
-	import {
-		builtInApiId,
-		type Api,
-		type ApiClient,
-		type ApiClientAccess,
-		type ApiClientGrant
-	} from '#lib/types/api.type.ts';
+	import type { Api, ApiClient, ApiClientAccess, ApiClientGrant } from '#lib/types/api.type.ts';
 	import { encodeClientIdParam } from '#lib/utils/client-id-util.ts';
 	import { axiosErrorToast } from '#lib/utils/error-util.ts';
 	import { LucideBan, LucidePencil, LucidePlus, LucideSearch } from '@lucide/svelte';
@@ -90,11 +84,9 @@
 				: m.no_access_lowercase();
 		const itself = entry.client.isPublic
 			? m.not_available_public_client()
-			: api.id === builtInApiId
-				? m.not_available_lowercase()
-				: entry.clientAccess
-					? count(entry.clientPermissionIds)
-					: m.no_access_lowercase();
+			: entry.clientAccess
+				? count(entry.clientPermissionIds)
+				: m.no_access_lowercase();
 		return m.api_client_access_summary({ people, itself });
 	}
 
@@ -219,7 +211,7 @@
 </Dialog.Root>
 
 {#if editing}
-	<ApiPermissionsModal
+	<ApiPermissionsSheet
 		bind:open={accessOpen}
 		{api}
 		grant={editing}

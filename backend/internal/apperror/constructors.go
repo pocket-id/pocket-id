@@ -248,6 +248,10 @@ func OAuthTokenAuthNotAllowed() *Error {
 	return New(CodeOAuthTokenAuthNotAllowed, http.StatusForbidden, "OAuth access tokens are not allowed for this endpoint")
 }
 
+func ClientTokenAuthNotAllowed() *Error {
+	return New(CodeClientTokenAuthNotAllowed, http.StatusForbidden, "This endpoint acts on a user account, so it doesn't accept tokens a client obtained for itself")
+}
+
 func UserDisabled() *Error {
 	return New(CodeUserDisabled, http.StatusForbidden, "User account is disabled")
 }

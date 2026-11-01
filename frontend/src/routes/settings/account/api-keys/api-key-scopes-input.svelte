@@ -1,10 +1,13 @@
 <script lang="ts">
+	import AdminAccessMarker from '#lib/components/admin-access-marker.svelte';
+	import * as Alert from '#lib/components/ui/alert/index.ts';
 	import * as Field from '#lib/components/ui/field/index.ts';
 	import * as RadioGroup from '#lib/components/ui/radio-group/index.ts';
 	import * as Tabs from '#lib/components/ui/tabs/index.ts';
 	import { m } from '#lib/paraglide/messages.js';
 	import {
 		grantableScopes,
+		isAdminEquivalentScope,
 		levelOf,
 		presetOf,
 		readOnlyScopes,
@@ -15,6 +18,7 @@
 		type ScopeResource
 	} from '#lib/utils/api-key-scopes.ts';
 	import type { FormInput } from '#lib/utils/form-util.ts';
+	import { LucideTriangleAlert } from '@lucide/svelte';
 	import { untrack } from 'svelte';
 
 	let { input = $bindable(), isAdmin }: { input: FormInput<string[]>; isAdmin: boolean } = $props();
@@ -87,7 +91,7 @@
 							<RadioGroup.Root
 								aria-labelledby="scope-{resource.id}"
 								orientation="horizontal"
-								class="grid w-56 shrink-0 grid-cols-3 gap-3"
+								class="grid w-64 shrink-0 grid-cols-3 gap-3"
 								value={levelOf(resource, input.value)}
 								onValueChange={(level) =>
 									(input.value = withLevel(resource, input.value, level as ScopeLevel))}
@@ -96,6 +100,9 @@
 									<label class="text-control flex items-center gap-1.5 {level.column}">
 										<RadioGroup.Item value={level.value} />
 										{level.label}
+										{#if level.value === 'write' && resource.write && isAdminEquivalentScope(resource.write)}
+											<AdminAccessMarker />
+										{/if}
 									</label>
 								{/each}
 							</RadioGroup.Root>
@@ -104,6 +111,14 @@
 				</ul>
 			</section>
 		{/each}
+		<!-- Full access already says the key can do everything, so only a custom selection needs telling that these scopes undo its limits -->
+		{#if input.value.some(isAdminEquivalentScope)}
+			<Alert.Root variant="warning">
+				<LucideTriangleAlert />
+				<Alert.Title>{m.api_key_can_gain_full_access()}</Alert.Title>
+				<Alert.Description>{m.api_key_can_gain_full_access_description()}</Alert.Description>
+			</Alert.Root>
+		{/if}
 	{/if}
 	{#if input.error}
 		<Field.Error>{input.error}</Field.Error>

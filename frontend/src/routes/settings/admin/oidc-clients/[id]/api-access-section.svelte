@@ -1,17 +1,12 @@
 <script lang="ts">
 	import ActionsMenu from '#lib/components/actions-menu.svelte';
-	import ApiPermissionsModal from '#lib/components/api-permissions-modal.svelte';
+	import ApiPermissionsSheet from '#lib/components/api-permissions-sheet.svelte';
 	import { openConfirmDialog } from '#lib/components/confirm-dialog/index.ts';
 	import SettingsSection from '#lib/components/settings-section.svelte';
 	import { Button } from '#lib/components/ui/button/index.ts';
 	import { m } from '#lib/paraglide/messages.js';
 	import ApisService from '#lib/services/apis-service.ts';
-	import {
-		builtInApiId,
-		type Api,
-		type ApiClientGrant,
-		type ClientApiGrant
-	} from '#lib/types/api.type.ts';
+	import type { Api, ApiClientGrant, ClientApiGrant } from '#lib/types/api.type.ts';
 	import type { OidcClient } from '#lib/types/oidc.type.ts';
 	import { axiosErrorToast } from '#lib/utils/error-util.ts';
 	import { LucideBan, LucidePencil, LucidePlus } from '@lucide/svelte';
@@ -108,7 +103,7 @@
 				)
 			})
 		];
-		if (!client.isPublic && entry.api.id !== builtInApiId) {
+		if (!client.isPublic) {
 			parts.push(
 				m.as_itself_summary({
 					access: accessSummary(entry.clientAccess, entry.clientPermissionIds.length, total)
@@ -180,7 +175,7 @@
 <ApiSelectionModal bind:open={pickerOpen} clientId={client.id} onSelect={addApi} />
 
 {#if editing}
-	<ApiPermissionsModal
+	<ApiPermissionsSheet
 		bind:open={modalOpen}
 		api={editing.api}
 		grant={editing}

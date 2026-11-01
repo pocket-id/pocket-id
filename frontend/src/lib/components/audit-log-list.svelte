@@ -215,10 +215,13 @@
 			<ul>
 				{#each day.logs as log (log.id)}
 					{@const { sentence, via } = describe(log)}
-					{@const by =
-						isAdmin && log.actorUsername && log.actorUsername !== log.username
-							? log.actorUsername
-							: undefined}
+					{@const by = !isAdmin
+						? undefined
+						: log.data?.actorClientName
+							? m.audit_by_client({ name: log.data.actorClientName })
+							: log.actorUsername && log.actorUsername !== log.username
+								? m.audit_by_actor({ name: log.actorUsername })
+								: undefined}
 					{@const open = expanded.has(log.id)}
 					{@const DeviceIcon = isPhone(log.device) ? LucideSmartphone : LucideMonitor}
 					<li class="border-b">
@@ -252,9 +255,7 @@
 									{/if}
 									{@render sentenceText(sentence)}
 									{#if by}
-										<span class="text-control text-fg-muted"
-											>· {m.audit_by_actor({ name: by })}</span
-										>
+										<span class="text-control text-fg-muted">· {by}</span>
 									{/if}
 								</span>
 								<span class="text-caption text-fg-muted flex min-w-0 items-center gap-x-1.5">

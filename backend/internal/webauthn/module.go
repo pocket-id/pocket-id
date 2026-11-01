@@ -109,8 +109,8 @@ func (m *Module) ListCredentials(ctx context.Context, userID string) ([]model.We
 	return m.service.ListCredentials(ctx, userID)
 }
 
-// DeleteCredential removes a passkey, optionally on behalf of an admin acting for another user
+// DeleteCredential removes a passkey, optionally on behalf of an admin or a client acting for another user
 // It is consumed by the user controller for the admin "manage passkeys" view
-func (m *Module) DeleteCredential(ctx context.Context, userID, credentialID, ipAddress, userAgent, actorUserID string) error {
-	return m.service.DeleteCredential(ctx, userID, credentialID, ipAddress, userAgent, actorUserID)
+func (m *Module) DeleteCredential(ctx context.Context, userID, credentialID, ipAddress, userAgent string, actor authz.Principal) error {
+	return m.service.DeleteCredential(ctx, userID, credentialID, ipAddress, userAgent, actor)
 }

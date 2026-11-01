@@ -146,12 +146,12 @@ func (h *handler) listCredentials(c *gin.Context) error {
 }
 
 func (h *handler) deleteCredential(c *gin.Context) error {
-	userID := authz.PrincipalFrom(c).UserID
+	principal := authz.PrincipalFrom(c)
 	credentialID := c.Param("id")
 	clientIP := c.ClientIP()
 	userAgent := c.Request.UserAgent()
 
-	err := h.service.DeleteCredential(c.Request.Context(), userID, credentialID, clientIP, userAgent, userID)
+	err := h.service.DeleteCredential(c.Request.Context(), principal.UserID, credentialID, clientIP, userAgent, principal)
 	if err != nil {
 		return err
 	}

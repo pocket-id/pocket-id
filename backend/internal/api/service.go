@@ -132,10 +132,6 @@ func (s *Service) Create(ctx context.Context, input apiCreateDto) (api API, err 
 }
 
 func (s *Service) Update(ctx context.Context, id string, input apiUpdateDto) (api API, err error) {
-	if id == BuiltInAPIID {
-		return API{}, apperror.BuiltInAPIReadOnly("The built-in Pocket ID API can't be renamed")
-	}
-
 	tx := s.db.Begin()
 	defer func() {
 		tx.Rollback()
@@ -144,6 +140,9 @@ func (s *Service) Update(ctx context.Context, id string, input apiUpdateDto) (ap
 	api, err = s.Get(ctx, tx, id)
 	if err != nil {
 		return API{}, err
+	}
+	if api.ID == BuiltInAPIID {
+		return API{}, apperror.BuiltInAPIReadOnly("The built-in Pocket ID API can't be renamed")
 	}
 
 	api.Name = input.Name
@@ -162,10 +161,6 @@ func (s *Service) Update(ctx context.Context, id string, input apiUpdateDto) (ap
 }
 
 func (s *Service) Delete(ctx context.Context, id string) error {
-	if id == BuiltInAPIID {
-		return apperror.BuiltInAPIReadOnly("The built-in Pocket ID API can't be deleted")
-	}
-
 	tx := s.db.Begin()
 	defer func() {
 		tx.Rollback()
@@ -174,6 +169,9 @@ func (s *Service) Delete(ctx context.Context, id string) error {
 	api, err := s.Get(ctx, tx, id)
 	if err != nil {
 		return err
+	}
+	if api.ID == BuiltInAPIID {
+		return apperror.BuiltInAPIReadOnly("The built-in Pocket ID API can't be deleted")
 	}
 
 	if err = deletePermissions(ctx, tx, collectIDs(api.Permissions)); err != nil {
@@ -190,10 +188,6 @@ func (s *Service) Delete(ctx context.Context, id string) error {
 // UpdatePermissions replaces the full permission set of an API, matching existing permissions by key
 // Unchanged keys keep their grants, removed keys and their client grants are deleted, and new keys are inserted
 func (s *Service) UpdatePermissions(ctx context.Context, id string, input apiPermissionsUpdateDto) (api API, err error) {
-	if id == BuiltInAPIID {
-		return API{}, apperror.BuiltInAPIReadOnly("The permissions of the built-in Pocket ID API follow Pocket ID's scopes and can't be changed")
-	}
-
 	tx := s.db.Begin()
 	defer func() {
 		tx.Rollback()
@@ -202,6 +196,9 @@ func (s *Service) UpdatePermissions(ctx context.Context, id string, input apiPer
 	api, err = s.Get(ctx, tx, id)
 	if err != nil {
 		return API{}, err
+	}
+	if api.ID == BuiltInAPIID {
+		return API{}, apperror.BuiltInAPIReadOnly("The permissions of the built-in Pocket ID API follow Pocket ID's scopes and can't be changed")
 	}
 
 	// Reject keys with invalid characters, that collide with Pocket ID's reserved scopes and claims, or that repeat within the request before persisting anything
@@ -744,10 +741,19 @@ func (s *Service) SetAPIClientAccess(ctx context.Context, apiID, clientID string
 
 	permissionIDs := collectIDs(api.Permissions)
 	applied.UserDelegatedPermissionIDs = intersectIDs(permissionIDs, grant.UserDelegatedPermissionIDs)
-	applied.ClientPermissionIDs = intersectIDs(permissionIDs, grant.ClientPermissionIDs)
+	// A client acting as itself has no account, so on Pocket ID's own API it can only be granted admin scopes
+	clientPermissionIDs := permissionIDs
+	if api.ID == BuiltInAPIID {
+		clientPermissionIDs = nil
+		for _, permission := range api.Permissions {
+			if authz.Scope(permission.Key).GrantableTo(authz.KindOAuthClient) {
+				clientPermissionIDs = append(clientPermissionIDs, permission.ID)
+			}
+		}
+	}
+	applied.ClientPermissionIDs = intersectIDs(clientPermissionIDs, grant.ClientPermissionIDs)
 	// A public client can't use the client credentials grant, so drop any client-subject grant that could never produce a token
-	// Pocket ID's own API only accepts tokens that act for a user, so it never takes client-subject grants either
-	if client.IsPublic || api.ID == BuiltInAPIID {
+	if client.IsPublic {
 		grant.ClientAccess = false
 		applied.ClientPermissionIDs = nil
 	}

@@ -480,13 +480,12 @@ test('A client calls Pocket ID with an access token for the built-in API', async
 	const client = oidcClients.immich;
 	const resource = `${baseURL}/api`;
 
-	// Admins grant clients access to the built-in API like to any other API, but only on behalf of people
+	// Admins grant clients access to the built-in API like to any other API
 	await page.goto(`/settings/admin/apis/${pocketIdApi.id}`);
 	await expect(page.getByText('Built-in', { exact: true })).toBeVisible();
 	await page.getByRole('tab', { name: 'Clients' }).click();
 	await page.getByRole('button', { name: 'Add client…' }).click();
 	await page.getByRole('dialog').getByRole('button', { name: client.name }).click();
-	await expect(page.getByRole('dialog').getByText('As itself')).toHaveCount(0);
 	await page.getByRole('checkbox', { name: 'On behalf of people: Users · Read' }).click();
 	await page.getByRole('dialog').getByRole('button', { name: 'Save' }).click();
 	await expect(page.locator('[data-type="success"]')).toHaveText('API access updated');
@@ -528,4 +527,86 @@ test('A client calls Pocket ID with an access token for the built-in API', async
 		403
 	);
 	await apiClient.dispose();
+});
+
+test('A client calls Pocket ID as itself with the client credentials grant', async ({
+	page,
+	baseURL,
+	playwright
+}) => {
+	const client = oidcClients.tailscale;
+
+	// A client acting as itself can only get admin scopes, and the ones amounting to admin access come with a warning
+	await page.goto(`/settings/admin/apis/${pocketIdApi.id}`);
+	await page.getByRole('tab', { name: 'Clients' }).click();
+	await page.getByRole('button', { name: 'Add client…' }).click();
+	await page.getByRole('dialog').getByRole('button', { name: client.name }).click();
+	const dialog = page.getByRole('dialog');
+	await expect(dialog.getByRole('checkbox', { name: 'As itself: Profile · Read' })).toBeDisabled();
+	await dialog.getByRole('checkbox', { name: 'As itself: Users · Write' }).click();
+	await expect(dialog.getByText('This client can act as an admin')).toBeVisible();
+	await dialog.getByRole('checkbox', { name: 'As itself: Users · Write' }).click();
+	await expect(dialog.getByText('This client can act as an admin')).toHaveCount(0);
+	await dialog.getByRole('checkbox', { name: 'As itself: Users · Read' }).click();
+	await dialog.getByRole('button', { name: 'Save' }).click();
+	await expect(page.locator('[data-type="success"]')).toHaveText('API access updated');
+
+	const res = await oidcUtil.exchangeCode(page, {
+		grant_type: 'client_credentials',
+		client_id: client.id,
+		client_secret: client.secret,
+		resource: `${baseURL}/api`
+	});
+	expect(tokenScopes(jose.decodeJwt(res.access_token!))).toEqual(['users:read']);
+
+	// The context would inherit the signed-in session cookie, so it is cleared to let only the access token authenticate the requests
+	const apiClient = await playwright.request.newContext({
+		baseURL,
+		storageState: { cookies: [], origins: [] },
+		extraHTTPHeaders: { Authorization: `Bearer ${res.access_token}` }
+	});
+	expect((await apiClient.get('/api/users')).status()).toBe(200);
+	// The client has no account of its own
+	const me = await apiClient.get('/api/users/me');
+	expect(me.status()).toBe(403);
+	expect((await me.json()).code).toBe('client_token_auth_not_allowed');
+	await apiClient.dispose();
+});
+
+test('Consent screen warns before an app gets scopes that amount to admin access', async ({
+	page,
+	baseURL
+}) => {
+	const client = oidcClients.immich;
+	const api = await (await page.request.get(`/api/apis/${pocketIdApi.id}`)).json();
+	const permissionIds = api.permissions
+		.filter((p: { key: string }) => ['users:read', 'users:write'].includes(p.key))
+		.map((p: { id: string }) => p.id);
+	await page.request.put(`/api/apis/${pocketIdApi.id}/clients/${client.id}`, {
+		data: {
+			userDelegatedAccess: true,
+			clientAccess: false,
+			userDelegatedPermissionIds: permissionIds,
+			clientPermissionIds: []
+		}
+	});
+
+	const params = new URLSearchParams({
+		client_id: client.id,
+		response_type: 'code',
+		scope: 'users:read users:write',
+		resource: `${baseURL}/api`,
+		redirect_uri: client.callbackUrl,
+		state: 'nXx-6Qr-owc1SHBa'
+	});
+	await page.goto(`/authorize?${params.toString()}`);
+
+	const warning = page.getByText('This app can gain full admin access');
+	await expect(warning).toBeVisible();
+	// Deselecting the scope takes the risk away
+	await page
+		.getByTestId('scopes')
+		.getByRole('checkbox', { name: /^Users · Write/ })
+		.click();
+	await expect(warning).toHaveCount(0);
 });
