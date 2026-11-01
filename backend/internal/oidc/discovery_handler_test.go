@@ -1,4 +1,4 @@
-package controller
+package oidc
 
 import (
 	"encoding/json"
@@ -12,20 +12,14 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/pocket-id/pocket-id/backend/internal/common"
-	"github.com/pocket-id/pocket-id/backend/internal/service"
-	jwkutils "github.com/pocket-id/pocket-id/backend/internal/utils/jwk"
+	"github.com/pocket-id/pocket-id/backend/internal/httpserver"
 )
 
-func newMinimalJwtService(t *testing.T) *service.JwtService {
-	t.Helper()
+type testKeyPublisher struct{}
 
-	key, err := jwkutils.GenerateKey(jwa.RS256().String(), "")
-	require.NoError(t, err, "failed to generate test JWK key")
+func (testKeyPublisher) GetKeyAlg() (jwa.KeyAlgorithm, error) { return jwa.RS256(), nil }
 
-	svc := &service.JwtService{}
-	require.NoError(t, svc.SetKey(key), "failed to set JWK key on JwtService")
-	return svc
-}
+func (testKeyPublisher) PublicJWKS() []byte { return []byte(`{"keys":[]}`) }
 
 func TestClientIDMetadataDocumentDiscoveryFollowsAllowlist(t *testing.T) {
 	origURL := common.EnvConfig.AppURL
@@ -34,10 +28,9 @@ func TestClientIDMetadataDocumentDiscoveryFollowsAllowlist(t *testing.T) {
 	})
 
 	common.EnvConfig.AppURL = "https://test.example.com"
-	jwtSvc := newMinimalJwtService(t)
 	cimdURLAllowlist := []string(nil)
-	wkc := &WellKnownController{
-		jwtService: jwtSvc,
+	wkc := &discoveryHandler{
+		keys: testKeyPublisher{},
 		getCIMDURLAllowlist: func() []string {
 			return cimdURLAllowlist
 		},
@@ -71,8 +64,10 @@ func TestOAuthAuthorizationServerMetadata(t *testing.T) {
 	common.EnvConfig.AppURL = "https://test.example.com"
 	common.EnvConfig.InternalAppURL = "https://test.example.com"
 
+	h := &discoveryHandler{keys: testKeyPublisher{}}
 	router := gin.New()
-	NewWellKnownController(router.Group("/"), newMinimalJwtService(t), func() []string { return nil })
+	router.GET("/.well-known/oauth-authorization-server", httpserver.Handle(h.oauthAuthorizationServerHandler))
+	router.GET("/.well-known/openid-configuration", httpserver.Handle(h.openIDConfigurationHandler))
 
 	get := func(t *testing.T, path string) *httptest.ResponseRecorder {
 		t.Helper()

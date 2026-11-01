@@ -19,7 +19,7 @@ import (
 )
 
 // stubSigner returns a recognizable token so delivery tests can assert what was posted without a real key
-// Logout token contents are covered by the JWT service's own tests
+// Logout token contents are covered by TestGenerateLogoutToken
 type stubSigner struct{}
 
 func (stubSigner) GenerateLogoutToken(userID string, clientID string) (string, error) {

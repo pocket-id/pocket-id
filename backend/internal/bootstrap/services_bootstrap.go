@@ -32,6 +32,7 @@ import (
 	"github.com/pocket-id/pocket-id/backend/internal/scimsync"
 	"github.com/pocket-id/pocket-id/backend/internal/service"
 	"github.com/pocket-id/pocket-id/backend/internal/session"
+	"github.com/pocket-id/pocket-id/backend/internal/signingkey"
 	"github.com/pocket-id/pocket-id/backend/internal/storage"
 	"github.com/pocket-id/pocket-id/backend/internal/usersignup"
 	"github.com/pocket-id/pocket-id/backend/internal/webauthn"
@@ -43,7 +44,7 @@ type services struct {
 	emailModule              *email.Module
 	geoLiteModule            *geolite.Module
 	ipLocator                iplocation.Resolver
-	jwtService               *service.JwtService
+	signingKey               *signingkey.Key
 	userService              *service.UserService
 	customClaimService       *service.CustomClaimService
 	claimMappingPolicyModule *claimmappingpolicy.Module
@@ -105,13 +106,14 @@ func initServices(
 		return nil, fmt.Errorf("failed to create IP location resolver: %w", err)
 	}
 
-	svc.jwtService, err = service.NewJwtService(ctx, db, instanceID)
+	svc.signingKey, err = signingkey.Load(ctx, db, &common.EnvConfig, instanceID)
 	if err != nil {
-		return nil, fmt.Errorf("failed to create JWT service: %w", err)
+		return nil, fmt.Errorf("failed to load signing key: %w", err)
 	}
 
-	svc.auditLogsModule, err = auditlogs.New(auditlogs.Dependencies{
-		Signer:        svc.jwtService,
+	svc.auditLogsModule, err = auditlogs.New(ctx, auditlogs.Dependencies{
+		EnvConfig:     &common.EnvConfig,
+		InstanceID:    instanceID,
 		AppURL:        common.EnvConfig.AppURL,
 		EmailSender:   svc.emailModule,
 		IPLocator:     svc.ipLocator,
@@ -187,7 +189,7 @@ func initServices(
 			Secret:                    common.EnvConfig.EncryptionKey,
 			AllowInsecureCallbackURLs: common.EnvConfig.AllowInsecureCallbackURLs,
 		},
-		Signer:       svc.jwtService,
+		Signer:       svc.signingKey,
 		CustomClaims: svc.customClaimService,
 		Reauth:       svc.webauthnModule,
 		AuditLog:     svc.auditLogsModule,
@@ -201,12 +203,12 @@ func initServices(
 		return nil, fmt.Errorf("failed to create OIDC module: %w", err)
 	}
 
-	backchannelLogoutService, err := backchannellogout.NewService(db, svc.jwtService, outboundClients.Client(outbound.PurposeBackchannelLogout), actors)
+	backchannelLogoutService, err := backchannellogout.NewService(db, backchannellogout.NewTokenSigner(svc.signingKey, common.EnvConfig.AppURL), outboundClients.Client(outbound.PurposeBackchannelLogout), actors)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create back-channel logout service: %w", err)
 	}
 
-	svc.oidcService, err = service.NewOidcService(db, svc.jwtService, svc.oidcModule.Preview, svc.oidcModule, svc.scimSyncModule, backchannelLogoutService, outboundClients.Client(outbound.PurposeClientLogo), fileStorage)
+	svc.oidcService, err = service.NewOidcService(db, svc.oidcModule.Preview, svc.oidcModule, svc.scimSyncModule, backchannelLogoutService, outboundClients.Client(outbound.PurposeClientLogo), fileStorage)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create OIDC service: %w", err)
 	}
@@ -231,7 +233,7 @@ func initServices(
 		return nil, fmt.Errorf("failed to create email verification module: %w", err)
 	}
 
-	svc.userService = service.NewUserService(db, svc.jwtService, svc.customClaimService, svc.appImagesService, svc.scimSyncModule, backchannelLogoutService, fileStorage, svc.emailVerificationModule)
+	svc.userService = service.NewUserService(db, svc.customClaimService, svc.appImagesService, svc.scimSyncModule, backchannelLogoutService, fileStorage, svc.emailVerificationModule)
 
 	svc.ldapSyncModule, err = ldapsync.New(ldapsync.Dependencies{
 		DB:                db,

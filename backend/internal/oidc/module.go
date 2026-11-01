@@ -33,6 +33,12 @@ type TokenSigner interface {
 	GetKeyID() (string, bool)
 }
 
+// Signer is the instance key, which signs tokens and is published for the discovery endpoints
+type Signer interface {
+	TokenSigner
+	KeyPublisher
+}
+
 type CustomClaimSource interface {
 	GetCustomClaimsForUserWithUserGroups(ctx context.Context, userID string, tx *gorm.DB) ([]model.CustomClaim, error)
 }
@@ -58,7 +64,7 @@ type Dependencies struct {
 
 	GetCIMDURLAllowlist func() []string
 
-	Signer       TokenSigner
+	Signer       Signer
 	CustomClaims CustomClaimSource
 	Reauth       ReauthenticationTokenConsumer
 	AuditLog     AuditLogger
@@ -87,6 +93,7 @@ type Module struct {
 	deviceHandler        *deviceHandler
 
 	claimMappingsPreviewHandler *claimMappingsPreviewHandler
+	discoveryHandler            *discoveryHandler
 }
 
 func New(ctx context.Context, deps Dependencies) (*Module, error) {
@@ -152,6 +159,7 @@ func New(ctx context.Context, deps Dependencies) (*Module, error) {
 		deviceHandler:        newDeviceHandler(provider, deviceService),
 
 		claimMappingsPreviewHandler: &claimMappingsPreviewHandler{claimsService: claimsService},
+		discoveryHandler:            &discoveryHandler{keys: deps.Signer, getCIMDURLAllowlist: deps.GetCIMDURLAllowlist},
 	}, nil
 }
 
@@ -177,6 +185,10 @@ func (m *Module) RegisterRoutes(root, api *authz.Router) {
 	authorize := root.Use(m.authorizationHandler.redirectAuthorizationErrors).Optional()
 	authorize.GET("/authorize", authz.AccountAuthorize, m.authorizationHandler.authorize)
 	authorize.POST("/authorize", authz.AccountAuthorize, m.authorizationHandler.authorize)
+
+	root.Public().GET("/.well-known/jwks.json", httpserver.Handle(m.discoveryHandler.jwksHandler))
+	root.Public().GET("/.well-known/openid-configuration", httpserver.Handle(m.discoveryHandler.openIDConfigurationHandler))
+	root.Public().GET("/.well-known/oauth-authorization-server", httpserver.Handle(m.discoveryHandler.oauthAuthorizationServerHandler))
 
 	api.Public().GET("/oidc/interactions/:id", m.authorizationHandler.getInteractionSession)
 	api.POST("/oidc/interactions/:id/complete", authz.AccountAuthorize, m.authorizationHandler.completeInteraction)

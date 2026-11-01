@@ -1,4 +1,4 @@
-package controller
+package oidc
 
 import (
 	"encoding/json"
@@ -6,30 +6,21 @@ import (
 	"net/http"
 
 	"github.com/gin-gonic/gin"
+	"github.com/lestrrat-go/jwx/v4/jwa"
+	"github.com/pocket-id/fosite"
 
 	"github.com/pocket-id/pocket-id/backend/internal/common"
 	_ "github.com/pocket-id/pocket-id/backend/internal/dto"
-	"github.com/pocket-id/pocket-id/backend/internal/httpserver"
-	"github.com/pocket-id/pocket-id/backend/internal/service"
 )
 
-// NewWellKnownController creates a new controller for OIDC discovery endpoints
-// @Summary OIDC Discovery controller
-// @Description Initializes OIDC discovery, OAuth 2.0 authorization server metadata and JWKS endpoints
-// @Tags Well Known
-func NewWellKnownController(group *gin.RouterGroup, jwtService *service.JwtService, getCIMDURLAllowlist func() []string) {
-	wkc := &WellKnownController{
-		jwtService:          jwtService,
-		getCIMDURLAllowlist: getCIMDURLAllowlist,
-	}
-
-	group.GET("/.well-known/jwks.json", httpserver.Handle(wkc.jwksHandler))
-	group.GET("/.well-known/openid-configuration", httpserver.Handle(wkc.openIDConfigurationHandler))
-	group.GET("/.well-known/oauth-authorization-server", httpserver.Handle(wkc.oauthAuthorizationServerHandler))
+// KeyPublisher publishes the public half of the signing key, so clients can verify the tokens Pocket ID signs
+type KeyPublisher interface {
+	GetKeyAlg() (jwa.KeyAlgorithm, error)
+	PublicJWKS() []byte
 }
 
-type WellKnownController struct {
-	jwtService          *service.JwtService
+type discoveryHandler struct {
+	keys                KeyPublisher
 	getCIMDURLAllowlist func() []string
 }
 
@@ -41,13 +32,8 @@ type WellKnownController struct {
 // @Success 200 {object} object "{ \"keys\": []interface{} }"
 // @Failure default {object} dto.ErrorDto "Error"
 // @Router /.well-known/jwks.json [get]
-func (wkc *WellKnownController) jwksHandler(c *gin.Context) error {
-	jwks, err := wkc.jwtService.GetPublicJWKSAsJSON()
-	if err != nil {
-		return err
-	}
-
-	c.Data(http.StatusOK, "application/json; charset=utf-8", jwks)
+func (h *discoveryHandler) jwksHandler(c *gin.Context) error {
+	c.Data(http.StatusOK, "application/json; charset=utf-8", h.keys.PublicJWKS())
 	return nil
 }
 
@@ -58,8 +44,8 @@ func (wkc *WellKnownController) jwksHandler(c *gin.Context) error {
 // @Success 200 {object} object "OpenID Connect configuration"
 // @Failure default {object} dto.ErrorDto "Error"
 // @Router /.well-known/openid-configuration [get]
-func (wkc *WellKnownController) openIDConfigurationHandler(c *gin.Context) error {
-	return wkc.writeServerMetadata(c)
+func (h *discoveryHandler) openIDConfigurationHandler(c *gin.Context) error {
+	return h.writeServerMetadata(c)
 }
 
 // oauthAuthorizationServerHandler godoc
@@ -69,12 +55,12 @@ func (wkc *WellKnownController) openIDConfigurationHandler(c *gin.Context) error
 // @Success 200 {object} object "OAuth 2.0 authorization server metadata"
 // @Failure default {object} dto.ErrorDto "Error"
 // @Router /.well-known/oauth-authorization-server [get]
-func (wkc *WellKnownController) oauthAuthorizationServerHandler(c *gin.Context) error {
-	return wkc.writeServerMetadata(c)
+func (h *discoveryHandler) oauthAuthorizationServerHandler(c *gin.Context) error {
+	return h.writeServerMetadata(c)
 }
 
-func (wkc *WellKnownController) writeServerMetadata(c *gin.Context) error {
-	metadata, err := wkc.computeServerMetadata()
+func (h *discoveryHandler) writeServerMetadata(c *gin.Context) error {
+	metadata, err := h.computeServerMetadata()
 	if err != nil {
 		return err
 	}
@@ -82,18 +68,18 @@ func (wkc *WellKnownController) writeServerMetadata(c *gin.Context) error {
 	return nil
 }
 
-func (wkc *WellKnownController) computeServerMetadata() ([]byte, error) {
+func (h *discoveryHandler) computeServerMetadata() ([]byte, error) {
 	appUrl := common.EnvConfig.AppURL
 
 	internalAppUrl := common.EnvConfig.InternalAppURL
 
-	alg, err := wkc.jwtService.GetKeyAlg()
+	alg, err := h.keys.GetKeyAlg()
 	if err != nil {
 		return nil, fmt.Errorf("failed to get key algorithm: %w", err)
 	}
 	cimdSupported := false
-	if wkc.getCIMDURLAllowlist != nil {
-		cimdSupported = len(wkc.getCIMDURLAllowlist()) > 0
+	if h.getCIMDURLAllowlist != nil {
+		cimdSupported = len(h.getCIMDURLAllowlist()) > 0
 	}
 
 	config := map[string]any{
@@ -106,7 +92,7 @@ func (wkc *WellKnownController) computeServerMetadata() ([]byte, error) {
 		"introspection_endpoint_auth_methods_supported":  []string{"client_secret_basic", "Bearer"},
 		"device_authorization_endpoint":                  appUrl + "/api/oidc/device/authorize",
 		"jwks_uri":                                       internalAppUrl + "/.well-known/jwks.json",
-		"grant_types_supported":                          []string{service.GrantTypeAuthorizationCode, service.GrantTypeRefreshToken, service.GrantTypeDeviceCode, service.GrantTypeClientCredentials},
+		"grant_types_supported":                          []fosite.GrantType{fosite.GrantTypeAuthorizationCode, fosite.GrantTypeRefreshToken, fosite.GrantTypeDeviceCode, fosite.GrantTypeClientCredentials},
 		"scopes_supported":                               []string{"openid", "profile", "email", "groups", "offline_access"},
 		"claims_supported":                               []string{"sub", "given_name", "family_name", "name", "display_name", "email", "email_verified", "preferred_username", "picture", "groups", "auth_time", "amr"},
 		"response_types_supported":                       []string{"code"},

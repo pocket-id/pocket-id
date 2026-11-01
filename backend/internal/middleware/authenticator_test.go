@@ -18,7 +18,6 @@ import (
 	"github.com/pocket-id/pocket-id/backend/internal/appconfig"
 	"github.com/pocket-id/pocket-id/backend/internal/authz"
 	"github.com/pocket-id/pocket-id/backend/internal/common"
-	"github.com/pocket-id/pocket-id/backend/internal/instanceid"
 	"github.com/pocket-id/pocket-id/backend/internal/model"
 	datatype "github.com/pocket-id/pocket-id/backend/internal/model/types"
 	"github.com/pocket-id/pocket-id/backend/internal/oidc"
@@ -41,13 +40,7 @@ func TestAuthorizationWithRealCredentials(t *testing.T) {
 
 	db := testutils.NewDatabaseForTest(t)
 
-	instanceID, err := instanceid.Load(t.Context(), db)
-	require.NoError(t, err)
-
-	jwtService, err := service.NewJwtService(t.Context(), db, instanceID)
-	require.NoError(t, err)
-
-	userService := service.NewUserService(db, jwtService, nil, nil, nil, nil, nil, nil)
+	userService := service.NewUserService(db, nil, nil, nil, nil, nil, nil)
 	apiKeyModule, err := apikey.New(t.Context(), apikey.Dependencies{DB: db, CleanupDisabled: true})
 	require.NoError(t, err)
 

@@ -198,7 +198,6 @@ func registerRoutes(r *gin.Engine, db *gorm.DB, svc *services, auth *authz.Middl
 
 	registerTestRoutes(apiRouter, db, svc)
 
-	controller.NewWellKnownController(baseGroup, svc.jwtService, svc.appConfigService.GetCIMDURLAllowlist)
 	controller.NewWebManifestController(baseGroup, svc.appConfigService)
 
 	// These are not rate-limited.

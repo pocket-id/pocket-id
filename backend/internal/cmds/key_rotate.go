@@ -53,7 +53,7 @@ func init() {
 
 	keyRotateCmd.Flags().StringVarP(&flags.Alg, "alg", "a", "RS256", "Key algorithm. Supported values: RS256, RS384, RS512, ES256, ES384, ES512, EdDSA")
 	keyRotateCmd.Flags().StringVarP(&flags.Crv, "crv", "c", "", "Curve name when using EdDSA keys. Supported values: Ed25519")
-	keyRotateCmd.Flags().BoolVar(&flags.SessionKey, "session-key", false, "Rotate the key used to sign session tokens instead of the token signing key")
+	keyRotateCmd.Flags().BoolVar(&flags.SessionKey, "session-key", false, "Rotate the key that signs the known-browser cookie instead of the token signing key")
 	keyRotateCmd.Flags().BoolVarP(&flags.Yes, "yes", "y", false, "Do not prompt for confirmation")
 
 	rootCmd.AddCommand(keyRotateCmd)
@@ -126,7 +126,7 @@ func keyRotate(ctx context.Context, flags keyRotateFlags, db *gorm.DB, instanceI
 
 func sessionKeyRotate(ctx context.Context, flags keyRotateFlags, db *gorm.DB, instanceID string, envConfig *common.EnvConfigSchema) error {
 	if !flags.Yes {
-		fmt.Println("WARNING: Rotating the session key will invalidate all existing sessions, and all users will need to sign in again. Tokens issued to client applications are not affected.")
+		fmt.Println("WARNING: Rotating the session key makes every browser unknown again, so users get a new sign-in notification the next time they sign in. Sessions and tokens issued to client applications are not affected.")
 		ok, err := utils.PromptForConfirmation("Confirm")
 		if err != nil {
 			return err

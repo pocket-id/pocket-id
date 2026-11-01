@@ -8,22 +8,17 @@ import (
 	"time"
 
 	francishost "github.com/italypaleale/francis/host"
-	"github.com/lestrrat-go/jwx/v4/jwt"
 	"gorm.io/gorm"
 
 	"github.com/pocket-id/pocket-id/backend/internal/appconfig"
 	"github.com/pocket-id/pocket-id/backend/internal/authz"
+	"github.com/pocket-id/pocket-id/backend/internal/common"
 	"github.com/pocket-id/pocket-id/backend/internal/httpserver"
 	"github.com/pocket-id/pocket-id/backend/internal/iplocation"
 )
 
 type NewLoginEmailSender interface {
 	SendNewLogin(ctx context.Context, dbConfig *appconfig.AppConfigModel, userFullName, userEmail, ipAddress, country, city, device, method string, dateTime time.Time) error
-}
-
-type SessionTokenService interface {
-	SignSessionToken(token jwt.Token) (string, error)
-	VerifySessionToken(token string, options ...jwt.ValidateOption) (jwt.Token, error)
 }
 
 type Dependencies struct {
@@ -33,7 +28,8 @@ type Dependencies struct {
 	EmailSender NewLoginEmailSender
 	IPLocator   iplocation.Resolver
 	AppConfig   appconfig.AppConfigResolver
-	Signer      SessionTokenService
+	EnvConfig   *common.EnvConfigSchema
+	InstanceID  string
 	AppURL      string
 
 	// RetentionDays is how long audit logs are kept before the cleanup job deletes them
@@ -44,11 +40,12 @@ type Dependencies struct {
 }
 
 type Module struct {
-	service *service
-	handler *handler
+	service       *service
+	handler       *handler
+	browserTokens *browserTokens
 }
 
-func New(deps Dependencies) (*Module, error) {
+func New(ctx context.Context, deps Dependencies) (*Module, error) {
 	// Register audit retention cleanup before the actor host starts
 	if !deps.CleanupDisabled {
 		if deps.Actors == nil {
@@ -67,8 +64,19 @@ func New(deps Dependencies) (*Module, error) {
 		}
 	}
 
-	service := newService(deps.DB, deps.EmailSender, deps.IPLocator, deps.AppConfig, &browserTokens{signer: deps.Signer, appURL: deps.AppURL})
-	return &Module{service: service, handler: newHandler(service)}, nil
+	browserTokens := &browserTokens{db: deps.DB, envConfig: deps.EnvConfig, appURL: deps.AppURL}
+	err := browserTokens.loadKey(ctx, deps.InstanceID)
+	if err != nil {
+		return nil, err
+	}
+
+	service := newService(deps.DB, deps.EmailSender, deps.IPLocator, deps.AppConfig, browserTokens)
+	return &Module{service: service, handler: newHandler(service), browserTokens: browserTokens}, nil
+}
+
+// ReloadBrowserKey replaces the known-browser key with the one stored for the instance, which the E2E reset needs after switching to a fixed instance ID
+func (m *Module) ReloadBrowserKey(ctx context.Context, instanceID string) error {
+	return m.browserTokens.loadKey(ctx, instanceID)
 }
 
 // RegisterRoutes mounts the audit-log queries for the caller's own events and for all events

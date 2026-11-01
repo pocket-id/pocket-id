@@ -37,6 +37,7 @@ import (
 	"github.com/pocket-id/pocket-id/backend/internal/oidc"
 	"github.com/pocket-id/pocket-id/backend/internal/onetimeaccess"
 	"github.com/pocket-id/pocket-id/backend/internal/session"
+	"github.com/pocket-id/pocket-id/backend/internal/signingkey"
 	"github.com/pocket-id/pocket-id/backend/internal/storage"
 	"github.com/pocket-id/pocket-id/backend/internal/usersignup"
 	"github.com/pocket-id/pocket-id/backend/internal/utils"
@@ -51,10 +52,16 @@ type LdapSyncer interface {
 	SyncAll(ctx context.Context, dbConfig *appconfig.AppConfigModel) error
 }
 
+// BrowserKeyReloader reloads the key that signs known-browser cookies
+type BrowserKeyReloader interface {
+	ReloadBrowserKey(ctx context.Context, instanceID string) error
+}
+
 type TestService struct {
 	db               *gorm.DB
 	actors           francishost.Host
-	jwtService       *JwtService
+	signingKey       *signingkey.Key
+	browserKey       BrowserKeyReloader
 	appConfigService *appconfig.AppConfigService
 	ldapSyncer       LdapSyncer
 	fileStorage      storage.FileStorage
@@ -71,14 +78,18 @@ const (
 	e2eEmailVerificationToken          = "2FZFSoupBdHyqIL65bWTsgCgHIhxlXup"
 	e2eSessionID                       = "e2e-session-tim"
 	e2eSessionSecret                   = "Tq4mV8cY2nB6xR1wK9pL3sD7fG5hJ0zA"
+
+	// authenticationMethodPhishingResistant is how a passkey sign-in is recorded
+	authenticationMethodPhishingResistant = "phr"
 )
 
-func NewTestService(db *gorm.DB, actors francishost.Host, appConfigService *appconfig.AppConfigService, jwtService *JwtService, ldapSyncer LdapSyncer, fileStorage storage.FileStorage) (*TestService, error) {
+func NewTestService(db *gorm.DB, actors francishost.Host, appConfigService *appconfig.AppConfigService, signingKey *signingkey.Key, browserKey BrowserKeyReloader, ldapSyncer LdapSyncer, fileStorage storage.FileStorage) (*TestService, error) {
 	s := &TestService{
 		db:               db,
 		actors:           actors,
 		appConfigService: appConfigService,
-		jwtService:       jwtService,
+		signingKey:       signingKey,
+		browserKey:       browserKey,
 		ldapSyncer:       ldapSyncer,
 		fileStorage:      fileStorage,
 	}
@@ -600,7 +611,7 @@ func (s *TestService) seedSession(ctx context.Context) error {
 	_, err := s.actors.Service().Invoke(ctx, session.ActorType, e2eRefreshTokenUserID, session.MethodCreate, session.Session{
 		ID:                   e2eSessionID,
 		TokenHash:            utils.CreateSha256Hash(e2eSessionSecret),
-		AuthenticationMethod: AuthenticationMethodPhishingResistant,
+		AuthenticationMethod: authenticationMethodPhishingResistant,
 		CreatedAt:            now,
 		LastActiveAt:         now,
 		ExpiresAt:            now.Add(24 * time.Hour),
@@ -820,15 +831,12 @@ func (s *TestService) ResetAppConfig(ctx context.Context) error {
 		return err
 	}
 
-	// The instance ID is loaded once at startup, so we also set it directly on the JWT service so it takes effect immediately
-	s.jwtService.instanceID = testInstanceID
-
-	// Reload the JWK
-	if err := s.jwtService.LoadOrGenerateKey(ctx); err != nil {
+	// The keys are encrypted with a key derived from the instance ID, so they're reloaded for the new one
+	err = s.signingKey.Reload(ctx, testInstanceID)
+	if err != nil {
 		return err
 	}
-
-	return nil
+	return s.browserKey.ReloadBrowserKey(ctx, testInstanceID)
 }
 
 // SyncLdap triggers an LDAP synchronization
@@ -915,7 +923,7 @@ func seededRefreshTokenSession(userID string, clientID string, fixtureRefreshTok
 		RequestID:            "e2e-refresh-" + utils.CreateSha256Hash(fixtureRefreshToken),
 		UserID:               userID,
 		ClientID:             clientID,
-		AuthenticationMethod: AuthenticationMethodPhishingResistant,
+		AuthenticationMethod: authenticationMethodPhishingResistant,
 		Scopes:               []string{"openid", "profile", "email"},
 		TokenType:            fosite.RefreshToken,
 		ExpiresAt:            expiresAt,
@@ -943,7 +951,7 @@ func (s *TestService) SignAccessToken(ctx context.Context, userID, clientID stri
 		AccessTokenIssuer:   common.EnvConfig.AppURL,
 	}
 	keyGetter := func(context.Context) (interface{}, error) {
-		return oidc.SigningKeyFromSigner(s.jwtService)
+		return oidc.SigningKeyFromSigner(s.signingKey)
 	}
 	strategy := oidc.NewAccessTokenStrategy(compose.NewOAuth2RFC9068JWTStrategy(keyGetter, fositeConfig), common.EnvConfig.AppURL)
 
@@ -957,7 +965,7 @@ func (s *TestService) SignAccessToken(ctx context.Context, userID, clientID stri
 		RequestID:            "e2e-access-" + uuid.NewV4().String(),
 		UserID:               userID,
 		ClientID:             clientID,
-		AuthenticationMethod: AuthenticationMethodPhishingResistant,
+		AuthenticationMethod: authenticationMethodPhishingResistant,
 		Scopes:               []string{"openid", "profile", "email"},
 		TokenType:            fosite.AccessToken,
 		ExpiresAt:            expiresAt,
