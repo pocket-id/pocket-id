@@ -28,7 +28,7 @@
 
 	const SHORT = 6;
 	const LONG = 12;
-	const emailCodes = $appConfigStore.emailOneTimeAccessAsUnauthenticatedEnabled;
+	const emailCodes = $appConfigStore.emailOneTimeAccessAsUnauthenticated !== 'disabled';
 	const userService = new UserService();
 
 	const sentTo = data.code ? '' : emailedLoginCode.sentTo;

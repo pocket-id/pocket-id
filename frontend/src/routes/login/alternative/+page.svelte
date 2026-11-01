@@ -9,7 +9,7 @@
 	import appConfigStore from '#lib/stores/application-configuration-store.ts';
 	import { LucideChevronRight, LucideKeyboard, LucideMail, LucideSmartphone } from '@lucide/svelte';
 
-	const emailCodes = $appConfigStore.emailOneTimeAccessAsUnauthenticatedEnabled;
+	const emailCodes = $appConfigStore.emailOneTimeAccessAsUnauthenticated !== 'disabled';
 
 	// Choosing a method again starts over, so Enter a login code no longer refers to an earlier email
 	emailedLoginCode.sentTo = '';

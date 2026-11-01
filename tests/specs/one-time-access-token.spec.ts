@@ -103,7 +103,7 @@ async function setEmailLoginEnabled(browser: Browser) {
 				({ key, value }) => [key, value]
 			)
 		);
-		config.emailOneTimeAccessAsUnauthenticatedEnabled = 'true';
+		config.emailOneTimeAccessAsUnauthenticated = 'all';
 
 		const updateResponse = await page.request.put('/api/application-configuration', {
 			data: config
