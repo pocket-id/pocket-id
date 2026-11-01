@@ -91,6 +91,9 @@
 							{@render tags()}
 						</div>
 					{/if}
+					{#if description}
+						<p class="text-body text-fg-muted mt-2">{@render text(description)}</p>
+					{/if}
 				</div>
 			</div>
 			{#if actions}

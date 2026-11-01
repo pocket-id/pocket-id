@@ -11,7 +11,6 @@ import (
 	"github.com/pocket-id/pocket-id/backend/internal/appconfig"
 	"github.com/pocket-id/pocket-id/backend/internal/authz"
 	"github.com/pocket-id/pocket-id/backend/internal/httpserver"
-	"github.com/pocket-id/pocket-id/backend/internal/model"
 )
 
 type Dependencies struct {
@@ -63,17 +62,18 @@ func New(ctx context.Context, deps Dependencies) (*Module, error) {
 }
 
 // RegisterRoutes mounts the API key management endpoints
-// Creating and renewing keys requires a browser session so an API key cannot mint further API keys
+// Creating, renewing and editing keys requires a browser session so an API key cannot mint further API keys or widen their scopes
 func (m *Module) RegisterRoutes(r *authz.Router) {
 	group := r.Group("/api-keys")
 	group.GET("", authz.AccountAPIKeys, httpserver.Handle(m.handler.list))
 	group.POST("", authz.AccountAPIKeysCreate, httpserver.Handle(m.handler.create))
+	group.PUT("/:id", authz.AccountAPIKeysCreate, httpserver.Handle(m.handler.update))
 	group.POST("/:id/renew", authz.AccountAPIKeysCreate, httpserver.Handle(m.handler.renew))
 	group.DELETE("/:id", authz.AccountAPIKeys, httpserver.Handle(m.handler.revoke))
 }
 
-// ValidateApiKey resolves the user that owns the given raw API key
+// ValidateApiKey resolves the given raw API key to the stored key with its owner preloaded
 // It is used by the authentication middleware
-func (m *Module) ValidateApiKey(ctx context.Context, apiKey string) (model.User, error) {
+func (m *Module) ValidateApiKey(ctx context.Context, apiKey string) (ApiKey, error) {
 	return m.service.ValidateApiKey(ctx, apiKey)
 }

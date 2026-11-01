@@ -60,7 +60,7 @@ func (h *handler) list(c *gin.Context) error {
 // @Success 201 {object} apiKeyResponseDto "Created API key with token"
 // @Router /api/api-keys [post]
 func (h *handler) create(c *gin.Context) error {
-	userID := authz.PrincipalFrom(c).UserID
+	principal := authz.PrincipalFrom(c)
 
 	var input apiKeyCreateDto
 	err := httpserver.BindJSON(c, &input)
@@ -68,7 +68,7 @@ func (h *handler) create(c *gin.Context) error {
 		return err
 	}
 
-	apiKey, token, err := h.service.CreateApiKey(c.Request.Context(), userID, input)
+	apiKey, token, err := h.service.CreateApiKey(c.Request.Context(), principal.UserID, grantableScopes(principal.Scopes), input)
 	if err != nil {
 		return err
 	}
@@ -84,6 +84,50 @@ func (h *handler) create(c *gin.Context) error {
 		Token:  token,
 	})
 	return nil
+}
+
+// update godoc
+// @Summary Update API key
+// @Description Change the name, description and scopes of an existing API key; its token stays the same
+// @Tags API Keys
+// @Param id path string true "API Key ID"
+// @Param api_key body apiKeyUpdateDto true "API key information"
+// @Success 200 {object} apiKeyDto
+// @Router /api/api-keys/{id} [put]
+func (h *handler) update(c *gin.Context) error {
+	principal := authz.PrincipalFrom(c)
+
+	var input apiKeyUpdateDto
+	err := httpserver.BindJSON(c, &input)
+	if err != nil {
+		return err
+	}
+
+	apiKey, err := h.service.UpdateApiKey(c.Request.Context(), principal.UserID, c.Param("id"), grantableScopes(principal.Scopes), input)
+	if err != nil {
+		return err
+	}
+
+	var responseDto apiKeyDto
+	err = dto.MapStruct(apiKey, &responseDto)
+	if err != nil {
+		return err
+	}
+
+	c.JSON(http.StatusOK, responseDto)
+	return nil
+}
+
+// grantableScopes returns the held scopes that an API key can carry
+// Deriving them from the caller's scopes keeps the role rule in authz.UserScopes and keeps session-only scopes off API keys
+func grantableScopes(held authz.ScopeSet) authz.ScopeSet {
+	set := make(authz.ScopeSet, len(held))
+	for scope := range held {
+		if scope.GrantableTo(authz.KindAPIKey) {
+			set[scope] = struct{}{}
+		}
+	}
+	return set
 }
 
 // renew godoc

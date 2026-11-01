@@ -58,11 +58,12 @@ func TestAuthorizationWithRealCredentials(t *testing.T) {
 	require.NoError(t, err)
 	unverifiedSession, err := jwtService.GenerateAccessToken(unverified, "", time.Hour)
 	require.NoError(t, err)
-	userAPIKey := createAPIKeyForAuthorizationTest(t, db, user, "user-raw-api-key")
-	adminAPIKey := createAPIKeyForAuthorizationTest(t, db, admin, "admin-raw-api-key")
-	disabledAPIKey := createAPIKeyForAuthorizationTest(t, db, disabled, "disabled-raw-api-key")
-	unverifiedAPIKey := createAPIKeyForAuthorizationTest(t, db, unverified, "unverified-raw-api-key")
-	unverifiedAdminAPIKey := createAPIKeyForAuthorizationTest(t, db, unverifiedAdmin, "unverified-admin-raw-api-key")
+	userAPIKey := createAPIKeyForAuthorizationTest(t, db, user, "user-raw-api-key", apikey.AllScopes())
+	adminAPIKey := createAPIKeyForAuthorizationTest(t, db, admin, "admin-raw-api-key", apikey.AllScopes())
+	adminAccountOnlyAPIKey := createAPIKeyForAuthorizationTest(t, db, admin, "admin-account-only-raw-api-key", datatype.StringList{string(authz.AccountRead)})
+	disabledAPIKey := createAPIKeyForAuthorizationTest(t, db, disabled, "disabled-raw-api-key", apikey.AllScopes())
+	unverifiedAPIKey := createAPIKeyForAuthorizationTest(t, db, unverified, "unverified-raw-api-key", apikey.AllScopes())
+	unverifiedAdminAPIKey := createAPIKeyForAuthorizationTest(t, db, unverifiedAdmin, "unverified-admin-raw-api-key", apikey.AllScopes())
 
 	// Mount one route per kind of requirement
 	// Email verification is required, so unverified regular users only keep the scopes needed to verify their email
@@ -94,8 +95,10 @@ func TestAuthorizationWithRealCredentials(t *testing.T) {
 		{name: "API key on session-only route", path: "/api/session-only", apiKey: adminAPIKey, status: http.StatusForbidden, errorCode: "api_key_auth_not_allowed"},
 		{name: "API key on account route", path: "/api/account", apiKey: userAPIKey, status: http.StatusOK, userID: user.ID},
 		{name: "regular user session on admin route", path: "/api/admin", authorization: "Bearer " + userSession, status: http.StatusForbidden, errorCode: "forbidden"},
-		{name: "regular user API key on admin route", path: "/api/admin", apiKey: userAPIKey, status: http.StatusForbidden, errorCode: "forbidden"},
+		{name: "regular user API key that stores admin scopes on admin route", path: "/api/admin", apiKey: userAPIKey, status: http.StatusForbidden, errorCode: "forbidden"},
 		{name: "admin API key on admin route", path: "/api/admin", apiKey: adminAPIKey, status: http.StatusOK, userID: admin.ID},
+		{name: "admin API key without the route's scope", path: "/api/admin", apiKey: adminAccountOnlyAPIKey, status: http.StatusForbidden, errorCode: "forbidden"},
+		{name: "admin API key with the route's scope", path: "/api/account", apiKey: adminAccountOnlyAPIKey, status: http.StatusOK, userID: admin.ID},
 		{name: "invalid session cookie falls back to API key", path: "/api/admin", sessionCookie: "not-a-jwt", apiKey: adminAPIKey, status: http.StatusOK, userID: admin.ID},
 		{name: "disabled user's API key", path: "/api/account", apiKey: disabledAPIKey, status: http.StatusForbidden, errorCode: "user_disabled"},
 		{name: "verified user session on apps route", path: "/api/apps", authorization: "Bearer " + userSession, status: http.StatusOK, userID: user.ID},
@@ -160,14 +163,15 @@ func createUserForAuthorizationTest(t *testing.T, db *gorm.DB, username string, 
 	return user
 }
 
-func createAPIKeyForAuthorizationTest(t *testing.T, db *gorm.DB, owner model.User, rawToken string) string {
+func createAPIKeyForAuthorizationTest(t *testing.T, db *gorm.DB, owner model.User, rawToken string, scopes datatype.StringList) string {
 	t.Helper()
 
 	err := db.Create(&apikey.ApiKey{
-		Name:      owner.Username + " key",
+		Name:      rawToken,
 		Key:       utils.CreateSha256Hash(rawToken),
 		UserID:    owner.ID,
 		ExpiresAt: datatype.DateTime(time.Now().Add(24 * time.Hour)),
+		Scopes:    scopes,
 	}).Error
 	require.NoError(t, err)
 

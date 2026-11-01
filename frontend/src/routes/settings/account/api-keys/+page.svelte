@@ -1,8 +1,8 @@
 <script lang="ts">
 	import { openConfirmDialog } from '#lib/components/confirm-dialog/index.ts';
 	import DocsLink from '#lib/components/docs-link.svelte';
-	import PageHeader from '#lib/components/page-header.svelte';
 	import EmptyList from '#lib/components/empty-list.svelte';
+	import PageHeader from '#lib/components/page-header.svelte';
 	import AdvancedTable from '#lib/components/table/advanced-table.svelte';
 	import { Badge } from '#lib/components/ui/badge/index.ts';
 	import { Button } from '#lib/components/ui/button/index.ts';
@@ -10,17 +10,25 @@
 	import { getLocale } from '#lib/paraglide/runtime.js';
 	import ApiKeyService from '#lib/services/api-key-service.ts';
 	import appConfigStore from '#lib/stores/application-configuration-store.ts';
+	import userStore from '#lib/stores/user-store.ts';
 	import type {
 		AdvancedTableColumn,
 		CreateAdvancedTableActions
 	} from '#lib/types/advanced-table.type.ts';
 	import type { ApiKey } from '#lib/types/api-key.type.ts';
 	import type { ListRequestOptions } from '#lib/types/list-request.type.ts';
-	import { axiosErrorToast } from '#lib/utils/error-util.ts';
+	import { presetLabel } from '#lib/utils/api-key-scopes.ts';
 	import { openOnCreateParam } from '#lib/utils/create-param-util.ts';
-	import { LucideArrowUpRight, LucideBan, LucidePlus, LucideRefreshCcw } from '@lucide/svelte';
+	import { axiosErrorToast } from '#lib/utils/error-util.ts';
+	import {
+		LucideArrowUpRight,
+		LucideBan,
+		LucidePencil,
+		LucidePlus,
+		LucideRefreshCcw
+	} from '@lucide/svelte';
 	import { toast } from 'svelte-sonner';
-	import ApiKeyCreateSheet from './api-key-create-sheet.svelte';
+	import ApiKeySheet from './api-key-sheet.svelte';
 	import RenewApiKeyDialog from './renew-api-key-dialog.svelte';
 
 	let { data } = $props();
@@ -30,8 +38,9 @@
 	const DAY = 24 * 60 * 60 * 1000;
 
 	let tableRef = $state<AdvancedTable<ApiKey>>();
-	let createOpen = $state(false);
-	openOnCreateParam(() => (createOpen = true));
+	let sheetOpen = $state(false);
+	openOnCreateParam(() => (sheetOpen = true));
+	let editing = $state<ApiKey | null>(null);
 	let renewing = $state<ApiKey | null>(null);
 	let empty = $state(data.empty);
 
@@ -73,6 +82,12 @@
 
 	const columns: AdvancedTableColumn<ApiKey>[] = [
 		{ label: m.key(), column: 'name', sortable: true, cell: KeyCell },
+		{
+			label: m.permissions(),
+			column: 'scopes',
+			hideBelow: 520,
+			value: (key) => presetLabel(key.scopes, !!$userStore?.isAdmin)
+		},
 		{ label: m.expires(), column: 'expiresAt', sortable: true, cell: ExpiresCell },
 		{
 			label: m.last_used(),
@@ -92,6 +107,7 @@
 
 	// The backend renews only expired keys
 	const actions: CreateAdvancedTableActions<ApiKey> = (key) => [
+		{ label: m.edit_ellipsis(), icon: LucidePencil, onClick: () => (editing = key) },
 		{
 			label: m.renew_ellipsis(),
 			icon: LucideRefreshCcw,
@@ -155,15 +171,19 @@
 {/snippet}
 
 {#snippet headerDescription()}
-	{m.api_keys_page_description()}
+	{m.api_keys_page_description({ appName: $appConfigStore.appName })}
 	<DocsLink href={docsUrl} />
 {/snippet}
 
 <div class="flex flex-col">
-	<PageHeader title={m.api_keys()} description={empty ? undefined : headerDescription}>
+	<PageHeader
+		title={m.api_keys()}
+		breadcrumbs={[{ label: m.my_account(), href: '/settings/account' }]}
+		description={empty ? undefined : headerDescription}
+	>
 		{#snippet actions()}
 			{#if !empty}
-				<Button onclick={() => (createOpen = true)}>
+				<Button onclick={() => (sheetOpen = true)}>
 					<LucidePlus />
 					{m.create_api_key()}
 				</Button>
@@ -181,7 +201,7 @@
 				{m.no_api_keys_yet_description({ appName: $appConfigStore.appName })}
 			{/snippet}
 			{#snippet action()}
-				<Button onclick={() => (createOpen = true)}>
+				<Button onclick={() => (sheetOpen = true)}>
 					<LucidePlus />
 					{m.create_api_key()}
 				</Button>
@@ -206,9 +226,10 @@
 	{/if}
 </div>
 
-<ApiKeyCreateSheet
-	bind:open={createOpen}
-	onCreated={async () => {
+<ApiKeySheet
+	bind:open={sheetOpen}
+	bind:apiKey={editing}
+	onSaved={async () => {
 		empty = false;
 		await refresh();
 	}}

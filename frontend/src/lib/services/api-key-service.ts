@@ -1,4 +1,9 @@
-import type { ApiKey, ApiKeyCreate, ApiKeyResponse } from '#lib/types/api-key.type.ts';
+import type {
+	ApiKey,
+	ApiKeyCreate,
+	ApiKeyResponse,
+	ApiKeyUpdate
+} from '#lib/types/api-key.type.ts';
 import type { ListRequestOptions, Paginated } from '#lib/types/list-request.type.ts';
 import APIService from './api-service';
 
@@ -11,6 +16,11 @@ export default class ApiKeyService extends APIService {
 	create = async (data: ApiKeyCreate): Promise<ApiKeyResponse> => {
 		const res = await this.api.post('/api-keys', data);
 		return res.data as ApiKeyResponse;
+	};
+
+	update = async (id: string, data: ApiKeyUpdate): Promise<ApiKey> => {
+		const res = await this.api.put(`/api-keys/${id}`, data);
+		return res.data as ApiKey;
 	};
 
 	renew = async (id: string, expiresAt: Date): Promise<ApiKeyResponse> => {

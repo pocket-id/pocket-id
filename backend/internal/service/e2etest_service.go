@@ -519,6 +519,7 @@ func (s *TestService) SeedDatabase(baseURL string) error {
 				Key:       "6c34966f57ef2bb7857649aff0e7ab3ad67af93c846342ced3f5a07be8706c20",
 				UserID:    users[0].ID,
 				ExpiresAt: datatype.DateTime(time.Now().Add(30 * 24 * time.Hour)),
+				Scopes:    apikey.AllScopes(),
 			},
 			{
 				Base: model.Base{
@@ -528,6 +529,7 @@ func (s *TestService) SeedDatabase(baseURL string) error {
 				Key:       "141ff8ac9db640ba93630099de83d0ead8e7ac673e3a7d31b4fd7ff2252e6389",
 				UserID:    users[0].ID,
 				ExpiresAt: datatype.DateTime(time.Now().Add(-20 * 24 * time.Hour)),
+				Scopes:    apikey.AllScopes(),
 			},
 		}
 		for _, apiKey := range apiKeys {

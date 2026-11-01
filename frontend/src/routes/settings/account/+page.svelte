@@ -8,6 +8,7 @@
 	import { m } from '#lib/paraglide/messages.js';
 	import { LucideLanguages, LucideTriangleAlert } from '@lucide/svelte';
 	import AccountForm from './account-form.svelte';
+	import DevelopersSection from './developers-section.svelte';
 	import LocalePicker from './locale-picker.svelte';
 	import PasskeyList from './passkey-list.svelte';
 
@@ -49,4 +50,8 @@
 			{/snippet}
 		</SettingRow>
 	</SettingsSection>
+
+	{#if data.features?.apiKeys.enabled}
+		<DevelopersSection />
+	{/if}
 </div>

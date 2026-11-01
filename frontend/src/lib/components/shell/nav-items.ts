@@ -6,7 +6,6 @@ import AnimatedHistory from '@jis3r/icons/icons/history';
 import AnimatedUser from '@jis3r/icons/icons/user';
 import AnimatedUsersRound from '@jis3r/icons/icons/users-round';
 import AnimatedBlocks from '@jis3r/icons/icons/blocks';
-import AnimatedKey from '@jis3r/icons/icons/key';
 import AnimatedFileText from '@jis3r/icons/icons/file-text';
 import AnimatedSlidersHorizontal from '@jis3r/icons/icons/sliders-horizontal';
 import type { IconProps } from '@jis3r/icons';
@@ -16,7 +15,6 @@ import {
 	FileText,
 	History,
 	IdCard,
-	Key,
 	LayoutGrid,
 	Server,
 	SlidersHorizontal,
@@ -109,16 +107,6 @@ export function navGroups({
 					: []),
 				...(features?.apis.enabled
 					? [{ href: '/settings/admin/apis', label: m.apis(), icon: Server }]
-					: []),
-				...(features?.apiKeys.enabled
-					? [
-							{
-								href: '/settings/admin/api-keys',
-								label: m.api_keys(),
-								icon: Key,
-								animated: AnimatedKey
-							}
-						]
 					: []),
 				{
 					href: '/settings/audit-log/global',

@@ -27,7 +27,7 @@ func New(deps Dependencies) *Module {
 
 // RegisterRoutes mounts the feature endpoints
 func (m *Module) RegisterRoutes(r *authz.Router) {
-	r.GET("/features", authz.ConfigRead, httpserver.Handle(m.list))
+	r.GET("/features", authz.AccountRead, httpserver.Handle(m.list))
 }
 
 // list godoc

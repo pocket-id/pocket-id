@@ -60,6 +60,7 @@ const (
 	CodeNoAPIKeyProvided                  Code = "no_api_key_provided"
 	CodeAPIKeyNotExpired                  Code = "api_key_not_expired"
 	CodeInvalidAPIKeyExpiration           Code = "invalid_api_key_expiration"
+	CodeInvalidAPIKeyScope                Code = "invalid_api_key_scope"
 	CodeAPIKeyAuthNotAllowed              Code = "api_key_auth_not_allowed"
 	CodeOidcDeviceCodeExpired             Code = "oidc_device_code_expired"
 	CodeOidcInvalidDeviceCode             Code = "oidc_invalid_device_code"

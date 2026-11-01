@@ -138,6 +138,17 @@ func (s ScopeSet) Has(scope Scope) bool {
 	return ok
 }
 
+// Intersect returns the scopes contained in both sets
+func (s ScopeSet) Intersect(other ScopeSet) ScopeSet {
+	set := make(ScopeSet, min(len(s), len(other)))
+	for scope := range s {
+		if other.Has(scope) {
+			set[scope] = struct{}{}
+		}
+	}
+	return set
+}
+
 // unverifiedScopes are the scopes a user keeps while their email still has to be verified
 var unverifiedScopes = NewScopeSet(AccountRead, AccountWrite, AccountPasskeys, AccountPasskeysEnroll, AccountSession)
 

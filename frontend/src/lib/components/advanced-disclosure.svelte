@@ -6,10 +6,12 @@
 	import { untrack, type Snippet } from 'svelte';
 
 	let {
+		title = m.advanced(),
 		summary,
 		changedCount = 0,
 		children
 	}: {
+		title?: string;
 		summary: string;
 		changedCount?: number;
 		children: Snippet;
@@ -23,22 +25,21 @@
 
 <Collapsible.Root bind:open>
 	{#snippet child({ props })}
-		<section {...props} aria-labelledby={titleId} class="flex flex-col gap-10">
+		<section {...props} aria-labelledby={titleId} class="flex flex-col gap-6">
 			<Collapsible.Trigger
-				class="group/advanced bg-fill-muted text-control text-fg before:bg-fill-hover focus-visible:outline-ring relative isolate flex min-h-14 w-full items-center gap-4 rounded-lg px-4 py-3 text-start before:absolute before:inset-0 before:-z-1 before:rounded-[inherit] before:opacity-0 before:transition-opacity before:duration-(--dur-fast) before:ease-out hover:before:opacity-100 focus-visible:outline-2 focus-visible:outline-offset-2 max-sm:flex-wrap"
+				class="group/advanced focus-visible:outline-ring flex w-full flex-col gap-1 rounded-xs text-start focus-visible:outline-2 focus-visible:outline-offset-2"
 			>
-				<span class="flex min-w-0 flex-1 flex-col gap-0.5">
-					<span id={titleId} class="text-title">{m.advanced()}</span>
-					<span class="text-fg-muted">{summary}</span>
-				</span>
-				{#if changedCount > 0}
-					<span class="max-sm:order-last max-sm:basis-full">
+				<span class="flex w-full items-center gap-3">
+					<span id={titleId} class="text-title text-fg">{title}</span>
+					{#if changedCount > 0}
 						<Badge>{m.count_changed({ count: changedCount })}</Badge>
-					</span>
-				{/if}
-				<LucideChevronDown
-					class="text-fg-muted size-4 shrink-0 transition-transform duration-(--dur-base) ease-in-out group-data-[state=open]/advanced:rotate-180"
-				/>
+					{/if}
+					<span aria-hidden="true" class="bg-border h-px flex-1"></span>
+					<LucideChevronDown
+						class="text-fg-muted size-4 shrink-0 transition-transform duration-(--dur-base) ease-in-out group-data-[state=open]/advanced:rotate-180"
+					/>
+				</span>
+				<span class="text-caption text-fg-muted">{summary}</span>
 			</Collapsible.Trigger>
 			<Collapsible.Content
 				class="*:transition-motion flex flex-col gap-10 *:duration-(--dur-base) data-starting-style:*:-translate-y-(--rise) data-starting-style:*:opacity-0"

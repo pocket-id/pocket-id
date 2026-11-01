@@ -168,10 +168,17 @@
 					create(m.add_group(), 'user-groups'),
 					create(m.add_oidc_client(), 'oidc-clients'),
 					...(features?.claimMappings.enabled ? [create(m.add_policy(), 'claim-mappings')] : []),
-					...(features?.apis.enabled ? [create(m.add_api(), 'apis')] : []),
-					...(features?.apiKeys.enabled ? [create(m.create_api_key(), 'api-keys')] : [])
+					...(features?.apis.enabled ? [create(m.add_api(), 'apis')] : [])
 				]
 			: [];
+		if (features?.apiKeys.enabled) {
+			list.push({
+				key: 'new:api-keys',
+				label: m.create_api_key(),
+				lead: icon(Plus),
+				run: () => jump('/settings/account/api-keys?new')
+			});
+		}
 		list.push({
 			key: 'sign-out',
 			label: m.sign_out(),

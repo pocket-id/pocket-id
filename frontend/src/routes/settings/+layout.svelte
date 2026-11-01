@@ -44,7 +44,7 @@
 			'/settings/admin/oidc-clients',
 			'/settings/admin/claim-mappings',
 			'/settings/admin/apis',
-			'/settings/admin/api-keys',
+			'/settings/account/api-keys',
 			'/settings/audit-log',
 			'/settings/audit-log/global'
 		].includes(page.route.id ?? '')
@@ -121,5 +121,9 @@
 			</main>
 		</div>
 	</div>
-	<CommandPalette {groups} features={data.features} isAdmin={isAdmin && !verificationPending} />
+	<CommandPalette
+		{groups}
+		features={verificationPending ? null : data.features}
+		isAdmin={isAdmin && !verificationPending}
+	/>
 </Tooltip.Provider>

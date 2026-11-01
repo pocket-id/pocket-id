@@ -1,12 +1,13 @@
 // frontend/tests/api-key.spec.ts
 import { expect, type Page, test } from '@playwright/test';
 import { apiKeys } from '../data';
+import authUtil from '../utils/auth.util';
 import { cleanupBackend } from '../utils/cleanup.util';
 
 test.describe('API Key Management', () => {
 	test.beforeEach(async ({ page }) => {
 		await cleanupBackend();
-		await page.goto('/settings/admin/api-keys');
+		await page.goto('/settings/account/api-keys');
 	});
 
 	test('Create new API key', async ({ page }) => {
@@ -40,6 +41,64 @@ test.describe('API Key Management', () => {
 		await page.reload();
 
 		await expect(page.getByRole('row', { name })).toContainText('Expires in 30 days');
+		await expect(page.getByRole('row', { name })).toContainText('Full access');
+	});
+
+	test('Scoped API key only reaches its scopes', async ({ page, playwright, baseURL }) => {
+		await page.getByRole('button', { name: 'Create API key' }).click();
+		await page.getByLabel('Name').fill('Read users');
+		await page.getByRole('tab', { name: 'Custom' }).click();
+		await page
+			.getByRole('radiogroup', { name: 'Users', exact: true })
+			.getByRole('radio', { name: 'Read' })
+			.click();
+		await page.getByRole('dialog').getByRole('button', { name: 'Create API key' }).click();
+
+		const sheet = page.getByRole('dialog', { name: 'API key created' });
+		await expect(sheet).toContainText('Custom (1)');
+		const token = (await sheet.getByRole('textbox', { name: 'API key' }).textContent())!.trim();
+
+		// A context without the session cookie, so the key is the only credential
+		const api = await playwright.request.newContext({
+			baseURL,
+			storageState: { cookies: [], origins: [] },
+			extraHTTPHeaders: { 'X-API-Key': token }
+		});
+		expect((await api.get('/api/users')).status()).toBe(200);
+		expect((await api.get('/api/oidc/clients')).status()).toBe(403);
+		await api.dispose();
+	});
+
+	test('Edit API key permissions', async ({ page }) => {
+		const apiKey = apiKeys[0];
+		const row = page.getByRole('row', { name: apiKey.name });
+		await expect(row).toContainText('Full access');
+
+		await row.getByRole('button', { name: /^Actions for / }).click();
+		await page.getByRole('menuitem', { name: 'Edit' }).click();
+
+		const sheet = page.getByRole('dialog', { name: 'Edit API key' });
+		await sheet.getByRole('tab', { name: 'Read only' }).click();
+		await sheet.getByRole('button', { name: 'Save' }).click();
+
+		await expect(page.locator('[data-type="success"]')).toHaveText('API key updated');
+		await expect(row).toContainText('Read only');
+	});
+
+	test('Non-admins can only grant account permissions', async ({ page }) => {
+		await authUtil.changeUser(page, 'craig');
+		await page.goto('/settings/account');
+		await page.getByRole('button', { name: /^Developers/ }).click();
+		await page.getByRole('link', { name: 'Manage' }).click();
+
+		await page.getByRole('button', { name: 'Create API key' }).click();
+		const sheet = page.getByRole('dialog', { name: 'Create API key' });
+		await sheet.getByRole('tab', { name: 'Custom' }).click();
+
+		await expect(sheet.getByRole('heading', { name: 'Your account' })).toBeVisible();
+		await expect(sheet.getByRole('radiogroup', { name: 'Passkeys' })).toBeVisible();
+		await expect(sheet.getByRole('heading', { name: 'Administration' })).toHaveCount(0);
+		await expect(sheet.getByRole('radiogroup', { name: 'Users', exact: true })).toHaveCount(0);
 	});
 
 	test('Renew API key', async ({ page }) => {

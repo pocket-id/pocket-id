@@ -15,6 +15,7 @@ type ApiKey struct {
 	ExpiresAt           datatype.DateTime  `sortable:"true"`
 	LastUsedAt          *datatype.DateTime `sortable:"true"`
 	ExpirationEmailSent bool
+	Scopes              datatype.StringList
 
 	UserID string
 	User   model.User

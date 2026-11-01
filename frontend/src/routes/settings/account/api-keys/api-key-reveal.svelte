@@ -2,7 +2,9 @@
 	import CopyField from '#lib/components/copy-field.svelte';
 	import { m } from '#lib/paraglide/messages.js';
 	import { getLocale } from '#lib/paraglide/runtime.js';
+	import userStore from '#lib/stores/user-store.ts';
 	import type { ApiKeyResponse } from '#lib/types/api-key.type.ts';
+	import { presetLabel } from '#lib/utils/api-key-scopes.ts';
 	import { LucideInfo } from '@lucide/svelte';
 
 	let { response }: { response: ApiKeyResponse } = $props();
@@ -15,6 +17,8 @@
 		<dt class="text-fg-muted">{m.description()}</dt>
 		<dd class="wrap-anywhere">{response.apiKey.description}</dd>
 	{/if}
+	<dt class="text-fg-muted">{m.permissions()}</dt>
+	<dd>{presetLabel(response.apiKey.scopes, !!$userStore?.isAdmin)}</dd>
 	<dt class="text-fg-muted">{m.expires()}</dt>
 	<dd>
 		{new Date(response.apiKey.expiresAt).toLocaleDateString(getLocale(), { dateStyle: 'medium' })}

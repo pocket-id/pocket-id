@@ -135,18 +135,24 @@ func (a *APIKeyAuthenticator) Present(c *gin.Context) bool {
 }
 
 func (a *APIKeyAuthenticator) Authenticate(c *gin.Context) (*authz.Principal, error) {
-	user, err := a.apiKeyModule.ValidateApiKey(c.Request.Context(), c.GetHeader(apiKeyHeader))
+	key, err := a.apiKeyModule.ValidateApiKey(c.Request.Context(), c.GetHeader(apiKeyHeader))
 	if err != nil {
 		return nil, apperror.NotSignedIn()
 	}
+	user := key.User
 	if user.Disabled {
 		return nil, apperror.UserDisabled()
 	}
 
+	// A key never holds more than its owner currently does, so demoting the owner narrows their keys right away
+	keyScopes := make(authz.ScopeSet, len(key.Scopes))
+	for _, scope := range key.Scopes {
+		keyScopes[authz.Scope(scope)] = struct{}{}
+	}
 	principal := &authz.Principal{
 		Kind:   authz.KindAPIKey,
 		UserID: user.ID,
-		Scopes: authz.UserScopes(user.IsAdmin, authz.KindAPIKey),
+		Scopes: authz.UserScopes(user.IsAdmin, authz.KindAPIKey).Intersect(keyScopes),
 	}
 	err = restrictUnverified(c.Request.Context(), a.appConfig, &user, principal)
 	if err != nil {

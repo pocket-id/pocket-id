@@ -232,6 +232,14 @@ func InvalidAPIKeyExpiration() *Error {
 	}})
 }
 
+func InvalidAPIKeyScope(scope string) *Error {
+	return New(CodeInvalidAPIKeyScope, http.StatusBadRequest, "API key cannot be granted the scope "+scope).WithFields([]FieldError{{
+		Field:   "scopes",
+		Code:    "invalid_value",
+		Message: "contains a scope you cannot grant",
+	}})
+}
+
 func APIKeyAuthNotAllowed() *Error {
 	return New(CodeAPIKeyAuthNotAllowed, http.StatusForbidden, "API key authentication is not allowed for this endpoint")
 }
