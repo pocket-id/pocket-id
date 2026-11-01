@@ -1,4 +1,4 @@
-import { Text } from 'react-email';
+import { Link, Text } from 'react-email';
 import { colors } from './theme';
 
 interface TextProps {
@@ -6,24 +6,25 @@ interface TextProps {
 	style?: React.CSSProperties;
 }
 
-export const Paragraph = ({ children, style }: TextProps) => (
-	<Text style={{ ...paragraphStyle, ...style }}>{children}</Text>
-);
-
 export const Muted = ({ children, style }: TextProps) => (
 	<Text style={{ ...mutedStyle, ...style }}>{children}</Text>
 );
 
-const paragraphStyle = {
-	margin: '0 0 16px 0',
-	fontSize: '15px',
-	lineHeight: '24px',
-	color: colors.text
-};
+export const MutedLink = ({ href, children }: { href: string; children: React.ReactNode }) => (
+	<Link href={href} style={mutedLinkStyle}>
+		{children}
+	</Link>
+);
 
 const mutedStyle = {
-	margin: '16px 0 0 0',
+	margin: '24px 0 0 0',
 	fontSize: '13px',
-	lineHeight: '20px',
-	color: colors.mutedForeground
+	lineHeight: '18px',
+	color: colors.fgMuted
+};
+
+const mutedLinkStyle = {
+	color: colors.fgMuted,
+	textDecoration: 'underline',
+	wordBreak: 'break-word' as const
 };

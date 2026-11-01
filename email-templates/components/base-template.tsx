@@ -7,6 +7,7 @@ interface BaseTemplateProps extends SharedProps {
 	children: React.ReactNode;
 }
 
+// Every email is the sign-in card of the app: the logo tile, a display heading and one filled action on a white card
 export const BaseTemplate = ({
 	logoURL,
 	appName,
@@ -18,29 +19,25 @@ export const BaseTemplate = ({
 		<Head>
 			<meta name="color-scheme" content="light" />
 			<meta name="supported-color-schemes" content="light" />
-			<style dangerouslySetInnerHTML={{ __html: fontFaceCss(appURL) }} />
+			<style dangerouslySetInnerHTML={{ __html: headCss(appURL) }} />
 		</Head>
 		{preview && <Preview>{preview}</Preview>}
 		<Body style={bodyStyle}>
 			<Container style={containerStyle}>
-				<Section style={headerStyle} data-skip-in-text="true">
-					<Row>
-						<Column style={logoColumnStyle}>
-							<Link href={appURL}>
-								<Img src={logoURL} width="28" height="28" alt={appName} style={logoStyle} />
-							</Link>
-						</Column>
-						<Column>
-							<Link href={appURL} style={appNameStyle}>
-								{appName}
-							</Link>
-						</Column>
-					</Row>
-				</Section>
-
 				<Section>
 					<Row>
-						<Column style={cardStyle}>{children}</Column>
+						<Column className="card" style={cardStyle}>
+							<Section style={tileStyle} data-skip-in-text="true">
+								<Row>
+									<Column style={tileCellStyle}>
+										<Link href={appURL}>
+											<Img src={logoURL} width="32" height="32" alt={appName} style={logoStyle} />
+										</Link>
+									</Column>
+								</Row>
+							</Section>
+							{children}
+						</Column>
 					</Row>
 				</Section>
 			</Container>
@@ -48,54 +45,55 @@ export const BaseTemplate = ({
 	</Html>
 );
 
-// The heading font is self-hosted by the app, so it loads from the same origin as the logo and works without third-party requests
-// Clients without web font support fall back to the system stack declared on the headings
-const fontFaceCss = (appURL: string) =>
-	`@font-face{font-family:'Funnel Display';font-style:normal;font-weight:300 800;mso-font-alt:'Arial';src:url(${appURL}/fonts/FunnelDisplay-latin.woff2) format('woff2');}`;
+// The fonts are self-hosted by the app, so they load from the same origin as the logo and work without third-party requests
+// Clients without web font support fall back to the system stacks in the theme
+// Phones get the tighter padding of the app's sheet, because the desktop card's padding would leave too little room for the code
+const headCss = (appURL: string) =>
+	[
+		`@font-face{font-family:'Funnel Display';font-style:normal;font-weight:300 800;mso-font-alt:'Arial';src:url(${appURL}/fonts/FunnelDisplay-latin.woff2) format('woff2');}`,
+		`@font-face{font-family:'Funnel Sans';font-style:normal;font-weight:300 800;mso-font-alt:'Arial';src:url(${appURL}/fonts/FunnelSans-latin.woff2) format('woff2');}`,
+		`@font-face{font-family:'JetBrains Mono';font-style:normal;font-weight:400 500;mso-font-alt:'Courier New';src:url(${appURL}/fonts/JetBrainsMono-latin.woff2) format('woff2');}`,
+		`@media (max-width:520px){.card{padding:32px 24px !important;}}`
+	].join('');
 
 const bodyStyle = {
 	margin: 0,
-	padding: '32px 16px',
-	backgroundColor: colors.background,
+	padding: '40px 12px',
+	backgroundColor: colors.canvas,
 	fontFamily: fonts.sans,
-	color: colors.text
+	color: colors.fg
 };
 
 const containerStyle = {
 	width: '100%',
-	maxWidth: '480px',
+	maxWidth: '520px',
 	margin: '0 auto'
 };
 
-const headerStyle = {
-	marginBottom: '20px'
+const cardStyle = {
+	backgroundColor: colors.surface,
+	border: `1px solid ${colors.border}`,
+	borderRadius: radius.card,
+	padding: '48px',
+	textAlign: 'left' as const
 };
 
-const logoColumnStyle = {
-	width: '36px',
+const tileStyle = {
+	width: '56px',
+	margin: '0 0 24px 0',
+	border: `1px solid ${colors.border}`,
+	borderRadius: radius.tile
+};
+
+const tileCellStyle = {
+	width: '54px',
+	height: '54px',
+	textAlign: 'center' as const,
 	verticalAlign: 'middle'
 };
 
 const logoStyle = {
-	display: 'block',
-	width: '28px',
-	height: '28px',
-	borderRadius: '6px'
-};
-
-const appNameStyle = {
-	fontFamily: fonts.display,
-	fontSize: '20px',
-	lineHeight: '28px',
-	fontWeight: 600,
-	color: colors.foreground,
-	textDecoration: 'none'
-};
-
-const cardStyle = {
-	backgroundColor: colors.card,
-	border: `1px solid ${colors.border}`,
-	borderRadius: radius.card,
-	padding: '32px',
-	textAlign: 'left' as const
+	display: 'inline-block',
+	width: '32px',
+	height: '32px'
 };

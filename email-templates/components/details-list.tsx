@@ -26,27 +26,25 @@ export const DetailsList = ({ items }: DetailsListProps) => (
 );
 
 const boxStyle = {
-	margin: '8px 0 0 0',
-	backgroundColor: colors.muted,
-	border: `1px solid ${colors.border}`,
+	backgroundColor: colors.well,
 	borderRadius: radius.box
 };
 
 const cellStyle = {
-	padding: '12px 16px'
+	padding: '12px 20px'
 };
 
 const labelStyle = {
-	fontSize: '12px',
+	fontSize: '13px',
 	lineHeight: '18px',
-	color: colors.mutedForeground
+	color: colors.fgMuted
 };
 
 const valueStyle = {
-	fontSize: '14px',
-	lineHeight: '20px',
+	fontSize: '15px',
+	lineHeight: '22px',
 	fontWeight: 500,
-	color: colors.foreground
+	color: colors.fg
 };
 
 const dividerStyle = {

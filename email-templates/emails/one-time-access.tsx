@@ -1,10 +1,8 @@
-import { Link } from 'react-email';
 import { BaseTemplate } from '../components/base-template';
 import { Button } from '../components/button';
 import CardHeader from '../components/card-header';
 import { CodeBox } from '../components/code-box';
-import { Muted, Paragraph } from '../components/text';
-import { colors } from '../components/theme';
+import { Muted, MutedLink } from '../components/text';
 import { type SharedProps, sharedPreviewProps, sharedTemplateProps } from '../props';
 
 interface OneTimeAccessData {
@@ -20,32 +18,22 @@ interface OneTimeAccessEmailProps extends SharedProps {
 
 export const OneTimeAccessEmail = ({ data, ...props }: OneTimeAccessEmailProps) => (
 	<BaseTemplate {...props} preview={`Your ${props.appName} login code is ${data.code}`}>
-		<CardHeader title="Your login code" />
-		<Paragraph>
-			Use the code below to sign in to {props.appName}. It expires in {data.expirationString}.
-		</Paragraph>
+		<CardHeader title="Your login code">
+			Enter this code to sign in to {props.appName}. It expires in {data.expirationString}.
+		</CardHeader>
 
 		<CodeBox code={data.code} />
 
 		<Button href={data.buttonCodeLink}>Sign in</Button>
 
-		<Muted style={{ marginTop: '32px' }}>
-			Or open{' '}
-			<Link href={data.loginLink} style={linkStyle}>
-				{data.loginLink}
-			</Link>{' '}
-			and enter the code manually.
+		<Muted>
+			Or open <MutedLink href={data.loginLink}>{data.loginLink}</MutedLink> and enter the code
+			manually. If you didn't ask for this code, you can ignore this email.
 		</Muted>
 	</BaseTemplate>
 );
 
 export default OneTimeAccessEmail;
-
-const linkStyle = {
-	color: colors.mutedForeground,
-	textDecoration: 'underline',
-	wordBreak: 'break-all' as const
-};
 
 OneTimeAccessEmail.TemplateProps = {
 	...sharedTemplateProps,

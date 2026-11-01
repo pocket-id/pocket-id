@@ -1,6 +1,7 @@
 import { BaseTemplate } from '../components/base-template';
+import { Button } from '../components/button';
 import CardHeader from '../components/card-header';
-import { Muted, Paragraph } from '../components/text';
+import { DetailsList } from '../components/details-list';
 import { type SharedProps, sharedPreviewProps, sharedTemplateProps } from '../props';
 
 interface ApiKeyExpiringData {
@@ -15,17 +16,19 @@ interface ApiKeyExpiringEmailProps extends SharedProps {
 
 export const ApiKeyExpiringEmail = ({ data, ...props }: ApiKeyExpiringEmailProps) => (
 	<BaseTemplate {...props} preview={`Your API key ${data.apiKeyName} expires on ${data.expiresAt}`}>
-		<CardHeader title="API key expiring soon" />
-		<Paragraph>Hello {data.name},</Paragraph>
-		<Paragraph>
-			Your API key <strong>{data.apiKeyName}</strong> will expire on{' '}
-			<strong>{data.expiresAt}</strong>. Anything that uses this key will stop working once it
-			expires.
-		</Paragraph>
+		<CardHeader title="API key expiring soon">
+			Hello {data.name}, one of your API keys expires soon. Anything that uses it will stop working
+			once it expires.
+		</CardHeader>
 
-		<Muted>
-			To keep access, create a new API key in your {props.appName} account settings before then.
-		</Muted>
+		<DetailsList
+			items={[
+				{ label: 'API key', value: data.apiKeyName },
+				{ label: 'Expires', value: data.expiresAt }
+			]}
+		/>
+
+		<Button href={`${props.appURL}/settings/account`}>Renew API key</Button>
 	</BaseTemplate>
 );
 

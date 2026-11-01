@@ -1,7 +1,7 @@
 import { BaseTemplate } from '../components/base-template';
 import CardHeader from '../components/card-header';
 import { DetailsList } from '../components/details-list';
-import { Muted, Paragraph } from '../components/text';
+import { Muted, MutedLink } from '../components/text';
 import { type SharedProps, sharedPreviewProps, sharedTemplateProps } from '../props';
 
 interface SignInData {
@@ -18,11 +18,10 @@ interface NewSignInEmailProps extends SharedProps {
 
 export const NewSignInEmail = ({ data, ...props }: NewSignInEmailProps) => (
 	<BaseTemplate {...props} preview={`A new sign-in to your ${props.appName} account was detected`}>
-		<CardHeader title="New sign-in detected" />
-		<Paragraph>
-			Your {props.appName} account was recently accessed from a new IP address or browser. If this
-			was you, no further action is needed.
-		</Paragraph>
+		<CardHeader title="New sign-in detected">
+			Your {props.appName} account was accessed from a new IP address or browser. If this was you,
+			there's nothing to do.
+		</CardHeader>
 
 		<DetailsList
 			items={[
@@ -35,8 +34,9 @@ export const NewSignInEmail = ({ data, ...props }: NewSignInEmailProps) => (
 		/>
 
 		<Muted>
-			If you don't recognize this activity, review the passkeys in your {props.appName} account
-			settings and remove any you don't recognize.
+			Don't recognize this? Review the passkeys in your{' '}
+			<MutedLink href={`${props.appURL}/settings/account`}>account settings</MutedLink> and remove
+			any you don't know.
 		</Muted>
 	</BaseTemplate>
 );

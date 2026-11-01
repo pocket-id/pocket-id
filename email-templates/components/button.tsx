@@ -6,6 +6,7 @@ interface ButtonProps {
 	children: React.ReactNode;
 }
 
+// The full-width primary of an auth step in the app
 export const Button = ({ href, children }: ButtonProps) => (
 	<Section style={containerStyle}>
 		<EmailButton href={href} style={buttonStyle}>
@@ -15,19 +16,19 @@ export const Button = ({ href, children }: ButtonProps) => (
 );
 
 const containerStyle = {
-	margin: '24px 0 8px 0',
-	textAlign: 'center' as const
+	margin: '24px 0 0 0'
 };
 
 const buttonStyle = {
-	display: 'inline-block',
-	padding: '12px 28px',
+	display: 'block',
+	padding: '16px 24px',
 	backgroundColor: colors.primary,
 	color: colors.primaryForeground,
-	borderRadius: radius.pill,
+	borderRadius: radius.control,
 	fontFamily: fonts.sans,
-	fontSize: '14px',
+	fontSize: '15px',
 	lineHeight: '20px',
-	fontWeight: 500,
+	fontWeight: 600,
+	textAlign: 'center' as const,
 	textDecoration: 'none'
 };

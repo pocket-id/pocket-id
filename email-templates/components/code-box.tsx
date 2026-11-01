@@ -5,6 +5,7 @@ interface CodeBoxProps {
 	code: string;
 }
 
+// One cell instead of the app's per-character cells, so copying the code from the email never picks up separators
 export const CodeBox = ({ code }: CodeBoxProps) => (
 	<Section style={boxStyle}>
 		<Row>
@@ -16,24 +17,23 @@ export const CodeBox = ({ code }: CodeBoxProps) => (
 );
 
 const boxStyle = {
-	margin: '8px 0 0 0',
-	backgroundColor: colors.muted,
+	backgroundColor: colors.well,
 	border: `1px solid ${colors.border}`,
-	borderRadius: radius.box
+	borderRadius: radius.tile
 };
 
 const cellStyle = {
-	padding: '20px 16px',
+	padding: '17px 16px',
 	textAlign: 'center' as const
 };
 
 const codeStyle = {
 	margin: 0,
 	fontFamily: fonts.mono,
-	fontSize: '32px',
-	lineHeight: '40px',
-	fontWeight: 600,
-	letterSpacing: '8px',
-	paddingLeft: '8px',
-	color: colors.foreground
+	fontSize: '30px',
+	lineHeight: '38px',
+	fontWeight: 500,
+	letterSpacing: '0.3em',
+	paddingLeft: '0.3em',
+	color: colors.fg
 };
