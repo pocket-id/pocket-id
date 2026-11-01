@@ -49,10 +49,10 @@ func (f *fakeEmailVerificationSender) Send(_ context.Context, _ *appconfig.AppCo
 	return f.err
 }
 
-type fakeSigner struct{}
+type fakeSessionCreator struct{}
 
-func (fakeSigner) GenerateAccessToken(_ model.User, _ string, _ time.Duration) (string, error) {
-	return "access-token", nil
+func (fakeSessionCreator) Create(_ context.Context, _, _, _, _ string, _ time.Duration) (string, error) {
+	return "session-token", nil
 }
 
 type fakeAuditLogger struct{}
@@ -67,7 +67,7 @@ func newSignupServiceForTest(t *testing.T, db *gorm.DB, userCreator UserCreator)
 	return newService(Dependencies{
 		DB:          db,
 		UserCreator: userCreator,
-		Signer:      fakeSigner{},
+		Sessions:    fakeSessionCreator{},
 		AuditLog:    fakeAuditLogger{},
 	}, actorService)
 }
@@ -99,7 +99,7 @@ func TestSignUpConsumesTokenOnSuccess(t *testing.T) {
 	}, "1.2.3.4", "test-agent")
 	require.NoError(t, err)
 	require.Equal(t, "new-user", user.ID)
-	require.Equal(t, "access-token", accessToken)
+	require.Equal(t, "session-token", accessToken)
 
 	// The token's usage count must have been incremented and not rolled back
 	require.Equal(t, 1, signupTokenUsageCount(t, svc, token.ID))
@@ -143,10 +143,10 @@ func TestSignUpInitialAdminCreatesAdmin(t *testing.T) {
 	config := appconfig.NewTestConfig(nil)
 
 	// Complete setup and return the generated administrator session
-	user, accessToken, err := svc.SignUpInitialAdmin(t.Context(), config, signUpDto{Username: "new-admin"})
+	user, accessToken, err := svc.SignUpInitialAdmin(t.Context(), config, signUpDto{Username: "new-admin"}, "", "")
 	require.NoError(t, err)
 	require.Equal(t, "new-admin", user.ID)
-	require.Equal(t, "access-token", accessToken)
+	require.Equal(t, "session-token", accessToken)
 }
 
 func TestSignUpInitialAdminAllowsRetryAfterFailure(t *testing.T) {
@@ -156,12 +156,12 @@ func TestSignUpInitialAdminAllowsRetryAfterFailure(t *testing.T) {
 	config := appconfig.NewTestConfig(nil)
 
 	// Fail the first setup transaction before it can commit
-	_, _, err := svc.SignUpInitialAdmin(t.Context(), config, signUpDto{Username: "failed-admin"})
+	_, _, err := svc.SignUpInitialAdmin(t.Context(), config, signUpDto{Username: "failed-admin"}, "", "")
 	require.ErrorIs(t, err, boom)
 
 	// Confirm a later setup can complete after the failed transaction rolls back
 	svc.userCreator = fakeUserCreator{user: model.User{Base: model.Base{ID: "new-admin"}}}
-	user, _, err := svc.SignUpInitialAdmin(t.Context(), config, signUpDto{Username: "new-admin"})
+	user, _, err := svc.SignUpInitialAdmin(t.Context(), config, signUpDto{Username: "new-admin"}, "", "")
 	require.NoError(t, err)
 	require.Equal(t, "new-admin", user.ID)
 }
@@ -172,7 +172,7 @@ func TestSignUpInitialAdminRejectsExistingInstallation(t *testing.T) {
 	svc := newSignupServiceForTest(t, db, fakeUserCreator{user: model.User{Base: model.Base{ID: "new-admin"}}})
 
 	// Reject setup when the installation already contains a user
-	_, _, err := svc.SignUpInitialAdmin(t.Context(), appconfig.NewTestConfig(nil), signUpDto{Username: "new-admin"})
+	_, _, err := svc.SignUpInitialAdmin(t.Context(), appconfig.NewTestConfig(nil), signUpDto{Username: "new-admin"}, "", "")
 	require.True(t, apperror.IsCode(err, apperror.CodeSetupAlreadyCompleted))
 }
 

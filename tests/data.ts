@@ -128,6 +128,10 @@ export const oneTimeAccessTokens = [
 	{ token: 'YCGDtftvsvYW', expired: true }
 ];
 
+// The session the tests share, which every backend reset restores
+export const sessionToken =
+	'f4b89dc2-62fb-46bf-9f5f-c34f4eafe93e.e2e-session-tim.Tq4mV8cY2nB6xR1wK9pL3sD7fG5hJ0zA';
+
 export const emailVerificationTokens = [
 	{ token: '2FZFSoupBdHyqIL65bWTsgCgHIhxlXup', expired: false },
 	{ token: 'EXPIRED1234567890ABCDE', expired: true }

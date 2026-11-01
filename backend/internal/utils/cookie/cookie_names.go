@@ -7,7 +7,7 @@ import (
 )
 
 var KnownBrowserCookieName = "__Host-known_browser"
-var AccessTokenCookieName = "__Host-access_token"
+var SessionTokenCookieName = "__Host-session_token" // #nosec G101 -- cookie name, not a credential
 var SessionIdCookieName = "__Host-session"
 var DeviceTokenCookieName = "__Secure-device_token"                     // #nosec G101 -- cookie name, not a credential
 var DeviceLoginTokenCookieName = "__Secure-device_login_token"          // #nosec G101 -- cookie name, not a credential
@@ -16,7 +16,7 @@ var ReauthenticationTokenCookieName = "__Secure-reauthentication_token" // #nose
 func init() {
 	if strings.HasPrefix(common.EnvConfig.AppURL, "http://") {
 		KnownBrowserCookieName = "known_browser"
-		AccessTokenCookieName = "access_token"
+		SessionTokenCookieName = "session_token"
 		SessionIdCookieName = "session"
 		DeviceTokenCookieName = "device_token"
 		DeviceLoginTokenCookieName = "device_login_token"

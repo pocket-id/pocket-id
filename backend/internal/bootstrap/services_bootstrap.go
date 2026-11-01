@@ -31,6 +31,7 @@ import (
 	"github.com/pocket-id/pocket-id/backend/internal/outbound"
 	"github.com/pocket-id/pocket-id/backend/internal/scimsync"
 	"github.com/pocket-id/pocket-id/backend/internal/service"
+	"github.com/pocket-id/pocket-id/backend/internal/session"
 	"github.com/pocket-id/pocket-id/backend/internal/storage"
 	"github.com/pocket-id/pocket-id/backend/internal/usersignup"
 	"github.com/pocket-id/pocket-id/backend/internal/webauthn"
@@ -59,6 +60,7 @@ type services struct {
 	webauthnModule          *webauthn.Module
 	userSignUpModule        *usersignup.Module
 	oneTimeAccessModule     *onetimeaccess.Module
+	sessionModule           *session.Module
 	emailVerificationModule *emailverification.Module
 	apiModule               *api.Module
 	environmentModule       *environment.Module
@@ -124,12 +126,20 @@ func initServices(
 		return nil, fmt.Errorf("failed to create audit logs module: %w", err)
 	}
 
+	svc.sessionModule, err = session.New(session.Dependencies{
+		Actors:    actors,
+		IPLocator: svc.ipLocator,
+	})
+	if err != nil {
+		return nil, fmt.Errorf("failed to create session module: %w", err)
+	}
+
 	svc.customClaimService = service.NewCustomClaimService(db)
 	svc.webauthnModule, err = webauthn.New(webauthn.Dependencies{
 		DB:        db,
 		Actors:    actors,
 		AppURL:    common.EnvConfig.AppURL,
-		Signer:    svc.jwtService,
+		Sessions:  svc.sessionModule,
 		AuditLog:  svc.auditLogsModule,
 		AppConfig: svc.appConfigService,
 		// Disable in test environment
@@ -142,7 +152,7 @@ func initServices(
 		DB:        db,
 		BaseURL:   common.EnvConfig.AppURL,
 		Actors:    actors,
-		Signer:    svc.jwtService,
+		Sessions:  svc.sessionModule,
 		Reauth:    svc.webauthnModule,
 		AuditLog:  svc.auditLogsModule,
 		IPLocator: svc.ipLocator,
@@ -181,6 +191,7 @@ func initServices(
 		CustomClaims: svc.customClaimService,
 		Reauth:       svc.webauthnModule,
 		AuditLog:     svc.auditLogsModule,
+		Sessions:     svc.sessionModule,
 		APIAccess:    svc.apiModule,
 		AppConfig:    svc.appConfigService,
 		// Disable in test environment
@@ -254,7 +265,7 @@ func initServices(
 	svc.userSignUpModule, err = usersignup.New(usersignup.Dependencies{
 		DB:                db,
 		Actors:            actors,
-		Signer:            svc.jwtService,
+		Sessions:          svc.sessionModule,
 		AuditLog:          svc.auditLogsModule,
 		UserCreator:       svc.userService,
 		AppConfig:         svc.appConfigService,
@@ -271,7 +282,7 @@ func initServices(
 	svc.oneTimeAccessModule, err = onetimeaccess.New(onetimeaccess.Dependencies{
 		DB:           db,
 		Actors:       actors,
-		Signer:       svc.jwtService,
+		Sessions:     svc.sessionModule,
 		AuditLog:     svc.auditLogsModule,
 		UserProvider: svc.userService,
 		EmailSender:  svc.emailModule,

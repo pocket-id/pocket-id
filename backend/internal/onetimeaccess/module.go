@@ -21,8 +21,8 @@ type EmailSender interface {
 	SendOneTimeAccessEmail(ctx context.Context, dbConfig *appconfig.AppConfigModel, userFullName, userEmail, code, loginLink, loginLinkWithCode, expirationString string) error
 }
 
-type TokenService interface {
-	GenerateAccessToken(user model.User, authenticationMethod string, sessionDuration time.Duration) (string, error)
+type SessionCreator interface {
+	Create(ctx context.Context, userID, authenticationMethod, ipAddress, userAgent string, duration time.Duration) (string, error)
 }
 
 type AuditLogger interface {
@@ -39,7 +39,7 @@ type Dependencies struct {
 	DB     *gorm.DB
 	Actors francishost.Host
 
-	Signer       TokenService
+	Sessions     SessionCreator
 	AuditLog     AuditLogger
 	UserProvider UserProvider
 	EmailSender  EmailSender

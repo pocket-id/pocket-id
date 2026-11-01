@@ -16,6 +16,7 @@ import (
 	"github.com/pocket-id/pocket-id/backend/internal/model"
 	"github.com/pocket-id/pocket-id/backend/internal/oidc"
 	"github.com/pocket-id/pocket-id/backend/internal/service"
+	"github.com/pocket-id/pocket-id/backend/internal/session"
 	"github.com/pocket-id/pocket-id/backend/internal/utils/cookie"
 )
 
@@ -24,10 +25,9 @@ const apiKeyHeader = "X-API-Key"
 
 // NewAuthorization creates the authorization middleware with every credential Pocket ID accepts
 // A browser session is tried before an API key or OAuth token, so a signed-in browser is never mistaken for an API client
-// The session authenticator also reads the Authorization header, but an OAuth access token fails its signature check and falls through to the OAuth authenticator
-func NewAuthorization(apiKeyModule *apikey.Module, accessTokenVerifier AccessTokenVerifier, userService *service.UserService, jwtService *service.JwtService, appConfig appconfig.AppConfigResolver) *authz.Middleware {
+func NewAuthorization(apiKeyModule *apikey.Module, accessTokenVerifier AccessTokenVerifier, userService *service.UserService, sessions SessionValidator, appConfig appconfig.AppConfigResolver) *authz.Middleware {
 	return authz.NewMiddleware(
-		NewSessionAuthenticator(jwtService, userService, appConfig),
+		NewSessionAuthenticator(sessions, userService, appConfig),
 		NewAPIKeyAuthenticator(apiKeyModule, appConfig),
 		NewOAuthAuthenticator(accessTokenVerifier, userService, appConfig),
 	)
@@ -50,15 +50,20 @@ func restrictUnverified(ctx context.Context, appConfig appconfig.AppConfigResolv
 	return nil
 }
 
-// SessionAuthenticator authenticates the session access token Pocket ID issues after sign-in
+// SessionValidator resolves a session token to its user and session, which the session module implements
+type SessionValidator interface {
+	Validate(ctx context.Context, token string) (string, session.Session, error)
+}
+
+// SessionAuthenticator authenticates the session cookie Pocket ID sets after sign-in
 type SessionAuthenticator struct {
-	jwtService  *service.JwtService
+	sessions    SessionValidator
 	userService *service.UserService
 	appConfig   appconfig.AppConfigResolver
 }
 
-func NewSessionAuthenticator(jwtService *service.JwtService, userService *service.UserService, appConfig appconfig.AppConfigResolver) *SessionAuthenticator {
-	return &SessionAuthenticator{jwtService: jwtService, userService: userService, appConfig: appConfig}
+func NewSessionAuthenticator(sessions SessionValidator, userService *service.UserService, appConfig appconfig.AppConfigResolver) *SessionAuthenticator {
+	return &SessionAuthenticator{sessions: sessions, userService: userService, appConfig: appConfig}
 }
 
 func (a *SessionAuthenticator) Kinds() authz.PrincipalKind {
@@ -66,28 +71,19 @@ func (a *SessionAuthenticator) Kinds() authz.PrincipalKind {
 }
 
 func (a *SessionAuthenticator) Present(c *gin.Context) bool {
-	return sessionToken(c) != ""
+	_, err := c.Cookie(cookie.SessionTokenCookieName)
+	return err == nil
 }
 
 func (a *SessionAuthenticator) Authenticate(c *gin.Context) (*authz.Principal, error) {
-	// Verify the token signature, audience and type
-	token, err := a.jwtService.VerifyAccessToken(sessionToken(c))
+	token, _ := c.Cookie(cookie.SessionTokenCookieName)
+	userID, userSession, err := a.sessions.Validate(c.Request.Context(), token)
 	if err != nil {
-		return nil, apperror.NotSignedIn()
-	}
-	authenticationMethod, err := a.jwtService.GetAuthenticationMethod(token)
-	if err != nil {
-		return nil, apperror.NotSignedIn()
-	}
-	authenticationTime, _ := token.IssuedAt()
-
-	subject, ok := token.Subject()
-	if !ok {
-		return nil, apperror.TokenInvalid()
+		return nil, err
 	}
 
-	// Load the user so disabling an account, changing its admin flag or its email verification takes effect before the token expires
-	user, err := a.userService.GetUser(c, subject)
+	// Load the user so disabling an account, changing its admin flag or its email verification takes effect right away
+	user, err := a.userService.GetUser(c, userID)
 	if err != nil {
 		return nil, apperror.NotSignedIn()
 	}
@@ -99,8 +95,9 @@ func (a *SessionAuthenticator) Authenticate(c *gin.Context) (*authz.Principal, e
 		Kind:                 authz.KindSession,
 		UserID:               user.ID,
 		Scopes:               authz.UserScopes(user.IsAdmin, authz.KindSession),
-		AuthenticationMethod: authenticationMethod,
-		AuthenticationTime:   authenticationTime,
+		SessionID:            userSession.ID,
+		AuthenticationMethod: userSession.AuthenticationMethod,
+		AuthenticationTime:   userSession.CreatedAt,
 	}
 	err = restrictUnverified(c.Request.Context(), a.appConfig, &user, principal)
 	if err != nil {
@@ -108,17 +105,6 @@ func (a *SessionAuthenticator) Authenticate(c *gin.Context) (*authz.Principal, e
 	}
 
 	return principal, nil
-}
-
-// sessionToken reads the session access token from its cookie, or from the Authorization header when the cookie is absent
-// An invalid cookie deliberately does not fall back to the header
-func sessionToken(c *gin.Context) string {
-	if accessToken, err := c.Cookie(cookie.AccessTokenCookieName); err == nil {
-		return accessToken
-	}
-
-	_, accessToken, _ := strings.Cut(c.GetHeader("Authorization"), " ")
-	return accessToken
 }
 
 // APIKeyAuthenticator authenticates a personal API key sent in the X-API-Key header

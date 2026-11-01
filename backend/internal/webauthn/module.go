@@ -8,7 +8,6 @@ import (
 
 	"github.com/gin-gonic/gin"
 	francishost "github.com/italypaleale/francis/host"
-	"github.com/lestrrat-go/jwx/v4/jwt"
 	"gorm.io/gorm"
 
 	"github.com/pocket-id/pocket-id/backend/internal/appconfig"
@@ -18,10 +17,9 @@ import (
 	"github.com/pocket-id/pocket-id/backend/internal/model"
 )
 
-type TokenService interface {
-	GenerateAccessToken(user model.User, authenticationMethod string, sessionDuration time.Duration) (string, error)
-	VerifyAccessToken(tokenString string) (jwt.Token, error)
-	GetAuthenticationMethod(token jwt.Token) (string, error)
+type SessionStore interface {
+	Create(ctx context.Context, userID, authenticationMethod, ipAddress, userAgent string, duration time.Duration) (string, error)
+	Revoke(ctx context.Context, userID, sessionID string) error
 }
 
 type AuditLogger interface {
@@ -35,7 +33,7 @@ type Dependencies struct {
 	Actors francishost.Host
 	AppURL string
 
-	Signer    TokenService
+	Sessions  SessionStore
 	AuditLog  AuditLogger
 	AppConfig appconfig.AppConfigResolver
 

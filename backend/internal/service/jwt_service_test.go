@@ -6,11 +6,8 @@ import (
 	"crypto/ed25519"
 	"crypto/elliptic"
 	"crypto/rand"
-	"crypto/rsa"
 	"errors"
-	"sync"
 	"testing"
-	"time"
 
 	"github.com/lestrrat-go/jwx/v4/jwa"
 	"github.com/lestrrat-go/jwx/v4/jwk"
@@ -66,12 +63,6 @@ func newInstanceID(t *testing.T, db *gorm.DB) string {
 	require.NoError(t, err)
 
 	return instanceID
-}
-
-func newTestDbAndEnv(t *testing.T) (*gorm.DB, *common.EnvConfigSchema) {
-	t.Helper()
-
-	return testutils.NewDatabaseForTest(t), newTestEnvConfig()
 }
 
 func saveKeyToDatabase(t *testing.T, db *gorm.DB, instanceID string, envConfig *common.EnvConfigSchema, key jwk.Key) string {
@@ -284,9 +275,9 @@ func TestJwtService_SessionKey(t *testing.T) {
 		assert.Equal(t, origKeyID, loadedKeyID, "Loaded session key should have the same ID as the original")
 
 		// A session token issued by the first service must be accepted by the second one
-		tokenString, err := firstService.GenerateAccessToken(model.User{Base: model.Base{ID: "user123"}}, "", time.Hour)
+		tokenString, err := firstService.SignSessionToken(jwt.New())
 		require.NoError(t, err)
-		_, err = secondService.VerifyAccessToken(tokenString)
+		_, err = secondService.VerifySessionToken(tokenString)
 		require.NoError(t, err, "Session token should be verified by a service that loaded the same session key")
 	})
 
@@ -317,7 +308,7 @@ func TestJwtService_SessionKey(t *testing.T) {
 
 		service := initJwtService(t, db, instanceID, mockConfig, mockEnvConfig)
 
-		tokenString, err := service.GenerateAccessToken(model.User{Base: model.Base{ID: "user123"}}, "", time.Hour)
+		tokenString, err := service.SignSessionToken(jwt.New())
 		require.NoError(t, err)
 
 		// Inspect the JWS header to confirm the algorithm and key used
@@ -343,7 +334,7 @@ func TestJwtService_SessionKey(t *testing.T) {
 
 		service := initJwtService(t, db, instanceID, mockConfig, mockEnvConfig)
 
-		tokenString, err := service.GenerateAccessToken(model.User{Base: model.Base{ID: "user123"}}, "", time.Hour)
+		tokenString, err := service.SignSessionToken(jwt.New())
 		require.NoError(t, err)
 
 		// Rotate the session key, as the key-rotate command does, then reload it
@@ -355,7 +346,7 @@ func TestJwtService_SessionKey(t *testing.T) {
 		require.NoError(t, service.LoadOrGenerateKey(t.Context()))
 
 		// Tokens issued with the previous session key must no longer be accepted
-		_, err = service.VerifyAccessToken(tokenString)
+		_, err = service.VerifySessionToken(tokenString)
 		require.Error(t, err, "Session token signed with the previous session key should be rejected")
 	})
 
@@ -383,11 +374,11 @@ func TestJwtService_SessionKey(t *testing.T) {
 	t.Run("returns an error when the session key is not initialized", func(t *testing.T) {
 		service := &JwtService{}
 
-		_, err := service.GenerateAccessToken(model.User{Base: model.Base{ID: "user123"}}, "", time.Hour)
+		_, err := service.SignSessionToken(jwt.New())
 		require.Error(t, err)
 		require.ErrorContains(t, err, "session key is not initialized")
 
-		_, err = service.VerifyAccessToken("some-token")
+		_, err = service.VerifySessionToken("some-token")
 		require.Error(t, err)
 		require.ErrorContains(t, err, "session key is not initialized")
 	})
@@ -509,260 +500,6 @@ func TestJwtService_GetPublicJWK(t *testing.T) {
 	})
 }
 
-func TestGenerateVerifyAccessToken(t *testing.T) {
-	const sessionDuration = time.Hour
-	mockConfig := appconfig.NewTestAppConfigService(nil)
-	db, envConfig := newTestDbAndEnv(t)
-	instanceID := newInstanceID(t, db)
-
-	t.Run("generates token for regular user", func(t *testing.T) {
-		service, _, _ := setupJwtService(t, instanceID, mockConfig)
-
-		user := model.User{
-			Base:    model.Base{ID: "user123"},
-			Email:   new("user@example.com"),
-			IsAdmin: false,
-		}
-
-		tokenString, err := service.GenerateAccessToken(user, "", sessionDuration)
-		require.NoError(t, err, "Failed to generate access token")
-		assert.NotEmpty(t, tokenString, "Token should not be empty")
-
-		claims, err := service.VerifyAccessToken(tokenString)
-		require.NoError(t, err, "Failed to verify generated token")
-
-		subject, ok := claims.Subject()
-		_ = assert.True(t, ok, "User ID not found in token") &&
-			assert.Equal(t, user.ID, subject, "Token subject should match user ID")
-		isAdmin := false
-		if claims.Has(IsAdminClaim) {
-			isAdmin, err = jwt.Get[bool](claims, IsAdminClaim)
-			require.NoError(t, err, "Failed to get isAdmin claim")
-		}
-		assert.False(t, isAdmin, "isAdmin should be false")
-		authenticationMethod, err := service.GetAuthenticationMethod(claims)
-		_ = assert.NoError(t, err, "Failed to get amr claim") &&
-			assert.Empty(t, authenticationMethod, "amr should be empty when not specified")
-		audience, ok := claims.Audience()
-		_ = assert.True(t, ok, "Audience not found in token") &&
-			assert.Equal(t, []string{service.envConfig.AppURL}, audience, "Audience should contain the app URL")
-		jwtID, ok := claims.JwtID()
-		_ = assert.True(t, ok, "JWT ID not found in token") &&
-			assert.Regexp(t, uuidRegexPattern, jwtID, "JWT ID is not a UUID")
-
-		expectedExp := time.Now().Add(1 * time.Hour)
-		expiration, ok := claims.Expiration()
-		assert.True(t, ok, "Expiration not found in token")
-		timeDiff := expectedExp.Sub(expiration).Minutes()
-		assert.InDelta(t, 0, timeDiff, 1.0, "Token should expire in approximately 1 hour")
-	})
-
-	t.Run("generates token for admin user", func(t *testing.T) {
-		service, _, _ := setupJwtService(t, instanceID, mockConfig)
-
-		adminUser := model.User{
-			Base:    model.Base{ID: "admin123"},
-			Email:   new("admin@example.com"),
-			IsAdmin: true,
-		}
-
-		tokenString, err := service.GenerateAccessToken(adminUser, "", sessionDuration)
-		require.NoError(t, err, "Failed to generate access token")
-
-		claims, err := service.VerifyAccessToken(tokenString)
-		require.NoError(t, err, "Failed to verify generated token")
-
-		isAdmin := false
-		if claims.Has(IsAdminClaim) {
-			isAdmin, err = jwt.Get[bool](claims, IsAdminClaim)
-			require.NoError(t, err, "Failed to get isAdmin claim")
-		}
-		assert.True(t, isAdmin, "isAdmin should be true")
-		subject, ok := claims.Subject()
-		_ = assert.True(t, ok, "User ID not found in token") &&
-			assert.Equal(t, adminUser.ID, subject, "Token subject should match user ID")
-	})
-
-	t.Run("sets authentication method references claim when provided", func(t *testing.T) {
-		service, _, _ := setupJwtService(t, instanceID, mockConfig)
-
-		user := model.User{
-			Base: model.Base{ID: "user-with-auth-method"},
-		}
-
-		tokenString, err := service.GenerateAccessToken(user, AuthenticationMethodPhishingResistant, sessionDuration)
-		require.NoError(t, err, "Failed to generate access token")
-
-		claims, err := service.VerifyAccessToken(tokenString)
-		require.NoError(t, err, "Failed to verify generated token")
-
-		authenticationMethod, err := service.GetAuthenticationMethod(claims)
-		_ = assert.NoError(t, err, "Failed to get amr claim") &&
-			assert.Equal(t, AuthenticationMethodPhishingResistant, authenticationMethod, "amr should match")
-	})
-
-	t.Run("works with Ed25519 keys", func(t *testing.T) {
-		origKeyID := createEdDSAKeyJWK(t, db, instanceID, envConfig)
-		service := initJwtService(t, db, instanceID, mockConfig, envConfig)
-
-		loadedKeyID, ok := service.privateKey.KeyID()
-		require.True(t, ok)
-		assert.Equal(t, origKeyID, loadedKeyID, "Loaded key should have the same ID as the original")
-
-		user := model.User{
-			Base:    model.Base{ID: "eddsauser123"},
-			Email:   new("eddsauser@example.com"),
-			IsAdmin: true,
-		}
-
-		tokenString, err := service.GenerateAccessToken(user, "", sessionDuration)
-		require.NoError(t, err, "Failed to generate access token with Ed25519 key")
-		assert.NotEmpty(t, tokenString, "Token should not be empty")
-
-		claims, err := service.VerifyAccessToken(tokenString)
-		require.NoError(t, err, "Failed to verify generated token with Ed25519 key")
-
-		subject, ok := claims.Subject()
-		_ = assert.True(t, ok, "User ID not found in token") &&
-			assert.Equal(t, user.ID, subject, "Token subject should match user ID")
-		isAdmin := false
-		if claims.Has(IsAdminClaim) {
-			isAdmin, err = jwt.Get[bool](claims, IsAdminClaim)
-			require.NoError(t, err, "Failed to get isAdmin claim")
-		}
-		assert.True(t, isAdmin, "isAdmin should be true")
-
-		publicKey, err := service.GetPublicJWK()
-		require.NoError(t, err)
-		assert.Equal(t, "OKP", publicKey.KeyType().String(), "Key type should be OKP")
-		alg, ok := publicKey.Algorithm()
-		require.True(t, ok)
-		assert.Equal(t, "EdDSA", alg.String(), "Algorithm should be EdDSA")
-	})
-
-	t.Run("works with P-256 keys", func(t *testing.T) {
-		origKeyID := createECDSAKeyJWK(t, db, instanceID, envConfig)
-		service := initJwtService(t, db, instanceID, mockConfig, envConfig)
-
-		loadedKeyID, ok := service.privateKey.KeyID()
-		require.True(t, ok)
-		assert.Equal(t, origKeyID, loadedKeyID, "Loaded key should have the same ID as the original")
-
-		user := model.User{
-			Base:    model.Base{ID: "ecdsauser123"},
-			Email:   new("ecdsauser@example.com"),
-			IsAdmin: true,
-		}
-
-		tokenString, err := service.GenerateAccessToken(user, "", sessionDuration)
-		require.NoError(t, err, "Failed to generate access token with ECDSA key")
-		assert.NotEmpty(t, tokenString, "Token should not be empty")
-
-		claims, err := service.VerifyAccessToken(tokenString)
-		require.NoError(t, err, "Failed to verify generated token with ECDSA key")
-
-		subject, ok := claims.Subject()
-		_ = assert.True(t, ok, "User ID not found in token") &&
-			assert.Equal(t, user.ID, subject, "Token subject should match user ID")
-		isAdmin := false
-		if claims.Has(IsAdminClaim) {
-			isAdmin, err = jwt.Get[bool](claims, IsAdminClaim)
-			require.NoError(t, err, "Failed to get isAdmin claim")
-		}
-		assert.True(t, isAdmin, "isAdmin should be true")
-
-		publicKey, err := service.GetPublicJWK()
-		require.NoError(t, err)
-		assert.Equal(t, "EC", publicKey.KeyType().String(), "Key type should be EC")
-		alg, ok := publicKey.Algorithm()
-		require.True(t, ok)
-		assert.Equal(t, "ES256", alg.String(), "Algorithm should be ES256")
-	})
-
-	t.Run("works with RSA-4096 keys", func(t *testing.T) {
-		origKeyID := createRSA4096KeyJWK(t, db, instanceID, envConfig)
-		service := initJwtService(t, db, instanceID, mockConfig, envConfig)
-
-		loadedKeyID, ok := service.privateKey.KeyID()
-		require.True(t, ok)
-		assert.Equal(t, origKeyID, loadedKeyID, "Loaded key should have the same ID as the original")
-
-		user := model.User{
-			Base:    model.Base{ID: "rsauser123"},
-			Email:   new("rsauser@example.com"),
-			IsAdmin: true,
-		}
-
-		tokenString, err := service.GenerateAccessToken(user, "", sessionDuration)
-		require.NoError(t, err, "Failed to generate access token with RSA key")
-		assert.NotEmpty(t, tokenString, "Token should not be empty")
-
-		claims, err := service.VerifyAccessToken(tokenString)
-		require.NoError(t, err, "Failed to verify generated token with RSA key")
-
-		subject, ok := claims.Subject()
-		_ = assert.True(t, ok, "User ID not found in token") &&
-			assert.Equal(t, user.ID, subject, "Token subject should match user ID")
-		isAdmin := false
-		if claims.Has(IsAdminClaim) {
-			isAdmin, err = jwt.Get[bool](claims, IsAdminClaim)
-			require.NoError(t, err, "Failed to get isAdmin claim")
-		}
-		assert.True(t, isAdmin, "isAdmin should be true")
-
-		publicKey, err := service.GetPublicJWK()
-		require.NoError(t, err)
-		assert.Equal(t, jwa.RSA().String(), publicKey.KeyType().String(), "Key type should be RSA")
-		alg, ok := publicKey.Algorithm()
-		require.True(t, ok)
-		assert.Equal(t, jwa.RS256().String(), alg.String(), "Algorithm should be RS256")
-	})
-}
-
-func TestTokenTypeValidator(t *testing.T) {
-	t.Run("succeeds when token type matches expected type", func(t *testing.T) {
-		// Create a token with the expected type
-		token := jwt.New()
-		err := token.Set(TokenTypeClaim, AccessTokenJWTType)
-		require.NoError(t, err, "Failed to set token type claim")
-
-		// Create a validator function for the expected type
-		validator := TokenTypeValidator(AccessTokenJWTType)
-
-		// Validate the token
-		err = validator(t.Context(), token)
-		assert.NoError(t, err, "Validator should accept token with matching type")
-	})
-
-	t.Run("fails when token type doesn't match expected type", func(t *testing.T) {
-		// Create a token with a different type
-		token := jwt.New()
-		err := token.Set(TokenTypeClaim, "other-token")
-		require.NoError(t, err, "Failed to set token type claim")
-
-		// Create a validator function for a different expected type
-		validator := TokenTypeValidator(AccessTokenJWTType)
-
-		// Validate the token
-		err = validator(t.Context(), token)
-		require.Error(t, err, "Validator should reject token with non-matching type")
-		assert.Contains(t, err.Error(), "invalid token type: expected access-token, got other-token")
-	})
-
-	t.Run("fails when token type claim is missing", func(t *testing.T) {
-		// Create a token without a type claim
-		token := jwt.New()
-
-		// Create a validator function
-		validator := TokenTypeValidator(AccessTokenJWTType)
-
-		// Validate the token
-		err := validator(t.Context(), token)
-		require.Error(t, err, "Validator should reject token without type claim")
-		assert.Contains(t, err.Error(), "failed to get token type claim")
-	})
-}
-
 func importKey(t *testing.T, db *gorm.DB, instanceID string, envConfig *common.EnvConfigSchema, privateKeyRaw any) string {
 	t.Helper()
 
@@ -770,27 +507,6 @@ func importKey(t *testing.T, db *gorm.DB, instanceID string, envConfig *common.E
 	require.NoError(t, err, "Failed to import private key")
 
 	return saveKeyToDatabase(t, db, instanceID, envConfig, privateKey)
-}
-
-// Because generating a RSA-406 key isn't immediate, we pre-compute one
-var (
-	rsaKeyPrecomputed    *rsa.PrivateKey
-	rsaKeyPrecomputeOnce sync.Once
-)
-
-func createRSA4096KeyJWK(t *testing.T, db *gorm.DB, instanceID string, envConfig *common.EnvConfigSchema) string {
-	t.Helper()
-
-	rsaKeyPrecomputeOnce.Do(func() {
-		var err error
-		rsaKeyPrecomputed, err = rsa.GenerateKey(rand.Reader, 4096)
-		if err != nil {
-			panic("failed to precompute RSA key: " + err.Error())
-		}
-	})
-
-	// Import as JWK and save it
-	return importKey(t, db, instanceID, envConfig, rsaKeyPrecomputed)
 }
 
 func createECDSAKeyJWK(t *testing.T, db *gorm.DB, instanceID string, envConfig *common.EnvConfigSchema) string {

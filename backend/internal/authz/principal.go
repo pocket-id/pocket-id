@@ -19,7 +19,8 @@ type Principal struct {
 	// WithheldUntilVerified are the scopes the user's role grants but that are withheld until the user verifies their email
 	WithheldUntilVerified ScopeSet
 
-	// AuthenticationMethod and AuthenticationTime describe how the session was established and are only set for KindSession
+	// SessionID, AuthenticationMethod and AuthenticationTime identify the session and describe how it was established, and are only set for KindSession
+	SessionID            string
 	AuthenticationMethod string
 	AuthenticationTime   time.Time
 }

@@ -16,7 +16,6 @@ import (
 	"gorm.io/gorm"
 
 	"github.com/pocket-id/pocket-id/backend/internal/common"
-	"github.com/pocket-id/pocket-id/backend/internal/model"
 	"github.com/pocket-id/pocket-id/backend/internal/utils"
 	jwkutils "github.com/pocket-id/pocket-id/backend/internal/utils/jwk"
 )
@@ -25,21 +24,8 @@ const (
 	// KeyUsageSigning is the usage for the private keys, for the "use" property
 	KeyUsageSigning = "sig"
 
-	// IsAdminClaim is a boolean claim used in access tokens for admin users
-	// This may be omitted on non-admin tokens
-	IsAdminClaim = "isAdmin"
-
-	// TokenTypeClaim is the claim used to identify the type of token
-	TokenTypeClaim = "type"
-
 	// AuthenticationMethodPhishingResistant identifies phishing-resistant authentication, such as passkeys
 	AuthenticationMethodPhishingResistant = "phr"
-
-	// AuthenticationMethodOneTimePassword identifies one-time password/code authentication
-	AuthenticationMethodOneTimePassword = "otp"
-
-	// AccessTokenJWTType identifies a JWT as an access token used by Pocket ID
-	AccessTokenJWTType = "access-token"
 
 	// LogoutTokenJWTTyp is the JOSE "typ" header for OIDC back-channel logout tokens
 	LogoutTokenJWTTyp = "logout+jwt" //nolint:gosec // this is a JOSE typ header, not a credential
@@ -49,9 +35,6 @@ const (
 
 	// logoutTokenDuration is the lifetime of a logout token, which only needs to survive the delivery to the client
 	logoutTokenDuration = 2 * time.Minute
-
-	// Acceptable clock skew for verifying tokens
-	clockSkew = time.Minute
 )
 
 type JwtService struct {
@@ -319,46 +302,6 @@ func (s *JwtService) SetSessionKey(sessionKey jwk.Key) error {
 	return nil
 }
 
-func (s *JwtService) GenerateAccessToken(user model.User, authenticationMethod string, sessionDuration time.Duration) (string, error) {
-	if s.sessionKey == nil {
-		return "", errors.New("session key is not initialized")
-	}
-
-	now := time.Now()
-	token, err := jwt.NewBuilder().
-		Subject(user.ID).
-		Expiration(now.Add(sessionDuration)).
-		IssuedAt(now).
-		Issuer(s.envConfig.AppURL).
-		JwtID(uuid.NewV4().String()).
-		Build()
-	if err != nil {
-		return "", fmt.Errorf("failed to build token: %w", err)
-	}
-
-	err = SetAudienceString(token, s.envConfig.AppURL)
-	if err != nil {
-		return "", fmt.Errorf("failed to set 'aud' claim in token: %w", err)
-	}
-
-	err = SetTokenType(token, AccessTokenJWTType)
-	if err != nil {
-		return "", fmt.Errorf("failed to set 'type' claim in token: %w", err)
-	}
-
-	err = SetIsAdmin(token, user.IsAdmin)
-	if err != nil {
-		return "", fmt.Errorf("failed to set 'isAdmin' claim in token: %w", err)
-	}
-
-	err = SetAuthenticationMethods(token, authenticationMethod)
-	if err != nil {
-		return "", fmt.Errorf("failed to set '%s' claim in token: %w", common.AuthenticationMethodsClaim, err)
-	}
-
-	return s.SignSessionToken(token)
-}
-
 // GenerateLogoutToken creates a logout token for OIDC Back-Channel Logout 1.0
 // The token identifies the user with a "sub" claim only, as Pocket ID does not track per-session "sid" values
 func (s *JwtService) GenerateLogoutToken(userID string, clientID string) (string, error) {
@@ -429,18 +372,6 @@ func (s *JwtService) VerifySessionToken(tokenString string, options ...jwt.Valid
 	return token, nil
 }
 
-func (s *JwtService) VerifyAccessToken(tokenString string) (jwt.Token, error) {
-	if s.sessionKey == nil {
-		return nil, errors.New("session key is not initialized")
-	}
-	return s.VerifySessionToken(tokenString,
-		jwt.WithAcceptableSkew(clockSkew),
-		jwt.WithAudience(s.envConfig.AppURL),
-		jwt.WithIssuer(s.envConfig.AppURL),
-		jwt.WithValidator(TokenTypeValidator(AccessTokenJWTType)),
-	)
-}
-
 // GetPublicJWK returns the JSON Web Key (JWK) for the public key.
 func (s *JwtService) GetPublicJWK() (jwk.Key, error) {
 	if s.privateKey == nil {
@@ -487,71 +418,6 @@ func (s *JwtService) GetKeyID() (string, bool) {
 		return "", false
 	}
 	return s.privateKey.KeyID()
-}
-
-// GetAuthenticationMethod returns the first authentication method in the "amr" claim in the token
-func (s *JwtService) GetAuthenticationMethod(token jwt.Token) (string, error) {
-	if !token.Has(common.AuthenticationMethodsClaim) {
-		return "", nil
-	}
-	rawAuthenticationMethods, err := jwt.Get[[]any](token, common.AuthenticationMethodsClaim)
-	if err != nil {
-		return "", fmt.Errorf("failed to get '%s' claim from token: %w", common.AuthenticationMethodsClaim, err)
-	}
-
-	if len(rawAuthenticationMethods) == 0 {
-		return "", nil
-	}
-	authenticationMethod, ok := rawAuthenticationMethods[0].(string)
-	if !ok {
-		return "", fmt.Errorf("invalid '%s' claim in token: expected array of strings", common.AuthenticationMethodsClaim)
-	}
-	return authenticationMethod, nil
-}
-
-// SetTokenType sets the "type" claim in the token
-func SetTokenType(token jwt.Token, tokenType string) error {
-	if tokenType == "" {
-		return nil
-	}
-	return token.Set(TokenTypeClaim, tokenType)
-}
-
-// SetIsAdmin sets the "isAdmin" claim in the token
-func SetIsAdmin(token jwt.Token, isAdmin bool) error {
-	// Only set if true
-	if !isAdmin {
-		return nil
-	}
-	return token.Set(IsAdminClaim, isAdmin)
-}
-
-// SetAuthenticationMethods sets the authentication method references claim in the token
-func SetAuthenticationMethods(token jwt.Token, authenticationMethod string) error {
-	if authenticationMethod == "" {
-		return nil
-	}
-	return token.Set(common.AuthenticationMethodsClaim, []string{authenticationMethod})
-}
-
-// SetAudienceString sets the "aud" claim with a value that is a string, and not an array
-// This is permitted by RFC 7519, and it's done here for backwards-compatibility
-func SetAudienceString(token jwt.Token, audience string) error {
-	return token.Set(jwt.AudienceKey, audience)
-}
-
-// TokenTypeValidator is a validator function that checks the "type" claim in the token
-func TokenTypeValidator(expectedTokenType string) jwt.ValidatorFunc {
-	return func(_ context.Context, t jwt.Token) error {
-		tokenType, err := jwt.Get[string](t, TokenTypeClaim)
-		if err != nil {
-			return fmt.Errorf("failed to get token type claim: %w", err)
-		}
-		if tokenType != expectedTokenType {
-			return fmt.Errorf("invalid token type: expected %s, got %s", expectedTokenType, tokenType)
-		}
-		return nil
-	}
 }
 
 func (s *JwtService) GetPrivateKey() any {

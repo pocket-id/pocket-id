@@ -7,8 +7,8 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
-func AddAccessTokenCookie(c *gin.Context, maxAgeInSeconds int, token string) {
-	addCookie(c, AccessTokenCookieName, token, maxAgeInSeconds, "/")
+func AddSessionTokenCookie(c *gin.Context, maxAgeInSeconds int, token string) {
+	addCookie(c, SessionTokenCookieName, token, maxAgeInSeconds, "/")
 }
 
 func AddSessionIdCookie(c *gin.Context, maxAgeInSeconds int, sessionID string) {

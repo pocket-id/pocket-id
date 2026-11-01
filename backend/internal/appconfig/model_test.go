@@ -260,7 +260,7 @@ func TestAppConfigModel_Update(t *testing.T) {
 	t.Run("an empty value resets the property to its default", func(t *testing.T) {
 		m := getDefaultConfig()
 		m.SmtpTls = "tls"         // default is "none"
-		m.SessionDuration = "120" // default is "60"
+		m.SessionDuration = "120" // default is "1440"
 
 		err := m.Update(map[string]string{"smtpTls": "", "sessionDuration": ""})
 		require.NoError(t, err)

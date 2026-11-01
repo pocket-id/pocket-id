@@ -36,6 +36,7 @@ import (
 	datatype "github.com/pocket-id/pocket-id/backend/internal/model/types"
 	"github.com/pocket-id/pocket-id/backend/internal/oidc"
 	"github.com/pocket-id/pocket-id/backend/internal/onetimeaccess"
+	"github.com/pocket-id/pocket-id/backend/internal/session"
 	"github.com/pocket-id/pocket-id/backend/internal/storage"
 	"github.com/pocket-id/pocket-id/backend/internal/usersignup"
 	"github.com/pocket-id/pocket-id/backend/internal/utils"
@@ -68,6 +69,8 @@ const (
 	e2eEmailVerificationUserID         = "1cd19686-f9a6-43f4-a41f-14a0bf5b4036"
 	e2eEmailVerificationUserEmail      = "craig.federighi@test.com"
 	e2eEmailVerificationToken          = "2FZFSoupBdHyqIL65bWTsgCgHIhxlXup"
+	e2eSessionID                       = "e2e-session-tim"
+	e2eSessionSecret                   = "Tq4mV8cY2nB6xR1wK9pL3sD7fG5hJ0zA"
 )
 
 func NewTestService(db *gorm.DB, actors francishost.Host, appConfigService *appconfig.AppConfigService, jwtService *JwtService, ldapSyncer LdapSyncer, fileStorage storage.FileStorage) (*TestService, error) {
@@ -583,7 +586,26 @@ func (s *TestService) SeedDatabase(baseURL string) error {
 		return fmt.Errorf("failed to seed email verification token: %w", err)
 	}
 
+	err = s.seedSession(context.Background())
+	if err != nil {
+		return fmt.Errorf("failed to seed session: %w", err)
+	}
+
 	return nil
+}
+
+// seedSession restores the browser session the E2E tests share, since a test that signs out revokes it for every later test
+func (s *TestService) seedSession(ctx context.Context) error {
+	now := time.Now()
+	_, err := s.actors.Service().Invoke(ctx, session.ActorType, e2eRefreshTokenUserID, session.MethodCreate, session.Session{
+		ID:                   e2eSessionID,
+		TokenHash:            utils.CreateSha256Hash(e2eSessionSecret),
+		AuthenticationMethod: AuthenticationMethodPhishingResistant,
+		CreatedAt:            now,
+		LastActiveAt:         now,
+		ExpiresAt:            now.Add(24 * time.Hour),
+	})
+	return err
 }
 
 // seedEmailVerificationToken replaces the outstanding verification state so every E2E reset starts from the same valid token

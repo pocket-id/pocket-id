@@ -138,7 +138,7 @@ func getDefaultConfig() *AppConfigModel {
 	return &AppConfigModel{
 		// General
 		AppName:                   "Pocket ID",
-		SessionDuration:           "60",
+		SessionDuration:           "1440",
 		HomePageURL:               "/settings/account",
 		EmailsVerified:            "false",
 		DisableAnimations:         "false",

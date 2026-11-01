@@ -36,10 +36,12 @@
 	import UserForm from '../user-form.svelte';
 	import UserStatus from '../user-status.svelte';
 	import AdminPasskeyList from './admin-passkey-list.svelte';
+	import AdminSessionList from './admin-session-list.svelte';
 
 	let { data } = $props();
 	let user = $state(data.user);
 	let passkeys = $state(data.passkeys);
+	let sessions = $state(data.sessions);
 	let tab = $state('general');
 	let loginCodeUser = $state<typeof user | null>(null);
 	let groupPickerOpen = $state(false);
@@ -195,6 +197,10 @@
 					<Tabs.Trigger value="passkeys"
 						>{m.passkeys()} {@render count(passkeys.length)}</Tabs.Trigger
 					>
+					<Tabs.Trigger value="devices">
+						{m.devices()}
+						{@render count(sessions.length)}
+					</Tabs.Trigger>
 					{#if data.features?.customClaims.enabled}
 						<Tabs.Trigger value="custom-claims">
 							{m.custom_claims()}
@@ -272,6 +278,10 @@
 			<SettingsSection title={m.passkeys()} description={m.user_passkeys_section_description()}>
 				<AdminPasskeyList userId={user.id} {firstName} bind:passkeys />
 			</SettingsSection>
+		</Tabs.Content>
+
+		<Tabs.Content value="devices">
+			<AdminSessionList userId={user.id} {firstName} bind:sessions />
 		</Tabs.Content>
 
 		<Tabs.Content value="custom-claims">
