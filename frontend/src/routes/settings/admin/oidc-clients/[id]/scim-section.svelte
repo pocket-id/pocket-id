@@ -3,8 +3,8 @@
 	import DocsLink from '#lib/components/docs-link.svelte';
 	import FormInput from '#lib/components/form/form-input.svelte';
 	import SettingsSection from '#lib/components/settings-section.svelte';
-	import { Badge } from '#lib/components/ui/badge/index.ts';
-	import { Button } from '#lib/components/ui/button/index.ts';
+	import { Badge } from '@pocket-id/ui/badge';
+	import { Button } from '@pocket-id/ui/button';
 	import { m } from '#lib/paraglide/messages.js';
 	import { getLocale } from '#lib/paraglide/runtime.js';
 	import ScimService from '#lib/services/scim-service.ts';

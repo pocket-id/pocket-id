@@ -7,7 +7,7 @@
 		parseColorTheme
 	} from '#lib/utils/color-theme-util.ts';
 	import { colorThemes } from '#lib/utils/color-themes.ts';
-	import { cn } from '#lib/utils/style.ts';
+	import { cn } from '@pocket-id/ui/utils';
 	import { Check, Plus } from '@lucide/svelte';
 	import { RadioGroup } from 'bits-ui';
 	import CustomThemeColorDialog from './custom-theme-color-dialog.svelte';

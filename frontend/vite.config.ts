@@ -46,6 +46,8 @@ export default defineConfig(() => {
 
 		server: {
 			host: process.env.HOST,
+			// SvelteKit replaces Vite's default allow list, which would include the workspace, so the linked UI package needs its own entry
+			fs: { allow: ['../packages/ui'] },
 			proxy: {
 				'/api': {
 					target: process.env.DEVELOPMENT_BACKEND_URL || 'http://localhost:1411'

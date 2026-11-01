@@ -1,8 +1,8 @@
 <script lang="ts">
-	import { Button } from '#lib/components/ui/button/index.ts';
-	import { Input } from '#lib/components/ui/input/index.ts';
+	import { Button } from '@pocket-id/ui/button';
+	import { Input } from '@pocket-id/ui/input';
 	import { m } from '#lib/paraglide/messages.js';
-	import { cn } from '#lib/utils/style.ts';
+	import { cn } from '@pocket-id/ui/utils';
 	import { LucidePlus, LucideX } from '@lucide/svelte';
 
 	let {
@@ -53,7 +53,7 @@
 					variant="ghost"
 					size="icon"
 					class={cn(
-						'text-muted-foreground size-9',
+						'text-fg-muted size-9',
 						keepAtLeastOne && urls.length === 1 && !url && 'invisible'
 					)}
 					aria-label={m.remove_url({ identifier: url || i + 1 })}
@@ -66,7 +66,7 @@
 		{/each}
 	</div>
 	<Button
-		class="text-muted-foreground mt-1 -ml-2.5"
+		class="text-fg-muted mt-1 -ml-2.5"
 		variant="ghost"
 		size="sm"
 		onclick={() => (urls = [...urls, ''])}

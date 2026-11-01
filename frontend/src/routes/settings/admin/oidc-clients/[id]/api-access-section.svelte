@@ -3,7 +3,7 @@
 	import ApiPermissionsSheet from '#lib/components/api-permissions-sheet.svelte';
 	import { openConfirmDialog } from '#lib/components/confirm-dialog/index.ts';
 	import SettingsSection from '#lib/components/settings-section.svelte';
-	import { Button } from '#lib/components/ui/button/index.ts';
+	import { Button } from '@pocket-id/ui/button';
 	import { m } from '#lib/paraglide/messages.js';
 	import ApisService from '#lib/services/apis-service.ts';
 	import type { Api, ApiClientGrant, ClientApiGrant } from '#lib/types/api.type.ts';

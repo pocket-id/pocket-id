@@ -1,11 +1,11 @@
 <script lang="ts">
-	import { Badge } from '#lib/components/ui/badge/index.ts';
-	import { filledFieldClass } from '#lib/components/ui/input/index.ts';
-	import * as Command from '#lib/components/ui/command/index.ts';
-	import * as Popover from '#lib/components/ui/popover/index.ts';
-	import { Spinner } from '#lib/components/ui/spinner/index.ts';
+	import { Badge } from '@pocket-id/ui/badge';
+	import { filledFieldClass } from '@pocket-id/ui/input';
+	import * as Command from '@pocket-id/ui/command';
+	import * as Popover from '@pocket-id/ui/popover';
+	import { Spinner } from '@pocket-id/ui/spinner';
 	import { m } from '#lib/paraglide/messages.js';
-	import { cn } from '#lib/utils/style.ts';
+	import { cn } from '@pocket-id/ui/utils';
 	import { LucideCheck, LucideChevronDown } from '@lucide/svelte';
 	import type { FormEventHandler } from 'svelte/elements';
 

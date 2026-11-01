@@ -1,7 +1,7 @@
 <script lang="ts">
 	import MultiSelect from '#lib/components/form/multi-select.svelte';
 	import SearchableSelect from '#lib/components/form/searchable-select.svelte';
-	import * as Field from '#lib/components/ui/field/index.ts';
+	import * as Field from '@pocket-id/ui/field';
 	import { m } from '#lib/paraglide/messages.js';
 	import UserService from '#lib/services/user-service.ts';
 	import type { User } from '#lib/types/user.type.ts';

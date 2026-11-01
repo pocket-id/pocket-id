@@ -19,19 +19,20 @@ export default defineConfig({
 			'dist/**',
 			'docker/**',
 			'scripts/**',
-			'frontend/.svelte-kit/**',
+			'**/.svelte-kit/**',
 			'frontend/build/**',
 			'frontend/dist/**',
 			'frontend/messages/**',
 			'frontend/src/lib/paraglide/**',
 			'frontend/static/**',
-			'tests/.output/**',
-			'tests/.report/**',
-			'tests/.auth/**'
+			'packages/ui/dist/**',
+			'packages/tests/.output/**',
+			'packages/tests/.report/**',
+			'packages/tests/.auth/**'
 		],
 		overrides: [
 			{
-				files: ['frontend/**'],
+				files: ['frontend/**', 'packages/ui/**'],
 				options: {
 					svelte: true,
 					sortTailwindcss: true
@@ -41,12 +42,11 @@ export default defineConfig({
 	},
 	staged: {
 		'frontend/**/*': "sh -c 'vp fmt --check frontend'",
-		'tests/**/*': "sh -c 'vp fmt --check tests'",
-		'email-templates/**/*': "sh -c 'vp fmt --check email-templates'",
+		'packages/**/*': "sh -c 'vp fmt --check packages'",
 		'backend/**/*.go': `sh -c 'command -v gofmt >/dev/null || exit 0; gofmt -d "$@"' gofmt`
 	},
 	test: {
-		exclude: ['**/node_modules/**', 'tests/**'],
+		exclude: ['**/node_modules/**', 'packages/tests/**'],
 		passWithNoTests: true
 	},
 	lint: {

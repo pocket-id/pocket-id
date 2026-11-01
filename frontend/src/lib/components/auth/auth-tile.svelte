@@ -1,6 +1,6 @@
 <script lang="ts">
 	import Logo from '#lib/components/logo.svelte';
-	import { cn } from '#lib/utils/style.ts';
+	import { cn } from '@pocket-id/ui/utils';
 	import { LucideCheck } from '@lucide/svelte';
 
 	let { success = false }: { success?: boolean } = $props();

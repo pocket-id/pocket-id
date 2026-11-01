@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { cn } from '#lib/utils/style.ts';
+	import { cn } from '@pocket-id/ui/utils';
 	import type { IconProps } from '@jis3r/icons';
 	import type { Component } from 'svelte';
 	import { prefersReducedMotion } from 'svelte/motion';

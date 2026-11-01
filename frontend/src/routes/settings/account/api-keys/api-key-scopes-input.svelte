@@ -1,9 +1,9 @@
 <script lang="ts">
 	import AdminAccessMarker from '#lib/components/admin-access-marker.svelte';
-	import * as Alert from '#lib/components/ui/alert/index.ts';
-	import * as Field from '#lib/components/ui/field/index.ts';
-	import * as RadioGroup from '#lib/components/ui/radio-group/index.ts';
-	import * as Tabs from '#lib/components/ui/tabs/index.ts';
+	import * as Alert from '@pocket-id/ui/alert';
+	import * as Field from '@pocket-id/ui/field';
+	import * as RadioGroup from '@pocket-id/ui/radio-group';
+	import * as Tabs from '@pocket-id/ui/tabs';
 	import { m } from '#lib/paraglide/messages.js';
 	import {
 		grantableScopes,

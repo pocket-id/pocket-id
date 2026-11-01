@@ -1,12 +1,12 @@
 <script lang="ts">
-	import * as Avatar from '#lib/components/ui/avatar/index.ts';
-	import { Button } from '#lib/components/ui/button/index.ts';
-	import { Spinner } from '#lib/components/ui/spinner/index.ts';
-	import * as Tooltip from '#lib/components/ui/tooltip/index.ts';
+	import * as Avatar from '@pocket-id/ui/avatar';
+	import { Button } from '@pocket-id/ui/button';
+	import { Spinner } from '@pocket-id/ui/spinner';
+	import * as Tooltip from '@pocket-id/ui/tooltip';
 	import { m } from '#lib/paraglide/messages.js';
 	import appConfigStore from '#lib/stores/application-configuration-store.ts';
 	import { cachedProfilePicture } from '#lib/utils/cached-image-util.ts';
-	import { cn } from '#lib/utils/style.ts';
+	import { cn } from '@pocket-id/ui/utils';
 	import { LucideRotateCcw, LucideUpload } from '@lucide/svelte';
 	import { onMount } from 'svelte';
 	import { openConfirmDialog } from '../confirm-dialog';

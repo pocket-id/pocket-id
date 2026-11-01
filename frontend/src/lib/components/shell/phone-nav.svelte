@@ -2,11 +2,11 @@
 	import { goto } from '$app/navigation';
 	import { page } from '$app/state';
 	import Logo from '#lib/components/logo.svelte';
-	import * as DropdownMenu from '#lib/components/ui/dropdown-menu/index.ts';
+	import * as DropdownMenu from '@pocket-id/ui/dropdown-menu';
 	import { m } from '#lib/paraglide/messages.js';
 	import appConfigStore from '#lib/stores/application-configuration-store.ts';
 	import { commandPalette } from '#lib/stores/command-palette-store.svelte.ts';
-	import { cn } from '#lib/utils/style.ts';
+	import { cn } from '@pocket-id/ui/utils';
 	import { Check, CircleChevronUp, Ellipsis, Search } from '@lucide/svelte';
 	import AccountMenu from './account-menu.svelte';
 	import { activeHref, type NavGroup, type NavItem } from './nav-items.ts';

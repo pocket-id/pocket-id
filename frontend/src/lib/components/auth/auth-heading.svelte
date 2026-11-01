@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { cn } from '#lib/utils/style.ts';
+	import { cn } from '@pocket-id/ui/utils';
 	import { LucideCircleAlert, LucideInfo } from '@lucide/svelte';
 	import type { Snippet } from 'svelte';
 

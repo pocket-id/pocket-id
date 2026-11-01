@@ -4,14 +4,14 @@
 	import AuthTile from '#lib/components/auth/auth-tile.svelte';
 	import { authPrimaryClass } from '#lib/components/auth/auth-util.ts';
 	import SignInWrapper from '#lib/components/login-wrapper.svelte';
-	import { Button } from '#lib/components/ui/button/index.ts';
+	import { Button } from '@pocket-id/ui/button';
 	import { m } from '#lib/paraglide/messages.js';
 	import AppConfigService from '#lib/services/app-config-service.ts';
 	import appConfigStore from '#lib/stores/application-configuration-store.ts';
 	import type { Feature } from '#lib/types/feature.type.ts';
 	import { axiosErrorToast } from '#lib/utils/error-util.ts';
 	import { featureSections } from '#lib/utils/feature-util.ts';
-	import { cn } from '#lib/utils/style.ts';
+	import { cn } from '@pocket-id/ui/utils';
 	import { goto } from '$app/navigation';
 	import { LucideCheck, LucidePlus } from '@lucide/svelte';
 
@@ -103,7 +103,7 @@
 						class={cn(
 							'group/tile text-control focus-visible:outline-ring flex items-start gap-3 rounded-md border px-3.5 py-3 text-start font-medium transition-colors duration-(--dur-fast) focus-visible:outline-2 focus-visible:outline-offset-2 active:scale-(--press-scale)',
 							checked
-								? 'bg-primary-control text-primary-control-foreground border-transparent'
+								? 'bg-primary-control text-primary-control-fg border-transparent'
 								: 'bg-surface text-fg hover:bg-fill-row-hover'
 						)}
 						onclick={() => toggle(row.id)}

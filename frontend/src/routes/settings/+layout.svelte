@@ -6,15 +6,15 @@
 	import CommandPalette from '#lib/components/shell/command-palette.svelte';
 	import { navGroups } from '#lib/components/shell/nav-items.ts';
 	import PhoneNav from '#lib/components/shell/phone-nav.svelte';
-	import * as Alert from '#lib/components/ui/alert/index.ts';
-	import * as Tooltip from '#lib/components/ui/tooltip/index.ts';
+	import * as Alert from '@pocket-id/ui/alert';
+	import * as Tooltip from '@pocket-id/ui/tooltip';
 	import { m } from '#lib/paraglide/messages.js';
 	import { appReveal } from '#lib/stores/app-reveal-store.svelte.ts';
 	import appConfigStore from '#lib/stores/application-configuration-store.ts';
 	import { pageTransition } from '#lib/stores/page-transition-store.svelte.ts';
 	import userStore from '#lib/stores/user-store.ts';
 	import { isEmailVerificationPending } from '#lib/utils/email-verification-util.ts';
-	import { cn } from '#lib/utils/style.ts';
+	import { cn } from '@pocket-id/ui/utils';
 	import { LucideTriangleAlert } from '@lucide/svelte';
 	import { PersistedState } from 'runed';
 	import type { Snippet } from 'svelte';

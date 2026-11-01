@@ -4,12 +4,13 @@
 	import ConfirmDialog from '#lib/components/confirm-dialog/confirm-dialog.svelte';
 	import Error from '#lib/components/error.svelte';
 	import NavigationProgress from '#lib/components/navigation-progress.svelte';
-	import { Toaster } from '#lib/components/ui/sonner/index.ts';
+	import { setUiLabels } from '@pocket-id/ui/labels';
+	import { Toaster } from '@pocket-id/ui/sonner';
 	import UnsavedChangesBar from '#lib/components/unsaved-changes-bar.svelte';
 	import unsavedChanges from '#lib/stores/unsaved-changes-store.svelte.ts';
 	import { m } from '#lib/paraglide/messages.js';
 	import { startPageTrace } from '#lib/utils/tracing-util.ts';
-	import { ModeWatcher } from 'mode-watcher';
+	import { mode, ModeWatcher } from 'mode-watcher';
 	import { type Snippet } from 'svelte';
 	import '../app.css';
 	import type { LayoutData } from './$types';
@@ -29,6 +30,8 @@
 
 	const { appConfig } = data;
 
+	setUiLabels({ close: m.close, optional: m.field_optional });
+
 	// Toasts sit above the phone bottom bar, and while the unsaved bar shows they rise above it too (its height plus 8px)
 	const barOpen = $derived(unsavedChanges.hasChanges || !!unsavedChanges.status);
 	const phoneClearance = $derived(
@@ -42,6 +45,7 @@
 	{@render children()}
 {/if}
 <Toaster
+	theme={mode.current}
 	offset={barOpen ? { bottom: 80 } : undefined}
 	mobileOffset={{
 		bottom: `calc(${phoneClearance}px + env(safe-area-inset-bottom))`

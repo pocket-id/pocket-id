@@ -3,12 +3,13 @@
 # Output
 .output
 .vercel
-/frontend/.svelte-kit
+**/.svelte-kit
 /frontend/build
+/packages/ui/dist
 /backend/bin
 /backend/frontend/dist
-/tests/.auth
-/tests/.report
+/packages/tests/.auth
+/packages/tests/.report
 
 
 # Env

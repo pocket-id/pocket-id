@@ -3,7 +3,7 @@
 	import SessionRow from '#lib/components/session-row.svelte';
 	import SessionSheet from '#lib/components/session-sheet.svelte';
 	import SettingsSection from '#lib/components/settings-section.svelte';
-	import { Button } from '#lib/components/ui/button/index.ts';
+	import { Button } from '@pocket-id/ui/button';
 	import { m } from '#lib/paraglide/messages.js';
 	import SessionService from '#lib/services/session-service.ts';
 	import type { Session } from '#lib/types/session.type.ts';

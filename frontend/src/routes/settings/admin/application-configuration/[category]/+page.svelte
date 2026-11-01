@@ -2,8 +2,8 @@
 	import { goto } from '$app/navigation';
 	import DocsLink from '#lib/components/docs-link.svelte';
 	import PageHeader from '#lib/components/page-header.svelte';
-	import * as Alert from '#lib/components/ui/alert/index.ts';
-	import * as Tabs from '#lib/components/ui/tabs/index.ts';
+	import * as Alert from '@pocket-id/ui/alert';
+	import * as Tabs from '@pocket-id/ui/tabs';
 	import { m } from '#lib/paraglide/messages.js';
 	import AppConfigService from '#lib/services/app-config-service.ts';
 	import appConfigStore from '#lib/stores/application-configuration-store.ts';

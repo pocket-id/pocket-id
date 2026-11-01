@@ -1,6 +1,6 @@
 <script lang="ts">
 	import { m } from '#lib/paraglide/messages.js';
-	import { cn } from '#lib/utils/style.ts';
+	import { cn } from '@pocket-id/ui/utils';
 	import { LucideChevronLeft, LucideChevronRight } from '@lucide/svelte';
 	import type { Snippet } from 'svelte';
 

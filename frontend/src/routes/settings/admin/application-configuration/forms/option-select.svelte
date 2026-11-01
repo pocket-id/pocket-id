@@ -1,5 +1,5 @@
 <script lang="ts" generics="T extends string">
-	import * as Select from '#lib/components/ui/select/index.ts';
+	import * as Select from '@pocket-id/ui/select';
 
 	let {
 		value,

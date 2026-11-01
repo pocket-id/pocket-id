@@ -1,7 +1,7 @@
 <script lang="ts">
 	import DocsLink from '#lib/components/docs-link.svelte';
 	import SettingsSection from '#lib/components/settings-section.svelte';
-	import { Button } from '#lib/components/ui/button/index.ts';
+	import { Button } from '@pocket-id/ui/button';
 	import { m } from '#lib/paraglide/messages.js';
 	import type { OidcClient, OidcClientFederatedIdentity } from '#lib/types/oidc.type.ts';
 	import { createForm } from '#lib/utils/form-util.ts';

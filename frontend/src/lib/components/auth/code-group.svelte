@@ -1,6 +1,6 @@
 <script lang="ts">
-	import * as InputOTP from '#lib/components/ui/input-otp/index.ts';
-	import { cn } from '#lib/utils/style.ts';
+	import * as InputOTP from '@pocket-id/ui/input-otp';
+	import { cn } from '@pocket-id/ui/utils';
 
 	let {
 		value = $bindable(''),

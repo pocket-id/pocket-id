@@ -1,7 +1,7 @@
 <script lang="ts">
-	import { Button, buttonVariants } from '#lib/components/ui/button/index.ts';
+	import { Button, buttonVariants } from '@pocket-id/ui/button';
 	import { m } from '#lib/paraglide/messages.js';
-	import { cn } from '#lib/utils/style.ts';
+	import { cn } from '@pocket-id/ui/utils';
 	import { LucideTriangleAlert, LucideUpload, LucideUser } from '@lucide/svelte';
 	import type { Snippet } from 'svelte';
 

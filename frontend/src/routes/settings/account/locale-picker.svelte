@@ -1,5 +1,5 @@
 <script lang="ts">
-	import * as Select from '#lib/components/ui/select/index.ts';
+	import * as Select from '@pocket-id/ui/select';
 	import { getLocale, type Locale } from '#lib/paraglide/runtime.js';
 	import UserService from '#lib/services/user-service.ts';
 	import userStore from '#lib/stores/user-store.ts';

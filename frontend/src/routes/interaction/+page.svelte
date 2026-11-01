@@ -14,8 +14,8 @@
 	import IdentityRow from '#lib/components/identity-row.svelte';
 	import SignInWrapper from '#lib/components/login-wrapper.svelte';
 	import ScopeList from '#lib/components/scope-list.svelte';
-	import { Button } from '#lib/components/ui/button/index.ts';
-	import { Spinner } from '#lib/components/ui/spinner/index.ts';
+	import { Button } from '@pocket-id/ui/button';
+	import { Spinner } from '@pocket-id/ui/spinner';
 	import { m } from '#lib/paraglide/messages.js';
 	import OidcService from '#lib/services/oidc-service.ts';
 	import WebAuthnService from '#lib/services/webauthn-service.ts';

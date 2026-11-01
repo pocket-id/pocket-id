@@ -1,9 +1,9 @@
 <script lang="ts">
 	import CopyButton from '#lib/components/copy-button.svelte';
-	import { Button } from '#lib/components/ui/button/index.ts';
+	import { Button } from '@pocket-id/ui/button';
 	import { m } from '#lib/paraglide/messages.js';
 	import type { DeviceLoginRequest } from '#lib/types/device-login.type.ts';
-	import { cn } from '#lib/utils/style.ts';
+	import { cn } from '@pocket-id/ui/utils';
 	import Qrcode from './qrcode.svelte';
 
 	let {

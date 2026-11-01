@@ -6,6 +6,8 @@ owner = "pocket-id"
 repo = "pocket-id"
 
 [git]
+# The UI package's ui-v tags must not count as Pocket ID releases
+tag_pattern = "^v[0-9]"
 conventional_commits = true
 filter_unconventional = true
 commit_preprocessors = [{ pattern = '\((\w+\s)?#([0-9]+)\)', replace = "" }]

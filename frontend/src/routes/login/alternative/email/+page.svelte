@@ -6,9 +6,9 @@
 	import { authPrimaryClass, emailedLoginCode } from '#lib/components/auth/auth-util.ts';
 	import CodeLine from '#lib/components/auth/code-line.svelte';
 	import SignInWrapper from '#lib/components/login-wrapper.svelte';
-	import { Button } from '#lib/components/ui/button/index.ts';
-	import { Input } from '#lib/components/ui/input/index.ts';
-	import { Label } from '#lib/components/ui/label/index.ts';
+	import { Button } from '@pocket-id/ui/button';
+	import { Input } from '@pocket-id/ui/input';
+	import { Label } from '@pocket-id/ui/label';
 	import { m } from '#lib/paraglide/messages.js';
 	import UserService from '#lib/services/user-service.ts';
 	import appConfigStore from '#lib/stores/application-configuration-store.ts';

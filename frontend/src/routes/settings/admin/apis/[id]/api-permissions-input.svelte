@@ -1,6 +1,6 @@
 <script lang="ts">
-	import { Button } from '#lib/components/ui/button/index.ts';
-	import { Input } from '#lib/components/ui/input/index.ts';
+	import { Button } from '@pocket-id/ui/button';
+	import { Input } from '@pocket-id/ui/input';
 	import { m } from '#lib/paraglide/messages.js';
 	import type { ApiPermissionInput } from '#lib/types/api.type.ts';
 	import { LucidePlus, LucideX } from '@lucide/svelte';

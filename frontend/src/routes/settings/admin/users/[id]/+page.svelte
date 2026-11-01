@@ -3,10 +3,11 @@
 	import OidcClientAvatar from '#lib/components/oidc-client-avatar.svelte';
 	import PageHeader from '#lib/components/page-header.svelte';
 	import SettingsSection from '#lib/components/settings-section.svelte';
-	import { Badge } from '#lib/components/ui/badge/index.ts';
-	import { Button } from '#lib/components/ui/button/index.ts';
-	import * as DropdownMenu from '#lib/components/ui/dropdown-menu/index.ts';
-	import * as Tabs from '#lib/components/ui/tabs/index.ts';
+	import { Badge } from '@pocket-id/ui/badge';
+	import { Button } from '@pocket-id/ui/button';
+	import * as DropdownMenu from '@pocket-id/ui/dropdown-menu';
+	import HashTabs from '#lib/components/hash-tabs.svelte';
+	import * as Tabs from '@pocket-id/ui/tabs';
 	import { m } from '#lib/paraglide/messages.js';
 	import CustomClaimService from '#lib/services/custom-claim-service.ts';
 	import UserGroupService from '#lib/services/user-group-service.ts';
@@ -186,7 +187,7 @@
 		{/snippet}
 	</PageHeader>
 
-	<Tabs.Root bind:value={tab} useHash class="gap-10">
+	<HashTabs bind:value={tab} class="gap-10">
 		<div class="flex shadow-[inset_0_-1px_0_var(--border)]">
 			<div class="scroll-fade-x min-w-0 [scrollbar-width:none] overflow-x-auto">
 				<Tabs.List variant="line" class="shadow-none max-sm:gap-4" aria-label={m.user_sections()}>
@@ -289,7 +290,7 @@
 				<CustomClaimsInput bind:customClaims={user.customClaims} />
 			</SettingsSection>
 		</Tabs.Content>
-	</Tabs.Root>
+	</HashTabs>
 </div>
 
 <LoginCodeDialog bind:user={loginCodeUser} />

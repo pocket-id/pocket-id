@@ -1,12 +1,12 @@
 <script lang="ts">
 	import OidcClientAvatar from '#lib/components/oidc-client-avatar.svelte';
-	import { buttonVariants } from '#lib/components/ui/button/index.ts';
-	import * as DropdownMenu from '#lib/components/ui/dropdown-menu/index.ts';
+	import { buttonVariants } from '@pocket-id/ui/button';
+	import * as DropdownMenu from '@pocket-id/ui/dropdown-menu';
 	import { m } from '#lib/paraglide/messages.js';
 	import userStore from '#lib/stores/user-store.ts';
 	import type { AccessibleOidcClient } from '#lib/types/oidc.type.ts';
 	import { encodeClientIdParam } from '#lib/utils/client-id-util.ts';
-	import { cn } from '#lib/utils/style.ts';
+	import { cn } from '@pocket-id/ui/utils';
 	import {
 		LucideArrowUpRight,
 		LucideBan,

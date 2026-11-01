@@ -11,8 +11,8 @@
 	} from '#lib/components/auth/auth-util.ts';
 	import SignInWrapper from '#lib/components/login-wrapper.svelte';
 	import QrPanel from '#lib/components/qrcode/qr-panel.svelte';
-	import { Button } from '#lib/components/ui/button/index.ts';
-	import { Spinner } from '#lib/components/ui/spinner/index.ts';
+	import { Button } from '@pocket-id/ui/button';
+	import { Spinner } from '@pocket-id/ui/spinner';
 	import { m } from '#lib/paraglide/messages.js';
 	import DeviceLoginService from '#lib/services/device-login-service.ts';
 	import userStore from '#lib/stores/user-store.ts';

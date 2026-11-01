@@ -1,12 +1,12 @@
 <script lang="ts">
 	import { modKey } from '#lib/utils/keyboard-util.ts';
 	import { beforeNavigate } from '$app/navigation';
-	import { Button } from '#lib/components/ui/button/index.ts';
-	import * as Tooltip from '#lib/components/ui/tooltip/index.ts';
+	import { Button } from '@pocket-id/ui/button';
+	import * as Tooltip from '@pocket-id/ui/tooltip';
 	import { m } from '#lib/paraglide/messages.js';
 	import appConfigStore from '#lib/stores/application-configuration-store.ts';
 	import unsavedChanges from '#lib/stores/unsaved-changes-store.svelte.ts';
-	import { cn } from '#lib/utils/style.ts';
+	import { cn } from '@pocket-id/ui/utils';
 	import { LucideCircleAlert, LucideCircleCheck } from '@lucide/svelte';
 	import { tick } from 'svelte';
 	import { cubicOut } from 'svelte/easing';

@@ -304,10 +304,10 @@ export function primaryVars(d: DerivedAccent): Record<string, string> {
 	const rgba = (rgb: Rgb, a: number) => `rgb(${rgb.join(' ')} / ${a})`;
 	return {
 		primary: hex(d.fill),
-		'primary-foreground': hex(d.fillFg),
+		'primary-fg': hex(d.fillFg),
 		'primary-hover': hex(d.hover),
 		'primary-control': hex(d.control),
-		'primary-control-foreground': hex(d.controlFg),
+		'primary-control-fg': hex(d.controlFg),
 		ring: hex(d.control),
 		'ring-halo': rgba(d.control, 0.24),
 		'primary-edge': d.edge ? hex(d.edge) : 'transparent'

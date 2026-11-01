@@ -7,11 +7,12 @@
 
 <script lang="ts">
 	import { beforeNavigate, onNavigate } from '$app/navigation';
-	import { Button } from '#lib/components/ui/button/index.ts';
+	import { Button } from '@pocket-id/ui/button';
 	import { m } from '#lib/paraglide/messages.js';
 	import { appReveal } from '#lib/stores/app-reveal-store.svelte.ts';
 	import { cachedBackgroundImage } from '#lib/utils/cached-image-util.ts';
-	import { cn, cssMs, cssVar } from '#lib/utils/style.ts';
+	import { cn } from '@pocket-id/ui/utils';
+	import { cssMs, cssVar } from '#lib/utils/style.ts';
 	import { LucideChevronLeft } from '@lucide/svelte';
 	import type { Snippet } from 'svelte';
 	import { prefersReducedMotion } from 'svelte/motion';

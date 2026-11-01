@@ -38,6 +38,7 @@ jobs:
     runs-on: depot-ubuntu-latest
     outputs:
       tag: ${{ steps.version.outputs.tag }}
+      ui-tag: ${{ steps.ui-version.outputs.tag }}
       commit: ${{ steps.commit.outputs.commit }}
 
     steps:
@@ -77,6 +78,28 @@ jobs:
           echo "tag=v$version" >> "$GITHUB_OUTPUT"
           echo "Preparing release v$version from $(git rev-parse HEAD)." >> "$GITHUB_STEP_SUMMARY"
 
+      # The UI package has its own version, bumped by the conventional commits that touched it since its last ui-v tag
+      - name: Calculate next UI package version
+        if: steps.version.outputs.tag != ''
+        id: ui-version
+        run: |
+          last_tag=$(git describe --tags --abbrev=0 --match 'ui-v*' 2>/dev/null || true)
+          if [[ -z "$last_tag" ]]; then
+            # git-cliff can't derive a first version, so the first release uses the one in package.json
+            version=$(jq -r .version packages/ui/package.json)
+          else
+            version=$(git cliff --bumped-version --unreleased --offline --tag-pattern '^ui-v' --include-path 'packages/ui/**')
+            version=${version#ui-v}
+            if [[ "ui-v$version" == "$last_tag" ]]; then
+              echo "No UI package commits requiring a version bump; @pocket-id/ui is not published." >> "$GITHUB_STEP_SUMMARY"
+              exit 0
+            fi
+          fi
+
+          echo "version=$version" >> "$GITHUB_OUTPUT"
+          echo "tag=ui-v$version" >> "$GITHUB_OUTPUT"
+          echo "Preparing @pocket-id/ui $version." >> "$GITHUB_STEP_SUMMARY"
+
       - name: Setup Vite+
         if: steps.version.outputs.tag != ''
         uses: voidzero-dev/setup-vp@cab1ab9eaff52d4857875f4f2c016e36af8f2c76 # v1.22.0
@@ -93,13 +116,18 @@ jobs:
         if: steps.version.outputs.tag != ''
         env:
           VERSION: ${{ steps.version.outputs.version }}
+          UI_VERSION: ${{ steps.ui-version.outputs.version }}
           RELEASE_TAG: ${{ steps.version.outputs.tag }}
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           printf '%s\n' "$VERSION" > .version
           jq --arg version "$VERSION" '.version = $version' frontend/package.json > "$RUNNER_TEMP/package.json"
           mv "$RUNNER_TEMP/package.json" frontend/package.json
-          vp fmt frontend/package.json
+          if [[ -n "$UI_VERSION" ]]; then
+            jq --arg version "$UI_VERSION" '.version = $version' packages/ui/package.json > "$RUNNER_TEMP/package.json"
+            mv "$RUNNER_TEMP/package.json" packages/ui/package.json
+          fi
+          vp fmt frontend/package.json packages/ui/package.json
           git cliff --prepend CHANGELOG.md --tag "$RELEASE_TAG" --unreleased
 
       - name: Create bot app token
@@ -117,6 +145,7 @@ jobs:
         env:
           VERSION: ${{ steps.version.outputs.version }}
           RELEASE_TAG: ${{ steps.version.outputs.tag }}
+          UI_TAG: ${{ steps.ui-version.outputs.tag }}
           GH_TOKEN: ${{ steps.app-token.outputs.token }}
           APP_SLUG: ${{ steps.app-token.outputs.app-slug }}
         run: |
@@ -127,12 +156,17 @@ jobs:
           git config user.email "$bot_id+$bot_name@users.noreply.github.com"
           gh auth setup-git
 
-          git add .version frontend/package.json CHANGELOG.md
+          git add .version frontend/package.json packages/ui/package.json CHANGELOG.md
           git commit -m "release: $VERSION"
           git tag "$RELEASE_TAG"
+          refs=("refs/tags/$RELEASE_TAG")
+          if [[ -n "$UI_TAG" ]]; then
+            git tag "$UI_TAG"
+            refs+=("refs/tags/$UI_TAG")
+          fi
 
-          # Publish both refs together so a concurrent main update cannot leave an orphaned release tag
-          git push --atomic origin HEAD:refs/heads/main "refs/tags/$RELEASE_TAG"
+          # Publish all refs together so a concurrent main update cannot leave an orphaned release tag
+          git push --atomic origin HEAD:refs/heads/main "${refs[@]}"
           echo "commit=$(git rev-parse HEAD)" >> "$GITHUB_OUTPUT"
 
   build:
@@ -264,3 +298,38 @@ jobs:
         run: |
           gh release edit "$RELEASE_TAG" --draft=false
           echo "Published [$RELEASE_TAG](https://github.com/$GH_REPO/releases/tag/$RELEASE_TAG)." >> "$GITHUB_STEP_SUMMARY"
+
+  publish-ui:
+    name: Publish UI package
+    needs: [prepare, publish]
+    if: needs.prepare.outputs.ui-tag != ''
+    runs-on: depot-ubuntu-latest
+    permissions:
+      contents: read
+      # Needed by npm trusted publishing and provenance
+      id-token: write
+
+    steps:
+      - name: Checkout release commit
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ needs.prepare.outputs.commit }}
+          persist-credentials: false
+
+      - name: Setup Vite+
+        uses: voidzero-dev/setup-vp@cab1ab9eaff52d4857875f4f2c016e36af8f2c76 # v1.22.0
+        with:
+          node-version-file: .node-version
+          cache: true
+          run-install: false
+
+      - name: Install dependencies
+        run: vp -C packages/ui install --frozen-lockfile
+
+      # pnpm applies the publishConfig exports that point at dist, and npm handles trusted publishing
+      - name: Pack
+        working-directory: packages/ui
+        run: vp pm pack --out "$RUNNER_TEMP/ui.tgz"
+
+      - name: Publish
+        run: npm publish "$RUNNER_TEMP/ui.tgz" --access public --provenance

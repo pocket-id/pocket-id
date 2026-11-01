@@ -1,7 +1,7 @@
 <script lang="ts">
 	import CopyButton from '#lib/components/copy-button.svelte';
-	import { Button } from '#lib/components/ui/button/index.ts';
-	import * as Sheet from '#lib/components/ui/sheet/index.ts';
+	import { Button } from '@pocket-id/ui/button';
+	import * as Sheet from '@pocket-id/ui/sheet';
 	import { m } from '#lib/paraglide/messages.js';
 	import { getLocale } from '#lib/paraglide/runtime.js';
 	import type { Session } from '#lib/types/session.type.ts';

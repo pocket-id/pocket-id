@@ -3,22 +3,23 @@
 	import { page as currentPage } from '$app/state';
 	import ActionsMenu from '#lib/components/actions-menu.svelte';
 	import ListPagination from '#lib/components/list-pagination.svelte';
-	import { Button } from '#lib/components/ui/button/index.ts';
-	import Checkbox from '#lib/components/ui/checkbox/checkbox.svelte';
-	import * as Table from '#lib/components/ui/table/index.js';
+	import { Button } from '@pocket-id/ui/button';
+	import { Checkbox } from '@pocket-id/ui/checkbox';
+	import * as Table from '@pocket-id/ui/table';
 	import { m } from '#lib/paraglide/messages.js';
 	import type {
 		AdvancedTableColumn,
 		CreateAdvancedTableActions
 	} from '#lib/types/advanced-table.type.ts';
 	import type { ListRequestOptions, Paginated, SortRequest } from '#lib/types/list-request.type.ts';
-	import { cn, cssMs } from '#lib/utils/style.ts';
+	import { cn } from '@pocket-id/ui/utils';
+	import { cssMs } from '#lib/utils/style.ts';
 	import ArrowDownIcon from '@lucide/svelte/icons/arrow-down';
 	import ArrowUpIcon from '@lucide/svelte/icons/arrow-up';
 	import { PersistedState } from 'runed';
 	import { onMount } from 'svelte';
 	import { fade } from 'svelte/transition';
-	import { Skeleton } from '../ui/skeleton';
+	import { Skeleton } from '@pocket-id/ui/skeleton';
 	import AdvancedTableColumnSelection from './advanced-table-column-selection.svelte';
 	import AdvancedTableToolbar from './advanced-table-toolbar.svelte';
 

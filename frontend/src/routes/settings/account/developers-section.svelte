@@ -1,7 +1,7 @@
 <script lang="ts">
 	import AdvancedDisclosure from '#lib/components/advanced-disclosure.svelte';
 	import SettingRow from '#lib/components/setting-row.svelte';
-	import { Button } from '#lib/components/ui/button/index.ts';
+	import { Button } from '@pocket-id/ui/button';
 	import { m } from '#lib/paraglide/messages.js';
 	import ApiKeyService from '#lib/services/api-key-service.ts';
 	import { LucideChevronRight, LucideKey } from '@lucide/svelte';
