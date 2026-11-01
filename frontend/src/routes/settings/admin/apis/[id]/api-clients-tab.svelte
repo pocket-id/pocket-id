@@ -10,7 +10,13 @@
 	import * as InputGroup from '#lib/components/ui/input-group/index.ts';
 	import { m } from '#lib/paraglide/messages.js';
 	import ApisService from '#lib/services/apis-service.ts';
-	import type { Api, ApiClient, ApiClientAccess, ApiClientGrant } from '#lib/types/api.type.ts';
+	import {
+		builtInApiId,
+		type Api,
+		type ApiClient,
+		type ApiClientAccess,
+		type ApiClientGrant
+	} from '#lib/types/api.type.ts';
 	import { encodeClientIdParam } from '#lib/utils/client-id-util.ts';
 	import { axiosErrorToast } from '#lib/utils/error-util.ts';
 	import { LucideBan, LucidePencil, LucidePlus, LucideSearch } from '@lucide/svelte';
@@ -84,9 +90,11 @@
 				: m.no_access_lowercase();
 		const itself = entry.client.isPublic
 			? m.not_available_public_client()
-			: entry.clientAccess
-				? count(entry.clientPermissionIds)
-				: m.no_access_lowercase();
+			: api.id === builtInApiId
+				? m.not_available_lowercase()
+				: entry.clientAccess
+					? count(entry.clientPermissionIds)
+					: m.no_access_lowercase();
 		return m.api_client_access_summary({ people, itself });
 	}
 

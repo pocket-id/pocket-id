@@ -29,7 +29,7 @@ func NewCrossOriginProtectionMiddleware(appURL string) *CrossOriginProtectionMid
 
 func (m *CrossOriginProtectionMiddleware) Add() gin.HandlerFunc {
 	return func(c *gin.Context) {
-		if isCrossOriginAllowedPath(c.FullPath()) {
+		if isCrossOriginAllowedPath(c.FullPath()) || isCookielessBearerRequest(c) {
 			c.Next()
 			return
 		}
@@ -59,4 +59,10 @@ func isCrossOriginAllowedPath(path string) bool {
 	default:
 		return false
 	}
+}
+
+// isCookielessBearerRequest reports whether the request authenticates with an Authorization header and carries no cookie, as browser apps on other origins do when they call the API with an OAuth access token
+// CSRF rides on ambient cookies, so a request without any cannot be forged, while a request with one is still checked whatever headers it adds
+func isCookielessBearerRequest(c *gin.Context) bool {
+	return c.GetHeader("Authorization") != "" && c.GetHeader("Cookie") == ""
 }

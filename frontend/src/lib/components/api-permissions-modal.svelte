@@ -5,7 +5,8 @@
 	import * as Dialog from '#lib/components/ui/dialog/index.ts';
 	import { Switch } from '#lib/components/ui/switch/index.ts';
 	import { m } from '#lib/paraglide/messages.js';
-	import type { Api, ApiClientGrant } from '#lib/types/api.type.ts';
+	import { builtInApiId, type Api, type ApiClientGrant } from '#lib/types/api.type.ts';
+	import { scopeLabel } from '#lib/utils/api-key-scopes.ts';
 	import { axiosErrorToast } from '#lib/utils/error-util.ts';
 	import { LucideInfo } from '@lucide/svelte';
 	import { untrack } from 'svelte';
@@ -29,6 +30,12 @@
 		title?: string;
 		onSave: (grant: ApiClientGrant) => Promise<void>;
 	} = $props();
+
+	// Pocket ID's own API only accepts tokens that act for a user
+	const builtIn = $derived(api.id === builtInApiId);
+	const clientAccessAvailable = $derived(showClientAccess && !builtIn);
+	const permissionName = (permission: Api['permissions'][number]) =>
+		builtIn ? scopeLabel(permission.key).name : permission.name;
 
 	let userAccess = $state(false);
 	let clientAccess = $state(false);
@@ -58,9 +65,9 @@
 		try {
 			await onSave({
 				userDelegatedAccess: userAccess,
-				clientAccess: showClientAccess && clientAccess,
+				clientAccess: clientAccessAvailable && clientAccess,
 				userDelegatedPermissionIds: userAccess ? userIds : [],
-				clientPermissionIds: showClientAccess && clientAccess ? clientIds : []
+				clientPermissionIds: clientAccessAvailable && clientAccess ? clientIds : []
 			});
 			open = false;
 		} catch (e) {
@@ -78,7 +85,11 @@
 			<Dialog.Title>{title ?? api.name}</Dialog.Title>
 			<Dialog.Description>
 				{m.choose_what_the_client_may_ask_for()}
-				{#if !showClientAccess}{m.public_clients_cant_act_as_themselves()}{/if}
+				{#if builtIn}
+					{m.pocket_id_api_only_acts_for_people()}
+				{:else if !showClientAccess}
+					{m.public_clients_cant_act_as_themselves()}
+				{/if}
 			</Dialog.Description>
 		</Dialog.Header>
 
@@ -96,7 +107,7 @@
 					/>
 				{/snippet}
 			</SettingRow>
-			{#if showClientAccess}
+			{#if clientAccessAvailable}
 				<SettingRow title={m.as_itself()} description={m.as_itself_description()}>
 					{#snippet control(props)}
 						<Switch
@@ -130,7 +141,7 @@
 						>
 							{m.on_behalf_of_people()}
 						</th>
-						{#if showClientAccess}
+						{#if clientAccessAvailable}
 							<th
 								scope="col"
 								class="w-22 py-1.5 text-start font-medium sm:w-24 sm:whitespace-nowrap"
@@ -160,7 +171,7 @@
 									}}
 								/>
 							</td>
-							{#if showClientAccess}
+							{#if clientAccessAvailable}
 								<td>
 									<Checkbox
 										aria-label={`${m.as_itself()}: ${m.select_all()}`}
@@ -179,14 +190,16 @@
 						{@const implicit = implicitUserIds.includes(permission.id)}
 						<tr class="border-b">
 							<td class="py-2 pe-3">
-								<span class="text-fg block font-medium wrap-anywhere">{permission.name}</span>
+								<span class="text-fg block font-medium wrap-anywhere"
+									>{permissionName(permission)}</span
+								>
 								<span class="text-mono-s text-fg-muted block font-mono wrap-anywhere">
 									{permission.key}
 								</span>
 							</td>
 							<td>
 								<Checkbox
-									aria-label={`${m.on_behalf_of_people()}: ${permission.name}`}
+									aria-label={`${m.on_behalf_of_people()}: ${permissionName(permission)}`}
 									checked={implicit || userIds.includes(permission.id)}
 									disabled={implicit}
 									title={implicit ? m.granted_through_cimd_access() : undefined}
@@ -196,10 +209,10 @@
 									}}
 								/>
 							</td>
-							{#if showClientAccess}
+							{#if clientAccessAvailable}
 								<td>
 									<Checkbox
-										aria-label={`${m.as_itself()}: ${permission.name}`}
+										aria-label={`${m.as_itself()}: ${permissionName(permission)}`}
 										checked={clientIds.includes(permission.id)}
 										onCheckedChange={(checked) => {
 											clientIds = toggle(clientIds, permission.id, checked);

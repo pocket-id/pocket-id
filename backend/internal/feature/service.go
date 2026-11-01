@@ -122,7 +122,8 @@ func (s *Service) usage(ctx context.Context, cfg *appconfig.AppConfigModel) (map
 	queries := []query{
 		{SCIM, db.Model(&scimsync.ServiceProvider{})},
 		{CustomClaims, db.Model(&model.CustomClaim{})},
-		{APIs, db.Model(&api.API{})},
+		// The built-in Pocket ID API always exists, so only the APIs an admin added count
+		{APIs, db.Model(&api.API{}).Where("id <> ?", api.BuiltInAPIID)},
 		{APIKeys, db.Model(&apikey.ApiKey{})},
 		// An API that admits metadata document clients keeps its CIMD access tab even while no such client exists
 		{CIMD, db.Model(&model.OidcClient{}).Where("client_type = ?", model.OidcClientTypeCIMD)},

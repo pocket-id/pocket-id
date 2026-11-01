@@ -35,6 +35,11 @@ func (m *Module) ClientAPIScopes(ctx context.Context, tx *gorm.DB, clientID stri
 	return m.service.ClientAPIScopesAndAudiences(ctx, tx, clientID, isCIMDClient)
 }
 
+// HeldScopes implements the OIDC module's APIAccessProvider interface
+func (m *Module) HeldScopes(ctx context.Context, tx *gorm.DB, userID, audience string, scopes []string) ([]string, error) {
+	return m.service.HeldScopes(ctx, tx, userID, audience, scopes)
+}
+
 // AllowedScopesForAudience implements the OIDC module's APIAccessProvider interface
 func (m *Module) AllowedScopesForAudience(ctx context.Context, tx *gorm.DB, clientID, audience string, subjectType oidc.SubjectType) (scopes []string, apiExists bool, hasAccess bool, err error) {
 	return m.service.AllowedScopesForAudience(ctx, tx, clientID, audience, subjectType)
@@ -53,7 +58,7 @@ func (m *Module) DescribePermissions(ctx context.Context, audience string, keys 
 		if permission.Description != nil {
 			description = *permission.Description
 		}
-		infos[i] = dto.ScopeInfoDto{Key: permission.Key, Name: permission.Name, Description: description}
+		infos[i] = dto.ScopeInfoDto{Key: permission.Key, Name: permission.Name, Description: description, BuiltIn: permission.APIID == BuiltInAPIID}
 	}
 
 	return infos, nil

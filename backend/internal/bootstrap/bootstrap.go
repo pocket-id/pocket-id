@@ -14,6 +14,7 @@ import (
 	"github.com/italypaleale/go-kit/servicerunner"
 	"gorm.io/gorm"
 
+	"github.com/pocket-id/pocket-id/backend/internal/api"
 	"github.com/pocket-id/pocket-id/backend/internal/claimmappingpolicy"
 	"github.com/pocket-id/pocket-id/backend/internal/common"
 	"github.com/pocket-id/pocket-id/backend/internal/instanceid"
@@ -83,6 +84,12 @@ func Bootstrap(ctx context.Context) error {
 
 	// Init built-in claim policy mapping
 	err = claimmappingpolicy.Bootstrap(ctx, db)
+	if err != nil {
+		return err
+	}
+
+	// Init the built-in API that lets OAuth clients call Pocket ID's own API
+	err = api.Bootstrap(ctx, db, common.EnvConfig.AppURL)
 	if err != nil {
 		return err
 	}

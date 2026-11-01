@@ -44,13 +44,27 @@ type authorizationService struct {
 
 // resolveGrant resolves the RFC 8707 resource of a request into the token audience, the scopes that may actually be granted, and the audience-qualified keys used to record and check consent
 // It always resolves against the client's user-delegated grants because every flow that passes through here acts on behalf of a user
-func (s *authorizationService) resolveGrant(ctx context.Context, clientID, resource string, requestedScopes []string) (audience string, grantedScopes []string, consentKeys []string, err error) {
+// Once the user is known, scopes they can never hold are dropped too, while an empty userID only validates the request before sign-in
+func (s *authorizationService) resolveGrant(ctx context.Context, clientID, userID, resource string, requestedScopes []string) (audience string, grantedScopes []string, consentKeys []string, err error) {
 	audience, grantedScopes, err = resolveResource(ctx, dbFromContext(ctx, s.db), s.apiAccess, clientID, resource, requestedScopes, SubjectTypeUser)
 	if err != nil {
 		return "", nil, nil, err
 	}
 
+	grantedScopes, err = s.heldScopes(ctx, userID, resource, grantedScopes)
+	if err != nil {
+		return "", nil, nil, err
+	}
+
 	return audience, grantedScopes, consentKeysForGrant(audience, resource, grantedScopes), nil
+}
+
+// heldScopes drops the scopes requested for the resource that the user can never hold, so the consent screen and the token only list what the user can use
+func (s *authorizationService) heldScopes(ctx context.Context, userID, resource string, scopes []string) ([]string, error) {
+	if userID == "" || resource == "" || s.apiAccess == nil {
+		return scopes, nil
+	}
+	return s.apiAccess.HeldScopes(ctx, dbFromContext(ctx, s.db), userID, resource, scopes)
 }
 
 type requestMeta struct {
@@ -132,7 +146,7 @@ func (s *authorizationService) authorize(ctx context.Context, input authorizeInp
 
 	// Validate the requested scopes against the targeted API up front, before the user authenticates or reaches the consent screen
 	// This rejects a custom permission requested without, or with the wrong, resource at the authorize endpoint itself
-	_, _, _, err = s.resolveGrant(ctx, client.GetID(), resource, input.requester.GetRequestedScopes())
+	_, _, _, err = s.resolveGrant(ctx, client.GetID(), "", resource, input.requester.GetRequestedScopes())
 	if err != nil {
 		// resolveGrant distinguishes an unknown API, an API this client is not granted, and a scope not allowed for the API
 		// This validation runs before authentication, so returning those distinct errors would let anyone holding a public client_id diff the responses to enumerate which API audiences exist and which ones the client may request
@@ -272,7 +286,7 @@ func (s *authorizationService) authorizeAuthenticated(ctx context.Context, req a
 	if err != nil {
 		return authorizationResult{}, err
 	}
-	audience, grantedScopes, consentKeys, err := s.resolveGrant(ctx, req.client.GetID(), resource, req.requester.GetRequestedScopes())
+	audience, grantedScopes, consentKeys, err := s.resolveGrant(ctx, req.client.GetID(), req.userID, resource, req.requester.GetRequestedScopes())
 	if err != nil {
 		return authorizationResult{}, err
 	}
@@ -320,7 +334,7 @@ func (s *authorizationService) resolveRequirements(ctx context.Context, req auth
 	if err != nil {
 		return interactionRequirements{}, authenticationTime, err
 	}
-	_, _, consentKeys, err := s.resolveGrant(ctx, req.client.GetID(), resource, req.requester.GetRequestedScopes())
+	_, _, consentKeys, err := s.resolveGrant(ctx, req.client.GetID(), req.userID, resource, req.requester.GetRequestedScopes())
 	if err != nil {
 		return interactionRequirements{}, authenticationTime, err
 	}
@@ -540,7 +554,16 @@ func (s *authorizationService) buildInteractionForUser(ctx context.Context, inte
 		return interactionSessionForUser{}, err
 	}
 
-	scopeInfo, err := s.resolveScopeInfo(ctx, interactionSession)
+	// Hide the scopes the signed-in user can't hold, since resolveGrant won't grant them either
+	resource := interactionSession.Parameters["resource"]
+	if interactionSession.UserID != nil {
+		result.Scopes, err = s.heldScopes(ctx, *interactionSession.UserID, resource, result.Scopes)
+		if err != nil {
+			return interactionSessionForUser{}, err
+		}
+	}
+
+	scopeInfo, err := s.resolveScopeInfoForRequest(ctx, resource, result.Scopes)
 	if err != nil {
 		return interactionSessionForUser{}, err
 	}
@@ -553,14 +576,8 @@ func (s *authorizationService) buildInteractionForUser(ctx context.Context, inte
 	return result, nil
 }
 
-// resolveScopeInfo resolves display names and descriptions for the requested non-standard scopes, looked up against the API targeted by the request's RFC 8707 resource
-// Standard identity scopes are rendered by the client
-func (s *authorizationService) resolveScopeInfo(ctx context.Context, interactionSession InteractionSession) ([]dto.ScopeInfoDto, error) {
-	return s.resolveScopeInfoForRequest(ctx, interactionSession.Parameters["resource"], interactionSession.Scopes)
-}
-
 // resolveScopeInfoForRequest resolves display names and descriptions for the requested non-standard scopes against the API identified by resource
-// The browser and device consent flows share it so both show friendly permission names instead of raw scope keys
+// The browser and device consent flows share it so both show friendly permission names instead of raw scope keys, while standard identity scopes are rendered by the client
 func (s *authorizationService) resolveScopeInfoForRequest(ctx context.Context, resource string, scopes []string) ([]dto.ScopeInfoDto, error) {
 	if s.apiAccess == nil {
 		return nil, nil
@@ -698,7 +715,7 @@ func (s *authorizationService) completeConsentStep(ctx context.Context, interact
 
 	// Record consent for the approved scopes only
 	resource := interactionSession.Parameters["resource"]
-	_, _, consentKeys, err := s.resolveGrant(ctx, interactionSession.ClientID, resource, interactionSession.Scopes)
+	_, _, consentKeys, err := s.resolveGrant(ctx, interactionSession.ClientID, userID, resource, interactionSession.Scopes)
 	if err != nil {
 		return err
 	}
@@ -783,7 +800,7 @@ func (s *authorizationService) populatePostAuthenticationRequirements(ctx contex
 func (s *authorizationService) interactionRequirementsForUser(ctx context.Context, userID string, interactionSession *InteractionSession, authenticationTime time.Time) (interactionRequirements, error) {
 	prompt := newPromptValues(interactionSession.Parameters["prompt"])
 	resource := interactionSession.Parameters["resource"]
-	_, _, consentKeys, err := s.resolveGrant(ctx, interactionSession.ClientID, resource, interactionSession.Scopes)
+	_, _, consentKeys, err := s.resolveGrant(ctx, interactionSession.ClientID, userID, resource, interactionSession.Scopes)
 	if err != nil {
 		return interactionRequirements{}, err
 	}

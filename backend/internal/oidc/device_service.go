@@ -60,7 +60,7 @@ func (s *deviceService) createDeviceAuthorization(ctx context.Context, req *http
 	if err != nil {
 		return nil, request, err
 	}
-	audience, grantedScopes, _, err := s.authorizationService.resolveGrant(ctx, client.GetID(), resource, request.GetRequestedScopes())
+	audience, grantedScopes, _, err := s.authorizationService.resolveGrant(ctx, client.GetID(), "", resource, request.GetRequestedScopes())
 	if err != nil {
 		if resource != "" && errors.Is(err, fosite.ErrAccessDenied) {
 			return nil, request, fosite.ErrInvalidTarget.WithHintf("The requested resource '%s' is invalid, missing, unknown, or malformed.", resource)
@@ -119,10 +119,19 @@ func (s *deviceService) acceptDeviceCode(ctx context.Context, userCode, userID, 
 	if err != nil {
 		return err
 	}
-	audience, grantedScopes, consentKeys, err := s.authorizationService.resolveGrant(ctx, client.GetID(), resource, request.GetRequestedScopes())
+	audience, grantedScopes, consentKeys, err := s.authorizationService.resolveGrant(ctx, client.GetID(), userID, resource, request.GetRequestedScopes())
 	if err != nil {
 		return err
 	}
+
+	// The device code was granted its scopes before the user was known, so drop the ones this user can't hold
+	deviceRequest, ok := request.(*fosite.DeviceRequest)
+	if !ok {
+		return errors.New("unexpected device request type")
+	}
+	deviceRequest.GrantedScope = slices.DeleteFunc(deviceRequest.GrantedScope, func(scope string) bool {
+		return !slices.Contains(grantedScopes, scope)
+	})
 	grantResourceIndicator(request, audience, grantedScopes)
 
 	return withTx(ctx, s.db, func(ctx context.Context) error {
@@ -228,7 +237,7 @@ func (s *deviceService) getDeviceCodeInfo(ctx context.Context, userCode, userID 
 	}
 	authorizationRequired := true
 	if userID != "" {
-		_, _, consentKeys, err := s.authorizationService.resolveGrant(ctx, client.GetID(), resource, request.GetRequestedScopes())
+		_, _, consentKeys, err := s.authorizationService.resolveGrant(ctx, client.GetID(), userID, resource, request.GetRequestedScopes())
 		if err != nil {
 			return nil, err
 		}
@@ -240,7 +249,11 @@ func (s *deviceService) getDeviceCodeInfo(ctx context.Context, userCode, userID 
 		authorizationRequired = consentRequired(hasAuthorizedClient, client.SkipConsent, nil)
 	}
 
-	scope := request.GetRequestedScopes()
+	// Hide the scopes the signed-in user can't hold, since resolveGrant won't grant them either
+	scope, err := s.authorizationService.heldScopes(ctx, userID, resource, request.GetRequestedScopes())
+	if err != nil {
+		return nil, err
+	}
 	if scope == nil {
 		scope = []string{}
 	}

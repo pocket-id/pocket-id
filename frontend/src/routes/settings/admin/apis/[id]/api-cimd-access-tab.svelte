@@ -4,7 +4,8 @@
 	import { Checkbox } from '#lib/components/ui/checkbox/index.ts';
 	import { Switch } from '#lib/components/ui/switch/index.ts';
 	import { m } from '#lib/paraglide/messages.js';
-	import type { Api, ApiCimdAccessUpdate } from '#lib/types/api.type.ts';
+	import { builtInApiId, type Api, type ApiCimdAccessUpdate } from '#lib/types/api.type.ts';
+	import { scopeLabel } from '#lib/utils/api-key-scopes.ts';
 	import { createForm } from '#lib/utils/form-util.ts';
 	import { trackFormChanges } from '#lib/utils/unsaved-changes-util.svelte.ts';
 	import { LucideFileText } from '@lucide/svelte';
@@ -55,7 +56,9 @@
 								)}
 						/>
 						<span class="flex min-w-0 flex-col">
-							<span class="text-control text-fg font-medium">{permission.name}</span>
+							<span class="text-control text-fg font-medium"
+								>{api.id === builtInApiId ? scopeLabel(permission.key).name : permission.name}</span
+							>
 							<span class="text-mono-s text-fg-muted font-mono">{permission.key}</span>
 						</span>
 					</label>

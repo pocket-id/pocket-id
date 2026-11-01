@@ -9,10 +9,16 @@
 	import * as Tabs from '#lib/components/ui/tabs/index.ts';
 	import { m } from '#lib/paraglide/messages.js';
 	import ApisService from '#lib/services/apis-service.ts';
-	import type { ApiCimdAccessUpdate, ApiPermissionInput } from '#lib/types/api.type.ts';
+	import { Badge } from '#lib/components/ui/badge/index.ts';
+	import {
+		builtInApiId,
+		type ApiCimdAccessUpdate,
+		type ApiPermissionInput
+	} from '#lib/types/api.type.ts';
+	import { scopeLabel } from '#lib/utils/api-key-scopes.ts';
 	import { createForm } from '#lib/utils/form-util.ts';
 	import { trackFormChanges, trackUnsavedValue } from '#lib/utils/unsaved-changes-util.svelte.ts';
-	import { LucideCopy, LucideEllipsis, LucideInfo, LucideTrash2 } from '@lucide/svelte';
+	import { LucideCopy, LucideEllipsis, LucideInfo, LucideLock, LucideTrash2 } from '@lucide/svelte';
 	import { toast } from 'svelte-sonner';
 	import { z } from 'zod/v4';
 	import { backNavigate } from '../../users/navigate-back-util';
@@ -27,6 +33,8 @@
 	let permissions = $state<ApiPermissionInput[]>(toPermissionInputs(data.api.permissions));
 	let clientsTab = $state<ApiClientsTab>();
 	let tab = $state('general');
+	// The built-in API follows Pocket ID's scopes, so admins only manage which clients may use it
+	const builtIn = data.api.id === builtInApiId;
 
 	const apisService = new ApisService();
 	const backNavigation = backNavigate('/settings/admin/apis');
@@ -98,6 +106,9 @@
 			<OidcClientAvatar id={api.id} name={api.name} hasLogo={false} size={40} />
 		{/snippet}
 		{#snippet tags()}
+			{#if builtIn}
+				<Badge><LucideLock class="size-3" />{m.built_in()}</Badge>
+			{/if}
 			<span class="text-mono-s font-mono break-all">{api.resource}</span>
 		{/snippet}
 		{#snippet actions()}
@@ -121,10 +132,11 @@
 					<DropdownMenu.Separator />
 					<DropdownMenu.Item
 						variant="destructive"
+						disabled={builtIn}
 						onclick={() => confirmDeleteApi(api, backNavigation.leave)}
 					>
 						<LucideTrash2 />
-						{m.delete_api_ellipsis()}
+						{builtIn ? m.built_in_api_cant_be_deleted() : m.delete_api_ellipsis()}
 					</DropdownMenu.Item>
 				</DropdownMenu.Content>
 			</DropdownMenu.Root>
@@ -151,7 +163,13 @@
 		<Tabs.Content value="general">
 			<SettingsSection title={m.name_and_identifiers()}>
 				<div class="flex flex-col gap-6 pt-4">
-					<FormInput class="max-w-100" label={m.name()} bind:input={$inputs.name} />
+					<FormInput
+						class="max-w-100"
+						label={m.name()}
+						description={builtIn ? m.built_in_api_keeps_its_name() : undefined}
+						readonly={builtIn}
+						bind:input={$inputs.name}
+					/>
 					<div class="flex flex-col gap-1">
 						<p class="text-caption text-fg-muted mb-1 font-medium">{m.identifiers()}</p>
 						<dl class="text-control flex flex-col">
@@ -182,11 +200,31 @@
 		</Tabs.Content>
 
 		<Tabs.Content value="permissions">
-			<SettingsSection title={m.permissions()} description={m.api_permissions_description()}>
-				<div class="pt-2">
-					<ApiPermissionsInput bind:permissions />
-				</div>
-			</SettingsSection>
+			{#if builtIn}
+				<SettingsSection
+					title={m.permissions()}
+					description={m.built_in_api_permissions_description()}
+				>
+					<ul class="border-t">
+						{#each api.permissions as permission (permission.id)}
+							{@const label = scopeLabel(permission.key)}
+							<li class="flex flex-col gap-0.5 border-b px-4 py-2.5">
+								<span class="text-control text-fg font-medium">{label.name}</span>
+								<span class="text-mono-s text-fg-muted font-mono">{permission.key}</span>
+								{#if label.description}
+									<span class="text-caption text-fg-muted">{label.description}</span>
+								{/if}
+							</li>
+						{/each}
+					</ul>
+				</SettingsSection>
+			{:else}
+				<SettingsSection title={m.permissions()} description={m.api_permissions_description()}>
+					<div class="pt-2">
+						<ApiPermissionsInput bind:permissions />
+					</div>
+				</SettingsSection>
+			{/if}
 		</Tabs.Content>
 
 		<Tabs.Content value="clients">

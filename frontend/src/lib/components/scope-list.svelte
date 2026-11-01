@@ -2,6 +2,7 @@
 	import { m } from '#lib/paraglide/messages.js';
 	import userStore from '#lib/stores/user-store.ts';
 	import type { InteractionScopeInfo } from '#lib/types/oidc.type.ts';
+	import { scopeLabel } from '#lib/utils/api-key-scopes.ts';
 	import { LucideKeyRound, LucideMail, LucideUserRound, LucideUsersRound } from '@lucide/svelte';
 	import ScopeItem from './scope-item.svelte';
 
@@ -76,10 +77,12 @@
 		/>
 	{/if}
 	{#each customScopes as scope (scope)}
+		{@const info = infoByKey.get(scope)}
+		{@const label = info?.builtIn ? scopeLabel(scope) : info}
 		<ScopeItem
 			icon={LucideKeyRound}
-			value={infoByKey.get(scope)?.name ?? scope}
-			category={infoByKey.get(scope)?.description || m.access_an_api_on_your_behalf()}
+			value={label?.name ?? scope}
+			category={label?.description || m.access_an_api_on_your_behalf()}
 			{...selectionProps(scope)}
 		/>
 	{/each}

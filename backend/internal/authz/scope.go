@@ -152,6 +152,12 @@ func (s ScopeSet) Intersect(other ScopeSet) ScopeSet {
 // unverifiedScopes are the scopes a user keeps while their email still has to be verified
 var unverifiedScopes = NewScopeSet(AccountRead, AccountWrite, AccountPasskeys, AccountPasskeysEnroll, AccountSession)
 
+// ResourceURI returns the RFC 8707 resource identifier under which OAuth clients request access tokens for Pocket ID's own API
+// It deliberately differs from the issuer, which every token with an identity scope carries in its audience so it can call the userinfo endpoint
+func ResourceURI(appURL string) string {
+	return appURL + "/api"
+}
+
 // UserScopes returns the scopes a user holds when authenticated with a credential of the given kind
 // The admin flag stands in for roles: admins hold every scope and other users hold the account scopes
 func UserScopes(isAdmin bool, kind PrincipalKind) ScopeSet {

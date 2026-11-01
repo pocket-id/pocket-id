@@ -9,6 +9,7 @@ import (
 
 	francishost "github.com/italypaleale/francis/host"
 	"github.com/lestrrat-go/jwx/v4/jwa"
+	"github.com/pocket-id/fosite"
 	"go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp"
 	"gorm.io/gorm"
 
@@ -68,6 +69,7 @@ type Module struct {
 	Preview *ClientPreviewBuilder
 
 	config       Config
+	provider     fosite.OAuth2Provider
 	store        *Store
 	cimdResolver *cimdClientResolver
 
@@ -132,6 +134,7 @@ func New(ctx context.Context, deps Dependencies) (*Module, error) {
 		Preview: previewBuilder,
 
 		config:       deps.Config,
+		provider:     provider,
 		store:        store,
 		cimdResolver: cimdResolver,
 
@@ -150,6 +153,18 @@ func New(ctx context.Context, deps Dependencies) (*Module, error) {
 // RefreshClientMetadata forces a re-fetch of the OAuth Client ID Metadata Document.
 func (m *Module) RefreshClientMetadata(ctx context.Context, clientID string) (model.OidcClient, error) {
 	return m.cimdResolver.RefreshMetadataClient(ctx, clientID)
+}
+
+// VerifyAccessToken validates an access token Pocket ID issued, including that it hasn't been revoked, and returns the request it was granted for
+func (m *Module) VerifyAccessToken(ctx context.Context, token string) (fosite.AccessRequester, error) {
+	tokenType, accessRequest, err := m.provider.IntrospectToken(ctx, token, fosite.AccessToken, NewEmptySession())
+	if err != nil {
+		return nil, err
+	}
+	if tokenType != fosite.AccessToken {
+		return nil, fosite.ErrRequestUnauthorized.WithDescription("Only access tokens are accepted.")
+	}
+	return accessRequest, nil
 }
 
 func (m *Module) RegisterRoutes(root, api *authz.Router) {

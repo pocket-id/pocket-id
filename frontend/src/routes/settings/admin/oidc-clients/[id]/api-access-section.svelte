@@ -6,7 +6,12 @@
 	import { Button } from '#lib/components/ui/button/index.ts';
 	import { m } from '#lib/paraglide/messages.js';
 	import ApisService from '#lib/services/apis-service.ts';
-	import type { Api, ApiClientGrant, ClientApiGrant } from '#lib/types/api.type.ts';
+	import {
+		builtInApiId,
+		type Api,
+		type ApiClientGrant,
+		type ClientApiGrant
+	} from '#lib/types/api.type.ts';
 	import type { OidcClient } from '#lib/types/oidc.type.ts';
 	import { axiosErrorToast } from '#lib/utils/error-util.ts';
 	import { LucideBan, LucidePencil, LucidePlus } from '@lucide/svelte';
@@ -103,7 +108,7 @@
 				)
 			})
 		];
-		if (!client.isPublic) {
+		if (!client.isPublic && entry.api.id !== builtInApiId) {
 			parts.push(
 				m.as_itself_summary({
 					access: accessSummary(entry.clientAccess, entry.clientPermissionIds.length, total)

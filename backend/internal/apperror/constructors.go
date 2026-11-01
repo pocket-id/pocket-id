@@ -171,6 +171,10 @@ func BuiltInClaimMappingPolicyReadOnly(message string) *Error {
 	return New(CodeBuiltInClaimMappingPolicyReadOnly, http.StatusForbidden, message)
 }
 
+func BuiltInAPIReadOnly(message string) *Error {
+	return New(CodeBuiltInAPIReadOnly, http.StatusForbidden, message)
+}
+
 func OidcAccessDenied() *Error {
 	return New(CodeOidcAccessDenied, http.StatusForbidden, "You're not allowed to access this service")
 }
@@ -238,6 +242,10 @@ func InvalidAPIKeyScope(scope string) *Error {
 
 func APIKeyAuthNotAllowed() *Error {
 	return New(CodeAPIKeyAuthNotAllowed, http.StatusForbidden, "API key authentication is not allowed for this endpoint")
+}
+
+func OAuthTokenAuthNotAllowed() *Error {
+	return New(CodeOAuthTokenAuthNotAllowed, http.StatusForbidden, "OAuth access tokens are not allowed for this endpoint")
 }
 
 func UserDisabled() *Error {

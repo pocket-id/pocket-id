@@ -18,6 +18,9 @@ function tokenScopes(claims: jose.JWTPayload): string[] {
 	return [];
 }
 
+// The API that represents Pocket ID itself, which the backend seeds on every start
+const pocketIdApi = { id: '00000000-0000-0000-0000-000000000000', name: 'Pocket ID' };
+
 function tokenAudiences(claims: jose.JWTPayload): string[] {
 	if (Array.isArray(claims.aud)) return claims.aud;
 	if (typeof claims.aud === 'string') return [claims.aud];
@@ -159,7 +162,9 @@ test('Grant a client user-delegated and client access to API permissions', async
 
 	// The API is not offered a second time, because the selection is filtered server-side
 	await page.getByRole('button', { name: 'Add API…' }).click();
-	await expect(page.getByRole('dialog').getByText('No items found')).toBeVisible();
+	const picker = page.getByRole('dialog');
+	await expect(picker.getByRole('row', { name: pocketIdApi.name })).toBeVisible();
+	await expect(picker.getByRole('row', { name: apis.orders.name })).toHaveCount(0);
 });
 
 test('Grant a client access from the API details page', async ({ page }) => {
@@ -461,4 +466,66 @@ test('Authorization on behalf of a user cannot request a client-only permission'
 	// The authorize endpoint collapses every resource-targeted scope/resource failure into a generic invalid_request
 	expect(callbackUrl.searchParams.get('error')).toBe('invalid_request');
 	expect(callbackUrl.searchParams.get('state')).toBe('nXx-6Qr-owc1SHBa');
+});
+
+// ---------------------------------------------------------------------------
+// Pocket ID's own API as a resource
+// ---------------------------------------------------------------------------
+
+test('A client calls Pocket ID with an access token for the built-in API', async ({
+	page,
+	baseURL,
+	playwright
+}) => {
+	const client = oidcClients.immich;
+	const resource = `${baseURL}/api`;
+
+	// Admins grant clients access to the built-in API like to any other API, but only on behalf of people
+	await page.goto(`/settings/admin/apis/${pocketIdApi.id}`);
+	await expect(page.getByText('Built-in', { exact: true })).toBeVisible();
+	await page.getByRole('tab', { name: 'Clients' }).click();
+	await page.getByRole('button', { name: 'Add client…' }).click();
+	await page.getByRole('dialog').getByRole('button', { name: client.name }).click();
+	await expect(page.getByRole('dialog').getByText('As itself')).toHaveCount(0);
+	await page.getByRole('checkbox', { name: 'On behalf of people: Users · Read' }).click();
+	await page.getByRole('dialog').getByRole('button', { name: 'Save' }).click();
+	await expect(page.locator('[data-type="success"]')).toHaveText('API access updated');
+
+	const params = new URLSearchParams({
+		client_id: client.id,
+		response_type: 'code',
+		scope: 'users:read',
+		resource,
+		redirect_uri: client.callbackUrl,
+		state: 'nXx-6Qr-owc1SHBa'
+	});
+	const callbackUrl = await oidcUtil.interceptCallbackRedirect(
+		page,
+		new URL(client.callbackUrl).pathname,
+		async () => {
+			await page.goto(`/authorize?${params.toString()}`);
+			await expect(page.getByText('Users · Read')).toBeVisible();
+			await page.getByRole('button', { name: /^Continue to / }).click();
+		}
+	);
+	const res = await oidcUtil.exchangeCode(page, {
+		grant_type: 'authorization_code',
+		redirect_uri: client.callbackUrl,
+		code: callbackUrl.searchParams.get('code')!,
+		client_id: client.id,
+		client_secret: client.secret
+	});
+	expect(tokenAudiences(jose.decodeJwt(res.access_token!))).toEqual([resource]);
+
+	// The context would inherit the signed-in session cookie, so it is cleared to let only the access token authenticate the requests
+	const apiClient = await playwright.request.newContext({
+		baseURL,
+		storageState: { cookies: [], origins: [] },
+		extraHTTPHeaders: { Authorization: `Bearer ${res.access_token}` }
+	});
+	expect((await apiClient.get('/api/users')).status()).toBe(200);
+	expect((await apiClient.post('/api/users', { data: { username: 'not-allowed' } })).status()).toBe(
+		403
+	);
+	await apiClient.dispose();
 });

@@ -5,11 +5,13 @@ import (
 	"strings"
 
 	"github.com/gin-gonic/gin"
+	"github.com/pocket-id/fosite"
 
 	"github.com/pocket-id/pocket-id/backend/internal/apikey"
 	"github.com/pocket-id/pocket-id/backend/internal/appconfig"
 	"github.com/pocket-id/pocket-id/backend/internal/apperror"
 	"github.com/pocket-id/pocket-id/backend/internal/authz"
+	"github.com/pocket-id/pocket-id/backend/internal/common"
 	"github.com/pocket-id/pocket-id/backend/internal/emailverification"
 	"github.com/pocket-id/pocket-id/backend/internal/model"
 	"github.com/pocket-id/pocket-id/backend/internal/service"
@@ -20,11 +22,13 @@ import (
 const apiKeyHeader = "X-API-Key"
 
 // NewAuthorization creates the authorization middleware with every credential Pocket ID accepts
-// A browser session is tried before an API key, so a signed-in browser is never mistaken for an API client
-func NewAuthorization(apiKeyModule *apikey.Module, userService *service.UserService, jwtService *service.JwtService, appConfig appconfig.AppConfigResolver) *authz.Middleware {
+// A browser session is tried before an API key or OAuth token, so a signed-in browser is never mistaken for an API client
+// The session authenticator also reads the Authorization header, but an OAuth access token fails its signature check and falls through to the OAuth authenticator
+func NewAuthorization(apiKeyModule *apikey.Module, accessTokenVerifier AccessTokenVerifier, userService *service.UserService, jwtService *service.JwtService, appConfig appconfig.AppConfigResolver) *authz.Middleware {
 	return authz.NewMiddleware(
 		NewSessionAuthenticator(jwtService, userService, appConfig),
 		NewAPIKeyAuthenticator(apiKeyModule, appConfig),
+		NewOAuthAuthenticator(accessTokenVerifier, userService, appConfig),
 	)
 }
 
@@ -160,4 +164,77 @@ func (a *APIKeyAuthenticator) Authenticate(c *gin.Context) (*authz.Principal, er
 	}
 
 	return principal, nil
+}
+
+// AccessTokenVerifier validates an OAuth access token Pocket ID issued, which the oidc module implements
+type AccessTokenVerifier interface {
+	VerifyAccessToken(ctx context.Context, token string) (fosite.AccessRequester, error)
+}
+
+// OAuthAuthenticator authenticates an OAuth access token that a client obtained for Pocket ID's own API on behalf of a user
+type OAuthAuthenticator struct {
+	verifier    AccessTokenVerifier
+	userService *service.UserService
+	appConfig   appconfig.AppConfigResolver
+	audience    string
+}
+
+func NewOAuthAuthenticator(verifier AccessTokenVerifier, userService *service.UserService, appConfig appconfig.AppConfigResolver) *OAuthAuthenticator {
+	return &OAuthAuthenticator{verifier: verifier, userService: userService, appConfig: appConfig, audience: authz.ResourceURI(common.EnvConfig.AppURL)}
+}
+
+func (a *OAuthAuthenticator) Kind() authz.PrincipalKind {
+	return authz.KindOAuthUser
+}
+
+func (a *OAuthAuthenticator) Present(c *gin.Context) bool {
+	return bearerToken(c) != ""
+}
+
+func (a *OAuthAuthenticator) Authenticate(c *gin.Context) (*authz.Principal, error) {
+	ctx := c.Request.Context()
+	accessRequest, err := a.verifier.VerifyAccessToken(ctx, bearerToken(c))
+	if err != nil {
+		return nil, apperror.NotSignedIn()
+	}
+
+	// Only a token issued for Pocket ID's own API may call it, which keeps a custom API's token with a colliding permission key out
+	if !accessRequest.GetGrantedAudience().Has(a.audience) {
+		return nil, apperror.NotSignedIn()
+	}
+
+	// Load the user so disabling the account or changing its role takes effect before the token expires
+	user, err := a.userService.GetUser(ctx, accessRequest.GetSession().GetSubject())
+	if err != nil {
+		return nil, apperror.NotSignedIn()
+	}
+	if user.Disabled {
+		return nil, apperror.UserDisabled()
+	}
+
+	// A token never holds more than its user currently does, so demoting the user narrows their tokens right away
+	tokenScopes := make(authz.ScopeSet, len(accessRequest.GetGrantedScopes()))
+	for _, scope := range accessRequest.GetGrantedScopes() {
+		tokenScopes[authz.Scope(scope)] = struct{}{}
+	}
+	principal := &authz.Principal{
+		Kind:   authz.KindOAuthUser,
+		UserID: user.ID,
+		Scopes: authz.UserScopes(user.IsAdmin, authz.KindOAuthUser).Intersect(tokenScopes),
+	}
+	err = restrictUnverified(ctx, a.appConfig, &user, principal)
+	if err != nil {
+		return nil, err
+	}
+
+	return principal, nil
+}
+
+// bearerToken reads the token of a Bearer Authorization header, whose scheme is case-insensitive
+func bearerToken(c *gin.Context) string {
+	scheme, token, ok := strings.Cut(c.GetHeader("Authorization"), " ")
+	if !ok || !strings.EqualFold(scheme, "Bearer") {
+		return ""
+	}
+	return token
 }

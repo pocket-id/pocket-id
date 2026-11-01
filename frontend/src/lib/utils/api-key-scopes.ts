@@ -13,7 +13,7 @@ export type ScopeResource = {
 	write?: string;
 };
 
-// Mirrors the API key grantable scopes of the backend catalog in internal/authz/scope.go
+// Mirrors the scopes of the backend catalog in internal/authz/scope.go that API keys and OAuth clients can hold
 export const scopeResources: ScopeResource[] = [
 	{
 		id: 'account',
@@ -146,4 +146,17 @@ export function presetLabel(scopes: string[], isAdmin: boolean) {
 	if (preset === 'read') return m.read_only();
 	const count = resourcesFor(isAdmin).filter((r) => levelOf(r, scopes) !== 'none').length;
 	return m.custom_scope_count({ count });
+}
+
+// Labels a single scope, such as a permission of the built-in Pocket ID API, with the same words the API key picker uses
+export function scopeLabel(scope: string): { name: string; description?: string } {
+	const resource = scopeResources.find((r) => r.read === scope || r.write === scope);
+	if (!resource) return { name: scope };
+	// A resource with a single scope needs no level next to its name
+	const level =
+		!resource.read || !resource.write ? '' : scope === resource.read ? m.read() : m.write();
+	return {
+		name: level ? `${resource.label()} · ${level}` : resource.label(),
+		description: resource.description()
+	};
 }

@@ -1,6 +1,7 @@
 package middleware
 
 import (
+	"context"
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
@@ -8,6 +9,7 @@ import (
 	"time"
 
 	"github.com/gin-gonic/gin"
+	"github.com/pocket-id/fosite"
 	"github.com/stretchr/testify/require"
 	"gorm.io/gorm"
 
@@ -71,7 +73,17 @@ func TestAuthorizationWithRealCredentials(t *testing.T) {
 	cfg.EmailVerification = appconfig.EmailVerificationRequired
 	router := gin.New()
 	router.Use(NewErrorHandlerMiddleware().Add())
-	apiRouter := NewAuthorization(apiKeyModule, userService, jwtService, appconfig.StaticResolver{Config: cfg}).Router(router.Group("/api"))
+	resource := authz.ResourceURI(common.EnvConfig.AppURL)
+	accessTokens := fakeAccessTokenVerifier{
+		"admin-token":          oauthAccessRequest(admin.ID, fosite.Arguments{resource}, string(authz.UsersRead)),
+		"admin-account-token":  oauthAccessRequest(admin.ID, fosite.Arguments{resource}, string(authz.AccountRead)),
+		"user-admin-token":     oauthAccessRequest(user.ID, fosite.Arguments{resource}, string(authz.UsersRead)),
+		"disabled-token":       oauthAccessRequest(disabled.ID, fosite.Arguments{resource}, string(authz.UsersRead)),
+		"session-scope-token":  oauthAccessRequest(admin.ID, fosite.Arguments{resource}, string(authz.AccountSession)),
+		"custom-api-token":     oauthAccessRequest(admin.ID, fosite.Arguments{"https://api.example.com", common.EnvConfig.AppURL}, "openid", string(authz.UsersRead)),
+		"unverified-api-token": oauthAccessRequest(unverified.ID, fosite.Arguments{resource}, string(authz.AccountRead), string(authz.AccountApps)),
+	}
+	apiRouter := NewAuthorization(apiKeyModule, accessTokens, userService, jwtService, appconfig.StaticResolver{Config: cfg}).Router(router.Group("/api"))
 	ok := func(c *gin.Context) {
 		c.String(http.StatusOK, authz.PrincipalFrom(c).UserID)
 	}
@@ -111,6 +123,14 @@ func TestAuthorizationWithRealCredentials(t *testing.T) {
 		{name: "unverified user API key on apps route", path: "/api/apps", apiKey: unverifiedAPIKey, status: http.StatusForbidden, errorCode: "email_verification_required"},
 		{name: "unverified admin API key on admin route", path: "/api/admin", apiKey: unverifiedAdminAPIKey, status: http.StatusOK, userID: unverifiedAdmin.ID},
 		{name: "unknown API key", path: "/api/account", apiKey: "unknown", status: http.StatusUnauthorized, errorCode: "not_signed_in"},
+		{name: "admin OAuth token on admin route", path: "/api/admin", authorization: "Bearer admin-token", status: http.StatusOK, userID: admin.ID},
+		{name: "admin OAuth token without the route's scope", path: "/api/admin", authorization: "Bearer admin-account-token", status: http.StatusForbidden, errorCode: "forbidden"},
+		{name: "regular user OAuth token that carries an admin scope", path: "/api/admin", authorization: "Bearer user-admin-token", status: http.StatusForbidden, errorCode: "forbidden"},
+		{name: "disabled user's OAuth token", path: "/api/admin", authorization: "Bearer disabled-token", status: http.StatusForbidden, errorCode: "user_disabled"},
+		{name: "OAuth token on session-only route", path: "/api/session-only", authorization: "Bearer session-scope-token", status: http.StatusForbidden, errorCode: "oauth_token_auth_not_allowed"},
+		{name: "custom API token with a colliding scope key", path: "/api/admin", authorization: "Bearer custom-api-token", status: http.StatusUnauthorized, errorCode: "not_signed_in"},
+		{name: "unverified user OAuth token on apps route", path: "/api/apps", authorization: "Bearer unverified-api-token", status: http.StatusForbidden, errorCode: "email_verification_required"},
+		{name: "unknown OAuth token", path: "/api/account", authorization: "Bearer unknown", status: http.StatusUnauthorized, errorCode: "not_signed_in"},
 		{name: "no credentials", path: "/api/account", status: http.StatusUnauthorized, errorCode: "not_signed_in"},
 	}
 
@@ -141,6 +161,24 @@ func TestAuthorizationWithRealCredentials(t *testing.T) {
 			require.Equal(t, test.errorCode, body["code"])
 		})
 	}
+}
+
+// fakeAccessTokenVerifier resolves raw OAuth access tokens to the requests they were granted for
+type fakeAccessTokenVerifier map[string]fosite.AccessRequester
+
+func (f fakeAccessTokenVerifier) VerifyAccessToken(_ context.Context, token string) (fosite.AccessRequester, error) {
+	accessRequest, ok := f[token]
+	if !ok {
+		return nil, fosite.ErrRequestUnauthorized
+	}
+	return accessRequest, nil
+}
+
+func oauthAccessRequest(subject string, audience fosite.Arguments, scopes ...string) fosite.AccessRequester {
+	accessRequest := fosite.NewAccessRequest(&fosite.DefaultSession{Subject: subject})
+	accessRequest.GrantedAudience = audience
+	accessRequest.GrantedScope = scopes
+	return accessRequest
 }
 
 func createUserForAuthorizationTest(t *testing.T, db *gorm.DB, username string, isAdmin, disabled, emailVerified bool) model.User {

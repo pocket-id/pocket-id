@@ -28,6 +28,7 @@ import (
 	"gorm.io/gorm"
 	"gorm.io/gorm/logger"
 
+	"github.com/pocket-id/pocket-id/backend/internal/common"
 	"github.com/pocket-id/pocket-id/backend/internal/utils"
 	sqliteutil "github.com/pocket-id/pocket-id/backend/internal/utils/sqlite"
 	"github.com/pocket-id/pocket-id/backend/resources"
@@ -66,6 +67,25 @@ func NewConcurrentDatabaseForTest(t *testing.T) *gorm.DB {
 	db := openFileTestDB(t)
 	runMigrations(t, db, 0, nil)
 	return db
+}
+
+// ForEachDatabase runs the test on SQLite and, when a test server is configured, on Postgres, for code that relies on engine specific SQL such as upserts
+func ForEachDatabase(t *testing.T, test func(t *testing.T, db *gorm.DB)) {
+	t.Run("sqlite", func(t *testing.T) {
+		test(t, NewDatabaseForTest(t))
+	})
+	t.Run("postgres", func(t *testing.T) {
+		db := NewPostgresDatabaseForTest(t)
+
+		// Column types such as DateTime pick their encoding from the configured provider
+		previousProvider := common.EnvConfig.DbProvider
+		common.EnvConfig.DbProvider = common.DbProviderPostgres
+		t.Cleanup(func() {
+			common.EnvConfig.DbProvider = previousProvider
+		})
+
+		test(t, db)
+	})
 }
 
 // NewPostgresDatabaseForTest returns a new instance of GORM connected to a fresh Postgres database with all Postgres migrations applied.

@@ -14,8 +14,10 @@ import (
 
 // fakeAPIAccess implements APIAccessProvider from an audience -> subject type -> allowed-scopes map.
 // An audience present in the map exists as an API; a subject type present under it grants access, together with the scopes that subject may request, which can be none.
+// Scopes listed in unheld are ones no user holds, standing in for Pocket ID scopes the user's role lacks.
 type fakeAPIAccess struct {
 	allowed map[string]map[SubjectType][]string
+	unheld  []string
 }
 
 // userAccess builds a fakeAPIAccess with only user-delegated grants, for tests that don't care about the split.
@@ -68,6 +70,12 @@ func (f fakeAPIAccess) DescribePermissions(_ context.Context, audience string, k
 		}
 	}
 	return infos, nil
+}
+
+func (f fakeAPIAccess) HeldScopes(_ context.Context, _ *gorm.DB, _, _ string, scopes []string) ([]string, error) {
+	return slices.DeleteFunc(slices.Clone(scopes), func(scope string) bool {
+		return slices.Contains(f.unheld, scope)
+	}), nil
 }
 
 func TestResolveResourceDefaultIsLoginToken(t *testing.T) {

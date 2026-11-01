@@ -194,8 +194,11 @@ func (s *TestService) SeedDatabase(baseURL string) error {
 			}
 		}
 
-		// The built-in claim mapping policy is seeded at boot, so it has to be recreated after the database reset
+		// The built-in claim mapping policy and API are seeded at boot, so they have to be recreated after the database reset
 		if err := claimmappingpolicy.Bootstrap(context.Background(), tx); err != nil {
+			return err
+		}
+		if err := api.Bootstrap(context.Background(), tx, common.EnvConfig.AppURL); err != nil {
 			return err
 		}
 

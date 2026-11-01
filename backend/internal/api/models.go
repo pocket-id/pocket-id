@@ -6,6 +6,9 @@ import (
 	"github.com/pocket-id/pocket-id/backend/internal/oidc"
 )
 
+// BuiltInAPIID is the ID of the API that represents Pocket ID itself, which Bootstrap writes on every startup and admins can only grant clients access to
+const BuiltInAPIID = "00000000-0000-0000-0000-000000000000"
+
 type API struct {
 	model.Base
 
