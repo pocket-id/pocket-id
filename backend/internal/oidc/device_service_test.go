@@ -15,6 +15,7 @@ import (
 	"github.com/pocket-id/fosite"
 	"github.com/pocket-id/pocket-id/backend/internal/appconfig"
 	"github.com/pocket-id/pocket-id/backend/internal/apperror"
+	"github.com/pocket-id/pocket-id/backend/internal/claimmappingpolicy"
 	"github.com/pocket-id/pocket-id/backend/internal/model"
 	testutils "github.com/pocket-id/pocket-id/backend/internal/utils/testing"
 	"github.com/stretchr/testify/require"
@@ -194,6 +195,7 @@ func newTestDeviceService(t *testing.T, clientID, userID string, requiresReauthe
 	t.Helper()
 
 	db := testutils.NewDatabaseForTest(t)
+	require.NoError(t, claimmappingpolicy.Bootstrap(t.Context(), db))
 	require.NoError(t, db.Create(&model.User{Base: model.Base{ID: userID}}).Error)
 	require.NoError(t, db.Create(&model.OidcClient{
 		Base:                     model.Base{ID: clientID},

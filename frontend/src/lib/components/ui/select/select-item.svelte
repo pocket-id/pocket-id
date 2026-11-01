@@ -18,22 +18,22 @@
 	{value}
 	data-slot="select-item"
 	class={cn(
-		"focus:bg-accent focus:text-accent-foreground not-data-[variant=destructive]:focus:**:text-accent-foreground focus:bg-accent data-highlighted:bg-accent data-highlighted:text-accent-foreground focus:text-accent-foreground relative flex w-full cursor-default items-center gap-2.5 rounded-xl py-1.5 pr-8 pl-3 text-sm font-medium outline-hidden select-none data-[disabled]:pointer-events-none data-[disabled]:opacity-50 [&_svg]:pointer-events-none [&_svg]:shrink-0 [&_svg:not([class*='size-'])]:size-4 *:[span]:last:flex *:[span]:last:items-center *:[span]:last:gap-2",
+		"text-control text-fg data-highlighted:bg-fill-hover relative flex min-h-(--row-dense) w-full cursor-default items-center gap-2 rounded-sm px-2.5 outline-hidden select-none data-disabled:pointer-events-none data-disabled:opacity-45 [&_svg]:pointer-events-none [&_svg]:shrink-0 [&_svg:not([class*='size-'])]:size-4",
 		className
 	)}
 	{...restProps}
 >
 	{#snippet children({ selected, highlighted })}
-		<span class="absolute end-2 flex size-3.5 items-center justify-center">
+		<span class="flex size-4 items-center justify-center">
 			{#if selected}
-				<CheckIcon class="cn-select-item-indicator-icon" />
+				<CheckIcon />
 			{/if}
 		</span>
-		<span class="flex flex-1 shrink-0 gap-2 whitespace-nowrap">
+		<span class="flex min-w-0 flex-1 items-center gap-2 py-1.5 whitespace-nowrap">
 			{#if childrenProp}
 				{@render childrenProp({ selected, highlighted })}
 			{:else}
-				{label || value}
+				<span class="truncate">{label || value}</span>
 			{/if}
 		</span>
 	{/snippet}

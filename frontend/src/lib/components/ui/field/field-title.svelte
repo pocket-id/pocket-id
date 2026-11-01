@@ -14,7 +14,7 @@
 	bind:this={ref}
 	data-slot="field-label"
 	class={cn(
-		'flex w-fit items-center gap-2 text-sm leading-snug leading-snug font-medium group-data-[disabled=true]/field:opacity-50',
+		'text-control text-fg flex w-fit items-center gap-2 font-medium group-data-[disabled=true]/field:opacity-45',
 		className
 	)}
 	{...restProps}

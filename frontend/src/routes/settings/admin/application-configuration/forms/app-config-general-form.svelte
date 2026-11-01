@@ -1,15 +1,18 @@
 <script lang="ts">
+	import DurationInput from '#lib/components/form/duration-input.svelte';
 	import FormInput from '#lib/components/form/form-input.svelte';
-	import SwitchWithLabel from '#lib/components/form/switch-with-label.svelte';
-	import * as Field from '#lib/components/ui/field/index.ts';
-	import * as Select from '#lib/components/ui/select/index.ts';
+	import SettingRow from '#lib/components/setting-row.svelte';
+	import SettingsSection from '#lib/components/settings-section.svelte';
+	import { Switch } from '#lib/components/ui/switch/index.ts';
 	import { m } from '#lib/paraglide/messages.js';
 	import appConfigStore from '#lib/stores/application-configuration-store.ts';
 	import type { AllAppConfig } from '#lib/types/application-configuration.type.ts';
-	import { createForm } from '#lib/utils/form-util.ts';
+	import { createForm, pickSchemaValues } from '#lib/utils/form-util.ts';
 	import { trackFormChanges } from '#lib/utils/unsaved-changes-util.svelte.ts';
+	import { LucideHouse, LucidePalette, LucideSparkles, LucideUserPen } from '@lucide/svelte';
 	import { z } from 'zod/v4';
-	import AccentColorPicker from './accent-color-picker.svelte';
+	import ColorThemePicker from './color-theme-picker.svelte';
+	import OptionSelect from './option-select.svelte';
 
 	let {
 		callback,
@@ -24,89 +27,92 @@
 		{ label: m.my_apps(), value: '/settings/apps' }
 	];
 
-	const updatedAppConfig = {
-		appName: appConfig.appName,
-		homePageUrl: appConfig.homePageUrl,
-		sessionDuration: appConfig.sessionDuration,
-		allowOwnAccountEdit: appConfig.allowOwnAccountEdit,
-		disableAnimations: appConfig.disableAnimations,
-		accentColor: appConfig.accentColor
-	};
-
 	const formSchema = z.object({
 		appName: z.string().min(2).max(30),
 		homePageUrl: z.string(),
-		sessionDuration: z.number().min(1).max(43200),
+		sessionDuration: z
+			.number()
+			.min(1)
+			.max(43200, { message: m.config_session_duration_maximum() })
+			.refine((minutes) => Number.isInteger(minutes), {
+				message: m.config_session_duration_whole_minutes()
+			}),
 		allowOwnAccountEdit: z.boolean(),
 		disableAnimations: z.boolean(),
-		accentColor: z.string()
+		colorTheme: z.string()
 	});
 
-	let formStore = $derived(createForm(formSchema, updatedAppConfig));
-	let inputs = $derived(formStore.inputs);
+	const formStore = createForm(formSchema, pickSchemaValues(formSchema, appConfig));
+	const inputs = formStore.inputs;
 
-	trackFormChanges(() => formStore, callback);
+	// Discard remounts the theme picker so its Custom tile forgets a color that was only previewed
+	let themePickerKey = $state(0);
+	trackFormChanges(() => formStore, callback, { discard: () => themePickerKey++ });
 </script>
 
-<fieldset class="flex flex-col gap-5" disabled={$appConfigStore.uiConfigDisabled}>
-	<div class="flex flex-col gap-5">
-		<FormInput label={m.application_name()} bind:input={$inputs.appName} />
-		<FormInput
-			label={m.session_duration()}
-			type="number"
-			description={m.the_duration_of_a_session_in_minutes_before_the_user_has_to_sign_in_again()}
-			bind:input={$inputs.sessionDuration}
-		/>
-		<Field.Field>
-			<Field.Label>{m.app_config_home_page()}</Field.Label>
-			<Field.Description>
-				{m.app_config_home_page_description()}
-			</Field.Description>
-			<Select.Root
-				type="single"
-				value={$inputs.homePageUrl.value}
-				onValueChange={(v) => ($inputs.homePageUrl.value = v as string)}
-			>
-				<Select.Trigger class="w-full" aria-label={m.app_config_home_page()}>
-					{homePageUrlOptions.find((option) => option.value === $inputs.homePageUrl.value)?.label ??
-						$inputs.homePageUrl.value}
-				</Select.Trigger>
-				<Select.Content>
-					{#each homePageUrlOptions as option (option.value)}
-						<Select.Item value={option.value}>
-							{option.label}
-						</Select.Item>
-					{/each}
-				</Select.Content>
-			</Select.Root>
-		</Field.Field>
-		<SwitchWithLabel
-			id="self-account-editing"
-			label={m.enable_self_account_editing()}
-			description={m.whether_the_users_should_be_able_to_edit_their_own_account_details()}
-			bind:checked={$inputs.allowOwnAccountEdit.value}
-		/>
-		<SwitchWithLabel
-			id="disable-animations"
-			label={m.disable_animations()}
-			description={m.turn_off_ui_animations()}
-			bind:checked={$inputs.disableAnimations.value}
-		/>
-
-		<Field.Field class="space-y-5">
-			<div>
-				<Field.Label>
-					{m.accent_color()}
-				</Field.Label>
-				<Field.Description>
-					{m.select_an_accent_color_to_customize_the_appearance_of_pocket_id()}
-				</Field.Description>
-			</div>
-			<AccentColorPicker
-				previousColor={appConfig.accentColor}
-				bind:selectedColor={$inputs.accentColor.value}
-				disabled={$appConfigStore.uiConfigDisabled}
+<fieldset class="flex min-w-0 flex-col gap-10" disabled={$appConfigStore.uiConfigDisabled}>
+	<SettingsSection title={m.application()}>
+		<div class="flex flex-col gap-4 py-4 shadow-[inset_0_-1px_0_var(--border)]">
+			<FormInput
+				class="max-w-[400px]"
+				label={m.application_name()}
+				description={m.config_app_name_description()}
+				bind:input={$inputs.appName}
 			/>
-		</Field.Field>
-	</div>
+			<div class="max-w-[400px]">
+				<DurationInput
+					id="session-duration"
+					label={m.session_duration()}
+					description={m.config_session_duration_description()}
+					bind:input={$inputs.sessionDuration}
+				/>
+			</div>
+		</div>
+		<SettingRow
+			title={m.app_config_home_page()}
+			description={m.config_home_page_description()}
+			icon={LucideHouse}
+		>
+			{#snippet control(props)}
+				<OptionSelect
+					{...props}
+					value={$inputs.homePageUrl.value}
+					options={homePageUrlOptions}
+					onValueChange={(v) => ($inputs.homePageUrl.value = v)}
+				/>
+			{/snippet}
+		</SettingRow>
+		<SettingRow
+			title={m.config_self_account_editing()}
+			description={m.config_self_account_editing_description()}
+			icon={LucideUserPen}
+		>
+			{#snippet control(props)}
+				<Switch {...props} bind:checked={$inputs.allowOwnAccountEdit.value} />
+			{/snippet}
+		</SettingRow>
+	</SettingsSection>
+
+	<SettingsSection title={m.appearance()}>
+		<SettingRow title={m.color_theme()} icon={LucidePalette} stacked>
+			{#snippet control(props)}
+				{#key themePickerKey}
+					<ColorThemePicker
+						{...props}
+						bind:value={$inputs.colorTheme.value}
+						disabled={$appConfigStore.uiConfigDisabled}
+					/>
+				{/key}
+			{/snippet}
+		</SettingRow>
+		<SettingRow
+			title={m.disable_animations()}
+			description={m.config_disable_animations_description()}
+			icon={LucideSparkles}
+		>
+			{#snippet control(props)}
+				<Switch {...props} bind:checked={$inputs.disableAnimations.value} />
+			{/snippet}
+		</SettingRow>
+	</SettingsSection>
 </fieldset>

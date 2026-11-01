@@ -5,20 +5,19 @@
 		type ButtonVariant
 	} from '#lib/components/ui/button/index.ts';
 	import * as DropdownMenu from '#lib/components/ui/dropdown-menu/index.js';
-	import { m } from '#lib/paraglide/messages.js';
 	import type { AdvancedTableAction } from '#lib/types/advanced-table.type.ts';
 	import { LucideEllipsis } from '@lucide/svelte';
 
 	let {
 		item,
 		actions,
-		label = m.toggle_menu(),
+		label,
 		variant = 'ghost',
 		size = 'icon'
 	}: {
 		item: T;
 		actions: AdvancedTableAction<T>[];
-		label?: string;
+		label: string;
 		variant?: ButtonVariant;
 		size?: ButtonSize;
 	} = $props();
@@ -33,7 +32,10 @@
 			<span class="sr-only">{label}</span>
 		</DropdownMenu.Trigger>
 		<DropdownMenu.Content align="end">
-			{#each visibleActions as action (action.label)}
+			{#each visibleActions as action, i (action.label)}
+				{#if action.variant === 'danger' && i > 0 && visibleActions[i - 1].variant !== 'danger'}
+					<DropdownMenu.Separator />
+				{/if}
 				<DropdownMenu.Item
 					onclick={() => action.onClick(item)}
 					disabled={action.disabled}
@@ -41,7 +43,7 @@
 				>
 					{#if action.icon}
 						{@const Icon = action.icon}
-						<Icon class="mr-2 size-4" />
+						<Icon />
 					{/if}
 					{action.label}
 				</DropdownMenu.Item>

@@ -13,7 +13,7 @@
 	bind:ref
 	data-slot="command-list"
 	class={cn(
-		'no-scrollbar max-h-72 scroll-py-1 overflow-x-hidden overflow-y-auto outline-none',
+		'max-h-72 scroll-py-1 [scrollbar-width:thin] [scrollbar-color:color-mix(in_srgb,var(--fg)_18%,transparent)_transparent] overflow-x-hidden overflow-y-auto outline-none',
 		className
 	)}
 	{...restProps}

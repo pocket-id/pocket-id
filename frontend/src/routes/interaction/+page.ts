@@ -1,3 +1,4 @@
+import { m } from '#lib/paraglide/messages.js';
 import OidcService from '#lib/services/oidc-service.ts';
 import { getAxiosErrorMessage } from '#lib/utils/error-util.ts';
 import { redirect } from '@sveltejs/kit';
@@ -6,7 +7,7 @@ import type { PageLoad } from './$types';
 export const load: PageLoad = async ({ url }) => {
 	const interactionSessionId = url.searchParams.get('interaction');
 	if (!interactionSessionId) {
-		return redirectToError('Missing authorize interaction');
+		return redirectToError(m.auth_missing_interaction());
 	}
 
 	const oidcService = new OidcService();

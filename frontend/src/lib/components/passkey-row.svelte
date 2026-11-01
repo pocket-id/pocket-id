@@ -1,97 +1,74 @@
 <script lang="ts">
+	import ActionsMenu from '#lib/components/actions-menu.svelte';
 	import { Button } from '#lib/components/ui/button/index.ts';
-	import * as Item from '#lib/components/ui/item/index.js';
-	import * as Tooltip from '#lib/components/ui/tooltip/index.js';
 	import { m } from '#lib/paraglide/messages.js';
-	import { LucideCalendar, LucidePencil, LucideTrash, type LucideIcon } from '@lucide/svelte';
+	import { getLocale } from '#lib/paraglide/runtime.js';
+	import type { Passkey } from '#lib/types/passkey.type.ts';
+	import { authenticatorIconUrl } from '#lib/utils/cached-image-util.ts';
+	import { LucideKeyRound, LucidePencil, LucideTrash2 } from '@lucide/svelte';
+	import { mode } from 'mode-watcher';
 
 	let {
-		icon,
-		providerIconUrl,
+		passkey,
 		onRename,
-		onDelete,
-		showRenameAction = true,
-		label,
-		description
+		onDelete
 	}: {
-		icon: LucideIcon;
-		providerIconUrl?: string;
+		passkey: Passkey;
 		onRename?: () => void;
 		onDelete: () => void;
-		showRenameAction?: boolean;
-		description?: string;
-		label?: string;
 	} = $props();
 
-	// Falls back to the generic icon when the authenticator icon cannot be loaded
+	const iconUrl = $derived(
+		passkey.hasIcon ? authenticatorIconUrl(passkey.aaguid, mode.current === 'light') : undefined
+	);
+
+	// Falls back to the key glyph when the authenticator icon cannot be loaded
 	let iconFailed = $state(false);
 
 	// The row is reused across passkeys and themes, so a previous failure must not hide an icon that is now a different URL
 	$effect(() => {
-		void providerIconUrl;
+		void iconUrl;
 		iconFailed = false;
 	});
-
-	const showProviderIcon = $derived(!!providerIconUrl && !iconFailed);
 </script>
 
-<Item.Root variant="transparent" class="hover:bg-muted px-0 py-3 transition-colors sm:px-4">
-	<Item.Media class="bg-muted text-muted-foreground size-11 rounded-xl">
-		{#if showProviderIcon}
-			<img
-				src={providerIconUrl}
-				alt=""
-				class="size-7 object-contain"
-				onerror={() => (iconFailed = true)}
-			/>
-		{:else if icon}{@const Icon = icon}
-			<Icon class="size-6" />
-		{/if}
-	</Item.Media>
-	<Item.Content class="gap-0.5">
-		<Item.Title>{label}</Item.Title>
-		{#if description}
-			<Item.Description class="flex items-center">
-				<LucideCalendar class="mr-1 size-3" />
-				{description}
-			</Item.Description>
-		{/if}
-	</Item.Content>
-	<Item.Actions>
-		{#if showRenameAction && onRename}
-			<Tooltip.Provider>
-				<Tooltip.Root>
-					<Tooltip.Trigger>
-						<Button
-							onclick={onRename}
-							size="icon"
-							variant="ghost"
-							class="size-8"
-							aria-label={m.rename()}
-						>
-							<LucidePencil class="size-4" />
-						</Button>
-					</Tooltip.Trigger>
-					<Tooltip.Content>{m.rename()}</Tooltip.Content>
-				</Tooltip.Root>
-			</Tooltip.Provider>
-		{/if}
-
-		<Tooltip.Provider>
-			<Tooltip.Root>
-				<Tooltip.Trigger>
-					<Button
-						onclick={onDelete}
-						size="icon"
-						variant="ghost"
-						class="hover:bg-destructive/10 hover:text-destructive size-8"
-						aria-label={m.delete()}
-					>
-						<LucideTrash class="size-4" />
-					</Button>
-				</Tooltip.Trigger>
-				<Tooltip.Content>{m.delete()}</Tooltip.Content>
-			</Tooltip.Root>
-		</Tooltip.Provider>
-	</Item.Actions>
-</Item.Root>
+<div class="flex min-h-(--row-2line) items-center gap-3 px-4 py-2.5">
+	{#if iconUrl && !iconFailed}
+		<span
+			class="bg-surface-raised inset-ring-border grid size-8 shrink-0 place-items-center rounded-[8px] inset-ring"
+		>
+			<img src={iconUrl} alt="" class="size-5 object-contain" onerror={() => (iconFailed = true)} />
+		</span>
+	{:else}
+		<span class="bg-fill-muted text-fg-muted grid size-8 shrink-0 place-items-center rounded-[8px]">
+			<LucideKeyRound class="size-4" />
+		</span>
+	{/if}
+	<div class="flex min-w-0 flex-1 flex-col gap-0.5">
+		<p class="text-heading truncate">{passkey.name}</p>
+		<p class="text-caption text-fg-muted">
+			{m.added_on()}
+			{new Date(passkey.createdAt).toLocaleDateString(getLocale(), { dateStyle: 'medium' })}
+		</p>
+	</div>
+	{#if onRename}
+		<ActionsMenu
+			item={passkey}
+			size="icon-sm"
+			label={m.actions_for_name({ name: passkey.name })}
+			actions={[
+				{ label: m.rename(), icon: LucidePencil, onClick: onRename },
+				{ label: m.delete_ellipsis(), icon: LucideTrash2, variant: 'danger', onClick: onDelete }
+			]}
+		/>
+	{:else}
+		<Button
+			variant="ghost"
+			size="icon-xs"
+			aria-label={m.delete_name_action({ name: passkey.name })}
+			onclick={onDelete}
+		>
+			<LucideTrash2 />
+		</Button>
+	{/if}
+</div>

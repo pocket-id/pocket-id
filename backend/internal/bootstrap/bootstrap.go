@@ -14,6 +14,7 @@ import (
 	"github.com/italypaleale/go-kit/servicerunner"
 	"gorm.io/gorm"
 
+	"github.com/pocket-id/pocket-id/backend/internal/claimmappingpolicy"
 	"github.com/pocket-id/pocket-id/backend/internal/common"
 	"github.com/pocket-id/pocket-id/backend/internal/instanceid"
 	"github.com/pocket-id/pocket-id/backend/internal/outbound"
@@ -78,6 +79,12 @@ func Bootstrap(ctx context.Context) error {
 	imageExtensions, err := initApplicationImages(ctx, fileStorage)
 	if err != nil {
 		return fmt.Errorf("failed to initialize application images: %w", err)
+	}
+
+	// Init built-in claim policy mapping
+	err = claimmappingpolicy.Bootstrap(ctx, db)
+	if err != nil {
+		return err
 	}
 
 	// Init the actors

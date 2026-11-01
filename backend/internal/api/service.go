@@ -46,6 +46,10 @@ func newService(db *gorm.DB, issuer string) *Service {
 	return &Service{db: db, issuer: issuer}
 }
 
+func permissionsByKey(db *gorm.DB) *gorm.DB {
+	return db.Order("api_permissions.key")
+}
+
 // isIssuerAudience reports whether the audience refers to Pocket ID itself (the issuer)
 // A custom API must not claim the issuer as its audience, otherwise its tokens would be indistinguishable from Pocket ID's own identity tokens
 func isIssuerAudience(audience, issuer string) bool {
@@ -55,7 +59,7 @@ func isIssuerAudience(audience, issuer string) bool {
 func (s *Service) List(ctx context.Context, search string, listRequestOptions utils.ListRequestOptions) (apis []API, response utils.PaginationResponse, err error) {
 	query := s.db.
 		WithContext(ctx).
-		Preload("Permissions").
+		Preload("Permissions", permissionsByKey).
 		Model(&API{})
 
 	if listRequestOptions.Sort.Column == "resource" {
@@ -79,7 +83,7 @@ func (s *Service) Get(ctx context.Context, tx *gorm.DB, id string) (api API, err
 	}
 
 	err = query.
-		Preload("Permissions").
+		Preload("Permissions", permissionsByKey).
 		Where("id = ?", id).
 		First(&api).
 		Error
@@ -432,7 +436,7 @@ func (s *Service) ListClientAPIs(ctx context.Context, clientID string) ([]Client
 	// Load the API rows for the grants we collected, so the caller can see the API's name and audience
 	var apis []API
 	err = tx.WithContext(ctx).
-		Preload("Permissions").
+		Preload("Permissions", permissionsByKey).
 		Where("id IN ?", slices.Collect(maps.Keys(grants))).
 		Order("name").
 		Find(&apis).
@@ -670,7 +674,7 @@ func (s *Service) ListAssignableAPIs(ctx context.Context, clientID, search strin
 
 	query := s.db.
 		WithContext(ctx).
-		Preload("Permissions").
+		Preload("Permissions", permissionsByKey).
 		Model(&API{}).
 		Where("id NOT IN (?)", granted)
 

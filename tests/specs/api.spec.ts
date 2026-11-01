@@ -1,6 +1,7 @@
 import test, { expect } from '@playwright/test';
 import * as jose from 'jose';
 import { apis, oidcClients } from '../data';
+import { setAppConfigValues } from '../utils/app-config.util';
 import { cleanupBackend } from '../utils/cleanup.util';
 import * as oidcUtil from '../utils/oidc.util';
 import { saveUnsavedChanges } from '../utils/unsaved-changes.util';
@@ -41,13 +42,14 @@ test('Create API', async ({ page }) => {
 	await page.getByRole('button', { name: 'Add API' }).click();
 	await page.getByLabel('Name', { exact: true }).fill('Billing API');
 	await page.getByLabel('Resource').fill('https://api.billing.test');
-	await page.getByRole('button', { name: 'Save' }).click();
+	await page.getByRole('dialog').getByRole('button', { name: 'Add API' }).click();
 
-	await expect(page.locator('[data-type="success"]')).toHaveText('API created successfully');
+	await expect(page.locator('[data-type="success"]')).toHaveText('Billing API added');
 	await page.waitForURL('/settings/admin/apis/*');
 
 	await expect(page.getByLabel('Name', { exact: true })).toHaveValue('Billing API');
-	await expect(page.getByLabel('Resource')).toHaveValue('https://api.billing.test');
+	// The resource can't change after creation, so it is shown as an identifier
+	await expect(page.getByRole('definition').first()).toContainText('https://api.billing.test');
 });
 
 test('Cannot create an API with the issuer as resource', async ({ page }) => {
@@ -59,7 +61,7 @@ test('Cannot create an API with the issuer as resource', async ({ page }) => {
 	await page.getByRole('button', { name: 'Add API' }).click();
 	await page.getByLabel('Name', { exact: true }).fill('Reserved API');
 	await page.getByLabel('Resource').fill(issuer);
-	await page.getByRole('button', { name: 'Save' }).click();
+	await page.getByRole('dialog').getByRole('button', { name: 'Add API' }).click();
 
 	await expect(page.locator('[data-type="error"]')).toHaveText(
 		'Resource is reserved by Pocket ID and cannot be used for a custom API'
@@ -69,25 +71,28 @@ test('Cannot create an API with the issuer as resource', async ({ page }) => {
 test('Edit the name of an API', async ({ page }) => {
 	await page.goto(`/settings/admin/apis/${apis.orders.id}`);
 
-	await page.getByLabel('Name', { exact: true }).fill('Orders API renamed');
+	const name = page.getByRole('tabpanel', { name: 'General' }).getByLabel('Name', { exact: true });
+	await name.fill('Orders API renamed');
 	await saveUnsavedChanges(page);
 
 	await page.reload();
-	await expect(page.getByLabel('Name', { exact: true })).toHaveValue('Orders API renamed');
+	await expect(name).toHaveValue('Orders API renamed');
 });
 
 test('Add a permission to an API', async ({ page }) => {
 	await page.goto(`/settings/admin/apis/${apis.orders.id}`);
+	await page.getByRole('tab', { name: 'Permissions' }).click();
 
 	// The seeded API already has permissions, so the button reads "Add another"
 	await page.getByRole('button', { name: 'Add another' }).click();
-	await page.getByPlaceholder('Permission', { exact: true }).last().fill('ship:orders');
+	await page.getByPlaceholder('Key', { exact: true }).last().fill('ship:orders');
 	await page.getByPlaceholder('Name', { exact: true }).last().fill('Ship orders');
 	await saveUnsavedChanges(page);
 
 	await page.reload();
+	await page.getByRole('tab', { name: 'Permissions' }).click();
 	// The two seeded permissions plus the newly added one
-	await expect(page.getByPlaceholder('Permission', { exact: true })).toHaveCount(3);
+	await expect(page.getByPlaceholder('Key', { exact: true })).toHaveCount(3);
 });
 
 test('Delete an API', async ({ page }) => {
@@ -95,20 +100,20 @@ test('Delete an API', async ({ page }) => {
 
 	await page.getByRole('row', { name: apis.orders.name }).getByRole('button').click();
 	await page.getByRole('menuitem', { name: 'Delete' }).click();
-	await page.getByRole('button', { name: 'Delete' }).click();
+	await page.getByRole('alertdialog').getByRole('button', { name: 'Delete' }).click();
 
-	await expect(page.locator('[data-type="success"]')).toHaveText('API deleted successfully');
+	await expect(page.locator('[data-type="success"]')).toHaveText(`${apis.orders.name} deleted`);
 	await expect(page.getByRole('row', { name: apis.orders.name })).not.toBeVisible();
 });
 
 test('Delete an API from the details page', async ({ page }) => {
 	await page.goto(`/settings/admin/apis/${apis.orders.id}`);
 
-	await page.getByRole('button', { name: 'Actions' }).click();
-	await page.getByRole('menuitem', { name: 'Delete' }).click();
+	await page.getByRole('button', { name: 'More actions' }).click();
+	await page.getByRole('menuitem', { name: 'Delete API' }).click();
 	await page.getByRole('alertdialog').getByRole('button', { name: 'Delete' }).click();
 
-	await expect(page.locator('[data-type="success"]')).toHaveText('API deleted successfully');
+	await expect(page.locator('[data-type="success"]')).toHaveText(`${apis.orders.name} deleted`);
 	await page.waitForURL((url) => url.pathname === '/settings/admin/apis');
 	await expect(page.getByRole('row', { name: apis.orders.name })).not.toBeVisible();
 });
@@ -117,43 +122,43 @@ test('Grant a client user-delegated and client access to API permissions', async
 	// Nextcloud has no API access granted by default
 	await page.goto(`/settings/admin/oidc-clients/${oidcClients.nextcloud.id}`);
 
-	// Open the Access tab, where no API is listed yet, and add the Orders API
+	// Open the Access tab, whose Advanced section lists no API yet, and add the Orders API
 	await page.getByRole('tab', { name: 'Access', exact: true }).click();
+	await page.getByRole('button', { name: /^Advanced/ }).click();
 	await expect(
-		page.getByText('This client has not been granted access to any API yet.')
+		page.getByText(`${oidcClients.nextcloud.name} can’t request tokens for any API.`)
 	).toBeVisible();
-	await page.getByRole('button', { name: 'Add API' }).click();
+	await page.getByRole('button', { name: 'Add API…' }).first().click();
 	await page.getByRole('row', { name: apis.orders.name }).click();
 
 	// Grant read:orders and write:orders on behalf of users, but only write:orders for the client itself
 	const dialog = page.getByRole('dialog');
 	await dialog
 		.getByRole('checkbox', {
-			name: `User-delegated access: ${apis.orders.permissions.readOrders.name}`
+			name: `On behalf of people: ${apis.orders.permissions.readOrders.name}`
 		})
 		.click();
 	await dialog
 		.getByRole('checkbox', {
-			name: `User-delegated access: ${apis.orders.permissions.writeOrders.name}`
+			name: `On behalf of people: ${apis.orders.permissions.writeOrders.name}`
 		})
 		.click();
 	await dialog
 		.getByRole('checkbox', {
-			name: `Client access (M2M): ${apis.orders.permissions.writeOrders.name}`
+			name: `As itself: ${apis.orders.permissions.writeOrders.name}`
 		})
 		.click();
 	await dialog.getByRole('button', { name: 'Save' }).click();
 
-	await expect(page.locator('[data-type="success"]')).toHaveText('API access updated successfully');
+	await expect(page.locator('[data-type="success"]')).toHaveText('API access updated');
 	// The dialogs carry rows with the same names, so the assertions below wait until they are gone
 	await expect(page.getByRole('dialog')).toHaveCount(0);
-	// Both subject types keep their own count: 2 / 2 user-delegated, 1 / 2 client access
-	const row = page.getByRole('row', { name: apis.orders.name });
-	await expect(row).toContainText('2 / 2');
-	await expect(row).toContainText('1 / 2');
+	const row = page.getByRole('listitem').filter({ hasText: apis.orders.name });
+	await expect(row).toContainText('On behalf of people: 2 of 2');
+	await expect(row).toContainText('As itself: 1 of 2');
 
 	// The API is not offered a second time, because the selection is filtered server-side
-	await page.getByRole('button', { name: 'Add API' }).click();
+	await page.getByRole('button', { name: 'Add API…' }).click();
 	await expect(page.getByRole('dialog').getByText('No items found')).toBeVisible();
 });
 
@@ -161,39 +166,42 @@ test('Grant a client access from the API details page', async ({ page }) => {
 	await page.goto(`/settings/admin/apis/${apis.orders.id}`);
 
 	// Nextcloud has no API access granted by default, so it can be picked from the client selection
-	await page.getByRole('button', { name: 'Add client' }).click();
-	await page.getByRole('row', { name: oidcClients.nextcloud.name }).click();
+	await page.getByRole('tab', { name: 'Clients' }).click();
+	await page.getByRole('button', { name: 'Add client…' }).click();
+	await page.getByRole('dialog').getByRole('button', { name: oidcClients.nextcloud.name }).click();
 
 	await page
 		.getByRole('checkbox', {
-			name: `User-delegated access: ${apis.orders.permissions.readOrders.name}`
+			name: `On behalf of people: ${apis.orders.permissions.readOrders.name}`
 		})
 		.click();
 	await page
 		.getByRole('checkbox', {
-			name: `Client access (M2M): ${apis.orders.permissions.writeOrders.name}`
+			name: `As itself: ${apis.orders.permissions.writeOrders.name}`
 		})
 		.click();
 	await page.getByRole('dialog').getByRole('button', { name: 'Save' }).click();
 
-	await expect(page.locator('[data-type="success"]')).toHaveText('API access updated successfully');
-	// The client selection dialog carries a row with the same name, so this waits until it is gone
+	await expect(page.locator('[data-type="success"]')).toHaveText('API access updated');
 	await expect(page.getByRole('dialog')).toHaveCount(0);
-	const row = page.getByRole('row', { name: oidcClients.nextcloud.name });
-	await expect(row).toContainText('1 / 2');
+	const row = page.getByRole('listitem').filter({ hasText: oidcClients.nextcloud.name });
+	await expect(row).toContainText('On behalf of people: 1 of 2');
 
 	// Clients that already have access are filtered out of the selection, the others stay
-	await page.getByRole('button', { name: 'Add client' }).click();
+	await page.getByRole('button', { name: 'Add client…' }).click();
 	const picker = page.getByRole('dialog');
-	await expect(picker.getByRole('row', { name: oidcClients.tailscale.name })).toBeVisible();
-	await expect(picker.getByRole('row', { name: oidcClients.nextcloud.name })).toHaveCount(0);
-	await expect(picker.getByRole('row', { name: oidcClients.immich.name })).toHaveCount(0);
+	await expect(picker.getByRole('button', { name: oidcClients.tailscale.name })).toBeVisible();
+	await expect(picker.getByRole('button', { name: oidcClients.nextcloud.name })).toHaveCount(0);
+	await expect(picker.getByRole('button', { name: oidcClients.immich.name })).toHaveCount(0);
 	await page.keyboard.press('Escape');
 
 	// The same grant shows up on the client's side of the relation
+	// A granted API keeps the Access tab's Advanced section open
 	await page.goto(`/settings/admin/oidc-clients/${oidcClients.nextcloud.id}`);
 	await page.getByRole('tab', { name: 'Access', exact: true }).click();
-	await expect(page.getByRole('row', { name: apis.orders.name })).toContainText('1 / 2');
+	await expect(page.getByRole('listitem').filter({ hasText: apis.orders.name })).toContainText(
+		'On behalf of people: 1 of 2'
+	);
 });
 
 test('Grant a client access to an API without any permission', async ({ page, baseURL }) => {
@@ -201,15 +209,16 @@ test('Grant a client access to an API without any permission', async ({ page, ba
 	const api = apis.orders;
 
 	// The client is added with user-delegated access and no permission at all
-	await page.goto(`/settings/admin/apis/${api.id}`);
-	await page.getByRole('button', { name: 'Add client' }).click();
-	await page.getByRole('row', { name: client.name }).click();
-	await page.getByRole('dialog').getByRole('button', { name: 'Save' }).click();
+	await page.goto(`/settings/admin/apis/${api.id}#clients`);
+	await page.getByRole('button', { name: 'Add client…' }).click();
+	await page.getByRole('dialog').getByRole('button', { name: client.name }).click();
+	await page.getByRole('dialog').getByRole('button', { name: 'Save access' }).click();
 
-	await expect(page.locator('[data-type="success"]')).toHaveText('API access updated successfully');
-	// The client selection dialog carries a row with the same name, so this waits until it is gone
+	await expect(page.locator('[data-type="success"]')).toHaveText('API access updated');
 	await expect(page.getByRole('dialog')).toHaveCount(0);
-	await expect(page.getByRole('row', { name: client.name })).toContainText('0 / 2');
+	await expect(page.getByRole('listitem').filter({ hasText: client.name })).toContainText(
+		'On behalf of people: 0 of 2'
+	);
 
 	// A resource request without any scope now succeeds, which is what MCP clients send
 	const params = new URLSearchParams({
@@ -225,7 +234,7 @@ test('Grant a client access to an API without any permission', async ({ page, ba
 		new URL(client.callbackUrl).pathname,
 		async () => {
 			await page.goto(`/authorize?${params.toString()}`);
-			await page.getByRole('button', { name: 'Sign in' }).click();
+			await page.getByRole('button', { name: /^Continue to / }).click();
 		}
 	);
 	const code = callbackUrl.searchParams.get('code');
@@ -249,33 +258,35 @@ test('Grant a client access to an API without any permission', async ({ page, ba
 
 test('Revoke a client from the API details page', async ({ page }) => {
 	// Immich is seeded with grants on the Orders API
-	await page.goto(`/settings/admin/apis/${apis.orders.id}`);
+	await page.goto(`/settings/admin/apis/${apis.orders.id}#clients`);
 
-	const row = page.getByRole('row', { name: oidcClients.immich.name });
+	const row = page.getByRole('listitem').filter({ hasText: oidcClients.immich.name });
 	await expect(row).toBeVisible();
-	await row.getByRole('button', { name: 'Revoke' }).click();
-	await page.getByRole('button', { name: 'Revoke' }).last().click();
+	await row.getByRole('button', { name: `Actions for ${oidcClients.immich.name}` }).click();
+	await page.getByRole('menuitem', { name: 'Remove access' }).click();
+	await page.getByRole('alertdialog').getByRole('button', { name: 'Remove access' }).click();
 
-	await expect(page.locator('[data-type="success"]')).toHaveText('API access updated successfully');
-	await expect(page.getByRole('row', { name: oidcClients.immich.name })).not.toBeVisible();
+	await expect(page.locator('[data-type="success"]')).toHaveText('API access updated');
+	await expect(row).not.toBeVisible();
 });
 
 test('Allow all metadata document clients for an API', async ({ page }) => {
+	await setAppConfigValues(page.request, { enabledFeatures: '["cimd"]' });
 	await page.goto(`/settings/admin/apis/${apis.orders.id}`);
 
-	await page.getByRole('tab', { name: 'Metadata document clients' }).click();
+	await page.getByRole('tab', { name: 'Metadata documents' }).click();
 	await page.getByLabel('Allow all metadata document clients').click();
-	await page.getByLabel(apis.orders.permissions.readOrders.name, { exact: true }).click();
+	await page.getByRole('checkbox', { name: apis.orders.permissions.readOrders.name }).click();
 	await saveUnsavedChanges(page);
 
 	await page.reload();
-	await page.getByRole('tab', { name: 'Metadata document clients' }).click();
+	await page.getByRole('tab', { name: 'Metadata documents' }).click();
 	await expect(page.getByLabel('Allow all metadata document clients')).toBeChecked();
 	await expect(
-		page.getByLabel(apis.orders.permissions.readOrders.name, { exact: true })
+		page.getByRole('checkbox', { name: apis.orders.permissions.readOrders.name })
 	).toBeChecked();
 	await expect(
-		page.getByLabel(apis.orders.permissions.writeOrders.name, { exact: true })
+		page.getByRole('checkbox', { name: apis.orders.permissions.writeOrders.name })
 	).not.toBeChecked();
 });
 
@@ -305,7 +316,7 @@ test('Authorization with a resource parameter issues a token audienced to that A
 		new URL(client.callbackUrl).pathname,
 		async () => {
 			await page.goto(`/authorize?${params.toString()}`);
-			await page.getByRole('button', { name: 'Sign in' }).click();
+			await page.getByRole('button', { name: /^Continue to / }).click();
 		}
 	);
 	const code = callbackUrl.searchParams.get('code');

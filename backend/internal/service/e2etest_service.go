@@ -28,6 +28,7 @@ import (
 	"gorm.io/gorm"
 
 	"github.com/pocket-id/pocket-id/backend/internal/api"
+	"github.com/pocket-id/pocket-id/backend/internal/claimmappingpolicy"
 	"github.com/pocket-id/pocket-id/backend/internal/common"
 	"github.com/pocket-id/pocket-id/backend/internal/dto"
 	"github.com/pocket-id/pocket-id/backend/internal/emailverification"
@@ -191,6 +192,11 @@ func (s *TestService) SeedDatabase(baseURL string) error {
 			if err := tx.Create(&group).Error; err != nil {
 				return err
 			}
+		}
+
+		// The built-in claim mapping policy is seeded at boot, so it has to be recreated after the database reset
+		if err := claimmappingpolicy.Bootstrap(context.Background(), tx); err != nil {
+			return err
 		}
 
 		oidcClients := []model.OidcClient{

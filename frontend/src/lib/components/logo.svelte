@@ -37,6 +37,7 @@
 	import { cachedApplicationLogo } from '#lib/utils/cached-image-util.ts';
 	import { cn } from '#lib/utils/style.ts';
 	import { mode } from 'mode-watcher';
+	import { prefersReducedMotion } from 'svelte/motion';
 
 	let {
 		class: className,
@@ -82,7 +83,13 @@
 	}
 
 	function claimDefaultLogoAnimation() {
-		if (!animate || defaultOnly || defaultLogoHasAnimated || $appConfigStore?.disableAnimations) {
+		if (
+			!animate ||
+			defaultOnly ||
+			defaultLogoHasAnimated ||
+			$appConfigStore?.disableAnimations ||
+			prefersReducedMotion.current
+		) {
 			return false;
 		}
 
@@ -93,7 +100,11 @@
 
 {#if useDefaultLogo}
 	<svg
-		class={cn('aspect-square', isLightMode ? 'text-black' : 'text-white', className)}
+		class={cn(
+			'aspect-square',
+			colorScheme ? (isLightMode ? 'text-black' : 'text-white') : 'text-fg',
+			className
+		)}
 		viewBox="-346.211 -706.48 712.96 712.96"
 		role="img"
 		aria-label={logoAlt}

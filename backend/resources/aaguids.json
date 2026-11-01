@@ -322,6 +322,10 @@
   "42df17de-06ba-4177-a2bb-6701be1380d6": {
     "name": "Feitian BioPass FIDO2 Plus Authenticator"
   },
+  "441f5bad-a8ec-4572-8094-ee73a1c7cec7": {
+    "name": "Fobb Security",
+    "icon_light": "85c02e6421fc4ac4.svg"
+  },
   "454e5346-4944-4ffd-6c93-8e9267193e9a": {
     "name": "Ensurity ThinC"
   },
@@ -560,6 +564,10 @@
   "6d4aa745-dad5-40c4-b9b4-6a252fcee70f": {
     "name": "GoTrust Cyber Key"
   },
+  "6d6f6e69-6361-4d33-a001-706173736b79": {
+    "name": "Monica Pass",
+    "icon_light": "20185a082e96558d.svg"
+  },
   "6dae43be-af9c-417b-8b9f-1b611168ec60": {
     "name": "Dapple Authenticator from Dapple Security Inc."
   },
@@ -640,6 +648,10 @@
   "7b96457d-e3cd-432b-9ceb-c9fdd7ef7432": {
     "name": "YubiKey 5 FIPS Series with Lightning",
     "icon_light": "7db3534fd5258565.svg"
+  },
+  "7c30bcef-f035-4e21-9175-5c985b4b239c": {
+    "name": "TeamPass",
+    "icon_light": "e9b7aa844e60122b.svg"
   },
   "7d1351a6-e097-4852-b8bf-c9ac5c9ce4a3": {
     "name": "YubiKey Bio Series - Multi-protocol Edition"
@@ -1034,6 +1046,10 @@
   "c4ddaf11-3032-4e77-b3b9-3a340369b9ad": {
     "name": "HID Crescendo Fusion"
   },
+  "c4ed941c-86d3-4532-a6a9-bc42b80d5c38": {
+    "name": "Authn8",
+    "icon_light": "a4b53dccecab0d50.svg"
+  },
   "c5703116-972b-4851-a3e7-ae1259843399": {
     "name": "NEOWAVE Badgeo FIDO2"
   },
@@ -1197,6 +1213,9 @@
   "e41b42a3-60ac-4afb-8757-a98f2d7f6c9f": {
     "name": "Deepnet SafeKey/Classic (FP)"
   },
+  "e50e32f3-02ec-4afb-bdac-7205d12629df": {
+    "name": "IDEMIA FIDO Card"
+  },
   "e77e3c64-05e3-428b-8824-0cbeb04b829d": {
     "name": "Security Key NFC by Yubico"
   },
@@ -1248,6 +1267,10 @@
   },
   "efb96b10-a9ee-4b6c-a4a9-d32125ccd4a4": {
     "name": "Safenet eToken FIDO"
+  },
+  "f1d0badc-0def-4f1d-8bad-c0def1d0badc": {
+    "name": "fidont",
+    "icon_light": "9f26ecfcf324a378.svg"
   },
   "f2145e86-211e-4931-b874-e22bba7d01cc": {
     "name": "ID-One Key"

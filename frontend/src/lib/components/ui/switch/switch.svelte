@@ -6,26 +6,23 @@
 		ref = $bindable(null),
 		class: className,
 		checked = $bindable(false),
-		size = 'default',
 		...restProps
-	}: WithoutChildrenOrChild<SwitchPrimitive.RootProps> & {
-		size?: 'sm' | 'default';
-	} = $props();
+	}: WithoutChildrenOrChild<SwitchPrimitive.RootProps> = $props();
 </script>
 
+<!-- The on-track and on-thumb colors are layers that crossfade, so only opacity and transform animate -->
 <SwitchPrimitive.Root
 	bind:ref
 	bind:checked
 	data-slot="switch"
-	data-size={size}
 	class={cn(
-		'data-checked:bg-primary data-unchecked:bg-input/90 data-checked:border-primary focus-visible:border-ring focus-visible:ring-ring/30 aria-invalid:ring-destructive/20 dark:aria-invalid:ring-destructive/40 aria-invalid:border-destructive dark:aria-invalid:border-destructive/50 peer group/switch relative inline-flex shrink-0 items-center rounded-full border-2 transition-all outline-none after:absolute after:-inset-x-3 after:-inset-y-2 focus-visible:ring-3 aria-invalid:ring-3 data-disabled:cursor-not-allowed data-disabled:opacity-50 data-unchecked:border-transparent data-[size=default]:h-5 data-[size=default]:w-11 data-[size=sm]:h-4 data-[size=sm]:w-7',
+		'peer group/switch bg-fill-selected before:bg-primary-control focus-visible:outline-ring relative isolate inline-flex h-6 w-10 shrink-0 items-center rounded-full shadow-[inset_0_0_0_1px_var(--border-control)] before:absolute before:inset-0 before:rounded-full before:opacity-0 before:transition-opacity before:duration-(--dur-base) before:ease-in-out after:absolute after:-inset-x-3 after:-inset-y-2 hover:shadow-[inset_0_0_0_1px_var(--fg-muted)] focus-visible:outline-2 focus-visible:outline-offset-2 disabled:cursor-not-allowed disabled:opacity-45 aria-invalid:shadow-[inset_0_0_0_1px_var(--danger-solid)] data-checked:before:opacity-100 data-checked:hover:shadow-[inset_0_0_0_1px_var(--primary-control)]',
 		className
 	)}
 	{...restProps}
 >
 	<SwitchPrimitive.Thumb
 		data-slot="switch-thumb"
-		class="bg-background dark:data-unchecked:bg-foreground dark:data-checked:bg-primary-foreground pointer-events-none block rounded-full shadow-sm ring-0 transition-transform not-dark:bg-clip-padding group-data-[size=default]/switch:h-4 group-data-[size=default]/switch:w-6 group-data-[size=sm]/switch:h-3 group-data-[size=sm]/switch:w-4 data-checked:translate-x-[calc(100%-8px)] data-unchecked:translate-x-0 rtl:data-[state=checked]:translate-x-[calc(-100%)]"
+		class="bg-fg-muted shadow-thumb before:bg-primary-control-foreground pointer-events-none relative ms-0.5 block size-5 rounded-full transition-transform duration-(--dur-base) ease-in-out before:absolute before:inset-0 before:rounded-full before:opacity-0 before:transition-opacity before:duration-(--dur-base) before:ease-in-out data-checked:translate-x-4 data-checked:before:opacity-100 rtl:data-checked:-translate-x-4"
 	/>
 </SwitchPrimitive.Root>

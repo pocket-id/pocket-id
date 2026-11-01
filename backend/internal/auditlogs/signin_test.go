@@ -228,3 +228,37 @@ func TestSignInNotificationModes(t *testing.T) {
 		}
 	}
 }
+
+func TestSignInFlagsNewBrowser(t *testing.T) {
+	const firefoxOld = "Mozilla/5.0 (Macintosh; Intel Mac OS X 14.5; rv:130.0) Gecko/20100101 Firefox/130.0"
+	const firefoxNew = "Mozilla/5.0 (Macintosh; Intel Mac OS X 15.1; rv:144.0) Gecko/20100101 Firefox/144.0"
+	const chrome = "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/141.0.0.0 Safari/537.36"
+
+	for _, tt := range []struct {
+		name     string
+		previous []AuditLog
+		agent    string
+		want     bool
+	}{
+		{name: "first sign-in of the account", agent: chrome},
+		{name: "updated version of a known browser", previous: []AuditLog{{Event: EventSignIn, UserAgent: firefoxOld}}, agent: firefoxNew},
+		{name: "another browser", previous: []AuditLog{{Event: EventSignIn, UserAgent: firefoxOld}}, agent: chrome, want: true},
+		{name: "login code history counts", previous: []AuditLog{{Event: EventOneTimeAccessTokenSignIn, UserAgent: chrome}}, agent: chrome},
+		{name: "events that are not sign-ins don't count", previous: []AuditLog{{Event: EventPasskeyAdded, UserAgent: firefoxOld}}, agent: chrome},
+	} {
+		t.Run(tt.name, func(t *testing.T) {
+			db := testutils.NewDatabaseForTest(t)
+			s := newService(db, nil, signInLocationResolver{}, nil, browserTokenStub{})
+			user := model.User{Base: model.Base{ID: "user"}, Username: "user"}
+			require.NoError(t, db.Create(&user).Error)
+			for _, entry := range tt.previous {
+				_, created := s.Create(t.Context(), entry.Event, "192.0.2.1", entry.UserAgent, user.ID, Data{}, db)
+				require.True(t, created)
+			}
+
+			result := s.CreateSignIn(t.Context(), EventSignIn, "192.0.2.1", tt.agent, user.ID, "", db, appconfig.LoginNotificationDisabled)
+			require.True(t, result.Created)
+			require.Equal(t, tt.want, result.AuditLog.Data["newBrowser"] == "true")
+		})
+	}
+}

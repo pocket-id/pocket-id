@@ -19,8 +19,9 @@
 	} = $props();
 
 	let name = $state('');
+	let input = $state<HTMLInputElement | null>(null);
 
-	$effect(() => {
+	$effect.pre(() => {
 		if (passkey) name = passkey.name;
 	});
 
@@ -34,7 +35,7 @@
 
 	async function onSubmit() {
 		await webauthnService
-			.updateCredentialName(passkey!.id, name)
+			.updateCredentialName(passkey!.id, name.trim())
 			.then(() => {
 				passkey = null;
 				toast.success(m.passkey_name_updated_successfully());
@@ -45,18 +46,25 @@
 </script>
 
 <Dialog.Root open={!!passkey} {onOpenChange}>
-	<Dialog.Content class="max-w-md">
+	<Dialog.Content
+		class="max-w-(--dialog-sm)"
+		onOpenAutoFocus={(e) => {
+			e.preventDefault();
+			input?.focus();
+			input?.select();
+		}}
+	>
 		<Dialog.Header>
 			<Dialog.Title>{m.name_passkey()}</Dialog.Title>
 			<Dialog.Description>{m.name_your_passkey_to_easily_identify_it_later()}</Dialog.Description>
 		</Dialog.Header>
 		<form onsubmit={preventDefault(onSubmit)}>
-			<div class="grid items-center gap-4 sm:grid-cols-4">
-				<Field.Label for="name" class="sm:text-right">{m.name()}</Field.Label>
-				<Input id="name" bind:value={name} class="col-span-3" />
-			</div>
+			<Field.Field>
+				<Field.Label for="name">{m.name()}</Field.Label>
+				<Input id="name" bind:ref={input} bind:value={name} maxlength={50} />
+			</Field.Field>
 			<Dialog.Footer class="mt-4">
-				<Button type="submit">{m.save()}</Button>
+				<Button type="submit" disabled={!name.trim()}>{m.save()}</Button>
 			</Dialog.Footer>
 		</form>
 	</Dialog.Content>

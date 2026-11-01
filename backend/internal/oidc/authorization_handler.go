@@ -43,6 +43,7 @@ func (h *authorizationHandler) authorize(c *gin.Context) {
 	// parameters are restored from the stored session so they never travel through the
 	// front channel.
 	interactionID := c.Query("interaction")
+	cancelled := c.Query("cancel") == "true"
 	if interactionID != "" {
 		query, err := h.authorizationService.interactionRequestQuery(ctx, interactionID)
 		if err != nil {
@@ -67,6 +68,18 @@ func (h *authorizationHandler) authorize(c *gin.Context) {
 	if err != nil {
 		slog.ErrorContext(ctx, "Failed to create authorize request", "error", err.Error())
 		h.writeAuthorizeError(ctx, c, ar, err)
+		return
+	}
+
+	// Cancel on the interaction page ends the request with access_denied at the app, so the person is not stranded on Pocket ID
+	// It is a plain navigation like the resume link, because the page's form-action CSP would block a form post from redirecting to the app
+	if interactionID != "" && cancelled {
+		err = h.authorizationService.interactionSessionService.delete(ctx, interactionID)
+		if err != nil {
+			slog.WarnContext(ctx, "Failed to delete cancelled interaction session", "error", err.Error())
+		}
+		h.relaxCSPForFormPost(c, ar)
+		h.provider.WriteAuthorizeError(ctx, c.Writer, ar, fosite.ErrAccessDenied.WithHint("The user cancelled the request."))
 		return
 	}
 

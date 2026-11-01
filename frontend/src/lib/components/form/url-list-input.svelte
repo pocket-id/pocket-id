@@ -2,6 +2,7 @@
 	import { Button } from '#lib/components/ui/button/index.ts';
 	import { Input } from '#lib/components/ui/input/index.ts';
 	import { m } from '#lib/paraglide/messages.js';
+	import { cn } from '#lib/utils/style.ts';
 	import { LucidePlus, LucideX } from '@lucide/svelte';
 
 	let {
@@ -10,7 +11,8 @@
 		testIdPrefix = 'url',
 		disabled = false,
 		keepAtLeastOne = false,
-		addLabel
+		addLabel,
+		labelId
 	}: {
 		urls: string[];
 		error?: string | null;
@@ -19,6 +21,7 @@
 		keepAtLeastOne?: boolean;
 		// Names what the button adds, instead of the generic "Add" and "Add another"
 		addLabel?: string;
+		labelId?: string;
 	} = $props();
 
 	function removeUrl(index: number) {
@@ -39,6 +42,7 @@
 					class="font-mono text-[13px] md:text-[13px]"
 					aria-invalid={!!error}
 					data-testid={`${testIdPrefix}-${i + 1}`}
+					aria-labelledby={labelId}
 					type="text"
 					inputmode="url"
 					autocomplete="url"
@@ -48,7 +52,10 @@
 				<Button
 					variant="ghost"
 					size="icon"
-					class="text-muted-foreground size-9"
+					class={cn(
+						'text-muted-foreground size-9',
+						keepAtLeastOne && urls.length === 1 && !url && 'invisible'
+					)}
 					aria-label={m.remove_url({ identifier: url || i + 1 })}
 					onclick={() => removeUrl(i)}
 					{disabled}

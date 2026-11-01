@@ -1,24 +1,22 @@
-import {
-	extractLocaleFromCookie,
-	setLocale as setParaglideLocale,
-	type Locale
-} from '#lib/paraglide/runtime.js';
+import { getLocale, setLocale as setParaglideLocale, type Locale } from '#lib/paraglide/runtime.js';
 import { setDefaultOptions } from 'date-fns';
 import { z } from 'zod/v4';
+import { validationErrorMap } from './validation-error-util';
 
 export async function setLocale(locale: Locale, reload = true) {
 	await setLocaleForLibraries(locale);
 	setParaglideLocale(locale, { reload });
-	document.documentElement.lang = locale;
 }
 
-export async function setLocaleForLibraries(
-	locale: Locale = (extractLocaleFromCookie() as Locale) || 'en'
-) {
+export async function setLocaleForLibraries(locale: Locale = getLocale()) {
+	document.documentElement.lang = locale;
+
 	let dateFnsLocale: string = locale;
 	if (dateFnsLocale === 'en') {
 		dateFnsLocale = 'en-US'; // datefns doesn't have 'en'
 	}
+
+	z.config({ customError: validationErrorMap });
 
 	const [zodResult, dateFnsResult] = await Promise.allSettled([
 		import(`../../../node_modules/zod/v4/locales/${locale}.js`),

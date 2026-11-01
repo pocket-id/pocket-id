@@ -21,6 +21,7 @@ import (
 
 	"github.com/pocket-id/pocket-id/backend/internal/apperror"
 	"github.com/pocket-id/pocket-id/backend/internal/backchannellogout"
+	"github.com/pocket-id/pocket-id/backend/internal/claimmappingpolicy"
 	"github.com/pocket-id/pocket-id/backend/internal/dto"
 	"github.com/pocket-id/pocket-id/backend/internal/model"
 	datatype "github.com/pocket-id/pocket-id/backend/internal/model/types"
@@ -165,6 +166,11 @@ func (s *OidcService) CreateClient(ctx context.Context, input dto.OidcClientCrea
 		return model.OidcClient{}, "", err
 	}
 
+	err = checkClaimMappingPolicyExists(ctx, s.db, input.ClaimMappingPolicyId)
+	if err != nil {
+		return model.OidcClient{}, "", err
+	}
+
 	// Generate the initial credential before saving so a failed generation cannot leave a client without its expected secret
 	var createdSecret string
 	if autoCreateSecret && !client.IsPublic {
@@ -222,6 +228,11 @@ func (s *OidcService) UpdateClient(ctx context.Context, clientID string, input d
 		return model.OidcClient{}, err
 	}
 
+	err = checkClaimMappingPolicyExists(ctx, tx, input.ClaimMappingPolicyId)
+	if err != nil {
+		return model.OidcClient{}, err
+	}
+
 	if !input.IsGroupRestricted {
 		// Clear allowed user groups if the restriction is removed
 		err = tx.Model(&client).Association("AllowedUserGroups").Clear()
@@ -243,6 +254,7 @@ func (s *OidcService) UpdateClient(ctx context.Context, clientID string, input d
 				"IsGroupRestricted",
 				"AccessTokenDurationMinutes",
 				"RefreshTokenDurationMinutes",
+				"ClaimMappingPolicyId",
 			).
 			Updates(&client).Error
 	} else {
@@ -280,6 +292,23 @@ func (s *OidcService) UpdateClient(ctx context.Context, clientID string, input d
 	return client, nil
 }
 
+// checkClaimMappingPolicyExists reports an unknown policy as not found, instead of letting the insert fail on the foreign key
+func checkClaimMappingPolicyExists(ctx context.Context, db *gorm.DB, policyID string) error {
+	if policyID == "" {
+		return nil
+	}
+
+	var count int64
+	err := db.WithContext(ctx).Model(&claimmappingpolicy.OidcClaimMappingPolicy{}).Where("id = ?", policyID).Count(&count).Error
+	if err != nil {
+		return err
+	}
+	if count == 0 {
+		return apperror.NotFound("Claim mapping policy")
+	}
+	return nil
+}
+
 func updateOIDCClientModelFromDto(client *model.OidcClient, input *dto.OidcClientUpdateDto) error {
 	// Update fields that remain locally managed for every client type
 	client.Description = input.Description
@@ -288,6 +317,13 @@ func updateOIDCClientModelFromDto(client *model.OidcClient, input *dto.OidcClien
 	client.SkipConsent = input.SkipConsent
 	client.LaunchURL = input.LaunchURL
 	client.IsGroupRestricted = input.IsGroupRestricted
+
+	// An empty policy id leaves the column NULL, so the client falls back to the default claim mapping policy
+	if input.ClaimMappingPolicyId == "" {
+		client.ClaimMappingPolicyId = nil
+	} else {
+		client.ClaimMappingPolicyId = new(input.ClaimMappingPolicyId)
+	}
 
 	// Token lifetimes are optional, so a zero value falls back to the default
 	client.AccessTokenDurationMinutes = cmp.Or(input.AccessTokenDurationMinutes, model.DefaultAccessTokenDurationMinutes)

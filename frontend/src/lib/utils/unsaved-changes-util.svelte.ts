@@ -9,15 +9,15 @@ import { fromStore, type Readable } from 'svelte/store';
  * The section is unregistered when the calling component is destroyed.
  */
 export function trackUnsavedSection(
-	dirty: () => boolean,
+	changes: () => number,
 	save: () => Promise<void>,
 	discard: () => void,
 	options: { validate?: () => boolean } = {}
 ) {
-	const isDirty = $derived.by(dirty);
+	const changeCount = $derived.by(changes);
 	const section: UnsavedSection = {
-		get dirty() {
-			return isDirty;
+		get changes() {
+			return changeCount;
 		},
 		validate: options.validate,
 		save,
@@ -32,7 +32,7 @@ export function trackUnsavedSection(
 
 interface TrackedForm<T> {
 	inputs: Readable<unknown>;
-	isDirty: () => boolean;
+	changedCount: () => number;
 	validate: () => T | null;
 	commit: (data: T) => void;
 	reset: () => void;
@@ -48,29 +48,28 @@ export function trackFormChanges<T>(
 	extra: { dirty?: () => boolean; discard?: () => void; enabled?: () => boolean } = {}
 ) {
 	const inputs = $derived(fromStore(getForm().inputs));
-	const isDirty = $derived.by(() => {
-		// The inputs are deeply reactive, so edits are tracked through the reads in `isDirty()`.
-		// Reading the store on top of that picks up `commit()`, which moves the baseline the
-		// inputs are compared against without touching the inputs themselves.
+	const changes = $derived.by(() => {
+		// The inputs are deeply reactive, so edits are tracked through the reads in `changedCount()`
+		// Reading the store on top of that picks up `commit()`, which moves the baseline the inputs are compared against without touching the inputs themselves
 		void inputs.current;
-		if (extra.enabled && !extra.enabled()) return false;
-		return getForm().isDirty() || (extra.dirty?.() ?? false);
+		if (extra.enabled && !extra.enabled()) return 0;
+		return getForm().changedCount() + (extra.dirty?.() ? 1 : 0);
 	});
 
 	// Validation errors are only meaningful while there is something to save: a field that is
 	// edited back to its saved value would otherwise keep showing the error of a failed save.
 	$effect(() => {
-		if (!isDirty) untrack(() => getForm().clearErrors());
+		if (changes === 0) untrack(() => getForm().clearErrors());
 	});
 
 	trackUnsavedSection(
-		() => isDirty,
+		() => changes,
 		async () => {
 			const form = getForm();
 			const data = form.validate();
 			// The bar validates every section before saving, so this only happens if the inputs
 			// changed in between.
-			if (!data) throw new Error(m.please_fix_the_errors_before_saving());
+			if (!data) throw new Error(m.could_not_save_check_the_highlighted_fields());
 			await onSave(data);
 			form.commit(data);
 		},
@@ -100,7 +99,16 @@ export function trackUnsavedValue<T>(
 	};
 
 	trackUnsavedSection(
-		() => !deepEqual(read(), saved),
+		() => {
+			const value = read();
+			// An object of settings counts one change per setting that differs
+			if (typeof value === 'object' && value !== null && !Array.isArray(value)) {
+				const savedSettings = saved as Record<string, unknown>;
+				return Object.entries(value).filter(([key, item]) => !deepEqual(item, savedSettings[key]))
+					.length;
+			}
+			return deepEqual(value, saved) ? 0 : 1;
+		},
 		async () => {
 			await save(deepCopy(read()));
 			markSaved();

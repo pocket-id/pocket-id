@@ -3,7 +3,7 @@ import { emailVerificationTokens, users } from '../data';
 import authUtil from '../utils/auth.util';
 import { cleanupBackend } from '../utils/cleanup.util';
 import passkeyUtil from '../utils/passkey.util';
-import { saveUnsavedChanges } from '../utils/unsaved-changes.util';
+import { saveUnsavedChanges, unsavedChangesBar } from '../utils/unsaved-changes.util';
 
 test.beforeEach(async () => await cleanupBackend());
 
@@ -41,7 +41,9 @@ test('Failed account update remains dirty and can be retried', async ({ page }) 
 	await displayName.fill('Retryable Account');
 	await page.getByRole('button', { name: 'Save', exact: true }).click();
 
-	await expect(page.getByText('Temporary account update failure', { exact: true })).toBeVisible();
+	await expect(
+		unsavedChangesBar(page).getByText('Temporary account update failure', { exact: true })
+	).toBeVisible();
 	await expect(page.getByRole('button', { name: 'Save', exact: true })).toBeVisible();
 	expect(failedUpdates).toBe(1);
 
@@ -57,7 +59,9 @@ test('Update account details fails with already taken email', async ({ page }) =
 
 	await page.getByRole('button', { name: 'Save', exact: true }).click();
 
-	await expect(page.getByText('Email is already in use', { exact: true })).toBeVisible();
+	await expect(
+		unsavedChangesBar(page).getByText('Email is already in use', { exact: true })
+	).toBeVisible();
 });
 
 test('Update account details fails with already taken username', async ({ page }) => {
@@ -67,7 +71,9 @@ test('Update account details fails with already taken username', async ({ page }
 
 	await page.getByRole('button', { name: 'Save', exact: true }).click();
 
-	await expect(page.getByText('Username is already in use', { exact: true })).toBeVisible();
+	await expect(
+		unsavedChangesBar(page).getByText('Username is already in use', { exact: true })
+	).toBeVisible();
 });
 
 test('Update account details fails with already taken username in different casing', async ({
@@ -79,22 +85,25 @@ test('Update account details fails with already taken username in different casi
 
 	await page.getByRole('button', { name: 'Save', exact: true }).click();
 
-	await expect(page.getByText('Username is already in use', { exact: true })).toBeVisible();
+	await expect(
+		unsavedChangesBar(page).getByText('Username is already in use', { exact: true })
+	).toBeVisible();
 });
 
 test('Change Locale', async ({ page }) => {
 	await page.goto('/settings/account');
 
-	await page.getByLabel('Select Locale').click();
+	await page.getByLabel('Language').click();
 	await page.getByRole('option', { name: 'Nederlands' }).click();
 
 	// Check if th language heading now says 'Taal' instead of 'Language'
 	await expect(page.getByText('Taal', { exact: true })).toBeVisible();
 
-	// Check if the validation messages are translated because they are provided by Zod
-	await page.getByRole('textbox', { name: 'Gebruikersnaam' }).fill('');
+	// Saving still validates in the new language
+	const username = page.getByRole('textbox', { name: 'Gebruikersnaam' });
+	await username.fill('');
 	await page.getByRole('button', { name: 'Opslaan' }).click();
-	await expect(page.getByText('Te kort: verwacht dat string >=1 tekens heeft')).toBeVisible();
+	await expect(username).toHaveAttribute('aria-invalid', 'true');
 
 	// Clear all cookies and sign in again to check if the language is still set to Dutch
 	await page.context().clearCookies();
@@ -102,9 +111,9 @@ test('Change Locale', async ({ page }) => {
 
 	await expect(page.getByText('Taal', { exact: true })).toBeVisible();
 
-	await page.getByRole('textbox', { name: 'Gebruikersnaam' }).fill('');
+	await username.fill('');
 	await page.getByRole('button', { name: 'Opslaan' }).click();
-	await expect(page.getByText('Te kort: verwacht dat string >=1 tekens heeft')).toBeVisible();
+	await expect(username).toHaveAttribute('aria-invalid', 'true');
 });
 
 test('Add passkey to an account', async ({ page }) => {
@@ -117,24 +126,32 @@ test('Add passkey to an account', async ({ page }) => {
 	await page.getByLabel('Name', { exact: true }).fill('Test Passkey');
 	await page.getByLabel('Name Passkey').getByRole('button', { name: 'Save' }).click();
 
-	await expect(page.getByText('Test Passkey')).toBeVisible();
+	await expect(page.getByText('Test Passkey', { exact: true })).toBeVisible();
 });
 
 test('Rename passkey', async ({ page }) => {
 	await page.goto('/settings/account');
 
-	await page.getByLabel('Rename').first().click();
+	await page
+		.getByRole('button', { name: /^Actions for / })
+		.first()
+		.click();
+	await page.getByRole('menuitem', { name: 'Rename' }).click();
 
 	await page.getByLabel('Name', { exact: true }).fill('Renamed Passkey');
 	await page.getByLabel('Name Passkey').getByRole('button', { name: 'Save' }).click();
 
-	await expect(page.getByText('Renamed Passkey')).toBeVisible();
+	await expect(page.getByText('Renamed Passkey', { exact: true })).toBeVisible();
 });
 
 test('Delete passkey from account', async ({ page }) => {
 	await page.goto('/settings/account');
 
-	await page.getByLabel('Delete').first().click();
+	await page
+		.getByRole('button', { name: /^Actions for / })
+		.first()
+		.click();
+	await page.getByRole('menuitem', { name: 'Delete' }).click();
 	await page.getByLabel('Delete Passkey').getByRole('button', { name: 'Delete' }).click();
 
 	await expect(page.locator('[data-type="success"]')).toHaveText('Passkey deleted successfully');
@@ -147,10 +164,10 @@ test('Email verification succeeds', async ({ page, context }) => {
 	await page.goto(`/verify-email?token=${token}`);
 	await (await passkeyUtil.init(page)).addPasskey('craig');
 
-	await page.getByRole('button', { name: 'Authenticate' }).click();
+	await page.getByRole('button', { name: 'Sign in with passkey' }).click();
 	await page.waitForURL('/settings/account?emailVerificationState=success');
 
-	await expect(page.getByText('Email Verified Successfully')).toBeVisible();
+	await expect(page.getByText(`${users.craig.email} is verified`)).toBeVisible();
 });
 
 test('Email verification fails with expired token', async ({ page, context }) => {
@@ -160,7 +177,7 @@ test('Email verification fails with expired token', async ({ page, context }) =>
 	await page.goto(`/verify-email?token=${token}`);
 	await (await passkeyUtil.init(page)).addPasskey('craig');
 
-	await page.getByRole('button', { name: 'Authenticate' }).click();
+	await page.getByRole('button', { name: 'Sign in with passkey' }).click();
 	await page.waitForURL(
 		'/settings/account?emailVerificationState=Email+verification+token+is+invalid'
 	);

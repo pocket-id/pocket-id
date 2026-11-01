@@ -258,6 +258,14 @@ func (s *AppConfigService) loadDbConfigFromEnv() (*AppConfigModel, error) {
 		}
 	}
 
+	// TODO: Remove in next major version (v4)
+	// Preserve the old accent color setting unless an explicit color theme replaces it
+	if _, ok := os.LookupEnv("COLOR_THEME"); !ok {
+		if accent, exists := os.LookupEnv("ACCENT_COLOR"); exists {
+			dest.ColorTheme = legacyColorTheme(AppConfigValue(accent))
+		}
+	}
+
 	// Validate the resolved configuration before exposing values to the rest of the application
 	err := validateEnvConfig(dest)
 	if err != nil {

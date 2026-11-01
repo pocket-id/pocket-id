@@ -1,16 +1,18 @@
 package appconfig
 
-import "encoding/json"
+import "github.com/vmihailenco/msgpack/v5"
 
-// UnmarshalJSON preserves settings stored in actor state before boolean toggles were replaced by modes
-func (m *AppConfigModel) UnmarshalJSON(data []byte) error {
+// DecodeMsgpack preserves settings stored in actor state before boolean toggles were replaced by modes
+// Francis stores actor state as MessagePack keyed by Go field name, so the legacy keys are the old field names
+func (m *AppConfigModel) DecodeMsgpack(dec *msgpack.Decoder) error {
 	type config AppConfigModel
 	value := struct {
 		*config
-		LegacyNotificationEnabled      AppConfigValue `json:"emailLoginNotificationEnabled"`
-		LegacyEmailVerificationEnabled AppConfigValue `json:"emailVerificationEnabled"`
+		LegacyNotificationEnabled      AppConfigValue `msgpack:"EmailLoginNotificationEnabled"`
+		LegacyEmailVerificationEnabled AppConfigValue `msgpack:"EmailVerificationEnabled"`
+		LegacyAccentColor              AppConfigValue `msgpack:"AccentColor"`
 	}{config: (*config)(m)}
-	if err := json.Unmarshal(data, &value); err != nil {
+	if err := dec.Decode(&value); err != nil {
 		return err
 	}
 	if m.EmailLoginNotificationMode == "" && value.LegacyNotificationEnabled != "" {
@@ -18,6 +20,9 @@ func (m *AppConfigModel) UnmarshalJSON(data []byte) error {
 	}
 	if m.EmailVerification == "" && value.LegacyEmailVerificationEnabled != "" {
 		m.EmailVerification = legacyEmailVerification(value.LegacyEmailVerificationEnabled)
+	}
+	if m.ColorTheme == "" && value.LegacyAccentColor != "" {
+		m.ColorTheme = legacyColorTheme(value.LegacyAccentColor)
 	}
 	return nil
 }
@@ -34,4 +39,22 @@ func legacyEmailVerification(enabled AppConfigValue) AppConfigValue {
 		return EmailVerificationOptional
 	}
 	return EmailVerificationDisabled
+}
+
+// legacyColorTheme maps an accent color from before color themes to the theme built around it, or to a custom theme with that color
+func legacyColorTheme(accent AppConfigValue) AppConfigValue {
+	switch accent {
+	case "", "default":
+		return "mono"
+	case "oklch(0.6 0.2 240)":
+		return "mist"
+	case "oklch(0.65 0.2 150)":
+		return "sage"
+	case "oklch(0.6 0.15 180)":
+		return "midnight"
+	case "oklch(0.6 0.24 300)":
+		return "lavender"
+	default:
+		return "custom:" + accent
+	}
 }

@@ -6,7 +6,7 @@ async function authenticate(page: Page) {
 
 	await (await passkeyUtil.init(page)).addPasskey();
 
-	await page.getByRole('button', { name: 'Authenticate' }).click();
+	await page.getByRole('button', { name: 'Sign in with passkey' }).click();
 }
 
 async function changeUser(page: Page, username: keyof typeof passkeyUtil.passkeys) {
@@ -14,7 +14,7 @@ async function changeUser(page: Page, username: keyof typeof passkeyUtil.passkey
 	await page.goto('/login');
 
 	await (await passkeyUtil.init(page)).addPasskey(username);
-	await page.getByRole('button', { name: 'Authenticate' }).click();
+	await page.getByRole('button', { name: 'Sign in with passkey' }).click();
 	await page.waitForURL('/settings/**');
 }
 

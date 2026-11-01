@@ -1,28 +1,29 @@
 <script lang="ts">
 	import { openConfirmDialog } from '#lib/components/confirm-dialog/index.ts';
 	import ListPagination from '#lib/components/list-pagination.svelte';
+	import PageHeader from '#lib/components/page-header.svelte';
 	import { Button, buttonVariants } from '#lib/components/ui/button/index.ts';
 	import * as DropdownMenu from '#lib/components/ui/dropdown-menu/index.js';
-	import * as Empty from '#lib/components/ui/empty/index.ts';
 	import * as InputGroup from '#lib/components/ui/input-group/index.js';
-	import { Separator } from '#lib/components/ui/separator/index.ts';
 	import { m } from '#lib/paraglide/messages.js';
 	import OIDCService from '#lib/services/oidc-service.ts';
 	import appConfigStore from '#lib/stores/application-configuration-store.ts';
+	import userStore from '#lib/stores/user-store.ts';
 	import type { ListRequestOptions, Paginated } from '#lib/types/list-request.type.ts';
-	import type {
-		AccessibleOidcClient,
-		AuthorizedOidcClient,
-		OidcClientMetaData
-	} from '#lib/types/oidc.type.ts';
+	import type { AccessibleOidcClient, AuthorizedOidcClient } from '#lib/types/oidc.type.ts';
 	import { debounced } from '#lib/utils/debounce-util.ts';
 	import { axiosErrorToast } from '#lib/utils/error-util.ts';
 	import { cn } from '#lib/utils/style.ts';
-	import { ArrowUpDown, ChevronDown, LayoutDashboard, Search, SearchX } from '@lucide/svelte';
+	import {
+		LucideArrowDownUp,
+		LucideArrowUpRight,
+		LucideBan,
+		LucideChevronDown,
+		LucidePlus,
+		LucideSearch
+	} from '@lucide/svelte';
 	import { toast } from 'svelte-sonner';
-	import { prefersReducedMotion } from 'svelte/motion';
-	import { fade, slide } from 'svelte/transition';
-	import AuthorizedOidcClientCard from './authorized-oidc-client-card.svelte';
+	import AppTile from './app-tile.svelte';
 	import {
 		getMyAppsPreferences,
 		myAppsPageSizes,
@@ -40,10 +41,11 @@
 	let authorizedClientRequestOptions: ListRequestOptions = $state(
 		data.authorizedClientRequestOptions
 	);
-	let showAllApps = $state(false);
+	let showHiddenApps = $state(false);
 	let searchValue = $state('');
+	let searchInput = $state<HTMLInputElement | null>(null);
 	let sort: MyAppsSort = $state(getMyAppsPreferences().sort);
-	const hiddenAuthorizedClients = $derived(
+	const hiddenApps = $derived(
 		authorizedClientsWithoutLaunchURL.data.map(({ client, lastUsedAt }) => ({
 			...client,
 			lastUsedAt
@@ -51,15 +53,31 @@
 	);
 	const oidcService = new OIDCService();
 
-	const animationDuration = $derived(
-		$appConfigStore.disableAnimations || prefersReducedMotion.current ? 0 : 200
-	);
-
 	const sortLabels: Record<MyAppsSort, () => string> = {
 		recentlyUsed: m.recently_used,
 		nameAsc: m.name_a_to_z,
 		nameDesc: m.name_z_to_a
 	};
+
+	const launchableCount = $derived(clients.pagination.totalItems);
+	const hiddenCount = $derived(authorizedClientsWithoutLaunchURL.pagination.totalItems);
+
+	// A search opens the apps without a launch link too, so every match is visible
+	const hiddenAppsOpen = $derived(showHiddenApps || !!searchValue);
+
+	const countText = $derived.by(() => {
+		if (searchValue) {
+			const matches = launchableCount + hiddenCount;
+			return matches === 1
+				? m.app_matches_query({ query: searchValue })
+				: m.apps_match_query({ count: matches, query: searchValue });
+		}
+		const apps =
+			launchableCount === 1 ? m.apps_count_one() : m.apps_count({ count: launchableCount });
+		return hiddenCount
+			? `${apps} · ${m.apps_without_launch_link_count({ count: hiddenCount })}`
+			: apps;
+	});
 
 	// Only unfiltered results tell whether the user has any apps, so the toolbar never unmounts while a search is being typed or cleared
 	let hasAnyApps = $state(
@@ -77,12 +95,9 @@
 			hasAnyApps =
 				clients.pagination.totalItems + authorizedClientsWithoutLaunchURL.pagination.totalItems > 0;
 		}
-		if (authorizedClientsWithoutLaunchURL.pagination.totalItems === 0) {
-			showAllApps = false;
-		}
 	}
 
-	// Both grids share the search, sort and page size, so any change reloads both from their first page
+	// Both lists share the search, sort and page size, so any change reloads both from their first page
 	async function reloadFromFirstPage({
 		search = searchValue,
 		limit = getMyAppsPreferences().paginationLimit
@@ -95,7 +110,7 @@
 
 		try {
 			await refreshClients();
-			// The search is applied together with its results so the empty state never describes stale results
+			// The search is applied together with its results so the count line never describes stale results
 			searchValue = search;
 		} catch (e) {
 			axiosErrorToast(e);
@@ -103,6 +118,12 @@
 	}
 
 	const onSearch = debounced((search: string) => reloadFromFirstPage({ search }), 300);
+
+	async function clearSearch() {
+		if (searchInput) searchInput.value = '';
+		await reloadFromFirstPage({ search: '' });
+		searchInput?.focus();
+	}
 
 	async function onSortChange(value: string) {
 		sort = value as MyAppsSort;
@@ -120,7 +141,7 @@
 		clients = await oidcService.listOwnAccessibleClients(requestOptions);
 	}
 
-	async function onAuthorizedClientPageChange(page: number) {
+	async function onHiddenAppsPageChange(page: number) {
 		authorizedClientRequestOptions.pagination = {
 			limit: authorizedClientsWithoutLaunchURL.pagination.itemsPerPage,
 			page
@@ -130,9 +151,9 @@
 		);
 	}
 
-	async function revokeAuthorizedClient(client: OidcClientMetaData) {
+	function revokeAuthorizedClient(client: AccessibleOidcClient) {
 		openConfirmDialog({
-			title: m.revoke_access(),
+			title: m.revoke_app_access_title({ name: client.name, appName: $appConfigStore.appName }),
 			message: {
 				message: m.revoke_access_description,
 				inputs: { clientName: client.name }
@@ -140,15 +161,12 @@
 			confirm: {
 				label: m.revoke(),
 				destructive: true,
+				icon: LucideBan,
 				action: async () => {
 					try {
 						await oidcService.revokeOwnAuthorizedClient(client.id);
 						await refreshClients();
-						toast.success(
-							m.revoke_access_successful({
-								clientName: client.name
-							})
-						);
+						toast.success(m.app_access_revoked({ name: client.name }));
 					} catch (e) {
 						axiosErrorToast(e);
 					}
@@ -161,153 +179,167 @@
 <svelte:head>
 	<title>{m.my_apps()}</title>
 </svelte:head>
-<div>
-	<div class="mb-5 flex flex-wrap items-center justify-between gap-3">
-		<h1 class="flex items-center gap-2 text-2xl font-bold">
-			<LayoutDashboard class="text-primary/80 size-6" />
-			{m.my_apps()}
-		</h1>
-		{#if hasAnyApps}
-			<div class="flex w-full items-center gap-2 sm:w-auto">
-				<InputGroup.Root class="w-full sm:w-64">
-					<InputGroup.Input
-						value={searchValue}
-						placeholder={m.search()}
-						aria-label={m.search_apps()}
-						type="search"
-						oninput={(e: Event) => onSearch((e.currentTarget as HTMLInputElement).value)}
-					/>
-					<InputGroup.Addon>
-						<Search />
-					</InputGroup.Addon>
-				</InputGroup.Root>
-				<DropdownMenu.Root>
-					<DropdownMenu.Trigger
-						class={buttonVariants({ variant: 'outline', size: 'icon', class: 'shrink-0' })}
-						aria-label={m.sort_by()}
-						title={m.sort_by()}
+
+<PageHeader
+	title={m.my_apps()}
+	description={m.my_apps_description({ appName: $appConfigStore.appName })}
+/>
+
+{#if !hasAnyApps}
+	<!-- Ghost tiles in the shape of the app grid, matching the ghost rows of the admin lists' empty states -->
+	<div class="mt-10">
+		<div
+			aria-hidden="true"
+			class="pointer-events-none grid grid-cols-2 gap-3 mask-b-from-30% sm:grid-cols-[repeat(auto-fill,minmax(200px,1fr))]"
+		>
+			{#each ['w-24', 'w-30', 'w-20', 'w-28'] as name, i (i)}
+				<div
+					class="bg-surface flex min-h-[140px] flex-col gap-2 rounded-md p-4 shadow-[inset_0_0_0_1px_var(--border)]"
+				>
+					<div class="bg-fill-selected mb-1 size-10 rounded-[8px]"></div>
+					<div class="bg-fill-selected h-2 max-w-full rounded-xs {name}"></div>
+					<div class="bg-fill-selected h-1.5 w-16 rounded-xs"></div>
+				</div>
+			{/each}
+		</div>
+		<div class="-mt-6 flex flex-col items-center gap-2 pb-12 text-center">
+			{#if $userStore?.isAdmin}
+				<h2 class="text-title">{m.connect_your_first_app()}</h2>
+				<p class="text-body text-fg-muted max-w-[380px]">{m.no_apps_yet_admin_description()}</p>
+				<div class="mt-4 flex flex-wrap items-center justify-center gap-4">
+					<Button href="/settings/admin/oidc-clients?new">
+						<LucidePlus />
+						{m.connect_an_app()}
+					</Button>
+					<Button
+						variant="link"
+						class="gap-1"
+						href="https://pocket-id.org/docs/client-examples"
+						target="_blank"
+						rel="noreferrer"
 					>
-						<ArrowUpDown />
-					</DropdownMenu.Trigger>
-					<DropdownMenu.Content align="end" class="w-48">
-						<DropdownMenu.Label>{m.sort_by()}</DropdownMenu.Label>
-						<DropdownMenu.RadioGroup value={sort} onValueChange={onSortChange}>
-							{#each Object.keys(myAppsSortOptions) as MyAppsSort[] as option (option)}
-								<DropdownMenu.RadioItem value={option}
-									>{sortLabels[option]()}</DropdownMenu.RadioItem
-								>
+						{m.docs()}
+						<LucideArrowUpRight />
+					</Button>
+				</div>
+			{:else}
+				<h2 class="text-title">{m.no_apps_yet()}</h2>
+				<p class="text-body text-fg-muted max-w-[380px]">{m.no_apps_yet_description()}</p>
+			{/if}
+		</div>
+	</div>
+{:else}
+	<div class="mt-6 flex flex-col gap-3">
+		<InputGroup.Root>
+			<InputGroup.Input
+				bind:ref={searchInput}
+				placeholder={m.search_apps()}
+				aria-label={m.search_apps()}
+				aria-describedby="apps-count"
+				type="search"
+				oninput={(e: Event) => onSearch((e.currentTarget as HTMLInputElement).value)}
+			/>
+			<InputGroup.Addon>
+				<LucideSearch />
+			</InputGroup.Addon>
+		</InputGroup.Root>
+		<div class="flex min-h-(--h-sm) items-center justify-between gap-2">
+			<p id="apps-count" role="status" class="text-caption text-fg-muted min-w-0 truncate">
+				{countText}
+			</p>
+			<DropdownMenu.Root>
+				<DropdownMenu.Trigger
+					class={buttonVariants({ variant: 'ghost', size: 'sm', class: '-me-3' })}
+				>
+					<LucideArrowDownUp />
+					<span class="sr-only">{m.sort_by()}</span>
+					<span class="max-sm:sr-only">{sortLabels[sort]()}</span>
+				</DropdownMenu.Trigger>
+				<DropdownMenu.Content align="end" class="w-48">
+					<DropdownMenu.Label>{m.sort_by()}</DropdownMenu.Label>
+					<DropdownMenu.RadioGroup value={sort} onValueChange={onSortChange}>
+						{#each Object.keys(myAppsSortOptions) as MyAppsSort[] as option (option)}
+							<DropdownMenu.RadioItem value={option}>{sortLabels[option]()}</DropdownMenu.RadioItem>
+						{/each}
+					</DropdownMenu.RadioGroup>
+				</DropdownMenu.Content>
+			</DropdownMenu.Root>
+		</div>
+	</div>
+
+	<div class="mt-3 flex flex-col gap-6">
+		{#if searchValue && launchableCount + hiddenCount === 0}
+			<p class="text-control text-fg-muted wrap-anywhere">
+				{m.no_apps_match_query({ query: searchValue })}
+				<button
+					class="inline-link focus-visible:outline-ring rounded-xs focus-visible:outline-2 focus-visible:outline-offset-2"
+					onclick={clearSearch}
+				>
+					{m.clear_search()}
+				</button>
+			</p>
+		{/if}
+
+		{#if clients.data.length > 0}
+			<div class="flex flex-col gap-6">
+				<ul
+					aria-label={m.all_apps()}
+					class="grid grid-cols-1 max-sm:shadow-[inset_0_1px_0_var(--border)] sm:grid-cols-[repeat(auto-fill,minmax(200px,1fr))] sm:gap-3"
+				>
+					{#each clients.data as client (client.id)}
+						<AppTile {client} onRevoke={revokeAuthorizedClient} />
+					{/each}
+				</ul>
+				<ListPagination
+					pagination={clients.pagination}
+					pageSizes={myAppsPageSizes}
+					{onPageChange}
+					{onPageSizeChange}
+				/>
+			</div>
+		{/if}
+
+		{#if hiddenCount > 0}
+			<div>
+				<button
+					class="text-control text-fg focus-visible:outline-ring -mx-2 inline-flex min-h-(--h-md) items-center gap-1.5 rounded-sm px-2 font-medium focus-visible:outline-2"
+					aria-expanded={hiddenAppsOpen}
+					aria-controls="apps-hidden"
+					disabled={!!searchValue}
+					onclick={() => (showHiddenApps = !showHiddenApps)}
+				>
+					{m.apps_without_launch_link()}
+					<LucideChevronDown
+						class={cn(
+							'text-fg-muted size-4 transition-transform duration-(--dur-base)',
+							hiddenAppsOpen && 'rotate-180'
+						)}
+					/>
+				</button>
+				{#if hiddenAppsOpen}
+					<div
+						id="apps-hidden"
+						class="transition-motion duration-(--dur-base) starting:-translate-y-(--rise) starting:opacity-0"
+					>
+						<p class="text-caption text-fg-muted mt-1 mb-3">{m.apps_without_launch_link_note()}</p>
+						<ul
+							aria-label={m.apps_without_launch_link()}
+							class="shadow-[inset_0_1px_0_var(--border)]"
+						>
+							{#each hiddenApps as client (client.id)}
+								<AppTile {client} row onRevoke={revokeAuthorizedClient} />
 							{/each}
-						</DropdownMenu.RadioGroup>
-					</DropdownMenu.Content>
-				</DropdownMenu.Root>
+						</ul>
+						<ListPagination
+							class="mt-6"
+							pagination={authorizedClientsWithoutLaunchURL.pagination}
+							pageSizes={myAppsPageSizes}
+							onPageChange={onHiddenAppsPageChange}
+							{onPageSizeChange}
+						/>
+					</div>
+				{/if}
 			</div>
 		{/if}
 	</div>
-
-	{#if clients.data.length === 0 && !showAllApps}
-		<Empty.Root class="mt-20">
-			<Empty.Header>
-				{#if searchValue}
-					<Empty.Media variant="icon">
-						<SearchX />
-					</Empty.Media>
-					<Empty.Title>{m.no_apps_match_your_search()}</Empty.Title>
-					<Empty.Description>{m.try_a_different_search_term()}</Empty.Description>
-				{:else}
-					<Empty.Media variant="icon">
-						<LayoutDashboard />
-					</Empty.Media>
-					<Empty.Title>{m.no_apps_available()}</Empty.Title>
-					<Empty.Description>
-						{m.contact_your_administrator_for_app_access()}
-					</Empty.Description>
-				{/if}
-			</Empty.Header>
-			{#if authorizedClientsWithoutLaunchURL.pagination.totalItems > 0}
-				<Empty.Content>
-					<Button variant="outline" size="sm" onclick={() => (showAllApps = !showAllApps)}
-						>{m.show_hidden_apps()}</Button
-					>
-				</Empty.Content>
-			{/if}
-		</Empty.Root>
-	{:else}
-		{#if clients.data.length > 0}
-			<div class="grid">
-				{#key clients}
-					<div
-						class="col-start-1 row-start-1 grid gap-3 self-start"
-						style="grid-template-columns: repeat(auto-fit, minmax(min(300px, 100%), 1fr));"
-						transition:fade={{ duration: animationDuration }}
-					>
-						{#each clients.data as client (client.id)}
-							<AuthorizedOidcClientCard {client} onRevoke={revokeAuthorizedClient} />
-						{/each}
-						<!-- Gap fix if two elements are present-->
-						{#if clients.data.length === 2}
-							<div></div>
-						{/if}
-					</div>
-				{/key}
-			</div>
-		{/if}
-
-		<ListPagination
-			pagination={clients.pagination}
-			pageSizes={myAppsPageSizes}
-			{onPageChange}
-			{onPageSizeChange}
-			hideWhenSinglePage
-		/>
-
-		{#if showAllApps}
-			<div transition:slide={{ duration: animationDuration }}>
-				{#if clients.data.length > 0}
-					<Separator class="my-8" />
-				{/if}
-				<div class="grid">
-					{#key authorizedClientsWithoutLaunchURL}
-						<div
-							class="col-start-1 row-start-1 grid gap-3 self-start"
-							style="grid-template-columns: repeat(auto-fit, minmax(min(300px, 100%), 1fr));"
-							transition:fade={{ duration: animationDuration }}
-						>
-							{#each hiddenAuthorizedClients as client (client.id)}
-								<AuthorizedOidcClientCard {client} onRevoke={revokeAuthorizedClient} />
-							{/each}
-							<!-- Gap fix if two elements are present-->
-							{#if hiddenAuthorizedClients.length === 2}
-								<div></div>
-							{/if}
-						</div>
-					{/key}
-				</div>
-
-				<ListPagination
-					pagination={authorizedClientsWithoutLaunchURL.pagination}
-					pageSizes={myAppsPageSizes}
-					onPageChange={onAuthorizedClientPageChange}
-					{onPageSizeChange}
-					hideWhenSinglePage
-				/>
-			</div>
-		{/if}
-	{/if}
-
-	{#if authorizedClientsWithoutLaunchURL.pagination.totalItems > 0 && clients.data.length !== 0}
-		<div class="mt-10 flex justify-center">
-			<Button
-				variant="ghost"
-				class="text-muted-foreground"
-				onclick={() => (showAllApps = !showAllApps)}
-			>
-				{showAllApps ? m.hide_all_apps() : m.show_all_apps()}
-				({authorizedClientsWithoutLaunchURL.pagination.totalItems})
-				<ChevronDown
-					data-icon="inline-end"
-					class={cn('transition-transform duration-200', showAllApps && 'rotate-180 transform')}
-				/>
-			</Button>
-		</div>
-	{/if}
-</div>
+{/if}

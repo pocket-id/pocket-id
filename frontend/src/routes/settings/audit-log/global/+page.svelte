@@ -1,119 +1,96 @@
 <script lang="ts">
+	import AuditLogDateFilter from '#lib/components/audit-log-date-filter.svelte';
 	import AuditLogList from '#lib/components/audit-log-list.svelte';
-	import SearchableSelect from '#lib/components/form/searchable-select.svelte';
-	import * as Card from '#lib/components/ui/card/index.ts';
-	import * as Select from '#lib/components/ui/select/index.ts';
+	import PageHeader from '#lib/components/page-header.svelte';
+	import AdvancedTableFilter from '#lib/components/table/advanced-table-filter.svelte';
 	import { m } from '#lib/paraglide/messages.js';
 	import AuditLogService from '#lib/services/audit-log-service.ts';
-	import type { AuditLogFilter } from '#lib/types/audit-log.type.ts';
-	import { eventTypes as eventTranslations } from '#lib/utils/audit-log-translator.ts';
-	import AuditLogSwitcher from '../audit-log-switcher.svelte';
+	import appConfigStore from '#lib/stores/application-configuration-store.ts';
+	import type { AuditLogDateRange, AuditLogFilter } from '#lib/types/audit-log.type.ts';
+	import { eventTypes } from '#lib/utils/audit-log-translator.ts';
+	import { revealFocused } from '#lib/utils/event-util.ts';
 
 	const auditLogService = new AuditLogService();
-	let auditLogListRef: AuditLogList;
 
-	let filters: AuditLogFilter = $state({
-		userID: '',
-		event: '',
-		location: '',
-		clientName: ''
+	const noFilters: AuditLogFilter = { userID: '', event: '', location: '', clientName: '' };
+	let filters = $state({ ...noFilters });
+
+	let dateRange: AuditLogDateRange = $state({});
+	let filterRow = $state<HTMLElement>();
+	let userOptions = $state<{ label: string; value: string }[]>([]);
+	let clientOptions = $state<{ label: string; value: string }[]>([]);
+
+	auditLogService.listUsers().then((users) => {
+		userOptions = Object.entries(users)
+			.map(([value, label]) => ({ value, label }))
+			.sort((a, b) => a.label.localeCompare(b.label));
+	});
+	auditLogService.listClientNames().then((names) => {
+		clientOptions = names.sort().map((name) => ({ value: name, label: name }));
 	});
 
-	const locationTypes = $state({
-		external: 'External Networks',
-		internal: 'Internal Networks'
-	});
+	type Facet = {
+		key: keyof AuditLogFilter;
+		title: string;
+		options: { label: string; value: string }[];
+	};
 
-	const eventTypes = $state(eventTranslations);
+	const facets: Facet[] = $derived([
+		{ key: 'userID', title: m.user(), options: userOptions },
+		{
+			key: 'event',
+			title: m.event(),
+			options: Object.entries(eventTypes).map(([value, label]) => ({ value, label }))
+		},
+		{ key: 'clientName', title: m.app(), options: clientOptions },
+		{
+			key: 'location',
+			title: m.network(),
+			options: [
+				{ value: 'external', label: m.external_networks() },
+				{ value: 'internal', label: m.internal_networks() }
+			]
+		}
+	]);
 </script>
 
 <svelte:head>
-	<title>{m.global_audit_log()}</title>
+	<title>{m.audit_log()}</title>
 </svelte:head>
 
-<AuditLogSwitcher currentPage="global" />
+<PageHeader
+	title={m.audit_log()}
+	description={m.audit_log_page_description({ appName: $appConfigStore.appName })}
+/>
 
-<Card.Root>
-	<Card.Header>
-		<Card.Title>{m.global_audit_log()}</Card.Title>
-		<Card.Description class="mt-1">{m.see_all_recent_account_activities()}</Card.Description>
-	</Card.Header>
-	<Card.Content>
-		<div class="mb-6 grid grid-cols-1 gap-4 md:grid-cols-4">
-			<div>
-				{#await auditLogService.listUsers()}
-					<Select.Root type="single">
-						<Select.Trigger class="w-full" disabled>
-							{m.all_users()}
-						</Select.Trigger>
-					</Select.Root>
-				{:then users}
-					<SearchableSelect
-						class="w-full"
-						items={[
-							{ value: '', label: m.all_users() },
-							...Object.entries(users).map(([id, username]) => ({
-								value: id,
-								label: username
-							}))
-						]}
-						bind:value={filters.userID}
-					/>
-				{/await}
-			</div>
-			<div>
-				<SearchableSelect
-					class="w-full"
-					items={[
-						{ value: '', label: m.all_events() },
-						...Object.entries(eventTypes).map(([value, label]) => ({
-							value,
-							label
-						}))
-					]}
-					bind:value={filters.event}
-				/>
-			</div>
-			<div>
-				<SearchableSelect
-					disableSearch={true}
-					class="w-full"
-					items={[
-						{ value: '', label: m.all_locations() },
-						...Object.entries(locationTypes).map(([value, label]) => ({
-							value,
-							label
-						}))
-					]}
-					bind:value={filters.location}
-				/>
-			</div>
-			<div>
-				{#await auditLogService.listClientNames()}
-					<Select.Root
-						type="single"
-						value={filters.clientName}
-						onValueChange={(v) => (filters.clientName = v)}
-					>
-						<Select.Trigger class="w-full" disabled>
-							{m.all_clients()}
-						</Select.Trigger>
-					</Select.Root>
-				{:then clientNames}
-					<SearchableSelect
-						class="w-full"
-						items={[
-							{ value: '', label: m.all_clients() },
-							...clientNames.map((name) => ({
-								value: name,
-								label: name
-							}))
-						]}
-						bind:value={filters.clientName}
-					/>
-				{/await}
-			</div>
-		</div>
-		<AuditLogList bind:this={auditLogListRef} isAdmin {filters} />
-	</Card.Content>
-</Card.Root>
+<div
+	bind:this={filterRow}
+	role="group"
+	aria-label={m.filters()}
+	onfocusin={revealFocused}
+	class="scroll-fade-x -mx-1 mt-6 -mb-1 flex scroll-px-1 items-center gap-1 p-1 max-sm:[scrollbar-width:none] max-sm:overflow-x-auto sm:flex-wrap"
+>
+	<AuditLogDateFilter bind:range={dateRange} />
+	{#each facets as facet (facet.key)}
+		<AdvancedTableFilter
+			title={facet.title}
+			options={facet.options}
+			value={filters[facet.key] || undefined}
+			onChange={(value) => (filters[facet.key] = (value as string | undefined) ?? '')}
+		/>
+	{/each}
+</div>
+
+<!-- The date range is never cleared, since the date filter keeps its own selection -->
+<!-- Focus moves to the filters because the action removes itself -->
+<AuditLogList
+	isAdmin
+	{filters}
+	{dateRange}
+	onClearFilters={Object.values(filters).some(Boolean)
+		? () => {
+				filters = { ...noFilters };
+				filterRow?.querySelector('button')?.focus();
+			}
+		: undefined}
+/>
