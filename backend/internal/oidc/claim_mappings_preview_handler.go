@@ -15,12 +15,6 @@ type claimMappingsPreviewHandler struct {
 	claimsService *ClaimsService
 }
 
-type claimMappingsPreviewInput struct {
-	UserID        string                                   `json:"userId" binding:"required"`
-	Scopes        []string                                 `json:"scopes"`
-	ClaimMappings []claimmappingpolicy.OidcClaimMappingDto `json:"claimMappings" binding:"dive"`
-}
-
 // previewClaimMappings godoc
 // @Summary Preview claim mappings
 // @Description Get the claims that claim mappings, saved or not, release for a user and set of scopes

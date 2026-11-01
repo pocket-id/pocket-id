@@ -1,36 +1,25 @@
 package auditlogs
 
 import (
+	"crypto/rand"
 	"testing"
 	"time"
 
-	"github.com/lestrrat-go/jwx/v4/jwk"
+	"github.com/lestrrat-go/jwx/v4/jwa"
 	"github.com/lestrrat-go/jwx/v4/jwt"
 	"github.com/stretchr/testify/require"
 
+	"github.com/pocket-id/pocket-id/backend/internal/common"
+	"github.com/pocket-id/pocket-id/backend/internal/instanceid"
 	jwkutils "github.com/pocket-id/pocket-id/backend/internal/utils/jwk"
+	testutils "github.com/pocket-id/pocket-id/backend/internal/utils/testing"
 )
-
-type browserTokenTestSigner struct{ key jwk.Key }
-
-func (s browserTokenTestSigner) SignSessionToken(token jwt.Token) (string, error) {
-	signed, err := jwt.Sign(token, jwt.WithKey(jwkutils.SessionKeyAlg(), s.key))
-	return string(signed), err
-}
-
-func (s browserTokenTestSigner) VerifySessionToken(token string, options ...jwt.ValidateOption) (jwt.Token, error) {
-	parseOptions := []jwt.ParseOption{jwt.WithKey(jwkutils.SessionKeyAlg(), s.key), jwt.WithValidate(true)}
-	for _, option := range options {
-		parseOptions = append(parseOptions, option)
-	}
-	return jwt.ParseString(token, parseOptions...)
-}
 
 func newBrowserTokenService(t *testing.T) *browserTokens {
 	t.Helper()
 	key, err := jwkutils.GenerateSessionKey()
 	require.NoError(t, err)
-	return &browserTokens{signer: browserTokenTestSigner{key: key}, appURL: "https://test.example.com"}
+	return &browserTokens{key: key, appURL: "https://test.example.com"}
 }
 
 func TestKnownBrowserToken(t *testing.T) {
@@ -42,7 +31,7 @@ func TestKnownBrowserToken(t *testing.T) {
 	require.Error(t, s.verify(encoded, "other-user"))
 	require.Error(t, s.verify(encoded, ""))
 
-	token, err := jwt.ParseString(encoded, jwt.WithKey(jwkutils.SessionKeyAlg(), s.signer.(browserTokenTestSigner).key))
+	token, err := jwt.ParseString(encoded, jwt.WithKey(jwkutils.SessionKeyAlg(), s.key))
 	require.NoError(t, err)
 	issued, ok := token.IssuedAt()
 	require.True(t, ok)
@@ -81,9 +70,40 @@ func TestKnownBrowserTokenRejectsInvalidClaims(t *testing.T) {
 			} else {
 				require.NoError(t, token.Set(tt.claim, tt.value))
 			}
-			encoded, err := jwt.Sign(token, jwt.WithKey(jwkutils.SessionKeyAlg(), s.signer.(browserTokenTestSigner).key))
+			encoded, err := jwt.Sign(token, jwt.WithKey(jwkutils.SessionKeyAlg(), s.key))
 			require.NoError(t, err)
 			require.Error(t, s.verify(string(encoded), "user"))
 		})
 	}
+}
+
+func TestKnownBrowserKey(t *testing.T) {
+	db := testutils.NewDatabaseForTest(t)
+	instanceID, err := instanceid.Load(t.Context(), db)
+	require.NoError(t, err)
+	envConfig := &common.EnvConfigSchema{EncryptionKey: []byte("0123456789abcdef0123456789abcdef")}
+
+	t.Run("a token stays valid after the stored key is loaded again", func(t *testing.T) {
+		first := &browserTokens{db: db, envConfig: envConfig, appURL: "https://test.example.com"}
+		require.NoError(t, first.loadKey(t.Context(), instanceID))
+		encoded, err := first.generate("user", time.Hour)
+		require.NoError(t, err)
+
+		second := &browserTokens{db: db, envConfig: envConfig, appURL: "https://test.example.com"}
+		require.NoError(t, second.loadKey(t.Context(), instanceID))
+		require.NoError(t, second.verify(encoded, "user"))
+	})
+
+	t.Run("rejects keys for another algorithm", func(t *testing.T) {
+		asymmetric, err := jwkutils.GenerateKey(jwa.ES256().String(), "")
+		require.NoError(t, err)
+		require.ErrorContains(t, validateBrowserKey(asymmetric), "not a symmetric key")
+
+		rawKey := make([]byte, 32)
+		_, err = rand.Read(rawKey)
+		require.NoError(t, err)
+		otherAlg, err := jwkutils.ImportRawKey(rawKey, jwa.HS512().String(), "")
+		require.NoError(t, err)
+		require.ErrorContains(t, validateBrowserKey(otherAlg), "not valid for the HS256 algorithm")
+	})
 }

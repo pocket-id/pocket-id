@@ -559,7 +559,7 @@ func TestOidcService_downloadAndSaveLogoFromURL(t *testing.T) {
 func TestOidcService_CreateClient_withDescription(t *testing.T) {
 	db := testutils.NewDatabaseForTest(t)
 
-	s, err := NewOidcService(db, nil, nil, nil, nil, nil, nil, nil)
+	s, err := NewOidcService(db, nil, nil, nil, nil, nil, nil)
 	require.NoError(t, err)
 
 	description := "A test client description"
@@ -585,7 +585,7 @@ func TestOidcService_CreateClient_byClientActingForItself(t *testing.T) {
 	db := testutils.NewDatabaseForTest(t)
 	require.NoError(t, db.Exec("PRAGMA foreign_keys = ON").Error)
 
-	s, err := NewOidcService(db, nil, nil, nil, nil, nil, nil, nil)
+	s, err := NewOidcService(db, nil, nil, nil, nil, nil, nil)
 	require.NoError(t, err)
 
 	input := dto.OidcClientCreateDto{OidcClientUpdateDto: dto.OidcClientUpdateDto{Name: "Provisioned Client"}}
@@ -600,7 +600,7 @@ func TestOidcService_CreateClient_byClientActingForItself(t *testing.T) {
 func TestOidcService_CreateClient_withoutDescription(t *testing.T) {
 	db := testutils.NewDatabaseForTest(t)
 
-	s, err := NewOidcService(db, nil, nil, nil, nil, nil, nil, nil)
+	s, err := NewOidcService(db, nil, nil, nil, nil, nil, nil)
 	require.NoError(t, err)
 
 	input := dto.OidcClientCreateDto{
@@ -691,7 +691,7 @@ func TestOidcService_CreateClient_tokenLifetimes(t *testing.T) {
 		t.Run(test.name, func(t *testing.T) {
 			db := testutils.NewDatabaseForTest(t)
 
-			s, err := NewOidcService(db, nil, nil, nil, nil, nil, nil, nil)
+			s, err := NewOidcService(db, nil, nil, nil, nil, nil, nil)
 			require.NoError(t, err)
 
 			input := dto.OidcClientCreateDto{
@@ -718,7 +718,7 @@ func TestOidcService_CreateClient_tokenLifetimes(t *testing.T) {
 func TestOidcService_UpdateClient_tokenLifetimes(t *testing.T) {
 	db := testutils.NewDatabaseForTest(t)
 
-	s, err := NewOidcService(db, nil, nil, nil, nil, nil, nil, nil)
+	s, err := NewOidcService(db, nil, nil, nil, nil, nil, nil)
 	require.NoError(t, err)
 
 	client := model.OidcClient{
@@ -755,7 +755,7 @@ func TestOidcService_UpdateClient_tokenLifetimes(t *testing.T) {
 func TestOidcService_CreateClientSecret_withCustomSecret(t *testing.T) {
 	db := testutils.NewDatabaseForTest(t)
 
-	s, err := NewOidcService(db, nil, nil, nil, nil, nil, nil, nil)
+	s, err := NewOidcService(db, nil, nil, nil, nil, nil, nil)
 	require.NoError(t, err)
 
 	client := model.OidcClient{Name: "Test Client"}
@@ -784,7 +784,7 @@ func TestOidcService_CreateClientSecret_withCustomSecret(t *testing.T) {
 func TestOidcService_CreateClientSecret_multipleSecrets(t *testing.T) {
 	db := testutils.NewDatabaseForTest(t)
 
-	s, err := NewOidcService(db, nil, nil, nil, nil, nil, nil, nil)
+	s, err := NewOidcService(db, nil, nil, nil, nil, nil, nil)
 	require.NoError(t, err)
 
 	client := model.OidcClient{Name: "Test Client"}
@@ -822,7 +822,7 @@ func TestOidcService_CreateClientSecret_multipleSecrets(t *testing.T) {
 func TestOidcService_CreateClientSecret_expirationInThePast(t *testing.T) {
 	db := testutils.NewDatabaseForTest(t)
 
-	s, err := NewOidcService(db, nil, nil, nil, nil, nil, nil, nil)
+	s, err := NewOidcService(db, nil, nil, nil, nil, nil, nil)
 	require.NoError(t, err)
 
 	client := model.OidcClient{Name: "Test Client"}
@@ -837,7 +837,7 @@ func TestOidcService_CreateClientSecret_expirationInThePast(t *testing.T) {
 func TestOidcService_CreateClientSecret_limit(t *testing.T) {
 	db := testutils.NewDatabaseForTest(t)
 
-	s, err := NewOidcService(db, nil, nil, nil, nil, nil, nil, nil)
+	s, err := NewOidcService(db, nil, nil, nil, nil, nil, nil)
 	require.NoError(t, err)
 
 	client := model.OidcClient{Name: "Test Client"}
@@ -856,7 +856,7 @@ func TestOidcService_CreateClientSecret_limit(t *testing.T) {
 func TestOidcService_CreateClientSecret_preservesFederatedIdentities(t *testing.T) {
 	db := testutils.NewDatabaseForTest(t)
 
-	s, err := NewOidcService(db, nil, nil, nil, nil, nil, nil, nil)
+	s, err := NewOidcService(db, nil, nil, nil, nil, nil, nil)
 	require.NoError(t, err)
 
 	client := model.OidcClient{
@@ -892,7 +892,7 @@ func TestOidcService_CreateClientSecret_preservesFederatedIdentities(t *testing.
 func TestOidcService_UpdateClient_description(t *testing.T) {
 	db := testutils.NewDatabaseForTest(t)
 
-	s, err := NewOidcService(db, nil, nil, nil, nil, nil, nil, nil)
+	s, err := NewOidcService(db, nil, nil, nil, nil, nil, nil)
 	require.NoError(t, err)
 
 	// Create a client without a description
@@ -933,7 +933,7 @@ func TestOidcService_UpdateClient_description(t *testing.T) {
 func TestOidcService_UpdateClient_CIMDPreservesMetadataFields(t *testing.T) {
 	db := testutils.NewDatabaseForTest(t)
 
-	s, err := NewOidcService(db, nil, nil, nil, nil, nil, nil, nil)
+	s, err := NewOidcService(db, nil, nil, nil, nil, nil, nil)
 	require.NoError(t, err)
 
 	client := model.OidcClient{
@@ -1005,7 +1005,7 @@ func TestOidcService_UpdateClient_CIMDPreservesMetadataFields(t *testing.T) {
 func TestOidcService_UpdateClient_CIMDDoesNotOverwriteConcurrentMetadataRefresh(t *testing.T) {
 	db := testutils.NewDatabaseForTest(t)
 
-	s, err := NewOidcService(db, nil, nil, nil, nil, nil, nil, nil)
+	s, err := NewOidcService(db, nil, nil, nil, nil, nil, nil)
 	require.NoError(t, err)
 
 	client := model.OidcClient{
@@ -1038,7 +1038,7 @@ func TestOidcService_UpdateClient_CIMDDoesNotOverwriteConcurrentMetadataRefresh(
 
 func TestOidcService_ListAccessibleOidcClients_requiresExplicitGroupPermission(t *testing.T) {
 	db := testutils.NewDatabaseForTest(t)
-	s, err := NewOidcService(db, nil, nil, nil, nil, nil, nil, nil)
+	s, err := NewOidcService(db, nil, nil, nil, nil, nil, nil)
 	require.NoError(t, err)
 
 	allowedGroup := model.UserGroup{Name: "allowed", FriendlyName: "Allowed"}
@@ -1072,7 +1072,7 @@ func TestOidcService_ListAccessibleOidcClients_requiresExplicitGroupPermission(t
 
 func TestOidcService_ListClientViewsFilterByLaunchURLPresence(t *testing.T) {
 	db := testutils.NewDatabaseForTest(t)
-	s, err := NewOidcService(db, nil, nil, nil, nil, nil, nil, nil)
+	s, err := NewOidcService(db, nil, nil, nil, nil, nil, nil)
 	require.NoError(t, err)
 
 	user := model.User{Username: "launch-url-filter"}
@@ -1126,7 +1126,7 @@ func TestOidcService_ListClientViewsFilterByLaunchURLPresence(t *testing.T) {
 
 func TestOidcService_ListAccessibleOidcClients_searchAndSort(t *testing.T) {
 	forEachTestDatabase(t, func(t *testing.T, db *gorm.DB) {
-		s, err := NewOidcService(db, nil, nil, nil, nil, nil, nil, nil)
+		s, err := NewOidcService(db, nil, nil, nil, nil, nil, nil)
 		require.NoError(t, err)
 
 		user := model.User{Username: "search-and-sort"}
@@ -1179,7 +1179,7 @@ func TestOidcService_ListAccessibleOidcClients_searchAndSort(t *testing.T) {
 
 func TestOidcService_ListAuthorizedClients_searchAndSort(t *testing.T) {
 	forEachTestDatabase(t, func(t *testing.T, db *gorm.DB) {
-		s, err := NewOidcService(db, nil, nil, nil, nil, nil, nil, nil)
+		s, err := NewOidcService(db, nil, nil, nil, nil, nil, nil)
 		require.NoError(t, err)
 
 		user := model.User{Username: "authorized-search-and-sort"}
@@ -1333,7 +1333,7 @@ func TestOidcService_GetClientLogo(t *testing.T) {
 func TestOidcService_UpdateClient_unknownClaimMappingPolicy(t *testing.T) {
 	db := testutils.NewDatabaseForTest(t)
 
-	s, err := NewOidcService(db, nil, nil, nil, nil, nil, nil, nil)
+	s, err := NewOidcService(db, nil, nil, nil, nil, nil, nil)
 	require.NoError(t, err)
 
 	client := model.OidcClient{Name: "Test Client", CallbackURLs: datatype.StringList{"https://example.com/callback"}}

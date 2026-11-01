@@ -1,6 +1,7 @@
 package oidc
 
 import (
+	"github.com/pocket-id/pocket-id/backend/internal/claimmappingpolicy"
 	"github.com/pocket-id/pocket-id/backend/internal/dto"
 )
 
@@ -40,6 +41,12 @@ type completeInteractionRequest struct {
 type completeInteractionResponse struct {
 	Interaction *interactionSessionForUser `json:"interaction,omitempty"`
 	RedirectURL string                     `json:"redirectUrl,omitempty"`
+}
+
+type claimMappingsPreviewInput struct {
+	UserID        string                                   `json:"userId" binding:"required"`
+	Scopes        []string                                 `json:"scopes"`
+	ClaimMappings []claimmappingpolicy.OidcClaimMappingDto `json:"claimMappings" binding:"dive"`
 }
 
 func newInteractionSessionForUser(interactionSession InteractionSession) (interactionSessionForUser, error) {

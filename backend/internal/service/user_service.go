@@ -31,7 +31,6 @@ import (
 
 type UserService struct {
 	db                 *gorm.DB
-	jwtService         *JwtService
 	customClaimService *CustomClaimService
 	appImagesService   *AppImagesService
 	scimSyncScheduler  ScimSyncScheduler
@@ -55,10 +54,9 @@ type ownEmailChange struct {
 	deferred *string
 }
 
-func NewUserService(db *gorm.DB, jwtService *JwtService, customClaimService *CustomClaimService, appImagesService *AppImagesService, scimSyncScheduler ScimSyncScheduler, backchannelLogout *backchannellogout.Service, fileStorage storage.FileStorage, emailVerification EmailVerificationSender) *UserService {
+func NewUserService(db *gorm.DB, customClaimService *CustomClaimService, appImagesService *AppImagesService, scimSyncScheduler ScimSyncScheduler, backchannelLogout *backchannellogout.Service, fileStorage storage.FileStorage, emailVerification EmailVerificationSender) *UserService {
 	return &UserService{
 		db:                 db,
-		jwtService:         jwtService,
 		customClaimService: customClaimService,
 		appImagesService:   appImagesService,
 		scimSyncScheduler:  scimSyncScheduler,
