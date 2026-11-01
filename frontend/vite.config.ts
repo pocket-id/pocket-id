@@ -56,6 +56,9 @@ export default defineConfig(() => {
 				'/.well-known': {
 					target: process.env.DEVELOPMENT_BACKEND_URL || 'http://localhost:1411'
 				},
+				'/app.webmanifest': {
+					target: process.env.DEVELOPMENT_BACKEND_URL || 'http://localhost:1411'
+				},
 				'^/authorize(?:\\?.*)?$': {
 					target: process.env.DEVELOPMENT_BACKEND_URL || 'http://localhost:1411'
 				}
