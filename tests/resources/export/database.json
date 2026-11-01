@@ -16,6 +16,14 @@
 	"tables": {
 		"apis": [
 			{
+				"id": "00000000-0000-0000-0000-000000000000",
+				"created_at": "2026-11-01T12:00:00Z",
+				"updated_at": null,
+				"name": "Pocket ID",
+				"audience": "http://localhost:1411/api",
+				"allow_cimd_clients": false
+			},
+			{
 				"id": "f6a8b3c1-2d4e-4a6b-8c9d-0e1f2a3b4c5d",
 				"created_at": "2025-11-25T12:39:02Z",
 				"updated_at": null,
@@ -25,6 +33,177 @@
 			}
 		],
 		"api_permissions": [
+			{
+				"id": "3d41b222-2cc0-49d1-bfd8-023f48502f43",
+				"created_at": "2026-11-01T12:00:00Z",
+				"api_id": "00000000-0000-0000-0000-000000000000",
+				"key": "account:api-keys",
+				"name": "account:api-keys",
+				"description": null,
+				"allowed_for_cimd_clients": false
+			},
+			{
+				"id": "7b3f2957-1911-4f7d-96c9-aa2b36a2f99f",
+				"created_at": "2026-11-01T12:00:00Z",
+				"api_id": "00000000-0000-0000-0000-000000000000",
+				"key": "account:apps",
+				"name": "account:apps",
+				"description": null,
+				"allowed_for_cimd_clients": false
+			},
+			{
+				"id": "7e9ff8c4-edd9-4697-96ea-610d23a0f0ec",
+				"created_at": "2026-11-01T12:00:00Z",
+				"api_id": "00000000-0000-0000-0000-000000000000",
+				"key": "account:audit-logs",
+				"name": "account:audit-logs",
+				"description": null,
+				"allowed_for_cimd_clients": false
+			},
+			{
+				"id": "a734ccd3-1f68-453e-95e8-ce91280d1719",
+				"created_at": "2026-11-01T12:00:00Z",
+				"api_id": "00000000-0000-0000-0000-000000000000",
+				"key": "account:passkeys",
+				"name": "account:passkeys",
+				"description": null,
+				"allowed_for_cimd_clients": false
+			},
+			{
+				"id": "6ffc0b59-7e7f-47aa-9b18-f94ac99ce2d5",
+				"created_at": "2026-11-01T12:00:00Z",
+				"api_id": "00000000-0000-0000-0000-000000000000",
+				"key": "account:read",
+				"name": "account:read",
+				"description": null,
+				"allowed_for_cimd_clients": false
+			},
+			{
+				"id": "941a6b0a-befb-4495-9c58-6eec17247835",
+				"created_at": "2026-11-01T12:00:00Z",
+				"api_id": "00000000-0000-0000-0000-000000000000",
+				"key": "account:write",
+				"name": "account:write",
+				"description": null,
+				"allowed_for_cimd_clients": false
+			},
+			{
+				"id": "691ec384-900b-4641-96cd-461564ac94a9",
+				"created_at": "2026-11-01T12:00:00Z",
+				"api_id": "00000000-0000-0000-0000-000000000000",
+				"key": "apis:read",
+				"name": "apis:read",
+				"description": null,
+				"allowed_for_cimd_clients": false
+			},
+			{
+				"id": "b5deb03a-9d3b-4bd6-a357-82db9d69dc06",
+				"created_at": "2026-11-01T12:00:00Z",
+				"api_id": "00000000-0000-0000-0000-000000000000",
+				"key": "apis:write",
+				"name": "apis:write",
+				"description": null,
+				"allowed_for_cimd_clients": false
+			},
+			{
+				"id": "1e5d46f5-58cb-4642-81ef-ed0e9ccb2e1b",
+				"created_at": "2026-11-01T12:00:00Z",
+				"api_id": "00000000-0000-0000-0000-000000000000",
+				"key": "audit-logs:read",
+				"name": "audit-logs:read",
+				"description": null,
+				"allowed_for_cimd_clients": false
+			},
+			{
+				"id": "54716739-825c-405b-8446-76dad30f2c99",
+				"created_at": "2026-11-01T12:00:00Z",
+				"api_id": "00000000-0000-0000-0000-000000000000",
+				"key": "config:read",
+				"name": "config:read",
+				"description": null,
+				"allowed_for_cimd_clients": false
+			},
+			{
+				"id": "8d2c9de6-fe36-4900-b130-f2a93150486b",
+				"created_at": "2026-11-01T12:00:00Z",
+				"api_id": "00000000-0000-0000-0000-000000000000",
+				"key": "config:write",
+				"name": "config:write",
+				"description": null,
+				"allowed_for_cimd_clients": false
+			},
+			{
+				"id": "47479137-2763-4b95-9038-90a121475327",
+				"created_at": "2026-11-01T12:00:00Z",
+				"api_id": "00000000-0000-0000-0000-000000000000",
+				"key": "groups:read",
+				"name": "groups:read",
+				"description": null,
+				"allowed_for_cimd_clients": false
+			},
+			{
+				"id": "5f3154f5-8e48-466e-b3d8-e4499de24add",
+				"created_at": "2026-11-01T12:00:00Z",
+				"api_id": "00000000-0000-0000-0000-000000000000",
+				"key": "groups:write",
+				"name": "groups:write",
+				"description": null,
+				"allowed_for_cimd_clients": false
+			},
+			{
+				"id": "41761070-542c-49b3-a31f-f61749711747",
+				"created_at": "2026-11-01T12:00:00Z",
+				"api_id": "00000000-0000-0000-0000-000000000000",
+				"key": "oidc-claim-mapping-policies:read",
+				"name": "oidc-claim-mapping-policies:read",
+				"description": null,
+				"allowed_for_cimd_clients": false
+			},
+			{
+				"id": "4704495e-f71f-41be-bbc5-943c3cbbb15f",
+				"created_at": "2026-11-01T12:00:00Z",
+				"api_id": "00000000-0000-0000-0000-000000000000",
+				"key": "oidc-claim-mapping-policies:write",
+				"name": "oidc-claim-mapping-policies:write",
+				"description": null,
+				"allowed_for_cimd_clients": false
+			},
+			{
+				"id": "33c0d03e-eb8d-4553-852c-1e9a302363c7",
+				"created_at": "2026-11-01T12:00:00Z",
+				"api_id": "00000000-0000-0000-0000-000000000000",
+				"key": "oidc-clients:read",
+				"name": "oidc-clients:read",
+				"description": null,
+				"allowed_for_cimd_clients": false
+			},
+			{
+				"id": "9bf63862-eeb7-4e57-9a6e-6b70f3b33254",
+				"created_at": "2026-11-01T12:00:00Z",
+				"api_id": "00000000-0000-0000-0000-000000000000",
+				"key": "oidc-clients:write",
+				"name": "oidc-clients:write",
+				"description": null,
+				"allowed_for_cimd_clients": false
+			},
+			{
+				"id": "4175fc85-b40a-4783-a05a-c4007a4ae28c",
+				"created_at": "2026-11-01T12:00:00Z",
+				"api_id": "00000000-0000-0000-0000-000000000000",
+				"key": "users:read",
+				"name": "users:read",
+				"description": null,
+				"allowed_for_cimd_clients": false
+			},
+			{
+				"id": "ced33b08-77ee-41db-a9c9-d4f16c1ba411",
+				"created_at": "2026-11-01T12:00:00Z",
+				"api_id": "00000000-0000-0000-0000-000000000000",
+				"key": "users:write",
+				"name": "users:write",
+				"description": null,
+				"allowed_for_cimd_clients": false
+			},
 			{
 				"id": "1a2b3c4d-5e6f-4a7b-8c9d-0e1f2a3b4c5d",
 				"created_at": "2025-11-25T12:39:02Z",
