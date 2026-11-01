@@ -1,8 +1,8 @@
 <script lang="ts">
 	import SettingRow from '#lib/components/setting-row.svelte';
 	import SettingsSection from '#lib/components/settings-section.svelte';
-	import { Checkbox } from '#lib/components/ui/checkbox/index.ts';
-	import { Switch } from '#lib/components/ui/switch/index.ts';
+	import { Checkbox } from '@pocket-id/ui/checkbox';
+	import { Switch } from '@pocket-id/ui/switch';
 	import { m } from '#lib/paraglide/messages.js';
 	import { builtInApiId, type Api, type ApiCimdAccessUpdate } from '#lib/types/api.type.ts';
 	import { scopeLabel } from '#lib/utils/api-key-scopes.ts';

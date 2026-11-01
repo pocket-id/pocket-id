@@ -1,5 +1,5 @@
 <script lang="ts">
-	import * as Alert from '#lib/components/ui/alert/index.ts';
+	import * as Alert from '@pocket-id/ui/alert';
 	import { m } from '#lib/paraglide/messages.js';
 	import userStore from '#lib/stores/user-store.ts';
 	import type { InteractionScopeInfo } from '#lib/types/oidc.type.ts';

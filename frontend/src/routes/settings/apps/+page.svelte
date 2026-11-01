@@ -2,9 +2,9 @@
 	import { openConfirmDialog } from '#lib/components/confirm-dialog/index.ts';
 	import ListPagination from '#lib/components/list-pagination.svelte';
 	import PageHeader from '#lib/components/page-header.svelte';
-	import { Button, buttonVariants } from '#lib/components/ui/button/index.ts';
-	import * as DropdownMenu from '#lib/components/ui/dropdown-menu/index.js';
-	import * as InputGroup from '#lib/components/ui/input-group/index.js';
+	import { Button, buttonVariants } from '@pocket-id/ui/button';
+	import * as DropdownMenu from '@pocket-id/ui/dropdown-menu';
+	import * as InputGroup from '@pocket-id/ui/input-group';
 	import { m } from '#lib/paraglide/messages.js';
 	import OIDCService from '#lib/services/oidc-service.ts';
 	import appConfigStore from '#lib/stores/application-configuration-store.ts';
@@ -13,7 +13,7 @@
 	import type { AccessibleOidcClient, AuthorizedOidcClient } from '#lib/types/oidc.type.ts';
 	import { debounced } from '#lib/utils/debounce-util.ts';
 	import { axiosErrorToast } from '#lib/utils/error-util.ts';
-	import { cn } from '#lib/utils/style.ts';
+	import { cn } from '@pocket-id/ui/utils';
 	import {
 		LucideArrowDownUp,
 		LucideArrowUpRight,

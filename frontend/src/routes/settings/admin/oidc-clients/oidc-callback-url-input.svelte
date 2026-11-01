@@ -1,7 +1,7 @@
 <script lang="ts">
-	import * as Field from '#lib/components/ui/field/index.ts';
-	import { Button } from '#lib/components/ui/button/index.ts';
-	import { Input } from '#lib/components/ui/input/index.ts';
+	import * as Field from '@pocket-id/ui/field';
+	import { Button } from '@pocket-id/ui/button';
+	import { Input } from '@pocket-id/ui/input';
 	import { m } from '#lib/paraglide/messages.js';
 	import { callbackUrlSchema } from '#lib/utils/zod-util.ts';
 	import { LucideTrash2 } from '@lucide/svelte';

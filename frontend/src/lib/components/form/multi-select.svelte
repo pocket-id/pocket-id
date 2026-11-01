@@ -1,10 +1,10 @@
 <script lang="ts">
-	import * as DropdownMenu from '#lib/components/ui/dropdown-menu/index.ts';
+	import * as DropdownMenu from '@pocket-id/ui/dropdown-menu';
 	import { m } from '#lib/paraglide/messages.js';
-	import { cn } from '#lib/utils/style.ts';
+	import { cn } from '@pocket-id/ui/utils';
 	import { LucideChevronDown } from '@lucide/svelte';
-	import { Badge } from '../ui/badge';
-	import { filledFieldClass } from '../ui/input';
+	import { Badge } from '@pocket-id/ui/badge';
+	import { filledFieldClass } from '@pocket-id/ui/input';
 
 	let {
 		items,

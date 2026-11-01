@@ -6,12 +6,12 @@
 	import FormInput from '#lib/components/form/form-input.svelte';
 	import UserGroupInput from '#lib/components/form/user-group-input.svelte';
 	import Qrcode from '#lib/components/qrcode/qrcode.svelte';
-	import { Badge } from '#lib/components/ui/badge/index.ts';
-	import { Button } from '#lib/components/ui/button/index.ts';
-	import { Input } from '#lib/components/ui/input/index.ts';
-	import * as Select from '#lib/components/ui/select/index.ts';
-	import * as Sheet from '#lib/components/ui/sheet/index.ts';
-	import { Skeleton } from '#lib/components/ui/skeleton/index.ts';
+	import { Badge } from '@pocket-id/ui/badge';
+	import { Button } from '@pocket-id/ui/button';
+	import { Input } from '@pocket-id/ui/input';
+	import * as Select from '@pocket-id/ui/select';
+	import * as Sheet from '@pocket-id/ui/sheet';
+	import { Skeleton } from '@pocket-id/ui/skeleton';
 	import { m } from '#lib/paraglide/messages.js';
 	import { getLocale } from '#lib/paraglide/runtime.js';
 	import AppConfigService from '#lib/services/app-config-service.ts';

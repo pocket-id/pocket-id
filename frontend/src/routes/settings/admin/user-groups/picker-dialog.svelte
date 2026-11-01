@@ -10,11 +10,11 @@
 </script>
 
 <script lang="ts" generics="T extends { id: string }">
-	import { Button } from '#lib/components/ui/button/index.ts';
-	import { Checkbox } from '#lib/components/ui/checkbox/index.ts';
-	import * as Dialog from '#lib/components/ui/dialog/index.ts';
-	import * as InputGroup from '#lib/components/ui/input-group/index.ts';
-	import { Skeleton } from '#lib/components/ui/skeleton/index.ts';
+	import { Button } from '@pocket-id/ui/button';
+	import { Checkbox } from '@pocket-id/ui/checkbox';
+	import * as Dialog from '@pocket-id/ui/dialog';
+	import * as InputGroup from '@pocket-id/ui/input-group';
+	import { Skeleton } from '@pocket-id/ui/skeleton';
 	import { debounced } from '#lib/utils/debounce-util.ts';
 	import { axiosErrorToast } from '#lib/utils/error-util.ts';
 	import { LucideSearch } from '@lucide/svelte';

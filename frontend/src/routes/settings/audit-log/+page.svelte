@@ -1,8 +1,9 @@
 <script lang="ts">
 	import AuditLogDateFilter from '#lib/components/audit-log-date-filter.svelte';
 	import AuditLogList from '#lib/components/audit-log-list.svelte';
+	import HashTabs from '#lib/components/hash-tabs.svelte';
 	import PageHeader from '#lib/components/page-header.svelte';
-	import * as Tabs from '#lib/components/ui/tabs/index.ts';
+	import * as Tabs from '@pocket-id/ui/tabs';
 	import { m } from '#lib/paraglide/messages.js';
 	import type { AuditLogDateRange } from '#lib/types/audit-log.type.ts';
 	import SessionList from './session-list.svelte';
@@ -21,7 +22,7 @@
 <div class="flex flex-col gap-8">
 	<PageHeader title={m.activity()} description={m.activity_description()} />
 
-	<Tabs.Root bind:value={tab} useHash class="gap-6">
+	<HashTabs bind:value={tab} class="gap-6">
 		<Tabs.List variant="line" class="max-sm:gap-4" aria-label={m.activity_sections()}>
 			<Tabs.Trigger value="devices">
 				{m.devices()}
@@ -40,5 +41,5 @@
 			</div>
 			<AuditLogList {dateRange} />
 		</Tabs.Content>
-	</Tabs.Root>
+	</HashTabs>
 </div>

@@ -1,7 +1,7 @@
 <script lang="ts">
 	import { page } from '$app/state';
 	import TokenPreviewInputs from '#lib/components/token-preview-inputs.svelte';
-	import * as Tabs from '#lib/components/ui/tabs/index.ts';
+	import * as Tabs from '@pocket-id/ui/tabs';
 	import { m } from '#lib/paraglide/messages.js';
 	import OidcClaimMappingPolicyService from '#lib/services/oidc-claim-mapping-policy-service.ts';
 	import type {
@@ -10,7 +10,7 @@
 	} from '#lib/types/oidc-claim-mapping-policy.type.ts';
 	import { debounced } from '#lib/utils/debounce-util.ts';
 	import { getAxiosErrorMessage } from '#lib/utils/error-util.ts';
-	import { cn } from '#lib/utils/style.ts';
+	import { cn } from '@pocket-id/ui/utils';
 
 	type Token = keyof OidcClaimMappingsPreview;
 

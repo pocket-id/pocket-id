@@ -1,6 +1,6 @@
 <script lang="ts">
-	import { Spinner } from '#lib/components/ui/spinner/index.ts';
-	import { cn } from '#lib/utils/style.ts';
+	import { Spinner } from '@pocket-id/ui/spinner';
+	import { cn } from '@pocket-id/ui/utils';
 	import { LucideCircleAlert, LucideInfo } from '@lucide/svelte';
 	import type { Snippet } from 'svelte';
 

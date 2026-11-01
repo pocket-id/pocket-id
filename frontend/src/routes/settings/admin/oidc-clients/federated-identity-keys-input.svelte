@@ -1,7 +1,7 @@
 <script lang="ts">
-	import { Button } from '#lib/components/ui/button/index.ts';
-	import * as Field from '#lib/components/ui/field/index.ts';
-	import { Textarea } from '#lib/components/ui/textarea/index.ts';
+	import { Button } from '@pocket-id/ui/button';
+	import * as Field from '@pocket-id/ui/field';
+	import { Textarea } from '@pocket-id/ui/textarea';
 	import { m } from '#lib/paraglide/messages.js';
 	import { describeJwk, getJwkKeyId, parseJwkInput, type Jwk } from '#lib/utils/jwk-util.ts';
 	import { LucidePlus, LucideX } from '@lucide/svelte';

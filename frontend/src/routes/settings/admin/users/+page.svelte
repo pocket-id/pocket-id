@@ -2,10 +2,10 @@
 	import { goto } from '$app/navigation';
 	import PageHeader from '#lib/components/page-header.svelte';
 	import AdvancedTable from '#lib/components/table/advanced-table.svelte';
-	import { Badge } from '#lib/components/ui/badge/index.ts';
-	import { Button } from '#lib/components/ui/button/index.ts';
-	import * as InputGroup from '#lib/components/ui/input-group/index.ts';
-	import * as Tabs from '#lib/components/ui/tabs/index.ts';
+	import { Badge } from '@pocket-id/ui/badge';
+	import { Button } from '@pocket-id/ui/button';
+	import * as InputGroup from '@pocket-id/ui/input-group';
+	import * as Tabs from '@pocket-id/ui/tabs';
 	import { m } from '#lib/paraglide/messages.js';
 	import UserGroupService from '#lib/services/user-group-service.ts';
 	import UserService from '#lib/services/user-service.ts';
@@ -20,7 +20,7 @@
 	import type { UserGroupMinimal } from '#lib/types/user-group.type.ts';
 	import { debounced } from '#lib/utils/debounce-util.ts';
 	import { revealFocused } from '#lib/utils/event-util.ts';
-	import { cn } from '#lib/utils/style.ts';
+	import { cn } from '@pocket-id/ui/utils';
 	import { toast } from 'svelte-sonner';
 	import {
 		LucideArrowRight,

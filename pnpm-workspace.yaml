@@ -1,7 +1,6 @@
 packages:
   - frontend
-  - tests
-  - email-templates
+  - packages/*
 
 allowBuilds:
   esbuild: true

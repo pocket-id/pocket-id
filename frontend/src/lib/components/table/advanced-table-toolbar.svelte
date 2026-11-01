@@ -1,5 +1,5 @@
 <script lang="ts" generics="TData extends Record<string, any>">
-	import * as InputGroup from '#lib/components/ui/input-group/index.ts';
+	import * as InputGroup from '@pocket-id/ui/input-group';
 	import { m } from '#lib/paraglide/messages.js';
 	import type { AdvancedTableColumn } from '#lib/types/advanced-table.type.ts';
 	import type { ListRequestOptions } from '#lib/types/list-request.type.ts';

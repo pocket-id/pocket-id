@@ -3,10 +3,10 @@
 	import FormattedMessage from '#lib/components/formatted-message.svelte';
 	import type { AnyFormattedMessage, AnyMessage } from '#lib/components/formatted-message.ts';
 	import ListPagination from '#lib/components/list-pagination.svelte';
-	import * as Avatar from '#lib/components/ui/avatar/index.ts';
-	import { Badge } from '#lib/components/ui/badge/index.ts';
-	import { Button } from '#lib/components/ui/button/index.ts';
-	import { Skeleton } from '#lib/components/ui/skeleton/index.ts';
+	import * as Avatar from '@pocket-id/ui/avatar';
+	import { Badge } from '@pocket-id/ui/badge';
+	import { Button } from '@pocket-id/ui/button';
+	import { Skeleton } from '@pocket-id/ui/skeleton';
 	import { m } from '#lib/paraglide/messages.js';
 	import { getLocale } from '#lib/paraglide/runtime.js';
 	import AuditLogService from '#lib/services/audit-log-service.ts';
@@ -15,7 +15,7 @@
 	import type { ListRequestOptions, Paginated } from '#lib/types/list-request.type.ts';
 	import { translateAuditLogEvent } from '#lib/utils/audit-log-translator.ts';
 	import { cachedProfilePicture } from '#lib/utils/cached-image-util.ts';
-	import { cn } from '#lib/utils/style.ts';
+	import { cn } from '@pocket-id/ui/utils';
 	import { LucideChevronDown, LucideMonitor, LucideSmartphone } from '@lucide/svelte';
 	import { untrack } from 'svelte';
 	import { SvelteSet } from 'svelte/reactivity';

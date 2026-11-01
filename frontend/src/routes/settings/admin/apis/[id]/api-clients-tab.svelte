@@ -4,10 +4,10 @@
 	import { openConfirmDialog } from '#lib/components/confirm-dialog/index.ts';
 	import OidcClientAvatar from '#lib/components/oidc-client-avatar.svelte';
 	import SettingsSection from '#lib/components/settings-section.svelte';
-	import { Badge } from '#lib/components/ui/badge/index.ts';
-	import { Button } from '#lib/components/ui/button/index.ts';
-	import * as Dialog from '#lib/components/ui/dialog/index.ts';
-	import * as InputGroup from '#lib/components/ui/input-group/index.ts';
+	import { Badge } from '@pocket-id/ui/badge';
+	import { Button } from '@pocket-id/ui/button';
+	import * as Dialog from '@pocket-id/ui/dialog';
+	import * as InputGroup from '@pocket-id/ui/input-group';
 	import { m } from '#lib/paraglide/messages.js';
 	import ApisService from '#lib/services/apis-service.ts';
 	import type { Api, ApiClient, ApiClientAccess, ApiClientGrant } from '#lib/types/api.type.ts';

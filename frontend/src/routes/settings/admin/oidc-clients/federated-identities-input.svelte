@@ -1,11 +1,11 @@
 <script lang="ts">
 	import SettingRow from '#lib/components/setting-row.svelte';
-	import { Button } from '#lib/components/ui/button/index.ts';
-	import * as Field from '#lib/components/ui/field/index.ts';
-	import { Input } from '#lib/components/ui/input/index.ts';
-	import { Label } from '#lib/components/ui/label/index.ts';
-	import * as RadioGroup from '#lib/components/ui/radio-group/index.ts';
-	import { Switch } from '#lib/components/ui/switch/index.ts';
+	import { Button } from '@pocket-id/ui/button';
+	import * as Field from '@pocket-id/ui/field';
+	import { Input } from '@pocket-id/ui/input';
+	import { Label } from '@pocket-id/ui/label';
+	import * as RadioGroup from '@pocket-id/ui/radio-group';
+	import { Switch } from '@pocket-id/ui/switch';
 	import { m } from '#lib/paraglide/messages.js';
 	import appConfigStore from '#lib/stores/application-configuration-store.ts';
 	import type { OidcClientFederatedIdentity } from '#lib/types/oidc.type.ts';

@@ -1,6 +1,6 @@
 <script lang="ts">
 	import type { Snippet } from 'svelte';
-	import * as Table from './ui/table/index.ts';
+	import * as Table from '@pocket-id/ui/table';
 
 	let {
 		columns,

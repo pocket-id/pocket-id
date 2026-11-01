@@ -2,8 +2,8 @@
 	import CustomClaimsInput from '#lib/components/form/custom-claims-input.svelte';
 	import UserGroupInput from '#lib/components/form/user-group-input.svelte';
 	import SettingsSection from '#lib/components/settings-section.svelte';
-	import * as Field from '#lib/components/ui/field/index.ts';
-	import * as RadioGroup from '#lib/components/ui/radio-group/index.ts';
+	import * as Field from '@pocket-id/ui/field';
+	import * as RadioGroup from '@pocket-id/ui/radio-group';
 	import { m } from '#lib/paraglide/messages.js';
 	import appConfigStore from '#lib/stores/application-configuration-store.ts';
 	import type { AllAppConfig } from '#lib/types/application-configuration.type.ts';

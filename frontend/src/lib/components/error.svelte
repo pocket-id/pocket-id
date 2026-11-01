@@ -1,7 +1,7 @@
 <script lang="ts">
 	import { page } from '$app/state';
-	import { Button } from '#lib/components/ui/button/index.ts';
-	import * as Empty from '#lib/components/ui/empty/index.ts';
+	import { Button } from '@pocket-id/ui/button';
+	import * as Empty from '@pocket-id/ui/empty';
 	import { m } from '#lib/paraglide/messages.js';
 	import { LucideCompass, LucideTriangleAlert } from '@lucide/svelte';
 

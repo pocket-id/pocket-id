@@ -1,12 +1,12 @@
 <script lang="ts">
 	import AutoCompleteInput from '#lib/components/form/auto-complete-input.svelte';
 	import FormInput from '#lib/components/form/form-input.svelte';
-	import { Button } from '#lib/components/ui/button/index.ts';
-	import { Checkbox } from '#lib/components/ui/checkbox/index.ts';
-	import * as Field from '#lib/components/ui/field/index.ts';
-	import * as Select from '#lib/components/ui/select/index.ts';
-	import * as Sheet from '#lib/components/ui/sheet/index.ts';
-	import * as Tabs from '#lib/components/ui/tabs/index.ts';
+	import { Button } from '@pocket-id/ui/button';
+	import { Checkbox } from '@pocket-id/ui/checkbox';
+	import * as Field from '@pocket-id/ui/field';
+	import * as Select from '@pocket-id/ui/select';
+	import * as Sheet from '@pocket-id/ui/sheet';
+	import * as Tabs from '@pocket-id/ui/tabs';
 	import { m } from '#lib/paraglide/messages.js';
 	import CustomClaimService from '#lib/services/custom-claim-service.ts';
 	import {

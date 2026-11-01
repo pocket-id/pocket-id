@@ -1,6 +1,6 @@
 <script lang="ts">
 	import AdminAccessMarker from '#lib/components/admin-access-marker.svelte';
-	import Checkbox from '#lib/components/ui/checkbox/checkbox.svelte';
+	import { Checkbox } from '@pocket-id/ui/checkbox';
 	import type { LucideIcon } from '@lucide/svelte';
 
 	let {

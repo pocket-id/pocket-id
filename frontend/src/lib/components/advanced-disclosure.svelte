@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { Badge } from '#lib/components/ui/badge/index.ts';
+	import { Badge } from '@pocket-id/ui/badge';
 	import { m } from '#lib/paraglide/messages.js';
 	import { LucideChevronDown } from '@lucide/svelte';
 	import { Collapsible } from 'bits-ui';

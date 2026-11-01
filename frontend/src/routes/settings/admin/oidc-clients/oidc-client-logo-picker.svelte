@@ -1,16 +1,16 @@
 <script lang="ts">
 	import FormattedMessage from '#lib/components/formatted-message.svelte';
 	import { monogram } from '#lib/components/oidc-client-avatar.svelte';
-	import { Button } from '#lib/components/ui/button/index.ts';
-	import * as Command from '#lib/components/ui/command/index.ts';
-	import * as Popover from '#lib/components/ui/popover/index.ts';
+	import { Button } from '@pocket-id/ui/button';
+	import * as Command from '@pocket-id/ui/command';
+	import * as Popover from '@pocket-id/ui/popover';
 	import { m } from '#lib/paraglide/messages.js';
 	import OidcService from '#lib/services/oidc-service.ts';
 	import type { AppConfig } from '#lib/types/application-configuration.type.ts';
 	import type { OidcClientLogoPreset } from '#lib/types/oidc.type.ts';
 	import { debounced } from '#lib/utils/debounce-util.ts';
 	import { getAxiosErrorMessage } from '#lib/utils/error-util.ts';
-	import { cn } from '#lib/utils/style.ts';
+	import { cn } from '@pocket-id/ui/utils';
 	import { LucideImageOff, LucideMoon, LucideSun, LucideUpload } from '@lucide/svelte';
 	import { Command as CommandPrimitive } from 'bits-ui';
 	import { SvelteSet } from 'svelte/reactivity';

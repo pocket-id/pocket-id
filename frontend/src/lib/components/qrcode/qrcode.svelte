@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { cn } from '#lib/utils/style.ts';
+	import { cn } from '@pocket-id/ui/utils';
 	import QRCode from 'qrcode';
 	import type { HTMLAttributes } from 'svelte/elements';
 

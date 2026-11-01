@@ -65,7 +65,7 @@ func requireActorHostSchemaPreserved(t *testing.T, db *gorm.DB) {
 	require.Equal(t, int64(1), viewCount, "francis_ views must be preserved by an import")
 }
 
-// importAndRestart mirrors the CLI import flow (tests/specs/cli.spec.ts): a running instance is stopped, `pocket-id import` replaces the schema and data, and the instance is started again.
+// importAndRestart mirrors the CLI import flow (packages/tests/specs/cli.spec.ts): a running instance is stopped, `pocket-id import` replaces the schema and data, and the instance is started again.
 // Each step uses a fresh pool to emulate the separate processes involved. importCfg configures the pool the import step uses.
 func importAndRestart(importCfg func(*sql.DB)) func(t *testing.T) {
 	return func(t *testing.T) {

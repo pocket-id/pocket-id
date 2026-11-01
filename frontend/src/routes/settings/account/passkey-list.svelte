@@ -2,7 +2,7 @@
 	import { openConfirmDialog } from '#lib/components/confirm-dialog/index.ts';
 	import PasskeyRow from '#lib/components/passkey-row.svelte';
 	import SettingsSection from '#lib/components/settings-section.svelte';
-	import { Button } from '#lib/components/ui/button/index.ts';
+	import { Button } from '@pocket-id/ui/button';
 	import { m } from '#lib/paraglide/messages.js';
 	import WebAuthnService from '#lib/services/webauthn-service.ts';
 	import type { Passkey } from '#lib/types/passkey.type.ts';

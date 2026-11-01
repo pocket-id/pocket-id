@@ -1,11 +1,11 @@
 <script lang="ts">
 	import AdminAccessMarker from '#lib/components/admin-access-marker.svelte';
 	import SettingRow from '#lib/components/setting-row.svelte';
-	import * as Alert from '#lib/components/ui/alert/index.ts';
-	import { Button } from '#lib/components/ui/button/index.ts';
-	import { Checkbox } from '#lib/components/ui/checkbox/index.ts';
-	import * as Sheet from '#lib/components/ui/sheet/index.ts';
-	import { Switch } from '#lib/components/ui/switch/index.ts';
+	import * as Alert from '@pocket-id/ui/alert';
+	import { Button } from '@pocket-id/ui/button';
+	import { Checkbox } from '@pocket-id/ui/checkbox';
+	import * as Sheet from '@pocket-id/ui/sheet';
+	import { Switch } from '@pocket-id/ui/switch';
 	import { m } from '#lib/paraglide/messages.js';
 	import { builtInApiId, type Api, type ApiClientGrant } from '#lib/types/api.type.ts';
 	import { isAdminEquivalentScope, isAdminScope, scopeLabel } from '#lib/utils/api-key-scopes.ts';

@@ -4,7 +4,7 @@
 	import PageHeader from '#lib/components/page-header.svelte';
 	import SettingRow from '#lib/components/setting-row.svelte';
 	import SettingsSection from '#lib/components/settings-section.svelte';
-	import * as Alert from '#lib/components/ui/alert/index.ts';
+	import * as Alert from '@pocket-id/ui/alert';
 	import { m } from '#lib/paraglide/messages.js';
 	import { LucideLanguages, LucideTriangleAlert } from '@lucide/svelte';
 	import AccountForm from './account-form.svelte';

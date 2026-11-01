@@ -1,14 +1,14 @@
 <script lang="ts">
 	import { goto } from '$app/navigation';
-	import * as Avatar from '#lib/components/ui/avatar/index.ts';
-	import * as DropdownMenu from '#lib/components/ui/dropdown-menu/index.ts';
-	import * as Tooltip from '#lib/components/ui/tooltip/index.ts';
+	import * as Avatar from '@pocket-id/ui/avatar';
+	import * as DropdownMenu from '@pocket-id/ui/dropdown-menu';
+	import * as Tooltip from '@pocket-id/ui/tooltip';
 	import { m } from '#lib/paraglide/messages.js';
 	import userStore from '#lib/stores/user-store.ts';
 	import { cachedProfilePicture } from '#lib/utils/cached-image-util.ts';
 	import { setModeInstantly } from '#lib/utils/color-theme-util.ts';
 	import { signOut } from '#lib/utils/sign-out-util.ts';
-	import { cn } from '#lib/utils/style.ts';
+	import { cn } from '@pocket-id/ui/utils';
 	import { IdCard, LogOut, SunMoon } from '@lucide/svelte';
 	import { userPrefersMode } from 'mode-watcher';
 
@@ -83,7 +83,7 @@
 		</Tooltip.Root>
 
 		<DropdownMenu.Content
-			class="bg-popover w-60"
+			class="bg-surface-raised w-60"
 			side={variant === 'avatar' ? 'bottom' : 'top'}
 			align={variant === 'avatar' ? 'end' : 'start'}
 			data-jumping={jumping || undefined}
@@ -120,7 +120,7 @@
 								>
 							</span>
 						</DropdownMenu.SubTrigger>
-						<DropdownMenu.SubContent class="bg-popover">
+						<DropdownMenu.SubContent class="bg-surface-raised">
 							{@render appearanceOptions()}
 						</DropdownMenu.SubContent>
 					</DropdownMenu.Sub>

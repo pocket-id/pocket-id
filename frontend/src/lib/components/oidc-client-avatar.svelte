@@ -22,7 +22,7 @@
 <script lang="ts">
 	import { m } from '#lib/paraglide/messages.js';
 	import { cachedOidcClientLogo } from '#lib/utils/cached-image-util.ts';
-	import { cn } from '#lib/utils/style.ts';
+	import { cn } from '@pocket-id/ui/utils';
 	import { mode } from 'mode-watcher';
 
 	let {

@@ -1,10 +1,10 @@
 <script lang="ts">
-	import * as AlertDialog from '#lib/components/ui/alert-dialog/index.ts';
+	import * as AlertDialog from '@pocket-id/ui/alert-dialog';
 	import { m } from '#lib/paraglide/messages.js';
 	import { LucideTrash2 } from '@lucide/svelte';
 	import { confirmDialogStore } from '.';
 	import FormattedMessage from '../formatted-message.svelte';
-	import Button from '../ui/button/button.svelte';
+	import { Button } from '@pocket-id/ui/button';
 
 	let busy = $state(false);
 	let cancelButton = $state<HTMLButtonElement | null>(null);

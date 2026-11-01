@@ -1,14 +1,14 @@
 <script lang="ts">
 	import { page } from '$app/state';
 	import Logo from '#lib/components/logo.svelte';
-	import * as Tooltip from '#lib/components/ui/tooltip/index.ts';
+	import * as Tooltip from '@pocket-id/ui/tooltip';
 	import { m } from '#lib/paraglide/messages.js';
 	import appConfigStore from '#lib/stores/application-configuration-store.ts';
 	import { commandPalette } from '#lib/stores/command-palette-store.svelte.ts';
 	import { pageTransition } from '#lib/stores/page-transition-store.svelte.ts';
 	import type { AppVersionInformation } from '#lib/types/application-configuration.type.ts';
 	import { modKey } from '#lib/utils/keyboard-util.ts';
-	import { cn } from '#lib/utils/style.ts';
+	import { cn } from '@pocket-id/ui/utils';
 	import AnimatedPanelLeftClose from '@jis3r/icons/icons/panel-left-close';
 	import AnimatedPanelLeftOpen from '@jis3r/icons/icons/panel-left-open';
 	import { CircleChevronUp, Search } from '@lucide/svelte';

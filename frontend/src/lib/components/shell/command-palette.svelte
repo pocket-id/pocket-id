@@ -1,9 +1,9 @@
 <script lang="ts">
 	import { goto } from '$app/navigation';
 	import OidcClientAvatar from '#lib/components/oidc-client-avatar.svelte';
-	import * as Avatar from '#lib/components/ui/avatar/index.ts';
-	import * as Command from '#lib/components/ui/command/index.ts';
-	import * as Dialog from '#lib/components/ui/dialog/index.ts';
+	import * as Avatar from '@pocket-id/ui/avatar';
+	import * as Command from '@pocket-id/ui/command';
+	import * as Dialog from '@pocket-id/ui/dialog';
 	import { m } from '#lib/paraglide/messages.js';
 	import ApisService from '#lib/services/apis-service.ts';
 	import OIDCService from '#lib/services/oidc-service.ts';
@@ -369,7 +369,7 @@
 		showCloseButton={false}
 		overlayClass={jumping ? 'data-closed:duration-0' : undefined}
 		class={[
-			'bg-popover/72 border-fg/6 dark:border-fg/10 [@media(prefers-reduced-transparency:reduce)]:bg-popover! top-[15%] flex h-[min(70dvh,600px)] max-w-(--palette-w) translate-y-0 flex-col gap-0 overflow-hidden rounded-lg p-0 backdrop-blur-[40px] backdrop-saturate-150 max-sm:inset-0 max-sm:h-dvh max-sm:max-h-none max-sm:w-full max-sm:max-w-none max-sm:translate-x-0 max-sm:rounded-none max-sm:border-0 max-sm:pb-[env(safe-area-inset-bottom)] max-sm:before:hidden [@media(prefers-reduced-transparency:reduce)]:backdrop-filter-none!',
+			'bg-surface-raised/72 border-fg/6 dark:border-fg/10 [@media(prefers-reduced-transparency:reduce)]:bg-surface-raised! top-[15%] flex h-[min(70dvh,600px)] max-w-(--palette-w) translate-y-0 flex-col gap-0 overflow-hidden rounded-lg p-0 backdrop-blur-[40px] backdrop-saturate-150 max-sm:inset-0 max-sm:h-dvh max-sm:max-h-none max-sm:w-full max-sm:max-w-none max-sm:translate-x-0 max-sm:rounded-none max-sm:border-0 max-sm:pb-[env(safe-area-inset-bottom)] max-sm:before:hidden [@media(prefers-reduced-transparency:reduce)]:backdrop-filter-none!',
 			jumping && 'data-closed:duration-0'
 		]}
 	>

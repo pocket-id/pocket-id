@@ -89,7 +89,7 @@ The image has the checkout at `/src`, Go modules and the pnpm store pre-fetched 
 - Passkeys cannot be used without a browser and authenticator, so sign in as a user with `pocket-id one-time-access-token <username>` (same env vars) and exchange the code with `POST /api/one-time-access-token/<code>`, which sets the session cookie.
 - Unit tests: `cd /src/backend && go test -tags exclude_frontend,unit ./...`; tests that need Postgres skip without `POCKET_ID_TEST_POSTGRES_URL`, and no Postgres is installed.
 - Regression tests belong next to the code they test, as `*_test.go` with the `unit` build tag where test helpers are needed; `backend/internal/utils/testing/` has database and actor helpers.
-- The Playwright suite in `tests/` needs Docker and a browser and cannot run here.
+- The Playwright suite in `packages/tests/` needs Docker and a browser and cannot run here.
 
 ## 6. Report requirements
 

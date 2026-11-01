@@ -3,8 +3,8 @@
 	import ProfilePictureSettings from '#lib/components/form/profile-picture-settings.svelte';
 	import SettingRow from '#lib/components/setting-row.svelte';
 	import SettingsSection from '#lib/components/settings-section.svelte';
-	import { Checkbox } from '#lib/components/ui/checkbox/index.ts';
-	import { Switch } from '#lib/components/ui/switch/index.ts';
+	import { Checkbox } from '@pocket-id/ui/checkbox';
+	import { Switch } from '@pocket-id/ui/switch';
 	import { m } from '#lib/paraglide/messages.js';
 	import UserService from '#lib/services/user-service.ts';
 	import appConfigStore from '#lib/stores/application-configuration-store.ts';
