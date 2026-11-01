@@ -40,7 +40,7 @@ func initRouter(db *gorm.DB, svc *services, rateLimitServices map[string]*rateli
 	if err != nil {
 		return nil, err
 	}
-	auth := middleware.NewAuthorization(svc.apiKeyModule, svc.oidcModule, svc.userService, svc.jwtService, svc.appConfigService)
+	auth := middleware.NewAuthorization(svc.apiKeyModule, svc.oidcModule, svc.userService, svc.sessionModule, svc.appConfigService)
 	err = registerRoutes(r, db, svc, auth, rateLimitServices)
 	if err != nil {
 		return nil, err
@@ -164,6 +164,7 @@ func registerRoutes(r *gin.Engine, db *gorm.DB, svc *services, auth *authz.Middl
 	baseRouter := auth.Router(baseGroup)
 
 	svc.apiKeyModule.RegisterRoutes(apiRouter)
+	svc.sessionModule.RegisterRoutes(apiRouter)
 	svc.webauthnModule.RegisterRoutes(apiRouter,
 		rateLimitMiddleware.Add(middleware.RateLimitWebauthnLogin),
 		rateLimitMiddleware.Add(middleware.RateLimitWebauthnReauthenticate),

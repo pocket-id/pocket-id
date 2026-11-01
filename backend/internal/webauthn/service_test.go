@@ -3,13 +3,11 @@ package webauthn
 import (
 	"context"
 	"errors"
-	"fmt"
 	"testing"
 	"time"
 
 	"github.com/go-webauthn/webauthn/protocol"
 	gowebauthn "github.com/go-webauthn/webauthn/webauthn"
-	"github.com/lestrrat-go/jwx/v4/jwt"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"gorm.io/gorm"
@@ -18,122 +16,49 @@ import (
 	"github.com/pocket-id/pocket-id/backend/internal/apperror"
 	"github.com/pocket-id/pocket-id/backend/internal/auditlogs"
 	"github.com/pocket-id/pocket-id/backend/internal/authz"
-	"github.com/pocket-id/pocket-id/backend/internal/common"
 	"github.com/pocket-id/pocket-id/backend/internal/model"
 	datatype "github.com/pocket-id/pocket-id/backend/internal/model/types"
 	"github.com/pocket-id/pocket-id/backend/internal/utils"
 	testutils "github.com/pocket-id/pocket-id/backend/internal/utils/testing"
 )
 
-// fakeSigner is an in-memory TokenService that mints opaque tokens carrying a subject,
-// an issued-at time and an optional authentication method, without any real signing
-type fakeSigner struct {
-	tokens  map[string]jwt.Token
-	counter int
-}
-
-func newFakeSigner() *fakeSigner {
-	return &fakeSigner{tokens: map[string]jwt.Token{}}
-}
-
-func (s *fakeSigner) GenerateAccessToken(user model.User, authenticationMethod string, _ time.Duration) (string, error) {
-	builder := jwt.NewBuilder().
-		Subject(user.ID).
-		IssuedAt(time.Now())
-	if authenticationMethod != "" {
-		builder = builder.Claim(common.AuthenticationMethodsClaim, []string{authenticationMethod})
+func TestCreateReauthenticationTokenWithSession(t *testing.T) {
+	db := testutils.NewDatabaseForTest(t)
+	user := model.User{
+		Base:     model.Base{ID: "reauth-user"},
+		Username: "reauth-user",
 	}
-	token, err := builder.Build()
-	if err != nil {
-		return "", err
+	require.NoError(t, db.Create(&user).Error)
+	service := &Service{db: db}
+
+	tests := []struct {
+		name                 string
+		authenticationMethod string
+		authenticatedAgo     time.Duration
+		wantToken            bool
+	}{
+		{name: "fresh passkey sign-in", authenticationMethod: authenticationMethodPhishingResistant, wantToken: true},
+		{name: "passkey sign-in older than a minute", authenticationMethod: authenticationMethodPhishingResistant, authenticatedAgo: 2 * time.Minute},
+		{name: "fresh login code sign-in", authenticationMethod: "otp"},
+		{name: "fresh sign-in without an authentication method"},
 	}
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			reauthenticationToken, err := service.CreateReauthenticationTokenWithSession(t.Context(), authz.Principal{
+				UserID:               user.ID,
+				AuthenticationMethod: test.authenticationMethod,
+				AuthenticationTime:   time.Now().Add(-test.authenticatedAgo),
+			})
 
-	s.counter++
-	raw := fmt.Sprintf("fake-access-token-%d", s.counter)
-	s.tokens[raw] = token
-	return raw, nil
-}
-
-func (s *fakeSigner) VerifyAccessToken(tokenString string) (jwt.Token, error) {
-	token, ok := s.tokens[tokenString]
-	if !ok {
-		return nil, errors.New("invalid token")
+			if test.wantToken {
+				require.NoError(t, err)
+				assert.NotEmpty(t, reauthenticationToken)
+				return
+			}
+			assert.Empty(t, reauthenticationToken)
+			assert.True(t, apperror.IsCode(err, apperror.CodeReauthenticationRequired))
+		})
 	}
-	return token, nil
-}
-
-func (s *fakeSigner) GetAuthenticationMethod(token jwt.Token) (string, error) {
-	if !token.Has(common.AuthenticationMethodsClaim) {
-		return "", nil
-	}
-	methods, err := jwt.Get[[]string](token, common.AuthenticationMethodsClaim)
-	if err != nil {
-		return "", err
-	}
-	if len(methods) == 0 {
-		return "", nil
-	}
-	return methods[0], nil
-}
-
-func TestCreateReauthenticationTokenWithAccessToken(t *testing.T) {
-	setupService := func(t *testing.T) (*Service, *fakeSigner, model.User) {
-		t.Helper()
-
-		db := testutils.NewDatabaseForTest(t)
-		user := model.User{
-			Base:     model.Base{ID: "reauth-user"},
-			Username: "reauth-user",
-		}
-		require.NoError(t, db.Create(&user).Error)
-
-		signer := newFakeSigner()
-		return &Service{db: db, signer: signer}, signer, user
-	}
-
-	t.Run("accepts a fresh access token from WebAuthn login", func(t *testing.T) {
-		service, signer, user := setupService(t)
-		accessToken, err := signer.GenerateAccessToken(user, authenticationMethodPhishingResistant, time.Hour)
-		require.NoError(t, err)
-
-		reauthenticationToken, err := service.CreateReauthenticationTokenWithAccessToken(t.Context(), accessToken)
-
-		require.NoError(t, err)
-		assert.NotEmpty(t, reauthenticationToken)
-	})
-
-	t.Run("rejects a fresh access token from one-time access login", func(t *testing.T) {
-		service, signer, user := setupService(t)
-		accessToken, err := signer.GenerateAccessToken(user, "otp", time.Hour)
-		require.NoError(t, err)
-
-		reauthenticationToken, err := service.CreateReauthenticationTokenWithAccessToken(t.Context(), accessToken)
-
-		assert.Empty(t, reauthenticationToken)
-		require.Error(t, err)
-		assert.True(t, apperror.IsCode(err, apperror.CodeReauthenticationRequired))
-	})
-
-	t.Run("rejects a fresh access token without an authentication method", func(t *testing.T) {
-		service, signer, user := setupService(t)
-		accessToken, err := signer.GenerateAccessToken(user, "", time.Hour)
-		require.NoError(t, err)
-
-		reauthenticationToken, err := service.CreateReauthenticationTokenWithAccessToken(t.Context(), accessToken)
-
-		assert.Empty(t, reauthenticationToken)
-		require.Error(t, err)
-		assert.True(t, apperror.IsCode(err, apperror.CodeReauthenticationRequired))
-	})
-
-	t.Run("classifies an invalid access token as missing reauthentication", func(t *testing.T) {
-		service, _, _ := setupService(t)
-
-		reauthenticationToken, err := service.CreateReauthenticationTokenWithAccessToken(t.Context(), "invalid")
-
-		assert.Empty(t, reauthenticationToken)
-		require.True(t, apperror.IsCode(err, apperror.CodeReauthenticationRequired))
-	})
 }
 
 func TestWebAuthnDisplayNameUsesRequestConfig(t *testing.T) {

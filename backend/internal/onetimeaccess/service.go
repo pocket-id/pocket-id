@@ -39,7 +39,7 @@ type Service struct {
 	db           *gorm.DB
 	actorService *actor.Service
 	userProvider UserProvider
-	signer       TokenService
+	sessions     SessionCreator
 	auditLog     AuditLogger
 	emailSender  EmailSender
 }
@@ -49,7 +49,7 @@ func newService(deps Dependencies, actorService *actor.Service) *Service {
 		db:           deps.DB,
 		actorService: actorService,
 		userProvider: deps.UserProvider,
-		signer:       deps.Signer,
+		sessions:     deps.Sessions,
 		auditLog:     deps.AuditLog,
 		emailSender:  deps.EmailSender,
 	}
@@ -184,16 +184,16 @@ func (s *Service) ExchangeToken(ctx context.Context, dbConfig *appconfig.AppConf
 	}
 
 	// The token has now been consumed. From this point on, if we hit an error we compensate by restoring the token (this is best-effort).
-	user, accessToken, err := s.completeTokenExchange(ctx, dbConfig, consumeRes.State, ipAddress, userAgent, browserToken)
+	user, tokens, err := s.completeTokenExchange(ctx, dbConfig, consumeRes.State, ipAddress, userAgent, browserToken)
 	if err != nil {
 		s.restoreToken(ctx, token, consumeRes.State)
 		return model.User{}, model.LoginTokens{}, err
 	}
 
-	return user, accessToken, nil
+	return user, tokens, nil
 }
 
-// completeTokenExchange performs the work that follows consuming a token: loading the user, validating it, and issuing an access token.
+// completeTokenExchange performs the work that follows consuming a token: loading the user, validating it, and starting a session.
 func (s *Service) completeTokenExchange(ctx context.Context, dbConfig *appconfig.AppConfigModel, state TokenState, ipAddress, userAgent, browserToken string) (model.User, model.LoginTokens, error) {
 	var user model.User
 	err := s.db.
@@ -211,11 +211,7 @@ func (s *Service) completeTokenExchange(ctx context.Context, dbConfig *appconfig
 		return model.User{}, model.LoginTokens{}, apperror.UserDisabled()
 	}
 
-	accessToken, err := s.signer.GenerateAccessToken(
-		user,
-		authenticationMethodOneTimePassword,
-		dbConfig.SessionDuration.AsDurationMinutes(),
-	)
+	sessionToken, err := s.sessions.Create(ctx, user.ID, authenticationMethodOneTimePassword, ipAddress, userAgent, dbConfig.SessionDuration.AsDurationMinutes())
 	if err != nil {
 		return model.User{}, model.LoginTokens{}, err
 	}
@@ -224,7 +220,7 @@ func (s *Service) completeTokenExchange(ctx context.Context, dbConfig *appconfig
 	signIn := s.auditLog.CreateSignIn(ctx, auditlogs.EventOneTimeAccessTokenSignIn, ipAddress, userAgent, user.ID, browserToken, s.db, dbConfig.EmailLoginNotificationMode)
 	s.auditLog.SendSignInNotification(ctx, signIn)
 
-	return user, model.LoginTokens{AccessToken: accessToken, KnownBrowserToken: signIn.KnownBrowserToken}, nil
+	return user, model.LoginTokens{SessionToken: sessionToken, KnownBrowserToken: signIn.KnownBrowserToken}, nil
 }
 
 // restoreToken restores a token that was consumed but whose exchange could not be completed.

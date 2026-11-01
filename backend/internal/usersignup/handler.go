@@ -61,7 +61,7 @@ func (h *handler) signUpInitialAdmin(c *gin.Context) error {
 		return err
 	}
 
-	user, token, err := h.service.SignUpInitialAdmin(c.Request.Context(), config, input)
+	user, token, err := h.service.SignUpInitialAdmin(c.Request.Context(), config, input, c.ClientIP(), c.Request.UserAgent())
 	if err != nil {
 		return err
 	}
@@ -73,7 +73,7 @@ func (h *handler) signUpInitialAdmin(c *gin.Context) error {
 	}
 
 	maxAge := int(config.SessionDuration.AsDurationMinutes().Seconds())
-	cookie.AddAccessTokenCookie(c, maxAge, token)
+	cookie.AddSessionTokenCookie(c, maxAge, token)
 
 	c.JSON(http.StatusOK, userDto)
 	return nil
@@ -185,13 +185,13 @@ func (h *handler) signup(c *gin.Context) error {
 		return err
 	}
 
-	user, accessToken, err := h.service.SignUp(c.Request.Context(), config, input, c.ClientIP(), c.GetHeader("User-Agent"))
+	user, sessionToken, err := h.service.SignUp(c.Request.Context(), config, input, c.ClientIP(), c.GetHeader("User-Agent"))
 	if err != nil {
 		return err
 	}
 
 	maxAge := int(config.SessionDuration.AsDurationMinutes().Seconds())
-	cookie.AddAccessTokenCookie(c, maxAge, accessToken)
+	cookie.AddSessionTokenCookie(c, maxAge, sessionToken)
 
 	var userDto dto.UserDto
 	err = dto.MapStruct(user, &userDto)

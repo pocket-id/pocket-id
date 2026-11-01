@@ -91,7 +91,7 @@ func (h *handler) exchangeRequest(c *gin.Context) error {
 	}
 
 	maxAge := int(sessionDuration.Seconds())
-	cookie.AddAccessTokenCookie(c, maxAge, tokens.AccessToken)
+	cookie.AddSessionTokenCookie(c, maxAge, tokens.SessionToken)
 	if tokens.KnownBrowserToken != "" {
 		cookie.AddKnownBrowserCookie(c, tokens.KnownBrowserToken, int(auditlogs.KnownBrowserLifetime.Seconds()))
 	}

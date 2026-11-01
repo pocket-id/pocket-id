@@ -34,7 +34,7 @@ const missingUserVerificationErrorInfo = "User verification required but flag no
 type Service struct {
 	db       *gorm.DB
 	webAuthn *gowebauthn.WebAuthn
-	signer   TokenService
+	sessions SessionStore
 	auditLog AuditLogger
 }
 
@@ -67,7 +67,7 @@ func newService(deps Dependencies) (*Service, error) {
 	return &Service{
 		db:       deps.DB,
 		webAuthn: wa,
-		signer:   deps.Signer,
+		sessions: deps.Sessions,
 		auditLog: deps.AuditLog,
 	}, nil
 }
@@ -314,11 +314,6 @@ func (s *Service) VerifyLogin(ctx context.Context, dbConfig *appconfig.AppConfig
 		return model.User{}, model.LoginTokens{}, apperror.UserDisabled()
 	}
 
-	token, err := s.signer.GenerateAccessToken(*user, authenticationMethodPhishingResistant, dbConfig.SessionDuration.AsDurationMinutes())
-	if err != nil {
-		return model.User{}, model.LoginTokens{}, err
-	}
-
 	// Prepare browser recognition and the notification within the login transaction
 	signIn := s.auditLog.CreateSignIn(ctx, auditlogs.EventSignIn, ipAddress, userAgent, user.ID, browserToken, tx, dbConfig.EmailLoginNotificationMode)
 	if !signIn.Created {
@@ -330,9 +325,15 @@ func (s *Service) VerifyLogin(ctx context.Context, dbConfig *appconfig.AppConfig
 		return model.User{}, model.LoginTokens{}, err
 	}
 
+	// Start the session only after the login transaction has committed, since it invokes an actor
+	token, err := s.sessions.Create(ctx, user.ID, authenticationMethodPhishingResistant, ipAddress, userAgent, dbConfig.SessionDuration.AsDurationMinutes())
+	if err != nil {
+		return model.User{}, model.LoginTokens{}, err
+	}
+
 	// Deliver the notification only after the login transaction has committed
 	s.auditLog.SendSignInNotification(ctx, signIn)
-	return *user, model.LoginTokens{AccessToken: token, KnownBrowserToken: signIn.KnownBrowserToken}, nil
+	return *user, model.LoginTokens{SessionToken: token, KnownBrowserToken: signIn.KnownBrowserToken}, nil
 }
 
 func (s *Service) ListCredentials(ctx context.Context, userID string) ([]model.WebauthnCredential, error) {
@@ -477,49 +478,18 @@ func validateCredentialPolicy(dbConfig *appconfig.AppConfigModel, credential *go
 	return nil
 }
 
-func (s *Service) CreateReauthenticationTokenWithAccessToken(ctx context.Context, accessToken string) (string, error) {
+// CreateReauthenticationTokenWithSession lets a passkey sign-in that just happened count as reauthentication, so the user isn't asked for their passkey twice in a row
+func (s *Service) CreateReauthenticationTokenWithSession(ctx context.Context, principal authz.Principal) (string, error) {
+	if principal.AuthenticationMethod != authenticationMethodPhishingResistant || time.Since(principal.AuthenticationTime) > time.Minute {
+		return "", apperror.ReauthenticationRequired()
+	}
+
 	tx := s.db.Begin()
 	defer func() {
 		tx.Rollback()
 	}()
 
-	token, err := s.signer.VerifyAccessToken(accessToken)
-	if err != nil {
-		return "", apperror.ReauthenticationRequiredWithCause(err)
-	}
-
-	userID, ok := token.Subject()
-	if !ok {
-		return "", apperror.ReauthenticationRequiredWithCause(errors.New("access token does not contain user ID"))
-	}
-
-	authenticationMethod, err := s.signer.GetAuthenticationMethod(token)
-	if err != nil {
-		return "", apperror.ReauthenticationRequiredWithCause(err)
-	}
-	if authenticationMethod != authenticationMethodPhishingResistant {
-		return "", apperror.ReauthenticationRequired()
-	}
-
-	// Check if token is issued less than a minute ago
-	tokenExpiration, ok := token.IssuedAt()
-	if !ok || time.Since(tokenExpiration) > time.Minute {
-		return "", apperror.ReauthenticationRequired()
-	}
-
-	var user model.User
-	err = tx.
-		WithContext(ctx).
-		First(&user, "id = ?", userID).
-		Error
-	if errors.Is(err, gorm.ErrRecordNotFound) {
-		return "", apperror.ReauthenticationRequiredWithCause(err)
-	}
-	if err != nil {
-		return "", fmt.Errorf("failed to load user: %w", err)
-	}
-
-	reauthToken, err := s.createReauthenticationToken(ctx, tx, user.ID)
+	reauthToken, err := s.createReauthenticationToken(ctx, tx, principal.UserID)
 	if err != nil {
 		return "", err
 	}

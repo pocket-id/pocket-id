@@ -41,6 +41,10 @@ type ReauthenticationTokenConsumer interface {
 	ConsumeReauthenticationToken(ctx context.Context, tx *gorm.DB, token string, userID string) (time.Time, error)
 }
 
+type SessionRevoker interface {
+	Revoke(ctx context.Context, userID, sessionID string) error
+}
+
 type AuditLogger interface {
 	Create(ctx context.Context, event auditlogs.Event, ipAddress, userAgent, userID string, data auditlogs.Data, tx *gorm.DB) (auditlogs.AuditLog, bool)
 }
@@ -58,6 +62,7 @@ type Dependencies struct {
 	CustomClaims CustomClaimSource
 	Reauth       ReauthenticationTokenConsumer
 	AuditLog     AuditLogger
+	Sessions     SessionRevoker
 	APIAccess    APIAccessProvider
 	AppConfig    appconfig.AppConfigResolver
 
@@ -143,7 +148,7 @@ func New(ctx context.Context, deps Dependencies) (*Module, error) {
 		userInfoHandler:      newUserInfoHandler(provider, claimsService, deps.Config.BaseURL),
 		parHandler:           newPARHandler(provider),
 		introspectionHandler: newIntrospectionHandler(provider, authenticator, deps.Config.BaseURL),
-		endSessionHandler:    newEndSessionHandler(endSessionService, deps.Config.BaseURL),
+		endSessionHandler:    newEndSessionHandler(endSessionService, deps.Sessions, deps.Config.BaseURL),
 		deviceHandler:        newDeviceHandler(provider, deviceService),
 
 		claimMappingsPreviewHandler: &claimMappingsPreviewHandler{claimsService: claimsService},

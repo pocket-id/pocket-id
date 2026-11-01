@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/gin-gonic/gin"
+	"github.com/italypaleale/francis/host/local"
 	"github.com/pocket-id/fosite"
 	"github.com/stretchr/testify/require"
 	"gorm.io/gorm"
@@ -22,6 +23,7 @@ import (
 	datatype "github.com/pocket-id/pocket-id/backend/internal/model/types"
 	"github.com/pocket-id/pocket-id/backend/internal/oidc"
 	"github.com/pocket-id/pocket-id/backend/internal/service"
+	"github.com/pocket-id/pocket-id/backend/internal/session"
 	"github.com/pocket-id/pocket-id/backend/internal/utils"
 	"github.com/pocket-id/pocket-id/backend/internal/utils/cookie"
 	testutils "github.com/pocket-id/pocket-id/backend/internal/utils/testing"
@@ -57,10 +59,20 @@ func TestAuthorizationWithRealCredentials(t *testing.T) {
 	unverified := createUserForAuthorizationTest(t, db, "auth-unverified", false, false, false)
 	unverifiedAdmin := createUserForAuthorizationTest(t, db, "auth-unverified-admin", true, false, false)
 
-	userSession, err := jwtService.GenerateAccessToken(user, "", time.Hour)
+	var sessions *session.Module
+	testutils.NewActorHostForTest(t, func(t *testing.T, h *local.Host) {
+		sessions, err = session.New(session.Dependencies{Actors: h, IPLocator: noIPLocation{}})
+		require.NoError(t, err)
+	})
+	userSession, err := sessions.Create(t.Context(), user.ID, "", "", "", time.Hour)
 	require.NoError(t, err)
-	unverifiedSession, err := jwtService.GenerateAccessToken(unverified, "", time.Hour)
+	unverifiedSession, err := sessions.Create(t.Context(), unverified.ID, "", "", "", time.Hour)
 	require.NoError(t, err)
+	revokedSession, err := sessions.Create(t.Context(), user.ID, "", "", "", time.Hour)
+	require.NoError(t, err)
+	_, revoked, err := sessions.Validate(t.Context(), revokedSession)
+	require.NoError(t, err)
+	require.NoError(t, sessions.Revoke(t.Context(), user.ID, revoked.ID))
 	userAPIKey := createAPIKeyForAuthorizationTest(t, db, user, "user-raw-api-key", apikey.AllScopes())
 	adminAPIKey := createAPIKeyForAuthorizationTest(t, db, admin, "admin-raw-api-key", apikey.AllScopes())
 	adminAccountOnlyAPIKey := createAPIKeyForAuthorizationTest(t, db, admin, "admin-account-only-raw-api-key", datatype.StringList{string(authz.AccountRead)})
@@ -85,7 +97,7 @@ func TestAuthorizationWithRealCredentials(t *testing.T) {
 		"unverified-api-token": oauthAccessRequest(unverified.ID, fosite.Arguments{resource}, string(authz.AccountRead), string(authz.AccountApps)),
 		"machine-token":        oauthAccessRequest(oidc.ClientSubject(oauthTestClientID), fosite.Arguments{resource}, string(authz.UsersRead), string(authz.AccountRead)),
 	}
-	apiRouter := NewAuthorization(apiKeyModule, accessTokens, userService, jwtService, appconfig.StaticResolver{Config: cfg}).Router(router.Group("/api"))
+	apiRouter := NewAuthorization(apiKeyModule, accessTokens, userService, sessions, appconfig.StaticResolver{Config: cfg}).Router(router.Group("/api"))
 	ok := func(c *gin.Context) {
 		c.String(http.StatusOK, authz.PrincipalFrom(c).UserID)
 	}
@@ -105,22 +117,24 @@ func TestAuthorizationWithRealCredentials(t *testing.T) {
 		userID        string
 		errorCode     string
 	}{
-		{name: "session on session-only route", path: "/api/session-only", authorization: "Bearer " + userSession, status: http.StatusOK, userID: user.ID},
+		{name: "session on session-only route", path: "/api/session-only", sessionCookie: userSession, status: http.StatusOK, userID: user.ID},
 		{name: "API key on session-only route", path: "/api/session-only", apiKey: adminAPIKey, status: http.StatusForbidden, errorCode: "api_key_auth_not_allowed"},
 		{name: "API key on account route", path: "/api/account", apiKey: userAPIKey, status: http.StatusOK, userID: user.ID},
-		{name: "regular user session on admin route", path: "/api/admin", authorization: "Bearer " + userSession, status: http.StatusForbidden, errorCode: "forbidden"},
+		{name: "regular user session on admin route", path: "/api/admin", sessionCookie: userSession, status: http.StatusForbidden, errorCode: "forbidden"},
 		{name: "regular user API key that stores admin scopes on admin route", path: "/api/admin", apiKey: userAPIKey, status: http.StatusForbidden, errorCode: "forbidden"},
 		{name: "admin API key on admin route", path: "/api/admin", apiKey: adminAPIKey, status: http.StatusOK, userID: admin.ID},
 		{name: "admin API key without the route's scope", path: "/api/admin", apiKey: adminAccountOnlyAPIKey, status: http.StatusForbidden, errorCode: "forbidden"},
 		{name: "admin API key with the route's scope", path: "/api/account", apiKey: adminAccountOnlyAPIKey, status: http.StatusOK, userID: admin.ID},
+		{name: "revoked session", path: "/api/account", sessionCookie: revokedSession, status: http.StatusUnauthorized, errorCode: "not_signed_in"},
+		{name: "session token in the Authorization header", path: "/api/account", authorization: "Bearer " + userSession, status: http.StatusUnauthorized, errorCode: "not_signed_in"},
 		{name: "invalid session cookie falls back to API key", path: "/api/admin", sessionCookie: "not-a-jwt", apiKey: adminAPIKey, status: http.StatusOK, userID: admin.ID},
 		{name: "disabled user's API key", path: "/api/account", apiKey: disabledAPIKey, status: http.StatusForbidden, errorCode: "user_disabled"},
-		{name: "verified user session on apps route", path: "/api/apps", authorization: "Bearer " + userSession, status: http.StatusOK, userID: user.ID},
-		{name: "unverified user session on session-only route", path: "/api/session-only", authorization: "Bearer " + unverifiedSession, status: http.StatusOK, userID: unverified.ID},
-		{name: "unverified user session on account route", path: "/api/account", authorization: "Bearer " + unverifiedSession, status: http.StatusOK, userID: unverified.ID},
-		{name: "unverified user session on apps route", path: "/api/apps", authorization: "Bearer " + unverifiedSession, status: http.StatusForbidden, errorCode: "email_verification_required"},
-		{name: "unverified user session on authorize route", path: "/api/authorize", authorization: "Bearer " + unverifiedSession, status: http.StatusForbidden, errorCode: "email_verification_required"},
-		{name: "verified user session on authorize route", path: "/api/authorize", authorization: "Bearer " + userSession, status: http.StatusOK, userID: user.ID},
+		{name: "verified user session on apps route", path: "/api/apps", sessionCookie: userSession, status: http.StatusOK, userID: user.ID},
+		{name: "unverified user session on session-only route", path: "/api/session-only", sessionCookie: unverifiedSession, status: http.StatusOK, userID: unverified.ID},
+		{name: "unverified user session on account route", path: "/api/account", sessionCookie: unverifiedSession, status: http.StatusOK, userID: unverified.ID},
+		{name: "unverified user session on apps route", path: "/api/apps", sessionCookie: unverifiedSession, status: http.StatusForbidden, errorCode: "email_verification_required"},
+		{name: "unverified user session on authorize route", path: "/api/authorize", sessionCookie: unverifiedSession, status: http.StatusForbidden, errorCode: "email_verification_required"},
+		{name: "verified user session on authorize route", path: "/api/authorize", sessionCookie: userSession, status: http.StatusOK, userID: user.ID},
 		{name: "unverified user API key on account route", path: "/api/account", apiKey: unverifiedAPIKey, status: http.StatusOK, userID: unverified.ID},
 		{name: "unverified user API key on apps route", path: "/api/apps", apiKey: unverifiedAPIKey, status: http.StatusForbidden, errorCode: "email_verification_required"},
 		{name: "unverified admin API key on admin route", path: "/api/admin", apiKey: unverifiedAdminAPIKey, status: http.StatusOK, userID: unverifiedAdmin.ID},
@@ -146,7 +160,7 @@ func TestAuthorizationWithRealCredentials(t *testing.T) {
 				req.Header.Set("Authorization", test.authorization)
 			}
 			if test.sessionCookie != "" {
-				req.AddCookie(&http.Cookie{Name: cookie.AccessTokenCookieName, Value: test.sessionCookie, Secure: true, HttpOnly: true, SameSite: http.SameSiteLaxMode})
+				req.AddCookie(&http.Cookie{Name: cookie.SessionTokenCookieName, Value: test.sessionCookie, Secure: true, HttpOnly: true, SameSite: http.SameSiteLaxMode})
 			}
 			if test.apiKey != "" {
 				req.Header.Set("X-API-Key", test.apiKey)
@@ -166,6 +180,12 @@ func TestAuthorizationWithRealCredentials(t *testing.T) {
 			require.Equal(t, test.errorCode, body["code"])
 		})
 	}
+}
+
+type noIPLocation struct{}
+
+func (noIPLocation) GetLocationByIP(context.Context, string) (string, string, error) {
+	return "", "", nil
 }
 
 // fakeAccessTokenVerifier resolves raw OAuth access tokens to the requests they were granted for
