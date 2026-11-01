@@ -369,10 +369,10 @@
 							{/if}
 						</Command.List>
 					</Command.Root>
-					<!-- A custom icon library isn't necessarily selfh.st's collection, so the credit only applies to the default one while its icons are shown -->
+					<!-- A custom icon library isn't necessarily the Dashboard Icons collection, so the credit only applies to the default one while its icons are shown -->
 					{#if iconLibrary === 'default' && showIconGrid}
 						<p class="text-fg-muted text-micro border-t px-3 py-2">
-							<FormattedMessage message={m.icons_provided_by_selfhst} />
+							<FormattedMessage message={m.icons_provided_by_dashboard_icons} />
 						</p>
 					{/if}
 				</Popover.Content>

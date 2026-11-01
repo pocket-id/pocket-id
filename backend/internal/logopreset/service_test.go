@@ -17,14 +17,17 @@ import (
 
 const testBaseURL = "https://icons.example.com"
 
-const testIndex = `[
-	{"Name": "Nextcloud", "Reference": "nextcloud", "SVG": "Yes", "PNG": "Yes", "Light": "Yes", "Dark": "Yes", "Tags": "Cloud Storage"},
-	{"Name": "Nextcloud Talk", "Reference": "nextcloud-talk", "SVG": "Yes", "PNG": "Yes", "Light": "No", "Dark": "No", "Tags": ""},
-	{"Name": "Ghost", "Reference": "ghost", "SVG": "No", "PNG": "Yes", "Light": "Yes", "Dark": "Yes", "Tags": "Blogging"},
-	{"Name": "Home Assistant", "Reference": "home-assistant", "SVG": "Yes", "PNG": "Yes", "Light": "Yes", "Dark": "Yes", "Tags": ""},
-	{"Name": "OwnCloud", "Reference": "owncloud", "SVG": "Yes", "PNG": "Yes", "Light": "No", "Dark": "No", "Tags": "Cloud Storage"},
-	{"Name": "Bad", "Reference": "../bad", "SVG": "Yes", "PNG": "Yes", "Light": "No", "Dark": "No", "Tags": ""}
-]`
+const testIndex = `{
+	"nextcloud": {"base": "svg", "aliases": ["Nextcloud"]},
+	"nextcloud-talk": {"base": "svg", "aliases": []},
+	"ghost": {"base": "png", "aliases": ["blogging"], "colors": {"light": "ghost-light"}},
+	"home-assistant": {"base": "svg", "aliases": []},
+	"owncloud": {"base": "svg", "aliases": ["ownCloud", "cloud-storage"]},
+	"github": {"base": "svg", "aliases": ["GitHub"], "colors": {"dark": "github", "light": "github-light"}},
+	"alertmanager": {"base": "svg", "aliases": [], "colors": {"dark": "alertmanager-dark"}},
+	"../bad": {"base": "svg", "aliases": []},
+	"bad-variant": {"base": "svg", "aliases": [], "colors": {"light": "../bad"}}
+}`
 
 // countingRoundTripper counts requests before delegating to the mock, so tests can assert when the index is fetched
 type countingRoundTripper struct {
@@ -47,7 +50,7 @@ func newTestService(t *testing.T, mock *testutils.MockRoundTripper) (*Service, *
 func indexMock() *testutils.MockRoundTripper {
 	return &testutils.MockRoundTripper{
 		Responses: map[string]*http.Response{
-			testBaseURL + "/index.json": testutils.NewMockResponse(http.StatusOK, testIndex), //nolint:bodyclose // mock response, no real body
+			testBaseURL + "/metadata.json": testutils.NewMockResponse(http.StatusOK, testIndex), //nolint:bodyclose // mock response, no real body
 		},
 	}
 }
@@ -82,8 +85,8 @@ func TestSearch_Ranking(t *testing.T) {
 		{name: "exact match ranks before prefix match", query: "nextcloud", want: []string{"nextcloud", "nextcloud-talk"}},
 		{name: "substring matches come after prefix matches", query: "cloud", want: []string{"nextcloud", "nextcloud-talk", "owncloud"}},
 		{name: "separators and case are ignored", query: "HOME assistant", want: []string{"home-assistant"}},
-		{name: "tags match last", query: "blogging", want: []string{"ghost"}},
-		{name: "empty query lists everything alphabetically", query: "", want: []string{"ghost", "home-assistant", "nextcloud", "nextcloud-talk", "owncloud"}},
+		{name: "aliases match last", query: "blogging", want: []string{"ghost"}},
+		{name: "empty query lists everything alphabetically", query: "", want: []string{"alertmanager", "ghost", "github", "home-assistant", "nextcloud", "nextcloud-talk", "owncloud"}},
 		{name: "no match", query: "jellyfin", want: []string{}},
 	}
 
@@ -99,13 +102,13 @@ func TestSearch_Ranking(t *testing.T) {
 func TestSearch_LimitsResults(t *testing.T) {
 	presets := make([]preset, maxResults+10)
 	for i := range presets {
-		presets[i] = preset{searchName: "app", searchReference: "app"}
+		presets[i] = preset{searchReference: "app"}
 	}
 
 	assert.Len(t, search(presets, "app", maxResults), maxResults)
 }
 
-func TestSearch_BuildsIconURLs(t *testing.T) {
+func TestSearch_BuildsPresets(t *testing.T) {
 	svc, _ := newTestService(t, indexMock())
 
 	presets, err := svc.Search(t.Context(), "")
@@ -116,25 +119,36 @@ func TestSearch_BuildsIconURLs(t *testing.T) {
 		byReference[p.Reference] = p
 	}
 
-	// SVG icon with a white variant for dark mode
+	// An icon without color variants is used for both themes
 	nextcloud := byReference["nextcloud"]
 	assert.Equal(t, testBaseURL+"/svg/nextcloud.svg", nextcloud.LogoURL)
-	require.NotNil(t, nextcloud.DarkLogoURL)
-	assert.Equal(t, testBaseURL+"/svg/nextcloud-light.svg", *nextcloud.DarkLogoURL)
+	assert.Nil(t, nextcloud.DarkLogoURL)
 
-	// SVG icon without a white variant leaves the dark logo empty
-	talk := byReference["nextcloud-talk"]
-	assert.Equal(t, testBaseURL+"/svg/nextcloud-talk.svg", talk.LogoURL)
-	assert.Nil(t, talk.DarkLogoURL)
+	// The light-colored variant is the dark logo
+	github := byReference["github"]
+	assert.Equal(t, testBaseURL+"/svg/github.svg", github.LogoURL)
+	require.NotNil(t, github.DarkLogoURL)
+	assert.Equal(t, testBaseURL+"/svg/github-light.svg", *github.DarkLogoURL)
 
-	// PNG-only icon falls back to PNG for both variants
+	// The dark-colored variant is the light logo and the base icon is the dark logo
+	alertmanager := byReference["alertmanager"]
+	assert.Equal(t, testBaseURL+"/svg/alertmanager-dark.svg", alertmanager.LogoURL)
+	require.NotNil(t, alertmanager.DarkLogoURL)
+	assert.Equal(t, testBaseURL+"/svg/alertmanager.svg", *alertmanager.DarkLogoURL)
+
+	// A PNG-only icon uses PNG for both variants
 	ghost := byReference["ghost"]
 	assert.Equal(t, testBaseURL+"/png/ghost.png", ghost.LogoURL)
 	require.NotNil(t, ghost.DarkLogoURL)
 	assert.Equal(t, testBaseURL+"/png/ghost-light.png", *ghost.DarkLogoURL)
 
-	// References that aren't plain slugs are dropped
+	// The name comes from an alias with the same spelling as the reference, or from the reference itself
+	assert.Equal(t, "GitHub", github.Name)
+	assert.Equal(t, "Home Assistant", byReference["home-assistant"].Name)
+
+	// File names that aren't plain slugs are dropped
 	assert.NotContains(t, byReference, "../bad")
+	assert.NotContains(t, byReference, "bad-variant")
 }
 
 func TestSearch_CachesIndex(t *testing.T) {
@@ -168,7 +182,7 @@ func TestSearch_UsesStaleIndexWhenRefreshFails(t *testing.T) {
 func TestSearch_IndexUnavailable(t *testing.T) {
 	mock := &testutils.MockRoundTripper{
 		Responses: map[string]*http.Response{
-			testBaseURL + "/index.json": testutils.NewMockResponse(http.StatusInternalServerError, ""), //nolint:bodyclose // mock response, no real body
+			testBaseURL + "/metadata.json": testutils.NewMockResponse(http.StatusInternalServerError, ""), //nolint:bodyclose // mock response, no real body
 		},
 	}
 	svc, _ := newTestService(t, mock)

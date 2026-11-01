@@ -321,7 +321,7 @@
 	"paste_image_url": "Paste an image URL",
 	"use_as_light_logo": "Use as light logo",
 	"use_as_dark_logo": "Use as dark logo",
-	"icons_provided_by_selfhst": "Icons by {#link href=|https://selfh.st/icons|}selfh.st{/link}, licensed under {#link href=|https://creativecommons.org/licenses/by/4.0/|}CC BY 4.0{/link}.",
+	"icons_provided_by_dashboard_icons": "Icons by {#link href=|https://dashboardicons.com|}Dashboard Icons{/link}.",
 	"claims": "Claims",
 	"public_client_type_description": "Uses PKCE instead of a secret. For browser, mobile and desktop apps.",
 	"color_theme": "Color theme",

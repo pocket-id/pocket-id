@@ -24,28 +24,33 @@ const (
 	maxResults   = 30
 )
 
-// referencePattern matches the slugs selfh.st uses as file names, so a reference can never escape its directory in an icon URL
+// referencePattern matches the slugs Dashboard Icons uses as file names, so a reference can never escape its directory in an icon URL
 var referencePattern = regexp.MustCompile(`^[a-z0-9][a-z0-9._-]*$`)
 
 // nonAlphanumeric is stripped from names and queries so "home assistant" matches "Home-Assistant"
 var nonAlphanumeric = regexp.MustCompile(`[^a-z0-9]+`)
 
-// indexEntry is one icon in selfh.st's index.json, whose availability flags are the strings "Yes" or "No"
+// indexEntry is one icon in Dashboard Icons' metadata.json, which is keyed by the icon's reference
 type indexEntry struct {
-	Name      string `json:"Name"`
-	Reference string `json:"Reference"`
-	SVG       string `json:"SVG"`
-	Light     string `json:"Light"`
-	Tags      string `json:"Tags"`
+	// Base is the format of the source file, either "svg" or "png"
+	Base    string   `json:"base"`
+	Aliases []string `json:"aliases"`
+	// Colors names the files to use on light and dark backgrounds, and is only set for icons that don't work on both
+	// "dark" is the dark-colored icon for light backgrounds and "light" the light-colored icon for dark backgrounds
+	Colors struct {
+		Dark  string `json:"dark"`
+		Light string `json:"light"`
+	} `json:"colors"`
 }
 
-// preset is an index entry with its search keys normalized once when the index is loaded
 type preset struct {
-	indexEntry
-
-	searchName      string
+	name            string
+	reference       string
+	format          string
+	logoFile        string
+	darkLogoFile    string
 	searchReference string
-	searchTags      string
+	searchAliases   string
 }
 
 type Service struct {
@@ -100,7 +105,7 @@ func (s *Service) fetchIndex(ctx context.Context) ([]preset, error) {
 	defer cancel()
 
 	// Download the index that lists every icon in the collection
-	req, err := http.NewRequestWithContext(reqCtx, http.MethodGet, s.baseURL+"/index.json", nil)
+	req, err := http.NewRequestWithContext(reqCtx, http.MethodGet, s.baseURL+"/metadata.json", nil)
 	if err != nil {
 		return nil, fmt.Errorf("create icon index request: %w", err)
 	}
@@ -117,34 +122,63 @@ func (s *Service) fetchIndex(ctx context.Context) ([]preset, error) {
 		return nil, fmt.Errorf("icon index returned status %d", resp.StatusCode)
 	}
 
-	var entries []indexEntry
+	var entries map[string]indexEntry
 	err = json.NewDecoder(utils.NewLimitReader(resp.Body, maxIndexSize)).Decode(&entries)
 	if err != nil {
 		return nil, fmt.Errorf("decode icon index: %w", err)
 	}
 
-	// Skip entries whose reference can't safely be used as a file name in an icon URL
 	presets := make([]preset, 0, len(entries))
-	for _, e := range entries {
-		if !referencePattern.MatchString(e.Reference) {
+	for reference, e := range entries {
+		// An icon without color variants is meant for both light and dark backgrounds
+		logoFile := cmp.Or(e.Colors.Dark, reference)
+		darkLogoFile := cmp.Or(e.Colors.Light, reference)
+
+		// Skip entries whose file names can't safely be used in an icon URL
+		if !referencePattern.MatchString(reference) || !referencePattern.MatchString(logoFile) || !referencePattern.MatchString(darkLogoFile) {
 			continue
 		}
 
+		// Every icon is available as PNG, but only icons drawn as SVG are available as SVG
+		format := "png"
+		if e.Base == "svg" {
+			format = "svg"
+		}
+
 		presets = append(presets, preset{
-			indexEntry:      e,
-			searchName:      normalize(e.Name),
-			searchReference: normalize(e.Reference),
-			searchTags:      strings.ToLower(e.Tags),
+			name:            displayName(reference, e.Aliases),
+			reference:       reference,
+			format:          format,
+			logoFile:        logoFile,
+			darkLogoFile:    darkLogoFile,
+			searchReference: normalize(reference),
+			searchAliases:   strings.ToLower(strings.Join(e.Aliases, ",")),
 		})
 	}
 
 	return presets, nil
 }
 
-// search returns up to limit presets matching the query, ordered by match quality and then by name
+// displayName prefers an alias that spells the reference with its proper casing, like "GitHub" for "github"
+func displayName(reference string, aliases []string) string {
+	normalizedReference := normalize(reference)
+	for _, alias := range aliases {
+		if normalize(alias) == normalizedReference {
+			return alias
+		}
+	}
+
+	words := strings.Fields(strings.ReplaceAll(reference, "-", " "))
+	for i, word := range words {
+		words[i] = strings.ToUpper(word[:1]) + word[1:]
+	}
+	return strings.Join(words, " ")
+}
+
+// search returns up to limit presets matching the query, ordered by match quality and then by reference
 func search(presets []preset, query string, limit int) []preset {
 	normalizedQuery := normalize(query)
-	tagQuery := strings.ToLower(strings.TrimSpace(query))
+	aliasQuery := strings.ToLower(strings.TrimSpace(query))
 
 	type match struct {
 		preset preset
@@ -154,7 +188,7 @@ func search(presets []preset, query string, limit int) []preset {
 	// Rank every preset that matches the query at all
 	matches := make([]match, 0, limit)
 	for _, p := range presets {
-		rank, ok := matchRank(p, normalizedQuery, tagQuery)
+		rank, ok := matchRank(p, normalizedQuery, aliasQuery)
 		if ok {
 			matches = append(matches, match{preset: p, rank: rank})
 		}
@@ -164,7 +198,7 @@ func search(presets []preset, query string, limit int) []preset {
 	slices.SortFunc(matches, func(a, b match) int {
 		return cmp.Or(
 			cmp.Compare(a.rank, b.rank),
-			cmp.Compare(a.preset.searchName, b.preset.searchName),
+			cmp.Compare(a.preset.reference, b.preset.reference),
 		)
 	})
 
@@ -177,17 +211,17 @@ func search(presets []preset, query string, limit int) []preset {
 }
 
 // matchRank reports how well a preset matches the query, where 0 is an exact match
-func matchRank(p preset, normalizedQuery, tagQuery string) (int, bool) {
+func matchRank(p preset, normalizedQuery, aliasQuery string) (int, bool) {
 	switch {
 	case normalizedQuery == "":
 		return 0, true
-	case p.searchName == normalizedQuery || p.searchReference == normalizedQuery:
+	case p.searchReference == normalizedQuery:
 		return 0, true
-	case strings.HasPrefix(p.searchName, normalizedQuery) || strings.HasPrefix(p.searchReference, normalizedQuery):
+	case strings.HasPrefix(p.searchReference, normalizedQuery):
 		return 1, true
-	case strings.Contains(p.searchName, normalizedQuery) || strings.Contains(p.searchReference, normalizedQuery):
+	case strings.Contains(p.searchReference, normalizedQuery):
 		return 2, true
-	case tagQuery != "" && strings.Contains(p.searchTags, tagQuery):
+	case aliasQuery != "" && strings.Contains(p.searchAliases, aliasQuery):
 		return 3, true
 	default:
 		return 0, false
@@ -195,20 +229,14 @@ func matchRank(p preset, normalizedQuery, tagQuery string) (int, bool) {
 }
 
 func (s *Service) toDto(p preset) logoPresetDto {
-	format := "png"
-	if p.SVG == "Yes" {
-		format = "svg"
-	}
-
 	dto := logoPresetDto{
-		Name:      p.Name,
-		Reference: p.Reference,
-		LogoURL:   s.iconURL(format, p.Reference),
+		Name:      p.name,
+		Reference: p.reference,
+		LogoURL:   s.iconURL(p.format, p.logoFile),
 	}
 
-	// The white variant keeps monochrome logos readable on dark backgrounds
-	if p.Light == "Yes" {
-		darkLogoURL := s.iconURL(format, p.Reference+"-light")
+	if p.darkLogoFile != p.logoFile {
+		darkLogoURL := s.iconURL(p.format, p.darkLogoFile)
 		dto.DarkLogoURL = &darkLogoURL
 	}
 

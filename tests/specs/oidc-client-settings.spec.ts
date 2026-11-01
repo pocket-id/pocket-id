@@ -174,7 +174,7 @@ test('A single OIDC client logo shows in both themes', async ({ page }) => {
 
 test('Pick OIDC client logo from the icon library', async ({ page }) => {
 	const oidcClient = oidcClients.nextcloud;
-	const cdnBaseUrl = 'https://cdn.jsdelivr.net/gh/selfhst/icons@main';
+	const cdnBaseUrl = 'https://cdn.jsdelivr.net/gh/homarr-labs/dashboard-icons@main';
 	const nextcloud = {
 		name: 'Nextcloud',
 		reference: 'nextcloud',
@@ -217,7 +217,7 @@ test('Pick OIDC client logo from the icon library', async ({ page }) => {
 	await expect(searchInput).toHaveValue('');
 	await expect(page.getByRole('option', { name: otherApp.name })).toBeVisible();
 	expect(searchTerms).toEqual(['']);
-	await expect(page.getByText('Icons by selfh.st')).toBeVisible();
+	await expect(page.getByText('Icons by Dashboard Icons')).toBeVisible();
 
 	await searchInput.fill('nextcloud');
 	await page.getByRole('option', { name: nextcloud.name, exact: true }).click();
@@ -333,7 +333,7 @@ test('OIDC client logo picker stays fully visible when reopened', async ({ page 
 	await expectPickerInViewport();
 });
 
-test('Custom icon library hides the selfh.st credit', async ({ page }) => {
+test('Custom icon library hides the Dashboard Icons credit', async ({ page }) => {
 	await stubIconLibrary(page, 'custom');
 
 	// The credit is only shown next to icons, so the custom library has to return one
@@ -349,7 +349,7 @@ test('Custom icon library hides the selfh.st credit', async ({ page }) => {
 	await page.getByRole('button', { name: 'Choose logo' }).click();
 
 	await expect(page.getByRole('option', { name: preset.name })).toBeVisible();
-	await expect(page.getByText('Icons by selfh.st')).toHaveCount(0);
+	await expect(page.getByText('Icons by Dashboard Icons')).toHaveCount(0);
 });
 
 test('Disabled icon library only accepts image URLs', async ({ page }) => {
@@ -368,7 +368,7 @@ test('Disabled icon library only accepts image URLs', async ({ page }) => {
 		.getByRole('combobox', { name: 'Paste an image URL' })
 		.fill('https://example.com/logo.svg');
 	await expect(page.getByRole('button', { name: 'Use as light logo' })).toBeVisible();
-	await expect(page.getByText('Icons by selfh.st')).toHaveCount(0);
+	await expect(page.getByText('Icons by Dashboard Icons')).toHaveCount(0);
 	expect(searched).toBe(false);
 });
 

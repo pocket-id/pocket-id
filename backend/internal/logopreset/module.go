@@ -14,7 +14,7 @@ type Dependencies struct {
 	BaseURL string
 }
 
-// Module lets admins search an icon collection in the selfh.st/icons layout for OIDC client logos
+// Module lets admins search an icon collection in the Dashboard Icons layout for OIDC client logos
 // The chosen icon is downloaded through the regular logo URL flow of the OIDC client update
 type Module struct {
 	service *Service

@@ -46,8 +46,8 @@ const (
 
 	// IconLibraryDisabled is the ICON_LIBRARY_URL value that turns off the icon library for OIDC client logos
 	IconLibraryDisabled string = "disabled"
-	// DefaultIconLibraryURL serves the selfh.st icon collection through jsDelivr
-	DefaultIconLibraryURL string = "https://cdn.jsdelivr.net/gh/selfhst/icons@main"
+	// DefaultIconLibraryURL serves the Dashboard Icons collection through jsDelivr
+	DefaultIconLibraryURL string = "https://cdn.jsdelivr.net/gh/homarr-labs/dashboard-icons@main"
 
 	// FrancisHostEmbedded is the FRANCIS_HOST value that keeps the Francis actor runtime embedded in the Pocket ID process
 	FrancisHostEmbedded string = "embedded"
@@ -113,7 +113,7 @@ type EnvConfigSchema struct {
 	CloudflareLocationHeaders bool `env:"CLOUDFLARE_LOCATION_HEADERS"`
 
 	// IconLibraryURL is the base URL of the icon collection admins can pick OIDC client logos from
-	// It must serve index.json and the svg and png directories in the same layout as the selfh.st/icons repository
+	// It must serve metadata.json and the svg and png directories in the same layout as the homarr-labs/dashboard-icons repository
 	// Setting it to "disabled" turns the icon library off, so Pocket ID never contacts it
 	IconLibraryURL string `env:"ICON_LIBRARY_URL" options:"trimTrailingSlash"`
 

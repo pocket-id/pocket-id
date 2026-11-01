@@ -671,7 +671,7 @@ func TestIconLibraryConfig(t *testing.T) {
 		wantEnabled bool
 		wantErr     string
 	}{
-		{name: "defaults to the selfh.st collection", wantURL: DefaultIconLibraryURL, wantEnabled: true},
+		{name: "defaults to the Dashboard Icons collection", wantURL: DefaultIconLibraryURL, wantEnabled: true},
 		{name: "empty value falls back to the default", value: new(""), wantURL: DefaultIconLibraryURL, wantEnabled: true},
 		{name: "custom URL without the trailing slash", value: new("http://192.168.1.10:4050/icons/"), wantURL: "http://192.168.1.10:4050/icons", wantEnabled: true},
 		{name: "disabled is case-insensitive", value: new("Disabled"), wantURL: IconLibraryDisabled, wantEnabled: false},

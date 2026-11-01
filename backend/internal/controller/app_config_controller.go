@@ -79,7 +79,7 @@ func (acc *AppConfigController) listAppConfigHandler(c *gin.Context) error {
 		Value: strconv.FormatBool(tracing.FrontendTracingEnabled()),
 	})
 
-	// Manually add iconLibrary, derived from ICON_LIBRARY_URL, so the frontend can hide the icon picker and only credits selfh.st when its collection is used
+	// Manually add iconLibrary, derived from ICON_LIBRARY_URL, so the frontend can hide the icon picker and only credits Dashboard Icons when its collection is used
 	configVariablesDto = append(configVariablesDto, dto.PublicAppConfigVariableDto{
 		Key:   "iconLibrary",
 		Value: iconLibraryStatus(),
@@ -89,7 +89,7 @@ func (acc *AppConfigController) listAppConfigHandler(c *gin.Context) error {
 	return nil
 }
 
-// iconLibraryStatus reports whether the icon library is disabled, uses the default selfh.st collection, or points to a custom source
+// iconLibraryStatus reports whether the icon library is disabled, uses the default Dashboard Icons collection, or points to a custom source
 func iconLibraryStatus() string {
 	switch common.EnvConfig.IconLibraryURL {
 	case common.IconLibraryDisabled:
