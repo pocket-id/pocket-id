@@ -427,7 +427,7 @@
 					</div>
 				</div>
 
-				<ClaimsPreview mappings={stripKeys(draft)} {highlighted} />
+				<ClaimsPreview mappings={stripKeys(draft)} {highlighted} customScopes={data.customScopes} />
 			</div>
 		</Tabs.Content>
 
@@ -516,6 +516,7 @@
 	bind:open={sheetOpen}
 	mapping={editing}
 	others={draft.filter((d) => d.key !== editing?.key)}
+	customScopes={data.customScopes}
 	onSave={saveMapping}
 	onRemove={removeMapping}
 />

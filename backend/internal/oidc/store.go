@@ -16,6 +16,7 @@ import (
 	"github.com/pocket-id/fosite/handler/pkce"
 	"github.com/pocket-id/fosite/handler/rfc8628"
 	"github.com/pocket-id/pocket-id/backend/internal/apperror"
+	"github.com/pocket-id/pocket-id/backend/internal/claimmappingpolicy"
 	"github.com/pocket-id/pocket-id/backend/internal/model"
 	datatype "github.com/pocket-id/pocket-id/backend/internal/model/types"
 	"gorm.io/gorm"
@@ -135,6 +136,12 @@ func (s *Store) clientFromModel(ctx context.Context, tx *gorm.DB, clientModel mo
 		client.apiScopes = apiScopes
 		client.apiAudiences = apiAudiences
 	}
+
+	customScopes, err := claimmappingpolicy.ClientCustomScopeKeys(ctx, tx, clientModel)
+	if err != nil {
+		return Client{}, err
+	}
+	client.customScopes = customScopes
 
 	return client, nil
 }

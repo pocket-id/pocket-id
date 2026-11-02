@@ -40,15 +40,14 @@ export const USER_FIELDS = [
 
 export type OidcUserField = (typeof USER_FIELDS)[number];
 
-export const MAPPING_SCOPES = ['openid', 'profile', 'email', 'groups', 'offline_access'] as const;
-
-export type OidcScope = (typeof MAPPING_SCOPES)[number];
+// The built-in scopes a claim can be released with, which custom scopes extend
+export const MAPPING_SCOPES = ['openid', 'profile', 'email', 'groups', 'offline_access'];
 
 export type OidcClaimMappingDto = {
 	claimName: string;
 	sourceType: OidcClaimMappingPolicySourceType;
 	sourceValue: string;
-	scope: OidcScope[];
+	scope: string[];
 	accessToken: boolean;
 	idToken: boolean;
 	userInfo: boolean;
@@ -82,3 +81,15 @@ export type OidcClaimMappingsPreview = {
 	accessToken: Record<string, unknown>;
 	userInfo: Record<string, unknown> | null;
 };
+
+export type CustomScope = {
+	id: string;
+	createdAt: string;
+	key: string;
+	name: string;
+	description: string;
+	// The names of the policies that release claims with the scope, only set when listing
+	policies: string[] | null;
+};
+
+export type CustomScopeInput = Omit<CustomScope, 'id' | 'createdAt' | 'policies'>;

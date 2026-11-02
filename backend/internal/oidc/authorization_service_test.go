@@ -35,8 +35,6 @@ func (f *fakeAuditLogger) Record(_ context.Context, event auditlogs.Event, _ aud
 	f.data = append(f.data, data)
 }
 
-const defaultClaimMappingPolicyId = claimmappingpolicy.BuiltInClaimMappingPolicyID
-
 func TestAuthorizationServiceAuthorizeLogsClientAuthorization(t *testing.T) {
 	db := testutils.NewDatabaseForTest(t)
 	require.NoError(t, claimmappingpolicy.Bootstrap(t.Context(), db))

@@ -9,10 +9,12 @@
 
 	let {
 		userId = $bindable(),
-		scopes = $bindable()
+		scopes = $bindable(),
+		customScopes = []
 	}: {
 		userId: string;
 		scopes: string[];
+		customScopes?: string[];
 	} = $props();
 
 	const userService = new UserService();
@@ -55,7 +57,7 @@
 			<Field.Label>{m.scopes()}</Field.Label>
 			<MultiSelect
 				placeholder={m.none()}
-				items={['openid', 'email', 'profile', 'groups'].map((scope) => ({
+				items={['openid', 'email', 'profile', 'groups', ...customScopes].map((scope) => ({
 					value: scope,
 					label: scope
 				}))}

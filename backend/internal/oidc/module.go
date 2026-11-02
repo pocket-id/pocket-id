@@ -171,7 +171,7 @@ func New(ctx context.Context, deps Dependencies) (*Module, error) {
 		deviceHandler:        newDeviceHandler(provider, deviceService),
 
 		claimMappingsPreviewHandler: &claimMappingsPreviewHandler{claimsService: claimsService},
-		discoveryHandler:            &discoveryHandler{keys: deps.Signer, getCIMDURLAllowlist: deps.GetCIMDURLAllowlist},
+		discoveryHandler:            &discoveryHandler{db: deps.DB, keys: deps.Signer, getCIMDURLAllowlist: deps.GetCIMDURLAllowlist},
 		clientHandler: &clientHandler{
 			service:   newClientService(deps.DB, previewBuilder, cimdResolver, deps.ScimSync, deps.BackchannelLogout, deps.AuditLog, deps.LogoHTTPClient, deps.FileStorage),
 			appConfig: deps.AppConfig,

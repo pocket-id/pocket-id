@@ -30,7 +30,7 @@
 				{/if}
 			</div>
 			{#if description}
-				<p class="text-caption text-fg-muted max-w-[68ch]">
+				<p class="text-caption text-fg-muted">
 					{#if typeof description === 'string'}{description}{:else}{@render description()}{/if}
 				</p>
 			{/if}

@@ -35,4 +35,11 @@ func (m *Module) RegisterRoutes(r *authz.Router) {
 	policies.GET("/:id/assignable-clients", authz.OidcClaimMappingPoliciesRead, httpserver.Handle(m.handler.listAssignableClients))
 	policies.POST("/:id/clients/:clientId", authz.OidcClaimMappingPoliciesWrite, httpserver.Handle(m.handler.assignClient))
 	policies.DELETE("/:id/clients/:clientId", authz.OidcClaimMappingPoliciesWrite, httpserver.Handle(m.handler.removeClient))
+
+	scopes := r.Group("/oidc/custom-scopes")
+	scopes.GET("", authz.OidcClaimMappingPoliciesRead, httpserver.Handle(m.handler.listCustomScopes))
+	scopes.GET("/keys", authz.OidcClaimMappingPoliciesRead, httpserver.Handle(m.handler.listCustomScopeKeys))
+	scopes.POST("", authz.OidcClaimMappingPoliciesWrite, httpserver.Handle(m.handler.createCustomScope))
+	scopes.PUT("/:id", authz.OidcClaimMappingPoliciesWrite, httpserver.Handle(m.handler.updateCustomScope))
+	scopes.DELETE("/:id", authz.OidcClaimMappingPoliciesWrite, httpserver.Handle(m.handler.deleteCustomScope))
 }

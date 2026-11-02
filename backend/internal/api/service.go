@@ -12,6 +12,7 @@ import (
 	"github.com/pocket-id/fosite"
 	"github.com/pocket-id/pocket-id/backend/internal/apperror"
 	"github.com/pocket-id/pocket-id/backend/internal/authz"
+	"github.com/pocket-id/pocket-id/backend/internal/claimmappingpolicy"
 	"github.com/pocket-id/pocket-id/backend/internal/model"
 	datatype "github.com/pocket-id/pocket-id/backend/internal/model/types"
 	"github.com/pocket-id/pocket-id/backend/internal/oidc"
@@ -201,7 +202,18 @@ func (s *Service) UpdatePermissions(ctx context.Context, id string, input apiPer
 		return API{}, apperror.BuiltInAPIReadOnly("The permissions of the built-in Pocket ID API follow Pocket ID's scopes and can't be changed")
 	}
 
-	// Reject keys with invalid characters, that collide with Pocket ID's reserved scopes and claims, or that repeat within the request before persisting anything
+	// Collect all permission keys from the input for validation against custom scopes and reserved keys
+	keys := make([]string, len(input.Permissions))
+	for i, permission := range input.Permissions {
+		keys[i] = permission.Key
+	}
+	var customScopeKeys []string
+	err = tx.WithContext(ctx).Model(&claimmappingpolicy.CustomScope{}).Where("key IN ?", keys).Pluck("key", &customScopeKeys).Error
+	if err != nil {
+		return API{}, err
+	}
+
+	// Reject keys with invalid characters, that collide with Pocket ID's reserved scopes and claims or a custom scope, or that repeat within the request before persisting anything
 	// A duplicate key would otherwise be silently coalesced last-wins into the map below, dropping a row behind a 200
 	seen := make(map[string]struct{}, len(input.Permissions))
 	for index, permission := range input.Permissions {
@@ -211,6 +223,9 @@ func (s *Service) UpdatePermissions(ctx context.Context, id string, input apiPer
 		}
 		if isPermissionKeyReserved(permission.Key) {
 			return API{}, apperror.InvalidField(field, "reserved", "is reserved by Pocket ID")
+		}
+		if slices.Contains(customScopeKeys, permission.Key) {
+			return API{}, apperror.InvalidField(field, "reserved", "is already used by a custom scope")
 		}
 		_, ok := seen[permission.Key]
 		if ok {

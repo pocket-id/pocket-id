@@ -71,14 +71,16 @@ func (h *tokenHandler) token(c *gin.Context) {
 				h.provider.WriteAccessError(ctx, c.Writer, accessRequest, err)
 				return
 			}
-			audience, grantedScopes, err := resolveResource(ctx, nil, h.apiAccess, client.GetID(), resource, accessRequest.GetRequestedScopes(), SubjectTypeClient)
+			audience, grantedScopes, err := resolveResource(ctx, nil, h.apiAccess, client.GetID(), resource, accessRequest.GetRequestedScopes(), SubjectTypeClient, client.customScopes)
 			if err != nil {
 				h.provider.WriteAccessError(ctx, c.Writer, accessRequest, err)
 				return
 			}
-			// A client credentials token has no resource owner, so it must never carry identity scopes such as openid or profile
+			// A client credentials token has no resource owner, so it must never carry identity scopes such as openid, profile or a custom scope
 			// Dropping them keeps machine tokens out of the userinfo endpoint, which is gated on the openid scope
-			grantedScopes = slices.DeleteFunc(grantedScopes, isStandardScope)
+			grantedScopes = slices.DeleteFunc(grantedScopes, func(scope string) bool {
+				return isStandardScope(scope) || slices.Contains(client.customScopes, scope)
+			})
 			accessReq, ok := accessRequest.(*fosite.AccessRequest)
 			if ok {
 				accessReq.GrantedScope = grantedScopes
@@ -126,7 +128,7 @@ func (h *tokenHandler) validateRefreshAPIGrant(ctx context.Context, client Clien
 		return err
 	}
 
-	_, _, err = resolveResource(ctx, nil, h.apiAccess, client.GetID(), resource, accessRequest.GetGrantedScopes(), SubjectTypeUser)
+	_, _, err = resolveResource(ctx, nil, h.apiAccess, client.GetID(), resource, accessRequest.GetGrantedScopes(), SubjectTypeUser, client.customScopes)
 	if err != nil || resource == "" {
 		return err
 	}

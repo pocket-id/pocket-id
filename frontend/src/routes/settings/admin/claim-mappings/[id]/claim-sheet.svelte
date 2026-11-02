@@ -1,6 +1,7 @@
 <script lang="ts">
 	import AutoCompleteInput from '#lib/components/form/auto-complete-input.svelte';
 	import FormInput from '#lib/components/form/form-input.svelte';
+	import MultiSelect from '#lib/components/form/multi-select.svelte';
 	import { Button } from '@pocket-id/ui/button';
 	import { Checkbox } from '@pocket-id/ui/checkbox';
 	import * as Field from '@pocket-id/ui/field';
@@ -15,7 +16,6 @@
 		USER_FIELDS,
 		type OidcClaimMappingDto,
 		type OidcClaimMappingPolicySourceType,
-		type OidcScope,
 		type OidcUserField
 	} from '#lib/types/oidc-claim-mapping-policy.type.ts';
 	import { preventDefault } from '#lib/utils/event-util.ts';
@@ -27,6 +27,7 @@
 		open = $bindable(),
 		mapping,
 		others,
+		customScopes,
 		onSave,
 		onRemove
 	}: {
@@ -35,6 +36,8 @@
 		mapping: OidcClaimMappingDto | null;
 		// The policy's other claims, which a new or renamed claim must not collide with
 		others: OidcClaimMappingDto[];
+		// The keys of the custom scopes, which a claim can be released with next to the built-in ones
+		customScopes: string[];
 		onSave: (mapping: OidcClaimMappingDto) => void;
 		onRemove: () => void;
 	} = $props();
@@ -54,7 +57,7 @@
 	let customKey = $state({ value: '', error: null as string | null });
 	let allCustom = $state(false);
 	let staticValue = $state({ value: '', error: null as string | null });
-	let scopes = $state<OidcScope[]>([]);
+	let scopes = $state<string[]>([]);
 	let tokens = $state({ idToken: false, accessToken: false, userInfo: false });
 	let scopesError = $state<string | null>(null);
 	let tokensError = $state<string | null>(null);
@@ -92,6 +95,9 @@
 	});
 
 	const wildcard = $derived(sourceType === 'custom_claim' && allCustom);
+	const scopeOptions = $derived(
+		[...MAPPING_SCOPES, ...customScopes].map((scope) => ({ value: scope, label: scope }))
+	);
 
 	function claimError(name: string) {
 		if (wildcard) {
@@ -133,15 +139,10 @@
 			claimName: wildcard ? '*' : name,
 			sourceType,
 			sourceValue,
-			scope: MAPPING_SCOPES.filter((s) => scopes.includes(s)),
+			scope: scopes,
 			...tokens
 		});
 		open = false;
-	}
-
-	function toggleScope(scope: OidcScope, checked: boolean) {
-		scopes = checked ? [...scopes, scope] : scopes.filter((s) => s !== scope);
-		scopesError = null;
 	}
 </script>
 
@@ -214,10 +215,10 @@
 						/>
 						<span class="flex flex-col">
 							<span class="text-control text-fg font-medium">
-								{m.every_custom_claim_under_its_own_key()}
+								{m.include_all_custom_claims()}
 							</span>
 							<span class="text-caption text-fg-muted">
-								{m.every_custom_claim_under_its_own_key_description()}
+								{m.include_all_custom_claims_description()}
 							</span>
 						</span>
 					</label>
@@ -232,26 +233,15 @@
 				/>
 			{/if}
 
-			<Field.Set>
-				<Field.Legend variant="label" class="mb-0">{m.released_with()}</Field.Legend>
-				{#if scopesError}
+			<Field.Field>
+				<Field.Label for="{formId}-scopes">{m.released_with()}</Field.Label>
+				<MultiSelect id="{formId}-scopes" items={scopeOptions} bind:selectedItems={scopes} />
+				{#if scopesError && !scopes.length}
 					<Field.Error>{scopesError}</Field.Error>
 				{:else}
 					<Field.Description>{m.released_with_helper()}</Field.Description>
 				{/if}
-				<div class="grid grid-cols-2 gap-x-4 gap-y-2.5">
-					{#each MAPPING_SCOPES as scope (scope)}
-						<label class="text-mono-s text-fg flex items-center gap-3 font-mono">
-							<Checkbox
-								checked={scopes.includes(scope)}
-								onCheckedChange={(checked) => toggleScope(scope, checked)}
-								aria-invalid={!!scopesError}
-							/>
-							{scope}
-						</label>
-					{/each}
-				</div>
-			</Field.Set>
+			</Field.Field>
 
 			<Field.Set>
 				<Field.Legend variant="label" class="mb-0">{m.included_in()}</Field.Legend>
