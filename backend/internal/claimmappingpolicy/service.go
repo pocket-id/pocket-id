@@ -242,6 +242,11 @@ func (s *Service) CreateClaimMappingPolicy(ctx context.Context, dto OidcClaimMap
 		tx.Rollback()
 	}()
 
+	err = validateMappingScopes(tx.WithContext(ctx), dto.ClaimMappings)
+	if err != nil {
+		return OidcClaimMappingPolicy{}, err
+	}
+
 	// Unset the current default first, because the unique index allows only one default at a time
 	if dto.IsDefault {
 		err = lockDefaultChanges(ctx, tx)
@@ -282,6 +287,11 @@ func (s *Service) UpdateClaimMappingPolicy(ctx context.Context, policyID string,
 	defer func() {
 		tx.Rollback()
 	}()
+
+	err = validateMappingScopes(tx.WithContext(ctx), dto.ClaimMappings)
+	if err != nil {
+		return OidcClaimMappingPolicy{}, err
+	}
 
 	// The update can move the default flag, so take that lock before the policy's own one
 	err = lockDefaultChanges(ctx, tx)

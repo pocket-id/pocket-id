@@ -15,6 +15,7 @@ import (
 	"github.com/pocket-id/fosite/handler/openid"
 	"github.com/pocket-id/fosite/handler/pkce"
 	"github.com/pocket-id/fosite/handler/rfc8628"
+	"github.com/pocket-id/pocket-id/backend/internal/claimmappingpolicy"
 	"github.com/pocket-id/pocket-id/backend/internal/model"
 	datatype "github.com/pocket-id/pocket-id/backend/internal/model/types"
 	"gorm.io/gorm"
@@ -106,19 +107,10 @@ func (s *Store) GetClient(ctx context.Context, id string) (fosite.Client, error)
 		return nil, err
 	}
 
-	client := Client{OidcClient: clientModel}
-
-	// Populate the custom-API scopes and audiences the client may request only when the API feature is wired
-	if s.apiAccess != nil {
-		apiScopes, apiAudiences, err := s.apiAccess.ClientAPIScopes(ctx, tx, id, clientModel.IsMetadataDocument())
-		if err != nil {
-			return nil, err
-		}
-
-		client.apiScopes = apiScopes
-		client.apiAudiences = apiAudiences
+	client, err := s.clientFromModel(ctx, tx, clientModel)
+	if err != nil {
+		return nil, err
 	}
-
 	return client, nil
 }
 
@@ -144,6 +136,12 @@ func (s *Store) clientFromModel(ctx context.Context, tx *gorm.DB, clientModel mo
 		client.apiScopes = apiScopes
 		client.apiAudiences = apiAudiences
 	}
+
+	customScopes, err := claimmappingpolicy.ClientCustomScopeKeys(ctx, tx, clientModel)
+	if err != nil {
+		return Client{}, err
+	}
+	client.customScopes = customScopes
 
 	return client, nil
 }

@@ -1,6 +1,7 @@
 package oidc
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"net/http"
@@ -8,7 +9,9 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/lestrrat-go/jwx/v4/jwa"
 	"github.com/pocket-id/fosite"
+	"gorm.io/gorm"
 
+	"github.com/pocket-id/pocket-id/backend/internal/claimmappingpolicy"
 	"github.com/pocket-id/pocket-id/backend/internal/common"
 	_ "github.com/pocket-id/pocket-id/backend/internal/dto"
 )
@@ -20,6 +23,7 @@ type KeyPublisher interface {
 }
 
 type discoveryHandler struct {
+	db                  *gorm.DB
 	keys                KeyPublisher
 	getCIMDURLAllowlist func() []string
 }
@@ -60,7 +64,7 @@ func (h *discoveryHandler) oauthAuthorizationServerHandler(c *gin.Context) error
 }
 
 func (h *discoveryHandler) writeServerMetadata(c *gin.Context) error {
-	metadata, err := h.computeServerMetadata()
+	metadata, err := h.computeServerMetadata(c.Request.Context())
 	if err != nil {
 		return err
 	}
@@ -68,7 +72,7 @@ func (h *discoveryHandler) writeServerMetadata(c *gin.Context) error {
 	return nil
 }
 
-func (h *discoveryHandler) computeServerMetadata() ([]byte, error) {
+func (h *discoveryHandler) computeServerMetadata(ctx context.Context) ([]byte, error) {
 	appUrl := common.EnvConfig.AppURL
 
 	internalAppUrl := common.EnvConfig.InternalAppURL
@@ -77,6 +81,15 @@ func (h *discoveryHandler) computeServerMetadata() ([]byte, error) {
 	if err != nil {
 		return nil, fmt.Errorf("failed to get key algorithm: %w", err)
 	}
+	customScopes, err := claimmappingpolicy.CustomScopesByKey(ctx, h.db, nil)
+	if err != nil {
+		return nil, fmt.Errorf("failed to load custom scopes: %w", err)
+	}
+	scopesSupported := []string{"openid", "profile", "email", "groups", "offline_access"}
+	for _, scope := range customScopes {
+		scopesSupported = append(scopesSupported, scope.Key)
+	}
+
 	cimdSupported := false
 	if h.getCIMDURLAllowlist != nil {
 		cimdSupported = len(h.getCIMDURLAllowlist()) > 0
@@ -93,7 +106,7 @@ func (h *discoveryHandler) computeServerMetadata() ([]byte, error) {
 		"device_authorization_endpoint":                  appUrl + "/api/oidc/device/authorize",
 		"jwks_uri":                                       internalAppUrl + "/.well-known/jwks.json",
 		"grant_types_supported":                          []fosite.GrantType{fosite.GrantTypeAuthorizationCode, fosite.GrantTypeRefreshToken, fosite.GrantTypeDeviceCode, fosite.GrantTypeClientCredentials},
-		"scopes_supported":                               []string{"openid", "profile", "email", "groups", "offline_access"},
+		"scopes_supported":                               scopesSupported,
 		"claims_supported":                               []string{"sub", "given_name", "family_name", "name", "display_name", "email", "email_verified", "preferred_username", "picture", "groups", "auth_time", "amr"},
 		"response_types_supported":                       []string{"code"},
 		"response_modes_supported":                       []string{"query", "fragment", "form_post"},

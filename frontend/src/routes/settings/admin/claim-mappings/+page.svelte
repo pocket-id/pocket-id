@@ -1,8 +1,10 @@
 <script lang="ts">
 	import { goto } from '$app/navigation';
+	import HashTabs from '#lib/components/hash-tabs.svelte';
 	import PageHeader from '#lib/components/page-header.svelte';
 	import AdvancedTable from '#lib/components/table/advanced-table.svelte';
 	import { Button } from '@pocket-id/ui/button';
+	import * as Tabs from '@pocket-id/ui/tabs';
 	import { m } from '#lib/paraglide/messages.js';
 	import { getLocale } from '#lib/paraglide/runtime.js';
 	import OidcClaimMappingPolicyService from '#lib/services/oidc-claim-mapping-policy-service.ts';
@@ -12,6 +14,7 @@
 	} from '#lib/types/advanced-table.type.ts';
 	import {
 		builtInClaimMappingPolicyId,
+		type CustomScope,
 		type OidcClaimMappingPolicyMetadataDto
 	} from '#lib/types/oidc-claim-mapping-policy.type.ts';
 	import { openOnCreateParam } from '#lib/utils/create-param-util.ts';
@@ -23,6 +26,8 @@
 		LucideTrash2
 	} from '@lucide/svelte';
 	import { claimsCount, policyHref } from './claim-mapping-util';
+	import CustomScopeSheet from './custom-scope-sheet.svelte';
+	import CustomScopesTable from './custom-scopes-table.svelte';
 	import { confirmDeletePolicy, duplicatePolicy, makeDefaultPolicy } from './policy-actions';
 	import PolicyCreateSheet from './policy-create-sheet.svelte';
 	import PolicyTags from './policy-tags.svelte';
@@ -32,6 +37,16 @@
 	let tableRef = $state<AdvancedTable<OidcClaimMappingPolicyMetadataDto>>();
 	let createOpen = $state(false);
 	openOnCreateParam(() => (createOpen = true));
+
+	let tab = $state('policies');
+	let scopesTableRef = $state<CustomScopesTable>();
+	let scopeSheetOpen = $state(false);
+	let editedScope = $state<CustomScope>();
+
+	function openScopeSheet(scope?: CustomScope) {
+		editedScope = scope;
+		scopeSheetOpen = true;
+	}
 
 	const columns: AdvancedTableColumn<OidcClaimMappingPolicyMetadataDto>[] = [
 		{ label: m.policy(), column: 'name', sortable: true, cell: NameCell },
@@ -108,24 +123,50 @@
 <div class="flex flex-col">
 	<PageHeader title={m.claim_mappings()} description={m.claim_mappings_page_description()}>
 		{#snippet actions()}
-			<Button onclick={() => (createOpen = true)}>
-				<LucidePlus />
-				{m.add_policy()}
-			</Button>
+			{#if tab === 'scopes'}
+				<Button onclick={() => openScopeSheet()}>
+					<LucidePlus />
+					{m.add_scope()}
+				</Button>
+			{:else}
+				<Button onclick={() => (createOpen = true)}>
+					<LucidePlus />
+					{m.add_policy()}
+				</Button>
+			{/if}
 		{/snippet}
 	</PageHeader>
 
-	<div class="mt-10">
-		<AdvancedTable
-			id="claim-mapping-policy-list"
-			bind:this={tableRef}
-			fetchCallback={policyService.listClaimMappingPolicies}
-			defaultSort={{ column: 'name', direction: 'asc' }}
-			onRowClick={(policy) => goto(policyHref(policy.id))}
-			{columns}
-			{actions}
-		/>
-	</div>
+	<HashTabs bind:value={tab} class="mt-10 gap-6">
+		<div class="shadow-[inset_0_-1px_0_var(--border)]">
+			<Tabs.List variant="line" class="shadow-none" aria-label={m.claim_mappings()}>
+				<Tabs.Trigger value="policies">{m.policies()}</Tabs.Trigger>
+				<Tabs.Trigger value="scopes">{m.scopes()}</Tabs.Trigger>
+			</Tabs.List>
+		</div>
+
+		<Tabs.Content value="policies">
+			<AdvancedTable
+				id="claim-mapping-policy-list"
+				bind:this={tableRef}
+				fetchCallback={policyService.listClaimMappingPolicies}
+				defaultSort={{ column: 'name', direction: 'asc' }}
+				onRowClick={(policy) => goto(policyHref(policy.id))}
+				{columns}
+				{actions}
+			/>
+		</Tabs.Content>
+
+		<Tabs.Content value="scopes" class="flex flex-col gap-6">
+			<p class="text-control text-fg-muted">{m.custom_scopes_description()}</p>
+			<CustomScopesTable bind:this={scopesTableRef} onEdit={openScopeSheet} />
+		</Tabs.Content>
+	</HashTabs>
 </div>
 
 <PolicyCreateSheet bind:open={createOpen} />
+<CustomScopeSheet
+	bind:open={scopeSheetOpen}
+	scope={editedScope}
+	onSaved={() => scopesTableRef?.refresh()}
+/>

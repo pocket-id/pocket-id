@@ -43,11 +43,11 @@ type APIAccessProvider interface {
 }
 
 // resolveResource maps an RFC 8707 resource, which may be empty, to the audience to stamp on the issued token and the subset of requestedScopes that may be granted
-// An empty resource is a plain login token bound to the requesting client and yields only identity scopes
+// An empty resource is a plain login token bound to the requesting client and yields only identity scopes, which include the custom scopes the client may request
 // The subject type selects which of the client's grants apply: user-delegated flows only see user grants, the client credentials grant only sees client grants
-func resolveResource(ctx context.Context, tx *gorm.DB, provider APIAccessProvider, clientID, resource string, requestedScopes []string, subjectType SubjectType) (audience string, grantedScopes []string, err error) {
-	grantable := make(map[string]struct{}, len(standardScopes))
-	for _, scope := range standardScopes {
+func resolveResource(ctx context.Context, tx *gorm.DB, provider APIAccessProvider, clientID, resource string, requestedScopes []string, subjectType SubjectType, customScopes []string) (audience string, grantedScopes []string, err error) {
+	grantable := make(map[string]struct{}, len(standardScopes)+len(customScopes))
+	for _, scope := range slices.Concat(standardScopes, customScopes) {
 		grantable[scope] = struct{}{}
 	}
 

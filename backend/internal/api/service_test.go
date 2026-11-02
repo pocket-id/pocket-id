@@ -7,6 +7,7 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/pocket-id/pocket-id/backend/internal/apperror"
+	"github.com/pocket-id/pocket-id/backend/internal/claimmappingpolicy"
 	"github.com/pocket-id/pocket-id/backend/internal/model"
 	"github.com/pocket-id/pocket-id/backend/internal/oidc"
 	"github.com/pocket-id/pocket-id/backend/internal/utils"
@@ -286,6 +287,20 @@ func TestUpdatePermissionsRejectsReservedKeys(t *testing.T) {
 		require.Error(t, err, "key %q must be rejected", key)
 		require.True(t, apperror.IsCode(err, apperror.CodeValidationFailed))
 	}
+}
+
+func TestUpdatePermissionsRejectsCustomScopeKeys(t *testing.T) {
+	db := testutils.NewDatabaseForTest(t)
+	svc := New(Dependencies{DB: db}).service
+	require.NoError(t, db.Create(&claimmappingpolicy.CustomScope{Key: "kuber", Name: "Kubernetes role", Description: "Your Kubernetes role"}).Error)
+
+	orders, err := svc.Create(t.Context(), apiCreateDto{Name: "Orders", Resource: "https://api.orders.example.com"})
+	require.NoError(t, err)
+
+	_, err = svc.UpdatePermissions(t.Context(), orders.ID, apiPermissionsUpdateDto{Permissions: []apiPermissionInputDto{
+		{Key: "kuber", Name: "Kubernetes"},
+	}})
+	require.True(t, apperror.IsCode(err, apperror.CodeValidationFailed))
 }
 
 func TestUpdatePermissionsRejectsDuplicateKeys(t *testing.T) {

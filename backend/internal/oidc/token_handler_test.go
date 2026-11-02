@@ -692,6 +692,20 @@ func TestTokenHandlerRefreshGrantPreservesAudienceAndScope(t *testing.T) {
 		require.Equal(t, []string{"openid", "read:orders"}, jwtScopes(claims))
 	})
 
+	t.Run("refresh drops a custom scope the client's policy no longer releases claims with", func(t *testing.T) {
+		db := testutils.NewDatabaseForTest(t)
+		require.NoError(t, claimmappingpolicy.Bootstrap(t.Context(), db))
+		const clientID, userID = "client-custom-scope", "user-custom-scope"
+		seedUserAndClient(t, db, clientID, userID)
+
+		token := mintRefreshToken(t, db, clientID, userID, fosite.Arguments{"openid", "kuber"}, nil)
+		body := doRefresh(t, db, grantedAPI, clientID, token, nil)
+		require.NotEmpty(t, body["access_token"], "expected a new access token, got error: %v", body["error"])
+
+		claims := decodeJWTPart(t, body["access_token"].(string), 1)
+		require.Equal(t, []string{"openid"}, jwtScopes(claims))
+	})
+
 	t.Run("revoking the client API grant makes the next refresh fail", func(t *testing.T) {
 		db := testutils.NewDatabaseForTest(t)
 		require.NoError(t, claimmappingpolicy.Bootstrap(t.Context(), db))
@@ -702,11 +716,11 @@ func TestTokenHandlerRefreshGrantPreservesAudienceAndScope(t *testing.T) {
 			fosite.Arguments{"openid", "read:orders"},
 			fosite.Arguments{apiResource},
 		)
-		// With the grant revoked the client no longer advertises read:orders, so the refresh handler rejects replaying that stored scope
+		// The refresh handler drops the lost read:orders scope, but the client no longer has the API audience either, so the refresh fails
 		// Revocation is therefore enforced on the very next refresh rather than lingering until the refresh token expires
 		body := doRefresh(t, db, revokedAPI, clientID, token, nil)
 		require.Empty(t, body["access_token"])
-		require.Equal(t, "invalid_scope", body["error"])
+		require.Equal(t, "invalid_request", body["error"])
 	})
 
 	t.Run("revoking only the user-delegated API grant makes the next refresh fail", func(t *testing.T) {

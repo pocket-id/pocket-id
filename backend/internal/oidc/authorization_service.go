@@ -16,6 +16,7 @@ import (
 
 	"github.com/pocket-id/pocket-id/backend/internal/apperror"
 	"github.com/pocket-id/pocket-id/backend/internal/auditlogs"
+	"github.com/pocket-id/pocket-id/backend/internal/claimmappingpolicy"
 	"github.com/pocket-id/pocket-id/backend/internal/dto"
 	"github.com/pocket-id/pocket-id/backend/internal/model"
 	datatype "github.com/pocket-id/pocket-id/backend/internal/model/types"
@@ -46,7 +47,18 @@ type authorizationService struct {
 // It always resolves against the client's user-delegated grants because every flow that passes through here acts on behalf of a user
 // Once the user is known, scopes they can never hold are dropped too, while an empty userID only validates the request before sign-in
 func (s *authorizationService) resolveGrant(ctx context.Context, clientID, userID, resource string, requestedScopes []string) (audience string, grantedScopes []string, consentKeys []string, err error) {
-	audience, grantedScopes, err = resolveResource(ctx, dbFromContext(ctx, s.db), s.apiAccess, clientID, resource, requestedScopes, SubjectTypeUser)
+	db := dbFromContext(ctx, s.db)
+	var client model.OidcClient
+	err = db.Select("id", "client_type").First(&client, "id = ?", clientID).Error
+	if err != nil {
+		return "", nil, nil, err
+	}
+	customScopes, err := claimmappingpolicy.ClientCustomScopeKeys(ctx, db, client)
+	if err != nil {
+		return "", nil, nil, err
+	}
+
+	audience, grantedScopes, err = resolveResource(ctx, db, s.apiAccess, clientID, resource, requestedScopes, SubjectTypeUser, customScopes)
 	if err != nil {
 		return "", nil, nil, err
 	}
@@ -576,33 +588,36 @@ func (s *authorizationService) buildInteractionForUser(ctx context.Context, inte
 	return result, nil
 }
 
-// resolveScopeInfoForRequest resolves display names and descriptions for the requested non-standard scopes against the API identified by resource
-// The browser and device consent flows share it so both show friendly permission names instead of raw scope keys, while standard identity scopes are rendered by the client
+// resolveScopeInfoForRequest resolves display names and descriptions for the requested custom scopes and for the permissions of the API identified by resource
+// The browser and device consent flows share it so both show friendly names instead of raw scope keys, while standard identity scopes are rendered by the client
 func (s *authorizationService) resolveScopeInfoForRequest(ctx context.Context, resource string, scopes []string) ([]dto.ScopeInfoDto, error) {
-	if s.apiAccess == nil {
+	keys := slices.DeleteFunc(slices.Clone(scopes), isStandardScope)
+	if len(keys) == 0 {
 		return nil, nil
 	}
 
-	if resource == "" {
-		return nil, nil
-	}
-
-	customKeys := make([]string, 0, len(scopes))
-	for _, scope := range scopes {
-		if !isStandardScope(scope) {
-			customKeys = append(customKeys, scope)
-		}
-	}
-	if len(customKeys) == 0 {
-		return nil, nil
-	}
-
-	infos, err := s.apiAccess.DescribePermissions(ctx, resource, customKeys)
+	customScopes, err := claimmappingpolicy.CustomScopesByKey(ctx, dbFromContext(ctx, s.db), keys)
 	if err != nil {
 		return nil, err
 	}
 
-	return infos, nil
+	infos := make([]dto.ScopeInfoDto, 0, len(keys))
+	for _, scope := range customScopes {
+		infos = append(infos, dto.ScopeInfoDto{Key: scope.Key, Name: scope.Name, Description: scope.Description})
+		keys = slices.DeleteFunc(keys, func(key string) bool { return key == scope.Key })
+	}
+
+	// Custom scope and API permission keys never collide, so the remaining keys can only be permissions
+	if s.apiAccess == nil || resource == "" || len(keys) == 0 {
+		return infos, nil
+	}
+
+	permissions, err := s.apiAccess.DescribePermissions(ctx, resource, keys)
+	if err != nil {
+		return nil, err
+	}
+
+	return append(infos, permissions...), nil
 }
 
 func (s *authorizationService) completeInteractionStep(ctx context.Context, interactionSessionID, userID string, step interactionStep, approvedScopes []string, reauthenticationToken string, authenticationTime time.Time, meta requestMeta) (completeInteractionResponse, error) {

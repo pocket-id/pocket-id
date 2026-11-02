@@ -77,7 +77,7 @@ type userClaimsSource struct {
 // loadUserClaimsSource reads the user with its groups, the claim mapping policy of the client and, when the policy needs them, the custom claims of the user
 func (s *ClaimsService) loadUserClaimsSource(ctx context.Context, userID string, clientID string) (*userClaimsSource, error) {
 	return s.loadClaimsSource(ctx, userID, func(ctx context.Context) (*claimmappingpolicy.OidcClaimMappingPolicy, error) {
-		return s.GetClaimMappingPolicyByClientID(ctx, clientID)
+		return claimmappingpolicy.ClientPolicy(ctx, dbFromContext(ctx, s.db), clientID)
 	})
 }
 
@@ -190,22 +190,6 @@ func (s *ClaimsService) PreviewClaimMappings(ctx context.Context, userID string,
 	}
 
 	return preview, nil
-}
-
-// GetClaimMappingPolicyByClientID returns the claim mapping policy assigned to the client, or the default policy when the client doesn't have one assigned (claim_mapping_policy_id IS NULL)
-// Both candidates are fetched in a single query: the assigned policy is ordered first so it wins over the default whenever it exists
-func (s *ClaimsService) GetClaimMappingPolicyByClientID(ctx context.Context, clientID string) (*claimmappingpolicy.OidcClaimMappingPolicy, error) {
-	var claimMappingPolicy claimmappingpolicy.OidcClaimMappingPolicy
-	err := dbFromContext(ctx, s.db).
-		Model(&claimmappingpolicy.OidcClaimMappingPolicy{}).
-		Where("oidc_claim_mapping_policies.id = (SELECT claim_mapping_policy_id FROM oidc_clients WHERE oidc_clients.id = ?)", clientID).
-		Or("oidc_claim_mapping_policies.is_default = ?", true).
-		Order("oidc_claim_mapping_policies.is_default ASC").
-		First(&claimMappingPolicy).Error
-	if err != nil {
-		return nil, err
-	}
-	return &claimMappingPolicy, nil
 }
 
 // applyTokenClaims applies the claims of a user to both the ID token and the access token of the session based on the granted scopes

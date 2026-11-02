@@ -37,7 +37,7 @@ require (
 	github.com/mileusna/useragent v1.3.5
 	github.com/oschwald/maxminddb-golang/v2 v2.8.0
 	github.com/pires/go-proxyproto v0.16.0
-	github.com/pocket-id/fosite v1.4.3
+	github.com/pocket-id/fosite v1.5.0
 	github.com/quic-go/quic-go v0.64.1
 	github.com/spf13/cobra v1.10.2
 	github.com/stretchr/testify v1.12.1
