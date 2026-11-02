@@ -95,6 +95,11 @@
   "149a2021-8ef6-4133-96b8-81f8d5b7f1f5": {
     "name": "Security Key by Yubico with NFC"
   },
+  "16a5a15d-7244-4563-856d-a5167d8b9783": {
+    "name": "Pleasant Password Server",
+    "icon_light": "37da22238ffc4d4d.svg",
+    "icon_dark": "101ee8ca18b9beb3.svg"
+  },
   "17290f1e-c212-34d0-1423-365d729f09d9": {
     "name": "Thales PIN iOS SDK",
     "icon_light": "5cacab8124984715.svg",
@@ -653,6 +658,10 @@
     "name": "TeamPass",
     "icon_light": "e9b7aa844e60122b.svg"
   },
+  "7c596f1a-3e42-4b8d-9a0f-5d2ce1b84493": {
+    "name": "Cyclop Passkey",
+    "icon_light": "41e60bb9763d5f38.svg"
+  },
   "7d1351a6-e097-4852-b8bf-c9ac5c9ce4a3": {
     "name": "YubiKey Bio Series - Multi-protocol Edition"
   },
@@ -770,6 +779,11 @@
   },
   "931327dd-c89b-406c-a81e-ed7058ef36c6": {
     "name": "Swissbit iShield Key FIDO2"
+  },
+  "93fea28e-9b08-41d0-b663-20c36b008e70": {
+    "name": "Share Credentials",
+    "icon_light": "f0fcf4265faa20d6.svg",
+    "icon_dark": "ef1b60c343cda0cb.svg"
   },
   "95442b2e-f15e-4def-b270-efb106facb4e": {
     "name": "eWBM eFA310 FIDO2 Authenticator"
