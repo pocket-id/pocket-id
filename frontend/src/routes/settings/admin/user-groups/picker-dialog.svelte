@@ -14,6 +14,7 @@
 	import { Checkbox } from '@pocket-id/ui/checkbox';
 	import * as Dialog from '@pocket-id/ui/dialog';
 	import * as InputGroup from '@pocket-id/ui/input-group';
+	import { ScrollArea } from '@pocket-id/ui/scroll-area';
 	import { Skeleton } from '@pocket-id/ui/skeleton';
 	import { debounced } from '#lib/utils/debounce-util.ts';
 	import { axiosErrorToast } from '#lib/utils/error-util.ts';
@@ -107,10 +108,11 @@
 			/>
 			<InputGroup.Addon><LucideSearch /></InputGroup.Addon>
 		</InputGroup.Root>
-		<div
+		<ScrollArea
 			role="group"
 			aria-label={shownTitle}
-			class="max-h-90 min-h-(--row-2line) overflow-y-auto rounded-md border"
+			class="rounded-md border"
+			viewportClass="max-h-90 min-h-(--row-2line)"
 		>
 			{#if !visible}
 				{#each [0, 1, 2] as i (i)}
@@ -152,7 +154,7 @@
 					</label>
 				{/each}
 			{/if}
-		</div>
+		</ScrollArea>
 		<Dialog.Footer>
 			<Button variant="ghost" disabled={busy} onclick={() => (open = false)}>{m.cancel()}</Button>
 			<Button disabled={selected.length === 0} isLoading={busy} onclick={confirm}>
