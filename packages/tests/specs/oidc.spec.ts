@@ -125,8 +125,9 @@ test('Authorize client requesting offline_access scope', async ({ page }) => {
 	await page.goto(`/authorize?${urlParams.toString()}`);
 
 	// offline_access is a valid OIDC scope: the flow must reach the consent screen rather than
-	// being rejected with invalid_scope (offline_access itself has no displayable scope item)
+	// being rejected with invalid_scope
 	await expectScopes(page, ['Email address', 'Name, username and picture']);
+	await expect(page.getByText(/^Keep access after you sign out of /)).toBeVisible();
 
 	const callbackUrl = await expectCallbackRedirect(page, oidcClient.callbackUrl, () =>
 		page.getByRole('button', { name: /^Continue to / }).click()
@@ -301,7 +302,7 @@ test('End session with id token hint redirects to callback URL', async ({ page }
 	);
 });
 
-test('End session with id token hint redirects to callback URL without UI session', async ({
+test('End session with id token hint asks before redirecting to callback URL without UI session', async ({
 	page
 }) => {
 	const client = oidcClients.nextcloud;
@@ -312,10 +313,12 @@ test('End session with id token hint redirects to callback URL without UI sessio
 	);
 	await page.context().clearCookies();
 
+	await page.goto(
+		`/api/oidc/end-session?id_token_hint=${idToken}&post_logout_redirect_uri=${client.logoutCallbackUrl}&state=logout-state`
+	);
+	await expect(page.getByText(`${client.name} asked`)).toBeVisible();
 	const callbackUrl = await expectCallbackRedirect(page, client.logoutCallbackUrl, () =>
-		page.goto(
-			`/api/oidc/end-session?id_token_hint=${idToken}&post_logout_redirect_uri=${client.logoutCallbackUrl}&state=logout-state`
-		)
+		page.getByRole('button', { name: 'Sign out' }).click()
 	);
 	expect(callbackUrl.searchParams.get('state')).toBe('logout-state');
 });

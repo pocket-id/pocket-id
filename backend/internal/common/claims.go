@@ -7,6 +7,9 @@ const AuthenticationMethodsClaim = "amr"
 // TokenTypeClaim is the JWT claim ("type") used to identify the type of token.
 const TokenTypeClaim = "type"
 
+// SessionIDClaim is the JWT claim ("sid") that identifies the Pocket ID session an OIDC token or logout token belongs to
+const SessionIDClaim = "sid"
+
 // IsProtocolClaim reports whether Pocket ID or fosite sets the claim itself, so neither custom claims nor claim mapping policies may set it.
 func IsProtocolClaim(name string) bool {
 	switch name {
@@ -25,7 +28,7 @@ func IsProtocolClaim(name string) bool {
 		"at_hash",
 		"c_hash",
 		"rat",
-		"sid",
+		SessionIDClaim,
 		"scope",
 		"scp",
 		"client_id",

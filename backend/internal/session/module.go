@@ -13,9 +13,20 @@ import (
 	"github.com/pocket-id/pocket-id/backend/internal/iplocation"
 )
 
+// EndNotifier is told about sessions that ended, so it can end what the apps were granted through them
+type EndNotifier interface {
+	// SessionsEnded is called for sessions the user signed out of or that were revoked
+	SessionsEnded(ctx context.Context, userID string, sessionIDs []string)
+	// SessionsExpired is called for sessions that ran out, and an error makes the expiry alarm retry
+	SessionsExpired(ctx context.Context, userID string, sessionIDs []string) error
+	// SignedOutEverywhere is called after an admin signed the user out of every session, after SessionsEnded for those sessions
+	SignedOutEverywhere(ctx context.Context, userID string) error
+}
+
 type Dependencies struct {
-	Actors    francishost.Host
-	IPLocator iplocation.Resolver
+	Actors      francishost.Host
+	IPLocator   iplocation.Resolver
+	EndNotifier EndNotifier
 }
 
 type Module struct {
@@ -24,12 +35,12 @@ type Module struct {
 }
 
 func New(deps Dependencies) (*Module, error) {
-	err := deps.Actors.RegisterActor(ActorType, newActor)
+	err := deps.Actors.RegisterActor(ActorType, newActorFactory(deps.EndNotifier))
 	if err != nil {
 		return nil, fmt.Errorf("error registering the %s actor: %w", ActorType, err)
 	}
 
-	service := newService(deps.Actors.Service(), deps.IPLocator)
+	service := newService(deps.Actors.Service(), deps.IPLocator, deps.EndNotifier)
 	return &Module{service: service, handler: &handler{service: service}}, nil
 }
 
@@ -53,6 +64,12 @@ func (m *Module) Create(ctx context.Context, userID, authenticationMethod, ipAdd
 // Validate returns the ID of the user and the active session the token belongs to
 func (m *Module) Validate(ctx context.Context, token string) (string, Session, error) {
 	return m.service.Validate(ctx, token)
+}
+
+// IsActive reports whether the user is still signed in with the session
+// It invokes an actor, so it must not be called while a database transaction is open
+func (m *Module) IsActive(ctx context.Context, userID, sessionID string) (bool, error) {
+	return m.service.IsActive(ctx, userID, sessionID)
 }
 
 // Revoke signs the user out of one session

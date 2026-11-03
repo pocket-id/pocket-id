@@ -112,6 +112,7 @@ func consentRequired(hasAlreadyAuthorizedClient, clientSkipsConsent bool, prompt
 // authorizeInput is the authorization request as provided by the handler.
 type authorizeInput struct {
 	userID                        string
+	sessionID                     string
 	authenticationMethod          string
 	authenticationTime            time.Time
 	requester                     fosite.AuthorizeRequester
@@ -409,7 +410,9 @@ func (s *authorizationService) buildAuthorizedSession(req authorizeRequest, inte
 		requestedAt = req.now
 	}
 
-	return NewAuthenticatedSession(req.userID, req.authenticationMethod, authenticationTime, requestedAt)
+	session := NewAuthenticatedSession(req.userID, req.authenticationMethod, authenticationTime, requestedAt)
+	session.SessionID = req.sessionID
+	return session
 }
 
 // interactionRequestQuery returns the authorize parameters stored for the interaction

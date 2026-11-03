@@ -1,10 +1,12 @@
 <script lang="ts">
 	import * as Alert from '@pocket-id/ui/alert';
 	import { m } from '#lib/paraglide/messages.js';
+	import appConfigStore from '#lib/stores/application-configuration-store.ts';
 	import userStore from '#lib/stores/user-store.ts';
 	import type { InteractionScopeInfo } from '#lib/types/oidc.type.ts';
 	import { isAdminEquivalentScope, scopeLabel } from '#lib/utils/api-key-scopes.ts';
 	import {
+		LucideClock,
 		LucideKeyRound,
 		LucideMail,
 		LucideTriangleAlert,
@@ -87,6 +89,13 @@
 			value={groupsValue}
 			category={m.group_membership()}
 			{...selectionProps('groups')}
+		/>
+	{/if}
+	{#if (scopes || []).includes('offline_access')}
+		<ScopeItem
+			icon={LucideClock}
+			category={m.keep_access_after_sign_out({ appName: $appConfigStore.appName })}
+			{...selectionProps('offline_access')}
 		/>
 	{/if}
 	{#each customScopes as scope (scope)}

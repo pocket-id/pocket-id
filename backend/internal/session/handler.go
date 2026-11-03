@@ -105,13 +105,13 @@ func (h *handler) revokeForUser(c *gin.Context) error {
 
 // revokeAllForUser godoc
 // @Summary Revoke all sessions of a user
-// @Description Sign a user out of every session
+// @Description Sign a user out of every session and revoke every grant their apps hold, offline_access ones included
 // @Tags Sessions
 // @Param id path string true "User ID"
 // @Success 204 "No Content"
 // @Router /api/users/{id}/sessions [delete]
 func (h *handler) revokeAllForUser(c *gin.Context) error {
-	err := h.service.RevokeAll(c.Request.Context(), c.Param("id"), "")
+	err := h.service.SignOutEverywhere(c.Request.Context(), c.Param("id"))
 	if err != nil {
 		return err
 	}

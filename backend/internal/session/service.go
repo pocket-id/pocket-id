@@ -22,10 +22,11 @@ const touchInterval = 5 * time.Minute
 type Service struct {
 	actorService *actor.Service
 	ipLocator    iplocation.Resolver
+	endNotifier  EndNotifier
 }
 
-func newService(actorService *actor.Service, ipLocator iplocation.Resolver) *Service {
-	return &Service{actorService: actorService, ipLocator: ipLocator}
+func newService(actorService *actor.Service, ipLocator iplocation.Resolver, endNotifier EndNotifier) *Service {
+	return &Service{actorService: actorService, ipLocator: ipLocator, endNotifier: endNotifier}
 }
 
 // Create starts a session for the user and returns its token
@@ -104,7 +105,43 @@ func (s *Service) Validate(ctx context.Context, token string) (string, Session, 
 
 // List returns the active sessions of the user, most recently active first
 func (s *Service) List(ctx context.Context, userID string) ([]Session, error) {
-	envelope, err := s.actorService.Peek(ctx, ActorType, userID, methodList, nil)
+	sessions, err := listSessions(ctx, s.actorService, userID)
+	if err != nil {
+		return nil, err
+	}
+
+	slices.SortFunc(sessions, func(a, b Session) int {
+		return cmp.Compare(b.LastActiveAt.UnixNano(), a.LastActiveAt.UnixNano())
+	})
+	return sessions, nil
+}
+
+// ActiveSessionIDs returns the IDs of the user's active sessions
+// It takes the actor service instead of the module, because the module's EndNotifier needs it and the module depends on that notifier
+func ActiveSessionIDs(ctx context.Context, actorService *actor.Service, userID string) ([]string, error) {
+	sessions, err := listSessions(ctx, actorService, userID)
+	if err != nil {
+		return nil, err
+	}
+
+	ids := make([]string, len(sessions))
+	for i, session := range sessions {
+		ids[i] = session.ID
+	}
+	return ids, nil
+}
+
+// IsActive reports whether the user is still signed in with the session
+func (s *Service) IsActive(ctx context.Context, userID, sessionID string) (bool, error) {
+	sessions, err := listSessions(ctx, s.actorService, userID)
+	if err != nil {
+		return false, err
+	}
+	return slices.ContainsFunc(sessions, func(session Session) bool { return session.ID == sessionID }), nil
+}
+
+func listSessions(ctx context.Context, actorService *actor.Service, userID string) ([]Session, error) {
+	envelope, err := actorService.Peek(ctx, ActorType, userID, methodList, nil)
 	if err != nil {
 		return nil, fmt.Errorf("error listing sessions: %w", err)
 	}
@@ -113,10 +150,6 @@ func (s *Service) List(ctx context.Context, userID string) ([]Session, error) {
 	if err != nil {
 		return nil, fmt.Errorf("error decoding sessions: %w", err)
 	}
-
-	slices.SortFunc(sessions, func(a, b Session) int {
-		return cmp.Compare(b.LastActiveAt.UnixNano(), a.LastActiveAt.UnixNano())
-	})
 	return sessions, nil
 }
 
@@ -134,16 +167,37 @@ func (s *Service) Revoke(ctx context.Context, userID, sessionID string) error {
 	if !res.Found {
 		return apperror.NotFound("session")
 	}
+
+	s.endNotifier.SessionsEnded(ctx, userID, []string{sessionID})
 	return nil
 }
 
 // RevokeAll signs the user out of every session except the one with exceptSessionID, which may be empty
 func (s *Service) RevokeAll(ctx context.Context, userID, exceptSessionID string) error {
-	_, err := s.actorService.Invoke(ctx, ActorType, userID, methodRevokeAll, revokeAllRequest{ExceptSessionID: exceptSessionID})
+	envelope, err := s.actorService.Invoke(ctx, ActorType, userID, methodRevokeAll, revokeAllRequest{ExceptSessionID: exceptSessionID})
 	if err != nil {
 		return fmt.Errorf("error revoking sessions: %w", err)
 	}
+	var res revokeAllResponse
+	err = envelope.Decode(&res)
+	if err != nil {
+		return fmt.Errorf("error decoding sessions revocation response: %w", err)
+	}
+
+	if len(res.SessionIDs) > 0 {
+		s.endNotifier.SessionsEnded(ctx, userID, res.SessionIDs)
+	}
 	return nil
+}
+
+// SignOutEverywhere signs the user out of every session and also ends the grants that outlive sessions, such as offline_access ones
+func (s *Service) SignOutEverywhere(ctx context.Context, userID string) error {
+	err := s.RevokeAll(ctx, userID, "")
+	if err != nil {
+		return err
+	}
+
+	return s.endNotifier.SignedOutEverywhere(ctx, userID)
 }
 
 func parseToken(token string) (userID, sessionID, secret string, ok bool) {

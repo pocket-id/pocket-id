@@ -112,6 +112,13 @@ export type OidcClientLogoPreset = {
 	darkLogoUrl: string | null;
 };
 
+export type EndSessionParams = {
+	idTokenHint: string;
+	clientId: string;
+	postLogoutRedirectUri: string;
+	state: string;
+};
+
 export type OidcDeviceCodeInfo = {
 	scope: string[];
 	scopeInfo: InteractionScopeInfo[];

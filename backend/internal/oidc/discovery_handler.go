@@ -122,7 +122,7 @@ func (h *discoveryHandler) computeServerMetadata(ctx context.Context) ([]byte, e
 		"pushed_authorization_request_endpoint":          internalAppUrl + "/api/oidc/par",
 		"require_pushed_authorization_requests":          false,
 		"backchannel_logout_supported":                   true,
-		"backchannel_logout_session_supported":           false,
+		"backchannel_logout_session_supported":           true,
 		"client_id_metadata_document_supported":          cimdSupported,
 		"service_documentation":                          "https://pocket-id.org/docs",
 	}

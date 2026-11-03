@@ -6,6 +6,7 @@ import (
 
 	"github.com/lestrrat-go/jwx/v4/jwa"
 	"github.com/pocket-id/fosite"
+	fositejwt "github.com/pocket-id/fosite/token/jwt"
 	"github.com/stretchr/testify/require"
 	"gorm.io/gorm"
 
@@ -267,6 +268,17 @@ func TestClaimsServiceAppliesSigningAlgToIDTokenHeader(t *testing.T) {
 			require.Equal(t, alg.String(), session.IDTokenHeaders().Get("alg"))
 		})
 	}
+}
+
+func TestClaimsServiceReleasesSessionIDInBothTokens(t *testing.T) {
+	service := newClaimsService(nil, nil, "", nil, appconfig.StaticResolver{})
+	session := NewEmptySession()
+	session.SessionID = "browser-session"
+	src := &userClaimsSource{user: model.User{Base: model.Base{ID: "sid-user"}}}
+
+	require.NoError(t, service.applyTokenClaims(session, fosite.Arguments{"openid"}, src))
+	require.Equal(t, "browser-session", session.IDTokenClaims().Extra["sid"])
+	require.Equal(t, "browser-session", session.GetJWTClaims().(*fositejwt.JWTClaims).Extra["sid"])
 }
 
 func TestClaimsServicePreviewClaimMappingsIgnoresTheDefaultPolicy(t *testing.T) {

@@ -1,19 +1,12 @@
-import test, { expect, type Browser } from '@playwright/test';
+import test, { expect } from '@playwright/test';
 import { users } from '../data';
 import authUtil from '../utils/auth.util';
 import { cleanupBackend } from '../utils/cleanup.util';
 
 test.beforeEach(async () => await cleanupBackend());
 
-async function signInElsewhere(browser: Browser, username: 'tim' | 'craig') {
-	const context = await browser.newContext({ storageState: { cookies: [], origins: [] } });
-	const page = await context.newPage();
-	await authUtil.changeUser(page, username);
-	return { context, page };
-}
-
 test('Sign out of another device', async ({ page, browser }) => {
-	const other = await signInElsewhere(browser, 'tim');
+	const other = await authUtil.signInElsewhere(browser, 'tim');
 
 	await page.goto('/settings/audit-log');
 	const devices = page.getByRole('list', { name: 'Signed-in devices' });
@@ -36,7 +29,7 @@ test('Sign out of another device', async ({ page, browser }) => {
 });
 
 test('Sign out of all other devices', async ({ page, browser }) => {
-	const other = await signInElsewhere(browser, 'tim');
+	const other = await authUtil.signInElsewhere(browser, 'tim');
 
 	await page.goto('/settings/audit-log');
 	await page.getByRole('button', { name: 'Sign out other devices' }).click();
@@ -56,7 +49,7 @@ test('Sign out of all other devices', async ({ page, browser }) => {
 });
 
 test('Signing out revokes the session', async ({ browser }) => {
-	const other = await signInElsewhere(browser, 'tim');
+	const other = await authUtil.signInElsewhere(browser, 'tim');
 	const signedIn = await other.context.storageState();
 
 	const logout = await other.context.request.post('/api/webauthn/logout');
@@ -72,7 +65,7 @@ test('Signing out revokes the session', async ({ browser }) => {
 });
 
 test('Admin signs a user out everywhere', async ({ page, browser }) => {
-	const craig = await signInElsewhere(browser, 'craig');
+	const craig = await authUtil.signInElsewhere(browser, 'craig');
 
 	await page.goto(`/settings/admin/users/${users.craig.id}`);
 	await page.getByRole('tab', { name: /^Devices/ }).click();

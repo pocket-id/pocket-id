@@ -227,11 +227,17 @@ func applyUserClaimsToIDToken(session *Session, userID string, claims map[string
 	if session.AuthenticationMethod != "" {
 		idTokenClaims.AuthenticationMethodsReferences = []string{session.AuthenticationMethod}
 	}
+	if session.SessionID != "" {
+		idTokenClaims.Extra[common.SessionIDClaim] = session.SessionID
+	}
 }
 
 func applyUserClaimsToAccessToken(session *Session, claims map[string]any) {
 	jwtClaims := session.GetJWTClaims().(*fositejwt.JWTClaims)
 	jwtClaims.Extra = claims
+	if session.SessionID != "" {
+		jwtClaims.Extra[common.SessionIDClaim] = session.SessionID
+	}
 }
 
 // buildClaims applies the mappings of the policy that target the token type and match the scopes

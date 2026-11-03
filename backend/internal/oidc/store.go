@@ -434,7 +434,7 @@ func (s *Store) RevokeAccessToken(ctx context.Context, requestID string) error {
 }
 
 func (s *Store) RevokeSessionsByIDTokenHint(ctx context.Context, userID, clientID, idTokenJTI string) error {
-	_, jtiMatches, err := s.findRefreshTokenRequestIDsForUserClient(ctx, userID, clientID, idTokenJTI)
+	_, jtiMatches, err := s.findGrantRequestIDs(ctx, userID, clientID, idTokenJTI)
 	if err != nil {
 		return err
 	}
@@ -444,31 +444,42 @@ func (s *Store) RevokeSessionsByIDTokenHint(ctx context.Context, userID, clientI
 
 func RevokeUserClientSessions(ctx context.Context, db *gorm.DB, userID, clientID string) error {
 	s := NewStore(db, nil)
-	requestIDs, _, err := s.findRefreshTokenRequestIDsForUserClient(ctx, userID, clientID, "")
+	requestIDs, _, err := s.findGrantRequestIDs(ctx, userID, clientID, "")
 	if err != nil {
 		return err
 	}
 	return s.revokeRequestIDs(ctx, requestIDs)
 }
 
-// findRefreshTokenRequestIDsForUserClient returns request IDs for usable refresh-token sessions belonging to the user and client, plus the subset matching the optional ID token JTI
-func (s *Store) findRefreshTokenRequestIDsForUserClient(ctx context.Context, userID, clientID, idTokenJTI string) (candidates []string, jtiMatches []string, err error) {
+// RevokeUserGrants revokes every grant of the user at every client, offline_access ones included
+func RevokeUserGrants(ctx context.Context, db *gorm.DB, userID string) error {
+	s := NewStore(db, nil)
+	requestIDs, _, err := s.findGrantRequestIDs(ctx, userID, "", "")
+	if err != nil {
+		return err
+	}
+	return s.revokeRequestIDs(ctx, requestIDs)
+}
+
+// findGrantRequestIDs returns the request IDs of the usable grants of the user and the optional client, plus the subset matching the optional ID token JTI
+// Grants are found through their refresh tokens and through codes that weren't exchanged yet, which become grants once they are
+// The subset leaves out grants that requested offline_access, because those outlive the logout the ID token is passed to
+func (s *Store) findGrantRequestIDs(ctx context.Context, userID, clientID, idTokenJTI string) (candidates []string, jtiMatches []string, err error) {
 	var sessions []OAuth2Session
 	query := s.dbFor(ctx).
 		Select("request_id", "request_data").
-		Where("kind = ? AND client_id = ?", sessionKindRefreshToken, clientID).
+		Where("kind IN ?", []string{sessionKindAuthorizeCode, sessionKindRefreshToken}).
 		Where("active = ? OR rotated_at > ?", true, datatype.DateTime(time.Now().UTC().Add(-refreshTokenGracePeriod)))
+	if clientID != "" {
+		query = query.Where("client_id = ?", clientID)
+	}
 
-	// Filter by the user ID stored in the JSON request data
-	switch query.Name() {
-	case "sqlite":
-		query = query.Where("json_extract(CAST(request_data AS TEXT), '$.session.subject') = ?", userID)
-	case "postgres":
-		query = query.Where("request_data #>> '{session,subject}' = ?", userID)
-	default:
-		return nil, nil, fmt.Errorf("unsupported database dialect: %s", query.Name())
+	subjectField, err := requestDataField(query, "subject")
+	if err != nil {
+		return nil, nil, err
 	}
 	err = query.
+		Where(subjectField+" = ?", userID).
 		Find(&sessions).
 		Error
 	if err != nil {
@@ -488,12 +499,126 @@ func (s *Store) findRefreshTokenRequestIDsForUserClient(ctx context.Context, use
 		if err := json.Unmarshal([]byte(session.RequestData), &stored); err != nil {
 			return nil, nil, err
 		}
-		if stored.Session != nil && stored.Session.Claims != nil && stored.Session.Claims.JTI == idTokenJTI {
+		if stored.Session != nil && stored.Session.Claims != nil && stored.Session.Claims.JTI == idTokenJTI && !stored.GrantedScope.Has("offline_access") {
 			matchingRequestIDs[session.RequestID] = struct{}{}
 		}
 	}
 
 	return mapKeys(candidateRequestIDs), mapKeys(matchingRequestIDs), nil
+}
+
+// EndBrowserSession revokes the grants issued from the user's Pocket ID session and returns every client the session authorized, so they can be told it ended
+// Grants that requested offline_access are kept, because Back-Channel Logout 1.0 lets them outlive the session they were issued in
+// They lose the session ID, so tokens refreshed from them no longer name the ended session
+// Revoked grants are read too, so the client that started an RP-initiated logout is notified although its grant was revoked just before
+func EndBrowserSession(ctx context.Context, db *gorm.DB, userID, sessionID string) (clientIDs []string, err error) {
+	err = db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
+		clientIDs, err = endBrowserSession(ctx, tx, userID, sessionID)
+		return err
+	})
+	return clientIDs, err
+}
+
+func endBrowserSession(ctx context.Context, tx *gorm.DB, userID, sessionID string) ([]string, error) {
+	subjectField, err := requestDataField(tx, "subject")
+	if err != nil {
+		return nil, err
+	}
+	sessionIDField, err := requestDataField(tx, "sid")
+	if err != nil {
+		return nil, err
+	}
+
+	var sessions []OAuth2Session
+	err = tx.
+		Select("id", "request_id", "client_id", "request_data").
+		Where("kind IN ?", []string{sessionKindAuthorizeCode, sessionKindAccessToken, sessionKindRefreshToken}).
+		Where(subjectField+" = ? AND "+sessionIDField+" = ?", userID, sessionID).
+		Find(&sessions).
+		Error
+	if err != nil {
+		return nil, err
+	}
+
+	clientIDs := map[string]struct{}{}
+	revokedRequestIDs := map[string]struct{}{}
+	for _, session := range sessions {
+		clientIDs[session.ClientID] = struct{}{}
+		var stored storedRequester
+		if err := json.Unmarshal([]byte(session.RequestData), &stored); err != nil {
+			return nil, err
+		}
+		if !stored.GrantedScope.Has("offline_access") {
+			revokedRequestIDs[session.RequestID] = struct{}{}
+			continue
+		}
+
+		stored.Session.SessionID = ""
+		requestData, err := json.Marshal(stored)
+		if err != nil {
+			return nil, err
+		}
+		err = tx.Model(&OAuth2Session{}).Where("id = ?", session.ID).Update("request_data", string(requestData)).Error
+		if err != nil {
+			return nil, err
+		}
+	}
+
+	err = NewStore(tx, nil).revokeRequestIDs(ctx, mapKeys(revokedRequestIDs))
+	if err != nil {
+		return nil, err
+	}
+	return mapKeys(clientIDs), nil
+}
+
+// GrantSession is a Pocket ID session in which a user authorized a client
+type GrantSession struct {
+	UserID    string
+	ClientID  string
+	SessionID string
+}
+
+// GrantSessions returns the Pocket ID sessions in which the given users authorized the given clients, read from the refresh tokens of their grants
+func GrantSessions(ctx context.Context, db *gorm.DB, userIDs, clientIDs []string) ([]GrantSession, error) {
+	if len(userIDs) == 0 || len(clientIDs) == 0 {
+		return nil, nil
+	}
+
+	subjectField, err := requestDataField(db, "subject")
+	if err != nil {
+		return nil, err
+	}
+	sessionIDField, err := requestDataField(db, "sid")
+	if err != nil {
+		return nil, err
+	}
+
+	var grantSessions []GrantSession
+	err = db.
+		WithContext(ctx).
+		Model(&OAuth2Session{}).
+		Select("DISTINCT client_id, "+subjectField+" AS user_id, "+sessionIDField+" AS session_id").
+		Where("kind = ? AND client_id IN ?", sessionKindRefreshToken, clientIDs).
+		Where(subjectField+" IN ?", userIDs).
+		Where(sessionIDField + " <> ''").
+		Scan(&grantSessions).
+		Error
+	if err != nil {
+		return nil, err
+	}
+	return grantSessions, nil
+}
+
+// requestDataField returns the SQL expression that reads a field of the stored session from the JSON request data
+func requestDataField(db *gorm.DB, field string) (string, error) {
+	switch db.Name() {
+	case "sqlite":
+		return "json_extract(CAST(request_data AS TEXT), '$.session." + field + "')", nil
+	case "postgres":
+		return "request_data #>> '{session," + field + "}'", nil
+	default:
+		return "", fmt.Errorf("unsupported database dialect: %s", db.Name())
+	}
 }
 
 func (s *Store) revokeRequestIDs(ctx context.Context, requestIDs []string) error {
@@ -505,6 +630,15 @@ func (s *Store) revokeRequestIDs(ctx context.Context, requestIDs []string) error
 		Model(&OAuth2Session{}).
 		Where("kind = ? AND request_id IN ?", sessionKindRefreshToken, requestIDs).
 		Updates(map[string]any{"active": false, "rotated_at": nil}).
+		Error; err != nil {
+		return err
+	}
+
+	// A code that is not exchanged yet must not mint tokens for a revoked grant
+	if err := s.dbFor(ctx).
+		Model(&OAuth2Session{}).
+		Where("kind = ? AND request_id IN ?", sessionKindAuthorizeCode, requestIDs).
+		Update("active", false).
 		Error; err != nil {
 		return err
 	}

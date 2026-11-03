@@ -5,6 +5,7 @@ import (
 	"crypto/subtle"
 	"errors"
 	"fmt"
+	"log/slog"
 	"maps"
 	"time"
 
@@ -16,6 +17,7 @@ import (
 // Sessions are stored entirely in the actor state store, in one actor per user whose actor ID is the user ID
 // Keeping all of a user's sessions in one actor makes listing their devices and signing them out everywhere a single state access
 // The state's TTL follows the session that expires last, so it is purged once every session of the user has expired
+// Each session also has an alarm named after its ID that fires when it expires, so the grants issued through it end with it
 
 // ActorType is the actor type for the actor that holds the sessions of one user
 const ActorType = "UserSessions"
@@ -72,15 +74,24 @@ type revokeAllRequest struct {
 	ExceptSessionID string
 }
 
-type sessionsActor struct {
-	client actor.Client[actorState]
+type revokeAllResponse struct {
+	SessionIDs []string
 }
 
-// newActor allocates the actor for the sessions of one user
-// It satisfies actor.Factory
-func newActor(actorID string, service *actor.Service) actor.Actor {
-	return &sessionsActor{
-		client: actor.NewActorClient[actorState](ActorType, actorID, service),
+type sessionsActor struct {
+	userID      string
+	client      actor.Client[actorState]
+	endNotifier EndNotifier
+}
+
+// newActorFactory returns the actor.Factory that allocates the actor for the sessions of one user
+func newActorFactory(endNotifier EndNotifier) actor.Factory {
+	return func(actorID string, service *actor.Service) actor.Actor {
+		return &sessionsActor{
+			userID:      actorID,
+			client:      actor.NewActorClient[actorState](ActorType, actorID, service),
+			endNotifier: endNotifier,
+		}
 	}
 }
 
@@ -110,7 +121,7 @@ func (a *sessionsActor) Invoke(ctx context.Context, method string, data actor.En
 		if err := decode(data, method, &req); err != nil {
 			return nil, err
 		}
-		return nil, a.revokeAll(ctx, req.ExceptSessionID)
+		return a.revokeAll(ctx, req.ExceptSessionID)
 	default:
 		return nil, common.ErrUnsupportedActorMethod{Method: method}
 	}
@@ -133,10 +144,36 @@ func (a *sessionsActor) Peek(ctx context.Context, method string, data actor.Enve
 	}
 }
 
+// Alarm implements actor.ActorAlarm
+func (a *sessionsActor) Alarm(ctx context.Context, sessionID string, _ actor.Envelope) error {
+	state, err := a.loadForWrite(ctx)
+	if err != nil {
+		return err
+	}
+
+	// The state may already be gone once its TTL ran out with the last session
+	if _, ok := state.Sessions[sessionID]; ok {
+		delete(state.Sessions, sessionID)
+		err = a.save(ctx, state)
+		if err != nil {
+			return err
+		}
+	}
+
+	// Returning the error makes the alarm retry, which finds the session gone and only retries the cleanup
+	return a.endNotifier.SessionsExpired(ctx, a.userID, []string{sessionID})
+}
+
 func (a *sessionsActor) create(ctx context.Context, session Session) error {
 	state, err := a.loadForWrite(ctx)
 	if err != nil {
 		return err
+	}
+
+	// The alarm is set first, so every stored session has one and revoking a session can rely on deleting it
+	err = a.client.SetAlarm(ctx, session.ID, actor.AlarmProperties{DueTime: session.ExpiresAt})
+	if err != nil {
+		return fmt.Errorf("error setting the expiry alarm: %w", err)
 	}
 
 	state.Sessions[session.ID] = session
@@ -204,19 +241,46 @@ func (a *sessionsActor) revoke(ctx context.Context, sessionID string) (revokeRes
 	}
 
 	delete(state.Sessions, sessionID)
-	return revokeResponse{Found: true}, a.save(ctx, state)
+	err = a.save(ctx, state)
+	if err != nil {
+		return revokeResponse{}, err
+	}
+	a.deleteAlarm(ctx, sessionID)
+	return revokeResponse{Found: true}, nil
 }
 
-func (a *sessionsActor) revokeAll(ctx context.Context, exceptSessionID string) error {
+func (a *sessionsActor) revokeAll(ctx context.Context, exceptSessionID string) (revokeAllResponse, error) {
 	state, err := a.loadForWrite(ctx)
 	if err != nil {
-		return err
+		return revokeAllResponse{}, err
 	}
 
+	var res revokeAllResponse
 	maps.DeleteFunc(state.Sessions, func(id string, _ Session) bool {
-		return id != exceptSessionID
+		if id == exceptSessionID {
+			return false
+		}
+		res.SessionIDs = append(res.SessionIDs, id)
+		return true
 	})
-	return a.save(ctx, state)
+	err = a.save(ctx, state)
+	if err != nil {
+		return revokeAllResponse{}, err
+	}
+
+	for _, sessionID := range res.SessionIDs {
+		a.deleteAlarm(ctx, sessionID)
+	}
+	return res, nil
+}
+
+// deleteAlarm cancels the expiry alarm of a revoked session
+// A failure is only logged, because the session is already gone and an alarm that still fires finds nothing to end
+func (a *sessionsActor) deleteAlarm(ctx context.Context, sessionID string) {
+	err := a.client.DeleteAlarm(ctx, sessionID)
+	if err != nil {
+		slog.WarnContext(ctx, "Failed to delete the expiry alarm of a revoked session", slog.Any("error", err))
+	}
 }
 
 // loadForWrite returns a copy of the state that can be modified without touching the client's state cache, which must keep the old state if saving fails
