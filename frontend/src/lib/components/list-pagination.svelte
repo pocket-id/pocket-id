@@ -5,8 +5,8 @@
 	import { m } from '#lib/paraglide/messages.js';
 	import type { PaginationResponse } from '#lib/types/list-request.type.ts';
 	import { cn } from '@pocket-id/ui/utils';
-	import ChevronLeftIcon from '@lucide/svelte/icons/chevron-left';
-	import ChevronRightIcon from '@lucide/svelte/icons/chevron-right';
+	import ChevronLeftIcon from '~icons/solar/alt-arrow-left-linear';
+	import ChevronRightIcon from '~icons/solar/alt-arrow-right-linear';
 
 	let {
 		pagination,

@@ -2,7 +2,7 @@
 	import { buttonVariants, type ButtonSize, type ButtonVariant } from '@pocket-id/ui/button';
 	import * as DropdownMenu from '@pocket-id/ui/dropdown-menu';
 	import type { AdvancedTableAction } from '#lib/types/advanced-table.type.ts';
-	import { LucideEllipsis } from '@lucide/svelte';
+	import EllipsisIcon from '~icons/solar/menu-dots-bold';
 
 	let {
 		item,
@@ -24,7 +24,7 @@
 {#if visibleActions.length > 0}
 	<DropdownMenu.Root>
 		<DropdownMenu.Trigger class={buttonVariants({ variant, size })}>
-			<LucideEllipsis class="size-4" />
+			<EllipsisIcon class="size-4" />
 			<span class="sr-only">{label}</span>
 		</DropdownMenu.Trigger>
 		<DropdownMenu.Content align="end">

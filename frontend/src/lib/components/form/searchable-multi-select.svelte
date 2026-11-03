@@ -6,7 +6,8 @@
 	import { Spinner } from '@pocket-id/ui/spinner';
 	import { m } from '#lib/paraglide/messages.js';
 	import { cn } from '@pocket-id/ui/utils';
-	import { LucideCheck, LucideChevronDown } from '@lucide/svelte';
+	import CheckIcon from '~icons/solar/check-linear';
+	import ChevronDownIcon from '~icons/solar/alt-arrow-down-linear';
 	import type { FormEventHandler } from 'svelte/elements';
 
 	type Item = {
@@ -97,7 +98,7 @@
 						<span class="text-fg-muted">{m.select_items()}</span>
 					{/if}
 				</span>
-				<LucideChevronDown class="text-fg-muted size-3.5 shrink-0" />
+				<ChevronDownIcon class="text-fg-muted size-3.5 shrink-0" />
 			</button>
 		{/snippet}
 	</Popover.Trigger>
@@ -129,7 +130,7 @@
 							handleItemSelect(item.value);
 						}}
 					>
-						<LucideCheck
+						<CheckIcon
 							class={cn('size-4', !selectedItems.includes(item.value) && 'text-transparent')}
 						/>
 						<span class="min-w-0 wrap-anywhere">{item.label}</span>

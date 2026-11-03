@@ -23,7 +23,7 @@
 	import { createForm } from '#lib/utils/form-util.ts';
 	import { trackFormChanges } from '#lib/utils/unsaved-changes-util.svelte.ts';
 	import { callbackUrlSchema, optionalUrl } from '#lib/utils/zod-util.ts';
-	import { LucideArrowRight } from '@lucide/svelte';
+	import ArrowRightIcon from '~icons/solar/arrow-right-linear';
 	import { z } from 'zod/v4';
 	import { claimsCount, policyHref } from '../claim-mappings/claim-mapping-util';
 	import ChangedMarker from './changed-marker.svelte';
@@ -498,7 +498,7 @@
 							class="text-control text-fg focus-visible:outline-ring inline-flex w-fit items-center gap-1 rounded-xs font-medium hover:underline focus-visible:outline-2 focus-visible:outline-offset-2"
 						>
 							{m.see_the_claims_in_name({ name: appliedPolicy.name })}
-							<LucideArrowRight class="size-3.5" />
+							<ArrowRightIcon class="size-3.5" />
 						</a>
 					{/if}
 				</div>

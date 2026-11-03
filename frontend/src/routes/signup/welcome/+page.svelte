@@ -13,7 +13,8 @@
 	import { featureSections } from '#lib/utils/feature-util.ts';
 	import { cn } from '@pocket-id/ui/utils';
 	import { goto } from '$app/navigation';
-	import { LucideCheck, LucidePlus } from '@lucide/svelte';
+	import CheckIcon from '~icons/solar/check-linear';
+	import PlusIcon from '~icons/solar/add-circle-bold-duotone';
 
 	let { data } = $props();
 
@@ -126,9 +127,9 @@
 							</span>
 						</span>
 						{#if checked}
-							<LucideCheck class="mt-0.5 size-4 shrink-0" />
+							<CheckIcon class="mt-0.5 size-4 shrink-0" />
 						{:else}
-							<LucidePlus class="text-fg-muted mt-0.5 size-4 shrink-0" />
+							<PlusIcon class="text-fg-muted mt-0.5 size-4 shrink-0" />
 						{/if}
 					</button>
 					<span id="{uid}-{row.id}" class="sr-only">{row.description}</span>

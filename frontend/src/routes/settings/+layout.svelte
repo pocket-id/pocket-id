@@ -15,7 +15,7 @@
 	import userStore from '#lib/stores/user-store.ts';
 	import { isEmailVerificationPending } from '#lib/utils/email-verification-util.ts';
 	import { cn } from '@pocket-id/ui/utils';
-	import { LucideTriangleAlert } from '@lucide/svelte';
+	import TriangleAlertIcon from '~icons/solar/danger-triangle-bold-duotone';
 	import { PersistedState } from 'runed';
 	import type { Snippet } from 'svelte';
 	import type { LayoutData } from './$types';
@@ -105,7 +105,7 @@
 			>
 				{#if sqliteStorageWarning && isAdmin}
 					<Alert.Root variant="warning">
-						<LucideTriangleAlert />
+						<TriangleAlertIcon />
 						<Alert.Description>
 							{m.sqlite_network_storage_warning()}
 							<DocsLink

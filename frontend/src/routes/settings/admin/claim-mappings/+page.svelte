@@ -15,13 +15,11 @@
 		type OidcClaimMappingPolicyMetadataDto
 	} from '#lib/types/oidc-claim-mapping-policy.type.ts';
 	import { openOnCreateParam } from '#lib/utils/create-param-util.ts';
-	import {
-		LucideArrowRight,
-		LucideCopy,
-		LucidePlus,
-		LucideStar,
-		LucideTrash2
-	} from '@lucide/svelte';
+	import ArrowRightIcon from '~icons/solar/arrow-right-linear';
+	import CopyIcon from '~icons/solar/copy-bold';
+	import PlusIcon from '~icons/solar/add-circle-bold';
+	import StarIcon from '~icons/solar/star-bold';
+	import Trash2Icon from '~icons/solar/trash-bin-minimalistic-bold';
 	import { claimsCount, policyHref } from './claim-mapping-util';
 	import { confirmDeletePolicy, duplicatePolicy, makeDefaultPolicy } from './policy-actions';
 	import PolicyCreateSheet from './policy-create-sheet.svelte';
@@ -52,19 +50,19 @@
 			{
 				label: m.open(),
 				primary: true,
-				icon: LucideArrowRight,
+				icon: ArrowRightIcon,
 				onClick: (p) => goto(policyHref(p.id))
 			},
-			{ label: m.duplicate(), icon: LucideCopy, onClick: duplicatePolicy },
+			{ label: m.duplicate(), icon: CopyIcon, onClick: duplicatePolicy },
 			{
 				label: m.make_default(),
-				icon: LucideStar,
+				icon: StarIcon,
 				disabled: policy.isDefault,
 				onClick: async (p) => (await makeDefaultPolicy(p)) && tableRef?.refresh()
 			},
 			{
 				label: builtIn ? m.built_in_policy_cant_be_deleted() : m.delete_ellipsis(),
-				icon: LucideTrash2,
+				icon: Trash2Icon,
 				variant: 'danger',
 				disabled: builtIn,
 				onClick: (p) => confirmDeletePolicy(p, () => tableRef?.refresh())
@@ -109,7 +107,7 @@
 	<PageHeader title={m.claim_mappings()} description={m.claim_mappings_page_description()}>
 		{#snippet actions()}
 			<Button onclick={() => (createOpen = true)}>
-				<LucidePlus />
+				<PlusIcon />
 				{m.add_policy()}
 			</Button>
 		{/snippet}

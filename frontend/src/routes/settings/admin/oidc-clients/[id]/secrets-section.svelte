@@ -12,7 +12,8 @@
 	import clientSecretStore, { autoCreatedSecretId } from '#lib/stores/client-secret-store.ts';
 	import type { OidcClient, OidcClientSecret } from '#lib/types/oidc.type.ts';
 	import { axiosErrorToast } from '#lib/utils/error-util.ts';
-	import { LucidePlus, LucideTrash2 } from '@lucide/svelte';
+	import PlusIcon from '~icons/solar/add-circle-bold';
+	import Trash2Icon from '~icons/solar/trash-bin-minimalistic-bold';
 	import { toast } from 'svelte-sonner';
 	import SecretReveal from './secret-reveal.svelte';
 
@@ -119,7 +120,7 @@
 	{#snippet action()}
 		{#if !client.isPublic && secrets.length > 0}
 			<Button variant="secondary" size="sm" disabled={limitReached} onclick={openGenerate}>
-				<LucidePlus />
+				<PlusIcon />
 				{m.generate_secret_ellipsis()}
 			</Button>
 		{/if}
@@ -164,7 +165,7 @@
 							aria-label={m.delete_secret_prefix({ prefix: secret.prefix })}
 							onclick={() => deleteSecret(secret)}
 						>
-							<LucideTrash2 />
+							<Trash2Icon />
 						</Button>
 					</li>
 				{:else}
@@ -173,7 +174,7 @@
 							{m.name_has_no_client_secrets_yet({ name: client.name })}
 						</span>
 						<Button variant="ghost" size="sm" onclick={openGenerate}>
-							<LucidePlus />
+							<PlusIcon />
 							{m.generate_secret_ellipsis()}
 						</Button>
 					</li>

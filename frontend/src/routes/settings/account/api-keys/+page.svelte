@@ -20,13 +20,11 @@
 	import { presetLabel } from '#lib/utils/api-key-scopes.ts';
 	import { openOnCreateParam } from '#lib/utils/create-param-util.ts';
 	import { axiosErrorToast } from '#lib/utils/error-util.ts';
-	import {
-		LucideArrowUpRight,
-		LucideBan,
-		LucidePencil,
-		LucidePlus,
-		LucideRefreshCcw
-	} from '@lucide/svelte';
+	import ArrowUpRightIcon from '~icons/solar/arrow-right-up-linear';
+	import BanIcon from '~icons/solar/forbidden-circle-bold';
+	import PencilIcon from '~icons/solar/pen-bold';
+	import PlusIcon from '~icons/solar/add-circle-bold';
+	import RefreshCcwIcon from '~icons/solar/refresh-bold';
 	import { toast } from 'svelte-sonner';
 	import ApiKeySheet from './api-key-sheet.svelte';
 	import RenewApiKeyDialog from './renew-api-key-dialog.svelte';
@@ -108,13 +106,13 @@
 	];
 
 	const actions: CreateAdvancedTableActions<ApiKey> = (key) => [
-		{ label: m.edit_ellipsis(), icon: LucidePencil, onClick: () => (editing = key) },
+		{ label: m.edit_ellipsis(), icon: PencilIcon, onClick: () => (editing = key) },
 		{
 			label: new Date(key.expiresAt) > new Date() ? m.rotate_ellipsis() : m.renew_ellipsis(),
-			icon: LucideRefreshCcw,
+			icon: RefreshCcwIcon,
 			onClick: () => (renewing = key)
 		},
-		{ label: m.revoke_ellipsis(), icon: LucideBan, variant: 'danger', onClick: revoke }
+		{ label: m.revoke_ellipsis(), icon: BanIcon, variant: 'danger', onClick: revoke }
 	];
 
 	function revoke(key: ApiKey) {
@@ -124,7 +122,7 @@
 			confirm: {
 				label: m.revoke_name_action({ name: key.name }),
 				destructive: true,
-				icon: LucideBan,
+				icon: BanIcon,
 				action: async () => {
 					try {
 						await apiKeyService.revoke(key.id);
@@ -189,7 +187,7 @@
 		{#snippet actions()}
 			{#if !empty}
 				<Button onclick={() => (sheetOpen = true)}>
-					<LucidePlus />
+					<PlusIcon />
 					{m.create_api_key()}
 				</Button>
 			{/if}
@@ -207,12 +205,12 @@
 			{/snippet}
 			{#snippet action()}
 				<Button onclick={() => (sheetOpen = true)}>
-					<LucidePlus />
+					<PlusIcon />
 					{m.create_api_key()}
 				</Button>
 				<Button variant="link" class="gap-1" href={docsUrl} target="_blank" rel="noreferrer">
 					{m.docs()}
-					<LucideArrowUpRight />
+					<ArrowUpRightIcon />
 				</Button>
 			{/snippet}
 		</EmptyList>

@@ -22,16 +22,14 @@
 	import { revealFocused } from '#lib/utils/event-util.ts';
 	import { cn } from '@pocket-id/ui/utils';
 	import { toast } from 'svelte-sonner';
-	import {
-		LucideArrowRight,
-		LucideKeyRound,
-		LucidePlus,
-		LucideSearch,
-		LucideTrash2,
-		LucideUserCheck,
-		LucideUserX,
-		LucideUsersRound
-	} from '@lucide/svelte';
+	import ArrowRightIcon from '~icons/solar/arrow-right-linear';
+	import KeyRoundIcon from '~icons/solar/key-minimalistic-bold';
+	import PlusIcon from '~icons/solar/add-circle-bold';
+	import SearchIcon from '~icons/solar/magnifier-linear';
+	import Trash2Icon from '~icons/solar/trash-bin-minimalistic-bold';
+	import UserCheckIcon from '~icons/solar/user-check-rounded-bold';
+	import UserXIcon from '~icons/solar/user-block-rounded-bold';
+	import UsersRoundIcon from '~icons/solar/users-group-rounded-bold';
 	import { SvelteMap } from 'svelte/reactivity';
 	import OidcClientAvatar from '#lib/components/oidc-client-avatar.svelte';
 	import { openOnCreateParam } from '#lib/utils/create-param-util.ts';
@@ -140,20 +138,20 @@
 		{
 			label: m.open(),
 			primary: true,
-			icon: LucideArrowRight,
+			icon: ArrowRightIcon,
 			onClick: (u) => goto(`/settings/admin/users/${u.id}`)
 		},
-		{ label: m.login_code_ellipsis(), icon: LucideKeyRound, onClick: (u) => (loginCodeUser = u) },
+		{ label: m.login_code_ellipsis(), icon: KeyRoundIcon, onClick: (u) => (loginCodeUser = u) },
 		{
 			label: user.disabled ? m.enable() : m.disable_ellipsis(),
-			icon: user.disabled ? LucideUserCheck : LucideUserX,
+			icon: user.disabled ? UserCheckIcon : UserXIcon,
 			hidden: ldapManaged(user),
 			disabled: isMe(user),
 			onClick: (u) => (u.disabled ? enableUsers([u], refresh) : confirmDisableUsers([u], refresh))
 		},
 		{
 			label: m.delete_ellipsis(),
-			icon: LucideTrash2,
+			icon: Trash2Icon,
 			variant: 'danger',
 			hidden: ldapManaged(user) && !user.disabled,
 			disabled: isMe(user),
@@ -250,7 +248,7 @@
 				</Button>
 			{/if}
 			<Button onclick={() => (createOpen = true)}>
-				<LucidePlus />
+				<PlusIcon />
 				{m.add_user()}
 			</Button>
 		{/snippet}
@@ -272,7 +270,7 @@
 				{m.clear_selection()}
 			</Button>
 			<Button variant="secondary" size="sm" onclick={() => (groupPickerOpen = true)}>
-				<LucideUsersRound />
+				<UsersRoundIcon />
 				{m.add_to_groups_ellipsis()}
 			</Button>
 			{#if bulkEditable.some((u) => !u.disabled)}
@@ -285,7 +283,7 @@
 							afterBulk
 						)}
 				>
-					<LucideUserX />
+					<UserXIcon />
 					{m.disable_ellipsis()}
 				</Button>
 			{/if}
@@ -299,7 +297,7 @@
 							afterBulk
 						)}
 				>
-					<LucideUserCheck />
+					<UserCheckIcon />
 					{m.enable()}
 				</Button>
 			{/if}
@@ -309,7 +307,7 @@
 					size="sm"
 					onclick={() => confirmDeleteUsers(bulkDeletable, afterBulk)}
 				>
-					<LucideTrash2 />
+					<Trash2Icon />
 					{m.delete_ellipsis()}
 				</Button>
 			{/if}
@@ -323,7 +321,7 @@
 					type="search"
 					oninput={() => onSearch()}
 				/>
-				<InputGroup.Addon><LucideSearch /></InputGroup.Addon>
+				<InputGroup.Addon><SearchIcon /></InputGroup.Addon>
 			</InputGroup.Root>
 			<!-- The padding keeps focus rings visible inside the horizontal phone scroller -->
 			<div

@@ -1,10 +1,9 @@
 <script lang="ts">
 	import { Toaster as Sonner, type ToasterProps as SonnerProps } from 'svelte-sonner';
-	import Loader2Icon from '@lucide/svelte/icons/loader-2';
-	import CircleCheckIcon from '@lucide/svelte/icons/circle-check';
-	import OctagonXIcon from '@lucide/svelte/icons/octagon-x';
-	import InfoIcon from '@lucide/svelte/icons/info';
-	import TriangleAlertIcon from '@lucide/svelte/icons/triangle-alert';
+	import CircleCheckIcon from '~icons/solar/check-circle-bold';
+	import OctagonXIcon from '~icons/solar/close-circle-bold';
+	import InfoIcon from '~icons/solar/info-circle-bold';
+	import TriangleAlertIcon from '~icons/solar/danger-triangle-bold';
 
 	let { ...restProps }: SonnerProps = $props();
 
@@ -32,18 +31,31 @@
 	{...restProps}
 >
 	{#snippet loadingIcon()}
-		<Loader2Icon class="text-inverse-muted size-3.5 animate-spin" />
+		<!-- Solar has no spinner -->
+		<svg
+			class="text-inverse-muted size-3.5 animate-spin"
+			viewBox="0 0 24 24"
+			fill="none"
+			aria-hidden="true"
+		>
+			<path
+				d="M21 12a9 9 0 1 1-6.22-8.56"
+				stroke="currentColor"
+				stroke-width="2.5"
+				stroke-linecap="round"
+			/>
+		</svg>
 	{/snippet}
 	{#snippet successIcon()}
-		<CircleCheckIcon class="fill-success-solid text-inverse size-3.5" />
+		<CircleCheckIcon class="text-success-solid size-3.5" />
 	{/snippet}
 	{#snippet errorIcon()}
-		<OctagonXIcon class="fill-danger-solid text-inverse size-3.5" />
+		<OctagonXIcon class="text-danger-solid size-3.5" />
 	{/snippet}
 	{#snippet infoIcon()}
-		<InfoIcon class="fill-inverse-muted text-inverse size-3.5" />
+		<InfoIcon class="text-inverse-muted size-3.5" />
 	{/snippet}
 	{#snippet warningIcon()}
-		<TriangleAlertIcon class="fill-warning-solid text-inverse size-3.5" />
+		<TriangleAlertIcon class="text-warning-solid size-3.5" />
 	{/snippet}
 </Sonner>

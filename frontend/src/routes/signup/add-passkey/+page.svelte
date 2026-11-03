@@ -16,7 +16,7 @@
 	import { getWebauthnErrorMessage } from '#lib/utils/error-util.ts';
 	import { goto } from '$app/navigation';
 	import { startRegistration } from '@simplewebauthn/browser';
-	import { LucideSkipForward } from '@lucide/svelte';
+	import SkipForwardIcon from '~icons/solar/skip-next-bold';
 
 	const webauthnService = new WebAuthnService();
 
@@ -49,7 +49,7 @@
 			confirm: {
 				label: m.skip_for_now(),
 				destructive: true,
-				icon: LucideSkipForward,
+				icon: SkipForwardIcon,
 				action: () => {
 					dismiss();
 					goto('/settings/account');

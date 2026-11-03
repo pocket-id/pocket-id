@@ -1,7 +1,7 @@
 <script lang="ts">
 	import AdminAccessMarker from '#lib/components/admin-access-marker.svelte';
 	import { Checkbox } from '@pocket-id/ui/checkbox';
-	import type { LucideIcon } from '@lucide/svelte';
+	import type { Component } from 'svelte';
 
 	let {
 		icon: Icon,
@@ -11,7 +11,7 @@
 		selected = true,
 		onSelectedChange
 	}: {
-		icon: LucideIcon;
+		icon: Component;
 		// The person's real value, such as their email address, shown over the category it belongs to
 		value?: string;
 		category: string;

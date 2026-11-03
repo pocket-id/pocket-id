@@ -25,7 +25,7 @@
 <script lang="ts">
 	import { cn, type WithElementRef } from '#lib/utils/style.js';
 	import { getUiLabels } from '#lib/labels.js';
-	import { LucideX } from '@lucide/svelte';
+	import XIcon from '~icons/solar/close-linear';
 	import type { HTMLAttributes } from 'svelte/elements';
 
 	let {
@@ -57,7 +57,7 @@
 			aria-label={labels.close()}
 			class="text-fg-muted hover:bg-fill-hover hover:text-fg focus-visible:outline-ring absolute top-2 right-2 grid size-6 place-items-center rounded-xs transition-colors focus-visible:outline-2"
 		>
-			<LucideX class="size-3.5" />
+			<XIcon class="size-3.5" />
 		</button>
 	{/if}
 </div>

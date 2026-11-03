@@ -18,7 +18,7 @@
 	import { Skeleton } from '@pocket-id/ui/skeleton';
 	import { debounced } from '#lib/utils/debounce-util.ts';
 	import { axiosErrorToast } from '#lib/utils/error-util.ts';
-	import { LucideSearch } from '@lucide/svelte';
+	import SearchIcon from '~icons/solar/magnifier-linear';
 	import { untrack, type Snippet } from 'svelte';
 
 	let {
@@ -106,7 +106,7 @@
 				type="search"
 				oninput={() => onSearch()}
 			/>
-			<InputGroup.Addon><LucideSearch /></InputGroup.Addon>
+			<InputGroup.Addon><SearchIcon /></InputGroup.Addon>
 		</InputGroup.Root>
 		<ScrollArea
 			role="group"

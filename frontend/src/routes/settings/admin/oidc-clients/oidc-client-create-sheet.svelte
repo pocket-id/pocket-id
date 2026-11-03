@@ -11,7 +11,8 @@
 	import { preventDefault } from '#lib/utils/event-util.ts';
 	import { createForm } from '#lib/utils/form-util.ts';
 	import { callbackUrlSchema, emptyToUndefined } from '#lib/utils/zod-util.ts';
-	import { LucideChevronDown, LucideInfo } from '@lucide/svelte';
+	import ChevronDownIcon from '~icons/solar/alt-arrow-down-linear';
+	import InfoIcon from '~icons/solar/info-circle-bold-duotone';
 	import { untrack } from 'svelte';
 	import { toast } from 'svelte-sonner';
 	import { z } from 'zod/v4';
@@ -114,7 +115,7 @@
 					class="text-control text-fg-muted hover:text-fg inline-flex w-fit items-center gap-1 rounded-xs"
 					onclick={() => (showCustomClientId = !showCustomClientId)}
 				>
-					<LucideChevronDown
+					<ChevronDownIcon
 						class="size-3.5 transition-transform duration-(--dur-base) {showCustomClientId
 							? ''
 							: '-rotate-90'}"
@@ -134,7 +135,7 @@
 				{/if}
 			</div>
 			<p class="text-caption text-fg-muted flex items-start gap-1.5">
-				<LucideInfo class="mt-[3px] size-3 shrink-0" />
+				<InfoIcon class="mt-[3px] size-3 shrink-0" />
 				{m.new_clients_start_with_no_allowed_groups()}
 			</p>
 		</form>

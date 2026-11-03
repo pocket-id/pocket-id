@@ -3,7 +3,8 @@
 	import { Button } from '@pocket-id/ui/button';
 	import * as Empty from '@pocket-id/ui/empty';
 	import { m } from '#lib/paraglide/messages.js';
-	import { LucideCompass, LucideTriangleAlert } from '@lucide/svelte';
+	import CompassIcon from '~icons/solar/compass-bold-duotone';
+	import TriangleAlertIcon from '~icons/solar/danger-triangle-bold-duotone';
 
 	let { message, showButton = true }: { message: string; showButton?: boolean } = $props();
 
@@ -18,9 +19,9 @@
 	<Empty.Header class="items-center">
 		<Empty.Media variant="icon">
 			{#if page.status === 404}
-				<LucideCompass />
+				<CompassIcon />
 			{:else}
-				<LucideTriangleAlert />
+				<TriangleAlertIcon />
 			{/if}
 		</Empty.Media>
 		<h1 class="font-display text-display-s text-fg">{title}</h1>

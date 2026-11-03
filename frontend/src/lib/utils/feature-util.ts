@@ -1,16 +1,14 @@
 import { m } from '#lib/paraglide/messages.js';
 import type { Feature } from '#lib/types/feature.type.ts';
-import {
-	LucideBookUser,
-	LucideBraces,
-	LucideFileCode,
-	LucideKey,
-	LucideRefreshCw,
-	LucideServer,
-	LucideTags,
-	LucideWaypoints,
-	type LucideIcon
-} from '@lucide/svelte';
+import BookUserIcon from '~icons/solar/notebook-bold-duotone';
+import BracesIcon from '~icons/solar/code-bold-duotone';
+import FileCodeIcon from '~icons/solar/code-square-bold-duotone';
+import KeyIcon from '~icons/solar/key-bold-duotone';
+import RefreshCwIcon from '~icons/solar/refresh-bold-duotone';
+import ServerIcon from '~icons/solar/server-bold-duotone';
+import TagsIcon from '~icons/solar/tag-bold-duotone';
+import WaypointsIcon from '~icons/solar/routing-2-bold-duotone';
+import type { Component } from 'svelte';
 
 export type FeatureRow = {
 	id: Feature;
@@ -19,7 +17,7 @@ export type FeatureRow = {
 	// Where the feature shows up, which the Features tab adds to the description
 	adds: string;
 	inUse: string;
-	icon: LucideIcon;
+	icon: Component;
 };
 
 // The Features tab, the welcome step and the command palette list the features in this order
@@ -39,7 +37,7 @@ export function featureSections(appName: string): {
 					description: m.feature_ldap_description(),
 					adds: m.feature_ldap_adds(),
 					inUse: m.feature_ldap_in_use(),
-					icon: LucideBookUser
+					icon: BookUserIcon
 				},
 				{
 					id: 'scim',
@@ -47,7 +45,7 @@ export function featureSections(appName: string): {
 					description: m.feature_scim_description(),
 					adds: m.feature_scim_adds(),
 					inUse: m.feature_scim_in_use(),
-					icon: LucideRefreshCw
+					icon: RefreshCwIcon
 				},
 				{
 					id: 'customClaims',
@@ -55,7 +53,7 @@ export function featureSections(appName: string): {
 					description: m.feature_custom_claims_description(),
 					adds: m.feature_custom_claims_adds(),
 					inUse: m.feature_custom_claims_in_use(),
-					icon: LucideTags
+					icon: TagsIcon
 				}
 			]
 		},
@@ -69,7 +67,7 @@ export function featureSections(appName: string): {
 					description: m.feature_cimd_description(),
 					adds: m.feature_cimd_adds(),
 					inUse: m.feature_cimd_in_use(),
-					icon: LucideFileCode
+					icon: FileCodeIcon
 				},
 				{
 					id: 'federatedCredentials',
@@ -77,7 +75,7 @@ export function featureSections(appName: string): {
 					description: m.feature_federated_credentials_description(),
 					adds: m.feature_federated_credentials_adds(),
 					inUse: m.feature_federated_credentials_in_use(),
-					icon: LucideWaypoints
+					icon: WaypointsIcon
 				},
 				{
 					id: 'claimMappings',
@@ -85,7 +83,7 @@ export function featureSections(appName: string): {
 					description: m.feature_claim_mappings_description(),
 					adds: m.feature_claim_mappings_adds(),
 					inUse: m.feature_claim_mappings_in_use(),
-					icon: LucideBraces
+					icon: BracesIcon
 				}
 			]
 		},
@@ -99,7 +97,7 @@ export function featureSections(appName: string): {
 					description: m.feature_apis_description(),
 					adds: m.feature_apis_adds(),
 					inUse: m.feature_apis_in_use(),
-					icon: LucideServer
+					icon: ServerIcon
 				},
 				{
 					id: 'apiKeys',
@@ -107,7 +105,7 @@ export function featureSections(appName: string): {
 					description: m.feature_api_keys_description({ appName }),
 					adds: m.feature_api_keys_adds(),
 					inUse: m.feature_api_keys_in_use(),
-					icon: LucideKey
+					icon: KeyIcon
 				}
 			]
 		}

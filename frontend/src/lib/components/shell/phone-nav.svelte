@@ -7,7 +7,10 @@
 	import appConfigStore from '#lib/stores/application-configuration-store.ts';
 	import { commandPalette } from '#lib/stores/command-palette-store.svelte.ts';
 	import { cn } from '@pocket-id/ui/utils';
-	import { Check, CircleChevronUp, Ellipsis, Search } from '@lucide/svelte';
+	import Check from '~icons/solar/check-linear';
+	import CircleChevronUp from '~icons/solar/round-alt-arrow-up-linear';
+	import Ellipsis from '~icons/solar/menu-dots-bold';
+	import Search from '~icons/solar/magnifier-linear';
 	import AccountMenu from './account-menu.svelte';
 	import { activeHref, type NavGroup, type NavItem } from './nav-items.ts';
 

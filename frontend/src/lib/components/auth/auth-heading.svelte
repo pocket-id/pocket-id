@@ -1,6 +1,7 @@
 <script lang="ts">
 	import { cn } from '@pocket-id/ui/utils';
-	import { LucideCircleAlert, LucideInfo } from '@lucide/svelte';
+	import CircleAlertIcon from '~icons/solar/danger-circle-bold-duotone';
+	import InfoIcon from '~icons/solar/info-circle-bold-duotone';
 	import type { Snippet } from 'svelte';
 
 	let {
@@ -27,9 +28,9 @@
 	aria-live="polite"
 >
 	{#if tone === 'danger'}
-		<LucideCircleAlert class="text-danger-solid mr-1.5 inline size-3.5 align-[-1px]" />
+		<CircleAlertIcon class="text-danger-solid mr-1.5 inline size-3.5 align-[-1px]" />
 	{:else if tone === 'info'}
-		<LucideInfo class="text-fg-muted mr-1.5 inline size-3.5 align-[-1px]" />
+		<InfoIcon class="text-fg-muted mr-1.5 inline size-3.5 align-[-1px]" />
 	{/if}
 	{@render children?.()}
 </p>

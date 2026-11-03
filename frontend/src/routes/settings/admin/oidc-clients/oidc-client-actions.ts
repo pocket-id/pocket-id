@@ -4,7 +4,9 @@ import OIDCService from '#lib/services/oidc-service.ts';
 import type { AdvancedTableAction } from '#lib/types/advanced-table.type.ts';
 import type { OidcClient } from '#lib/types/oidc.type.ts';
 import { axiosErrorToast } from '#lib/utils/error-util.ts';
-import { LucideCopy, LucideRefreshCw, LucideTrash2 } from '@lucide/svelte';
+import CopyIcon from '~icons/solar/copy-bold';
+import RefreshCwIcon from '~icons/solar/refresh-bold';
+import Trash2Icon from '~icons/solar/trash-bin-minimalistic-bold';
 import { toast } from 'svelte-sonner';
 
 const oidcService = new OIDCService();
@@ -14,7 +16,7 @@ export const typeLabel = (client: OidcClient) => (client.isPublic ? m.public() :
 export function copyClientIdAction<T extends OidcClient>(): AdvancedTableAction<T> {
 	return {
 		label: m.copy_client_id(),
-		icon: LucideCopy,
+		icon: CopyIcon,
 		onClick: async (client) => {
 			try {
 				await navigator.clipboard.writeText(client.id);
@@ -32,7 +34,7 @@ export function refreshClientAction<T extends OidcClient>(
 ): AdvancedTableAction<T> {
 	return {
 		label: m.refresh_metadata(),
-		icon: LucideRefreshCw,
+		icon: RefreshCwIcon,
 		// Only metadata document clients have a remote document to refresh from
 		hidden: client.clientType !== 'cimd',
 		onClick: async (client) => {
@@ -53,7 +55,7 @@ export function deleteClientAction<T extends OidcClient>(
 ): AdvancedTableAction<T> {
 	return {
 		label,
-		icon: LucideTrash2,
+		icon: Trash2Icon,
 		variant: 'danger',
 		onClick: (client) =>
 			openConfirmDialog({

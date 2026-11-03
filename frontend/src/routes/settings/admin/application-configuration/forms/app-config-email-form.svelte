@@ -13,19 +13,18 @@
 	import { axiosErrorToast } from '#lib/utils/error-util.ts';
 	import { createForm, pickSchemaValues } from '#lib/utils/form-util.ts';
 	import { trackFormChanges } from '#lib/utils/unsaved-changes-util.svelte.ts';
-	import {
-		LucideAlarmClock,
-		LucideAtSign,
-		LucideBadgeCheck,
-		LucideBell,
-		LucideCircleAlert,
-		LucideHash,
-		LucideLock,
-		LucideMailCheck,
-		LucideSend,
-		LucideShieldOff,
-		LucideTriangleAlert
-	} from '@lucide/svelte';
+	import AlarmClockIcon from '~icons/solar/alarm-bold-duotone';
+	import AtSignIcon from '~icons/solar/mention-circle-bold-duotone';
+	import BadgeCheckIcon from '~icons/solar/verified-check-bold-duotone';
+	import BellIcon from '~icons/solar/bell-bold-duotone';
+	import CircleAlertIcon from '~icons/solar/danger-circle-bold-duotone';
+	import HashIcon from '~icons/solar/hashtag-bold-duotone';
+	import LockIcon from '~icons/solar/lock-bold-duotone';
+	import MailCheckIcon from '~icons/solar/letter-opened-bold-duotone';
+	import SendIcon from '~icons/solar/letter-bold';
+	import PlaneIcon from '~icons/solar/plain-bold-duotone';
+	import ShieldOffIcon from '~icons/solar/shield-cross-bold-duotone';
+	import TriangleAlertIcon from '~icons/solar/danger-triangle-bold-duotone';
 	import { toast } from 'svelte-sonner';
 	import { z } from 'zod/v4';
 	import OptionSelect from './option-select.svelte';
@@ -205,7 +204,7 @@
 
 {#snippet verificationError()}
 	<span class="text-danger-fg flex items-start gap-1.5">
-		<LucideCircleAlert class="mt-[3px] size-3 shrink-0" />
+		<CircleAlertIcon class="mt-[3px] size-3 shrink-0" />
 		{$inputs.emailVerification.error}
 	</span>
 {/snippet}
@@ -216,7 +215,7 @@
 			<SettingRow
 				title={m.config_require_email()}
 				description={m.config_require_email_description()}
-				icon={LucideAtSign}
+				icon={AtSignIcon}
 			>
 				{#snippet control(props)}
 					<Switch {...props} bind:checked={$inputs.requireUserEmail.value} />
@@ -226,7 +225,7 @@
 				title={m.email_verification()}
 				description={$inputs.emailVerification.error ? verificationError : undefined}
 				consequence={verificationRequired ? m.config_verification_required_note() : undefined}
-				icon={LucideMailCheck}
+				icon={MailCheckIcon}
 			>
 				{#snippet control(props)}
 					<OptionSelect
@@ -245,7 +244,7 @@
 			<SettingRow
 				title={m.config_treat_as_verified()}
 				disabledReason={verificationRequired ? m.config_treat_as_verified_locked() : undefined}
-				icon={LucideBadgeCheck}
+				icon={BadgeCheckIcon}
 			>
 				{#snippet control(props)}
 					<Switch
@@ -262,7 +261,7 @@
 		<fieldset class="contents" disabled={$appConfigStore.uiConfigDisabled}>
 			{#if smtpMissing}
 				<Alert.Root variant="warning" class="mt-2">
-					<LucideTriangleAlert />
+					<TriangleAlertIcon />
 					<Alert.Title>{m.config_smtp_missing_title()}</Alert.Title>
 					<Alert.Description>{m.config_smtp_missing_description()}</Alert.Description>
 				</Alert.Root>
@@ -305,7 +304,7 @@
 					bind:input={$inputs.smtpFrom}
 				/>
 			</div>
-			<SettingRow title={m.config_encryption()} icon={LucideLock}>
+			<SettingRow title={m.config_encryption()} icon={LockIcon}>
 				{#snippet control(props)}
 					<OptionSelect
 						{...props}
@@ -318,7 +317,7 @@
 			<SettingRow
 				title={m.skip_certificate_verification()}
 				description={m.config_self_signed_only()}
-				icon={LucideShieldOff}
+				icon={ShieldOffIcon}
 			>
 				{#snippet control(props)}
 					<Switch {...props} bind:checked={$inputs.smtpSkipCertVerify.value} />
@@ -328,7 +327,7 @@
 		<!-- Sending changes nothing, so it stays available while the configuration is managed by environment variables -->
 		<div class="flex pt-3">
 			<Button size="sm" variant="secondary" isLoading={isSendingTestEmail} onclick={onTestEmail}>
-				<LucideSend />
+				<SendIcon />
 				{m.send_test_email()}
 			</Button>
 		</div>
@@ -339,7 +338,7 @@
 			<SettingRow
 				title={m.config_signin_notifications()}
 				description={m.config_signin_notifications_description()}
-				icon={LucideBell}
+				icon={BellIcon}
 			>
 				{#snippet control(props)}
 					<OptionSelect
@@ -353,13 +352,13 @@
 			<SettingRow
 				title={m.config_admin_login_codes()}
 				description={m.config_admin_login_codes_description()}
-				icon={LucideSend}
+				icon={PlaneIcon}
 			>
 				{#snippet control(props)}
 					<Switch {...props} bind:checked={$inputs.emailOneTimeAccessAsAdminEnabled.value} />
 				{/snippet}
 			</SettingRow>
-			<SettingRow title={m.config_api_key_expiry()} icon={LucideAlarmClock}>
+			<SettingRow title={m.config_api_key_expiry()} icon={AlarmClockIcon}>
 				{#snippet control(props)}
 					<Switch {...props} bind:checked={$inputs.emailApiKeyExpirationEnabled.value} />
 				{/snippet}
@@ -370,7 +369,7 @@
 				consequence={$inputs.emailOneTimeAccessAsUnauthenticatedEnabled.value
 					? m.config_user_login_codes_note()
 					: undefined}
-				icon={LucideHash}
+				icon={HashIcon}
 			>
 				{#snippet control(props)}
 					<Switch

@@ -7,13 +7,11 @@
 	import type { AccessibleOidcClient } from '#lib/types/oidc.type.ts';
 	import { encodeClientIdParam } from '#lib/utils/client-id-util.ts';
 	import { cn } from '@pocket-id/ui/utils';
-	import {
-		LucideArrowUpRight,
-		LucideBan,
-		LucideEllipsis,
-		LucideLink,
-		LucidePencil
-	} from '@lucide/svelte';
+	import ArrowUpRightIcon from '~icons/solar/arrow-right-up-linear';
+	import BanIcon from '~icons/solar/forbidden-circle-bold';
+	import EllipsisIcon from '~icons/solar/menu-dots-bold';
+	import LinkIcon from '~icons/solar/link-bold';
+	import PencilIcon from '~icons/solar/pen-bold';
 	import { formatDistanceToNow } from 'date-fns';
 	import { toast } from 'svelte-sonner';
 
@@ -95,7 +93,7 @@
 	</div>
 
 	{#if client.launchURL}
-		<LucideArrowUpRight
+		<ArrowUpRightIcon
 			aria-hidden="true"
 			class={cn('text-fg-muted size-3.5 shrink-0', tile && 'sm:hidden')}
 		/>
@@ -111,20 +109,20 @@
 				)}
 				aria-label={m.actions_for_name({ name: client.name })}
 			>
-				<LucideEllipsis />
+				<EllipsisIcon />
 			</DropdownMenu.Trigger>
 			<DropdownMenu.Content align="end">
 				{#if client.launchURL}
 					<DropdownMenu.Item>
 						{#snippet child({ props })}
 							<a {...props} href={client.launchURL} target="_blank" rel="noopener noreferrer">
-								<LucideArrowUpRight />
+								<ArrowUpRightIcon />
 								{m.open_in_new_tab()}
 							</a>
 						{/snippet}
 					</DropdownMenu.Item>
 					<DropdownMenu.Item onclick={copyLink}>
-						<LucideLink />
+						<LinkIcon />
 						{m.copy_link()}
 					</DropdownMenu.Item>
 				{/if}
@@ -132,7 +130,7 @@
 					<DropdownMenu.Item>
 						{#snippet child({ props })}
 							<a {...props} href="/settings/admin/oidc-clients/{encodeClientIdParam(client.id)}">
-								<LucidePencil />
+								<PencilIcon />
 								{m.edit_client()}
 							</a>
 						{/snippet}
@@ -143,7 +141,7 @@
 						<DropdownMenu.Separator />
 					{/if}
 					<DropdownMenu.Item variant="destructive" onclick={() => onRevoke(client)}>
-						<LucideBan />
+						<BanIcon />
 						{m.revoke_access_ellipsis()}
 					</DropdownMenu.Item>
 				{/if}

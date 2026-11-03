@@ -26,7 +26,7 @@
 	import { getAxiosErrorCode, getWebauthnErrorMessage } from '#lib/utils/error-util.ts';
 	import { cssMs } from '#lib/utils/style.ts';
 	import { startAuthentication } from '@simplewebauthn/browser';
-	import { LucideChevronRight } from '@lucide/svelte';
+	import ChevronRightIcon from '~icons/solar/alt-arrow-right-linear';
 	import type { PageProps } from './$types';
 
 	const webauthnService = new WebAuthnService();
@@ -154,7 +154,7 @@
 		>
 			<Button variant="link" class="text-body h-(--h-xl) max-w-full gap-1" href={redirectUrl}>
 				<span class="truncate">{m.auth_continue_to({ name: clientName })}</span>
-				<LucideChevronRight />
+				<ChevronRightIcon />
 			</Button>
 		</div>
 	{:else}
@@ -195,7 +195,7 @@
 							{#if isLoading}
 								<Spinner class="size-4" />
 							{:else}
-								<LucideChevronRight
+								<ChevronRightIcon
 									class="size-4 transition-transform duration-(--dur-fast) group-hover/account:translate-x-(--nudge)"
 								/>
 							{/if}

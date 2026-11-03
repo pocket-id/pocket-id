@@ -2,7 +2,7 @@
 	import { Command as CommandPrimitive } from 'bits-ui';
 	import { cn } from '#lib/utils/style.js';
 	import * as InputGroup from '#lib/components/input-group/index.js';
-	import SearchIcon from '@lucide/svelte/icons/search';
+	import SearchIcon from '~icons/solar/magnifier-linear';
 
 	let {
 		ref = $bindable(null),

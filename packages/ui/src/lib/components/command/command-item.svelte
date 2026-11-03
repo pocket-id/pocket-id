@@ -1,7 +1,7 @@
 <script lang="ts">
 	import { Command as CommandPrimitive } from 'bits-ui';
 	import { cn } from '#lib/utils/style.js';
-	import CheckIcon from '@lucide/svelte/icons/check';
+	import CheckIcon from '~icons/solar/check-linear';
 
 	let {
 		ref = $bindable(null),

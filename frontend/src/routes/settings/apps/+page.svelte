@@ -14,14 +14,12 @@
 	import { debounced } from '#lib/utils/debounce-util.ts';
 	import { axiosErrorToast } from '#lib/utils/error-util.ts';
 	import { cn } from '@pocket-id/ui/utils';
-	import {
-		LucideArrowDownUp,
-		LucideArrowUpRight,
-		LucideBan,
-		LucideChevronDown,
-		LucidePlus,
-		LucideSearch
-	} from '@lucide/svelte';
+	import ArrowDownUpIcon from '~icons/solar/sort-vertical-linear';
+	import ArrowUpRightIcon from '~icons/solar/arrow-right-up-linear';
+	import BanIcon from '~icons/solar/forbidden-circle-bold';
+	import ChevronDownIcon from '~icons/solar/alt-arrow-down-linear';
+	import PlusIcon from '~icons/solar/add-circle-bold';
+	import SearchIcon from '~icons/solar/magnifier-linear';
 	import { toast } from 'svelte-sonner';
 	import AppTile from './app-tile.svelte';
 	import {
@@ -161,7 +159,7 @@
 			confirm: {
 				label: m.revoke(),
 				destructive: true,
-				icon: LucideBan,
+				icon: BanIcon,
 				action: async () => {
 					try {
 						await oidcService.revokeOwnAuthorizedClient(client.id);
@@ -208,7 +206,7 @@
 				<p class="text-body text-fg-muted max-w-[380px]">{m.no_apps_yet_admin_description()}</p>
 				<div class="mt-4 flex flex-wrap items-center justify-center gap-4">
 					<Button href="/settings/admin/oidc-clients?new">
-						<LucidePlus />
+						<PlusIcon />
 						{m.connect_an_app()}
 					</Button>
 					<Button
@@ -219,7 +217,7 @@
 						rel="noreferrer"
 					>
 						{m.docs()}
-						<LucideArrowUpRight />
+						<ArrowUpRightIcon />
 					</Button>
 				</div>
 			{:else}
@@ -240,7 +238,7 @@
 				oninput={(e: Event) => onSearch((e.currentTarget as HTMLInputElement).value)}
 			/>
 			<InputGroup.Addon>
-				<LucideSearch />
+				<SearchIcon />
 			</InputGroup.Addon>
 		</InputGroup.Root>
 		<div class="flex min-h-(--h-sm) items-center justify-between gap-2">
@@ -251,7 +249,7 @@
 				<DropdownMenu.Trigger
 					class={buttonVariants({ variant: 'ghost', size: 'sm', class: '-me-3' })}
 				>
-					<LucideArrowDownUp />
+					<ArrowDownUpIcon />
 					<span class="sr-only">{m.sort_by()}</span>
 					<span class="max-sm:sr-only">{sortLabels[sort]()}</span>
 				</DropdownMenu.Trigger>
@@ -309,7 +307,7 @@
 					onclick={() => (showHiddenApps = !showHiddenApps)}
 				>
 					{m.apps_without_launch_link()}
-					<LucideChevronDown
+					<ChevronDownIcon
 						class={cn(
 							'text-fg-muted size-4 transition-transform duration-(--dur-base)',
 							hiddenAppsOpen && 'rotate-180'

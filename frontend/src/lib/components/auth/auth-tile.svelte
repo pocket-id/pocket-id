@@ -1,7 +1,7 @@
 <script lang="ts">
 	import Logo from '#lib/components/logo.svelte';
 	import { cn } from '@pocket-id/ui/utils';
-	import { LucideCheck } from '@lucide/svelte';
+	import CheckIcon from '~icons/solar/check-linear';
 
 	let { success = false }: { success?: boolean } = $props();
 </script>
@@ -17,7 +17,7 @@
 			success && 'opacity-0'
 		)}
 	/>
-	<LucideCheck
+	<CheckIcon
 		class={cn(
 			'text-success-solid transition-motion col-start-1 row-start-1 size-5 duration-(--dur-base)',
 			!success && 'scale-60 opacity-0'

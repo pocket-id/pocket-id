@@ -4,7 +4,8 @@
 	import { Textarea } from '@pocket-id/ui/textarea';
 	import { m } from '#lib/paraglide/messages.js';
 	import { describeJwk, getJwkKeyId, parseJwkInput, type Jwk } from '#lib/utils/jwk-util.ts';
-	import { LucidePlus, LucideX } from '@lucide/svelte';
+	import PlusIcon from '~icons/solar/add-circle-bold';
+	import XIcon from '~icons/solar/close-linear';
 
 	let {
 		publicKeys,
@@ -65,7 +66,7 @@
 							onclick={() => removeKey(i)}
 							aria-label={m.remove_public_key({ keyId: getJwkKeyId(key) })}
 						>
-							<LucideX />
+							<XIcon />
 						</Button>
 					{/if}
 				</li>
@@ -100,7 +101,7 @@
 				onclick={addKeys}
 				disabled={!pastedKey.trim()}
 			>
-				<LucidePlus />
+				<PlusIcon />
 				{m.add_public_key()}
 			</Button>
 		</div>

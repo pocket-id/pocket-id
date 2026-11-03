@@ -23,27 +23,25 @@
 	import { axiosErrorToast } from '#lib/utils/error-util.ts';
 	import { createForm, deepCopy, deepEqual } from '#lib/utils/form-util.ts';
 	import { trackUnsavedSection } from '#lib/utils/unsaved-changes-util.svelte.ts';
-	import {
-		LucideArrowLeft,
-		LucideAtSign,
-		LucideBadgeCheck,
-		LucideChevronRight,
-		LucideCopy,
-		LucideEllipsis,
-		LucideFingerprint,
-		LucideImage,
-		LucideInfo,
-		LucideLanguages,
-		LucideMail,
-		LucidePlus,
-		LucideQuote,
-		LucideStar,
-		LucideTag,
-		LucideTrash2,
-		LucideUserRound,
-		LucideUsersRound,
-		LucideX
-	} from '@lucide/svelte';
+	import ArrowLeftIcon from '~icons/solar/arrow-left-linear';
+	import AtSignIcon from '~icons/solar/mention-circle-bold-duotone';
+	import BadgeCheckIcon from '~icons/solar/verified-check-bold-duotone';
+	import ChevronRightIcon from '~icons/solar/alt-arrow-right-linear';
+	import CopyIcon from '~icons/solar/copy-bold';
+	import EllipsisIcon from '~icons/solar/menu-dots-bold';
+	import FingerprintIcon from '~icons/solar/face-scan-square-bold-duotone';
+	import ImageIcon from '~icons/solar/gallery-bold-duotone';
+	import InfoIcon from '~icons/solar/info-circle-bold-duotone';
+	import LanguagesIcon from '~icons/solar/translation-2-bold-duotone';
+	import MailIcon from '~icons/solar/letter-bold-duotone';
+	import PlusIcon from '~icons/solar/add-circle-bold';
+	import QuoteIcon from '~icons/solar/quote-bold-duotone';
+	import StarIcon from '~icons/solar/star-bold';
+	import TagIcon from '~icons/solar/tag-bold-duotone';
+	import Trash2Icon from '~icons/solar/trash-bin-minimalistic-bold';
+	import UserRoundIcon from '~icons/solar/user-rounded-bold-duotone';
+	import UsersRoundIcon from '~icons/solar/users-group-rounded-bold-duotone';
+	import XIcon from '~icons/solar/close-linear';
 	import type { Component } from 'svelte';
 	import { toast } from 'svelte-sonner';
 	import { z } from 'zod/v4';
@@ -74,17 +72,17 @@
 	const builtIn = policy.id === builtInClaimMappingPolicyId;
 
 	const USER_FIELD_ICONS: Record<OidcUserField, Component> = {
-		id: LucideFingerprint,
-		email: LucideMail,
-		email_verified: LucideBadgeCheck,
-		first_name: LucideUserRound,
-		last_name: LucideUserRound,
-		full_name: LucideUserRound,
-		display_name: LucideUserRound,
-		username: LucideAtSign,
-		locale: LucideLanguages,
-		picture: LucideImage,
-		groups: LucideUsersRound
+		id: FingerprintIcon,
+		email: MailIcon,
+		email_verified: BadgeCheckIcon,
+		first_name: UserRoundIcon,
+		last_name: UserRoundIcon,
+		full_name: UserRoundIcon,
+		display_name: UserRoundIcon,
+		username: AtSignIcon,
+		locale: LanguagesIcon,
+		picture: ImageIcon,
+		groups: UsersRoundIcon
 	};
 
 	let nextKey = 0;
@@ -219,14 +217,14 @@
 		if (mapping.sourceType === 'custom_claim') {
 			const all = mapping.sourceValue === '*';
 			return {
-				icon: LucideTag,
+				icon: TagIcon,
 				label: all ? m.every_custom_claim() : mapping.sourceValue,
 				kind: m.custom_claim(),
 				mono: !all
 			};
 		}
 		return {
-			icon: LucideQuote,
+			icon: QuoteIcon,
 			label: JSON.stringify(mapping.sourceValue),
 			kind: m.fixed_value(),
 			mono: true
@@ -259,7 +257,7 @@
 		{/if}
 	</span>
 	<span aria-hidden="true" class="text-fg-subtle hidden md:grid"
-		><LucideArrowLeft class="size-3.5" /></span
+		><ArrowLeftIcon class="size-3.5" /></span
 	>
 	<span class="flex min-w-0 items-center gap-2">
 		<span
@@ -320,20 +318,20 @@
 		{/snippet}
 		{#snippet actions()}
 			<Button variant="secondary" onclick={() => duplicatePolicy(policy)}>
-				<LucideCopy />
+				<CopyIcon />
 				{m.duplicate()}
 			</Button>
 			<DropdownMenu.Root>
 				<DropdownMenu.Trigger>
 					{#snippet child({ props })}
 						<Button {...props} variant="outline" size="icon" aria-label={m.more_actions()}>
-							<LucideEllipsis />
+							<EllipsisIcon />
 						</Button>
 					{/snippet}
 				</DropdownMenu.Trigger>
 				<DropdownMenu.Content align="end">
 					<DropdownMenu.Item disabled={policy.isDefault} onclick={makeDefault}>
-						<LucideStar />
+						<StarIcon />
 						{m.make_default()}
 					</DropdownMenu.Item>
 					<DropdownMenu.Separator />
@@ -342,7 +340,7 @@
 						disabled={builtIn}
 						onclick={() => confirmDeletePolicy(policy, backNavigation.leave)}
 					>
-						<LucideTrash2 />
+						<Trash2Icon />
 						{builtIn ? m.built_in_policy_cant_be_deleted() : m.delete_policy_ellipsis()}
 					</DropdownMenu.Item>
 				</DropdownMenu.Content>
@@ -366,7 +364,7 @@
 				<div class="flex min-w-0 flex-col gap-4">
 					{#if builtIn}
 						<Alert.Root variant="info">
-							<LucideInfo />
+							<InfoIcon />
 							<Alert.Title>{m.built_in_policy_cant_be_changed()}</Alert.Title>
 							<Alert.Description>
 								{m.built_in_policy_cant_be_changed_description()}
@@ -414,7 +412,7 @@
 												aria-hidden="true"
 												class="text-fg-subtle col-start-2 row-start-1 grid md:col-start-auto md:row-start-auto"
 											>
-												<LucideChevronRight class="size-4" />
+												<ChevronRightIcon class="size-4" />
 											</span>
 										</button>
 									{/if}
@@ -427,7 +425,7 @@
 									{m.policy_releases_no_claims()}
 									{#if !builtIn}
 										<Button variant="ghost" size="sm" onclick={() => openSheet(null)}>
-											<LucidePlus />
+											<PlusIcon />
 											{m.add_claim()}
 										</Button>
 									{/if}
@@ -437,7 +435,7 @@
 						{#if !builtIn && draft.length}
 							<div class="border-t px-3 py-2">
 								<Button variant="ghost" size="sm" onclick={() => openSheet(null)}>
-									<LucidePlus />
+									<PlusIcon />
 									{m.add_claim()}
 								</Button>
 							</div>
@@ -453,7 +451,7 @@
 			<SettingsSection title={m.assigned_clients()} description={m.assigned_clients_description()}>
 				{#snippet action()}
 					<Button variant="secondary" size="sm" onclick={() => (clientPickerOpen = true)}>
-						<LucidePlus />
+						<PlusIcon />
 						{m.assign_clients_ellipsis()}
 					</Button>
 				{/snippet}
@@ -477,7 +475,7 @@
 								aria-label={m.unassign_name({ name: client.name })}
 								onclick={() => unassignClient(client)}
 							>
-								<LucideX />
+								<XIcon />
 							</Button>
 						</li>
 					{:else}
@@ -490,7 +488,7 @@
 				</ul>
 				{#if unassignedCount > 0}
 					<p class="text-caption text-fg-muted mt-3 flex items-start gap-1.5">
-						<LucideInfo class="mt-[3px] size-3 shrink-0" />
+						<InfoIcon class="mt-[3px] size-3 shrink-0" />
 						{unassignedCount === 1
 							? m.default_policy_also_applies_one()
 							: m.default_policy_also_applies({ count: unassignedCount })}

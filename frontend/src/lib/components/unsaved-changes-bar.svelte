@@ -7,7 +7,8 @@
 	import appConfigStore from '#lib/stores/application-configuration-store.ts';
 	import unsavedChanges from '#lib/stores/unsaved-changes-store.svelte.ts';
 	import { cn } from '@pocket-id/ui/utils';
-	import { LucideCircleAlert, LucideCircleCheck } from '@lucide/svelte';
+	import CircleAlertIcon from '~icons/solar/danger-circle-bold-duotone';
+	import CircleCheckIcon from '~icons/solar/check-circle-bold-duotone';
 	import { tick } from 'svelte';
 	import { cubicOut } from 'svelte/easing';
 	import { prefersReducedMotion } from 'svelte/motion';
@@ -239,14 +240,14 @@
 				inert={!statusSettled}
 			>
 				<span aria-hidden="true" class="grid">
-					<LucideCircleCheck
+					<CircleCheckIcon
 						class={cn(
 							SLOT_GLYPH,
 							'text-success-solid',
 							shownStatus?.type !== 'success' && 'opacity-0'
 						)}
 					/>
-					<LucideCircleAlert
+					<CircleAlertIcon
 						class={cn(
 							SLOT_GLYPH,
 							'text-danger-solid',

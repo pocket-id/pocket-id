@@ -16,7 +16,9 @@
 	import { createForm } from '#lib/utils/form-util.ts';
 	import { trackFormChanges } from '#lib/utils/unsaved-changes-util.svelte.ts';
 	import { emptyToUndefined, usernameSchema } from '#lib/utils/zod-util.ts';
-	import { LucideInfo, LucideSend, LucideUndo2 } from '@lucide/svelte';
+	import InfoIcon from '~icons/solar/info-circle-bold-duotone';
+	import SendIcon from '~icons/solar/letter-bold';
+	import Undo2Icon from '~icons/solar/undo-left-bold';
 	import { toast } from 'svelte-sonner';
 	import { get } from 'svelte/store';
 	import { z } from 'zod/v4';
@@ -142,7 +144,7 @@
 		<div class="flex flex-col gap-3">
 			{#if readOnlyReason}
 				<p class="text-caption text-fg-muted flex items-start gap-1.5">
-					<LucideInfo class="mt-1 size-3 shrink-0" />
+					<InfoIcon class="mt-1 size-3 shrink-0" />
 					{readOnlyReason}
 				</p>
 			{/if}
@@ -217,7 +219,7 @@
 						{#if pendingEmailChange}
 							<div class="sm:col-start-2 sm:row-start-1">
 								<Button variant="secondary" size="sm" usePromiseLoading onclick={cancelEmailChange}>
-									<LucideUndo2 />
+									<Undo2Icon />
 									{m.cancel_email_change()}
 								</Button>
 							</div>
@@ -231,7 +233,7 @@
 									disabled={$inputs.email.value !== $userStore?.email}
 									onclick={sendEmailVerification}
 								>
-									<LucideSend />
+									<SendIcon />
 									{m.send_email()}
 								</Button>
 							</div>

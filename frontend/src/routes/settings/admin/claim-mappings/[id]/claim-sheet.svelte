@@ -19,7 +19,7 @@
 		type OidcUserField
 	} from '#lib/types/oidc-claim-mapping-policy.type.ts';
 	import { preventDefault } from '#lib/utils/event-util.ts';
-	import { LucideTrash2 } from '@lucide/svelte';
+	import Trash2Icon from '~icons/solar/trash-bin-minimalistic-bold';
 	import { untrack } from 'svelte';
 	import { userFieldLabel } from '../claim-mapping-util';
 
@@ -284,7 +284,7 @@
 						open = false;
 					}}
 				>
-					<LucideTrash2 />
+					<Trash2Icon />
 					{m.remove_claim()}
 				</Button>
 			{/if}

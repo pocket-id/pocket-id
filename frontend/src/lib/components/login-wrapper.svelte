@@ -13,7 +13,7 @@
 	import { cachedBackgroundImage } from '#lib/utils/cached-image-util.ts';
 	import { cn } from '@pocket-id/ui/utils';
 	import { cssMs, cssVar } from '#lib/utils/style.ts';
-	import { LucideChevronLeft } from '@lucide/svelte';
+	import ChevronLeftIcon from '~icons/solar/alt-arrow-left-linear';
 	import type { Snippet } from 'svelte';
 	import { prefersReducedMotion } from 'svelte/motion';
 	import { MediaQuery } from 'svelte/reactivity';
@@ -265,7 +265,7 @@
 			>
 				{#if back}
 					<Button variant="link" href={back} class="text-body -ml-1 gap-1">
-						<LucideChevronLeft />
+						<ChevronLeftIcon />
 						{m.back()}
 					</Button>
 				{/if}

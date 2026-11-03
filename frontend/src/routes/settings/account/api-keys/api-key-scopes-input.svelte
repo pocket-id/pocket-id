@@ -18,7 +18,7 @@
 		type ScopeResource
 	} from '#lib/utils/api-key-scopes.ts';
 	import type { FormInput } from '#lib/utils/form-util.ts';
-	import { LucideTriangleAlert } from '@lucide/svelte';
+	import TriangleAlertIcon from '~icons/solar/danger-triangle-bold-duotone';
 	import { untrack } from 'svelte';
 
 	let { input = $bindable(), isAdmin }: { input: FormInput<string[]>; isAdmin: boolean } = $props();
@@ -114,7 +114,7 @@
 		<!-- Full access already says the key can do everything, so only a custom selection needs telling that these scopes undo its limits -->
 		{#if input.value.some(isAdminEquivalentScope)}
 			<Alert.Root variant="warning">
-				<LucideTriangleAlert />
+				<TriangleAlertIcon />
 				<Alert.Title>{m.api_key_can_gain_full_access()}</Alert.Title>
 				<Alert.Description>{m.api_key_can_gain_full_access_description()}</Alert.Description>
 			</Alert.Root>

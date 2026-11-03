@@ -8,7 +8,7 @@
 	import { scopeLabel } from '#lib/utils/api-key-scopes.ts';
 	import { createForm } from '#lib/utils/form-util.ts';
 	import { trackFormChanges } from '#lib/utils/unsaved-changes-util.svelte.ts';
-	import { LucideFileText } from '@lucide/svelte';
+	import FileTextIcon from '~icons/solar/document-text-bold-duotone';
 	import { z } from 'zod/v4';
 
 	let { api, onSave }: { api: Api; onSave: (update: ApiCimdAccessUpdate) => Promise<void> } =
@@ -31,7 +31,7 @@
 	<SettingRow
 		title={m.allow_all_metadata_document_clients()}
 		description={m.allow_all_metadata_document_clients_description()}
-		icon={LucideFileText}
+		icon={FileTextIcon}
 	>
 		{#snippet control(props)}
 			<Switch {...props} bind:checked={$inputs.enabled.value} />

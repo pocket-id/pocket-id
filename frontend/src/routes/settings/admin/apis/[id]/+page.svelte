@@ -19,7 +19,11 @@
 	import { scopeLabel } from '#lib/utils/api-key-scopes.ts';
 	import { createForm } from '#lib/utils/form-util.ts';
 	import { trackFormChanges, trackUnsavedValue } from '#lib/utils/unsaved-changes-util.svelte.ts';
-	import { LucideCopy, LucideEllipsis, LucideInfo, LucideLock, LucideTrash2 } from '@lucide/svelte';
+	import CopyIcon from '~icons/solar/copy-bold';
+	import EllipsisIcon from '~icons/solar/menu-dots-bold';
+	import InfoIcon from '~icons/solar/info-circle-bold-duotone';
+	import LockIcon from '~icons/solar/lock-bold-duotone';
+	import Trash2Icon from '~icons/solar/trash-bin-minimalistic-bold';
 	import { toast } from 'svelte-sonner';
 	import { z } from 'zod/v4';
 	import { backNavigate } from '../../users/navigate-back-util';
@@ -108,7 +112,7 @@
 		{/snippet}
 		{#snippet tags()}
 			{#if builtIn}
-				<Badge><LucideLock class="size-3" />{m.built_in()}</Badge>
+				<Badge><LockIcon class="size-3" />{m.built_in()}</Badge>
 			{/if}
 			<span class="text-mono-s font-mono break-all">{api.resource}</span>
 		{/snippet}
@@ -117,17 +121,17 @@
 				<DropdownMenu.Trigger>
 					{#snippet child({ props })}
 						<Button {...props} variant="outline" size="icon" aria-label={m.more_actions()}>
-							<LucideEllipsis />
+							<EllipsisIcon />
 						</Button>
 					{/snippet}
 				</DropdownMenu.Trigger>
 				<DropdownMenu.Content align="end">
 					<DropdownMenu.Item onclick={() => copy(api.resource, m.resource_uri_copied())}>
-						<LucideCopy />
+						<CopyIcon />
 						{m.copy_resource_uri()}
 					</DropdownMenu.Item>
 					<DropdownMenu.Item onclick={() => copy(api.id, m.api_id_copied())}>
-						<LucideCopy />
+						<CopyIcon />
 						{m.copy_api_id()}
 					</DropdownMenu.Item>
 					<DropdownMenu.Separator />
@@ -136,7 +140,7 @@
 						disabled={builtIn}
 						onclick={() => confirmDeleteApi(api, backNavigation.leave)}
 					>
-						<LucideTrash2 />
+						<Trash2Icon />
 						{builtIn ? m.built_in_api_cant_be_deleted() : m.delete_api_ellipsis()}
 					</DropdownMenu.Item>
 				</DropdownMenu.Content>
@@ -192,7 +196,7 @@
 							{/each}
 						</dl>
 						<p class="text-caption text-fg-muted flex items-start gap-1.5">
-							<LucideInfo class="mt-[3px] size-3 shrink-0" />
+							<InfoIcon class="mt-[3px] size-3 shrink-0" />
 							{m.resource_uris_cant_be_changed()}
 						</p>
 					</div>

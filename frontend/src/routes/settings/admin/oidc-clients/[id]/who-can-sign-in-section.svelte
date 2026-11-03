@@ -10,7 +10,7 @@
 	import type { OidcClient } from '#lib/types/oidc.type.ts';
 	import { axiosErrorToast } from '#lib/utils/error-util.ts';
 	import { trackUnsavedValue } from '#lib/utils/unsaved-changes-util.svelte.ts';
-	import { LucideLockOpen } from '@lucide/svelte';
+	import LockOpenIcon from '~icons/solar/lock-unlocked-bold';
 	import { toast } from 'svelte-sonner';
 
 	type AccessMode = 'all' | 'restricted';
@@ -63,7 +63,7 @@
 			confirm: {
 				label: m.allow_all_users(),
 				destructive: true,
-				icon: LucideLockOpen,
+				icon: LockOpenIcon,
 				action: async () => {
 					try {
 						await oidcService.updateClient(client.id, { ...client, isGroupRestricted: false });

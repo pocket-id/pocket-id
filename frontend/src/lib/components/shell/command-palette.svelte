@@ -15,19 +15,17 @@
 	import { encodeClientIdParam } from '#lib/utils/client-id-util.ts';
 	import { setModeInstantly } from '#lib/utils/color-theme-util.ts';
 	import { signOut } from '#lib/utils/sign-out-util.ts';
-	import {
-		ArrowUpRight,
-		LogOut,
-		Monitor,
-		Moon,
-		Plus,
-		Search,
-		Server,
-		Settings2,
-		SlidersHorizontal,
-		Sun,
-		UsersRound
-	} from '@lucide/svelte';
+	import ArrowUpRight from '~icons/solar/arrow-right-up-linear';
+	import LogOut from '~icons/solar/logout-2-bold';
+	import Monitor from '~icons/solar/monitor-bold';
+	import Moon from '~icons/solar/moon-bold';
+	import Plus from '~icons/solar/add-circle-bold';
+	import Search from '~icons/solar/magnifier-linear';
+	import Server from '~icons/solar/server-bold-duotone';
+	import Settings2 from '~icons/solar/settings-bold';
+	import SlidersHorizontal from '~icons/solar/tuning-2-bold';
+	import Sun from '~icons/solar/sun-bold';
+	import UsersRound from '~icons/solar/users-group-rounded-bold-duotone';
 	import { Command as CommandPrimitive } from 'bits-ui';
 	import { userPrefersMode } from 'mode-watcher';
 	import { PersistedState } from 'runed';

@@ -12,7 +12,7 @@
 		today,
 		type DateValue
 	} from '@internationalized/date';
-	import CalendarIcon from '@lucide/svelte/icons/calendar';
+	import CalendarIcon from '~icons/solar/calendar-linear';
 	import type { HTMLAttributes } from 'svelte/elements';
 
 	type Props = {

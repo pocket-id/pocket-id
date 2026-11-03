@@ -17,17 +17,15 @@
 	import type { UserGroup, UserGroupMinimal } from '#lib/types/user-group.type.ts';
 	import { axiosErrorToast } from '#lib/utils/error-util.ts';
 	import { trackUnsavedValue } from '#lib/utils/unsaved-changes-util.svelte.ts';
-	import {
-		LucideCopy,
-		LucideEllipsis,
-		LucideKeyRound,
-		LucideLock,
-		LucidePlus,
-		LucideTrash2,
-		LucideUserCheck,
-		LucideUserMinus,
-		LucideUserX
-	} from '@lucide/svelte';
+	import CopyIcon from '~icons/solar/copy-bold';
+	import EllipsisIcon from '~icons/solar/menu-dots-bold';
+	import KeyRoundIcon from '~icons/solar/key-minimalistic-bold';
+	import LockIcon from '~icons/solar/lock-bold-duotone';
+	import PlusIcon from '~icons/solar/add-circle-bold';
+	import Trash2Icon from '~icons/solar/trash-bin-minimalistic-bold';
+	import UserCheckIcon from '~icons/solar/user-check-rounded-bold';
+	import UserMinusIcon from '~icons/solar/user-minus-rounded-bold';
+	import UserXIcon from '~icons/solar/user-block-rounded-bold';
 	import { toast } from 'svelte-sonner';
 	import PickerDialog, { groupsConfirmLabel } from '../../user-groups/picker-dialog.svelte';
 	import LoginCodeDialog from '../login-code-dialog.svelte';
@@ -140,12 +138,12 @@
 					usePromiseLoading
 					onclick={() => enableUsers([user], reloadUser)}
 				>
-					<LucideUserCheck />
+					<UserCheckIcon />
 					{m.enable_user()}
 				</Button>
 			{:else}
 				<Button variant="secondary" onclick={() => (loginCodeUser = user)}>
-					<LucideKeyRound />
+					<KeyRoundIcon />
 					{m.login_code_ellipsis()}
 				</Button>
 			{/if}
@@ -153,13 +151,13 @@
 				<DropdownMenu.Trigger>
 					{#snippet child({ props })}
 						<Button {...props} variant="outline" size="icon" aria-label={m.more_actions()}>
-							<LucideEllipsis />
+							<EllipsisIcon />
 						</Button>
 					{/snippet}
 				</DropdownMenu.Trigger>
 				<DropdownMenu.Content align="end">
 					<DropdownMenu.Item onclick={copyUserId}>
-						<LucideCopy />
+						<CopyIcon />
 						{m.copy_user_id()}
 					</DropdownMenu.Item>
 					{#if !user.disabled && !readOnly}
@@ -167,7 +165,7 @@
 							disabled={isMe}
 							onclick={() => confirmDisableUsers([user], reloadUser)}
 						>
-							<LucideUserX />
+							<UserXIcon />
 							{m.disable_user_ellipsis()}
 						</DropdownMenu.Item>
 					{/if}
@@ -178,7 +176,7 @@
 							disabled={isMe}
 							onclick={() => confirmDeleteUsers([user], backNavigation.leave)}
 						>
-							<LucideTrash2 />
+							<Trash2Icon />
 							{m.delete_user_ellipsis()}
 						</DropdownMenu.Item>
 					{/if}
@@ -221,14 +219,14 @@
 				{#snippet action()}
 					{#if !readOnly}
 						<Button variant="secondary" size="sm" onclick={() => (groupPickerOpen = true)}>
-							<LucidePlus />
+							<PlusIcon />
 							{m.add_to_groups_ellipsis()}
 						</Button>
 					{/if}
 				{/snippet}
 				{#if readOnly}
 					<p class="text-caption text-fg-muted mb-2 flex items-start gap-1.5">
-						<LucideLock class="mt-1 size-3 shrink-0" />
+						<LockIcon class="mt-1 size-3 shrink-0" />
 						{m.group_memberships_come_from_ldap()}
 					</p>
 				{/if}
@@ -260,7 +258,7 @@
 									})}
 									onclick={() => removeFromGroup(group)}
 								>
-									<LucideUserMinus />
+									<UserMinusIcon />
 								</Button>
 							{/if}
 						</li>

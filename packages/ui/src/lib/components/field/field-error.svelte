@@ -2,7 +2,7 @@
 	import { cn, type WithElementRef } from '#lib/utils/style.js';
 	import type { HTMLAttributes } from 'svelte/elements';
 	import type { Snippet } from 'svelte';
-	import CircleAlertIcon from '@lucide/svelte/icons/circle-alert';
+	import CircleAlertIcon from '~icons/solar/danger-circle-bold-duotone';
 
 	let {
 		ref = $bindable(null),

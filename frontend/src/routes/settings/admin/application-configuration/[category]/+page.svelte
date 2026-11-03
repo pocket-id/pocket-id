@@ -8,7 +8,7 @@
 	import AppConfigService from '#lib/services/app-config-service.ts';
 	import appConfigStore from '#lib/stores/application-configuration-store.ts';
 	import type { AllAppConfig } from '#lib/types/application-configuration.type.ts';
-	import { LucideInfo } from '@lucide/svelte';
+	import InfoIcon from '~icons/solar/info-circle-bold-duotone';
 	import type { Category } from '../categories.ts';
 	import AppConfigBrandingForm from '../forms/app-config-branding-form.svelte';
 	import AppConfigEmailForm from '../forms/app-config-email-form.svelte';
@@ -102,7 +102,7 @@
 <div class="flex flex-col">
 	{#if $appConfigStore.uiConfigDisabled}
 		<Alert.Root variant="info" class="mb-6">
-			<LucideInfo />
+			<InfoIcon />
 			<Alert.Title>{m.config_env_managed_title()}</Alert.Title>
 			<Alert.Description>
 				{m.config_env_managed_description()}

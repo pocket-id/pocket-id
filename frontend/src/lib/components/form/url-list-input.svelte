@@ -3,7 +3,8 @@
 	import { Input } from '@pocket-id/ui/input';
 	import { m } from '#lib/paraglide/messages.js';
 	import { cn } from '@pocket-id/ui/utils';
-	import { LucidePlus, LucideX } from '@lucide/svelte';
+	import PlusIcon from '~icons/solar/add-circle-bold';
+	import XIcon from '~icons/solar/close-linear';
 
 	let {
 		urls = $bindable(),
@@ -60,7 +61,7 @@
 					onclick={() => removeUrl(i)}
 					{disabled}
 				>
-					<LucideX class="size-4" />
+					<XIcon class="size-4" />
 				</Button>
 			</div>
 		{/each}
@@ -72,7 +73,7 @@
 		onclick={() => (urls = [...urls, ''])}
 		{disabled}
 	>
-		<LucidePlus class="mr-1 size-4" />
+		<PlusIcon class="mr-1 size-4" />
 		{addLabel ?? (urls.length === 0 ? m.add() : m.add_another())}
 	</Button>
 </div>

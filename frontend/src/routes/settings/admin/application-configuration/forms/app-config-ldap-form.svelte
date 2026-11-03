@@ -15,7 +15,10 @@
 	import { axiosErrorToast, getAxiosErrorMessage } from '#lib/utils/error-util.ts';
 	import { createForm, pickSchemaValues } from '#lib/utils/form-util.ts';
 	import { trackFormChanges } from '#lib/utils/unsaved-changes-util.svelte.ts';
-	import { LucideBan, LucideRefreshCw, LucideShieldOff, LucideUserX } from '@lucide/svelte';
+	import BanIcon from '~icons/solar/forbidden-circle-bold';
+	import RefreshCwIcon from '~icons/solar/refresh-bold';
+	import ShieldOffIcon from '~icons/solar/shield-cross-bold-duotone';
+	import UserXIcon from '~icons/solar/user-block-rounded-bold-duotone';
 	import { tick } from 'svelte';
 	import { toast } from 'svelte-sonner';
 	import { z } from 'zod/v4';
@@ -180,7 +183,7 @@
 			confirm: {
 				label: m.config_disable_ldap_confirm(),
 				destructive: true,
-				icon: LucideBan,
+				icon: BanIcon,
 				action: async () => {
 					await callback({ ldapEnabled: false });
 					ldapEnabled = false;
@@ -210,7 +213,7 @@
 			<div class="flex flex-wrap items-center gap-2">
 				{#if ldapEnabled}
 					<Button size="sm" variant="secondary" isLoading={syncing} onclick={onSync}>
-						<LucideRefreshCw />
+						<RefreshCwIcon />
 						{m.sync_now()}
 					</Button>
 					<Button
@@ -271,7 +274,7 @@
 			<SettingRow
 				title={m.skip_certificate_verification()}
 				description={m.config_self_signed_only()}
-				icon={LucideShieldOff}
+				icon={ShieldOffIcon}
 			>
 				{#snippet control(props)}
 					<Switch {...props} bind:checked={$inputs.ldapSkipCertVerify.value} />
@@ -300,7 +303,7 @@
 			<SettingRow
 				title={m.config_keep_removed_ldap_users()}
 				description={m.config_keep_removed_ldap_users_description()}
-				icon={LucideUserX}
+				icon={UserXIcon}
 			>
 				{#snippet control(props)}
 					<Switch {...props} bind:checked={$inputs.ldapSoftDeleteUsers.value} />

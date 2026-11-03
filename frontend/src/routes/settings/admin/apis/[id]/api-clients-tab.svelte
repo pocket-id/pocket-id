@@ -13,7 +13,10 @@
 	import type { Api, ApiClient, ApiClientAccess, ApiClientGrant } from '#lib/types/api.type.ts';
 	import { encodeClientIdParam } from '#lib/utils/client-id-util.ts';
 	import { axiosErrorToast } from '#lib/utils/error-util.ts';
-	import { LucideBan, LucidePencil, LucidePlus, LucideSearch } from '@lucide/svelte';
+	import BanIcon from '~icons/solar/forbidden-circle-bold';
+	import PencilIcon from '~icons/solar/pen-bold';
+	import PlusIcon from '~icons/solar/add-circle-bold';
+	import SearchIcon from '~icons/solar/magnifier-linear';
 	import { toast } from 'svelte-sonner';
 
 	let { api, clients = $bindable() }: { api: Api; clients: ApiClientAccess[] } = $props();
@@ -97,7 +100,7 @@
 			confirm: {
 				label: m.remove_access(),
 				destructive: true,
-				icon: LucideBan,
+				icon: BanIcon,
 				action: async () => {
 					try {
 						await apisService.removeClientAccessForApi(api.id, entry.client.id);
@@ -115,7 +118,7 @@
 <SettingsSection title={m.clients()}>
 	{#snippet action()}
 		<Button variant="secondary" size="sm" onclick={openPicker}>
-			<LucidePlus />
+			<PlusIcon />
 			{m.add_client_ellipsis()}
 		</Button>
 	{/snippet}
@@ -147,10 +150,10 @@
 					size="icon-sm"
 					label={m.actions_for_name({ name: entry.client.name })}
 					actions={[
-						{ label: m.edit_access_ellipsis(), icon: LucidePencil, onClick: edit },
+						{ label: m.edit_access_ellipsis(), icon: PencilIcon, onClick: edit },
 						{
 							label: m.remove_access_ellipsis(),
-							icon: LucideBan,
+							icon: BanIcon,
 							variant: 'danger',
 							// Access that only comes from the metadata document setting is changed on that tab
 							disabled: !entry.userDelegatedAccess && !entry.clientAccess,
@@ -180,7 +183,7 @@
 				aria-label={m.search_clients()}
 				type="search"
 			/>
-			<InputGroup.Addon><LucideSearch /></InputGroup.Addon>
+			<InputGroup.Addon><SearchIcon /></InputGroup.Addon>
 		</InputGroup.Root>
 		<div class="max-h-90 overflow-y-auto rounded-md border">
 			{#each pickerItems ?? [] as client (client.id)}

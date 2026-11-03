@@ -7,7 +7,8 @@
 	import appConfigStore from '#lib/stores/application-configuration-store.ts';
 	import { cachedProfilePicture } from '#lib/utils/cached-image-util.ts';
 	import { cn } from '@pocket-id/ui/utils';
-	import { LucideRotateCcw, LucideUpload } from '@lucide/svelte';
+	import RotateCcwIcon from '~icons/solar/restart-bold';
+	import UploadIcon from '~icons/solar/upload-bold';
 	import { onMount } from 'svelte';
 	import { openConfirmDialog } from '../confirm-dialog';
 	import ProfilePictureCropDialog from './profile-picture-crop-dialog.svelte';
@@ -102,7 +103,7 @@
 				disabled={isLoading}
 				onclick={() => fileInput?.click()}
 			>
-				<LucideUpload />
+				<UploadIcon />
 				{m.upload()}
 			</Button>
 			<Tooltip.Root>
@@ -116,7 +117,7 @@
 							disabled={isLoading}
 							onclick={onReset}
 						>
-							<LucideRotateCcw />
+							<RotateCcwIcon />
 						</Button>
 					{/snippet}
 				</Tooltip.Trigger>

@@ -1,7 +1,7 @@
 <script lang="ts">
 	import * as AlertDialog from '@pocket-id/ui/alert-dialog';
 	import { m } from '#lib/paraglide/messages.js';
-	import { LucideTrash2 } from '@lucide/svelte';
+	import Trash2Icon from '~icons/solar/trash-bin-minimalistic-bold';
 	import { confirmDialogStore } from '.';
 	import FormattedMessage from '../formatted-message.svelte';
 	import { Button } from '@pocket-id/ui/button';
@@ -10,7 +10,7 @@
 	let cancelButton = $state<HTMLButtonElement | null>(null);
 
 	const confirm = $derived($confirmDialogStore.confirm);
-	const Icon = $derived(confirm.icon ?? LucideTrash2);
+	const Icon = $derived(confirm.icon ?? Trash2Icon);
 
 	// The dialog stays open while an async action runs, so the confirm button can show its progress
 	async function onConfirm() {

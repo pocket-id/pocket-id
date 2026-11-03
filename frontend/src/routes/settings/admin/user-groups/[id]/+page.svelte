@@ -22,17 +22,15 @@
 	import { axiosErrorToast } from '#lib/utils/error-util.ts';
 	import { createForm } from '#lib/utils/form-util.ts';
 	import { trackFormChanges, trackUnsavedValue } from '#lib/utils/unsaved-changes-util.svelte.ts';
-	import {
-		LucideCopy,
-		LucideEllipsis,
-		LucideInfo,
-		LucideLock,
-		LucidePlus,
-		LucideSearch,
-		LucideTrash2,
-		LucideUserMinus,
-		LucideX
-	} from '@lucide/svelte';
+	import CopyIcon from '~icons/solar/copy-bold';
+	import EllipsisIcon from '~icons/solar/menu-dots-bold';
+	import InfoIcon from '~icons/solar/info-circle-bold-duotone';
+	import LockIcon from '~icons/solar/lock-bold-duotone';
+	import PlusIcon from '~icons/solar/add-circle-bold';
+	import SearchIcon from '~icons/solar/magnifier-linear';
+	import Trash2Icon from '~icons/solar/trash-bin-minimalistic-bold';
+	import UserMinusIcon from '~icons/solar/user-minus-rounded-bold';
+	import XIcon from '~icons/solar/close-linear';
 	import { toast } from 'svelte-sonner';
 	import { backNavigate } from '../../users/navigate-back-util';
 	import UserAvatar from '../../users/user-avatar.svelte';
@@ -225,13 +223,13 @@
 				<DropdownMenu.Trigger>
 					{#snippet child({ props })}
 						<Button {...props} variant="outline" size="icon" aria-label={m.more_actions()}>
-							<LucideEllipsis />
+							<EllipsisIcon />
 						</Button>
 					{/snippet}
 				</DropdownMenu.Trigger>
 				<DropdownMenu.Content align="end">
 					<DropdownMenu.Item onclick={copyGroupId}>
-						<LucideCopy />
+						<CopyIcon />
 						{m.copy_group_id()}
 					</DropdownMenu.Item>
 					{#if !readOnly}
@@ -244,7 +242,7 @@
 									backNavigation.leave
 								)}
 						>
-							<LucideTrash2 />
+							<Trash2Icon />
 							{m.delete_group_ellipsis()}
 						</DropdownMenu.Item>
 					{/if}
@@ -280,7 +278,7 @@
 				<div class="flex max-w-100 flex-col gap-6 pt-4">
 					{#if readOnly}
 						<p class="text-caption text-fg-muted flex items-start gap-1.5">
-							<LucideLock class="mt-1 size-3 shrink-0" />
+							<LockIcon class="mt-1 size-3 shrink-0" />
 							{m.profile_managed_by_ldap()}
 						</p>
 					{/if}
@@ -305,14 +303,14 @@
 				{#snippet action()}
 					{#if !readOnly}
 						<Button variant="secondary" size="sm" onclick={() => (memberPickerOpen = true)}>
-							<LucidePlus />
+							<PlusIcon />
 							{m.add_members_ellipsis()}
 						</Button>
 					{/if}
 				{/snippet}
 				{#if readOnly}
 					<p class="text-caption text-fg-muted mb-2 flex items-start gap-1.5">
-						<LucideLock class="mt-1 size-3 shrink-0" />
+						<LockIcon class="mt-1 size-3 shrink-0" />
 						{m.group_members_come_from_ldap()}
 					</p>
 				{/if}
@@ -325,7 +323,7 @@
 							aria-label={m.search_members()}
 							type="search"
 						/>
-						<InputGroup.Addon><LucideSearch /></InputGroup.Addon>
+						<InputGroup.Addon><SearchIcon /></InputGroup.Addon>
 					</InputGroup.Root>
 				{/if}
 				<ul class="border-t">
@@ -353,7 +351,7 @@
 									})}
 									onclick={() => removeMember(user)}
 								>
-									<LucideUserMinus />
+									<UserMinusIcon />
 								</Button>
 							{/if}
 						</li>
@@ -386,7 +384,7 @@
 			>
 				{#snippet action()}
 					<Button variant="secondary" size="sm" onclick={() => (clientPickerOpen = true)}>
-						<LucidePlus />
+						<PlusIcon />
 						{m.allow_clients_ellipsis()}
 					</Button>
 				{/snippet}
@@ -418,7 +416,7 @@
 								})}
 								onclick={() => removeClient(client)}
 							>
-								<LucideX />
+								<XIcon />
 							</Button>
 						</li>
 					{:else}
@@ -431,7 +429,7 @@
 				</ul>
 				{#if openClients.length}
 					<p class="text-caption text-fg-muted mt-3 flex items-start gap-1.5">
-						<LucideInfo class="mt-[3px] size-3 shrink-0" />
+						<InfoIcon class="mt-[3px] size-3 shrink-0" />
 						{openClients.length === 1
 							? m.client_open_to_everyone({ client: openClients[0].name })
 							: m.clients_open_to_everyone({ clients: joinNames(openClients.map((c) => c.name)) })}

@@ -4,6 +4,7 @@ import adapter from '@sveltejs/adapter-static';
 import { vitePreprocess } from '@sveltejs/vite-plugin-svelte';
 import tailwindcss from '@tailwindcss/vite';
 import sbom from 'rollup-plugin-sbom';
+import Icons from 'unplugin-icons/vite';
 import { defineConfig, type Plugin, lazyPlugins } from 'vite-plus';
 import packageJson from './package.json' with { type: 'json' };
 
@@ -34,6 +35,7 @@ export default defineConfig(() => {
 				}
 			}),
 			tailwindcss(),
+			Icons({ compiler: 'svelte' }),
 			frontendSbom,
 			paraglideVitePlugin({
 				project: './project.inlang',

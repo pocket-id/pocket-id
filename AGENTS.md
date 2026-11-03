@@ -70,6 +70,8 @@ cd ../../.. && pnpm test                         # = playwright test in packages
   Single components are named exports (`import { Button } from '@pocket-id/ui/button'`), compound ones are namespaces with unprefixed parts (`import * as Dialog from '@pocket-id/ui/dialog'`, then `Dialog.Content`).
   They must stay app-agnostic because Astro and other SvelteKit apps use them: no Paraglide, `$app/*`, `mode-watcher` or Pocket ID services.
   The few strings they render come from `setUiLabels` in the root layout; app behavior goes in a wrapper under `frontend/src/lib/components` (e.g. `hash-tabs.svelte`).
+- **Icons are Solar**, bundled at build time by `unplugin-icons` (`import TrashIcon from '~icons/solar/trash-bin-minimalistic-bold'`), never Lucide, in `packages/ui` too, so its consumers need the plugin.
+  Bold for actions (buttons, menu items and the "…" that opens them, command palette commands, confirm dialogs), Bold Duotone for icons that stand for something (nav items, features, setting rows, devices, claims, states), Linear for controls (close, chevrons, arrows, checkmarks, search, sidebar toggles).
 
 ## Coding Style Guidelines
 

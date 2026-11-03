@@ -14,8 +14,8 @@
 	import type { ListRequestOptions, Paginated, SortRequest } from '#lib/types/list-request.type.ts';
 	import { cn } from '@pocket-id/ui/utils';
 	import { cssMs } from '#lib/utils/style.ts';
-	import ArrowDownIcon from '@lucide/svelte/icons/arrow-down';
-	import ArrowUpIcon from '@lucide/svelte/icons/arrow-up';
+	import ArrowDownIcon from '~icons/solar/arrow-down-linear';
+	import ArrowUpIcon from '~icons/solar/arrow-up-linear';
 	import { PersistedState } from 'runed';
 	import { onMount } from 'svelte';
 	import { fade } from 'svelte/transition';

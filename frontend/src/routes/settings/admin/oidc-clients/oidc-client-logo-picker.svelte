@@ -11,7 +11,10 @@
 	import { debounced } from '#lib/utils/debounce-util.ts';
 	import { getAxiosErrorMessage } from '#lib/utils/error-util.ts';
 	import { cn } from '@pocket-id/ui/utils';
-	import { LucideImageOff, LucideMoon, LucideSun, LucideUpload } from '@lucide/svelte';
+	import ImageOffIcon from '~icons/solar/gallery-remove-bold-duotone';
+	import MoonIcon from '~icons/solar/moon-bold-duotone';
+	import SunIcon from '~icons/solar/sun-bold-duotone';
+	import UploadIcon from '~icons/solar/upload-bold';
 	import { Command as CommandPrimitive } from 'bits-ui';
 	import { SvelteSet } from 'svelte/reactivity';
 
@@ -211,9 +214,9 @@
 		{#if src}
 			<img {src} alt="" class="size-7 object-contain" loading="lazy" />
 		{:else if light}
-			<LucideSun class="size-4" />
+			<SunIcon class="size-4" />
 		{:else}
-			<LucideMoon class="size-4" />
+			<MoonIcon class="size-4" />
 		{/if}
 	</span>
 {/snippet}
@@ -228,7 +231,7 @@
 		aria-label={light ? m.upload_light_logo() : m.upload_dark_logo()}
 		onclick={() => (light ? lightFileInput : darkFileInput)?.click()}
 	>
-		<LucideUpload class="size-4" />
+		<UploadIcon class="size-4" />
 		{light ? m.light() : m.dark()}
 	</button>
 {/snippet}
@@ -245,7 +248,7 @@
 		onclick={() => selectUrl(url, light)}
 	>
 		{#if brokenLogos.has(url)}
-			<LucideImageOff class="size-4" />
+			<ImageOffIcon class="size-4" />
 		{:else}
 			<img src={url} alt="" class="size-6 object-contain" onerror={() => brokenLogos.add(url)} />
 		{/if}
@@ -295,7 +298,7 @@
 				<Popover.Trigger bind:ref={triggerRef}>
 					{#snippet child({ props })}
 						<Button {...props} variant="secondary" size="sm">
-							<LucideUpload />
+							<UploadIcon />
 							{m.choose_logo()}
 						</Button>
 					{/snippet}

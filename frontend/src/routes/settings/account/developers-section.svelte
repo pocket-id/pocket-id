@@ -4,7 +4,8 @@
 	import { Button } from '@pocket-id/ui/button';
 	import { m } from '#lib/paraglide/messages.js';
 	import ApiKeyService from '#lib/services/api-key-service.ts';
-	import { LucideChevronRight, LucideKey } from '@lucide/svelte';
+	import ChevronRightIcon from '~icons/solar/alt-arrow-right-linear';
+	import KeyIcon from '~icons/solar/key-bold-duotone';
 	import { onMount } from 'svelte';
 
 	let count = $state<number>();
@@ -26,11 +27,11 @@
 </script>
 
 <AdvancedDisclosure title={m.developers()} summary={m.developers_summary()}>
-	<SettingRow title={m.api_keys()} description={countLabel} icon={LucideKey}>
+	<SettingRow title={m.api_keys()} description={countLabel} icon={KeyIcon}>
 		{#snippet control()}
 			<Button variant="secondary" size="sm" href="/settings/account/api-keys">
 				{m.manage()}
-				<LucideChevronRight />
+				<ChevronRightIcon />
 			</Button>
 		{/snippet}
 	</SettingRow>

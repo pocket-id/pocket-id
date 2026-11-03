@@ -16,7 +16,9 @@
 	import { translateAuditLogEvent } from '#lib/utils/audit-log-translator.ts';
 	import { cachedProfilePicture } from '#lib/utils/cached-image-util.ts';
 	import { cn } from '@pocket-id/ui/utils';
-	import { LucideChevronDown, LucideMonitor, LucideSmartphone } from '@lucide/svelte';
+	import ChevronDownIcon from '~icons/solar/alt-arrow-down-linear';
+	import MonitorIcon from '~icons/solar/monitor-bold-duotone';
+	import SmartphoneIcon from '~icons/solar/smartphone-bold-duotone';
 	import { untrack } from 'svelte';
 	import { SvelteSet } from 'svelte/reactivity';
 
@@ -223,7 +225,7 @@
 								? m.audit_by_actor({ name: log.actorUsername })
 								: undefined}
 					{@const open = expanded.has(log.id)}
-					{@const DeviceIcon = isPhone(log.device) ? LucideSmartphone : LucideMonitor}
+					{@const DeviceIcon = isPhone(log.device) ? SmartphoneIcon : MonitorIcon}
 					<li class="border-b">
 						<button
 							type="button"
@@ -291,7 +293,7 @@
 							>
 								{formatTime(log)}
 							</time>
-							<LucideChevronDown
+							<ChevronDownIcon
 								class={cn(
 									'text-fg-muted size-3 justify-self-center transition-transform duration-(--dur-base)',
 									open && 'rotate-180'
@@ -332,7 +334,7 @@
 									<summary
 										class="text-control text-fg-muted hover:text-fg inline-flex cursor-pointer list-none items-center gap-1 rounded-xs"
 									>
-										<LucideChevronDown
+										<ChevronDownIcon
 											class="size-3 -rotate-90 transition-transform duration-(--dur-base) group-open/raw:rotate-0"
 										/>
 										{m.raw_data()}

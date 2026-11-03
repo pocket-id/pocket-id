@@ -10,6 +10,21 @@ pnpm add @pocket-id/ui bits-ui
 
 It needs Svelte 5 and Tailwind CSS 4. Install `svelte-sonner` too if you use the toaster.
 
+The components import [Solar](https://icon-sets.iconify.design/solar/) icons through `unplugin-icons`, so add it with the icon set and register its Vite plugin:
+
+```sh
+pnpm add -D unplugin-icons @iconify-json/solar
+```
+
+```ts
+// vite.config.ts
+import Icons from 'unplugin-icons/vite';
+
+export default defineConfig({
+	plugins: [sveltekit(), Icons({ compiler: 'svelte' })]
+});
+```
+
 Import the styles in your Tailwind entry stylesheet:
 
 ```css

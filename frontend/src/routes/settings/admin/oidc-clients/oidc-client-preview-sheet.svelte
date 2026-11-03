@@ -11,7 +11,8 @@
 	import type { OidcClient } from '#lib/types/oidc.type.ts';
 	import { getAxiosErrorMessage } from '#lib/utils/error-util.ts';
 	import { cn } from '@pocket-id/ui/utils';
-	import { LucideBraces, LucideList } from '@lucide/svelte';
+	import BracesIcon from '~icons/solar/code-bold-duotone';
+	import ListIcon from '~icons/solar/list-bold-duotone';
 
 	type Claims = Record<string, unknown>;
 
@@ -136,11 +137,11 @@
 				<Tabs.Root bind:value={view}>
 					<Tabs.List aria-label={m.view()}>
 						<Tabs.Trigger value="claims" class="gap-1.5">
-							<LucideList />
+							<ListIcon />
 							{m.claims()}
 						</Tabs.Trigger>
 						<Tabs.Trigger value="json" class="gap-1.5">
-							<LucideBraces />
+							<BracesIcon />
 							JSON
 						</Tabs.Trigger>
 					</Tabs.List>

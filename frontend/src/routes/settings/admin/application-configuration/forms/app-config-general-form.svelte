@@ -9,7 +9,10 @@
 	import type { AllAppConfig } from '#lib/types/application-configuration.type.ts';
 	import { createForm, pickSchemaValues } from '#lib/utils/form-util.ts';
 	import { trackFormChanges } from '#lib/utils/unsaved-changes-util.svelte.ts';
-	import { LucideHouse, LucidePalette, LucideSparkles, LucideUserPen } from '@lucide/svelte';
+	import HouseIcon from '~icons/solar/home-2-bold-duotone';
+	import PaletteIcon from '~icons/solar/palette-bold-duotone';
+	import SparklesIcon from '~icons/solar/stars-bold-duotone';
+	import UserPenIcon from '~icons/solar/pen-new-square-bold-duotone';
 	import { z } from 'zod/v4';
 	import ColorThemePicker from './color-theme-picker.svelte';
 	import OptionSelect from './option-select.svelte';
@@ -71,7 +74,7 @@
 		<SettingRow
 			title={m.app_config_home_page()}
 			description={m.config_home_page_description()}
-			icon={LucideHouse}
+			icon={HouseIcon}
 		>
 			{#snippet control(props)}
 				<OptionSelect
@@ -85,7 +88,7 @@
 		<SettingRow
 			title={m.config_self_account_editing()}
 			description={m.config_self_account_editing_description()}
-			icon={LucideUserPen}
+			icon={UserPenIcon}
 		>
 			{#snippet control(props)}
 				<Switch {...props} bind:checked={$inputs.allowOwnAccountEdit.value} />
@@ -94,7 +97,7 @@
 	</SettingsSection>
 
 	<SettingsSection title={m.appearance()}>
-		<SettingRow title={m.color_theme()} icon={LucidePalette} stacked>
+		<SettingRow title={m.color_theme()} icon={PaletteIcon} stacked>
 			{#snippet control(props)}
 				{#key themePickerKey}
 					<ColorThemePicker
@@ -108,7 +111,7 @@
 		<SettingRow
 			title={m.disable_animations()}
 			description={m.config_disable_animations_description()}
-			icon={LucideSparkles}
+			icon={SparklesIcon}
 		>
 			{#snippet control(props)}
 				<Switch {...props} bind:checked={$inputs.disableAnimations.value} />

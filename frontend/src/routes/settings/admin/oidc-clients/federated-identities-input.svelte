@@ -9,7 +9,8 @@
 	import { m } from '#lib/paraglide/messages.js';
 	import appConfigStore from '#lib/stores/application-configuration-store.ts';
 	import type { OidcClientFederatedIdentity } from '#lib/types/oidc.type.ts';
-	import { LucidePlus, LucideX } from '@lucide/svelte';
+	import PlusIcon from '~icons/solar/add-circle-bold';
+	import XIcon from '~icons/solar/close-linear';
 	import { z } from 'zod/v4';
 	import FederatedIdentityKeysInput from './federated-identity-keys-input.svelte';
 
@@ -103,7 +104,7 @@
 					onclick={() => removeFederatedIdentity(i)}
 					aria-label={m.remove_credential_number({ number: i + 1 })}
 				>
-					<LucideX />
+					<XIcon />
 				</Button>
 			{/if}
 		</div>
@@ -179,7 +180,7 @@
 		<span class="text-control text-fg-muted">{m.no_federated_credentials()}</span>
 		{#if !disabled}
 			<Button variant="ghost" size="sm" onclick={onAdd}>
-				<LucidePlus />
+				<PlusIcon />
 				{m.add_credential()}
 			</Button>
 		{/if}

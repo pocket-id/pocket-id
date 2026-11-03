@@ -2,7 +2,7 @@
 	import { Button } from '@pocket-id/ui/button';
 	import * as Tooltip from '@pocket-id/ui/tooltip';
 	import { m } from '#lib/paraglide/messages.js';
-	import { LucideRotateCcw } from '@lucide/svelte';
+	import RotateCcwIcon from '~icons/solar/restart-bold';
 	import { tick } from 'svelte';
 
 	let {
@@ -37,7 +37,7 @@
 						aria-label={m.reset_setting_to_default({ setting: label })}
 						onclick={reset}
 					>
-						<LucideRotateCcw />
+						<RotateCcwIcon />
 					</Button>
 				{/snippet}
 			</Tooltip.Trigger>

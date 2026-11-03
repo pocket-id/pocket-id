@@ -5,7 +5,7 @@
 	import type { ListRequestOptions } from '#lib/types/list-request.type.ts';
 	import { debounced } from '#lib/utils/debounce-util.ts';
 	import { revealFocused } from '#lib/utils/event-util.ts';
-	import { LucideSearch } from '@lucide/svelte';
+	import SearchIcon from '~icons/solar/magnifier-linear';
 	import AdvancedTableFilter from './advanced-table-filter.svelte';
 
 	let {
@@ -43,7 +43,7 @@
 					type="search"
 					oninput={(e: Event) => search((e.currentTarget as HTMLInputElement).value)}
 				/>
-				<InputGroup.Addon><LucideSearch /></InputGroup.Addon>
+				<InputGroup.Addon><SearchIcon /></InputGroup.Addon>
 			</InputGroup.Root>
 		{/if}
 

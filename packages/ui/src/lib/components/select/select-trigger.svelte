@@ -2,7 +2,7 @@
 	import { Select as SelectPrimitive } from 'bits-ui';
 	import { filledFieldClass } from '#lib/components/input/index.js';
 	import { cn, type WithoutChild } from '#lib/utils/style.js';
-	import ChevronDownIcon from '@lucide/svelte/icons/chevron-down';
+	import ChevronDownIcon from '~icons/solar/alt-arrow-down-linear';
 
 	let {
 		ref = $bindable(null),

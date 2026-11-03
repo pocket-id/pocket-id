@@ -7,7 +7,7 @@
 	import WebAuthnService from '#lib/services/webauthn-service.ts';
 	import type { Passkey } from '#lib/types/passkey.type.ts';
 	import { axiosErrorToast, getWebauthnErrorMessage } from '#lib/utils/error-util.ts';
-	import { LucidePlus } from '@lucide/svelte';
+	import PlusIcon from '~icons/solar/add-circle-bold';
 	import { startRegistration } from '@simplewebauthn/browser';
 	import { toast } from 'svelte-sonner';
 	import RenamePasskeyModal from './rename-passkey-modal.svelte';
@@ -62,7 +62,7 @@
 <SettingsSection title={m.passkeys()} description={m.passkeys_section_description()}>
 	{#snippet action()}
 		<Button variant="secondary" size="sm" usePromiseLoading onclick={createPasskey}>
-			<LucidePlus />
+			<PlusIcon />
 			{m.add_passkey()}
 		</Button>
 	{/snippet}

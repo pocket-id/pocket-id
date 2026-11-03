@@ -3,7 +3,8 @@
 	import * as Tooltip from '@pocket-id/ui/tooltip';
 	import { m } from '#lib/paraglide/messages.js';
 	import { cn } from '@pocket-id/ui/utils';
-	import { LucideCheck, LucideCopy } from '@lucide/svelte';
+	import CheckIcon from '~icons/solar/check-linear';
+	import CopyIcon from '~icons/solar/copy-bold';
 
 	let {
 		value,
@@ -35,8 +36,8 @@
 
 {#snippet icon()}
 	<span class="grid" aria-hidden="true">
-		<LucideCopy class={cn(markClass, copied && 'scale-60 opacity-0')} />
-		<LucideCheck
+		<CopyIcon class={cn(markClass, copied && 'scale-60 opacity-0')} />
+		<CheckIcon
 			class={cn(markClass, !copied && 'scale-60 opacity-0', copied && 'duration-(--dur-base)')}
 		/>
 	</span>

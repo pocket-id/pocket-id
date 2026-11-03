@@ -25,7 +25,7 @@
 	import appConfigStore from '#lib/stores/application-configuration-store.ts';
 	import type { User } from '#lib/types/user.type.ts';
 	import { axiosErrorToast } from '#lib/utils/error-util.ts';
-	import { LucideInfo } from '@lucide/svelte';
+	import InfoIcon from '~icons/solar/info-circle-bold-duotone';
 	import { toast } from 'svelte-sonner';
 
 	let { user = $bindable() }: { user: User | null } = $props();
@@ -143,7 +143,7 @@
 				</div>
 			</div>
 			<p class="text-caption text-fg-muted flex items-start gap-1.5">
-				<LucideInfo class="mt-[3px] size-3 shrink-0" />
+				<InfoIcon class="mt-[3px] size-3 shrink-0" />
 				{m.login_code_share_note({ name })}
 			</p>
 			<Dialog.Footer>

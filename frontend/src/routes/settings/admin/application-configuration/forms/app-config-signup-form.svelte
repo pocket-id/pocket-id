@@ -8,7 +8,7 @@
 	import appConfigStore from '#lib/stores/application-configuration-store.ts';
 	import type { AllAppConfig } from '#lib/types/application-configuration.type.ts';
 	import { trackUnsavedValue } from '#lib/utils/unsaved-changes-util.svelte.ts';
-	import { LucideInfo } from '@lucide/svelte';
+	import InfoIcon from '~icons/solar/info-circle-bold-duotone';
 
 	let {
 		appConfig,
@@ -83,7 +83,7 @@
 			</RadioGroup.Root>
 			{#if allowUserSignups === 'withToken'}
 				<p class="text-caption text-fg-muted flex items-start gap-1.5" aria-live="polite">
-					<LucideInfo class="mt-[3px] size-3 shrink-0" />
+					<InfoIcon class="mt-[3px] size-3 shrink-0" />
 					<a href="/settings/admin/users" class="inline-link">{m.config_manage_signup_tokens()}</a>
 				</p>
 			{/if}

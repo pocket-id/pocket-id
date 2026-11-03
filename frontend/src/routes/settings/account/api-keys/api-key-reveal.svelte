@@ -5,7 +5,7 @@
 	import userStore from '#lib/stores/user-store.ts';
 	import type { ApiKeyResponse } from '#lib/types/api-key.type.ts';
 	import { presetLabel } from '#lib/utils/api-key-scopes.ts';
-	import { LucideInfo } from '@lucide/svelte';
+	import InfoIcon from '~icons/solar/info-circle-bold-duotone';
 
 	let { response }: { response: ApiKeyResponse } = $props();
 </script>
@@ -25,7 +25,7 @@
 	</dd>
 </dl>
 <p class="text-caption text-fg-muted flex items-start gap-1.5">
-	<LucideInfo class="mt-[3px] size-3 shrink-0" />
+	<InfoIcon class="mt-[3px] size-3 shrink-0" />
 	{m.copy_key_now_before_closing()}
 </p>
 <CopyField label={m.api_key()} value={response.token} copyLabel={m.copy_api_key()} />

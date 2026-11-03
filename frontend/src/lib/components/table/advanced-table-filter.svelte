@@ -2,7 +2,7 @@
 	import { Button } from '@pocket-id/ui/button';
 	import * as Select from '@pocket-id/ui/select';
 	import { m } from '#lib/paraglide/messages.js';
-	import XIcon from '@lucide/svelte/icons/x';
+	import XIcon from '~icons/solar/close-linear';
 
 	let {
 		title,

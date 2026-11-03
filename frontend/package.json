@@ -19,7 +19,6 @@
 	},
 	"dependencies": {
 		"@inlang/paraglide-js-svelte": "^1.0.3",
-		"@jis3r/icons": "^2.9.0",
 		"@opentelemetry/api": "^1.9.1",
 		"@opentelemetry/exporter-trace-otlp-http": "^0.300.0",
 		"@opentelemetry/resources": "^2.8.0",
@@ -35,11 +34,11 @@
 		"zod": "^4.4.3"
 	},
 	"devDependencies": {
+		"@iconify-json/solar": "^1.2.13",
 		"@inlang/paraglide-js": "^2.18.0",
 		"@inlang/plugin-m-function-matcher": "^2.2.6",
 		"@inlang/plugin-message-format": "^4.4.0",
 		"@internationalized/date": "^3.12.1",
-		"@lucide/svelte": "^1.16.0",
 		"@sveltejs/adapter-static": "^4.0.0",
 		"@sveltejs/kit": "^3.0.0",
 		"@sveltejs/vite-plugin-svelte": "^7.1.2",
@@ -54,6 +53,7 @@
 		"svelte-sonner": "^1.1.1",
 		"tailwindcss": "^4.3.0",
 		"typescript": "^6.0.3",
+		"unplugin-icons": "^24.0.0",
 		"vite": "catalog:",
 		"vite-plus": "catalog:"
 	}

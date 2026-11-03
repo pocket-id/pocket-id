@@ -16,13 +16,11 @@
 	import type { ListRequestOptions } from '#lib/types/list-request.type.ts';
 	import { openOnCreateParam } from '#lib/utils/create-param-util.ts';
 	import { toast } from 'svelte-sonner';
-	import {
-		LucideArrowRight,
-		LucideCopy,
-		LucideLock,
-		LucidePlus,
-		LucideTrash2
-	} from '@lucide/svelte';
+	import ArrowRightIcon from '~icons/solar/arrow-right-linear';
+	import CopyIcon from '~icons/solar/copy-bold';
+	import LockIcon from '~icons/solar/lock-bold-duotone';
+	import PlusIcon from '~icons/solar/add-circle-bold';
+	import Trash2Icon from '~icons/solar/trash-bin-minimalistic-bold';
 	import { confirmDeleteApi } from './api-actions';
 	import ApiCreateSheet from './api-create-sheet.svelte';
 
@@ -58,10 +56,10 @@
 	const actions: CreateAdvancedTableActions<Api> = (api) => {
 		const builtIn = api.id === builtInApiId;
 		return [
-			{ label: m.open(), primary: true, icon: LucideArrowRight, onClick: (api) => goto(href(api)) },
+			{ label: m.open(), primary: true, icon: ArrowRightIcon, onClick: (api) => goto(href(api)) },
 			{
 				label: m.copy_resource_uri(),
-				icon: LucideCopy,
+				icon: CopyIcon,
 				onClick: async (api) => {
 					await navigator.clipboard.writeText(api.resource);
 					toast.success(m.resource_uri_copied());
@@ -69,7 +67,7 @@
 			},
 			{
 				label: builtIn ? m.built_in_api_cant_be_deleted() : m.delete_ellipsis(),
-				icon: LucideTrash2,
+				icon: Trash2Icon,
 				variant: 'danger',
 				disabled: builtIn,
 				onClick: (api) => confirmDeleteApi(api, () => tableRef?.refresh())
@@ -93,7 +91,7 @@
 					onclick={(e) => e.stopPropagation()}>{item.name}</a
 				>
 				{#if item.id === builtInApiId}
-					<Badge><LucideLock class="size-3" />{m.built_in()}</Badge>
+					<Badge><LockIcon class="size-3" />{m.built_in()}</Badge>
 				{/if}
 			</span>
 			<span class="text-mono-s text-fg-muted truncate font-mono">{item.resource}</span>
@@ -122,7 +120,7 @@
 	<PageHeader title={m.apis()} description={headerDescription}>
 		{#snippet actions()}
 			<Button onclick={() => (createOpen = true)}>
-				<LucidePlus />
+				<PlusIcon />
 				{m.add_api()}
 			</Button>
 		{/snippet}

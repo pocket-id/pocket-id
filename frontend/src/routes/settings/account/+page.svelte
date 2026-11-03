@@ -6,7 +6,8 @@
 	import SettingsSection from '#lib/components/settings-section.svelte';
 	import * as Alert from '@pocket-id/ui/alert';
 	import { m } from '#lib/paraglide/messages.js';
-	import { LucideLanguages, LucideTriangleAlert } from '@lucide/svelte';
+	import LanguagesIcon from '~icons/solar/translation-2-bold-duotone';
+	import TriangleAlertIcon from '~icons/solar/danger-triangle-bold-duotone';
 	import AccountForm from './account-form.svelte';
 	import DevelopersSection from './developers-section.svelte';
 	import LocalePicker from './locale-picker.svelte';
@@ -26,7 +27,7 @@
 	<EmailVerificationStateBox />
 	{#if passkeys.length === 1}
 		<Alert.Root variant="warning">
-			<LucideTriangleAlert />
+			<TriangleAlertIcon />
 			<Alert.Title>{m.add_backup_passkey()}</Alert.Title>
 			<Alert.Description class="wrap-anywhere">
 				{m.add_backup_passkey_description({ name: passkeys[0].name })}
@@ -41,7 +42,7 @@
 	<PasskeyList bind:passkeys />
 
 	<SettingsSection title={m.preferences()}>
-		<SettingRow title={m.language()} icon={LucideLanguages}>
+		<SettingRow title={m.language()} icon={LanguagesIcon}>
 			{#snippet description()}
 				<FormattedMessage message={m.language_crowdin_description} />
 			{/snippet}

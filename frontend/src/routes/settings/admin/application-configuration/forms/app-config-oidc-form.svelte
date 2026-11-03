@@ -13,7 +13,7 @@
 	import type { OidcDiscoveryConfiguration } from '#lib/types/oidc.type.ts';
 	import { createForm } from '#lib/utils/form-util.ts';
 	import { trackFormChanges, trackUnsavedValue } from '#lib/utils/unsaved-changes-util.svelte.ts';
-	import { LucideKey } from '@lucide/svelte';
+	import KeyIcon from '~icons/solar/key-bold-duotone';
 	import { z } from 'zod/v4';
 
 	let {
@@ -81,7 +81,7 @@
 			<SettingRow
 				title={m.config_auto_secret()}
 				description={m.config_auto_secret_description()}
-				icon={LucideKey}
+				icon={KeyIcon}
 			>
 				{#snippet control(props)}
 					<Switch {...props} bind:checked={$inputs.autoCreateOidcClientSecret.value} />

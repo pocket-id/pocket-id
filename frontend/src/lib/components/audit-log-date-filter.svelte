@@ -6,7 +6,8 @@
 	import { getLocale } from '#lib/paraglide/runtime.js';
 	import type { AuditLogDateRange } from '#lib/types/audit-log.type.ts';
 	import { preventDefault } from '#lib/utils/event-util.ts';
-	import { Check, ChevronDown } from '@lucide/svelte';
+	import Check from '~icons/solar/check-linear';
+	import ChevronDown from '~icons/solar/alt-arrow-down-linear';
 
 	let { range = $bindable({}) }: { range: AuditLogDateRange } = $props();
 

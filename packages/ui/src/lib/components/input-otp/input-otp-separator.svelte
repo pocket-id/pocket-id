@@ -2,7 +2,7 @@
 	import type { HTMLAttributes } from 'svelte/elements';
 	import type { WithElementRef } from '#lib/utils/style.js';
 	import { cn } from '#lib/utils/style.js';
-	import MinusIcon from '@lucide/svelte/icons/minus';
+	import MinusIcon from '~icons/solar/minus-linear';
 
 	let {
 		ref = $bindable(null),

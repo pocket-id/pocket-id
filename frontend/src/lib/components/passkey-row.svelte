@@ -5,7 +5,9 @@
 	import { getLocale } from '#lib/paraglide/runtime.js';
 	import type { Passkey } from '#lib/types/passkey.type.ts';
 	import { authenticatorIconUrl } from '#lib/utils/cached-image-util.ts';
-	import { LucideKeyRound, LucidePencil, LucideTrash2 } from '@lucide/svelte';
+	import KeyRoundIcon from '~icons/solar/key-minimalistic-bold-duotone';
+	import PencilIcon from '~icons/solar/pen-bold';
+	import Trash2Icon from '~icons/solar/trash-bin-minimalistic-bold';
 	import { mode } from 'mode-watcher';
 
 	let {
@@ -41,7 +43,7 @@
 		</span>
 	{:else}
 		<span class="bg-fill-muted text-fg-muted grid size-8 shrink-0 place-items-center rounded-[8px]">
-			<LucideKeyRound class="size-4" />
+			<KeyRoundIcon class="size-4" />
 		</span>
 	{/if}
 	<div class="flex min-w-0 flex-1 flex-col gap-0.5">
@@ -57,8 +59,8 @@
 			size="icon-sm"
 			label={m.actions_for_name({ name: passkey.name })}
 			actions={[
-				{ label: m.rename(), icon: LucidePencil, onClick: onRename },
-				{ label: m.delete_ellipsis(), icon: LucideTrash2, variant: 'danger', onClick: onDelete }
+				{ label: m.rename(), icon: PencilIcon, onClick: onRename },
+				{ label: m.delete_ellipsis(), icon: Trash2Icon, variant: 'danger', onClick: onDelete }
 			]}
 		/>
 	{:else}
@@ -68,7 +70,7 @@
 			aria-label={m.delete_name_action({ name: passkey.name })}
 			onclick={onDelete}
 		>
-			<LucideTrash2 />
+			<Trash2Icon />
 		</Button>
 	{/if}
 </div>

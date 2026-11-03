@@ -4,13 +4,11 @@
 	import userStore from '#lib/stores/user-store.ts';
 	import type { InteractionScopeInfo } from '#lib/types/oidc.type.ts';
 	import { isAdminEquivalentScope, scopeLabel } from '#lib/utils/api-key-scopes.ts';
-	import {
-		LucideKeyRound,
-		LucideMail,
-		LucideTriangleAlert,
-		LucideUserRound,
-		LucideUsersRound
-	} from '@lucide/svelte';
+	import KeyRoundIcon from '~icons/solar/key-minimalistic-bold-duotone';
+	import MailIcon from '~icons/solar/letter-bold-duotone';
+	import TriangleAlertIcon from '~icons/solar/danger-triangle-bold-duotone';
+	import UserRoundIcon from '~icons/solar/user-rounded-bold-duotone';
+	import UsersRoundIcon from '~icons/solar/users-group-rounded-bold-duotone';
 	import ScopeItem from './scope-item.svelte';
 
 	let {
@@ -67,7 +65,7 @@
 	<legend class="sr-only">{m.permissions()}</legend>
 	{#if (scopes || []).includes('email')}
 		<ScopeItem
-			icon={LucideMail}
+			icon={MailIcon}
 			value={$userStore?.email}
 			category={m.email_address()}
 			{...selectionProps('email')}
@@ -75,7 +73,7 @@
 	{/if}
 	{#if (scopes || []).includes('profile')}
 		<ScopeItem
-			icon={LucideUserRound}
+			icon={UserRoundIcon}
 			value={profileValue}
 			category={m.name_username_and_picture()}
 			{...selectionProps('profile')}
@@ -83,7 +81,7 @@
 	{/if}
 	{#if (scopes || []).includes('groups')}
 		<ScopeItem
-			icon={LucideUsersRound}
+			icon={UsersRoundIcon}
 			value={groupsValue}
 			category={m.group_membership()}
 			{...selectionProps('groups')}
@@ -93,7 +91,7 @@
 		{@const info = infoByKey.get(scope)}
 		{@const label = info?.builtIn ? scopeLabel(scope) : info}
 		<ScopeItem
-			icon={LucideKeyRound}
+			icon={KeyRoundIcon}
 			value={label?.name ?? scope}
 			category={label?.description || m.access_an_api_on_your_behalf()}
 			adminAccess={info?.builtIn && isAdminEquivalentScope(scope)}
@@ -104,7 +102,7 @@
 
 {#if grantsAdminEquivalent}
 	<Alert.Root variant="warning" class="mt-3">
-		<LucideTriangleAlert />
+		<TriangleAlertIcon />
 		<Alert.Title>{m.app_can_gain_full_admin_access()}</Alert.Title>
 		<Alert.Description>{m.app_can_gain_full_admin_access_description()}</Alert.Description>
 	</Alert.Root>

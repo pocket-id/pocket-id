@@ -2,7 +2,9 @@
 	import { Button, buttonVariants } from '@pocket-id/ui/button';
 	import { m } from '#lib/paraglide/messages.js';
 	import { cn } from '@pocket-id/ui/utils';
-	import { LucideTriangleAlert, LucideUpload, LucideUser } from '@lucide/svelte';
+	import TriangleAlertIcon from '~icons/solar/danger-triangle-bold-duotone';
+	import UploadIcon from '~icons/solar/upload-bold';
+	import UserIcon from '~icons/solar/user-bold-duotone';
 	import type { Snippet } from 'svelte';
 
 	let {
@@ -97,7 +99,7 @@
 		{:else if fallback}
 			<div class="size-14">{@render fallback()}</div>
 		{:else if variant === 'avatar'}
-			<LucideUser class="size-7" />
+			<UserIcon class="size-7" />
 		{:else}
 			<span class="text-caption px-6 text-center">{m.config_no_background()}</span>
 		{/if}
@@ -115,7 +117,7 @@
 				)}
 			>
 				<input type="file" class="sr-only" {accept} onchange={onFileChange} />
-				<LucideUpload />
+				<UploadIcon />
 				{m.config_replace()} <span class="sr-only">{name}</span>
 			</label>
 			{#if canReset}
@@ -148,7 +150,7 @@
 				variant !== 'background' && 'col-start-2'
 			)}
 		>
-			<LucideTriangleAlert class="text-warning-fg mt-[3px] size-3 shrink-0" />
+			<TriangleAlertIcon class="text-warning-fg mt-[3px] size-3 shrink-0" />
 			{m.config_image_too_small({ width: tooSmallWidth })}
 		</p>
 	{/if}

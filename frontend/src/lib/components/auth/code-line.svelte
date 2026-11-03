@@ -1,7 +1,8 @@
 <script lang="ts">
 	import { Spinner } from '@pocket-id/ui/spinner';
 	import { cn } from '@pocket-id/ui/utils';
-	import { LucideCircleAlert, LucideInfo } from '@lucide/svelte';
+	import CircleAlertIcon from '~icons/solar/danger-circle-bold-duotone';
+	import InfoIcon from '~icons/solar/info-circle-bold-duotone';
 	import type { Snippet } from 'svelte';
 
 	let {
@@ -27,9 +28,9 @@
 	{#if tone === 'checking'}
 		<Spinner class="mt-1 size-3" />
 	{:else if tone === 'error'}
-		<LucideCircleAlert class="mt-1 size-3 shrink-0" />
+		<CircleAlertIcon class="mt-1 size-3 shrink-0" />
 	{:else if tone === 'info'}
-		<LucideInfo class="mt-1 size-3 shrink-0" />
+		<InfoIcon class="mt-1 size-3 shrink-0" />
 	{/if}
 	<span>{@render children?.()}</span>
 </p>

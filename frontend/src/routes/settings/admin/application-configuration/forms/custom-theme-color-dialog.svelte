@@ -14,7 +14,7 @@
 		primaryVars
 	} from '#lib/utils/color-theme-util.ts';
 	import { preventDefault } from '#lib/utils/event-util.ts';
-	import { LucideInfo } from '@lucide/svelte';
+	import InfoIcon from '~icons/solar/info-circle-bold-duotone';
 	import { mode } from 'mode-watcher';
 
 	let {
@@ -176,7 +176,7 @@
 			<div class="flex flex-col gap-1 empty:hidden max-sm:-order-1" aria-live="polite">
 				{#each notes as note (note)}
 					<p class="text-caption text-fg-muted flex items-start gap-1.5">
-						<LucideInfo class="mt-[3px] size-3 shrink-0" />
+						<InfoIcon class="mt-[3px] size-3 shrink-0" />
 						{note}
 					</p>
 				{/each}

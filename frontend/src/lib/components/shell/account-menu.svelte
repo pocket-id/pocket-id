@@ -9,7 +9,9 @@
 	import { setModeInstantly } from '#lib/utils/color-theme-util.ts';
 	import { signOut } from '#lib/utils/sign-out-util.ts';
 	import { cn } from '@pocket-id/ui/utils';
-	import { IdCard, LogOut, SunMoon } from '@lucide/svelte';
+	import IdCard from '~icons/solar/user-id-bold';
+	import LogOut from '~icons/solar/logout-2-bold';
+	import SunMoon from '~icons/solar/palette-round-bold';
 	import { userPrefersMode } from 'mode-watcher';
 
 	let {

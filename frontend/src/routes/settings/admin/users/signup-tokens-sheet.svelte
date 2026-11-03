@@ -20,7 +20,8 @@
 	import { axiosErrorToast } from '#lib/utils/error-util.ts';
 	import { preventDefault } from '#lib/utils/event-util.ts';
 	import { createForm } from '#lib/utils/form-util.ts';
-	import { LucideInfo, LucideTrash2 } from '@lucide/svelte';
+	import InfoIcon from '~icons/solar/info-circle-bold-duotone';
+	import Trash2Icon from '~icons/solar/trash-bin-minimalistic-bold';
 	import { untrack } from 'svelte';
 	import { toast } from 'svelte-sonner';
 	import { z } from 'zod/v4';
@@ -189,7 +190,7 @@
 									aria-label={m.delete_signup_token_name({ token: short(token.token) })}
 									onclick={() => deleteToken(token)}
 								>
-									<LucideTrash2 />
+									<Trash2Icon />
 								</Button>
 							</span>
 						</div>
@@ -261,7 +262,7 @@
 				<dd>{groupNames(created)}</dd>
 			</dl>
 			<p class="text-caption text-fg-muted flex items-start gap-1.5">
-				<LucideInfo class="mt-[3px] size-3 shrink-0" />
+				<InfoIcon class="mt-[3px] size-3 shrink-0" />
 				{m.signup_link_consequence()}
 			</p>
 		{/if}

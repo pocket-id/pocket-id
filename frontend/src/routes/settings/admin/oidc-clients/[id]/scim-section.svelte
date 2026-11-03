@@ -16,7 +16,9 @@
 	import { createForm } from '#lib/utils/form-util.ts';
 	import { trackFormChanges } from '#lib/utils/unsaved-changes-util.svelte.ts';
 	import { emptyToUndefined } from '#lib/utils/zod-util.ts';
-	import { LucideBan, LucidePlug, LucideRefreshCw } from '@lucide/svelte';
+	import BanIcon from '~icons/solar/forbidden-circle-bold';
+	import PlugIcon from '~icons/solar/plug-circle-bold';
+	import RefreshCwIcon from '~icons/solar/refresh-bold';
 	import { toast } from 'svelte-sonner';
 	import { z } from 'zod/v4';
 
@@ -82,7 +84,7 @@
 			confirm: {
 				label: m.disable_provisioning(),
 				destructive: true,
-				icon: LucideBan,
+				icon: BanIcon,
 				action: async () => {
 					try {
 						await onSave(null);
@@ -167,7 +169,7 @@
 		<div class="flex flex-wrap gap-2">
 			{#if existingProvider}
 				<Button variant="secondary" size="sm" isLoading={isSyncing} onclick={onSync}>
-					<LucideRefreshCw />
+					<RefreshCwIcon />
 					{m.sync_now()}
 				</Button>
 				<Button variant="ghost" size="sm" onclick={onDisable}>
@@ -175,7 +177,7 @@
 				</Button>
 			{:else}
 				<Button type="submit" variant="secondary" size="sm">
-					<LucidePlug />
+					<PlugIcon />
 					{m.enable_provisioning()}
 				</Button>
 			{/if}

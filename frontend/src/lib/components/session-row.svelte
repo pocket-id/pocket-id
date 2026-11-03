@@ -4,7 +4,9 @@
 	import { getLocale } from '#lib/paraglide/runtime.js';
 	import type { Session } from '#lib/types/session.type.ts';
 	import { sessionDeviceName, sessionLocation } from '#lib/utils/session-util.ts';
-	import { LucideMonitor, LucideSmartphone, LucideTablet } from '@lucide/svelte';
+	import MonitorIcon from '~icons/solar/monitor-bold-duotone';
+	import SmartphoneIcon from '~icons/solar/smartphone-bold-duotone';
+	import TabletIcon from '~icons/solar/tablet-bold-duotone';
 
 	let {
 		session,
@@ -17,7 +19,7 @@
 	} = $props();
 
 	const DeviceIcon = $derived(
-		{ desktop: LucideMonitor, mobile: LucideSmartphone, tablet: LucideTablet }[session.deviceType]
+		{ desktop: MonitorIcon, mobile: SmartphoneIcon, tablet: TabletIcon }[session.deviceType]
 	);
 
 	function lastActive() {

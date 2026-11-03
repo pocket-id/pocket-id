@@ -71,15 +71,6 @@
 		background: var(--fill-selected);
 		color: var(--fg);
 	}
-
-	/* Lucide icons keep a constant stroke regardless of their rendered size */
-	svg.lucide {
-		stroke-width: 1.5px;
-	}
-
-	svg.lucide * {
-		vector-effect: non-scaling-stroke;
-	}
 }
 
 /* A link inside a sentence stands out by contrast and weight rather than a permanent underline, which appears only on hover */

@@ -8,7 +8,8 @@
 	} from '#lib/utils/color-theme-util.ts';
 	import { colorThemes } from '#lib/utils/color-themes.ts';
 	import { cn } from '@pocket-id/ui/utils';
-	import { Check, Plus } from '@lucide/svelte';
+	import Check from '~icons/solar/check-linear';
+	import Plus from '~icons/solar/add-circle-bold';
 	import { RadioGroup } from 'bits-ui';
 	import CustomThemeColorDialog from './custom-theme-color-dialog.svelte';
 

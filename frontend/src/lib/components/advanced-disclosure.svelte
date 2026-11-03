@@ -1,7 +1,7 @@
 <script lang="ts">
 	import { Badge } from '@pocket-id/ui/badge';
 	import { m } from '#lib/paraglide/messages.js';
-	import { LucideChevronDown } from '@lucide/svelte';
+	import ChevronDownIcon from '~icons/solar/alt-arrow-down-linear';
 	import { Collapsible } from 'bits-ui';
 	import { untrack, type Snippet } from 'svelte';
 
@@ -35,7 +35,7 @@
 						<Badge>{m.count_changed({ count: changedCount })}</Badge>
 					{/if}
 					<span aria-hidden="true" class="bg-border h-px flex-1"></span>
-					<LucideChevronDown
+					<ChevronDownIcon
 						class="text-fg-muted size-4 shrink-0 transition-transform duration-(--dur-base) ease-in-out group-data-[state=open]/advanced:rotate-180"
 					/>
 				</span>

@@ -6,7 +6,9 @@
 	import appConfigStore from '#lib/stores/application-configuration-store.ts';
 	import userStore from '#lib/stores/user-store.ts';
 	import { isEmailVerificationPending } from '#lib/utils/email-verification-util.ts';
-	import { LucideCircleCheck, LucideCircleX, LucideTriangleAlert } from '@lucide/svelte';
+	import CircleCheckIcon from '~icons/solar/check-circle-bold-duotone';
+	import CircleXIcon from '~icons/solar/close-circle-bold-duotone';
+	import TriangleAlertIcon from '~icons/solar/danger-triangle-bold-duotone';
 	import { formatDistanceToNow } from 'date-fns';
 	import { onMount } from 'svelte';
 	import { get } from 'svelte/store';
@@ -35,20 +37,20 @@
 
 {#if emailVerificationState === 'success'}
 	<Alert.Root variant="success" {onDismiss}>
-		<LucideCircleCheck />
+		<CircleCheckIcon />
 		<Alert.Title class="wrap-anywhere"
 			>{m.email_verified_title({ email: $userStore?.email ?? '' })}</Alert.Title
 		>
 	</Alert.Root>
 {:else if emailVerificationState}
 	<Alert.Root variant="destructive" {onDismiss}>
-		<LucideCircleX />
+		<CircleXIcon />
 		<Alert.Title>{m.email_verification_failed_title()}</Alert.Title>
 		<Alert.Description>{emailVerificationState}</Alert.Description>
 	</Alert.Root>
 {:else if $userStore && $appConfigStore.emailVerification !== 'disabled' && !$userStore.emailVerified && (emailVerificationRequired || $userStore.email)}
 	<Alert.Root variant={emailVerificationRequired ? 'destructive' : 'warning'}>
-		<LucideTriangleAlert />
+		<TriangleAlertIcon />
 		{#if emailVerificationRequired}
 			<Alert.Title>{m.email_verification_required_warning()}</Alert.Title>
 			<Alert.Description>

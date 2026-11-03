@@ -9,7 +9,8 @@
 		"isolatedModules": true,
 		"verbatimModuleSyntax": true,
 		"allowImportingTsExtensions": true,
-		"noEmit": true
+		"noEmit": true,
+		"types": ["unplugin-icons/types/svelte"]
 	},
 	"include": ["src"]
 }

@@ -10,7 +10,8 @@
 	import { builtInApiId, type Api, type ApiClientGrant } from '#lib/types/api.type.ts';
 	import { isAdminEquivalentScope, isAdminScope, scopeLabel } from '#lib/utils/api-key-scopes.ts';
 	import { axiosErrorToast } from '#lib/utils/error-util.ts';
-	import { LucideInfo, LucideTriangleAlert } from '@lucide/svelte';
+	import InfoIcon from '~icons/solar/info-circle-bold-duotone';
+	import TriangleAlertIcon from '~icons/solar/danger-triangle-bold-duotone';
 	import { untrack } from 'svelte';
 
 	let {
@@ -89,7 +90,7 @@
 
 {#snippet adminWarning()}
 	<Alert.Root variant="warning">
-		<LucideTriangleAlert />
+		<TriangleAlertIcon />
 		<Alert.Title>{m.client_can_act_as_an_admin()}</Alert.Title>
 		<Alert.Description>{m.client_can_act_as_an_admin_description()}</Alert.Description>
 	</Alert.Root>
@@ -137,7 +138,7 @@
 
 		{#if implicitUserAccess}
 			<p class="text-caption text-fg-muted flex items-start gap-1.5">
-				<LucideInfo class="mt-[3px] size-3 shrink-0" />
+				<InfoIcon class="mt-[3px] size-3 shrink-0" />
 				{m.access_granted_through_cimd_access()}
 			</p>
 		{/if}
@@ -244,7 +245,7 @@
 			</table>
 		{:else}
 			<p class="text-caption text-fg-muted flex items-start gap-1.5">
-				<LucideInfo class="mt-[3px] size-3 shrink-0" />
+				<InfoIcon class="mt-[3px] size-3 shrink-0" />
 				{m.api_has_no_permissions_yet({ name: api.name })}
 			</p>
 		{/if}
