@@ -29,6 +29,6 @@
 >
 	{@render children?.()}
 	{#if optional}
-		<span class="text-fg-muted -ms-1 font-normal">{labels.optional()}</span>
+		<span class="text-caption text-fg-subtle -ms-0.5 font-normal">{labels.optional()}</span>
 	{/if}
 </Label>

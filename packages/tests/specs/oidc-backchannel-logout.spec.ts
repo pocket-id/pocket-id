@@ -121,11 +121,11 @@ test('Saving a logout URL and revoking an app sends a verifiable logout token', 
 		'aria-expanded',
 		'true'
 	);
-	await page.getByLabel('Back-channel logout URL (optional)', { exact: true }).fill(logoutURL);
+	await page.getByLabel('Back-channel logout URL Optional', { exact: true }).fill(logoutURL);
 	await saveUnsavedChanges(page);
 	// A changed setting keeps Advanced open after the reload
 	await page.reload();
-	await expect(page.getByLabel('Back-channel logout URL (optional)', { exact: true })).toHaveValue(
+	await expect(page.getByLabel('Back-channel logout URL Optional', { exact: true })).toHaveValue(
 		logoutURL
 	);
 

@@ -157,7 +157,7 @@
 	"reset_to_default": "Reset to default",
 	"reset_setting_to_default": "Reset {setting} to default",
 	"changed_from_the_default": "Changed from the default",
-	"field_optional": "(optional)",
+	"field_optional": "Optional",
 	"advanced": "Advanced",
 	"count_changed": "{count} changed",
 	"breadcrumb": "Breadcrumb",

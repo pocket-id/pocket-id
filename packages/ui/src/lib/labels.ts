@@ -10,7 +10,7 @@ const key = Symbol('ui-labels');
 
 const englishLabels: UiLabels = {
 	close: () => 'Close',
-	optional: () => '(optional)'
+	optional: () => 'Optional'
 };
 
 // Call during component initialization, usually in the root layout, to translate the labels the components render themselves
