@@ -293,7 +293,7 @@
 	"deny": "Deny",
 	"approve": "Approve",
 	"device_login_or_go_to": "Or go to {url} and enter",
-	"device_login_go_to": "On your other device, go to {url} and enter",
+	"device_login_go_to": "On your other device, go to {url} and enter this code.",
 	"oidc": "OIDC",
 	"device_login_request_expired": "Your QR-Code has expired. Please start the sign-in process again.",
 	"credentials": "Credentials",

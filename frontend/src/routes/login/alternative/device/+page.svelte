@@ -46,10 +46,8 @@
 	const secondsLeft = $derived(Math.max(0, Math.ceil((expiresAt - now) / 1000)));
 	// The server can end the request before the local countdown does, and a denied code is just as dead
 	const expired = $derived(!!ended || (!!request && secondsLeft === 0));
+	const remaining = $derived(expired ? 0 : (secondsLeft * 1000) / lifetime);
 	const verificationUrl = $derived(request?.verificationUri.replace(/^https?:\/\//, '') ?? '');
-	const countdown = $derived(
-		`${Math.floor(secondsLeft / 60)}:${String(secondsLeft % 60).padStart(2, '0')}`
-	);
 	let requestController: AbortController | undefined;
 
 	onMount(() => {
@@ -174,18 +172,22 @@
 			{m.auth_another_device_denied()}
 		{:else if ended}
 			{ended.message}
+		{:else if request}
+			<!-- Phones show only the code, so the subtitle carries the instruction instead of a second line above it -->
+			<span class="max-sm:hidden">{m.auth_use_another_device_description()}</span>
+			<span class="sm:hidden">{m.device_login_go_to({ url: verificationUrl })}</span>
 		{:else}
 			{m.auth_use_another_device_description()}
 		{/if}
 	</AuthHeading>
 	<div
-		class="flex flex-col items-center transition-opacity duration-(--dur-fast)"
+		class="flex flex-col items-center transition-opacity duration-(--dur-fast) max-sm:items-stretch"
 		class:opacity-0={success}
 		inert={success}
 	>
 		{#if request}
 			<!-- A phone cannot scan its own screen, so phones get only the code -->
-			<!-- The ring drains over the code's lifetime, so the desktop needs no countdown text -->
+			<!-- The ring drains over the code's lifetime, as the bar under the code does on phones, so neither needs countdown text -->
 			<!-- It shrinks on short windows so the card fits without scrolling for as long as it can -->
 			<div
 				class="relative mb-6 grid size-(--ring) place-items-center [--ring:clamp(176px,100dvh-630px,232px)] max-sm:hidden"
@@ -213,7 +215,7 @@
 						stroke-linecap="round"
 						pathLength="100"
 						stroke-dasharray="100"
-						stroke-dashoffset={expired ? 100 : 100 * (1 - (secondsLeft * 1000) / lifetime)}
+						stroke-dashoffset={100 * (1 - remaining)}
 						class="transition-[stroke-dashoffset] duration-1000 ease-linear"
 					/>
 				</svg>
@@ -229,14 +231,13 @@
 					)}
 				/>
 			</div>
-			<p class="text-body text-fg-muted mb-3 text-center wrap-anywhere">
-				<span class="max-sm:hidden">{m.device_login_or_go_to({ url: verificationUrl })}</span>
-				<span class="sm:hidden">{m.device_login_go_to({ url: verificationUrl })}</span>
+			<p class="text-body text-fg-muted mb-3 text-center wrap-anywhere max-sm:hidden">
+				{m.device_login_or_go_to({ url: verificationUrl })}
 			</p>
 			<button
 				type="button"
 				class={cn(
-					'bg-surface-sunken hover:bg-fill-hover inset-ring-border disabled:hover:bg-surface-sunken mb-6 flex items-center gap-3 rounded-full py-2.5 pr-4 pl-6 font-mono text-2xl font-medium tracking-[0.12em] inset-ring transition-colors disabled:cursor-default',
+					'bg-surface-sunken hover:bg-fill-hover inset-ring-border disabled:hover:bg-surface-sunken mb-6 flex items-center justify-center gap-3 rounded-full py-2.5 pr-4 pl-6 font-mono text-2xl font-medium tracking-[0.12em] inset-ring transition-colors disabled:cursor-default max-sm:mb-3 max-sm:rounded-lg max-sm:py-5 max-sm:text-3xl',
 					expired && 'text-fg-muted'
 				)}
 				disabled={expired}
@@ -252,6 +253,12 @@
 					</span>
 				{/if}
 			</button>
+			<div class="bg-border mb-6 h-1 overflow-hidden rounded-full sm:hidden" aria-hidden="true">
+				<div
+					class="bg-fg h-full origin-left rounded-full transition-transform duration-1000 ease-linear"
+					style:scale="{remaining} 1"
+				></div>
+			</div>
 			<span class="sr-only" aria-live="polite">{copied ? m.copied() : ''}</span>
 		{/if}
 		{#if expired}
@@ -262,9 +269,6 @@
 			<p class="text-control text-fg-muted flex items-center gap-2" aria-live="polite">
 				<Spinner class="size-3 shrink-0" />
 				{request ? m.auth_waiting_for_approval() : m.auth_creating_sign_in_request()}
-				{#if request}
-					<span class="tabular-nums sm:hidden">· {countdown}</span>
-				{/if}
 			</p>
 		{/if}
 	</div>

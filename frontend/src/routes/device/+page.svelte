@@ -248,7 +248,7 @@
 				{/if}
 				<span class="bg-surface-sunken flex min-w-0 flex-1 rounded-sm">
 					{#each group as char, j (j)}
-						<span class="grid h-13 min-w-0 flex-1 place-items-center max-lg:h-11">{char}</span>
+						<span class="grid h-13 min-w-0 flex-1 place-items-center max-sm:h-11">{char}</span>
 					{/each}
 				</span>
 			{/each}

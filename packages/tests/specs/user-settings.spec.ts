@@ -92,10 +92,10 @@ test('Create one time access token', async ({ page, context }) => {
 	await page.getByRole('option', { name: '12 hours' }).click();
 	await page.getByRole('button', { name: 'Create code' }).click();
 
-	const link = await page.getByTestId('login-code-link').textContent();
+	const code = await page.getByTestId('login-code').textContent();
 	await context.clearCookies();
 
-	await page.goto(link!);
+	await page.goto(`/lc/${code!.trim()}`);
 	await page.waitForURL('/settings/account');
 });
 
@@ -150,7 +150,7 @@ test('Create one time access token from the details page', async ({ page }) => {
 	await page.getByRole('button', { name: 'Login code' }).click();
 	await page.getByRole('button', { name: 'Create code' }).click();
 
-	await expect(page.getByTestId('login-code-link')).toBeVisible();
+	await expect(page.getByTestId('login-code')).toBeVisible();
 });
 
 test('Update user', async ({ page }) => {

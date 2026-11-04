@@ -29,7 +29,7 @@
 	} = $props();
 
 	const slotClass = $derived(
-		cn('h-13 max-w-11 max-lg:h-11', !uppercase && 'normal-case', expired && 'text-fg-muted')
+		cn('h-13 max-w-11 max-sm:h-11', !uppercase && 'normal-case', expired && 'text-fg-muted')
 	);
 </script>
 

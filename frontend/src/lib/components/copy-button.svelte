@@ -10,6 +10,7 @@
 		value,
 		label = m.copy(),
 		labeled = false,
+		text = m.copy(),
 		class: className
 	}: {
 		value: string;
@@ -17,6 +18,7 @@
 		label?: string;
 		// A secondary button that reads "Copy" instead of an icon button with a tooltip
 		labeled?: boolean;
+		text?: string;
 		class?: string;
 	} = $props();
 
@@ -49,13 +51,13 @@
 		variant="secondary"
 		size="sm"
 		class={className}
-		aria-label={label === m.copy() ? undefined : label}
+		aria-label={label === text ? undefined : label}
 		onclick={copy}
 	>
 		{@render icon()}
 		<span class="grid">
 			<span class={cn('col-start-1 row-start-1 transition-opacity', copied && 'opacity-0')}>
-				{m.copy()}
+				{text}
 			</span>
 			<span
 				class={cn('col-start-1 row-start-1 transition-opacity', !copied && 'opacity-0')}
