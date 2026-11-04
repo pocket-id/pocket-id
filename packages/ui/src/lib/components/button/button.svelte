@@ -55,7 +55,6 @@
 </script>
 
 <script lang="ts">
-	import { Spinner } from '#lib/components/spinner/index.js';
 	import { onMount } from 'svelte';
 
 	let {
@@ -122,23 +121,14 @@
 		onclick={handleOnClick}
 		{...restProps}
 	>
-		<!-- Label and spinner share one grid cell, so the width never changes while busy -->
-		<!-- Both spans may shrink below their content, so a truncating label can end at the button's edge -->
-		<span class="inline-grid max-w-full min-w-0 place-items-center">
-			<span
-				class={cn(
-					'col-start-1 row-start-1 inline-flex max-w-full min-w-0 items-center justify-center gap-2 transition-opacity duration-(--dur-fast) ease-out',
-					isLoading && 'opacity-0'
-				)}
-			>
-				{@render children?.()}
-			</span>
-			<Spinner
-				class={cn(
-					'col-start-1 row-start-1 size-3.5 transition-opacity duration-(--dur-fast) ease-out',
-					isLoading ? 'delay-60' : 'opacity-0 [animation-play-state:paused]'
-				)}
-			/>
+		<!-- The label may shrink below its content, so a truncating label can end at the button's edge -->
+		<span
+			class={cn(
+				'inline-flex max-w-full min-w-0 items-center justify-center gap-2',
+				isLoading && 'animate-shimmer'
+			)}
+		>
+			{@render children?.()}
 		</span>
 	</button>
 {/if}
