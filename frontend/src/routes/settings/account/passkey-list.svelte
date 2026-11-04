@@ -1,7 +1,6 @@
 <script lang="ts">
 	import { openConfirmDialog } from '#lib/components/confirm-dialog/index.ts';
 	import PasskeyRow from '#lib/components/passkey-row.svelte';
-	import SettingsSection from '#lib/components/settings-section.svelte';
 	import { Button } from '@pocket-id/ui/button';
 	import { m } from '#lib/paraglide/messages.js';
 	import WebAuthnService from '#lib/services/webauthn-service.ts';
@@ -22,7 +21,7 @@
 		passkeys = await webauthnService.listCredentials();
 	}
 
-	async function createPasskey() {
+	export async function createPasskey() {
 		try {
 			const opts = await webauthnService.getRegistrationOptions();
 			const attResp = await startRegistration({ optionsJSON: opts });
@@ -59,20 +58,13 @@
 	}
 </script>
 
-<SettingsSection title={m.passkeys()} description={m.passkeys_section_description()}>
-	{#snippet action()}
-		<Button variant="secondary" size="sm" usePromiseLoading onclick={createPasskey}>
-			<PlusIcon />
-			{m.add_passkey()}
-		</Button>
-	{/snippet}
-
+<div class="flex flex-col items-start gap-2">
 	{#if passkeys.length > 0}
-		<!-- Collections inside a section are open rows with hairlines, so the shared row loses its own inset -->
+		<!-- Open rows with hairlines take the setting rows' padding, tile size and gap, and the list is pulled up like the Preferences and Developers rows so the first name starts at the panel top -->
 		<div
 			role="list"
 			aria-label={m.passkeys()}
-			class="pt-2 *:*:min-h-[68px] *:*:px-0 *:shadow-[inset_0_-1px_0_var(--border)] *:last:shadow-none"
+			class="-mt-4 self-stretch *:*:gap-4 *:*:px-0 *:*:py-4 *:shadow-[inset_0_-1px_0_var(--border)] *:*:*:first:size-9 *:last:shadow-none"
 		>
 			{#each passkeys as passkey (passkey.id)}
 				<div role="listitem">
@@ -85,6 +77,10 @@
 			{/each}
 		</div>
 	{/if}
-</SettingsSection>
+	<Button variant="secondary" size="sm" usePromiseLoading onclick={createPasskey}>
+		<PlusIcon />
+		{m.add_passkey()}
+	</Button>
+</div>
 
 <RenamePasskeyModal bind:passkey={passkeyToRename} callback={refresh} />

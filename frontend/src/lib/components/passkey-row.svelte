@@ -43,11 +43,11 @@
 		</span>
 	{:else}
 		<span class="bg-fill-muted text-fg-muted grid size-8 shrink-0 place-items-center rounded-[8px]">
-			<KeyRoundIcon class="size-4" />
+			<KeyRoundIcon class="size-[18px]" />
 		</span>
 	{/if}
 	<div class="flex min-w-0 flex-1 flex-col gap-0.5">
-		<p class="text-heading truncate">{passkey.name}</p>
+		<p class="text-heading wrap-anywhere">{passkey.name}</p>
 		<p class="text-caption text-fg-muted">
 			{m.added_on()}
 			{new Date(passkey.createdAt).toLocaleDateString(getLocale(), { dateStyle: 'medium' })}

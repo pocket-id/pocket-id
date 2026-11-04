@@ -91,8 +91,7 @@ test.describe('API Key Management', () => {
 
 	test('Non-admins can only grant account permissions', async ({ page }) => {
 		await authUtil.changeUser(page, 'craig');
-		await page.goto('/settings/account');
-		await page.getByRole('button', { name: /^Developers/ }).click();
+		await page.goto('/settings/account#developers');
 		await page.getByRole('link', { name: 'Manage' }).click();
 
 		await page.getByRole('button', { name: 'Create API key' }).click();

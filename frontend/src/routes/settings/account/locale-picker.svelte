@@ -49,7 +49,7 @@
 </script>
 
 <Select.Root type="single" value={currentLocale} onValueChange={(v) => updateLocale(v as Locale)}>
-	<Select.Trigger {...controlProps}>
+	<Select.Trigger {...controlProps} size="sm" class="min-w-40">
 		{locales[currentLocale]}
 	</Select.Trigger>
 	<Select.Content align="end" collisionPadding={16} class="max-h-100">

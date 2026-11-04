@@ -291,11 +291,14 @@ test.describe('User Signup', () => {
 			await dialog.getByRole('button', { name: 'Skip for now' }).click();
 
 			await page.waitForURL('/settings/account');
-			await expect(page.getByRole('button', { name: 'Add passkey' })).toBeVisible();
+			await expect(page.getByRole('status').getByText('Add a passkey')).toBeVisible();
+			await page.getByRole('tab', { name: /^Passkeys/ }).click();
+			const passkeysPanel = page.getByRole('tabpanel');
+			await expect(passkeysPanel.getByRole('button', { name: 'Add passkey' })).toBeVisible();
 			await expect(page.getByRole('list', { name: 'Passkeys' })).toHaveCount(0);
 			await page.reload();
-			await expect(page).toHaveURL('/settings/account');
-			await expect(page.getByRole('button', { name: 'Add passkey' })).toBeVisible();
+			await expect(page).toHaveURL('/settings/account#passkeys');
+			await expect(passkeysPanel.getByRole('button', { name: 'Add passkey' })).toBeVisible();
 
 			// Dismissal persists across settings pages until the one-day grace period expires
 			await page.clock.setFixedTime(dismissedAt + 24 * 60 * 60 * 1000 - 1000);

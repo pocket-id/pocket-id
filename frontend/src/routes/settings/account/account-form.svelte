@@ -1,7 +1,5 @@
 <script lang="ts">
 	import FormInput from '#lib/components/form/form-input.svelte';
-	import ProfilePictureSettings from '#lib/components/form/profile-picture-settings.svelte';
-	import SettingsSection from '#lib/components/settings-section.svelte';
 	import { Badge } from '@pocket-id/ui/badge';
 	import { Button } from '@pocket-id/ui/button';
 	import * as Field from '@pocket-id/ui/field';
@@ -16,8 +14,7 @@
 	import { createForm } from '#lib/utils/form-util.ts';
 	import { trackFormChanges } from '#lib/utils/unsaved-changes-util.svelte.ts';
 	import { emptyToUndefined, usernameSchema } from '#lib/utils/zod-util.ts';
-	import InfoIcon from '~icons/solar/info-circle-bold-duotone';
-	import SendIcon from '~icons/solar/letter-bold';
+	import LockIcon from '~icons/solar/lock-bold-duotone';
 	import Undo2Icon from '~icons/solar/undo-left-bold';
 	import { toast } from 'svelte-sonner';
 	import { get } from 'svelte/store';
@@ -106,141 +103,90 @@
 			})
 			.catch(axiosErrorToast);
 	}
-
-	async function sendEmailVerification() {
-		await userService
-			.sendEmailVerification()
-			.then(() => toast.success(m.email_verification_sent()))
-			.catch(axiosErrorToast);
-	}
-
-	async function updateProfilePicture(image: File) {
-		await userService
-			.updateCurrentUsersProfilePicture(image)
-			.then(() => toast.success(m.profile_picture_updated_successfully()))
-			.catch(axiosErrorToast);
-	}
-
-	async function resetProfilePicture() {
-		await userService
-			.resetCurrentUserProfilePicture()
-			.then(() => toast.success(m.profile_picture_has_been_reset()))
-			.catch(axiosErrorToast);
-	}
 </script>
 
-<SettingsSection
-	title={m.profile()}
-	description={m.profile_section_description({ appName: $appConfigStore.appName })}
->
-	<div class="flex flex-col gap-6 pt-4">
-		<ProfilePictureSettings
-			userId={account.id}
-			isLdapUser={!!account.ldapId}
-			updateCallback={updateProfilePicture}
-			resetCallback={resetProfilePicture}
+<div class="flex flex-col gap-3">
+	{#if readOnlyReason}
+		<p class="text-caption text-fg-muted flex items-start gap-1.5">
+			<LockIcon class="mt-[3px] size-3 shrink-0" />
+			{readOnlyReason}
+		</p>
+	{/if}
+	<form class="grid gap-4 sm:grid-cols-2">
+		<FormInput
+			label={m.first_name()}
+			optional
+			bind:input={$inputs.firstName}
+			onInput={onNameInput}
+			readonly={!!readOnlyReason}
 		/>
-
-		<div class="flex flex-col gap-3">
-			{#if readOnlyReason}
-				<p class="text-caption text-fg-muted flex items-start gap-1.5">
-					<InfoIcon class="mt-1 size-3 shrink-0" />
-					{readOnlyReason}
-				</p>
-			{/if}
-			<form class="grid gap-4 sm:grid-cols-2">
-				<FormInput
-					label={m.first_name()}
-					optional
-					bind:input={$inputs.firstName}
-					onInput={onNameInput}
+		<FormInput
+			label={m.last_name()}
+			optional
+			bind:input={$inputs.lastName}
+			onInput={onNameInput}
+			readonly={!!readOnlyReason}
+		/>
+		<FormInput
+			label={m.display_name()}
+			optional
+			bind:input={$inputs.displayName}
+			onInput={() => (hasManualDisplayNameEdit = true)}
+			readonly={!!readOnlyReason}
+		/>
+		<FormInput label={m.username()} bind:input={$inputs.username} readonly={!!readOnlyReason} />
+		<FormInput
+			label={m.email()}
+			labelFor={emailId}
+			optional={!$appConfigStore.requireUserEmail}
+			readonly={!!readOnlyReason}
+			class="sm:col-span-2"
+		>
+			<!-- The status is the field's helper line, and on phones it sits between the field and its action -->
+			<div class="grid gap-x-4 gap-y-1.5 sm:grid-cols-2 sm:items-center">
+				<Input
+					id={emailId}
+					type="email"
+					autocomplete="email"
+					aria-invalid={!!$inputs.email.error}
+					aria-describedby="{emailId}-helper"
 					readonly={!!readOnlyReason}
+					bind:value={
+						() => $inputs.email.value,
+						(value) => {
+							$inputs.email.value = value;
+							$inputs.email.error = null;
+						}
+					}
 				/>
-				<FormInput
-					label={m.last_name()}
-					optional
-					bind:input={$inputs.lastName}
-					onInput={onNameInput}
-					readonly={!!readOnlyReason}
-				/>
-				<FormInput
-					label={m.display_name()}
-					optional
-					description={readOnlyReason ? undefined : m.display_name_helper()}
-					bind:input={$inputs.displayName}
-					onInput={() => (hasManualDisplayNameEdit = true)}
-					readonly={!!readOnlyReason}
-				/>
-				<FormInput label={m.username()} bind:input={$inputs.username} readonly={!!readOnlyReason} />
-				<FormInput
-					label={m.email()}
-					labelFor={emailId}
-					optional={!$appConfigStore.requireUserEmail}
-					readonly={!!readOnlyReason}
-					class="sm:col-span-2"
-				>
-					<!-- The status is the field's helper line, and on phones it sits between the field and its action -->
-					<div class="grid gap-x-4 gap-y-1.5 sm:grid-cols-2 sm:items-center">
-						<Input
-							id={emailId}
-							type="email"
-							autocomplete="email"
-							aria-invalid={!!$inputs.email.error}
-							aria-describedby="{emailId}-helper"
-							readonly={!!readOnlyReason}
-							bind:value={
-								() => $inputs.email.value,
-								(value) => {
-									$inputs.email.value = value;
-									$inputs.email.error = null;
-								}
-							}
-						/>
-						{#if $inputs.email.error}
-							<Field.Error id="{emailId}-helper" class="sm:row-start-2">
-								{$inputs.email.error}
-							</Field.Error>
-						{:else}
-							<p
-								id="{emailId}-helper"
-								class="text-caption text-fg-muted wrap-anywhere sm:row-start-2"
-							>
-								{#if pendingEmailChange}
-									{m.email_change_waiting({ email: pendingEmailChange.email })}
-								{:else if emailStatus}
-									<Badge variant={emailStatus.variant} class="text-caption">
-										{emailStatus.label}
-									</Badge>
-								{:else}
-									{m.email_helper_purpose()}
-								{/if}
-							</p>
-						{/if}
+				{#if $inputs.email.error}
+					<Field.Error id="{emailId}-helper" class="sm:row-start-2">
+						{$inputs.email.error}
+					</Field.Error>
+				{:else if pendingEmailChange || emailStatus}
+					<p id="{emailId}-helper" class="text-caption text-fg-muted wrap-anywhere sm:row-start-2">
 						{#if pendingEmailChange}
-							<div class="sm:col-start-2 sm:row-start-1">
-								<Button variant="secondary" size="sm" usePromiseLoading onclick={cancelEmailChange}>
-									<Undo2Icon />
-									{m.cancel_email_change()}
-								</Button>
-							</div>
-						{:else if emailStatus && !$userStore?.emailVerified}
-							<!-- An edited address is not saved yet, so the button waits instead of leaving and shifting the form on phones -->
-							<div class="sm:col-start-2 sm:row-start-1">
-								<Button
-									variant="secondary"
-									size="sm"
-									usePromiseLoading
-									disabled={$inputs.email.value !== $userStore?.email}
-									onclick={sendEmailVerification}
-								>
-									<SendIcon />
-									{m.send_email()}
-								</Button>
-							</div>
+							{m.email_change_waiting({ email: pendingEmailChange.email })}
+						{:else if emailStatus}
+							<Badge variant={emailStatus.variant} class="text-caption align-top">
+								{emailStatus.label}
+							</Badge>
 						{/if}
-					</div>
-				</FormInput>
-			</form>
-		</div>
-	</div>
-</SettingsSection>
+					</p>
+				{/if}
+				{#if pendingEmailChange}
+					<Button
+						variant="secondary"
+						size="sm"
+						class="justify-self-start max-sm:mt-1.5 sm:col-start-2 sm:row-start-1"
+						usePromiseLoading
+						onclick={cancelEmailChange}
+					>
+						<Undo2Icon />
+						{m.cancel_email_change()}
+					</Button>
+				{/if}
+			</div>
+		</FormInput>
+	</form>
+</div>

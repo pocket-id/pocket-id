@@ -1,5 +1,4 @@
 <script lang="ts">
-	import AdvancedDisclosure from '#lib/components/advanced-disclosure.svelte';
 	import SettingRow from '#lib/components/setting-row.svelte';
 	import { Button } from '@pocket-id/ui/button';
 	import { m } from '#lib/paraglide/messages.js';
@@ -26,13 +25,12 @@
 	);
 </script>
 
-<AdvancedDisclosure title={m.developers()} summary={m.developers_summary()}>
-	<SettingRow title={m.api_keys()} description={countLabel} icon={KeyIcon}>
-		{#snippet control()}
-			<Button variant="secondary" size="sm" href="/settings/account/api-keys">
-				{m.manage()}
-				<ChevronRightIcon />
-			</Button>
-		{/snippet}
-	</SettingRow>
-</AdvancedDisclosure>
+<SettingRow title={m.api_keys()} description={countLabel} icon={KeyIcon}>
+	{#snippet control()}
+		<!-- The chevron glyph carries empty space beside it, so a tighter end padding looks even with the start -->
+		<Button variant="secondary" size="sm" class="pe-2" href="/settings/account/api-keys">
+			{m.manage()}
+			<ChevronRightIcon />
+		</Button>
+	{/snippet}
+</SettingRow>

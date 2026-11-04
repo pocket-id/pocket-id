@@ -91,7 +91,7 @@ test('Update account details fails with already taken username in different casi
 });
 
 test('Change Locale', async ({ page }) => {
-	await page.goto('/settings/account');
+	await page.goto('/settings/account#preferences');
 
 	await page.getByLabel('Language').click();
 	await page.getByRole('option', { name: 'Nederlands' }).click();
@@ -100,6 +100,7 @@ test('Change Locale', async ({ page }) => {
 	await expect(page.getByText('Taal', { exact: true })).toBeVisible();
 
 	// Saving still validates in the new language
+	await page.getByRole('tab', { name: 'Profiel' }).click();
 	const username = page.getByRole('textbox', { name: 'Gebruikersnaam' });
 	await username.fill('');
 	await page.getByRole('button', { name: 'Opslaan' }).click();
@@ -109,7 +110,7 @@ test('Change Locale', async ({ page }) => {
 	await page.context().clearCookies();
 	await authUtil.authenticate(page);
 
-	await expect(page.getByText('Taal', { exact: true })).toBeVisible();
+	await expect(page.getByRole('tab', { name: 'Profiel' })).toBeVisible();
 
 	await username.fill('');
 	await page.getByRole('button', { name: 'Opslaan' }).click();
@@ -117,11 +118,11 @@ test('Change Locale', async ({ page }) => {
 });
 
 test('Add passkey to an account', async ({ page }) => {
-	await page.goto('/settings/account');
+	await page.goto('/settings/account#passkeys');
 
 	await (await passkeyUtil.init(page)).addPasskey('timNew');
 
-	await page.getByRole('button', { name: 'Add Passkey' }).click();
+	await page.getByRole('tabpanel').getByRole('button', { name: 'Add Passkey' }).click();
 
 	await page.getByLabel('Name', { exact: true }).fill('Test Passkey');
 	await page.getByLabel('Name Passkey').getByRole('button', { name: 'Save' }).click();
@@ -143,9 +144,9 @@ test('Adding a device passkey fails when only security keys are allowed', async 
 		await route.fulfill({ response, json: body });
 	});
 
-	await page.goto('/settings/account');
+	await page.goto('/settings/account#passkeys');
 	await passkeyUtil.init(page);
-	await page.getByRole('button', { name: 'Add Passkey' }).click();
+	await page.getByRole('tabpanel').getByRole('button', { name: 'Add Passkey' }).click();
 
 	await expect(page.locator('[data-type="error"]')).toHaveText(
 		'This type of passkey is not allowed by your administrator'
@@ -153,7 +154,7 @@ test('Adding a device passkey fails when only security keys are allowed', async 
 });
 
 test('Rename passkey', async ({ page }) => {
-	await page.goto('/settings/account');
+	await page.goto('/settings/account#passkeys');
 
 	await page
 		.getByRole('button', { name: /^Actions for / })
@@ -168,7 +169,7 @@ test('Rename passkey', async ({ page }) => {
 });
 
 test('Delete passkey from account', async ({ page }) => {
-	await page.goto('/settings/account');
+	await page.goto('/settings/account#passkeys');
 
 	await page
 		.getByRole('button', { name: /^Actions for / })

@@ -12,6 +12,6 @@
 <TabsPrimitive.Content
 	bind:ref
 	data-slot="tabs-content"
-	class={cn('flex-1', className)}
+	class={cn('flex-1 rounded-md focus-visible:outline-offset-8', className)}
 	{...restProps}
 />
