@@ -372,7 +372,7 @@
 					{@const nameId = `${id}-${item.id}-name`}
 					<Table.Row
 						data-state={selected ? 'selected' : undefined}
-						class={cn('group/row', (getPrimaryAction(item) || onRowClick) && 'cursor-pointer')}
+						class={cn((getPrimaryAction(item) || onRowClick) && 'cursor-pointer')}
 						onclick={onRowClick ? () => onRowClick(item) : getPrimaryAction(item)}
 					>
 						{#if selectedIds}
@@ -399,14 +399,8 @@
 							</Table.Cell>
 						{/each}
 						{#if hasStickyColumn}
-							<!-- The sticky cell is opaque so scrolled cells pass under it, so it repeats the row's hover and selected fills -->
-							<!-- The fills are inset shadows over the surface because a custom appearance makes them translucent -->
-							<Table.Cell
-								class={cn(
-									stickyCellClass,
-									'bg-surface py-0 transition-shadow duration-(--dur-fast) group-hover/row:shadow-[inset_0_0_0_100vmax_var(--fill-row-hover)] group-has-focus-visible/row:shadow-[inset_0_0_0_100vmax_var(--fill-row-hover)] group-data-[state=selected]/row:shadow-[inset_0_0_0_100vmax_var(--fill-muted)]'
-								)}
-							>
+							<!-- The sticky cell is opaque so scrolled cells pass under it -->
+							<Table.Cell class={cn(stickyCellClass, 'bg-surface py-0')}>
 								{#if actions}
 									<ActionsMenu
 										{item}
