@@ -86,9 +86,6 @@
 		<SettingRow
 			title={m.allow_synced_passkeys()}
 			description={m.config_allow_synced_passkeys_description()}
-			consequence={$inputs.webauthnAllowSyncedPasskeys.value
-				? undefined
-				: m.config_synced_passkeys_off_note()}
 			icon={RefreshCwIcon}
 		>
 			{#snippet control(props)}

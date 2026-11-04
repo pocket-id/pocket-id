@@ -206,9 +206,6 @@ test('Update passkey configuration', async ({ page }) => {
 
 	await expect(allowSyncedPasskeys).toBeChecked();
 	await allowSyncedPasskeys.click();
-	await expect(
-		page.getByText('People whose only passkey is synced won’t be able to sign in.')
-	).toBeVisible();
 
 	await saveUnsavedChanges(page);
 

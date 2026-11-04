@@ -522,7 +522,6 @@
 	"config_uv_required_description": "Require a fingerprint, face or PIN. Security keys without one won’t work.",
 	"config_uv_preferred_description": "Ask for one when available, and allow touch-only security keys.",
 	"config_allow_synced_passkeys_description": "Like iCloud Keychain or Google Password Manager.",
-	"config_synced_passkeys_off_note": "People whose only passkey is synced won’t be able to sign in.",
 	"config_any_passkey_description": "Device passkeys and security keys.",
 	"config_device_passkeys_description": "Passkeys built into phones and computers.",
 	"config_security_keys_only": "Security keys only",
