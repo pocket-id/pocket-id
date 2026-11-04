@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"context"
 	"io"
-	"path/filepath"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -38,7 +37,7 @@ func TestFilesystemStorageOperations(t *testing.T) {
 		files, err := store.List(ctx, "images")
 		require.NoError(t, err)
 		require.Len(t, files, 1)
-		assert.Equal(t, filepath.Join("images", "logo.png"), files[0].Path)
+		assert.Equal(t, "images/logo.png", files[0].Path)
 		assert.Equal(t, int64(len("logo-data")), files[0].Size)
 	})
 
