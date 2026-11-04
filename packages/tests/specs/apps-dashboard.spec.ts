@@ -13,24 +13,14 @@ function app(page: Page, name: string) {
 	return page.getByRole('listitem').filter({ has: page.getByText(name, { exact: true }) });
 }
 
-test('Dashboard shows only clients with launch URLs in the correct order', async ({ page }) => {
-	const client1 = oidcClients.nextcloud;
-	const client2 = oidcClients.immich;
-
+test('Dashboard shows only clients with launch URLs sorted by name', async ({ page }) => {
 	await page.goto('/settings/apps');
 
 	await expect(apps(page)).toHaveCount(2);
+	await expect(apps(page).first().getByRole('link')).toHaveText(oidcClients.immich.name);
+	await expect(apps(page).last().getByRole('link')).toHaveText(oidcClients.nextcloud.name);
 
-	// Should be first
-	const tile1 = apps(page).first();
-	await expect(tile1.getByRole('link')).toHaveText(client1.name);
-	await expect(tile1.getByText(new URL(client1.launchURL).hostname)).toBeVisible();
-
-	const tile2 = app(page, client2.name);
-	await expect(tile2.getByRole('link', { name: client2.name })).toBeVisible();
-	await expect(tile2.getByText(new URL(client2.launchURL).hostname)).toBeVisible();
-
-	await expect(app(page, oidcClients.tailscale.name)).toHaveCount(0);
+	await expect(apps(page).filter({ hasText: oidcClients.tailscale.name })).toHaveCount(0);
 });
 
 test.describe('Dashboard shows only clients where user has access', () => {
@@ -57,14 +47,13 @@ test('Show and revoke an app without a launch link', async ({ page }) => {
 
 	await page.goto('/settings/apps');
 
+	const otherApps = page.getByRole('list', { name: 'Others' }).getByRole('listitem');
+	await expect(otherApps).toHaveCount(0);
+
+	await page.getByRole('button', { name: /^Others/ }).click();
+	await expect(otherApps).toHaveCount(2);
+
 	const clientRow = app(page, client.name);
-	await expect(clientRow).toHaveCount(0);
-
-	await page.getByRole('button', { name: /Apps without a launch link/ }).click();
-
-	await expect(
-		page.getByRole('list', { name: /Apps without a launch link/ }).getByRole('listitem')
-	).toHaveCount(2);
 	await expect(clientRow).toBeVisible();
 	await expect(clientRow.getByRole('link')).toHaveCount(0);
 	await clientRow.getByRole('button', { name: `Actions for ${client.name}` }).click();
@@ -86,26 +75,52 @@ test('Launch authorized client', async ({ page }) => {
 	);
 });
 
-test('Sort apps by name and remember the choice', async ({ page }) => {
+test('Pin an app and keep it pinned after a reload', async ({ page }) => {
+	const client = oidcClients.nextcloud;
+	const pinned = page.getByRole('region', { name: 'Pinned' }).getByRole('listitem');
+
+	await page.goto('/settings/apps');
+	await expect(pinned).toHaveCount(0);
+
+	await apps(page)
+		.filter({ hasText: client.name })
+		.getByRole('button', { name: `Actions for ${client.name}` })
+		.click();
+	await page.getByRole('menuitem', { name: 'Pin', exact: true }).click();
+	await expect(pinned).toHaveCount(1);
+	await expect(pinned.getByRole('link')).toHaveText(client.name);
+	await expect(apps(page)).toHaveCount(1);
+	await expect(apps(page).filter({ hasText: client.name })).toHaveCount(0);
+
+	await page.reload();
+	await expect(pinned).toHaveCount(1);
+
+	await pinned.getByRole('button', { name: `Actions for ${client.name}` }).click();
+	await page.getByRole('menuitem', { name: 'Unpin' }).click();
+	await expect(pinned).toHaveCount(0);
+	await expect(apps(page)).toHaveCount(2);
+});
+
+test('Sort apps and remember the choice', async ({ page }) => {
 	await page.goto('/settings/apps');
 
 	const sortButton = page.getByRole('button', { name: 'Sort by' });
+	await expect(apps(page).first().getByRole('link')).toHaveText(oidcClients.immich.name);
+
+	await sortButton.click();
+	await page.getByRole('menuitemradio', { name: 'Name Z–A' }).click();
+	await expect(apps(page).first().getByRole('link')).toHaveText(oidcClients.nextcloud.name);
+
+	await page.reload();
 	await expect(apps(page).first().getByRole('link')).toHaveText(oidcClients.nextcloud.name);
 
 	await sortButton.click();
-	await page.getByRole('menuitemradio', { name: 'Name A–Z' }).click();
-	await expect(apps(page).first().getByRole('link')).toHaveText(oidcClients.immich.name);
-
-	await page.reload();
-	await expect(apps(page).first().getByRole('link')).toHaveText(oidcClients.immich.name);
-
-	await sortButton.click();
-	await expect(page.getByRole('menuitemradio', { name: 'Name A–Z' })).toHaveAttribute(
+	await expect(page.getByRole('menuitemradio', { name: 'Name Z–A' })).toHaveAttribute(
 		'aria-checked',
 		'true'
 	);
-	await page.getByRole('menuitemradio', { name: 'Name Z–A' }).click();
-	await expect(apps(page).first().getByRole('link')).toHaveText(oidcClients.nextcloud.name);
+	await page.getByRole('menuitemradio', { name: 'Name A–Z' }).click();
+	await expect(apps(page).first().getByRole('link')).toHaveText(oidcClients.immich.name);
 });
 
 test('Search apps by name', async ({ page }) => {

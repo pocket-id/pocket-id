@@ -1,33 +1,20 @@
 import OIDCService from '#lib/services/oidc-service.ts';
 import type { ListRequestOptions } from '#lib/types/list-request.type.ts';
 import type { PageLoad } from './$types';
-import { getMyAppsPreferences, myAppsSortOptions } from './my-apps-preferences.svelte.ts';
+import { getMyAppsSort, myAppsSortOptions } from './my-apps-sort.svelte.ts';
+
+// The server caps a page at 100, which also bounds where pinned apps are looked up
+const options = (hasLaunchURL: boolean): ListRequestOptions => ({
+	pagination: { page: 1, limit: 100 },
+	sort: { ...myAppsSortOptions[getMyAppsSort()] },
+	filters: { hasLaunchURL: [hasLaunchURL] }
+});
 
 export const load: PageLoad = async () => {
 	const oidcService = new OIDCService();
-	const preferences = getMyAppsPreferences();
 
-	const appRequestOptions: ListRequestOptions = {
-		pagination: {
-			page: 1,
-			limit: preferences.paginationLimit
-		},
-		sort: { ...myAppsSortOptions[preferences.sort] },
-		filters: {
-			hasLaunchURL: [true]
-		}
-	};
-
-	const authorizedClientRequestOptions: ListRequestOptions = {
-		pagination: {
-			page: 1,
-			limit: preferences.paginationLimit
-		},
-		sort: { ...myAppsSortOptions[preferences.sort] },
-		filters: {
-			hasLaunchURL: [false]
-		}
-	};
+	const appRequestOptions = options(true);
+	const authorizedClientRequestOptions = options(false);
 
 	const [clients, authorizedClientsWithoutLaunchURL] = await Promise.all([
 		oidcService.listOwnAccessibleClients(appRequestOptions),
