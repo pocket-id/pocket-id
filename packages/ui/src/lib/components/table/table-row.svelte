@@ -16,7 +16,7 @@
 	bind:this={ref}
 	data-slot="table-row"
 	class={cn(
-		'border-b transition-colors duration-(--dur-fast) in-[tbody]:hover:border-transparent in-[tbody]:hover:*:shadow-[inset_0_0_0_100vmax_var(--fill-row-hover)] in-[thead]:border-b-4 in-[thead]:border-transparent in-[tbody]:has-focus-visible:border-transparent in-[tbody]:has-focus-visible:*:shadow-[inset_0_0_0_100vmax_var(--fill-row-hover)] in-[tbody]:has-[+tr_:focus-visible]:border-transparent in-[tbody]:has-[+tr:hover]:border-transparent data-[state=selected]:*:shadow-[inset_0_0_0_100vmax_var(--fill-muted)]',
+		'border-b transition-colors duration-(--dur-fast) in-[tbody]:hover:border-transparent in-[tbody]:hover:*:shadow-[inset_0_0_0_100vmax_var(--fill-row-hover)] in-[thead]:border-b-0 in-[tbody]:has-focus-visible:border-transparent in-[tbody]:has-focus-visible:*:shadow-[inset_0_0_0_100vmax_var(--fill-row-hover)] in-[tbody]:has-[+tr_:focus-visible]:border-transparent in-[tbody]:has-[+tr:hover]:border-transparent data-[state=selected]:*:shadow-[inset_0_0_0_100vmax_var(--fill-muted)]',
 		className
 	)}
 	{...restProps}

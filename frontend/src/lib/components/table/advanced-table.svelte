@@ -284,7 +284,7 @@
 {#if !items}
 	<!-- Fast responses replace the skeleton before it fades in, so it never flashes -->
 	<div aria-busy="true" class="transition-opacity delay-(--t-skeleton-delay) starting:opacity-0">
-		<Skeleton class="h-10 w-full rounded-sm" />
+		<Skeleton class="mb-1 h-10 w-full rounded-sm" />
 		{#each Array.from({ length: tablePreferences.current.length || 5 }, (_, i) => i) as i (i)}
 			<div class="flex h-(--row-2line) items-center border-b px-4">
 				<Skeleton class="h-3.5 w-2/5" />

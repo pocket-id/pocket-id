@@ -186,7 +186,7 @@
 	>
 		<div
 			class={cn(
-				'bg-surface-sunken text-caption text-fg-muted hidden h-10 items-center gap-4 rounded-sm px-4 font-medium sm:grid',
+				'bg-surface-sunken text-caption text-fg-muted mb-1 hidden h-10 items-center gap-4 rounded-sm px-4 font-medium sm:grid',
 				columnsClass
 			)}
 		>
@@ -211,7 +211,9 @@
 		{/if}
 
 		{#each days as day (day.label)}
-			<h2 class="text-caption text-fg-muted flex h-9 items-center border-b px-4 font-medium">
+			<h2
+				class="text-caption text-fg-muted flex h-9 items-center border-b px-4 font-medium transition-colors duration-(--dur-fast) has-[+ul>li:first-child>button:is(:hover,:focus-visible)]:border-transparent"
+			>
 				{day.label}
 			</h2>
 			<ul>
@@ -226,13 +228,16 @@
 								: undefined}
 					{@const open = expanded.has(log.id)}
 					{@const DeviceIcon = isPhone(log.device) ? SmartphoneIcon : MonitorIcon}
-					<li class="border-b">
+					<!-- Like table rows, a filled row hides the dividers around it, but an open row keeps the one below its details -->
+					<li
+						class="border-b transition-colors duration-(--dur-fast) has-[+li>button:is(:hover,:focus-visible)]:border-transparent has-[>button[aria-expanded=false]:is(:hover,:focus-visible)]:border-transparent"
+					>
 						<button
 							type="button"
 							aria-expanded={open}
 							aria-controls={`audit-detail-${log.id}`}
 							class={cn(
-								'hover:bg-fill-row-hover focus-visible:bg-fill-row-hover focus-visible:outline-ring grid min-h-(--row-2line) w-full grid-cols-[minmax(0,1fr)_16px] items-center gap-x-4 px-4 py-2 text-start transition-colors duration-(--dur-fast) focus-visible:outline-2 focus-visible:-outline-offset-2',
+								'hover:bg-fill-row-hover focus-visible:bg-fill-row-hover focus-visible:outline-ring grid min-h-(--row-2line) w-full grid-cols-[minmax(0,1fr)_16px] items-center gap-x-4 rounded-sm px-4 py-2 text-start transition-colors duration-(--dur-fast) focus-visible:outline-2 focus-visible:-outline-offset-2',
 								columnsClass
 							)}
 							onclick={() => toggle(log.id)}
