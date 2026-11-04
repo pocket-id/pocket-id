@@ -1,5 +1,5 @@
 import base, { expect, type APIRequestContext } from '@playwright/test';
-import { createLocalJWKSet, jwtVerify } from 'jose';
+import { createLocalJWKSet, decodeJwt, jwtVerify } from 'jose';
 import { createServer } from 'node:http';
 import { oidcClients, userGroups, users } from '../data';
 import { cleanupBackend } from '../utils/cleanup.util';
@@ -19,7 +19,7 @@ type LogoutReceiver = {
 };
 
 const test = base.extend<{ receiver: LogoutReceiver }>({
-	receiver: async ({}, use) => {
+	receiver: async ({ baseURL }, use) => {
 		const receiverURL = new URL(oidcClients.nextcloud.backchannelLogoutURL);
 		const receiver: LogoutReceiver = {
 			url: receiverURL.origin,
@@ -29,12 +29,19 @@ const test = base.extend<{ receiver: LogoutReceiver }>({
 		const server = createServer(async (request, response) => {
 			const chunks: Buffer[] = [];
 			for await (const chunk of request) chunks.push(Buffer.from(chunk));
+			const body = new URLSearchParams(Buffer.concat(chunks).toString());
+			// In CI the Pocket ID instances of the other shards send their logouts to this same host port
+			const logoutToken = body.get('logout_token');
+			if (logoutToken && decodeJwt(logoutToken).iss !== baseURL) {
+				response.writeHead(204).end();
+				return;
+			}
 			const path = request.url!;
 			receiver.deliveries.push({
 				path,
 				method: request.method!,
 				contentType: request.headers['content-type'] ?? '',
-				body: new URLSearchParams(Buffer.concat(chunks).toString())
+				body
 			});
 			const attempt = receiver.deliveries.filter((delivery) => delivery.path === path).length;
 			response.writeHead(receiver.respond(path, attempt)).end();

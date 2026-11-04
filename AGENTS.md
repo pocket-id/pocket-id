@@ -28,7 +28,7 @@ pnpm lint         # vp check — oxlint + oxfmt check via Vite+ (note: not enfor
 pnpm format       # vp fmt — REQUIRED before opening a PR
 ```
 
-End-to-end (needs Docker; **stop any local backend on `:1411` first** — see gotchas):
+End-to-end (needs Docker; the stack serves the app on `:1511`, so a dev backend on `:1411` can keep running):
 
 ```sh
 cd packages/tests/setup && docker compose up -d --build   # rebuild after ANY code change, or you test stale code

@@ -167,6 +167,11 @@ function compareExports(dir1: string, dir2: string): void {
 		credential.aaguid ??= '00000000-0000-0000-0000-000000000000';
 	}
 
+	// The built-in API's audience follows the APP_URL of the stack that produced the export
+	for (const api of expectedData.tables.apis) {
+		api.audience = api.audience.replace('http://localhost:1411', test.info().project.use.baseURL!);
+	}
+
 	// Check special fields
 	validateSpecialFields(actualData);
 

@@ -1,6 +1,7 @@
 # This Docker Compose file is used to set up the environment for the tests.
 services:
   lldap:
+    image: pocket-id-test-lldap
     build:
       context: .
       dockerfile: Dockerfile
@@ -12,15 +13,17 @@ services:
   scim-test-server:
     image: ghcr.io/pocket-id/scim-test-server:latest
     ports:
-      - '18123:8080'
+      - '${SCIM_PORT:-18123}:8080'
   pocket-id:
     image: pocket-id:test
     extra_hosts:
       - 'host.docker.internal:host-gateway'
     ports:
-      - '1411:1411'
+      - '${APP_PORT:-1511}:${APP_PORT:-1511}'
     environment:
       APP_ENV: test
+      PORT: ${APP_PORT:-1511}
+      APP_URL: http://localhost:${APP_PORT:-1511}
       ENCRYPTION_KEY: test-encryption-key
       FILE_BACKEND: ${FILE_BACKEND}
       OUTBOUND_ALLOWED_HOSTS_BACKCHANNEL_LOGOUT: private,loopback,host.docker.internal

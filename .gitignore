@@ -45,6 +45,7 @@ vite.config.ts.timestamp-*
 data
 /packages/tests/.auth
 /packages/tests/.report
+/packages/tests/.blob
 /backend/GeoLite2-City.mmdb
 /backend/frontend/dist
 

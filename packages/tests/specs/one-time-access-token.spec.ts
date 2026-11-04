@@ -1,7 +1,7 @@
 import test, { expect, type Browser } from '@playwright/test';
 import { oneTimeAccessTokens } from '../data';
 import { cleanupBackend } from '../utils/cleanup.util';
-import { pathFromRoot } from '../utils/fs.util';
+import { authFile } from '../utils/fs.util';
 import passkeyUtil from '../utils/passkey.util';
 
 test.beforeEach(async () => await cleanupBackend());
@@ -90,7 +90,7 @@ test('Sign in with login code entered manually when email login is enabled', asy
 async function setEmailLoginEnabled(browser: Browser) {
 	const context = await browser.newContext({
 		baseURL: test.info().project.use.baseURL,
-		storageState: pathFromRoot('.tmp/auth/user.json')
+		storageState: authFile
 	});
 	const page = await context.newPage();
 

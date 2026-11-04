@@ -6,6 +6,9 @@ import * as oidcUtil from '../utils/oidc.util';
 import passkeyUtil from '../utils/passkey.util';
 import { saveUnsavedChanges } from '../utils/unsaved-changes.util';
 
+// This file holds a third of the suite, so the CI shards may split it instead of one shard running it whole
+test.describe.configure({ mode: 'parallel' });
+
 test.beforeEach(async () => await cleanupBackend());
 
 async function generateSeededOauthAccessToken(

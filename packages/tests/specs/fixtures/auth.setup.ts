@@ -1,10 +1,8 @@
 import { test as setup } from '@playwright/test';
-import { pathFromRoot } from 'utils/fs.util';
+import { authFile } from 'utils/fs.util';
 import { sessionToken } from '../../data';
 import playwrightConfig from '../../playwright.config';
 import { cleanupBackend } from '../../utils/cleanup.util';
-
-const authFile = pathFromRoot('.tmp/auth/user.json');
 
 setup('authenticate', async ({ page }) => {
 	await cleanupBackend();
