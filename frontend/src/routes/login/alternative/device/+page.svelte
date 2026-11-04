@@ -5,12 +5,11 @@
 	import AuthTile from '#lib/components/auth/auth-tile.svelte';
 	import {
 		authPrimaryClass,
-		authQuietClass,
 		successHold,
 		takingYouMessage
 	} from '#lib/components/auth/auth-util.ts';
 	import SignInWrapper from '#lib/components/login-wrapper.svelte';
-	import QrPanel from '#lib/components/qrcode/qr-panel.svelte';
+	import Qrcode from '#lib/components/qrcode/qrcode.svelte';
 	import { Button } from '@pocket-id/ui/button';
 	import { Spinner } from '@pocket-id/ui/spinner';
 	import { m } from '#lib/paraglide/messages.js';
@@ -18,8 +17,11 @@
 	import userStore from '#lib/stores/user-store.ts';
 	import type { DeviceLoginRequest } from '#lib/types/device-login.type.ts';
 	import { getAxiosErrorCode, getAxiosErrorMessage } from '#lib/utils/error-util.ts';
+	import { cn } from '@pocket-id/ui/utils';
 	import { isAxiosError } from 'axios';
 	import { onMount } from 'svelte';
+	import CheckIcon from '~icons/solar/check-linear';
+	import CopyIcon from '~icons/solar/copy-bold';
 
 	let { data } = $props();
 
@@ -29,6 +31,25 @@
 	let ended: { kind: 'expired' | 'denied' | 'failed'; message?: string } | undefined = $state();
 	let success = $state(false);
 	let pollTimer: ReturnType<typeof setTimeout> | undefined;
+	let copied = $state(false);
+	let copiedTimer: ReturnType<typeof setTimeout> | undefined;
+
+	let now = $state(Date.now());
+	$effect(() => {
+		const timer = setInterval(() => (now = Date.now()), 1000);
+		return () => clearInterval(timer);
+	});
+
+	const expiresAt = $derived(new Date(request?.expiresAt ?? 0).getTime());
+	// Reads the clock only when the request changes, so the ring measures against the lifetime the code started with
+	const lifetime = $derived(Math.max(1, expiresAt - Date.now()));
+	const secondsLeft = $derived(Math.max(0, Math.ceil((expiresAt - now) / 1000)));
+	// The server can end the request before the local countdown does, and a denied code is just as dead
+	const expired = $derived(!!ended || (!!request && secondsLeft === 0));
+	const verificationUrl = $derived(request?.verificationUri.replace(/^https?:\/\//, '') ?? '');
+	const countdown = $derived(
+		`${Math.floor(secondsLeft / 60)}:${String(secondsLeft % 60).padStart(2, '0')}`
+	);
 	let requestController: AbortController | undefined;
 
 	onMount(() => {
@@ -121,6 +142,13 @@
 		clearTimers();
 	}
 
+	async function copyCode() {
+		await navigator.clipboard.writeText(request!.userCode);
+		copied = true;
+		clearTimeout(copiedTimer);
+		copiedTimer = setTimeout(() => (copied = false), 1500);
+	}
+
 	function clearTimers() {
 		// Ensure an old scheduled poll cannot start after the request lifecycle ends
 		if (pollTimer) clearTimeout(pollTimer);
@@ -156,31 +184,88 @@
 		inert={success}
 	>
 		{#if request}
-			<div class="mb-6 w-full">
-				<QrPanel {request} ended={!!ended} />
+			<!-- A phone cannot scan its own screen, so phones get only the code -->
+			<!-- The ring drains over the code's lifetime, so the desktop needs no countdown text -->
+			<!-- It shrinks on short windows so the card fits without scrolling for as long as it can -->
+			<div
+				class="relative mb-6 grid size-(--ring) place-items-center [--ring:clamp(176px,100dvh-630px,232px)] max-sm:hidden"
+			>
+				<svg class="absolute inset-0" viewBox="0 0 232 232" aria-hidden="true">
+					<rect
+						x="2"
+						y="2"
+						width="228"
+						height="228"
+						rx="26"
+						fill="none"
+						stroke="var(--border)"
+						stroke-width="3"
+					/>
+					<rect
+						x="2"
+						y="2"
+						width="228"
+						height="228"
+						rx="26"
+						fill="none"
+						stroke="var(--fg)"
+						stroke-width="3"
+						stroke-linecap="round"
+						pathLength="100"
+						stroke-dasharray="100"
+						stroke-dashoffset={expired ? 100 : 100 * (1 - (secondsLeft * 1000) / lifetime)}
+						class="transition-[stroke-dashoffset] duration-1000 ease-linear"
+					/>
+				</svg>
+				<Qrcode
+					value={request.verificationUriComplete}
+					size={176}
+					role="img"
+					aria-label={m.device_login_qr_code()}
+					aria-hidden={expired}
+					class={cn(
+						'h-auto w-[calc(var(--ring)-56px)] rounded-[18px] p-4 transition-opacity duration-(--dur-base)',
+						expired && 'opacity-20'
+					)}
+				/>
 			</div>
+			<p class="text-body text-fg-muted mb-3 text-center wrap-anywhere">
+				<span class="max-sm:hidden">{m.device_login_or_go_to({ url: verificationUrl })}</span>
+				<span class="sm:hidden">{m.device_login_go_to({ url: verificationUrl })}</span>
+			</p>
+			<button
+				type="button"
+				class={cn(
+					'bg-surface-sunken hover:bg-fill-hover inset-ring-border disabled:hover:bg-surface-sunken mb-6 flex items-center gap-3 rounded-full py-2.5 pr-4 pl-6 font-mono text-2xl font-medium tracking-[0.12em] inset-ring transition-colors disabled:cursor-default',
+					expired && 'text-fg-muted'
+				)}
+				disabled={expired}
+				aria-label={m.copy_code()}
+				onclick={copyCode}
+				data-testid="device-login-code"
+			>
+				{request.userCode.slice(0, 4)}–{request.userCode.slice(4)}
+				{#if !expired}
+					<span class="text-fg-muted grid size-4 *:col-start-1 *:row-start-1" aria-hidden="true">
+						<CopyIcon class={cn('size-4 transition-opacity', copied && 'opacity-0')} />
+						<CheckIcon class={cn('size-4 transition-opacity', !copied && 'opacity-0')} />
+					</span>
+				{/if}
+			</button>
+			<span class="sr-only" aria-live="polite">{copied ? m.copied() : ''}</span>
 		{/if}
-		{#if ended}
+		{#if expired}
 			<Button class={authPrimaryClass} usePromiseLoading onclick={startRequest}>
-				{ended.kind === 'denied' ? m.try_again() : m.auth_get_a_new_code()}
+				{ended?.kind === 'denied' ? m.try_again() : m.auth_get_a_new_code()}
 			</Button>
 		{:else}
-			<!-- While the request is alive there is nothing to press, so the primary's place holds the wait as a status line -->
-			<p
-				class="text-body flex min-h-(--h-xl) items-center justify-center gap-2 text-center lg:min-h-13"
-				aria-live="polite"
-			>
+			<p class="text-control text-fg-muted flex items-center gap-2" aria-live="polite">
 				<Spinner class="size-3 shrink-0" />
 				{request ? m.auth_waiting_for_approval() : m.auth_creating_sign_in_request()}
+				{#if request}
+					<span class="tabular-nums sm:hidden">· {countdown}</span>
+				{/if}
 			</p>
-			<Button
-				variant="link"
-				class={authQuietClass + ' mt-3'}
-				disabled={!request}
-				onclick={startRequest}
-			>
-				{m.auth_get_a_new_code()}
-			</Button>
 		{/if}
 	</div>
 </SignInWrapper>

@@ -264,7 +264,11 @@
 				)}
 			>
 				{#if back}
-					<Button variant="link" href={back} class="text-body -ml-1 gap-1">
+					<Button
+						variant="link"
+						href={back}
+						class="text-body text-fg-muted hover:text-fg -ml-1 gap-1"
+					>
 						<ChevronLeftIcon />
 						{m.back()}
 					</Button>
@@ -288,7 +292,8 @@
 			</main>
 
 			<!-- Balances the top bar so the stack stays centered in the desktop card -->
-			<div class="shrink-0 max-lg:hidden lg:min-h-12 lg:pb-4"></div>
+			<!-- On short windows it gives way before the card has to scroll -->
+			<div class="max-lg:hidden lg:h-16 lg:min-h-4"></div>
 		</div>
 	</div>
 
