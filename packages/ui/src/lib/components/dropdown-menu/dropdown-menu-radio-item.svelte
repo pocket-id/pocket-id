@@ -26,7 +26,7 @@
 			data-slot="dropdown-menu-radio-item-indicator"
 		>
 			{#if checked}
-				<CheckIcon class="text-fg" />
+				<CheckIcon class="text-primary-control" />
 			{/if}
 		</span>
 		{@render childrenProp?.({ checked })}

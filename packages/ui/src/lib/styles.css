@@ -66,10 +66,8 @@
 		@apply cursor-pointer;
 	}
 
-	/* Text selection stays neutral: the accent marks state, never decoration */
 	::selection {
-		background: var(--fill-selected);
-		color: var(--fg);
+		background: color-mix(in oklab, var(--fg) 22%, transparent);
 	}
 }
 

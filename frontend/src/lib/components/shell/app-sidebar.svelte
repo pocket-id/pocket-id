@@ -161,7 +161,7 @@
 					{@const active = item.href === current}
 					{@const iconClass = cn(
 						'size-[17px] shrink-0 transition-colors',
-						active ? 'text-fg' : 'text-fg-muted group-hover:text-fg'
+						active ? 'text-primary-control' : 'text-fg-muted group-hover:text-fg'
 					)}
 					<li>
 						<Tooltip.Root>

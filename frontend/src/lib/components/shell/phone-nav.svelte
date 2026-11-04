@@ -65,7 +65,7 @@
 					moreActive ? 'bg-fill-selected text-fg font-medium' : 'text-fg-muted'
 				)}
 			>
-				<Ellipsis class="size-5" />
+				<Ellipsis class={cn('size-5', moreActive && 'text-primary-control')} />
 				{m.more()}
 			</DropdownMenu.Trigger>
 			<DropdownMenu.Content side="top" align="end" class="w-64" data-jumping={jumping || undefined}>
@@ -100,7 +100,7 @@
 							>
 								<item.icon />
 								<span class="flex-1">{item.label}</span>
-								{#if item.href === current}<Check />{/if}
+								{#if item.href === current}<Check class="text-primary-control" />{/if}
 							</DropdownMenu.Item>
 						{/each}
 					</DropdownMenu.Group>
@@ -133,7 +133,7 @@
 			active ? 'bg-fill-selected text-fg font-medium' : 'text-fg-muted'
 		)}
 	>
-		<Icon class="size-5" />
+		<Icon class={cn('size-5', active && 'text-primary-control')} />
 		<span class="max-w-full truncate px-1">{label}</span>
 	</a>
 {/snippet}

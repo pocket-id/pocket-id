@@ -26,7 +26,7 @@
 	{#snippet children({ selected, highlighted })}
 		<span class="flex size-4 items-center justify-center">
 			{#if selected}
-				<CheckIcon />
+				<CheckIcon class="text-primary-control" />
 			{/if}
 		</span>
 		<span class="flex min-w-0 flex-1 items-center gap-2 py-1.5 whitespace-nowrap">

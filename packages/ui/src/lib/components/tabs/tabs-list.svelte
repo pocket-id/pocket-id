@@ -130,7 +130,7 @@
 		class={cn(
 			'pointer-events-none absolute left-0 origin-left opacity-0 transition-transform duration-(--dur-base) ease-in-out',
 			variant === 'line'
-				? 'bg-fg bottom-0 h-0.5'
+				? 'bg-primary-control bottom-0 h-0.5'
 				: 'bg-surface-raised top-0 -z-10 rounded-sm shadow-[inset_0_0_0_1px_var(--border-selected),var(--elevation-selected)]',
 			indicatorVisible && 'opacity-100'
 		)}
