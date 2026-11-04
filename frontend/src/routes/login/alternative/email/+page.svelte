@@ -48,8 +48,8 @@
 </svelte:head>
 
 <SignInWrapper back={'/login/alternative' + page.url.search}>
-	<AuthTile />
-	<AuthHeading title={m.auth_get_a_login_code_by_email()} tone={error ? 'danger' : undefined}>
+	<AuthTile error={!!error} />
+	<AuthHeading title={m.auth_get_a_login_code_by_email()}>
 		{error}
 	</AuthHeading>
 	<form onsubmit={preventDefault(requestEmail)} class="flex flex-col" novalidate>

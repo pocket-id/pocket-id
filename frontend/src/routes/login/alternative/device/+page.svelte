@@ -17,11 +17,13 @@
 	import userStore from '#lib/stores/user-store.ts';
 	import type { DeviceLoginRequest } from '#lib/types/device-login.type.ts';
 	import { getAxiosErrorCode, getAxiosErrorMessage } from '#lib/utils/error-util.ts';
+	import { cssMs } from '#lib/utils/style.ts';
 	import { cn } from '@pocket-id/ui/utils';
 	import { isAxiosError } from 'axios';
 	import { onMount } from 'svelte';
 	import CheckIcon from '~icons/solar/check-linear';
 	import CopyIcon from '~icons/solar/copy-bold';
+	import { fade } from 'svelte/transition';
 
 	let { data } = $props();
 
@@ -159,11 +161,8 @@
 </svelte:head>
 
 <SignInWrapper back={'/login/alternative' + page.url.search}>
-	<AuthTile {success} />
-	<AuthHeading
-		title={success ? m.auth_signed_in() : m.sign_in_with_another_device()}
-		tone={ended ? (ended.kind === 'failed' ? 'danger' : 'info') : undefined}
-	>
+	<AuthTile {success} error={ended?.kind === 'failed'} />
+	<AuthHeading title={success ? m.auth_signed_in() : m.sign_in_with_another_device()}>
 		{#if success}
 			{takingYouMessage(data.redirect)}
 		{:else if ended?.kind === 'expired'}
@@ -180,96 +179,97 @@
 			{m.auth_use_another_device_description()}
 		{/if}
 	</AuthHeading>
-	<div
-		class="flex flex-col items-center transition-opacity duration-(--dur-fast) max-sm:items-stretch"
-		class:opacity-0={success}
-		inert={success}
-	>
-		{#if request}
-			<!-- A phone cannot scan its own screen, so phones get only the code -->
-			<!-- The ring drains over the code's lifetime, as the bar under the code does on phones, so neither needs countdown text -->
-			<!-- It shrinks on short windows so the card fits without scrolling for as long as it can -->
-			<div
-				class="relative mb-6 grid size-(--ring) place-items-center [--ring:clamp(176px,100dvh-630px,232px)] max-sm:hidden"
-			>
-				<svg class="absolute inset-0" viewBox="0 0 232 232" aria-hidden="true">
-					<rect
-						x="2"
-						y="2"
-						width="228"
-						height="228"
-						rx="26"
-						fill="none"
-						stroke="var(--border)"
-						stroke-width="3"
-					/>
-					<rect
-						x="2"
-						y="2"
-						width="228"
-						height="228"
-						rx="26"
-						fill="none"
-						stroke="var(--fg)"
-						stroke-width="3"
-						stroke-linecap="round"
-						pathLength="100"
-						stroke-dasharray="100"
-						stroke-dashoffset={100 * (1 - remaining)}
-						class="transition-[stroke-dashoffset] duration-1000 ease-linear"
-					/>
-				</svg>
-				<Qrcode
-					value={request.verificationUriComplete}
-					size={176}
-					role="img"
-					aria-label={m.device_login_qr_code()}
-					aria-hidden={expired}
-					class={cn(
-						'h-auto w-[calc(var(--ring)-56px)] rounded-[18px] p-4 transition-opacity duration-(--dur-base)',
-						expired && 'opacity-20'
-					)}
-				/>
-			</div>
-			<p class="text-body text-fg-muted mb-3 text-center wrap-anywhere max-sm:hidden">
-				{m.device_login_or_go_to({ url: verificationUrl })}
-			</p>
-			<button
-				type="button"
-				class={cn(
-					'bg-surface-sunken hover:bg-fill-hover inset-ring-border disabled:hover:bg-surface-sunken mb-6 flex items-center justify-center gap-3 rounded-full py-2.5 pr-4 pl-6 font-mono text-2xl font-medium tracking-[0.12em] inset-ring transition-colors disabled:cursor-default max-sm:mb-3 max-sm:rounded-lg max-sm:py-5 max-sm:text-3xl',
-					expired && 'text-fg-muted'
-				)}
-				disabled={expired}
-				aria-label={m.copy_code()}
-				onclick={copyCode}
-				data-testid="device-login-code"
-			>
-				{request.userCode.slice(0, 4)}–{request.userCode.slice(4)}
-				{#if !expired}
-					<span class="text-fg-muted grid size-4 *:col-start-1 *:row-start-1" aria-hidden="true">
-						<CopyIcon class={cn('size-4 transition-opacity', copied && 'opacity-0')} />
-						<CheckIcon class={cn('size-4 transition-opacity', !copied && 'opacity-0')} />
-					</span>
-				{/if}
-			</button>
-			<div class="bg-border mb-6 h-1 overflow-hidden rounded-full sm:hidden" aria-hidden="true">
+	{#if !success}
+		<div
+			class="flex flex-col items-center max-sm:items-stretch"
+			out:fade={{ duration: cssMs('--dur-fast') }}
+		>
+			{#if request}
+				<!-- A phone cannot scan its own screen, so phones get only the code -->
+				<!-- The ring drains over the code's lifetime, as the bar under the code does on phones, so neither needs countdown text -->
+				<!-- It shrinks on short windows so the card fits without scrolling for as long as it can -->
 				<div
-					class="bg-fg h-full origin-left rounded-full transition-transform duration-1000 ease-linear"
-					style:scale="{remaining} 1"
-				></div>
-			</div>
-			<span class="sr-only" aria-live="polite">{copied ? m.copied() : ''}</span>
-		{/if}
-		{#if expired}
-			<Button class={authPrimaryClass} usePromiseLoading onclick={startRequest}>
-				{ended?.kind === 'denied' ? m.try_again() : m.auth_get_a_new_code()}
-			</Button>
-		{:else}
-			<p class="text-control text-fg-muted flex items-center gap-2" aria-live="polite">
-				<Spinner class="size-3 shrink-0" />
-				{request ? m.auth_waiting_for_approval() : m.auth_creating_sign_in_request()}
-			</p>
-		{/if}
-	</div>
+					class="relative mb-6 grid size-(--ring) place-items-center [--ring:clamp(176px,100dvh-630px,232px)] max-sm:hidden"
+				>
+					<svg class="absolute inset-0" viewBox="0 0 232 232" aria-hidden="true">
+						<rect
+							x="2"
+							y="2"
+							width="228"
+							height="228"
+							rx="26"
+							fill="none"
+							stroke="var(--border)"
+							stroke-width="3"
+						/>
+						<rect
+							x="2"
+							y="2"
+							width="228"
+							height="228"
+							rx="26"
+							fill="none"
+							stroke="var(--fg)"
+							stroke-width="3"
+							stroke-linecap="round"
+							pathLength="100"
+							stroke-dasharray="100"
+							stroke-dashoffset={100 * (1 - remaining)}
+							class="transition-[stroke-dashoffset] duration-1000 ease-linear"
+						/>
+					</svg>
+					<Qrcode
+						value={request.verificationUriComplete}
+						size={176}
+						role="img"
+						aria-label={m.device_login_qr_code()}
+						aria-hidden={expired}
+						class={cn(
+							'h-auto w-[calc(var(--ring)-56px)] rounded-[18px] p-4 transition-opacity duration-(--dur-base)',
+							expired && 'opacity-20'
+						)}
+					/>
+				</div>
+				<p class="text-body text-fg-muted mb-3 text-center wrap-anywhere max-sm:hidden">
+					{m.device_login_or_go_to({ url: verificationUrl })}
+				</p>
+				<button
+					type="button"
+					class={cn(
+						'bg-surface-sunken hover:bg-fill-hover inset-ring-border disabled:hover:bg-surface-sunken mb-6 flex items-center justify-center gap-3 rounded-full py-2.5 pr-4 pl-6 font-mono text-2xl font-medium tracking-[0.12em] inset-ring transition-colors disabled:cursor-default max-sm:mb-3 max-sm:rounded-lg max-sm:py-5 max-sm:text-3xl',
+						expired && 'text-fg-muted'
+					)}
+					disabled={expired}
+					aria-label={m.copy_code()}
+					onclick={copyCode}
+					data-testid="device-login-code"
+				>
+					{request.userCode.slice(0, 4)}–{request.userCode.slice(4)}
+					{#if !expired}
+						<span class="text-fg-muted grid size-4 *:col-start-1 *:row-start-1" aria-hidden="true">
+							<CopyIcon class={cn('size-4 transition-opacity', copied && 'opacity-0')} />
+							<CheckIcon class={cn('size-4 transition-opacity', !copied && 'opacity-0')} />
+						</span>
+					{/if}
+				</button>
+				<div class="bg-border mb-6 h-1 overflow-hidden rounded-full sm:hidden" aria-hidden="true">
+					<div
+						class="bg-fg h-full origin-left rounded-full transition-transform duration-1000 ease-linear"
+						style:scale="{remaining} 1"
+					></div>
+				</div>
+				<span class="sr-only" aria-live="polite">{copied ? m.copied() : ''}</span>
+			{/if}
+			{#if expired}
+				<Button class={authPrimaryClass} usePromiseLoading onclick={startRequest}>
+					{ended?.kind === 'denied' ? m.try_again() : m.auth_get_a_new_code()}
+				</Button>
+			{:else}
+				<p class="text-control text-fg-muted flex items-center gap-2" aria-live="polite">
+					<Spinner class="size-3 shrink-0" />
+					{request ? m.auth_waiting_for_approval() : m.auth_creating_sign_in_request()}
+				</p>
+			{/if}
+		</div>
+	{/if}
 </SignInWrapper>

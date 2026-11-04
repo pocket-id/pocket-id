@@ -17,8 +17,10 @@
 	import appConfigStore from '#lib/stores/application-configuration-store.ts';
 	import userStore from '#lib/stores/user-store.ts';
 	import { getWebauthnErrorMessage } from '#lib/utils/error-util.ts';
+	import { cssMs } from '#lib/utils/style.ts';
 	import { startAuthentication } from '@simplewebauthn/browser';
 	import { onMount } from 'svelte';
+	import { fade } from 'svelte/transition';
 
 	let { data } = $props();
 
@@ -50,7 +52,7 @@
 			await userStore.setUser(user);
 			success = true;
 			await successHold();
-			await goto(data.redirect || '/settings');
+			await goto(data.redirect);
 		} catch (e) {
 			failure = { message: getWebauthnErrorMessage(e), closed: isPasskeyPromptClosed(e) };
 		}
@@ -65,12 +67,11 @@
 <svelte:window onkeydown={showFocusRing} />
 
 <SignInWrapper>
-	<AuthTile {success} />
+	<AuthTile {success} error={!!failure} />
 	<AuthHeading
 		title={success
 			? m.auth_signed_in()
 			: m.sign_in_to_appname({ appName: $appConfigStore.appName })}
-		tone={failure ? (failure.closed ? 'info' : 'danger') : undefined}
 	>
 		{#if success}
 			{takingYouMessage(data.redirect)}
@@ -83,16 +84,14 @@
 			{/if}
 		{/if}
 	</AuthHeading>
-	<div
-		class="flex flex-col items-center gap-3 transition-opacity duration-(--dur-fast)"
-		class:opacity-0={success}
-		inert={success}
-	>
-		<Button bind:ref={primary} class={authPrimaryClass} {isLoading} onclick={authenticate}>
-			{failure ? m.try_again() : m.auth_sign_in_with_passkey()}
-		</Button>
-		<Button variant="link" class={authQuietClass} href={alternativeSignInHref()}>
-			{m.auth_other_ways_to_sign_in()}
-		</Button>
-	</div>
+	{#if !success}
+		<div class="flex flex-col items-center gap-3" out:fade={{ duration: cssMs('--dur-fast') }}>
+			<Button bind:ref={primary} class={authPrimaryClass} {isLoading} onclick={authenticate}>
+				{failure ? m.try_again() : m.auth_sign_in_with_passkey()}
+			</Button>
+			<Button variant="link" class={authQuietClass} href={alternativeSignInHref()}>
+				{m.auth_other_ways_to_sign_in()}
+			</Button>
+		</div>
+	{/if}
 </SignInWrapper>

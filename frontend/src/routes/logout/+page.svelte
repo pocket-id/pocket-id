@@ -36,17 +36,14 @@
 </svelte:head>
 
 <SignInWrapper>
-	<AuthTile />
+	<AuthTile error={failed} />
 	{#if signedOut}
 		<AuthHeading title={m.auth_you_are_signed_out()}>
 			{m.auth_signed_out_description()}
 		</AuthHeading>
 		<Button class={authPrimaryClass} href="/login">{m.auth_sign_in_again()}</Button>
 	{:else}
-		<AuthHeading
-			title={m.auth_sign_out_question({ appName: $appConfigStore.appName, name })}
-			tone={failed ? 'danger' : undefined}
-		>
+		<AuthHeading title={m.auth_sign_out_question({ appName: $appConfigStore.appName, name })}>
 			{failed
 				? m.auth_sign_out_failed()
 				: m.auth_sign_out_requested({ appName: $appConfigStore.appName })}

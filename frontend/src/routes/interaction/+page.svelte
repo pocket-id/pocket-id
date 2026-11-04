@@ -141,7 +141,7 @@
 </svelte:head>
 
 <SignInWrapper wide={view === 'consent' && hasScopes}>
-	<AuthorizeTiles {client} success={!!redirectUrl} error={!!failure && !failure.closed} />
+	<AuthorizeTiles {client} success={!!redirectUrl} error={!!failure} />
 
 	{#if view === 'success'}
 		<AuthHeading title={m.auth_signed_in()}>
@@ -164,7 +164,6 @@
 				: view === 'reauthenticate'
 					? m.auth_confirm_its_you()
 					: client.name}
-			tone={failure ? (failure.closed ? 'info' : 'danger') : undefined}
 		>
 			{#if failure}
 				{failure.closed ? m.auth_passkey_prompt_closed() : failure.message}
@@ -257,10 +256,6 @@
 					{m.cancel()}
 				</Button>
 			</div>
-
-			{#if view === 'consent'}
-				<p class="text-control text-fg-muted mt-2 text-center">{m.auth_remove_access_anytime()}</p>
-			{/if}
 		</ActionPanel>
 	{/if}
 </SignInWrapper>

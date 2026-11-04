@@ -1,7 +1,6 @@
 <script lang="ts">
 	import * as Alert from '@pocket-id/ui/alert';
 	import { m } from '#lib/paraglide/messages.js';
-	import userStore from '#lib/stores/user-store.ts';
 	import type { InteractionScopeInfo } from '#lib/types/oidc.type.ts';
 	import { isAdminEquivalentScope, scopeLabel } from '#lib/utils/api-key-scopes.ts';
 	import KeyRoundIcon from '~icons/solar/key-minimalistic-bold-duotone';
@@ -32,17 +31,6 @@
 		)
 	);
 
-	const profileValue = $derived(
-		$userStore
-			? [$userStore.displayName, $userStore.username].filter(Boolean).join(' · ')
-			: undefined
-	);
-	const groupsValue = $derived(
-		$userStore
-			? $userStore.userGroups.map((group) => group.friendlyName).join(', ') || m.no_groups_yet()
-			: undefined
-	);
-
 	function selectionProps(scope: string) {
 		if (!selectedScopes) {
 			return {};
@@ -66,24 +54,24 @@
 	{#if (scopes || []).includes('email')}
 		<ScopeItem
 			icon={MailIcon}
-			value={$userStore?.email}
-			category={m.email_address()}
+			name={m.email()}
+			description={m.consent_email_description()}
 			{...selectionProps('email')}
 		/>
 	{/if}
 	{#if (scopes || []).includes('profile')}
 		<ScopeItem
 			icon={UserRoundIcon}
-			value={profileValue}
-			category={m.name_username_and_picture()}
+			name={m.profile()}
+			description={m.consent_profile_description()}
 			{...selectionProps('profile')}
 		/>
 	{/if}
 	{#if (scopes || []).includes('groups')}
 		<ScopeItem
 			icon={UsersRoundIcon}
-			value={groupsValue}
-			category={m.group_membership()}
+			name={m.groups()}
+			description={m.consent_groups_description()}
 			{...selectionProps('groups')}
 		/>
 	{/if}
@@ -92,8 +80,8 @@
 		{@const label = info?.builtIn ? scopeLabel(scope) : info}
 		<ScopeItem
 			icon={KeyRoundIcon}
-			value={label?.name ?? scope}
-			category={label?.description || m.access_an_api_on_your_behalf()}
+			name={label?.name ?? scope}
+			description={label?.description || m.access_an_api_on_your_behalf()}
 			adminAccess={info?.builtIn && isAdminEquivalentScope(scope)}
 			{...selectionProps(scope)}
 		/>

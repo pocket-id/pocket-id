@@ -83,9 +83,6 @@
 					: undefined)
 	);
 	const statusFailure = $derived(codeFailure ? undefined : failure);
-	const statusTone = $derived(
-		statusFailure ? (statusFailure.closed ? 'info' : 'danger') : undefined
-	);
 
 	// Typing again clears the last outcome
 	$effect(() => {
@@ -210,13 +207,9 @@
 
 <SignInWrapper wide={view === 'consent' && authorizationRequired}>
 	{#if client && (view === 'consent' || view === 'authorized')}
-		<AuthorizeTiles
-			{client}
-			success={view === 'authorized'}
-			error={!!statusFailure && !statusFailure.closed}
-		/>
+		<AuthorizeTiles {client} success={view === 'authorized'} error={!!statusFailure} />
 	{:else}
-		<AuthTile success={view === 'approved'} />
+		<AuthTile success={view === 'approved'} error={!!statusFailure} />
 	{/if}
 
 	{#if view === 'authorized'}
@@ -232,10 +225,7 @@
 			{m.auth_other_device_denied({ device: deviceLoginInfo!.device })}
 		</AuthHeading>
 	{:else if view === 'review'}
-		<AuthHeading
-			title={m.auth_device_wants_to_sign_in({ device: deviceLoginInfo!.device })}
-			tone={statusTone}
-		>
+		<AuthHeading title={m.auth_device_wants_to_sign_in({ device: deviceLoginInfo!.device })}>
 			{@render status(m.auth_does_this_code_match())}
 		</AuthHeading>
 		<div
@@ -287,12 +277,9 @@
 					{m.deny()}
 				</Button>
 			</div>
-			<p class="text-control text-fg-muted mt-2 text-center">
-				{m.auth_approving_asks_for_passkey()}
-			</p>
 		</ActionPanel>
 	{:else if view === 'consent' && client}
-		<AuthHeading title={client.name} tone={statusTone}>
+		<AuthHeading title={client.name}>
 			{@render status(m.auth_wants_to_use_account_on_device({ appName: $appConfigStore.appName }))}
 		</AuthHeading>
 		<TrustLine {client} />
@@ -323,7 +310,7 @@
 			</div>
 		</ActionPanel>
 	{:else}
-		<AuthHeading title={m.auth_connect_a_device()} tone={statusTone}>
+		<AuthHeading title={m.auth_connect_a_device()}>
 			{@render status(
 				codeFailure === 'expired'
 					? m.auth_device_code_expired_description()
@@ -337,16 +324,12 @@
 				groups={[4, 4]}
 				uppercase
 				bind:value={userCode}
-				invalid={codeFailure === 'invalid'}
-				expired={codeFailure === 'expired'}
-				readonly={isLoading}
+				invalid={!!codeFailure}
+				readonly={isLoading || codeFailure === 'expired'}
 				aria-describedby="device-code-line"
 				autofocus={!userCode}
 			/>
-			<CodeLine
-				id="device-code-line"
-				tone={codeFailure === 'invalid' ? 'error' : codeFailure === 'expired' ? 'info' : undefined}
-			>
+			<CodeLine id="device-code-line" tone={codeFailure ? 'error' : undefined}>
 				{#if codeFailure === 'invalid'}
 					{m.auth_code_did_not_work()}
 				{:else if codeFailure === 'expired'}

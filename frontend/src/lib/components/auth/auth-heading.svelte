@@ -1,19 +1,8 @@
 <script lang="ts">
-	import { cn } from '@pocket-id/ui/utils';
-	import CircleAlertIcon from '~icons/solar/danger-circle-bold-duotone';
-	import InfoIcon from '~icons/solar/info-circle-bold-duotone';
 	import type { Snippet } from 'svelte';
 
-	let {
-		title,
-		tone,
-		children
-	}: {
-		title: string | Snippet;
-		// A reason replaces the subtitle in the text color, so a failure never shifts what is below it
-		tone?: 'info' | 'danger';
-		children?: Snippet;
-	} = $props();
+	// A failure replaces the subtitle in the same muted text, because the tile above already turns red
+	let { title, children }: { title: string | Snippet; children?: Snippet } = $props();
 </script>
 
 <h1 class="font-display text-display-m sm:text-display-l mb-2 wrap-anywhere">
@@ -23,14 +12,6 @@
 		{@render title()}
 	{/if}
 </h1>
-<p
-	class={cn('text-body-l mb-6 wrap-anywhere', tone ? 'text-fg' : 'text-fg-muted')}
-	aria-live="polite"
->
-	{#if tone === 'danger'}
-		<CircleAlertIcon class="text-danger-solid mr-1.5 inline size-3.5 align-[-1px]" />
-	{:else if tone === 'info'}
-		<InfoIcon class="text-fg-muted mr-1.5 inline size-3.5 align-[-1px]" />
-	{/if}
+<p class="text-body-l text-fg-muted mb-6 wrap-anywhere" aria-live="polite">
 	{@render children?.()}
 </p>

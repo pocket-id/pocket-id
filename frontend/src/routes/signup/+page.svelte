@@ -41,7 +41,7 @@
 </svelte:head>
 
 <SignInWrapper back={closed ? undefined : '/login'}>
-	<AuthTile />
+	<AuthTile error={!!error} />
 	{#if closed}
 		<AuthHeading
 			title={mode === 'withToken' ? m.auth_signups_invite_only() : m.auth_signups_closed()}
@@ -54,7 +54,6 @@
 	{:else}
 		<AuthHeading
 			title={data.token ? invite : m.auth_create_your_account({ appName: $appConfigStore.appName })}
-			tone={error ? 'danger' : undefined}
 		>
 			{error ?? m.auth_signup_description()}
 		</AuthHeading>

@@ -47,7 +47,7 @@
 			if (o) jumping = false;
 		}}
 	>
-		<Tooltip.Root disabled={open || variant === 'avatar'}>
+		<Tooltip.Root disabled={open || variant !== 'rail'}>
 			<Tooltip.Trigger>
 				{#snippet child({ props: tooltipProps })}
 					<DropdownMenu.Trigger {...tooltipProps}>

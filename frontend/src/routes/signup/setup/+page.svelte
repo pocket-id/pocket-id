@@ -34,8 +34,8 @@
 </svelte:head>
 
 <SignInWrapper>
-	<AuthTile />
-	<AuthHeading title={m.auth_set_up_pocket_id()} tone={error ? 'danger' : undefined}>
+	<AuthTile error={!!error} />
+	<AuthHeading title={m.auth_set_up_pocket_id()}>
 		{error ?? m.auth_setup_description()}
 	</AuthHeading>
 	<SignupForm callback={handleSignup} submitLabel={m.auth_create_admin_account()} />
