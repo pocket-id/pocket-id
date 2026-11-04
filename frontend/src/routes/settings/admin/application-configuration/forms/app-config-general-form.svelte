@@ -10,11 +10,9 @@
 	import { createForm, pickSchemaValues } from '#lib/utils/form-util.ts';
 	import { trackFormChanges } from '#lib/utils/unsaved-changes-util.svelte.ts';
 	import HouseIcon from '~icons/solar/home-2-bold-duotone';
-	import PaletteIcon from '~icons/solar/palette-bold-duotone';
 	import SparklesIcon from '~icons/solar/stars-bold-duotone';
 	import UserPenIcon from '~icons/solar/pen-new-square-bold-duotone';
 	import { z } from 'zod/v4';
-	import ColorThemePicker from './color-theme-picker.svelte';
 	import OptionSelect from './option-select.svelte';
 
 	let {
@@ -41,16 +39,13 @@
 				message: m.config_session_duration_whole_minutes()
 			}),
 		allowOwnAccountEdit: z.boolean(),
-		disableAnimations: z.boolean(),
-		colorTheme: z.string()
+		disableAnimations: z.boolean()
 	});
 
 	const formStore = createForm(formSchema, pickSchemaValues(formSchema, appConfig));
 	const inputs = formStore.inputs;
 
-	// Discard remounts the theme picker so its Custom tile forgets a color that was only previewed
-	let themePickerKey = $state(0);
-	trackFormChanges(() => formStore, callback, { discard: () => themePickerKey++ });
+	trackFormChanges(() => formStore, callback);
 </script>
 
 <fieldset class="flex min-w-0 flex-col gap-10" disabled={$appConfigStore.uiConfigDisabled}>
@@ -92,20 +87,6 @@
 		>
 			{#snippet control(props)}
 				<Switch {...props} bind:checked={$inputs.allowOwnAccountEdit.value} />
-			{/snippet}
-		</SettingRow>
-	</SettingsSection>
-
-	<SettingsSection title={m.appearance()}>
-		<SettingRow title={m.color_theme()} icon={PaletteIcon} stacked>
-			{#snippet control(props)}
-				{#key themePickerKey}
-					<ColorThemePicker
-						{...props}
-						bind:value={$inputs.colorTheme.value}
-						disabled={$appConfigStore.uiConfigDisabled}
-					/>
-				{/key}
 			{/snippet}
 		</SettingRow>
 		<SettingRow

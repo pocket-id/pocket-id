@@ -314,7 +314,7 @@ export function primaryVars(d: DerivedAccent): Record<string, string> {
 	};
 }
 
-export function parseColorTheme(value: string): {
+function parseColorTheme(value: string): {
 	id: string;
 	color?: string;
 	darkSidebar?: boolean;
@@ -324,10 +324,6 @@ export function parseColorTheme(value: string): {
 	if (color.endsWith(':dark'))
 		return { id: 'custom', color: color.slice(0, -':dark'.length), darkSidebar: true };
 	return { id: 'custom', color, darkSidebar: false };
-}
-
-export function customColorTheme(color: string, darkSidebar: boolean) {
-	return `custom:${color}${darkSidebar ? ':dark' : ''}`;
 }
 
 const themeById = (id: string) => colorThemes.find((t) => t.id === id);
@@ -433,22 +429,6 @@ export function applyColorTheme(value: string) {
 		document.head.appendChild(el);
 	}
 	el.textContent = css;
-}
-
-// The light and dark halves of a theme tile: sidebar, page, selected line, text line and the fitted primary
-export function colorThemePreview(value: string) {
-	const theme = colorThemeFor(value);
-	return (['light', 'dark'] as const).map((mode) => {
-		const t = theme.tokens[mode];
-		return {
-			mode,
-			sidebar: t.sidebar,
-			page: t.canvas,
-			line: t['fill-selected'],
-			text: t['fg-muted'],
-			primary: hex(deriveAccent(theme.accent, theme.accentInputs[mode]).fill)
-		};
-	});
 }
 
 // mode-watcher's own disableTransitions stays off because it also blocks transitions briefly at load, which cut the authorize animation short

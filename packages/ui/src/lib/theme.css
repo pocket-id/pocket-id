@@ -1,9 +1,11 @@
 @import './fonts.css';
 
-@variant dark (&:where(.dark, .dark *));
+/* A .light or .dark element forces its mode on its subtree, such as a preview, so .light inside a dark page opts out of dark: utilities */
+@variant dark (&:where(.dark, .dark *):not(:where(.light, .light *)));
 
 /* The values below are the Mono color theme, which Pocket ID overrides at runtime with the color theme an admin picks */
-:root {
+:root,
+.light {
 	--h-xs: 26px;
 	--h-sm: 34px;
 	--h-md: 42px;

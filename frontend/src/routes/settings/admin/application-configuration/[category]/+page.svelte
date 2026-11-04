@@ -8,9 +8,11 @@
 	import AppConfigService from '#lib/services/app-config-service.ts';
 	import appConfigStore from '#lib/stores/application-configuration-store.ts';
 	import type { AllAppConfig } from '#lib/types/application-configuration.type.ts';
+	import { cssMs } from '#lib/utils/style.ts';
 	import InfoIcon from '~icons/solar/info-circle-bold-duotone';
+	import { fade } from 'svelte/transition';
 	import type { Category } from '../categories.ts';
-	import AppConfigBrandingForm from '../forms/app-config-branding-form.svelte';
+	import AppConfigAppearanceForm from '../forms/appearance/app-config-appearance-form.svelte';
 	import AppConfigEmailForm from '../forms/app-config-email-form.svelte';
 	import AppConfigFeaturesForm from '../forms/app-config-features-form.svelte';
 	import AppConfigGeneralForm from '../forms/app-config-general-form.svelte';
@@ -78,7 +80,11 @@
 					: m.config_oidc_intro_basic(),
 			docs: 'https://pocket-id.org/docs/setup/connect-an-app'
 		},
-		{ id: 'branding', label: m.config_tab_branding(), intro: m.config_branding_intro }
+		{
+			id: 'appearance',
+			label: m.appearance(),
+			intro: () => `How ${appName} looks for everyone. Changes apply when you save.`
+		}
 	]);
 
 	// LDAP only has a tab while its feature is on, unless someone opened it by its URL
@@ -94,6 +100,24 @@
 		void goto(`/settings/admin/application-configuration/${category}`);
 	}
 </script>
+
+<!-- The intros of two tabs crossfade in one grid cell, so the header keeps its place while one replaces the other -->
+{#snippet intro()}
+	<span class="grid">
+		{#key data.category}
+			<span
+				class="col-start-1 row-start-1"
+				in:fade={{ duration: cssMs('--dur-base'), delay: cssMs('--dur-fast') }}
+				out:fade={{ duration: cssMs('--dur-fast') }}
+			>
+				{current.intro()}
+				{#if current.docs}
+					<DocsLink href={current.docs} />
+				{/if}
+			</span>
+		{/key}
+	</span>
+{/snippet}
 
 <svelte:head>
 	<title>{m.configuration()}</title>
@@ -113,7 +137,7 @@
 		</Alert.Root>
 	{/if}
 
-	<PageHeader title={m.configuration()} />
+	<PageHeader title={m.configuration()} description={intro} />
 
 	<Tabs.Root
 		bind:value={() => data.category, openCategory}
@@ -135,40 +159,36 @@
 		</div>
 
 		<Tabs.Content value={data.category}>
-			<p class="text-body text-fg-muted mt-4">
-				{current.intro()}
-				{#if current.docs}
-					<DocsLink href={current.docs} />
-				{/if}
-			</p>
-			<div class="mt-6 flex flex-col gap-10">
-				{#if data.category === 'general'}
-					<AppConfigGeneralForm {appConfig} callback={updateAppConfig} />
-				{:else if data.category === 'features'}
-					<AppConfigFeaturesForm features={data.features!} callback={updateAppConfig} />
-				{:else if data.category === 'signup'}
-					<AppConfigSignupForm
-						{appConfig}
-						showCustomClaims={!!data.features?.customClaims.enabled}
-						callback={updateAppConfig}
-					/>
-				{:else if data.category === 'passkeys'}
-					<AppConfigPasskeysForm {appConfig} callback={updateAppConfig} />
-				{:else if data.category === 'email'}
-					<AppConfigEmailForm {appConfig} callback={updateAppConfig} />
-				{:else if data.category === 'ldap'}
-					<AppConfigLdapForm {appConfig} callback={updateAppConfig} />
-				{:else if data.category === 'oidc'}
-					<AppConfigOidcForm
-						{appConfig}
-						oidcConfiguration={data.oidcConfiguration!}
-						showCimd={!!data.features?.cimd.enabled}
-						callback={updateAppConfig}
-					/>
-				{:else}
-					<AppConfigBrandingForm />
-				{/if}
-			</div>
+			{#key data.category}
+				<div class="mt-6 flex flex-col gap-10" in:fade={{ duration: cssMs('--dur-base') }}>
+					{#if data.category === 'general'}
+						<AppConfigGeneralForm {appConfig} callback={updateAppConfig} />
+					{:else if data.category === 'features'}
+						<AppConfigFeaturesForm features={data.features!} callback={updateAppConfig} />
+					{:else if data.category === 'signup'}
+						<AppConfigSignupForm
+							{appConfig}
+							showCustomClaims={!!data.features?.customClaims.enabled}
+							callback={updateAppConfig}
+						/>
+					{:else if data.category === 'passkeys'}
+						<AppConfigPasskeysForm {appConfig} callback={updateAppConfig} />
+					{:else if data.category === 'email'}
+						<AppConfigEmailForm {appConfig} callback={updateAppConfig} />
+					{:else if data.category === 'ldap'}
+						<AppConfigLdapForm {appConfig} callback={updateAppConfig} />
+					{:else if data.category === 'oidc'}
+						<AppConfigOidcForm
+							{appConfig}
+							oidcConfiguration={data.oidcConfiguration!}
+							showCimd={!!data.features?.cimd.enabled}
+							callback={updateAppConfig}
+						/>
+					{:else}
+						<AppConfigAppearanceForm />
+					{/if}
+				</div>
+			{/key}
 		</Tabs.Content>
 	</Tabs.Root>
 </div>

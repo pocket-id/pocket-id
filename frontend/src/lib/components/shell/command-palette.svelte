@@ -135,10 +135,9 @@
 			category('email', m.email()),
 			...(ldap ? [category('ldap', m.ldap())] : []),
 			category('oidc', m.oidc()),
-			category('branding', m.config_tab_branding()),
+			category('appearance', m.appearance()),
 			setting(m.application_name(), 'general', m.general()),
 			setting(m.session_duration(), 'general', m.general()),
-			setting(m.color_theme(), 'general', m.general()),
 			setting(m.disable_animations(), 'general', m.general()),
 			setting(m.user_verification(), 'passkeys', m.passkeys()),
 			setting(m.email_verification(), 'email', m.email()),
@@ -148,8 +147,8 @@
 				.flatMap((section) => section.rows)
 				.filter((row) => !features?.[row.id].enabled)
 				.map((row) => setting(row.title, 'features', m.config_tab_features())),
-			setting(m.logo(), 'branding', m.config_tab_branding()),
-			setting(m.config_signin_background(), 'branding', m.config_tab_branding())
+			setting(m.logo(), 'appearance', m.appearance()),
+			setting(m.config_signin_background(), 'appearance', m.appearance())
 		];
 	});
 

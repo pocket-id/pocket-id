@@ -1,6 +1,7 @@
 <script lang="ts">
 	import { beforeNavigate } from '$app/navigation';
 	import { page } from '$app/state';
+	import { applyAppearance } from '#lib/components/appearance/appearance.svelte.ts';
 	import ConfirmDialog from '#lib/components/confirm-dialog/confirm-dialog.svelte';
 	import Error from '#lib/components/error.svelte';
 	import NavigationProgress from '#lib/components/navigation-progress.svelte';
@@ -31,6 +32,7 @@
 	const { appConfig } = data;
 
 	setUiLabels({ close: m.close, optional: m.field_optional });
+	applyAppearance();
 
 	// Toasts sit above the phone bottom bar, and while the unsaved bar shows they rise above it too (its height plus 8px)
 	const barOpen = $derived(unsavedChanges.hasChanges || !!unsavedChanges.status);

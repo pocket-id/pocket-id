@@ -23,11 +23,13 @@ export type NavGroup = { label: string; items: NavItem[] };
 export function navGroups({
 	isAdmin,
 	verificationPending,
-	features
+	features,
+	homePageUrl
 }: {
 	isAdmin: boolean;
 	verificationPending: boolean;
 	features: Features | null;
+	homePageUrl: string;
 }): NavGroup[] {
 	// A user who still has to verify their email can only reach their account until they do
 	if (verificationPending) {
@@ -45,28 +47,28 @@ export function navGroups({
 		];
 	}
 
-	const groups: NavGroup[] = [
+	const accountItems: NavItem[] = [
 		{
-			label: m.account(),
-			items: [
-				{
-					href: '/settings/account',
-					label: m.my_account(),
-					icon: IdCard
-				},
-				{
-					href: '/settings/apps',
-					label: m.my_apps(),
-					icon: LayoutGrid
-				},
-				{
-					href: '/settings/audit-log',
-					label: m.activity(),
-					icon: History
-				}
-			]
+			href: '/settings/account',
+			label: m.my_account(),
+			icon: IdCard
+		},
+		{
+			href: '/settings/apps',
+			label: m.my_apps(),
+			icon: LayoutGrid
+		},
+		{
+			href: '/settings/audit-log',
+			label: m.activity(),
+			icon: History
 		}
 	];
+
+	// The configured home page leads the account group
+	accountItems.sort((a, b) => Number(b.href === homePageUrl) - Number(a.href === homePageUrl));
+
+	const groups: NavGroup[] = [{ label: m.account(), items: accountItems }];
 
 	if (isAdmin) {
 		groups.push({

@@ -12,19 +12,21 @@
 	import PanelLeftOpenIcon from '~icons/solar/panel-left-open-linear';
 	import CircleChevronUp from '~icons/solar/round-alt-arrow-up-linear';
 	import Search from '~icons/solar/magnifier-linear';
-	import AccountMenu from './account-menu.svelte';
-	import { activeHref, type NavGroup } from './nav-items.ts';
+	import AccountMenu from '../account-menu.svelte';
+	import { activeHref, type NavGroup } from '../nav-items.ts';
 
 	let {
 		groups,
 		versionInformation,
 		showUpdate,
-		collapsed = $bindable()
+		collapsed = $bindable(),
+		class: className
 	}: {
 		groups: NavGroup[];
 		versionInformation: AppVersionInformation;
 		showUpdate: boolean;
 		collapsed: boolean;
+		class?: string;
 	} = $props();
 
 	const current = $derived(activeHref(groups, page.url.pathname));
@@ -74,7 +76,8 @@
 		'bg-sidebar sticky top-0 hidden h-dvh flex-col px-3 pt-4 pb-3 sm:flex',
 		collapsed
 			? 'w-(--rail-w) items-center px-2'
-			: 'w-(--rail-w) items-center px-2 lg:w-(--sidebar-w) lg:items-stretch lg:px-3'
+			: 'w-(--rail-w) items-center px-2 lg:w-(--sidebar-w) lg:items-stretch lg:px-3',
+		className
 	)}
 >
 	<div class={cn('flex h-[42px] shrink-0 items-center gap-2', !collapsed && 'lg:pl-2')}>

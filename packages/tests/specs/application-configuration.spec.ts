@@ -317,7 +317,7 @@ test('Save LDAP configuration while LDAP remains disabled', async ({ page }) => 
 
 test.describe('Update application images', () => {
 	test.beforeEach(async ({ page }) => {
-		await page.goto(`${configUrl}/branding`);
+		await page.goto(`${configUrl}/appearance`);
 	});
 
 	test('should detect image removals as unsaved changes', async ({ page }) => {
@@ -326,16 +326,13 @@ test.describe('Update application images', () => {
 			.setInputFiles('resources/images/clouds.jpg');
 		await saveUnsavedChanges(page);
 
-		const removeBackground = page.getByRole('button', {
-			name: 'Remove sign-in background',
-			exact: true
-		});
-		await removeBackground.click();
-		await expect(removeBackground).toBeDisabled();
+		await page.getByRole('button', { name: 'Change sign-in background', exact: true }).click();
+		await page.getByRole('menuitem', { name: 'Remove', exact: true }).click();
+		await expect(page.getByText('Removed', { exact: true })).toBeVisible();
 		await expect(unsavedChangesBar(page)).toContainText(/\d+ unsaved changes?/);
 
 		await page.getByRole('button', { name: 'Discard', exact: true }).click();
-		await expect(removeBackground).toBeEnabled();
+		await expect(page.getByText('Removed', { exact: true })).toBeHidden();
 	});
 
 	test('should upload images and reset custom logos', async ({ page }) => {
@@ -375,8 +372,10 @@ test.describe('Update application images', () => {
 			.get('/api/application-images/background')
 			.then((res) => expect.soft(res.status()).toBe(200));
 
-		await page.getByRole('button', { name: 'Reset to default, light logo', exact: true }).click();
-		await page.getByRole('button', { name: 'Reset to default, dark logo', exact: true }).click();
+		for (const logo of ['light logo', 'dark logo']) {
+			await page.getByRole('button', { name: `Change ${logo}`, exact: true }).click();
+			await page.getByRole('menuitem', { name: 'Reset to default', exact: true }).click();
+		}
 		const logoDeleteResponses = [true, false].map((light) =>
 			page.waitForResponse((response) => {
 				const url = new URL(response.url());

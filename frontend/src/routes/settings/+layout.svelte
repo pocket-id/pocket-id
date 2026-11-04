@@ -2,10 +2,10 @@
 	import { onNavigate } from '$app/navigation';
 	import { page } from '$app/state';
 	import DocsLink from '#lib/components/docs-link.svelte';
-	import AppSidebar from '#lib/components/shell/app-sidebar.svelte';
 	import CommandPalette from '#lib/components/shell/command-palette.svelte';
 	import { navGroups } from '#lib/components/shell/nav-items.ts';
-	import PhoneNav from '#lib/components/shell/phone-nav.svelte';
+	import { appearance } from '#lib/components/appearance/appearance.svelte.ts';
+	import { shells } from '#lib/components/shell/variants/registry.ts';
 	import * as Alert from '@pocket-id/ui/alert';
 	import * as Tooltip from '@pocket-id/ui/tooltip';
 	import { m } from '#lib/paraglide/messages.js';
@@ -16,7 +16,6 @@
 	import { isEmailVerificationPending } from '#lib/utils/email-verification-util.ts';
 	import { cn } from '@pocket-id/ui/utils';
 	import TriangleAlertIcon from '~icons/solar/danger-triangle-bold-duotone';
-	import { PersistedState } from 'runed';
 	import type { Snippet } from 'svelte';
 	import type { LayoutData } from './$types';
 
@@ -33,8 +32,15 @@
 	const isAdmin = $derived(!!($userStore?.isAdmin || user?.isAdmin));
 	const verificationPending = $derived(isEmailVerificationPending(user, $appConfigStore));
 	const showUpdate = $derived(isAdmin && versionInformation.isUpToDate === false);
-	const groups = $derived(navGroups({ isAdmin, verificationPending, features: data.features }));
-	const collapsed = new PersistedState('sidebar-collapsed', false);
+	const groups = $derived(
+		navGroups({
+			isAdmin,
+			verificationPending,
+			features: data.features,
+			homePageUrl: $appConfigStore.homePageUrl
+		})
+	);
+	const Shell = $derived(shells[appearance.saved.layout]);
 
 	// List pages run gutter to gutter, the other pages keep the centered column
 	const listPage = $derived(
@@ -88,14 +94,8 @@
 </script>
 
 <Tooltip.Provider>
-	<div class={cn('bg-surface flex min-h-dvh', revealing && 'app-reveal')}>
-		<AppSidebar {groups} {versionInformation} {showUpdate} bind:collapsed={collapsed.current} />
-		<div class="flex min-w-0 flex-1 flex-col">
-			<PhoneNav
-				{groups}
-				version="Pocket ID {versionInformation.currentVersion}"
-				newestVersion={showUpdate ? versionInformation.newestVersion : null}
-			/>
+	<div class={cn('contents', revealing && 'app-reveal')}>
+		<Shell {groups} {versionInformation} {showUpdate}>
 			<main
 				bind:this={mainEl}
 				class={cn(
@@ -119,7 +119,7 @@
 					{@render children()}
 				{/key}
 			</main>
-		</div>
+		</Shell>
 	</div>
 	<CommandPalette
 		{groups}
