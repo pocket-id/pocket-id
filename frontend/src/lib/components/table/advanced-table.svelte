@@ -209,6 +209,35 @@
 			column.hideBelow === 520 && '@max-[520px]:hidden'
 		);
 
+	let tableRef = $state<HTMLTableElement | null>(null);
+	let stickyOverlaps = $state(false);
+
+	// Cells pass under the sticky column until the scroller reaches its right end
+	$effect(() => {
+		const scroller = tableRef?.parentElement;
+		if (!tableRef || !scroller || !hasStickyColumn) return;
+		const update = () =>
+			(stickyOverlaps = scroller.scrollLeft + scroller.clientWidth < scroller.scrollWidth - 1);
+		update();
+		const observer = new ResizeObserver(update);
+		observer.observe(scroller);
+		observer.observe(tableRef);
+		scroller.addEventListener('scroll', update, { passive: true });
+		return () => {
+			observer.disconnect();
+			scroller.removeEventListener('scroll', update);
+		};
+	});
+
+	// The fade inherits the cell's fill and hover shadow so it blends into the row in every state
+	const stickyCellClass = $derived(
+		cn(
+			'sticky right-0 z-(--z-sticky) w-px pr-2 pl-2 text-right',
+			stickyOverlaps &&
+				'before:pointer-events-none before:absolute before:inset-y-0 before:right-full before:w-8 before:[mask-image:linear-gradient(to_right,transparent,black)] before:[background:inherit] before:[box-shadow:inherit] before:[transition:inherit]'
+		)
+	);
+
 	function getPrimaryAction(item: T) {
 		if (!actions) return null;
 		const availableActions = actions(item).filter((a) => a.primary);
@@ -272,7 +301,7 @@
 			isRefreshing && 'pointer-events-none opacity-50 delay-(--t-dim-delay)'
 		)}
 	>
-		<Table.Root class="min-w-full table-auto">
+		<Table.Root bind:ref={tableRef} class="min-w-full table-auto">
 			<Table.Header>
 				<Table.Row>
 					{#if selectedIds}
@@ -326,7 +355,7 @@
 					{/each}
 					{#if hasStickyColumn}
 						<!-- Pinned to the right edge so the actions stay reachable when the table scrolls horizontally -->
-						<Table.Head class="sticky right-0 z-(--z-sticky) w-px pr-2 pl-2 text-right">
+						<Table.Head class={stickyCellClass}>
 							{#if hasOptionalColumns}
 								<AdvancedTableColumnSelection
 									{columns}
@@ -371,8 +400,12 @@
 						{/each}
 						{#if hasStickyColumn}
 							<!-- The sticky cell is opaque so scrolled cells pass under it, so it repeats the row's hover and selected fills -->
+							<!-- The fills are inset shadows over the surface because a custom appearance makes them translucent -->
 							<Table.Cell
-								class="bg-surface group-hover/row:bg-fill-row-hover group-has-focus-visible/row:bg-fill-row-hover group-data-[state=selected]/row:bg-fill-muted sticky right-0 z-(--z-sticky) w-px py-0 pr-2 pl-2 text-right transition-colors duration-(--dur-fast)"
+								class={cn(
+									stickyCellClass,
+									'bg-surface py-0 transition-shadow duration-(--dur-fast) group-hover/row:shadow-[inset_0_0_0_100vmax_var(--fill-row-hover)] group-has-focus-visible/row:shadow-[inset_0_0_0_100vmax_var(--fill-row-hover)] group-data-[state=selected]/row:shadow-[inset_0_0_0_100vmax_var(--fill-muted)]'
+								)}
 							>
 								{#if actions}
 									<ActionsMenu
