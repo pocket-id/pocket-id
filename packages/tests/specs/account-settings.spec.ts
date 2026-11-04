@@ -129,6 +129,29 @@ test('Add passkey to an account', async ({ page }) => {
 	await expect(page.getByText('Test Passkey', { exact: true })).toBeVisible();
 });
 
+test('Adding a device passkey fails when only security keys are allowed', async ({ page }) => {
+	await page.goto('/settings/admin/application-configuration/passkeys');
+	await page.getByLabel('Allowed authenticator type').click();
+	await page.getByRole('option', { name: /^Security keys only/ }).click();
+	await saveUnsavedChanges(page);
+
+	// Drop the attachment filter to act like browsers that ignore it, such as the Windows passkey dialog
+	await page.route('**/api/webauthn/register/start', async (route) => {
+		const response = await route.fetch();
+		const body = await response.json();
+		delete body.authenticatorSelection.authenticatorAttachment;
+		await route.fulfill({ response, json: body });
+	});
+
+	await page.goto('/settings/account');
+	await passkeyUtil.init(page);
+	await page.getByRole('button', { name: 'Add Passkey' }).click();
+
+	await expect(page.locator('[data-type="error"]')).toHaveText(
+		'This type of passkey is not allowed by your administrator'
+	);
+});
+
 test('Rename passkey', async ({ page }) => {
 	await page.goto('/settings/account');
 

@@ -27,6 +27,7 @@ const (
 	CodeWebAuthnAuthenticationFailed      Code = "webauthn_authentication_failed"
 	CodePasskeyUserVerificationRequired   Code = "passkey_user_verification_required"
 	CodeSyncedPasskeyNotAllowed           Code = "synced_passkey_not_allowed"
+	CodeAuthenticatorAttachmentNotAllowed Code = "authenticator_attachment_not_allowed"
 	CodeInvalidWebAuthnSession            Code = "invalid_webauthn_session"
 	CodeUserNotFound                      Code = "user_not_found"
 	CodeUserDisabled                      Code = "user_disabled"

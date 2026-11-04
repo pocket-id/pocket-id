@@ -161,6 +161,22 @@ func TestSyncedPasskeyPolicy(t *testing.T) {
 	require.NoError(t, validateCredentialPolicy(&appconfig.AppConfigModel{WebauthnAllowSyncedPasskeys: "false"}, credential))
 }
 
+func TestAuthenticatorAttachmentPolicy(t *testing.T) {
+	credential := &gowebauthn.Credential{
+		Authenticator: gowebauthn.Authenticator{Attachment: protocol.Platform},
+	}
+
+	require.NoError(t, validateCredentialPolicy(&appconfig.AppConfigModel{WebauthnAuthenticatorAttachment: "any"}, credential))
+	require.NoError(t, validateCredentialPolicy(&appconfig.AppConfigModel{WebauthnAuthenticatorAttachment: "platform"}, credential))
+
+	err := validateCredentialPolicy(&appconfig.AppConfigModel{WebauthnAuthenticatorAttachment: "cross-platform"}, credential)
+	require.True(t, apperror.IsCode(err, apperror.CodeAuthenticatorAttachmentNotAllowed))
+
+	credential.Authenticator.Attachment = ""
+	err = validateCredentialPolicy(&appconfig.AppConfigModel{WebauthnAuthenticatorAttachment: "cross-platform"}, credential)
+	require.True(t, apperror.IsCode(err, apperror.CodeAuthenticatorAttachmentNotAllowed), "a missing attachment must not bypass the policy")
+}
+
 func TestClassifyPasskeyErrorRecognizesMissingUserVerification(t *testing.T) {
 	rpIDHash := make([]byte, 32)
 	authenticatorData := protocol.AuthenticatorData{

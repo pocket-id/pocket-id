@@ -78,6 +78,7 @@
 	"any_authenticator": "Any passkey",
 	"device_passkeys_only": "Device passkeys only",
 	"synced_passkeys_not_allowed": "Synced passkeys are not allowed by your administrator",
+	"passkey_type_not_allowed": "This type of passkey is not allowed by your administrator",
 	"add_passkey": "Add passkey",
 	"first_name": "First name",
 	"last_name": "Last name",

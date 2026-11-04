@@ -135,6 +135,10 @@ func SyncedPasskeyNotAllowed() *Error {
 	return New(CodeSyncedPasskeyNotAllowed, http.StatusBadRequest, "Synced passkeys are not allowed")
 }
 
+func AuthenticatorAttachmentNotAllowed() *Error {
+	return New(CodeAuthenticatorAttachmentNotAllowed, http.StatusBadRequest, "This type of passkey is not allowed")
+}
+
 func ReservedClaim(key string) *Error {
 	return New(CodeReservedClaim, http.StatusBadRequest, fmt.Sprintf("Claim %s is reserved and can't be used", key)).
 		WithDetail("key", key).

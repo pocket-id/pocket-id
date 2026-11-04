@@ -475,6 +475,12 @@ func validateCredentialPolicy(dbConfig *appconfig.AppConfigModel, credential *go
 		return apperror.SyncedPasskeyNotAllowed()
 	}
 
+	// Browsers treat the requested attachment as a filter they may ignore, e.g. Windows still offers Windows Hello when only security keys are requested
+	// The reported attachment isn't signed by the authenticator, so this enforces the admin's policy rather than proving the authenticator type
+	if attachment := authenticatorAttachment(dbConfig); attachment != "" && credential.Authenticator.Attachment != attachment {
+		return apperror.AuthenticatorAttachmentNotAllowed()
+	}
+
 	return nil
 }
 
