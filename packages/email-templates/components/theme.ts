@@ -12,9 +12,8 @@ export const colors = {
 };
 
 export const fonts = {
-	sans: "'Funnel Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif",
-	display:
-		"'Funnel Display', 'Funnel Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif",
+	sans: "'DM Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif",
+	display: "'Young Serif', Georgia, 'Times New Roman', serif",
 	mono: "'JetBrains Mono', 'SF Mono', Menlo, Consolas, 'Liberation Mono', monospace"
 };
 

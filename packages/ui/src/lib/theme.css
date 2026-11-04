@@ -104,8 +104,6 @@
 	--primary-control: #0a0a0a;
 	--primary-control-fg: #ffffff;
 	--primary-edge: transparent;
-	--fw-display-l: 600;
-	--fw-display-m: 600;
 }
 
 .dark {
@@ -167,8 +165,6 @@
 	--primary-control: #ededed;
 	--primary-control-fg: #000000;
 	--primary-edge: transparent;
-	--fw-display-l: 500;
-	--fw-display-m: 500;
 	color-scheme: dark;
 }
 
@@ -208,8 +204,8 @@ html.no-motion {
 }
 
 @theme {
-	--font-sans: 'Funnel Sans', ui-sans-serif, system-ui, -apple-system, 'Segoe UI', sans-serif;
-	--font-display: 'Funnel Display', 'Funnel Sans', ui-sans-serif, system-ui, sans-serif;
+	--font-sans: 'DM Sans', ui-sans-serif, system-ui, -apple-system, 'Segoe UI', sans-serif;
+	--font-display: 'Young Serif', ui-serif, Georgia, serif;
 	--font-mono: 'JetBrains Mono', ui-monospace, 'SF Mono', Menlo, Consolas, monospace;
 
 	--radius-xs: 6px;
@@ -224,20 +220,18 @@ html.no-motion {
 	--ease-out: cubic-bezier(0.2, 0, 0, 1);
 	--ease-in-out: cubic-bezier(0.4, 0, 0.2, 1);
 	--ease-in: cubic-bezier(0.4, 0, 1, 1);
-}
 
-@theme inline {
 	--text-display-l: 34px;
 	--text-display-l--line-height: 42px;
-	--text-display-l--font-weight: var(--fw-display-l);
+	--text-display-l--font-weight: 400;
 	--text-display-l--letter-spacing: -0.02em;
 	--text-display-m: 28px;
 	--text-display-m--line-height: 36px;
-	--text-display-m--font-weight: var(--fw-display-m);
+	--text-display-m--font-weight: 400;
 	--text-display-m--letter-spacing: -0.015em;
 	--text-display-s: 22px;
 	--text-display-s--line-height: 30px;
-	--text-display-s--font-weight: 500;
+	--text-display-s--font-weight: 400;
 	--text-display-s--letter-spacing: -0.01em;
 	--text-title: 18px;
 	--text-title--line-height: 26px;
@@ -279,7 +273,9 @@ html.no-motion {
 	--text-code-cell--line-height: 38px;
 	--text-code-cell--font-weight: 500;
 	--text-code-cell--letter-spacing: 0em;
+}
 
+@theme inline {
 	--shadow-popover: var(--elevation-popover);
 	--shadow-overlay: var(--elevation-overlay);
 	--shadow-thumb: var(--elevation-thumb);

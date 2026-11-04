@@ -50,8 +50,8 @@ export const BaseTemplate = ({
 // Phones get the tighter padding of the app's sheet, because the desktop card's padding would leave too little room for the code
 const headCss = (appURL: string) =>
 	[
-		`@font-face{font-family:'Funnel Display';font-style:normal;font-weight:300 800;mso-font-alt:'Arial';src:url(${appURL}/fonts/FunnelDisplay-latin.woff2) format('woff2');}`,
-		`@font-face{font-family:'Funnel Sans';font-style:normal;font-weight:300 800;mso-font-alt:'Arial';src:url(${appURL}/fonts/FunnelSans-latin.woff2) format('woff2');}`,
+		`@font-face{font-family:'Young Serif';font-style:normal;font-weight:400;mso-font-alt:'Georgia';src:url(${appURL}/fonts/YoungSerif-latin.woff2) format('woff2');}`,
+		`@font-face{font-family:'DM Sans';font-style:normal;font-weight:100 1000;mso-font-alt:'Arial';src:url(${appURL}/fonts/DMSans-latin.woff2) format('woff2');}`,
 		`@font-face{font-family:'JetBrains Mono';font-style:normal;font-weight:400 500;mso-font-alt:'Courier New';src:url(${appURL}/fonts/JetBrainsMono-latin.woff2) format('woff2');}`,
 		`@media (max-width:520px){.card{padding:32px 24px !important;}}`
 	].join('');

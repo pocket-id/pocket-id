@@ -62,4 +62,4 @@ setUiLabels({ close: () => 'Schliessen', optional: () => '(optional)' });
 
 ## Fonts
 
-The bundled fonts are Funnel Sans, Funnel Display and JetBrains Mono, licensed under the SIL Open Font License (see `dist/fonts`).
+The bundled fonts are DM Sans, Young Serif and JetBrains Mono, licensed under the SIL Open Font License (see `dist/fonts`).

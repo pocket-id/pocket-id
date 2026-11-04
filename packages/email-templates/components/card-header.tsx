@@ -23,7 +23,7 @@ const titleStyle = {
 	fontFamily: fonts.display,
 	fontSize: '30px',
 	lineHeight: '38px',
-	fontWeight: 600,
+	fontWeight: 400,
 	letterSpacing: '-0.02em',
 	color: colors.fg
 };
