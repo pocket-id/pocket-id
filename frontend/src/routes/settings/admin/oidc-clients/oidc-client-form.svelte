@@ -264,7 +264,7 @@
 {#snippet switchRow(
 	key: 'skipConsent' | 'requiresPushedAuthorizationRequests',
 	title: string,
-	description: string,
+	description: string | undefined,
 	isChanged: boolean
 )}
 	<SettingRow
@@ -419,16 +419,13 @@
 				{@render switchRow(
 					'requiresPushedAuthorizationRequests',
 					m.requires_pushed_authorization_requests(),
-					m.requires_par_row_description(),
+					undefined,
 					changed.par
 				)}
 			</div>
 		</SettingsSection>
 
-		<SettingsSection
-			title={m.token_lifetimes()}
-			description={m.token_lifetimes_section_description()}
-		>
+		<SettingsSection title={m.token_lifetimes()}>
 			<div class="grid gap-6 pt-2 sm:grid-cols-2">
 				<div class="relative min-w-0">
 					<DurationInput
@@ -464,10 +461,7 @@
 		</SettingsSection>
 
 		{#if claimMappingPolicies}
-			<SettingsSection
-				title={m.claims()}
-				description={m.claims_section_description({ name: existingClient.name })}
-			>
+			<SettingsSection title={m.claims()}>
 				<div class="flex flex-col gap-3 pt-2">
 					<div class="relative max-w-100 min-w-0">
 						<FormInput

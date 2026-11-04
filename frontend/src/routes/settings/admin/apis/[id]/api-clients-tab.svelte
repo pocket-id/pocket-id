@@ -115,7 +115,7 @@
 	}
 </script>
 
-<SettingsSection title={m.clients()}>
+<SettingsSection title={m.clients()} description={m.api_clients_description()}>
 	{#snippet action()}
 		<Button variant="secondary" size="sm" onclick={openPicker}>
 			<PlusIcon />

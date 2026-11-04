@@ -154,7 +154,7 @@ func (s *filesystemStorage) List(_ context.Context, path string) ([]ObjectInfo, 
 			return nil, err
 		}
 		objects = append(objects, ObjectInfo{
-			Path:    filepath.Join(path, entry.Name()),
+			Path:    filepath.ToSlash(filepath.Join(path, entry.Name())),
 			Size:    info.Size(),
 			ModTime: info.ModTime(),
 		})

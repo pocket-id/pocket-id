@@ -73,10 +73,7 @@
 	}
 </script>
 
-<SettingsSection
-	title={m.signed_in_devices()}
-	description={m.user_sessions_section_description({ name: firstName })}
->
+<SettingsSection title={m.signed_in_devices()}>
 	{#snippet action()}
 		{#if sessions.length > 0}
 			<Button variant="secondary" size="sm" onclick={revokeAll}>{m.sign_out_everywhere()}</Button>

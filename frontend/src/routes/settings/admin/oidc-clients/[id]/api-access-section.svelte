@@ -116,10 +116,7 @@
 	}
 </script>
 
-<SettingsSection
-	title={m.api_access()}
-	description={m.apis_name_may_request_tokens_for_description({ name: client.name })}
->
+<SettingsSection title={m.api_access()}>
 	{#snippet action()}
 		{#if grants.length > 0}
 			<Button variant="secondary" size="sm" onclick={() => (pickerOpen = true)}>

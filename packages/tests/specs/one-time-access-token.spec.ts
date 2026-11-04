@@ -23,6 +23,7 @@ test('Sign in with login code without a passkey shows passkey setup', async ({ p
 	await (await passkeyUtil.init(page)).addPasskey();
 	await page.getByRole('button', { name: 'Sign in with passkey' }).click();
 	await page.waitForURL('/settings/account');
+	await page.getByRole('tab', { name: 'Passkeys' }).click();
 	await page
 		.getByRole('button', { name: /^Actions for / })
 		.first()

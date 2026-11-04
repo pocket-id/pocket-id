@@ -51,9 +51,7 @@
 
 <SignInWrapper back={'/login' + page.url.search}>
 	<AuthTile />
-	<AuthHeading title={m.auth_other_ways_to_sign_in()}>
-		{m.auth_other_ways_to_sign_in_description()}
-	</AuthHeading>
+	<AuthHeading title={m.auth_other_ways_to_sign_in()} />
 	<ul class="-mx-3 mb-6 flex flex-col gap-0.5">
 		{#each methods as method (method.href)}
 			<li>

@@ -67,7 +67,6 @@
 	</div>
 	<FormInput
 		label={m.username()}
-		description={m.username_rule()}
 		autocomplete="username"
 		inputClass="h-(--h-xl)"
 		bind:input={$inputs.username}

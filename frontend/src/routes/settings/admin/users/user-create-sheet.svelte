@@ -109,15 +109,10 @@
 			<FormInput
 				label={m.display_name()}
 				optional
-				description={m.display_name_follows_names()}
 				bind:input={$inputs.displayName}
 				onInput={() => (displayNameEdited = true)}
 			/>
-			<FormInput
-				label={m.username()}
-				description={m.username_rule()}
-				bind:input={$inputs.username}
-			/>
+			<FormInput label={m.username()} bind:input={$inputs.username} />
 			<div class="flex flex-col gap-3">
 				<FormInput
 					label={m.email()}

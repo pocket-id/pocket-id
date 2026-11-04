@@ -77,7 +77,6 @@
 		{:else if failure}
 			{failure.closed ? m.auth_passkey_prompt_closed() : failure.message}
 		{:else}
-			{m.auth_sign_in_subtitle()}
 			{#if $appConfigStore.allowUserSignups === 'open'}
 				{m.auth_new_here()}
 				<a href="/signup" class="inline-link">{m.auth_create_an_account()}</a>

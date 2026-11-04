@@ -116,7 +116,6 @@
 			<FormInput
 				label={m.display_name()}
 				optional
-				description={readOnly ? undefined : m.display_name_follows_names()}
 				bind:input={$inputs.displayName}
 				onInput={() => (displayNameEdited = true)}
 				readonly={readOnly}

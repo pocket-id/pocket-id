@@ -86,7 +86,6 @@
 			<FormInput
 				label={m.name()}
 				placeholder={m.policy_name_placeholder()}
-				description={m.policy_name_helper()}
 				autocomplete="off"
 				bind:input={$inputs.name}
 			/>
@@ -105,7 +104,6 @@
 						{/each}
 					</Select.Content>
 				</Select.Root>
-				<Field.Description>{m.start_from_helper()}</Field.Description>
 			</Field.Field>
 		</form>
 		{#snippet footer()}

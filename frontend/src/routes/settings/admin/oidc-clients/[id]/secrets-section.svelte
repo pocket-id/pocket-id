@@ -110,11 +110,7 @@
 
 <SettingsSection
 	title={m.client_secrets()}
-	description={client.isPublic
-		? undefined
-		: limitReached
-			? m.client_secrets_limit_reached()
-			: m.client_secrets_section_description()}
+	description={!client.isPublic && limitReached ? m.client_secrets_limit_reached() : undefined}
 >
 	<!-- An empty list offers the action in its row, so the header shows it only once secrets exist -->
 	{#snippet action()}

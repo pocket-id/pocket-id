@@ -68,7 +68,7 @@
 	}
 </script>
 
-<SettingsSection title={m.signed_in_devices()} description={m.signed_in_devices_description()}>
+<SettingsSection title={m.signed_in_devices()}>
 	{#snippet action()}
 		{#if hasOtherSessions}
 			<Button variant="secondary" size="sm" onclick={revokeOthers}>

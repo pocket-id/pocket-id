@@ -239,10 +239,7 @@
 	</SettingsSection>
 
 	<fieldset class="contents" disabled={$appConfigStore.uiConfigDisabled}>
-		<SettingsSection
-			title={m.config_connection()}
-			description={m.config_connection_description({ appName })}
-		>
+		<SettingsSection title={m.config_connection()}>
 			<div class="flex flex-col gap-4 py-4 shadow-[inset_0_-1px_0_var(--border)]">
 				<FormInput
 					class="max-w-[400px]"
@@ -282,10 +279,7 @@
 			</SettingRow>
 		</SettingsSection>
 
-		<SettingsSection
-			title={m.config_search()}
-			description={m.config_search_description({ appName })}
-		>
+		<SettingsSection title={m.config_search()}>
 			<div class="flex flex-col gap-4 py-4 shadow-[inset_0_-1px_0_var(--border)]">
 				<FormInput
 					inputClass="font-mono"

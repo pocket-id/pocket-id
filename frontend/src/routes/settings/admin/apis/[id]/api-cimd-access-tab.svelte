@@ -24,10 +24,7 @@
 	trackFormChanges(() => formStore, onSave);
 </script>
 
-<SettingsSection
-	title={m.metadata_document_clients()}
-	description={m.metadata_document_clients_description()}
->
+<SettingsSection title={m.metadata_document_clients()}>
 	<SettingRow
 		title={m.allow_all_metadata_document_clients()}
 		description={m.allow_all_metadata_document_clients_description()}

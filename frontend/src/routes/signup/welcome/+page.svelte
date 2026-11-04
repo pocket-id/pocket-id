@@ -80,9 +80,7 @@
 
 <SignInWrapper wide columns={false}>
 	<AuthTile />
-	<AuthHeading title={m.welcome_question()}>
-		{m.welcome_description()}
-	</AuthHeading>
+	<AuthHeading title={m.welcome_question()} />
 
 	<div
 		bind:this={grid}

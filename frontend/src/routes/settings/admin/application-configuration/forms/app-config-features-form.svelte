@@ -46,11 +46,11 @@
 
 <fieldset class="flex min-w-0 flex-col gap-10" disabled={$appConfigStore.uiConfigDisabled}>
 	{#each sections as section (section.title)}
-		<SettingsSection title={section.title} description={section.description}>
+		<SettingsSection title={section.title}>
 			{#each section.rows as row (row.id)}
 				<SettingRow
 					title={row.title}
-					description={`${row.description} ${row.adds}`}
+					description={row.description}
 					consequence={features[row.id].inUse ? row.inUse : undefined}
 					icon={row.icon}
 				>

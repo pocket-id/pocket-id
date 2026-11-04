@@ -51,17 +51,11 @@
 <fieldset class="flex min-w-0 flex-col gap-10" disabled={$appConfigStore.uiConfigDisabled}>
 	<SettingsSection title={m.application()}>
 		<div class="flex flex-col gap-4 py-4 shadow-[inset_0_-1px_0_var(--border)]">
-			<FormInput
-				class="max-w-[400px]"
-				label={m.application_name()}
-				description={m.config_app_name_description()}
-				bind:input={$inputs.appName}
-			/>
+			<FormInput class="max-w-[400px]" label={m.application_name()} bind:input={$inputs.appName} />
 			<div class="max-w-[400px]">
 				<DurationInput
 					id="session-duration"
 					label={m.session_duration()}
-					description={m.config_session_duration_description()}
 					bind:input={$inputs.sessionDuration}
 				/>
 			</div>
@@ -89,11 +83,7 @@
 				<Switch {...props} bind:checked={$inputs.allowOwnAccountEdit.value} />
 			{/snippet}
 		</SettingRow>
-		<SettingRow
-			title={m.disable_animations()}
-			description={m.config_disable_animations_description()}
-			icon={SparklesIcon}
-		>
+		<SettingRow title={m.disable_animations()} icon={SparklesIcon}>
 			{#snippet control(props)}
 				<Switch {...props} bind:checked={$inputs.disableAnimations.value} />
 			{/snippet}

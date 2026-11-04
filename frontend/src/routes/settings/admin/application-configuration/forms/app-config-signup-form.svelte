@@ -27,11 +27,7 @@
 	const appName = $derived($appConfigStore.appName);
 	const signupOptions: { value: string; label: string; description?: string }[] = $derived([
 		{ value: 'disabled', label: m.config_signup_disabled() },
-		{
-			value: 'withToken',
-			label: m.config_signup_with_token(),
-			description: m.config_signup_with_token_description()
-		},
+		{ value: 'withToken', label: m.config_signup_with_token() },
 		{
 			value: 'open',
 			label: m.config_signup_open(),
@@ -55,10 +51,7 @@
 </script>
 
 <fieldset class="flex min-w-0 flex-col gap-10" disabled={$appConfigStore.uiConfigDisabled}>
-	<SettingsSection
-		title={m.config_who_can_sign_up()}
-		description={m.config_who_can_sign_up_description()}
-	>
+	<SettingsSection title={m.config_who_can_sign_up()}>
 		<div class="flex flex-col gap-3 pt-2">
 			<RadioGroup.Root
 				bind:value={

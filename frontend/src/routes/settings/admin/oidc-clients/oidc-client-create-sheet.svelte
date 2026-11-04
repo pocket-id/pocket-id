@@ -93,12 +93,7 @@
 <Sheet.Root bind:open>
 	<Sheet.Content title={m.add_oidc_client()}>
 		<form id={formId} onsubmit={preventDefault(onSubmit)} class="flex flex-col gap-6">
-			<FormInput
-				label={m.name()}
-				placeholder="Planka"
-				description={m.client_name_helper()}
-				bind:input={$inputs.name}
-			/>
+			<FormInput label={m.name()} placeholder="Planka" bind:input={$inputs.name} />
 			<ClientTypeTiles bind:isPublic={$inputs.isPublic.value} />
 			<FormInput
 				label={m.callback_url()}

@@ -50,7 +50,6 @@
 			<FormInput
 				label={m.name()}
 				placeholder={m.api_name_placeholder()}
-				description={m.api_name_helper()}
 				bind:input={$inputs.name}
 			/>
 			<FormInput

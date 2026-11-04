@@ -503,7 +503,7 @@
 					<FormInput
 						class="max-w-100"
 						label={m.name()}
-						description={builtIn ? m.built_in_policy_keeps_its_name() : m.policy_name_helper()}
+						description={builtIn ? m.built_in_policy_keeps_its_name() : undefined}
 						autocomplete="off"
 						readonly={builtIn}
 						bind:input={$inputs.name}
