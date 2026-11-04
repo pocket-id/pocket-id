@@ -5,13 +5,16 @@
 package testing
 
 import (
+	"context"
 	"crypto/rand"
+	"database/sql"
 	"errors"
 	"log/slog"
 	"net/url"
 	"os"
 	"path/filepath"
 	"strings"
+	"sync"
 	"testing"
 	"time"
 
@@ -44,10 +47,62 @@ func init() {
 // Note: the in-memory database is limited to a single connection, so it cannot be used to test concurrent access: use NewConcurrentDatabaseForTest for that.
 func NewDatabaseForTest(t *testing.T) *gorm.DB {
 	t.Helper()
+
+	template, err := migratedSQLiteTemplate()
+	require.NoError(t, err, "Failed to build the migrated template database")
+
 	db := openInMemoryTestDB(t)
-	runMigrations(t, db, 0, nil)
+	sqlDB, err := db.DB()
+	require.NoError(t, err, "Failed to get sql.DB")
+	conn, err := sqlDB.Conn(t.Context())
+	require.NoError(t, err, "Failed to acquire connection")
+	defer conn.Close()
+
+	// Load the migrated schema into this test's database
+	err = conn.Raw(func(driverConn any) error {
+		return driverConn.(interface{ Deserialize(buf []byte) error }).Deserialize(template)
+	})
+	require.NoError(t, err, "Failed to load the migrated template database")
+
+	// Foreign key enforcement is a connection setting, so it isn't part of the template
+	_, err = conn.ExecContext(t.Context(), "PRAGMA foreign_keys = OFF;")
+	require.NoError(t, err, "Failed to disable foreign keys")
+
 	return db
 }
+
+// migratedSQLiteTemplate returns a serialized SQLite database with all migrations applied
+// It's built once per test binary because running every migration for each test is slow, especially under the race detector
+var migratedSQLiteTemplate = sync.OnceValues(func() ([]byte, error) {
+	db, err := sql.Open(sqlite.DriverName, "file:pocket-id-migration-template?mode=memory")
+	if err != nil {
+		return nil, err
+	}
+	defer db.Close()
+	db.SetMaxOpenConns(1)
+
+	m, err := newSQLiteMigrate(db)
+	if err != nil {
+		return nil, err
+	}
+	err = m.Up()
+	if err != nil {
+		return nil, err
+	}
+
+	conn, err := db.Conn(context.Background())
+	if err != nil {
+		return nil, err
+	}
+	defer conn.Close()
+
+	var template []byte
+	err = conn.Raw(func(driverConn any) error {
+		template, err = driverConn.(interface{ Serialize() ([]byte, error) }).Serialize()
+		return err
+	})
+	return template, err
+})
 
 // NewDatabaseForTestWithMigrationSeed behaves like NewDatabaseForTest, but pauses the migrations right after the migration whose version is stopAfterVersion has been applied.
 // It then invokes seed, so the test can insert data into the intermediate schema, before applying the remaining migrations.
@@ -198,15 +253,7 @@ func runMigrations(t *testing.T, db *gorm.DB, stopAfterVersion uint, seed func(t
 
 	sqlDB, err := db.DB()
 	require.NoError(t, err, "Failed to get sql.DB")
-
-	// Perform migrations with the embedded migrations
-	driver, err := sqliteMigrate.WithInstance(sqlDB, &sqliteMigrate.Config{
-		NoTxWrap: true,
-	})
-	require.NoError(t, err, "Failed to create migration driver")
-	source, err := iofs.New(resources.FS, "migrations/sqlite")
-	require.NoError(t, err, "Failed to create embedded migration source")
-	m, err := migrate.NewWithInstance("iofs", source, "pocket-id", driver)
+	m, err := newSQLiteMigrate(sqlDB)
 	require.NoError(t, err, "Failed to create migration instance")
 
 	// If the test wants to seed data partway through the migrations, apply migrations up to and including stopAfterVersion first, then let it seed
@@ -222,8 +269,23 @@ func runMigrations(t *testing.T, db *gorm.DB, stopAfterVersion uint, seed func(t
 	if !errors.Is(err, migrate.ErrNoChange) {
 		require.NoError(t, err, "Failed to perform migrations")
 	}
-	_, err = sqlDB.Exec("PRAGMA foreign_keys = OFF;")
+	_, err = sqlDB.ExecContext(t.Context(), "PRAGMA foreign_keys = OFF;")
 	require.NoError(t, err, "Failed to disable foreign keys")
+}
+
+// newSQLiteMigrate returns a migration instance that applies the embedded SQLite migrations to db
+func newSQLiteMigrate(db *sql.DB) (*migrate.Migrate, error) {
+	driver, err := sqliteMigrate.WithInstance(db, &sqliteMigrate.Config{
+		NoTxWrap: true,
+	})
+	if err != nil {
+		return nil, err
+	}
+	source, err := iofs.New(resources.FS, "migrations/sqlite")
+	if err != nil {
+		return nil, err
+	}
+	return migrate.NewWithInstance("iofs", source, "pocket-id", driver)
 }
 
 // newTestGormConfig returns the GORM configuration shared by the test databases, wiring the logger to the test's output.
