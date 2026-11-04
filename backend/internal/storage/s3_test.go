@@ -44,7 +44,7 @@ func TestS3Helpers(t *testing.T) {
 		}{
 			{name: "no prefix returns key unchanged", prefix: "", key: "images/logo.png", expected: "images/logo.png"},
 			{name: "no prefix empty key", prefix: "", key: "", expected: ""},
-			{name: "prefix matches and is stripped", prefix: "data/uploads", key: "data/uploads/application-images/logo.svg", expected: "application-images/logo.svg"},
+			{name: "prefix matches and is stripped", prefix: "data/uploads", key: "data/uploads/application-assets/logo.svg", expected: "application-assets/logo.svg"},
 			{name: "single-segment prefix stripped", prefix: "root", key: "root/foo/bar.txt", expected: "foo/bar.txt"},
 			{name: "prefix equal to key without trailing slash is unchanged", prefix: "root", key: "root", expected: "root"},
 			{name: "key without expected prefix returned unchanged", prefix: "data/uploads", key: "other/path.txt", expected: "other/path.txt"},
@@ -64,7 +64,7 @@ func TestS3Helpers(t *testing.T) {
 	t.Run("pathFromKey is the inverse of buildObjectKey for clean paths", func(t *testing.T) {
 		paths := []string{
 			"images/logo.png",
-			"application-images/logo.svg",
+			"application-assets/logo.svg",
 			"oidc-client-images/abc.png",
 			"deeply/nested/file.bin",
 		}

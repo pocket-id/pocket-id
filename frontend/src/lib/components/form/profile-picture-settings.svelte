@@ -6,7 +6,7 @@
 	import * as Tooltip from '@pocket-id/ui/tooltip';
 	import { m } from '#lib/paraglide/messages.js';
 	import appConfigStore from '#lib/stores/application-configuration-store.ts';
-	import { cachedProfilePicture } from '#lib/utils/cached-image-util.ts';
+	import { cachedProfilePicture } from '#lib/utils/cached-asset-util.ts';
 	import { cn } from '@pocket-id/ui/utils';
 	import CameraIcon from '~icons/solar/camera-bold';
 	import RotateCcwIcon from '~icons/solar/restart-bold';
@@ -99,7 +99,7 @@
 			<DropdownMenu.Root>
 				<DropdownMenu.Trigger
 					disabled={isLoading}
-					class="bg-surface-raised text-fg shadow-thumb inset-ring-border hover:bg-fill-hover focus-visible:outline-ring ring-surface absolute -right-1 -bottom-1 grid size-8 place-items-center rounded-full ring-2 inset-ring transition-colors duration-(--dur-fast) focus-visible:outline-2 focus-visible:outline-offset-4 disabled:pointer-events-none disabled:opacity-50"
+					class="bg-surface-raised text-fg shadow-thumb inset-ring-border focus-visible:outline-ring ring-surface absolute -right-1 -bottom-1 grid size-8 place-items-center rounded-full ring-2 inset-ring transition-colors duration-(--dur-fast) hover:bg-[linear-gradient(var(--fill-hover),var(--fill-hover))] focus-visible:outline-2 focus-visible:outline-offset-4 disabled:pointer-events-none disabled:opacity-50 aria-expanded:bg-[linear-gradient(var(--fill-hover),var(--fill-hover))]"
 				>
 					<CameraIcon class="size-4" />
 					<span id={labelId} class="sr-only">{m.profile_picture()}</span>

@@ -179,7 +179,7 @@ func registerRoutes(r *gin.Engine, db *gorm.DB, svc *services, auth *authz.Middl
 	svc.claimMappingPolicyModule.RegisterRoutes(apiRouter)
 	controller.NewAppConfigController(apiRouter, svc.appConfigService, svc.emailModule)
 	svc.ldapSyncModule.RegisterRoutes(apiRouter)
-	controller.NewAppImagesController(apiRouter, fileSizeLimitMiddleware, svc.appImagesService)
+	controller.NewAppAssetsController(apiRouter, fileSizeLimitMiddleware, svc.appAssetsService)
 	svc.auditLogsModule.RegisterRoutes(apiRouter)
 	controller.NewUserGroupController(apiRouter, svc.appConfigService, svc.userGroupService)
 	svc.apiModule.RegisterRoutes(apiRouter)
@@ -403,10 +403,11 @@ func shutdownServer(srv *http.Server) error {
 
 func initLogger(r *gin.Engine) {
 	loggerSkipPathsPrefix := []string{
-		"GET /api/application-images/logo",
-		"GET /api/application-images/background",
-		"GET /api/application-images/favicon",
-		"GET /api/application-images/email",
+		"GET /api/application-assets/logo",
+		"GET /api/application-assets/background",
+		"GET /api/application-assets/favicon",
+		"GET /api/application-assets/email",
+		"GET /api/application-assets/font",
 		"GET /_app",
 		"GET /fonts",
 		"GET /healthz",

@@ -32,7 +32,7 @@ type AppConfigModel struct {
 	SessionDuration     AppConfigValue `json:"sessionDuration" env:"SESSION_DURATION" type:"int"` // In minutes
 	HomePageURL         AppConfigValue `json:"homePageUrl" env:"HOME_PAGE_URL" public:"true"`
 	EmailsVerified      AppConfigValue `json:"emailsVerified" env:"EMAILS_VERIFIED" type:"bool"`
-	ColorTheme          AppConfigValue `json:"colorTheme" env:"COLOR_THEME" public:"true"` // A theme id, or custom:<css color> with an optional :dark suffix for a dark sidebar
+	Appearance          AppConfigValue `json:"appearance" env:"APPEARANCE" public:"true"` // JSON-encoded object, the frontend fills in the fields it lacks
 	DisableAnimations   AppConfigValue `json:"disableAnimations" env:"DISABLE_ANIMATIONS" type:"bool" public:"true"`
 	AllowOwnAccountEdit AppConfigValue `json:"allowOwnAccountEdit" env:"ALLOW_OWN_ACCOUNT_EDIT" type:"bool" public:"true"`
 	AllowUserSignups    AppConfigValue `json:"allowUserSignups" env:"ALLOW_USER_SIGNUPS" public:"true"`
@@ -146,7 +146,7 @@ func getDefaultConfig() *AppConfigModel {
 		AllowUserSignups:          "disabled",
 		SignupDefaultUserGroupIDs: "[]",
 		SignupDefaultCustomClaims: "[]",
-		ColorTheme:                "mono",
+		Appearance:                "{}",
 		// Email
 		RequireUserEmail:           "true",
 		SmtpHost:                   "",

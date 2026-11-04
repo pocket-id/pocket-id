@@ -32,7 +32,7 @@ import (
 type UserService struct {
 	db                 *gorm.DB
 	customClaimService *CustomClaimService
-	appImagesService   *AppImagesService
+	appAssetsService   *AppAssetsService
 	scimSyncScheduler  ScimSyncScheduler
 	backchannelLogout  *backchannellogout.Service
 	fileStorage        storage.FileStorage
@@ -54,11 +54,11 @@ type ownEmailChange struct {
 	deferred *string
 }
 
-func NewUserService(db *gorm.DB, customClaimService *CustomClaimService, appImagesService *AppImagesService, scimSyncScheduler ScimSyncScheduler, backchannelLogout *backchannellogout.Service, fileStorage storage.FileStorage, emailVerification EmailVerificationSender) *UserService {
+func NewUserService(db *gorm.DB, customClaimService *CustomClaimService, appAssetsService *AppAssetsService, scimSyncScheduler ScimSyncScheduler, backchannelLogout *backchannellogout.Service, fileStorage storage.FileStorage, emailVerification EmailVerificationSender) *UserService {
 	return &UserService{
 		db:                 db,
 		customClaimService: customClaimService,
-		appImagesService:   appImagesService,
+		appAssetsService:   appAssetsService,
 		scimSyncScheduler:  scimSyncScheduler,
 		backchannelLogout:  backchannelLogout,
 		fileStorage:        fileStorage,
@@ -127,8 +127,8 @@ func (s *UserService) GetProfilePicture(ctx context.Context, userID string) (io.
 	}
 
 	// Try default global profile picture
-	if s.appImagesService.IsDefaultProfilePictureSet() {
-		reader, size, _, err := s.appImagesService.GetImage(ctx, "default-profile-picture")
+	if s.appAssetsService.IsDefaultProfilePictureSet() {
+		reader, size, _, err := s.appAssetsService.GetAsset(ctx, "default-profile-picture")
 		if err == nil {
 			return reader, size, nil
 		}

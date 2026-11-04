@@ -8,8 +8,9 @@ import {
 	cachedBackgroundImage,
 	cachedDefaultProfilePicture,
 	cachedEmailLogo,
-	cachedProfilePicture
-} from '#lib/utils/cached-image-util.ts';
+	cachedProfilePicture,
+	cachedTitleFont
+} from '#lib/utils/cached-asset-util.ts';
 import { get } from 'svelte/store';
 import APIService from './api-service';
 
@@ -37,21 +38,21 @@ export default class AppConfigService extends APIService {
 		const formData = new FormData();
 		formData.append('file', favicon);
 
-		await this.api.put(`/application-images/favicon`, formData);
+		await this.api.put(`/application-assets/favicon`, formData);
 	};
 
 	updateLogo = async (logo: File, light = true) => {
 		const formData = new FormData();
 		formData.append('file', logo);
 
-		await this.api.put(`/application-images/logo`, formData, {
+		await this.api.put(`/application-assets/logo`, formData, {
 			params: { light }
 		});
 		cachedApplicationLogo.bustCache(light);
 	};
 
 	deleteLogo = async (light = true) => {
-		await this.api.delete(`/application-images/logo`, {
+		await this.api.delete(`/application-assets/logo`, {
 			params: { light }
 		});
 		cachedApplicationLogo.bustCache(light);
@@ -61,7 +62,7 @@ export default class AppConfigService extends APIService {
 		const formData = new FormData();
 		formData.append('file', emailLogo);
 
-		await this.api.put(`/application-images/email`, formData);
+		await this.api.put(`/application-assets/email`, formData);
 		cachedEmailLogo.bustCache();
 	};
 
@@ -69,7 +70,7 @@ export default class AppConfigService extends APIService {
 		const formData = new FormData();
 		formData.append('file', defaultProfilePicture);
 
-		await this.api.put(`/application-images/default-profile-picture`, formData);
+		await this.api.put(`/application-assets/default-profile-picture`, formData);
 		cachedDefaultProfilePicture.bustCache();
 	};
 
@@ -77,19 +78,32 @@ export default class AppConfigService extends APIService {
 		const formData = new FormData();
 		formData.append('file', backgroundImage!);
 
-		await this.api.put(`/application-images/background`, formData);
+		await this.api.put(`/application-assets/background`, formData);
 		cachedBackgroundImage.bustCache();
 	};
 
 	deleteBackgroundImage = async () => {
-		await this.api.delete(`/application-images/background`);
+		await this.api.delete(`/application-assets/background`);
 		cachedBackgroundImage.bustCache();
 	};
 
 	deleteDefaultProfilePicture = async () => {
-		await this.api.delete('/application-images/default-profile-picture');
+		await this.api.delete('/application-assets/default-profile-picture');
 		cachedDefaultProfilePicture.bustCache();
 		cachedProfilePicture.bustCache(get(userStore)!.id);
+	};
+
+	updateFont = async (font: File) => {
+		const formData = new FormData();
+		formData.append('file', font);
+
+		await this.api.put('/application-assets/font', formData);
+		cachedTitleFont.bustCache();
+	};
+
+	deleteFont = async () => {
+		await this.api.delete('/application-assets/font');
+		cachedTitleFont.bustCache();
 	};
 
 	sendTestEmail = async () => {

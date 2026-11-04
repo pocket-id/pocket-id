@@ -4,64 +4,69 @@ type SkipCacheUntil = {
 	[key: string]: number;
 };
 
-type CachableImage = {
+type CachedAsset = {
 	getUrl: (...props: any[]) => string;
 	bustCache: (...props: any[]) => void;
 };
 
-export const cachedApplicationLogo: CachableImage = {
-	getUrl: (light = true) => getCachedImageUrl(applicationLogoUrl(light)),
-	bustCache: (light = true) => bustImageCache(applicationLogoUrl(light))
+export const cachedApplicationLogo: CachedAsset = {
+	getUrl: (light = true) => getCachedAssetUrl(applicationLogoUrl(light)),
+	bustCache: (light = true) => bustAssetCache(applicationLogoUrl(light))
 };
 
 // The UI renders its own default logo, so the bundled logo is skipped to be able to tell whether a custom logo has been uploaded
 function applicationLogoUrl(light: boolean) {
-	const url = new URL('/api/application-images/logo', window.location.origin);
+	const url = new URL('/api/application-assets/logo', window.location.origin);
 	if (!light) url.searchParams.set('light', 'false');
 	url.searchParams.set('default', 'false');
 	return url;
 }
 
-export const cachedEmailLogo: CachableImage = {
-	getUrl: () => getCachedImageUrl(new URL('/api/application-images/email', window.location.origin)),
-	bustCache: () => bustImageCache(new URL('/api/application-images/email', window.location.origin))
+export const cachedEmailLogo: CachedAsset = {
+	getUrl: () => getCachedAssetUrl(new URL('/api/application-assets/email', window.location.origin)),
+	bustCache: () => bustAssetCache(new URL('/api/application-assets/email', window.location.origin))
 };
 
-export const cachedDefaultProfilePicture: CachableImage = {
+export const cachedDefaultProfilePicture: CachedAsset = {
 	getUrl: () =>
-		getCachedImageUrl(
-			new URL('/api/application-images/default-profile-picture', window.location.origin)
+		getCachedAssetUrl(
+			new URL('/api/application-assets/default-profile-picture', window.location.origin)
 		),
 	bustCache: () =>
-		bustImageCache(
-			new URL('/api/application-images/default-profile-picture', window.location.origin)
+		bustAssetCache(
+			new URL('/api/application-assets/default-profile-picture', window.location.origin)
 		)
 };
 
-export const cachedBackgroundImage: CachableImage = {
+export const cachedBackgroundImage: CachedAsset = {
 	getUrl: () =>
-		getCachedImageUrl(new URL('/api/application-images/background', window.location.origin)),
+		getCachedAssetUrl(new URL('/api/application-assets/background', window.location.origin)),
 	bustCache: () =>
-		bustImageCache(new URL('/api/application-images/background', window.location.origin))
+		bustAssetCache(new URL('/api/application-assets/background', window.location.origin))
 };
 
-export const cachedProfilePicture: CachableImage = {
+export const cachedTitleFont: CachedAsset = {
+	getUrl: () => getCachedAssetUrl(new URL('/api/application-assets/font', window.location.origin)),
+	bustCache: () => bustAssetCache(new URL('/api/application-assets/font', window.location.origin))
+};
+
+export const cachedProfilePicture: CachedAsset = {
 	getUrl: (userId: string) => {
 		const url = new URL(`/api/users/${userId}/profile-picture.png`, window.location.origin);
-		return getCachedImageUrl(url);
+		return getCachedAssetUrl(url);
 	},
 	bustCache: (userId: string) => {
 		const url = new URL(`/api/users/${userId}/profile-picture.png`, window.location.origin);
-		bustImageCache(url);
+		bustAssetCache(url);
 	}
 };
 
-export const cachedOidcClientLogo: CachableImage = {
-	getUrl: (clientId: string, light = true) => getCachedImageUrl(oidcClientLogoUrl(clientId, light)),
+export const cachedOidcClientLogo: CachedAsset = {
+	getUrl: (clientId: string, light = true) => getCachedAssetUrl(oidcClientLogoUrl(clientId, light)),
 	// Each variant falls back to the other one, so changing either logo can change what both URLs serve
 	bustCache: (clientId: string) => {
-		bustImageCache(oidcClientLogoUrl(clientId, true));
-		bustImageCache(oidcClientLogoUrl(clientId, false));
+		bustAssetCache(oidcClientLogoUrl(clientId, true));
+		bustAssetCache(oidcClientLogoUrl(clientId, false));
 	}
 };
 
@@ -75,7 +80,7 @@ function oidcClientLogoUrl(clientId: string, light: boolean) {
 }
 
 // Builds the URL of an authenticator icon
-// Unlike the images above these are static assets that only change with a new release, so they skip the cache busting helper and rely on the backend's cache headers
+// Unlike the assets above these are static assets that only change with a new release, so they skip the cache busting helper and rely on the backend's cache headers
 export function authenticatorIconUrl(aaguid: string, light = true) {
 	const url = new URL(
 		`/api/webauthn/authenticator-icons/${encodeURIComponent(aaguid)}`,
@@ -85,7 +90,7 @@ export function authenticatorIconUrl(aaguid: string, light = true) {
 	return url.pathname + (url.search ? `?${url.searchParams.toString()}` : '');
 }
 
-function getCachedImageUrl(url: URL) {
+function getCachedAssetUrl(url: URL) {
 	const baseKey = normalizeUrlForKey(url);
 	const skipCacheUntil = getSkipCacheUntil(baseKey);
 	const skipCache = skipCacheUntil > Date.now();
@@ -98,7 +103,7 @@ function getCachedImageUrl(url: URL) {
 	return finalUrl.pathname + (finalUrl.search ? `?${finalUrl.searchParams.toString()}` : '');
 }
 
-function bustImageCache(url: URL) {
+function bustAssetCache(url: URL) {
 	const key = normalizeUrlForKey(url);
 	const expiresAt = Date.now() + 1000 * 60 * 15;
 

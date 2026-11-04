@@ -53,6 +53,21 @@ func GetImageMimeType(ext string) string {
 	}
 }
 
+func GetFontMimeType(ext string) string {
+	switch ext {
+	case "woff2":
+		return "font/woff2"
+	case "woff":
+		return "font/woff"
+	case "ttf":
+		return "font/ttf"
+	case "otf":
+		return "font/otf"
+	default:
+		return ""
+	}
+}
+
 func GetImageExtensionFromMimeType(mimeType string) string {
 	// Normalize and strip parameters like `; charset=utf-8`
 	mt := strings.TrimSpace(strings.ToLower(mimeType))

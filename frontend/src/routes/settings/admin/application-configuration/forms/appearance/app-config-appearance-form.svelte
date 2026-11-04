@@ -1,10 +1,3 @@
-<script lang="ts" module>
-	import type { Font, Layout } from '#lib/components/appearance/appearance.svelte.ts';
-
-	// The last uploaded font keeps its tile while another font is picked
-	let customFont = $state<Extract<Font, { kind: 'custom' }> | null>(null);
-</script>
-
 <script lang="ts">
 	import AppearancePreview from '#lib/components/appearance/appearance-preview.svelte';
 	import {
@@ -15,9 +8,11 @@
 		fonts,
 		layouts,
 		radii,
-		readFontFile
+		type Font,
+		type Layout
 	} from '#lib/components/appearance/appearance.svelte.ts';
 	import { m } from '#lib/paraglide/messages.js';
+	import type { AllAppConfig } from '#lib/types/application-configuration.type.ts';
 	import { deepEqual } from '#lib/utils/form-util.ts';
 	import { Badge } from '@pocket-id/ui/badge';
 	import { Button } from '@pocket-id/ui/button';
@@ -33,33 +28,32 @@
 	import PreviewSection, { tileClass } from './preview-section.svelte';
 	import SurfacesSection from './surfaces-section.svelte';
 
-	trackAppearance();
+	let {
+		callback
+	}: {
+		callback: (appConfig: Partial<AllAppConfig>) => Promise<void>;
+	} = $props();
+
+	trackAppearance(callback);
 
 	const uid = $props.id();
 
+	const customFont = $derived(appearance.customFont);
 	const isDefault = $derived(deepEqual(appearance.value, defaultAppearance));
 	const shownFonts = $derived(customFont ? fonts : fonts.filter((f) => f.value !== 'custom'));
 
-	$effect.pre(() => {
-		if (appearance.value.font.kind === 'custom') customFont = appearance.value.font;
-	});
-
-	// The draft only declares the custom font while it uses it, so the custom tile keeps the last upload loaded on its own
+	// The draft only declares the custom font while it uses it, so the custom tile keeps the font loaded on its own
 	$effect(() => {
 		if (!customFont) return;
-		const face = new FontFace('Uploaded Font', `url("${customFont.data}")`);
+		const face = new FontFace('Uploaded Font', `url("${customFont.url}")`);
 		document.fonts.add(face);
 		return () => document.fonts.delete(face);
 	});
 
-	function setFont(kind: string) {
-		appearance.value.font = kind === 'custom' && customFont ? customFont : { kind: 'serif' };
-	}
-
-	async function uploadFont(e: Event & { currentTarget: HTMLInputElement }) {
+	function uploadFont(e: Event & { currentTarget: HTMLInputElement }) {
 		const file = e.currentTarget.files?.[0];
 		e.currentTarget.value = '';
-		if (file) appearance.value.font = await readFontFile(file);
+		if (file) appearance.uploadFont(file);
 	}
 
 	const fontFamily = (value: Font['kind']) =>
@@ -129,7 +123,9 @@
 					aria-labelledby="{uid}-font"
 					orientation="horizontal"
 					class={cn('grid gap-2', customFont ? 'col-span-2 grid-cols-2' : 'grid-cols-1')}
-					bind:value={() => appearance.value.font.kind, setFont}
+					bind:value={
+						() => appearance.value.font.kind, (kind) => appearance.setFont(kind as Font['kind'])
+					}
 				>
 					{#each shownFonts as option (option.value)}
 						<RadioGroup.Item

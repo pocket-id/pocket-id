@@ -581,7 +581,7 @@ func newTestLdapService(t *testing.T, client ldapClient) (*Service, *gorm.DB) {
 	userService := service.NewUserService(
 		db,
 		service.NewCustomClaimService(db),
-		service.NewAppImagesService(map[string]string{}, fileStorage),
+		service.NewAppAssetsService(map[string]string{}, fileStorage),
 		nil,
 		nil,
 		fileStorage,

@@ -4,7 +4,7 @@
 	import { m } from '#lib/paraglide/messages.js';
 	import { getLocale } from '#lib/paraglide/runtime.js';
 	import type { Passkey } from '#lib/types/passkey.type.ts';
-	import { authenticatorIconUrl } from '#lib/utils/cached-image-util.ts';
+	import { authenticatorIconUrl } from '#lib/utils/cached-asset-util.ts';
 	import KeyRoundIcon from '~icons/solar/key-minimalistic-bold-duotone';
 	import PencilIcon from '~icons/solar/pen-bold';
 	import Trash2Icon from '~icons/solar/trash-bin-minimalistic-bold';

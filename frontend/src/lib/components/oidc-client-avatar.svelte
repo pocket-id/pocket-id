@@ -21,7 +21,7 @@
 
 <script lang="ts">
 	import { m } from '#lib/paraglide/messages.js';
-	import { cachedOidcClientLogo } from '#lib/utils/cached-image-util.ts';
+	import { cachedOidcClientLogo } from '#lib/utils/cached-asset-util.ts';
 	import { cn } from '@pocket-id/ui/utils';
 	import { mode } from 'mode-watcher';
 

@@ -5,7 +5,7 @@
 	import * as Tooltip from '@pocket-id/ui/tooltip';
 	import { m } from '#lib/paraglide/messages.js';
 	import userStore from '#lib/stores/user-store.ts';
-	import { cachedProfilePicture } from '#lib/utils/cached-image-util.ts';
+	import { cachedProfilePicture } from '#lib/utils/cached-asset-util.ts';
 	import { setModeInstantly } from '#lib/utils/color-theme-util.ts';
 	import { signOut } from '#lib/utils/sign-out-util.ts';
 	import { cn } from '@pocket-id/ui/utils';

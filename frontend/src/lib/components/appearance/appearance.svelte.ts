@@ -1,34 +1,31 @@
 import { m } from '#lib/paraglide/messages.js';
 import AppConfigService from '#lib/services/app-config-service.ts';
+import type { AllAppConfig } from '#lib/types/application-configuration.type.ts';
 import {
 	cachedApplicationLogo,
 	cachedBackgroundImage,
 	cachedDefaultProfilePicture,
-	cachedEmailLogo
-} from '#lib/utils/cached-image-util.ts';
+	cachedEmailLogo,
+	cachedTitleFont
+} from '#lib/utils/cached-asset-util.ts';
 import { deepEqual } from '#lib/utils/form-util.ts';
 import appConfigStore from '#lib/stores/application-configuration-store.ts';
-import {
-	colorThemeFor,
-	deriveAccent,
-	parseColor,
-	primaryVars
-} from '#lib/utils/color-theme-util.ts';
+import { deriveAccent, parseColor, primaryVars } from '#lib/utils/color-theme-util.ts';
+import { monoTheme } from '#lib/utils/mono-theme.ts';
 import { trackUnsavedSection } from '#lib/utils/unsaved-changes-util.svelte.ts';
 import { mode } from 'mode-watcher';
-import { PersistedState } from 'runed';
 import { fromStore } from 'svelte/store';
 
 export type Mode = 'light' | 'dark';
 export type Layout = 'classic' | 'twin-cards' | 'backdrop';
 export type SurfaceRole = 'background' | 'sidebar' | 'surface';
 export type Surfaces = Record<SurfaceRole, string>;
-export type Font = { kind: 'serif' } | { kind: 'custom'; name: string; data: string };
+export type Font = { kind: 'serif' } | { kind: 'custom'; name: string };
 
 export type Appearance = {
 	layout: Layout;
 	surfaces: Record<Mode, Surfaces>;
-	// One color for both modes, which each mode adjusts until its text passes contrast, null keeps the color theme's own
+	// One color for both modes, which each mode adjusts until its text passes contrast, null keeps the theme's monochrome ink
 	primary: string | null;
 	// The font of page and dialog titles, Young Serif unless an admin uploads their own, body text always stays DM Sans
 	font: Font;
@@ -168,7 +165,7 @@ export const brandImages: {
 		title: m.favicon,
 		name: m.config_image_favicon,
 		spec: m.config_favicon_spec,
-		url: () => '/api/application-images/favicon',
+		url: () => '/api/application-assets/favicon',
 		accept: 'image/svg+xml, image/png, image/x-icon'
 	},
 	{
@@ -182,8 +179,6 @@ export const brandImages: {
 		canRemove: true
 	}
 ];
-
-const stored = new PersistedState<Appearance>('appearance', defaultAppearance);
 
 // Older settings stored null for the theme's own color, which the defaults now spell out
 const setColors = (colors?: Partial<Record<SurfaceRole, string | null>>) =>
@@ -201,32 +196,49 @@ const withDefaults = (a: Partial<Appearance>): Appearance => ({
 });
 
 const appConfigService = new AppConfigService();
+const config = fromStore(appConfigStore);
+
 const objectUrls = new WeakMap<File, string>();
+const objectUrl = (file: File) => {
+	let url = objectUrls.get(file);
+	if (!url) objectUrls.set(file, (url = URL.createObjectURL(file)));
+	return url;
+};
 
 // The app shows the saved appearance, the draft only shows inside .appearance-draft previews until the unsaved-changes bar saves it
 class AppearanceDraft {
-	value = $state<Appearance>(withDefaults(stored.current));
+	value = $state<Appearance>(withDefaults({}));
 	// A file to upload, null to reset or remove the image, missing while unchanged
 	images = $state<Partial<Record<BrandImageKey, File | null>>>({});
 	// Bumped on discard so image fields that keep their own preview can remount
 	imagesKey = $state(0);
+	// The last font uploaded into the draft, which stays on offer while another font is picked
+	fontFile = $state<File>();
 
-	saved = $derived(withDefaults(stored.current));
+	saved = $derived(withDefaults(config.current?.appearance ?? {}));
 
 	changes = $derived(
 		(Object.keys(defaultAppearance) as (keyof Appearance)[]).filter(
 			(key) => !deepEqual(this.value[key], this.saved[key])
-		).length + Object.keys(this.images).length
+		).length +
+			Object.keys(this.images).length +
+			(this.value.font.kind === 'custom' && this.fontFile ? 1 : 0)
 	);
+
+	// The custom font to offer: the one uploaded into the draft, or else the saved one
+	customFont = $derived.by(() => {
+		if (this.fontFile) return { name: fontName(this.fontFile.name), url: objectUrl(this.fontFile) };
+		if (this.saved.font.kind === 'custom')
+			return { name: this.saved.font.name, url: cachedTitleFont.getUrl() };
+		return null;
+	});
 
 	// The URL to show for an image: the pending file, the saved image, or null once it is removed
 	imageUrl(key: BrandImageKey) {
 		const file = this.images[key];
 		if (file === null) return null;
 		if (!file) return brandImages.find((image) => image.key === key)!.url();
-		let url = objectUrls.get(file);
-		if (!url) objectUrls.set(file, (url = URL.createObjectURL(file)));
-		return url;
+		return objectUrl(file);
 	}
 
 	setImage(key: BrandImageKey, file: File | null | undefined) {
@@ -234,10 +246,30 @@ class AppearanceDraft {
 		else this.images[key] = file;
 	}
 
-	async save() {
+	setFont(kind: Font['kind']) {
+		this.value.font =
+			kind === 'custom' && this.customFont
+				? { kind: 'custom', name: this.customFont.name }
+				: { kind: 'serif' };
+	}
+
+	uploadFont(file: File) {
+		this.fontFile = file;
+		this.setFont('custom');
+	}
+
+	// The files go first, so no one gets an appearance whose font or images are still missing
+	async save(update: (config: Partial<AllAppConfig>) => Promise<void>) {
 		const { logoLight, logoDark, background, emailLogo, favicon, defaultProfilePicture } =
 			this.images;
+		const font =
+			this.value.font.kind === 'custom'
+				? this.fontFile
+				: this.saved.font.kind === 'custom'
+					? null
+					: undefined;
 		await Promise.all([
+			font === null ? appConfigService.deleteFont() : font && appConfigService.updateFont(font),
 			favicon && appConfigService.updateFavicon(favicon),
 			emailLogo && appConfigService.updateEmailLogo(emailLogo),
 			logoLight === null
@@ -254,13 +286,15 @@ class AppearanceDraft {
 				? appConfigService.deleteBackgroundImage()
 				: background && appConfigService.updateBackgroundImage(background)
 		]);
+		await update({ appearance: $state.snapshot(this.value) });
 		this.images = {};
-		stored.current = $state.snapshot(this.value);
+		this.fontFile = undefined;
 	}
 
 	discard() {
-		this.value = withDefaults(stored.current);
+		this.value = structuredClone(this.saved);
 		this.images = {};
+		this.fontFile = undefined;
 		this.imagesKey++;
 	}
 }
@@ -287,10 +321,12 @@ export const previewMode = new PreviewMode();
 export const previewClass = () => `appearance-draft ${previewMode.current}`;
 
 // Registers the draft with the unsaved-changes bar for as long as the calling component lives
-export function trackAppearance() {
+// Leaving the form takes saving or discarding the draft, so the form starts it from the saved appearance, which only arrives with the app config
+export function trackAppearance(update: (config: Partial<AllAppConfig>) => Promise<void>) {
+	appearance.discard();
 	trackUnsavedSection(
 		() => appearance.changes,
-		() => appearance.save(),
+		() => appearance.save(update),
 		() => appearance.discard()
 	);
 }
@@ -303,17 +339,6 @@ const fontName = (fileName: string) =>
 		.replace(/([a-z])([A-Z])/g, '$1 $2')
 		.replaceAll('_', ' ')
 		.trim() || fileName;
-
-// Reads a custom font file into a data URL, which the draft stores until the backend can host the file
-export async function readFontFile(file: File): Promise<Font> {
-	const data = await new Promise<string>((resolve, reject) => {
-		const reader = new FileReader();
-		reader.onload = () => resolve(reader.result as string);
-		reader.onerror = () => reject(reader.error);
-		reader.readAsDataURL(file);
-	});
-	return { kind: 'custom', name: fontName(file.name), data };
-}
 
 // The theme's body text is 15px, and text gets 1% more letter spacing than the theme
 const THEME_TEXT_SIZE = 15;
@@ -349,9 +374,6 @@ const radiusTokens = [
 	'radius-4xl'
 ];
 
-const config = fromStore(appConfigStore);
-const colorTheme = () => colorThemeFor(config.current?.colorTheme ?? '');
-
 type ThemeBase = ReturnType<typeof readThemeBase>;
 
 // Reads the theme's own type, sizes and radii, so it must run while no appearance rule is applied
@@ -383,9 +405,9 @@ const shade = (hex: string, by: number) =>
 		)
 		.join('');
 
-// Only colors that differ from the color theme's own override it, so the default light mode keeps the theme exactly
+// Only colors that differ from the theme's own override it, so the default light mode keeps the theme exactly
 function surfaceVars(mode: Mode, { background, sidebar, surface }: Surfaces) {
-	const theme = colorTheme().tokens[mode];
+	const theme = monoTheme.tokens[mode];
 	const newSidebar = sidebar !== theme.sidebar;
 	const newSurface = surface !== theme.surface;
 	const vars: Record<string, string> = { 'shell-bg': background };
@@ -429,13 +451,12 @@ function surfaceVars(mode: Mode, { background, sidebar, surface }: Surfaces) {
 
 // The fit checks contrast against the surface, so it uses the appearance's surface where one is set
 function accentFor(a: Appearance, mode: Mode) {
-	const theme = colorTheme();
 	const surface = a.surfaces[mode].surface;
 	const rgb = surface ? parseColor(surface)?.rgb : undefined;
 	const inputs = rgb
-		? { ...theme.accentInputs[mode], surface: rgb, canvas: rgb }
-		: theme.accentInputs[mode];
-	return deriveAccent(a.primary ?? theme.accent, inputs);
+		? { ...monoTheme.accentInputs[mode], surface: rgb, canvas: rgb }
+		: monoTheme.accentInputs[mode];
+	return deriveAccent(a.primary ?? 'default', inputs);
 }
 
 // The primary as a mode shows it, and the status color it may be mistaken for
@@ -445,10 +466,10 @@ export function derivedPrimary(a: Appearance, mode: Mode) {
 	return { fill: vars.primary, fillFg: vars['primary-fg'], nearSemantic: derived.nearSemantic };
 }
 
-// A preview neither inherits the saved appearance nor the page's mode, so it sets the color theme's whole mode and the draft's colors on top
+// A preview neither inherits the saved appearance nor the page's mode, so it sets the theme's whole mode and the draft's colors on top
 function previewColorVars(mode: Mode, a: Appearance) {
 	return {
-		...colorTheme().tokens[mode],
+		...monoTheme.tokens[mode],
 		...primaryVars(accentFor(a, mode)),
 		...surfaceVars(mode, a.surfaces[mode])
 	};
@@ -488,24 +509,24 @@ const block = (vars: Record<string, string>) =>
 const fontFace = (family: string, src: string) =>
 	`@font-face { font-family: '${family}'; src: url("${src}"); font-display: swap; }`;
 
-// The mode selectors outrank the color theme's html:root and html.dark rules
+// The mode selectors outrank the :root and .dark rules of theme.css
 function savedCss(a: Appearance, base: ThemeBase) {
 	return [
 		`html:root { ${block(typeVars(a, base, false))} }`,
 		`html:root:not(.dark) { ${block(savedColorVars('light', a))} }`,
 		`html.dark:root { ${block(savedColorVars('dark', a))} }`,
-		a.font.kind === 'custom' ? fontFace('Appearance Custom', a.font.data) : ''
+		a.font.kind === 'custom' ? fontFace('Appearance Custom', cachedTitleFont.getUrl()) : ''
 	].join('\n');
 }
 
-function draftCss(a: Appearance, base: ThemeBase) {
+function draftCss(a: Appearance, base: ThemeBase, fontUrl: string | undefined) {
 	return [
 		`.appearance-draft { ${block(typeVars(a, base, true))} }`,
 		...(['light', 'dark'] as const).map(
 			(mode) =>
 				`.appearance-draft.${mode} { ${block(previewColorVars(mode, a))} color: var(--fg); color-scheme: ${mode}; }`
 		),
-		a.font.kind === 'custom' ? fontFace('Appearance Draft', a.font.data) : ''
+		a.font.kind === 'custom' && fontUrl ? fontFace('Appearance Draft', fontUrl) : ''
 	].join('\n');
 }
 
@@ -527,7 +548,7 @@ export function applyAppearance() {
 		live.textContent = savedCss(appearance.saved, base);
 	});
 	$effect(() => {
-		draft.textContent = draftCss(appearance.value, base);
+		draft.textContent = draftCss(appearance.value, base, appearance.customFont?.url);
 	});
 	$effect(() => () => {
 		live.remove();

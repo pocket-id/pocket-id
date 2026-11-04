@@ -14,7 +14,7 @@
 	import type { AuditLog, AuditLogDateRange, AuditLogFilter } from '#lib/types/audit-log.type.ts';
 	import type { ListRequestOptions, Paginated } from '#lib/types/list-request.type.ts';
 	import { translateAuditLogEvent } from '#lib/utils/audit-log-translator.ts';
-	import { cachedProfilePicture } from '#lib/utils/cached-image-util.ts';
+	import { cachedProfilePicture } from '#lib/utils/cached-asset-util.ts';
 	import { cn } from '@pocket-id/ui/utils';
 	import ChevronDownIcon from '~icons/solar/alt-arrow-down-linear';
 	import MonitorIcon from '~icons/solar/monitor-bold-duotone';

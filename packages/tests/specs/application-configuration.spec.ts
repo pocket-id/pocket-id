@@ -315,6 +315,18 @@ test('Save LDAP configuration while LDAP remains disabled', async ({ page }) => 
 	});
 });
 
+test('should save the appearance for everyone', async ({ page }) => {
+	await page.goto(`${configUrl}/appearance`);
+	await page.getByRole('radio', { name: 'Classic', exact: true }).click();
+	await saveUnsavedChanges(page);
+
+	const config: { key: string; value: string }[] = await page.request
+		.get('/api/application-configuration')
+		.then((res) => res.json());
+	const appearance = config.find(({ key }) => key === 'appearance')!;
+	expect(JSON.parse(appearance.value).layout).toBe('classic');
+});
+
 test.describe('Update application images', () => {
 	test.beforeEach(async ({ page }) => {
 		await page.goto(`${configUrl}/appearance`);
@@ -357,19 +369,19 @@ test.describe('Update application images', () => {
 		await saveUnsavedChanges(page);
 
 		await page.request
-			.get('/api/application-images/favicon')
+			.get('/api/application-assets/favicon')
 			.then((res) => expect.soft(res.status()).toBe(200));
 		await page.request
-			.get('/api/application-images/logo?light=true')
+			.get('/api/application-assets/logo?light=true')
 			.then((res) => expect.soft(res.status()).toBe(200));
 		await page.request
-			.get('/api/application-images/logo?light=false')
+			.get('/api/application-assets/logo?light=false')
 			.then((res) => expect.soft(res.status()).toBe(200));
 		await page.request
-			.get('/api/application-images/email')
+			.get('/api/application-assets/email')
 			.then((res) => expect.soft(res.status()).toBe(200));
 		await page.request
-			.get('/api/application-images/background')
+			.get('/api/application-assets/background')
 			.then((res) => expect.soft(res.status()).toBe(200));
 
 		for (const logo of ['light logo', 'dark logo']) {
@@ -381,7 +393,7 @@ test.describe('Update application images', () => {
 				const url = new URL(response.url());
 				return (
 					response.request().method() === 'DELETE' &&
-					url.pathname === '/api/application-images/logo' &&
+					url.pathname === '/api/application-assets/logo' &&
 					url.searchParams.get('light') === String(light)
 				);
 			})
@@ -393,18 +405,18 @@ test.describe('Update application images', () => {
 
 		// Without a custom logo the endpoint falls back to the logo bundled with Pocket ID
 		await page.request
-			.get('/api/application-images/logo?light=true')
+			.get('/api/application-assets/logo?light=true')
 			.then((res) => expect.soft(res.status()).toBe(200));
 		await page.request
-			.get('/api/application-images/logo?light=false')
+			.get('/api/application-assets/logo?light=false')
 			.then((res) => expect.soft(res.status()).toBe(200));
 
 		// The bundled logo can be skipped to check whether a custom logo is set
 		await page.request
-			.get('/api/application-images/logo?light=true&default=false')
+			.get('/api/application-assets/logo?light=true&default=false')
 			.then((res) => expect.soft(res.status()).toBe(404));
 		await page.request
-			.get('/api/application-images/logo?light=false&default=false')
+			.get('/api/application-assets/logo?light=false&default=false')
 			.then((res) => expect.soft(res.status()).toBe(404));
 	});
 

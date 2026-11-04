@@ -65,9 +65,6 @@ func fromLegacyConfig(legacyCfg map[string]string) (*AppConfigModel, error) {
 	if legacyCfg["emailVerification"] == "" {
 		dest.EmailVerification = legacyEmailVerification(AppConfigValue(legacyCfg["emailVerificationEnabled"]))
 	}
-	if legacyCfg["colorTheme"] == "" {
-		dest.ColorTheme = legacyColorTheme(AppConfigValue(legacyCfg["accentColor"]))
-	}
 
 	rt := reflect.ValueOf(dest).Elem().Type()
 	rv := reflect.ValueOf(dest).Elem()

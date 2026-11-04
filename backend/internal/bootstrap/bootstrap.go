@@ -76,10 +76,10 @@ func Bootstrap(ctx context.Context) error {
 		}
 	}()
 
-	// Init application images
-	imageExtensions, err := initApplicationImages(ctx, fileStorage)
+	// Init application assets like images and fonts
+	assetExtensions, err := initApplicationAssets(ctx, fileStorage)
 	if err != nil {
-		return fmt.Errorf("failed to initialize application images: %w", err)
+		return fmt.Errorf("failed to initialize application assets: %w", err)
 	}
 
 	// Init built-in claim policy mapping
@@ -115,7 +115,7 @@ func Bootstrap(ctx context.Context) error {
 	services = append(services, actorsRun)
 
 	// Create all services
-	svc, err := initServices(ctx, db, instanceID, actors, httpClient, outboundClients, imageExtensions, fileStorage, rateLimitServices)
+	svc, err := initServices(ctx, db, instanceID, actors, httpClient, outboundClients, assetExtensions, fileStorage, rateLimitServices)
 	if err != nil {
 		return fmt.Errorf("failed to initialize services: %w", err)
 	}

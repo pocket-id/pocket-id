@@ -16,7 +16,7 @@
 		OidcClientCreateWithLogo,
 		OidcClientLogoPreset
 	} from '#lib/types/oidc.type.ts';
-	import { cachedOidcClientLogo } from '#lib/utils/cached-image-util.ts';
+	import { cachedOidcClientLogo } from '#lib/utils/cached-asset-util.ts';
 	import { debounced } from '#lib/utils/debounce-util.ts';
 	import { axiosErrorToast } from '#lib/utils/error-util.ts';
 	import { preventDefault } from '#lib/utils/event-util.ts';

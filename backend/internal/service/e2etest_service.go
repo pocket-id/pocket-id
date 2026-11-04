@@ -779,7 +779,7 @@ func (s *TestService) ResetDatabase() error {
 	})
 }
 
-func (s *TestService) ResetApplicationImages(ctx context.Context) error {
+func (s *TestService) ResetApplicationAssets(ctx context.Context) error {
 	err := s.fileStorage.DeleteAll(ctx, "/")
 	if err != nil {
 		slog.ErrorContext(ctx, "Error removing uploads", slog.Any("error", err))
@@ -800,7 +800,7 @@ func (s *TestService) ResetApplicationImages(ctx context.Context) error {
 		if err != nil {
 			return err
 		}
-		err = s.fileStorage.Save(ctx, path.Join("application-images", file.Name()), srcFile)
+		err = s.fileStorage.Save(ctx, path.Join("application-assets", file.Name()), srcFile)
 		if err != nil {
 			srcFile.Close()
 			return err

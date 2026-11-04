@@ -31,7 +31,7 @@ func newTestUserService(t *testing.T) (*UserService, *UserGroupService) {
 	userService := NewUserService(
 		db,
 		NewCustomClaimService(db),
-		NewAppImagesService(map[string]string{}, fileStorage),
+		NewAppAssetsService(map[string]string{}, fileStorage),
 		nil,
 		nil,
 		fileStorage,

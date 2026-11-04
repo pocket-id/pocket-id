@@ -34,7 +34,7 @@
 <script lang="ts">
 	import { m } from '#lib/paraglide/messages.js';
 	import appConfigStore from '#lib/stores/application-configuration-store.ts';
-	import { cachedApplicationLogo } from '#lib/utils/cached-image-util.ts';
+	import { cachedApplicationLogo } from '#lib/utils/cached-asset-util.ts';
 	import { cn } from '@pocket-id/ui/utils';
 	import { mode } from 'mode-watcher';
 	import { prefersReducedMotion } from 'svelte/motion';

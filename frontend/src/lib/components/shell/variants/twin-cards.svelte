@@ -43,7 +43,7 @@
 		--card-shadow: none;
 	}
 
-	/* Outranks the color theme's sidebar hairline, which would sit inside the card's edge */
+	/* Outranks the sidebar's hairline, which would sit inside the card's edge */
 	.twin-cards :global([data-slot='app-sidebar']) {
 		box-shadow: var(--card-shadow);
 	}

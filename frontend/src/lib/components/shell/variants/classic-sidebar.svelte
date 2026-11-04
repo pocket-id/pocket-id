@@ -73,7 +73,7 @@
 <aside
 	data-slot="app-sidebar"
 	class={cn(
-		'bg-sidebar sticky top-0 hidden h-dvh flex-col px-3 pt-4 pb-3 sm:flex',
+		'bg-sidebar sticky top-0 hidden h-dvh flex-col px-3 pt-4 pb-3 shadow-[inset_-1px_0_0_var(--border)] sm:flex',
 		collapsed
 			? 'w-(--rail-w) items-center px-2'
 			: 'w-(--rail-w) items-center px-2 lg:w-(--sidebar-w) lg:items-stretch lg:px-3',

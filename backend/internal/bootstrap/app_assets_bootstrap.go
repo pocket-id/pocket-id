@@ -20,16 +20,23 @@ import (
 )
 
 const (
-	applicationImagesPath             = "application-images"
-	deletedApplicationImagesPath      = applicationImagesPath + "/.deleted"
-	legacyApplicationImagesInitedPath = applicationImagesPath + "/.inited"
-	deletableBundledApplicationImage  = "background"
+	applicationAssetsPath             = "application-assets"
+	legacyApplicationAssetsPath       = "application-images"
+	deletedApplicationAssetsPath      = applicationAssetsPath + "/.deleted"
+	legacyApplicationAssetsInitedPath = applicationAssetsPath + "/.inited"
+	deletableBundledApplicationAsset  = "background"
 )
 
-// initApplicationImages copies embedded images to storage and returns the detected file extensions
+// initApplicationAssets copies embedded images to storage and returns the detected file extensions
 //
 //nolint:gocognit
-func initApplicationImages(ctx context.Context, fileStorage storage.FileStorage) (map[string]string, error) {
+func initApplicationAssets(ctx context.Context, fileStorage storage.FileStorage) (map[string]string, error) {
+	// TODO: Remove in next major version (v4)
+	// Move the uploads of earlier versions before the bundled images fill the gaps they would leave
+	if err := moveLegacyApplicationAssets(ctx, fileStorage); err != nil {
+		return nil, fmt.Errorf("failed to move application assets: %w", err)
+	}
+
 	// Previous versions of images
 	// If these are found, they are deleted
 	legacyImageHashes := imageHashMap{
@@ -53,7 +60,7 @@ func initApplicationImages(ctx context.Context, fileStorage storage.FileStorage)
 		return nil, fmt.Errorf("failed to read directory: %w", err)
 	}
 
-	destinationFiles, err := fileStorage.List(ctx, applicationImagesPath)
+	destinationFiles, err := fileStorage.List(ctx, applicationAssetsPath)
 	if err != nil {
 		if storage.IsNotExist(err) {
 			destinationFiles = []storage.ObjectInfo{}
@@ -66,7 +73,7 @@ func initApplicationImages(ctx context.Context, fileStorage storage.FileStorage)
 	listedImageNames := make(map[string]struct{}, len(destinationFiles))
 	for _, f := range destinationFiles {
 		// Skip bootstrap state that recursive storage backends may include in the listing
-		if f.Path == legacyApplicationImagesInitedPath || strings.HasPrefix(f.Path, deletedApplicationImagesPath+"/") {
+		if f.Path == legacyApplicationAssetsInitedPath || strings.HasPrefix(f.Path, deletedApplicationAssetsPath+"/") {
 			continue
 		}
 
@@ -104,19 +111,19 @@ func initApplicationImages(ctx context.Context, fileStorage storage.FileStorage)
 	}
 
 	// Preserve an intentionally deleted background when replacing the legacy global initialization marker
-	legacyInited, err := storageObjectExists(ctx, fileStorage, legacyApplicationImagesInitedPath)
+	legacyInited, err := storageObjectExists(ctx, fileStorage, legacyApplicationAssetsInitedPath)
 	if err != nil {
 		return nil, fmt.Errorf("failed to read legacy application images marker: %w", err)
 	}
 	if legacyInited {
-		_, backgroundWasPresent := listedImageNames[deletableBundledApplicationImage]
+		_, backgroundWasPresent := listedImageNames[deletableBundledApplicationAsset]
 		if !backgroundWasPresent {
-			deletedPath := deletedApplicationImagePath(deletableBundledApplicationImage)
+			deletedPath := deletedApplicationAssetPath(deletableBundledApplicationAsset)
 			if err := fileStorage.Save(ctx, deletedPath, strings.NewReader("")); err != nil {
-				return nil, fmt.Errorf("failed to store deleted application image marker '%s': %w", deletableBundledApplicationImage, err)
+				return nil, fmt.Errorf("failed to store deleted application image marker '%s': %w", deletableBundledApplicationAsset, err)
 			}
 		}
-		if err := fileStorage.Delete(ctx, legacyApplicationImagesInitedPath); err != nil {
+		if err := fileStorage.Delete(ctx, legacyApplicationAssetsInitedPath); err != nil {
 			return nil, fmt.Errorf("failed to remove legacy application images marker: %w", err)
 		}
 	}
@@ -134,7 +141,7 @@ func initApplicationImages(ctx context.Context, fileStorage storage.FileStorage)
 		if _, exists := dstNameToExt[nameWithoutExt]; exists {
 			continue
 		}
-		deleted, err := storageObjectExists(ctx, fileStorage, deletedApplicationImagePath(nameWithoutExt))
+		deleted, err := storageObjectExists(ctx, fileStorage, deletedApplicationAssetPath(nameWithoutExt))
 		if err != nil {
 			return nil, fmt.Errorf("failed to read deleted application image marker '%s': %w", nameWithoutExt, err)
 		}
@@ -147,7 +154,7 @@ func initApplicationImages(ctx context.Context, fileStorage storage.FileStorage)
 		if err != nil {
 			return nil, fmt.Errorf("failed to open embedded file '%s': %w", name, err)
 		}
-		if err := fileStorage.Save(ctx, path.Join(applicationImagesPath, name), srcFile); err != nil {
+		if err := fileStorage.Save(ctx, path.Join(applicationAssetsPath, name), srcFile); err != nil {
 			srcFile.Close()
 			return nil, fmt.Errorf("failed to store application image '%s': %w", name, err)
 		}
@@ -156,6 +163,38 @@ func initApplicationImages(ctx context.Context, fileStorage storage.FileStorage)
 	}
 
 	return dstNameToExt, nil
+}
+
+// moveLegacyApplicationAssets moves the folder of earlier versions to its new name
+// Copying everything before deleting the old folder lets an interrupted move finish on the next start
+func moveLegacyApplicationAssets(ctx context.Context, fileStorage storage.FileStorage) error {
+	var paths []string
+	err := fileStorage.Walk(ctx, legacyApplicationAssetsPath, func(f storage.ObjectInfo) error {
+		paths = append(paths, f.Path)
+		return nil
+	})
+	if storage.IsNotExist(err) {
+		return nil
+	}
+	if err != nil || len(paths) == 0 {
+		return err
+	}
+
+	for _, oldPath := range paths {
+		newPath := path.Join(applicationAssetsPath, strings.TrimPrefix(oldPath, legacyApplicationAssetsPath+"/"))
+		reader, _, err := fileStorage.Open(ctx, oldPath)
+		if err != nil {
+			return err
+		}
+		err = fileStorage.Save(ctx, newPath, reader)
+		reader.Close()
+		if err != nil {
+			return err
+		}
+	}
+
+	slog.Info("Moved application assets to their new folder", slog.Int("count", len(paths)))
+	return fileStorage.DeleteAll(ctx, legacyApplicationAssetsPath)
 }
 
 type imageHashMap map[string][][]byte
@@ -172,8 +211,8 @@ func (m imageHashMap) Matches(name string, target []byte) bool {
 	return false
 }
 
-func deletedApplicationImagePath(name string) string {
-	return path.Join(deletedApplicationImagesPath, name)
+func deletedApplicationAssetPath(name string) string {
+	return path.Join(deletedApplicationAssetsPath, name)
 }
 
 func storageObjectExists(ctx context.Context, fileStorage storage.FileStorage, objectPath string) (bool, error) {

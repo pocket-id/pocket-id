@@ -40,7 +40,7 @@ import (
 
 type services struct {
 	appConfigService         *appconfig.AppConfigService
-	appImagesService         *service.AppImagesService
+	appAssetsService         *service.AppAssetsService
 	emailModule              *email.Module
 	geoLiteModule            *geolite.Module
 	ipLocator                iplocation.Resolver
@@ -78,7 +78,7 @@ func initServices(
 	actors francishost.Host,
 	httpClient *http.Client,
 	outboundClients *outbound.Clients,
-	imageExtensions map[string]string,
+	assetExtensions map[string]string,
 	fileStorage storage.FileStorage,
 	rateLimitServices map[string]*ratelimit.RateLimitService,
 ) (svc *services, err error) {
@@ -93,7 +93,7 @@ func initServices(
 	}
 
 	svc.fileStorage = fileStorage
-	svc.appImagesService = service.NewAppImagesService(imageExtensions, fileStorage)
+	svc.appAssetsService = service.NewAppAssetsService(assetExtensions, fileStorage)
 
 	svc.emailModule, err = email.New(db)
 	if err != nil {
@@ -233,7 +233,7 @@ func initServices(
 		return nil, fmt.Errorf("failed to create email verification module: %w", err)
 	}
 
-	svc.userService = service.NewUserService(db, svc.customClaimService, svc.appImagesService, svc.scimSyncModule, backchannelLogoutService, fileStorage, svc.emailVerificationModule)
+	svc.userService = service.NewUserService(db, svc.customClaimService, svc.appAssetsService, svc.scimSyncModule, backchannelLogoutService, fileStorage, svc.emailVerificationModule)
 
 	svc.ldapSyncModule, err = ldapsync.New(ldapsync.Dependencies{
 		DB:                db,

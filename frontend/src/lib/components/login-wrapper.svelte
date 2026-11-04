@@ -10,7 +10,7 @@
 	import { Button } from '@pocket-id/ui/button';
 	import { m } from '#lib/paraglide/messages.js';
 	import { appReveal } from '#lib/stores/app-reveal-store.svelte.ts';
-	import { cachedBackgroundImage } from '#lib/utils/cached-image-util.ts';
+	import { cachedBackgroundImage } from '#lib/utils/cached-asset-util.ts';
 	import { cn } from '@pocket-id/ui/utils';
 	import { cssMs, cssVar } from '#lib/utils/style.ts';
 	import ChevronLeftIcon from '~icons/solar/alt-arrow-left-linear';

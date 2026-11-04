@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { cachedBackgroundImage } from '#lib/utils/cached-image-util.ts';
+	import { cachedBackgroundImage } from '#lib/utils/cached-asset-util.ts';
 	import { cn } from '@pocket-id/ui/utils';
 	import { PersistedState } from 'runed';
 	import PhoneNav from '../phone-nav.svelte';
@@ -60,7 +60,7 @@
 		--glass-shadow: 0 0 0 1px rgb(255 255 255 / 0.08), 0 16px 40px -16px #000000;
 	}
 
-	/* Outranks the color theme's sidebar hairline, and the fills turn translucent so the glass shows through them */
+	/* Outranks the sidebar's hairline, and the fills turn translucent so the glass shows through them */
 	.backdrop :global([data-slot='app-sidebar']) {
 		--fill-hover: rgb(0 0 0 / 0.05);
 		--fill-muted: rgb(0 0 0 / 0.05);

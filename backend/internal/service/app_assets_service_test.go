@@ -19,15 +19,15 @@ import (
 	"github.com/pocket-id/pocket-id/backend/internal/storage"
 )
 
-func TestAppImagesService_GetImage(t *testing.T) {
+func TestAppAssetsService_GetImage(t *testing.T) {
 	store := newFilesystemStorageForTest(t)
 
-	err := store.Save(t.Context(), path.Join("application-images", "background.webp"), bytes.NewReader([]byte("data")))
+	err := store.Save(t.Context(), path.Join("application-assets", "background.webp"), bytes.NewReader([]byte("data")))
 	require.NoError(t, err)
 
-	service := NewAppImagesService(map[string]string{"background": "webp"}, store)
+	service := NewAppAssetsService(map[string]string{"background": "webp"}, store)
 
-	reader, size, mimeType, err := service.GetImage(t.Context(), "background")
+	reader, size, mimeType, err := service.GetAsset(t.Context(), "background")
 	require.NoError(t, err)
 	defer reader.Close()
 	payload, err := io.ReadAll(reader)
@@ -37,16 +37,16 @@ func TestAppImagesService_GetImage(t *testing.T) {
 	require.Equal(t, "image/webp", mimeType)
 }
 
-func TestAppImagesService_GetImageWithDefault(t *testing.T) {
+func TestAppAssetsService_GetImageWithDefault(t *testing.T) {
 	store := newFilesystemStorageForTest(t)
 
-	err := store.Save(t.Context(), path.Join("application-images", "logoDark.png"), bytes.NewReader([]byte("custom")))
+	err := store.Save(t.Context(), path.Join("application-assets", "logoDark.png"), bytes.NewReader([]byte("custom")))
 	require.NoError(t, err)
 
-	service := NewAppImagesService(map[string]string{"logoDark": "png"}, store)
+	service := NewAppAssetsService(map[string]string{"logoDark": "png"}, store)
 
 	t.Run("returns the custom image if one is set", func(t *testing.T) {
-		reader, size, mimeType, err := service.GetImageWithDefault(t.Context(), "logoDark")
+		reader, size, mimeType, err := service.GetAssetWithDefault(t.Context(), "logoDark")
 		require.NoError(t, err)
 		defer reader.Close()
 		payload, err := io.ReadAll(reader)
@@ -57,7 +57,7 @@ func TestAppImagesService_GetImageWithDefault(t *testing.T) {
 	})
 
 	t.Run("returns the embedded image if no custom image is set", func(t *testing.T) {
-		reader, size, mimeType, err := service.GetImageWithDefault(t.Context(), "logoLight")
+		reader, size, mimeType, err := service.GetAssetWithDefault(t.Context(), "logoLight")
 		require.NoError(t, err)
 		defer reader.Close()
 		payload, err := io.ReadAll(reader)
@@ -68,53 +68,53 @@ func TestAppImagesService_GetImageWithDefault(t *testing.T) {
 	})
 
 	t.Run("returns not found if no embedded image exists", func(t *testing.T) {
-		_, _, _, err := service.GetImageWithDefault(t.Context(), "default-profile-picture")
+		_, _, _, err := service.GetAssetWithDefault(t.Context(), "default-profile-picture")
 		require.Error(t, err)
 		assert.True(t, apperror.IsCode(err, apperror.CodeImageNotFound))
 	})
 
-	t.Run("GetImage doesn't return the embedded image", func(t *testing.T) {
-		_, _, _, err := service.GetImage(t.Context(), "logoLight")
+	t.Run("GetAsset doesn't return the embedded image", func(t *testing.T) {
+		_, _, _, err := service.GetAsset(t.Context(), "logoLight")
 		require.Error(t, err)
 		assert.True(t, apperror.IsCode(err, apperror.CodeImageNotFound))
 	})
 }
 
-func TestAppImagesService_UpdateImage(t *testing.T) {
+func TestAppAssetsService_UpdateImage(t *testing.T) {
 	store := newFilesystemStorageForTest(t)
 
-	err := store.Save(t.Context(), path.Join("application-images", "logoLight.svg"), bytes.NewReader([]byte("old")))
+	err := store.Save(t.Context(), path.Join("application-assets", "logoLight.svg"), bytes.NewReader([]byte("old")))
 	require.NoError(t, err)
 
-	service := NewAppImagesService(map[string]string{"logoLight": "svg"}, store)
+	service := NewAppAssetsService(map[string]string{"logoLight": "svg"}, store)
 
 	fileHeader := newFileHeader(t, "logoLight.png", []byte("new"))
 
-	err = service.UpdateImage(t.Context(), fileHeader, "logoLight")
+	err = service.UpdateAsset(t.Context(), fileHeader, "logoLight")
 	require.NoError(t, err)
 
-	reader, _, err := store.Open(t.Context(), path.Join("application-images", "logoLight.png"))
+	reader, _, err := store.Open(t.Context(), path.Join("application-assets", "logoLight.png"))
 	require.NoError(t, err)
 	_ = reader.Close()
 
-	_, _, err = store.Open(t.Context(), path.Join("application-images", "logoLight.svg"))
+	_, _, err = store.Open(t.Context(), path.Join("application-assets", "logoLight.svg"))
 	require.ErrorIs(t, err, fs.ErrNotExist)
 }
 
-func TestAppImagesService_UpdateImageStripsMetadata(t *testing.T) {
+func TestAppAssetsService_UpdateImageStripsMetadata(t *testing.T) {
 	store := newFilesystemStorageForTest(t)
 
-	service := NewAppImagesService(map[string]string{}, store)
+	service := NewAppAssetsService(map[string]string{}, store)
 
 	fileHeader := newFileHeader(t, "logo.webp", webpFile(
 		webpChunk("VP8 ", []byte{1, 2, 3, 4}),
 		webpChunk("EXIF", []byte("secret")),
 	))
 
-	err := service.UpdateImage(t.Context(), fileHeader, "logoLight")
+	err := service.UpdateAsset(t.Context(), fileHeader, "logoLight")
 	require.NoError(t, err)
 
-	reader, _, err := store.Open(t.Context(), path.Join("application-images", "logoLight.webp"))
+	reader, _, err := store.Open(t.Context(), path.Join("application-assets", "logoLight.webp"))
 	require.NoError(t, err)
 	defer reader.Close()
 
@@ -124,43 +124,58 @@ func TestAppImagesService_UpdateImageStripsMetadata(t *testing.T) {
 	assert.Contains(t, string(payload), "VP8 ")
 }
 
-func TestAppImagesService_ErrorsAndFlags(t *testing.T) {
+func TestAppAssetsService_ErrorsAndFlags(t *testing.T) {
 	store := newFilesystemStorageForTest(t)
 
-	service := NewAppImagesService(map[string]string{}, store)
+	service := NewAppAssetsService(map[string]string{}, store)
 
 	t.Run("get missing image returns not found", func(t *testing.T) {
-		_, _, _, err := service.GetImage(t.Context(), "missing")
+		_, _, _, err := service.GetAsset(t.Context(), "missing")
 		require.Error(t, err)
 		assert.True(t, apperror.IsCode(err, apperror.CodeImageNotFound))
 	})
 
 	t.Run("reject unsupported file types", func(t *testing.T) {
-		err := service.UpdateImage(t.Context(), newFileHeader(t, "logo.txt", []byte("nope")), "logo")
+		err := service.UpdateAsset(t.Context(), newFileHeader(t, "logo.txt", []byte("nope")), "logo")
 		require.Error(t, err)
 		assert.True(t, apperror.IsCode(err, apperror.CodeFileTypeNotSupported))
 	})
 
+	t.Run("accept fonts only for the title font", func(t *testing.T) {
+		err := service.UpdateAsset(t.Context(), newFileHeader(t, "logo.woff2", []byte("font")), "logoLight")
+		assert.True(t, apperror.IsCode(err, apperror.CodeFileTypeNotSupported))
+
+		err = service.UpdateAsset(t.Context(), newFileHeader(t, "font.png", []byte("img")), "font")
+		assert.True(t, apperror.IsCode(err, apperror.CodeFileTypeNotSupported))
+
+		err = service.UpdateAsset(t.Context(), newFileHeader(t, "Inter-Variable.woff2", []byte("font")), "font")
+		require.NoError(t, err)
+		reader, _, mimeType, err := service.GetAsset(t.Context(), "font")
+		require.NoError(t, err)
+		require.NoError(t, reader.Close())
+		assert.Equal(t, "font/woff2", mimeType)
+	})
+
 	t.Run("delete and extension tracking", func(t *testing.T) {
-		err := store.Save(t.Context(), path.Join("application-images", "default-profile-picture.png"), bytes.NewReader([]byte("img")))
+		err := store.Save(t.Context(), path.Join("application-assets", "default-profile-picture.png"), bytes.NewReader([]byte("img")))
 		require.NoError(t, err)
 		service.extensions["default-profile-picture"] = "png"
 
-		err = service.DeleteImage(t.Context(), "default-profile-picture")
+		err = service.DeleteAsset(t.Context(), "default-profile-picture")
 		require.NoError(t, err)
 		assert.False(t, service.IsDefaultProfilePictureSet())
-		reader, size, err := store.Open(t.Context(), deletedApplicationImagePath("default-profile-picture"))
+		reader, size, err := store.Open(t.Context(), deletedApplicationAssetPath("default-profile-picture"))
 		require.NoError(t, err)
 		assert.Zero(t, size)
 		require.NoError(t, reader.Close())
 
-		err = service.DeleteImage(t.Context(), "default-profile-picture")
+		err = service.DeleteAsset(t.Context(), "default-profile-picture")
 		require.Error(t, err)
 		assert.True(t, apperror.IsCode(err, apperror.CodeImageNotFound))
 
-		err = service.UpdateImage(t.Context(), newFileHeader(t, "default-profile-picture.png", []byte("new")), "default-profile-picture")
+		err = service.UpdateAsset(t.Context(), newFileHeader(t, "default-profile-picture.png", []byte("new")), "default-profile-picture")
 		require.NoError(t, err)
-		_, _, err = store.Open(t.Context(), deletedApplicationImagePath("default-profile-picture"))
+		_, _, err = store.Open(t.Context(), deletedApplicationAssetPath("default-profile-picture"))
 		require.ErrorIs(t, err, fs.ErrNotExist)
 	})
 }

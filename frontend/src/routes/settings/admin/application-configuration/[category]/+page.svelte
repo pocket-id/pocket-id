@@ -185,7 +185,7 @@
 							callback={updateAppConfig}
 						/>
 					{:else}
-						<AppConfigAppearanceForm />
+						<AppConfigAppearanceForm callback={updateAppConfig} />
 					{/if}
 				</div>
 			{/key}

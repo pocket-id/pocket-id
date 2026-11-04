@@ -16,7 +16,7 @@ import (
 	"github.com/pocket-id/pocket-id/backend/internal/storage"
 )
 
-func TestAppImagesControllerGetLogo(t *testing.T) {
+func TestAppAssetsControllerGetLogo(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 
 	store, err := storage.NewFilesystemStorage(t.TempDir())
@@ -26,12 +26,12 @@ func TestAppImagesControllerGetLogo(t *testing.T) {
 	})
 
 	extensions := map[string]string{}
-	appImagesController := &AppImagesController{
-		appImagesService: service.NewAppImagesService(extensions, store),
+	appAssetsController := &AppAssetsController{
+		appAssetsService: service.NewAppAssetsService(extensions, store),
 	}
 
 	t.Run("returns the bundled logo if no custom logo is set", func(t *testing.T) {
-		res, err := getLogo(t, appImagesController, "/api/application-images/logo")
+		res, err := getLogo(t, appAssetsController, "/api/application-assets/logo")
 		require.NoError(t, err)
 		assert.Equal(t, http.StatusOK, res.Code)
 		assert.Equal(t, "image/svg+xml", res.Header().Get("Content-Type"))
@@ -39,28 +39,28 @@ func TestAppImagesControllerGetLogo(t *testing.T) {
 	})
 
 	t.Run("returns the bundled dark mode logo if no custom logo is set", func(t *testing.T) {
-		res, err := getLogo(t, appImagesController, "/api/application-images/logo?light=false")
+		res, err := getLogo(t, appAssetsController, "/api/application-assets/logo?light=false")
 		require.NoError(t, err)
 		assert.Equal(t, http.StatusOK, res.Code)
 		assert.Contains(t, res.Body.String(), `fill="#fff"`)
 	})
 
 	t.Run("returns not found if the bundled logo is skipped", func(t *testing.T) {
-		_, err := getLogo(t, appImagesController, "/api/application-images/logo?default=false")
+		_, err := getLogo(t, appAssetsController, "/api/application-assets/logo?default=false")
 		require.Error(t, err)
 		assert.True(t, apperror.IsCode(err, apperror.CodeImageNotFound))
 	})
 
 	t.Run("returns the custom logo if one is set", func(t *testing.T) {
-		err := store.Save(t.Context(), path.Join("application-images", "logoLight.png"), bytes.NewReader([]byte("custom")))
+		err := store.Save(t.Context(), path.Join("application-assets", "logoLight.png"), bytes.NewReader([]byte("custom")))
 		require.NoError(t, err)
 		extensions["logoLight"] = "png"
 		t.Cleanup(func() {
 			delete(extensions, "logoLight")
 		})
 
-		for _, target := range []string{"/api/application-images/logo", "/api/application-images/logo?default=false"} {
-			res, err := getLogo(t, appImagesController, target)
+		for _, target := range []string{"/api/application-assets/logo", "/api/application-assets/logo?default=false"} {
+			res, err := getLogo(t, appAssetsController, target)
 			require.NoError(t, err)
 			assert.Equal(t, http.StatusOK, res.Code)
 			assert.Equal(t, "image/png", res.Header().Get("Content-Type"))
@@ -69,13 +69,13 @@ func TestAppImagesControllerGetLogo(t *testing.T) {
 	})
 }
 
-func getLogo(t *testing.T, appImagesController *AppImagesController, target string) (*httptest.ResponseRecorder, error) {
+func getLogo(t *testing.T, appAssetsController *AppAssetsController, target string) (*httptest.ResponseRecorder, error) {
 	t.Helper()
 
 	res := httptest.NewRecorder()
 	ctx, _ := gin.CreateTestContext(res)
 	ctx.Request = httptest.NewRequestWithContext(t.Context(), http.MethodGet, target, http.NoBody)
 
-	err := appImagesController.getLogoHandler(ctx)
+	err := appAssetsController.getLogoHandler(ctx)
 	return res, err
 }

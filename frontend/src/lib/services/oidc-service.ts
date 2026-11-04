@@ -17,7 +17,7 @@ import type {
 	OidcDeviceCodeInfo
 } from '#lib/types/oidc.type.ts';
 import type { ScimServiceProvider } from '#lib/types/scim.type.ts';
-import { cachedOidcClientLogo } from '#lib/utils/cached-image-util.ts';
+import { cachedOidcClientLogo } from '#lib/utils/cached-asset-util.ts';
 import { encodeClientIdParam } from '#lib/utils/client-id-util.ts';
 import APIService from './api-service';
 
