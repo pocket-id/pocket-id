@@ -12,7 +12,6 @@ const reload = async () => {
 };
 
 const set = (appConfig: AppConfig) => {
-	document.documentElement.classList.toggle('no-motion', appConfig.disableAnimations);
 	appConfigStore.set(appConfig);
 };
 

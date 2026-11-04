@@ -272,11 +272,11 @@ func TestAppConfigModel_Update(t *testing.T) {
 	t.Run("stores raw string values without type coercion", func(t *testing.T) {
 		m := getDefaultConfig()
 
-		err := m.Update(map[string]string{"sessionDuration": "120", "disableAnimations": "true"})
+		err := m.Update(map[string]string{"sessionDuration": "120", "allowOwnAccountEdit": "false"})
 		require.NoError(t, err)
 
 		assert.Equal(t, AppConfigValue("120"), m.SessionDuration)
-		assert.Equal(t, AppConfigValue("true"), m.DisableAnimations)
+		assert.Equal(t, AppConfigValue("false"), m.AllowOwnAccountEdit)
 	})
 
 	t.Run("an empty map is a no-op", func(t *testing.T) {

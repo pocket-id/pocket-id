@@ -4,7 +4,6 @@
 	import { Button } from '@pocket-id/ui/button';
 	import * as Tooltip from '@pocket-id/ui/tooltip';
 	import { m } from '#lib/paraglide/messages.js';
-	import appConfigStore from '#lib/stores/application-configuration-store.ts';
 	import unsavedChanges from '#lib/stores/unsaved-changes-store.svelte.ts';
 	import { cn } from '@pocket-id/ui/utils';
 	import CircleAlertIcon from '~icons/solar/danger-circle-bold-duotone';
@@ -35,7 +34,7 @@
 	let statusMessage = $state<HTMLElement>();
 	let actions = $state<HTMLElement>();
 
-	const animate = $derived(!$appConfigStore?.disableAnimations && !prefersReducedMotion.current);
+	const animate = $derived(!prefersReducedMotion.current);
 	const status = $derived(unsavedChanges.status);
 	const showingStatus = $derived(!!status);
 	const showingActions = $derived(unsavedChanges.hasChanges);

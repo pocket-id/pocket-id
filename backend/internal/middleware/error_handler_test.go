@@ -213,7 +213,6 @@ func TestValidationResponseUsesAppConfigTypeMessages(t *testing.T) {
 		SessionDuration:                  "60",
 		HomePageURL:                      "/settings/account",
 		EmailsVerified:                   "false",
-		DisableAnimations:                "false",
 		AllowOwnAccountEdit:              "true",
 		AllowUserSignups:                 "disabled",
 		RequireUserEmail:                 "hello",

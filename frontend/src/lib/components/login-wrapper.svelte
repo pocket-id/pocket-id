@@ -22,7 +22,8 @@
 		children,
 		back,
 		wide = false,
-		columns = true
+		columns = true,
+		tall = false
 	}: {
 		children: Snippet;
 		back?: string;
@@ -30,6 +31,8 @@
 		wide?: boolean;
 		// A wide step with choices that need the whole width keeps one column
 		columns?: boolean;
+		// A step that is centred rather than read top to bottom fills the phone screen instead of sitting on the photo
+		tall?: boolean;
 	} = $props();
 
 	const isDesktop = new MediaQuery('(min-width: 1024px)');
@@ -130,9 +133,7 @@
 		const windowResized = last && (last.width !== innerWidth || last.height !== innerHeight);
 		const to = card.getBoundingClientRect();
 		last = { rect: to, width: innerWidth, height: innerHeight };
-		const reducedMotion =
-			document.documentElement.classList.contains('no-motion') || prefersReducedMotion.current;
-		if (!from || windowResized || reducedMotion) return;
+		if (!from || windowResized || prefersReducedMotion.current) return;
 
 		if (isDesktop.current) growCard(card, column, from, to, entering || to.width > from.width);
 		else if (photo) slideSheet(card, column, from.top - to.top, entering);
@@ -237,6 +238,7 @@
 			photo
 				? 'max-lg:bg-surface max-lg:shadow-overlay max-lg:after:bg-surface max-lg:absolute max-lg:inset-x-0 max-lg:bottom-0 max-lg:mx-auto max-lg:max-h-full max-lg:w-[calc(var(--col-auth)+48px)] max-lg:max-w-full max-lg:rounded-t-md max-lg:after:absolute max-lg:after:inset-x-0 max-lg:after:top-full max-lg:after:h-dvh max-sm:w-full'
 				: 'max-lg:h-full',
+			photo && tall && 'max-sm:top-0',
 			photo && fullHeight && 'max-lg:rounded-none'
 		)}
 	>
@@ -248,7 +250,8 @@
 				'group/sheet flex min-h-0 flex-col overflow-y-auto max-lg:px-(--sheet-x) max-lg:pb-(--sheet-b) max-lg:has-data-action-panel:scroll-pb-[calc(176px+var(--sheet-b))] lg:px-12',
 				photo
 					? '[--sheet-b:calc(24px+env(safe-area-inset-bottom))] [--sheet-x:24px] max-[360px]:[--sheet-x:16px] max-lg:pt-6'
-					: '[--sheet-b:24px] [--sheet-x:max(16px,calc((100vw_-_var(--col-auth))/2))]'
+					: '[--sheet-b:24px] [--sheet-x:max(16px,calc((100vw_-_var(--col-auth))/2))]',
+				photo && tall && 'max-sm:pt-[calc(24px+env(safe-area-inset-top))]'
 			)}
 			data-content-below={contentBelow || undefined}
 			onscroll={updateContentBelow}

@@ -171,13 +171,6 @@
 }
 
 /* Safety net for motion that does not read the tokens (bits-ui keyframes, svelte-sonner): only busy indicators and scroll-linked fades keep moving */
-html.no-motion *:not(.animate-spin, .animate-shimmer, .scroll-fade-x, .scroll-fade-y),
-html.no-motion *::before,
-html.no-motion *::after {
-	animation-duration: 0s !important;
-	transition-duration: 0s !important;
-}
-
 @media (prefers-reduced-motion: reduce) {
 	*:not(.animate-spin, .animate-shimmer, .scroll-fade-x, .scroll-fade-y),
 	*::before,

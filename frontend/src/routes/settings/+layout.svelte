@@ -67,7 +67,6 @@
 		if (
 			navigation.shallow ||
 			!document.startViewTransition ||
-			document.documentElement.classList.contains('no-motion') ||
 			window.matchMedia('(prefers-reduced-motion: reduce)').matches ||
 			!navigation.to?.url.pathname.startsWith('/settings/') ||
 			navigation.from?.url.pathname === navigation.to.url.pathname ||

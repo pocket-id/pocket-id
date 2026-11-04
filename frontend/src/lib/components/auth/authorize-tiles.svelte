@@ -4,7 +4,6 @@
 	import CheckmarkAnimated from '#lib/icons/checkmark-animated.svelte';
 	import ConnectArrow from '#lib/icons/connect-arrow.svelte';
 	import CrossAnimated from '#lib/icons/cross-animated.svelte';
-	import appConfigStore from '#lib/stores/application-configuration-store.ts';
 	import type { InteractionClient } from '#lib/types/oidc.type.ts';
 	import { untrack } from 'svelte';
 	import { cubicIn, cubicOut } from 'svelte/easing';
@@ -64,8 +63,7 @@
 
 	async function show(outcome: Outcome | null) {
 		// An outcome that is already set when the page loads is shown without replaying the animation
-		const animate =
-			hasMounted && !$appConfigStore.disableAnimations && !prefersReducedMotion.current;
+		const animate = hasMounted && !prefersReducedMotion.current;
 		hasMounted = true;
 
 		resultTile?.getAnimations().forEach((animation) => animation.cancel());
@@ -171,10 +169,6 @@
 	}
 
 	/* The global motion safety net zeroes animation durations but not delays, so the glyph strokes would still appear late and in steps */
-	:global(html.no-motion) .glyph :global(path) {
-		animation-delay: 0s;
-	}
-
 	@media (prefers-reduced-motion: reduce) {
 		.glyph :global(path) {
 			animation-delay: 0s;

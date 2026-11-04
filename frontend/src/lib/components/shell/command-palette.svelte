@@ -138,7 +138,6 @@
 			category('appearance', m.appearance()),
 			setting(m.application_name(), 'general', m.general()),
 			setting(m.session_duration(), 'general', m.general()),
-			setting(m.disable_animations(), 'general', m.general()),
 			setting(m.user_verification(), 'passkeys', m.passkeys()),
 			setting(m.email_verification(), 'email', m.email()),
 			...(ldap ? [setting(m.config_server_url(), 'ldap', m.ldap())] : []),

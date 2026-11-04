@@ -33,7 +33,6 @@ type AppConfigModel struct {
 	HomePageURL         AppConfigValue `json:"homePageUrl" env:"HOME_PAGE_URL" public:"true"`
 	EmailsVerified      AppConfigValue `json:"emailsVerified" env:"EMAILS_VERIFIED" type:"bool"`
 	Appearance          AppConfigValue `json:"appearance" env:"APPEARANCE" public:"true"` // JSON-encoded object, the frontend fills in the fields it lacks
-	DisableAnimations   AppConfigValue `json:"disableAnimations" env:"DISABLE_ANIMATIONS" type:"bool" public:"true"`
 	AllowOwnAccountEdit AppConfigValue `json:"allowOwnAccountEdit" env:"ALLOW_OWN_ACCOUNT_EDIT" type:"bool" public:"true"`
 	AllowUserSignups    AppConfigValue `json:"allowUserSignups" env:"ALLOW_USER_SIGNUPS" public:"true"`
 
@@ -141,7 +140,6 @@ func getDefaultConfig() *AppConfigModel {
 		SessionDuration:           "1440",
 		HomePageURL:               "/settings/account",
 		EmailsVerified:            "false",
-		DisableAnimations:         "false",
 		AllowOwnAccountEdit:       "true",
 		AllowUserSignups:          "disabled",
 		SignupDefaultUserGroupIDs: "[]",

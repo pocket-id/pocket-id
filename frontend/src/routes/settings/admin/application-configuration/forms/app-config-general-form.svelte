@@ -10,7 +10,6 @@
 	import { createForm, pickSchemaValues } from '#lib/utils/form-util.ts';
 	import { trackFormChanges } from '#lib/utils/unsaved-changes-util.svelte.ts';
 	import HouseIcon from '~icons/solar/home-2-bold-duotone';
-	import SparklesIcon from '~icons/solar/stars-bold-duotone';
 	import UserPenIcon from '~icons/solar/pen-new-square-bold-duotone';
 	import { z } from 'zod/v4';
 	import OptionSelect from './option-select.svelte';
@@ -38,8 +37,7 @@
 			.refine((minutes) => Number.isInteger(minutes), {
 				message: m.config_session_duration_whole_minutes()
 			}),
-		allowOwnAccountEdit: z.boolean(),
-		disableAnimations: z.boolean()
+		allowOwnAccountEdit: z.boolean()
 	});
 
 	const formStore = createForm(formSchema, pickSchemaValues(formSchema, appConfig));
@@ -81,11 +79,6 @@
 		>
 			{#snippet control(props)}
 				<Switch {...props} bind:checked={$inputs.allowOwnAccountEdit.value} />
-			{/snippet}
-		</SettingRow>
-		<SettingRow title={m.disable_animations()} icon={SparklesIcon}>
-			{#snippet control(props)}
-				<Switch {...props} bind:checked={$inputs.disableAnimations.value} />
 			{/snippet}
 		</SettingRow>
 	</SettingsSection>

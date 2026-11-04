@@ -170,23 +170,6 @@
 	color-scheme: dark;
 }
 
-/* Reduced motion: the OS setting and the Disable animations setting share one token collapse */
-html.no-motion {
-	--dur-fast: 0ms;
-	--dur-base: 0ms;
-	--dur-slow: 0ms;
-	--dur-unfold: 0ms;
-	--rise: 0px;
-	--nudge: 0px;
-	--slide: 0px;
-	--press-scale: 1;
-	--pop-scale: 1;
-	--t-pulse: 0ms;
-	--t-caret: 0ms;
-	--t-progress: 0ms;
-	--t-spin: 1200ms;
-}
-
 @media (prefers-reduced-motion: reduce) {
 	:root {
 		--dur-fast: 0ms;
