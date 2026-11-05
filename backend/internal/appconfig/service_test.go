@@ -4,9 +4,11 @@ import (
 	"encoding/json"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 	"time"
 
+	"github.com/italypaleale/francis/actor"
 	"github.com/italypaleale/francis/host/local"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -35,8 +37,21 @@ func setUIConfigDisabled(t *testing.T, disabled bool) {
 func newActorBackedService(t *testing.T, db *gorm.DB) *AppConfigService {
 	t.Helper()
 
+	svc, _ := newActorBackedServiceWithState(t, db, nil)
+	return svc
+}
+
+// newActorBackedServiceWithState is newActorBackedService with the actor state saved before the actor bootstraps, if state is set, and it also returns the actor host
+func newActorBackedServiceWithState(t *testing.T, db *gorm.DB, state *AppConfigModel) (*AppConfigService, *local.Host) {
+	t.Helper()
+
 	var svc *AppConfigService
-	testutils.NewActorHostForTest(t, func(t *testing.T, h *local.Host) {
+	h := testutils.NewActorHostForTest(t, func(t *testing.T, h *local.Host) {
+		if state != nil {
+			err := h.SetState(t.Context(), AppConfigActorType, actor.SingletonActorID, state, nil)
+			require.NoError(t, err)
+		}
+
 		var err error
 		svc, err = NewService(t.Context(), h, db)
 		require.NoError(t, err)
@@ -50,7 +65,7 @@ func newActorBackedService(t *testing.T, db *gorm.DB) *AppConfigService {
 		return err == nil && cfg != nil && *cfg != (AppConfigModel{})
 	}, 10*time.Second, 20*time.Millisecond, "config actor was not bootstrapped in time")
 
-	return svc
+	return svc, h
 }
 
 // seedLegacyConfig writes a legacy config blob to the kv table so the AppConfig actor bootstraps from it.
@@ -103,6 +118,31 @@ func TestService_NewService(t *testing.T) {
 		assert.Equal(t, AppConfigValue("true"), cfg.LdapEnabled)
 		// Keys not present in the legacy config keep their defaults
 		assert.Equal(t, getDefaultConfig().SessionDuration, cfg.SessionDuration)
+
+		legacyCfg, err := LoadLegacyConfig(t.Context(), db)
+		require.NoError(t, err)
+		assert.Nil(t, legacyCfg, "the legacy config should be deleted once the actor state is saved")
+	})
+
+	t.Run("deletes the legacy config left over from an earlier bootstrap", func(t *testing.T) {
+		setUIConfigDisabled(t, false)
+		db := testutils.NewDatabaseForTest(t)
+		seedLegacyConfig(t, db, map[string]string{
+			"appName":      "Legacy App",
+			"smtpPassword": "legacy-secret",
+		})
+		state := getDefaultConfig()
+		state.AppName = "Saved App"
+
+		svc, _ := newActorBackedServiceWithState(t, db, state)
+
+		cfg, err := svc.GetConfig(t.Context())
+		require.NoError(t, err)
+		assert.Equal(t, AppConfigValue("Saved App"), cfg.AppName)
+
+		legacyCfg, err := LoadLegacyConfig(t.Context(), db)
+		require.NoError(t, err)
+		assert.Nil(t, legacyCfg)
 	})
 
 	t.Run("loads config from the environment when the UI config is disabled", func(t *testing.T) {
@@ -455,6 +495,57 @@ func TestService_EnvOverrides(t *testing.T) {
 		cfg, err := svc.GetConfig(t.Context())
 		require.NoError(t, err)
 		assert.Equal(t, AppConfigValue(EmailVerificationRequired), cfg.EmailVerification)
+	})
+}
+
+func TestService_SecretEncryption(t *testing.T) {
+	// loadSavedState returns the actor state as it is saved in the database
+	loadSavedState := func(t *testing.T, h *local.Host) AppConfigModel {
+		t.Helper()
+
+		var state AppConfigModel
+		err := h.GetState(t.Context(), AppConfigActorType, actor.SingletonActorID, &state)
+		require.NoError(t, err)
+		return state
+	}
+
+	t.Run("secrets are encrypted in the database", func(t *testing.T) {
+		setUIConfigDisabled(t, false)
+		db := testutils.NewDatabaseForTest(t)
+		svc, h := newActorBackedServiceWithState(t, db, nil)
+
+		_, err := svc.UpdateAppConfig(t.Context(), dto.AppConfigUpdateDto{
+			SmtpPassword:     "smtp-secret",
+			LdapBindPassword: "ldap-secret",
+			SmtpUser:         "smtp-user",
+		})
+		require.NoError(t, err)
+
+		saved := loadSavedState(t, h)
+		assert.True(t, strings.HasPrefix(saved.SmtpPassword.String(), encryptedSecretPrefix))
+		assert.True(t, strings.HasPrefix(saved.LdapBindPassword.String(), encryptedSecretPrefix))
+		assert.NotContains(t, saved.SmtpPassword.String(), "smtp-secret")
+		assert.Equal(t, AppConfigValue("smtp-user"), saved.SmtpUser)
+
+		cfg, err := svc.GetConfig(t.Context())
+		require.NoError(t, err)
+		assert.Equal(t, AppConfigValue("smtp-secret"), cfg.SmtpPassword)
+		assert.Equal(t, AppConfigValue("ldap-secret"), cfg.LdapBindPassword)
+	})
+
+	t.Run("secrets saved before they were encrypted are encrypted when the actor bootstraps", func(t *testing.T) {
+		setUIConfigDisabled(t, false)
+		db := testutils.NewDatabaseForTest(t)
+		state := getDefaultConfig()
+		state.SmtpPassword = "plaintext-secret"
+		svc, h := newActorBackedServiceWithState(t, db, state)
+
+		saved := loadSavedState(t, h)
+		assert.True(t, strings.HasPrefix(saved.SmtpPassword.String(), encryptedSecretPrefix))
+
+		cfg, err := svc.GetConfig(t.Context())
+		require.NoError(t, err)
+		assert.Equal(t, AppConfigValue("plaintext-secret"), cfg.SmtpPassword)
 	})
 }
 

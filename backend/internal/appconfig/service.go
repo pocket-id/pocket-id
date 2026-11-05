@@ -64,7 +64,7 @@ func NewService(ctx context.Context, actors francishost.Host, db *gorm.DB) (serv
 		LegacyConfig: legacyCfg,
 	}
 	err = actors.RegisterSingletonActor(
-		AppConfigActorType, NewAppConfigActor,
+		AppConfigActorType, newAppConfigActorFactory(db),
 		francishost.WithBootstrapData(bootstrapData),
 		francishost.WithIdleTimeout(-1), // Disable idle timeout for this actor
 	)

@@ -19,12 +19,15 @@ import (
 // This file holds the one-time migration of the legacy (pre-actor) app config
 // The legacy config was stored in the "config_migrated" key of the kv table, and it's loaded here to bootstrap the AppConfig actor on first startup
 
+// legacyConfigKey is the kv key under which the legacy config was frozen
+const legacyConfigKey = "config_migrated"
+
 // LoadLegacyConfig loads the legacy config from the database
 // This was migrated to the "config_migrated" key in the kv table
 func LoadLegacyConfig(ctx context.Context, db *gorm.DB) (map[string]string, error) {
 	// Retrieve the migrated config from the kv table
 	row := model.KV{
-		Key: "config_migrated",
+		Key: legacyConfigKey,
 	}
 	ctx, cancel := context.WithTimeout(ctx, 10*time.Second)
 	defer cancel()
@@ -51,6 +54,13 @@ func LoadLegacyConfig(ctx context.Context, db *gorm.DB) (map[string]string, erro
 		return nil, nil
 	}
 	return res, nil
+}
+
+// deleteLegacyConfig deletes the legacy config from the database, which also drops the data the down migration of the "freeze_config" migration restores
+func deleteLegacyConfig(ctx context.Context, db *gorm.DB) error {
+	ctx, cancel := context.WithTimeout(ctx, 10*time.Second)
+	defer cancel()
+	return db.WithContext(ctx).Delete(&model.KV{Key: legacyConfigKey}).Error
 }
 
 // fromLegacyConfig builds an appConfigModel from a legacy config map

@@ -6,9 +6,12 @@ import (
 	"fmt"
 	"os"
 
+	"github.com/italypaleale/francis/actor"
+	francishost "github.com/italypaleale/francis/host"
 	"github.com/spf13/cobra"
 	"gorm.io/gorm"
 
+	"github.com/pocket-id/pocket-id/backend/internal/appconfig"
 	"github.com/pocket-id/pocket-id/backend/internal/bootstrap"
 	"github.com/pocket-id/pocket-id/backend/internal/common"
 	"github.com/pocket-id/pocket-id/backend/internal/instanceid"
@@ -30,7 +33,7 @@ func init() {
 		Use:   "encryption-key-rotate",
 		Short: "Re-encrypts data using a new encryption key",
 		RunE: func(cmd *cobra.Command, args []string) error {
-			db, _, err := bootstrap.NewDatabase(cmd.Context())
+			db, pg, err := bootstrap.NewDatabase(cmd.Context())
 			if err != nil {
 				return err
 			}
@@ -40,7 +43,23 @@ func init() {
 				return err
 			}
 
-			return encryptionKeyRotate(cmd.Context(), flags, db, instanceID, &common.EnvConfig)
+			// The app config lives in the actor state store, which a standalone Francis runtime owns and which is in Pocket ID's own database otherwise
+			if !common.EnvConfig.HasEmbeddedFrancisRuntime() {
+				return bootstrap.WithActorClient(cmd.Context(), &common.EnvConfig, func(ctx context.Context, client francishost.Host) error {
+					return encryptionKeyRotate(ctx, flags, db, client, instanceID, &common.EnvConfig)
+				})
+			}
+			actorStore, err := bootstrap.NewActorStateStore(bootstrap.NewActorsOpts{
+				DB:         db,
+				Postgres:   pg,
+				EnvConfig:  &common.EnvConfig,
+				InstanceID: instanceID,
+			})
+			if err != nil {
+				return fmt.Errorf("failed to initialize the actor state store: %w", err)
+			}
+
+			return encryptionKeyRotate(cmd.Context(), flags, db, actorStore, instanceID, &common.EnvConfig)
 		},
 	}
 
@@ -50,7 +69,7 @@ func init() {
 	rootCmd.AddCommand(encryptionKeyRotateCmd)
 }
 
-func encryptionKeyRotate(ctx context.Context, flags encryptionKeyRotateFlags, db *gorm.DB, instanceID string, envConfig *common.EnvConfigSchema) error {
+func encryptionKeyRotate(ctx context.Context, flags encryptionKeyRotateFlags, db *gorm.DB, actorStore actor.Host, instanceID string, envConfig *common.EnvConfigSchema) error {
 	oldKey := envConfig.EncryptionKey
 	newKey := []byte(flags.NewKey)
 	if len(newKey) == 0 {
@@ -92,6 +111,12 @@ func encryptionKeyRotate(ctx context.Context, flags encryptionKeyRotateFlags, db
 		return fmt.Errorf("failed to derive new encrypted string key: %w", err)
 	}
 
+	// Re-encrypt the app config secrets before touching the database, so a key that cannot decrypt them aborts the rotation before anything changed
+	appConfig, err := appconfig.ReencryptSecrets(ctx, actorStore, oldEncKey, newEncKey)
+	if err != nil {
+		return fmt.Errorf("failed to re-encrypt the app config secrets: %w", err)
+	}
+
 	err = db.Transaction(func(tx *gorm.DB) error {
 		// Both the key used for tokens meant for external consumption and the session key are encrypted with the KEK
 		for _, dbKey := range []string{jwkutils.PrivateKeyDBKey, jwkutils.SessionKeyDBKey} {
@@ -110,6 +135,14 @@ func encryptionKeyRotate(ctx context.Context, flags encryptionKeyRotateFlags, db
 	})
 	if err != nil {
 		return err
+	}
+
+	// The actor state store is separate from the database transaction, so the app config is saved once the rest has been committed
+	if appConfig != nil {
+		err = actorStore.SetState(ctx, appconfig.AppConfigActorType, actor.SingletonActorID, appConfig, nil)
+		if err != nil {
+			return fmt.Errorf("failed to save the re-encrypted app config secrets: %w", err)
+		}
 	}
 
 	fmt.Println("Encryption key rotation completed successfully.")
