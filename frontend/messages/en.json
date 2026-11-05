@@ -877,6 +877,7 @@
 	"auth_passkey_added": "Passkey added",
 	"auth_add_passkey_description": "Your device will ask for Face ID, Touch ID, Windows Hello or your security key.",
 	"welcome_question": "Which features do you want to enable?",
+	"welcome_description": "If you're just getting started, advanced features can be overwhelming, so only choose what you need right now.",
 	"welcome_change_later": "You can change this any time later under Configuration.",
 	"auth_taking_you_to": "Taking you to {name}…",
 	"auth_continue_to": "Continue to {name}",

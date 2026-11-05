@@ -13,8 +13,7 @@
 	import { featureSections } from '#lib/utils/feature-util.ts';
 	import { cn } from '@pocket-id/ui/utils';
 	import { goto } from '$app/navigation';
-	import CheckIcon from '~icons/solar/check-linear';
-	import PlusIcon from '~icons/solar/add-circle-bold-duotone';
+	import CheckCircleIcon from '~icons/solar/check-circle-bold';
 
 	let { data } = $props();
 
@@ -80,7 +79,7 @@
 
 <SignInWrapper wide columns={false}>
 	<AuthTile />
-	<AuthHeading title={m.welcome_question()} />
+	<AuthHeading title={m.welcome_question()}>{m.welcome_description()}</AuthHeading>
 
 	<div
 		bind:this={grid}
@@ -107,7 +106,11 @@
 						)}
 						onclick={() => toggle(row.id)}
 					>
-						<row.icon class={cn('mt-0.5 size-4 shrink-0', !checked && 'text-fg-muted')} />
+						{#if checked}
+							<CheckCircleIcon class="size-5 shrink-0" />
+						{:else}
+							<row.icon class="text-fg-muted size-5 shrink-0" />
+						{/if}
 						<span class="flex min-w-0 flex-1 flex-col">
 							<span class="text-pretty wrap-anywhere">{row.title}</span>
 							<!-- The row track grows from nothing, so the description opens at its own height -->
@@ -124,11 +127,6 @@
 								</span>
 							</span>
 						</span>
-						{#if checked}
-							<CheckIcon class="mt-0.5 size-4 shrink-0" />
-						{:else}
-							<PlusIcon class="text-fg-muted mt-0.5 size-4 shrink-0" />
-						{/if}
 					</button>
 					<span id="{uid}-{row.id}" class="sr-only">{row.description}</span>
 				{/each}
