@@ -6,12 +6,12 @@
 	import FormInput from '#lib/components/form/form-input.svelte';
 	import UserGroupInput from '#lib/components/form/user-group-input.svelte';
 	import Qrcode from '#lib/components/qrcode/qrcode.svelte';
-	import { Badge } from '#lib/components/ui/badge/index.ts';
-	import { Button } from '#lib/components/ui/button/index.ts';
-	import { Input } from '#lib/components/ui/input/index.ts';
-	import * as Select from '#lib/components/ui/select/index.ts';
-	import * as Sheet from '#lib/components/ui/sheet/index.ts';
-	import { Skeleton } from '#lib/components/ui/skeleton/index.ts';
+	import { Badge } from '@pocket-id/ui/badge';
+	import { Button } from '@pocket-id/ui/button';
+	import { Input } from '@pocket-id/ui/input';
+	import * as Select from '@pocket-id/ui/select';
+	import * as Sheet from '@pocket-id/ui/sheet';
+	import { Skeleton } from '@pocket-id/ui/skeleton';
 	import { m } from '#lib/paraglide/messages.js';
 	import { getLocale } from '#lib/paraglide/runtime.js';
 	import AppConfigService from '#lib/services/app-config-service.ts';
@@ -20,7 +20,8 @@
 	import { axiosErrorToast } from '#lib/utils/error-util.ts';
 	import { preventDefault } from '#lib/utils/event-util.ts';
 	import { createForm } from '#lib/utils/form-util.ts';
-	import { LucideInfo, LucideTrash2 } from '@lucide/svelte';
+	import InfoIcon from '~icons/solar/info-circle-bold-duotone';
+	import Trash2Icon from '~icons/solar/trash-bin-minimalistic-bold';
 	import { untrack } from 'svelte';
 	import { toast } from 'svelte-sonner';
 	import { z } from 'zod/v4';
@@ -189,7 +190,7 @@
 									aria-label={m.delete_signup_token_name({ token: short(token.token) })}
 									onclick={() => deleteToken(token)}
 								>
-									<LucideTrash2 />
+									<Trash2Icon />
 								</Button>
 							</span>
 						</div>
@@ -261,7 +262,7 @@
 				<dd>{groupNames(created)}</dd>
 			</dl>
 			<p class="text-caption text-fg-muted flex items-start gap-1.5">
-				<LucideInfo class="mt-[3px] size-3 shrink-0" />
+				<InfoIcon class="mt-[3px] size-3 shrink-0" />
 				{m.signup_link_consequence()}
 			</p>
 		{/if}

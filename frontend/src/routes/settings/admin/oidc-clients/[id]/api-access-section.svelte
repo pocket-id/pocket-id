@@ -1,15 +1,17 @@
 <script lang="ts">
 	import ActionsMenu from '#lib/components/actions-menu.svelte';
-	import ApiPermissionsModal from '#lib/components/api-permissions-modal.svelte';
+	import ApiPermissionsSheet from '#lib/components/api-permissions-sheet.svelte';
 	import { openConfirmDialog } from '#lib/components/confirm-dialog/index.ts';
 	import SettingsSection from '#lib/components/settings-section.svelte';
-	import { Button } from '#lib/components/ui/button/index.ts';
+	import { Button } from '@pocket-id/ui/button';
 	import { m } from '#lib/paraglide/messages.js';
 	import ApisService from '#lib/services/apis-service.ts';
 	import type { Api, ApiClientGrant, ClientApiGrant } from '#lib/types/api.type.ts';
 	import type { OidcClient } from '#lib/types/oidc.type.ts';
 	import { axiosErrorToast } from '#lib/utils/error-util.ts';
-	import { LucideBan, LucidePencil, LucidePlus } from '@lucide/svelte';
+	import BanIcon from '~icons/solar/forbidden-circle-bold';
+	import PencilIcon from '~icons/solar/pen-bold';
+	import PlusIcon from '~icons/solar/add-circle-bold';
 	import { toast } from 'svelte-sonner';
 	import ApiSelectionModal from './api-selection-modal.svelte';
 
@@ -69,7 +71,7 @@
 			confirm: {
 				label: m.remove_access(),
 				destructive: true,
-				icon: LucideBan,
+				icon: BanIcon,
 				action: async () => {
 					try {
 						await apisService.removeClientAccessForApi(entry.api.id, client.id);
@@ -114,14 +116,11 @@
 	}
 </script>
 
-<SettingsSection
-	title={m.api_access()}
-	description={m.apis_name_may_request_tokens_for_description({ name: client.name })}
->
+<SettingsSection title={m.api_access()}>
 	{#snippet action()}
 		{#if grants.length > 0}
 			<Button variant="secondary" size="sm" onclick={() => (pickerOpen = true)}>
-				<LucidePlus />
+				<PlusIcon />
 				{m.add_api_ellipsis()}
 			</Button>
 		{/if}
@@ -147,10 +146,10 @@
 					label={m.actions_for_name({ name: entry.api.name })}
 					size="icon-sm"
 					actions={[
-						{ label: m.edit_access_ellipsis(), icon: LucidePencil, onClick: openEdit },
+						{ label: m.edit_access_ellipsis(), icon: PencilIcon, onClick: openEdit },
 						{
 							label: m.remove_access_ellipsis(),
-							icon: LucideBan,
+							icon: BanIcon,
 							variant: 'danger',
 							hidden: !entry.userDelegatedAccess && !entry.clientAccess,
 							onClick: removeApi
@@ -164,7 +163,7 @@
 					{m.name_cant_request_tokens_for_any_api({ name: client.name })}
 				</span>
 				<Button variant="ghost" size="sm" onclick={() => (pickerOpen = true)}>
-					<LucidePlus />
+					<PlusIcon />
 					{m.add_api_ellipsis()}
 				</Button>
 			</li>
@@ -175,7 +174,7 @@
 <ApiSelectionModal bind:open={pickerOpen} clientId={client.id} onSelect={addApi} />
 
 {#if editing}
-	<ApiPermissionsModal
+	<ApiPermissionsSheet
 		bind:open={modalOpen}
 		api={editing.api}
 		grant={editing}

@@ -46,6 +46,10 @@ func TestCrossOriginProtectionMiddleware(t *testing.T) {
 		{"same-site sibling origin", http.MethodPost, "/api/oidc/device/verify?code=ABCD", map[string]string{"Sec-Fetch-Site": "same-site", "Origin": "https://app.example.com"}, http.StatusForbidden},
 		{"cross-site origin", http.MethodPost, "/api/oidc/device/verify?code=ABCD", map[string]string{"Sec-Fetch-Site": "cross-site", "Origin": "https://evil.test"}, http.StatusForbidden},
 		{"cross-site delete", http.MethodDelete, "/api/users/1", map[string]string{"Sec-Fetch-Site": "cross-site"}, http.StatusForbidden},
+		{"cross-site bearer request with a cookie", http.MethodDelete, "/api/users/1", map[string]string{"Sec-Fetch-Site": "cross-site", "Authorization": "Bearer token", "Cookie": "__Host-access_token=session"}, http.StatusForbidden},
+
+		// Browser apps on other origins call the API with an OAuth access token and no cookie, which can't be forged
+		{"cross-site bearer request without cookies", http.MethodDelete, "/api/users/1", map[string]string{"Sec-Fetch-Site": "cross-site", "Origin": "https://app.test", "Authorization": "Bearer token"}, http.StatusOK},
 		{"old browser with foreign origin", http.MethodPost, "/api/oidc/device/verify", map[string]string{"Origin": "https://app.example.com"}, http.StatusForbidden},
 
 		// Requests from the SPA itself and direct navigations are allowed

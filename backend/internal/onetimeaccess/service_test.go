@@ -17,10 +17,10 @@ import (
 	testutils "github.com/pocket-id/pocket-id/backend/internal/utils/testing"
 )
 
-type fakeSigner struct{}
+type fakeSessionCreator struct{}
 
-func (fakeSigner) GenerateAccessToken(_ model.User, _ string, _ time.Duration) (string, error) {
-	return "access-token", nil
+func (fakeSessionCreator) Create(_ context.Context, _, _, _, _ string, _ time.Duration) (string, error) {
+	return "session-token", nil
 }
 
 type fakeAuditLogger struct {
@@ -62,7 +62,7 @@ func newServiceForTest(t *testing.T, db *gorm.DB) (*Service, *local.Host, *fakeA
 
 		svc = newService(Dependencies{
 			DB:           db,
-			Signer:       fakeSigner{},
+			Sessions:     fakeSessionCreator{},
 			AuditLog:     auditLog,
 			UserProvider: fakeUserProvider{db: db},
 			EmailSender:  fakeEmailSender{},
@@ -109,7 +109,7 @@ func TestExchangeTokenSuccess(t *testing.T) {
 	exchangedUser, accessToken, err := svc.ExchangeToken(t.Context(), dbConfig, token, "", "1.2.3.4", "test-agent", "")
 	require.NoError(t, err)
 	require.Equal(t, user.ID, exchangedUser.ID)
-	require.NotEmpty(t, accessToken.AccessToken)
+	require.NotEmpty(t, accessToken.SessionToken)
 	require.Len(t, auditLog.notifications, 1)
 	require.True(t, auditLog.notifications[0].Notify)
 	require.Equal(t, auditlogs.EventOneTimeAccessTokenSignIn, auditLog.notifications[0].AuditLog.Event)

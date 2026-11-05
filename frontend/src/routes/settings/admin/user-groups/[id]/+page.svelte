@@ -5,11 +5,12 @@
 	import OidcClientAvatar from '#lib/components/oidc-client-avatar.svelte';
 	import PageHeader from '#lib/components/page-header.svelte';
 	import SettingsSection from '#lib/components/settings-section.svelte';
-	import { Badge } from '#lib/components/ui/badge/index.ts';
-	import { Button } from '#lib/components/ui/button/index.ts';
-	import * as DropdownMenu from '#lib/components/ui/dropdown-menu/index.ts';
-	import * as InputGroup from '#lib/components/ui/input-group/index.ts';
-	import * as Tabs from '#lib/components/ui/tabs/index.ts';
+	import { Badge } from '@pocket-id/ui/badge';
+	import { Button } from '@pocket-id/ui/button';
+	import * as DropdownMenu from '@pocket-id/ui/dropdown-menu';
+	import * as InputGroup from '@pocket-id/ui/input-group';
+	import HashTabs from '#lib/components/hash-tabs.svelte';
+	import * as Tabs from '@pocket-id/ui/tabs';
 	import { m } from '#lib/paraglide/messages.js';
 	import CustomClaimService from '#lib/services/custom-claim-service.ts';
 	import UserGroupService from '#lib/services/user-group-service.ts';
@@ -21,17 +22,15 @@
 	import { axiosErrorToast } from '#lib/utils/error-util.ts';
 	import { createForm } from '#lib/utils/form-util.ts';
 	import { trackFormChanges, trackUnsavedValue } from '#lib/utils/unsaved-changes-util.svelte.ts';
-	import {
-		LucideCopy,
-		LucideEllipsis,
-		LucideInfo,
-		LucideLock,
-		LucidePlus,
-		LucideSearch,
-		LucideTrash2,
-		LucideUserMinus,
-		LucideX
-	} from '@lucide/svelte';
+	import CopyIcon from '~icons/solar/copy-bold';
+	import EllipsisIcon from '~icons/solar/menu-dots-bold';
+	import InfoIcon from '~icons/solar/info-circle-bold-duotone';
+	import LockIcon from '~icons/solar/lock-bold-duotone';
+	import PlusIcon from '~icons/solar/add-circle-bold';
+	import SearchIcon from '~icons/solar/magnifier-linear';
+	import Trash2Icon from '~icons/solar/trash-bin-minimalistic-bold';
+	import UserMinusIcon from '~icons/solar/user-minus-rounded-bold';
+	import XIcon from '~icons/solar/close-linear';
 	import { toast } from 'svelte-sonner';
 	import { backNavigate } from '../../users/navigate-back-util';
 	import UserAvatar from '../../users/user-avatar.svelte';
@@ -224,13 +223,13 @@
 				<DropdownMenu.Trigger>
 					{#snippet child({ props })}
 						<Button {...props} variant="outline" size="icon" aria-label={m.more_actions()}>
-							<LucideEllipsis />
+							<EllipsisIcon />
 						</Button>
 					{/snippet}
 				</DropdownMenu.Trigger>
 				<DropdownMenu.Content align="end">
 					<DropdownMenu.Item onclick={copyGroupId}>
-						<LucideCopy />
+						<CopyIcon />
 						{m.copy_group_id()}
 					</DropdownMenu.Item>
 					{#if !readOnly}
@@ -243,7 +242,7 @@
 									backNavigation.leave
 								)}
 						>
-							<LucideTrash2 />
+							<Trash2Icon />
 							{m.delete_group_ellipsis()}
 						</DropdownMenu.Item>
 					{/if}
@@ -252,7 +251,7 @@
 		{/snippet}
 	</PageHeader>
 
-	<Tabs.Root bind:value={tab} useHash class="gap-10">
+	<HashTabs bind:value={tab} class="gap-10">
 		<div class="flex shadow-[inset_0_-1px_0_var(--border)]">
 			<div class="scroll-fade-x min-w-0 [scrollbar-width:none] overflow-x-auto">
 				<Tabs.List variant="line" class="shadow-none max-sm:gap-4" aria-label={m.group_sections()}>
@@ -279,7 +278,7 @@
 				<div class="flex max-w-100 flex-col gap-6 pt-4">
 					{#if readOnly}
 						<p class="text-caption text-fg-muted flex items-start gap-1.5">
-							<LucideLock class="mt-1 size-3 shrink-0" />
+							<LockIcon class="mt-1 size-3 shrink-0" />
 							{m.profile_managed_by_ldap()}
 						</p>
 					{/if}
@@ -304,14 +303,14 @@
 				{#snippet action()}
 					{#if !readOnly}
 						<Button variant="secondary" size="sm" onclick={() => (memberPickerOpen = true)}>
-							<LucidePlus />
+							<PlusIcon />
 							{m.add_members_ellipsis()}
 						</Button>
 					{/if}
 				{/snippet}
 				{#if readOnly}
 					<p class="text-caption text-fg-muted mb-2 flex items-start gap-1.5">
-						<LucideLock class="mt-1 size-3 shrink-0" />
+						<LockIcon class="mt-1 size-3 shrink-0" />
 						{m.group_members_come_from_ldap()}
 					</p>
 				{/if}
@@ -324,7 +323,7 @@
 							aria-label={m.search_members()}
 							type="search"
 						/>
-						<InputGroup.Addon><LucideSearch /></InputGroup.Addon>
+						<InputGroup.Addon><SearchIcon /></InputGroup.Addon>
 					</InputGroup.Root>
 				{/if}
 				<ul class="border-t">
@@ -352,7 +351,7 @@
 									})}
 									onclick={() => removeMember(user)}
 								>
-									<LucideUserMinus />
+									<UserMinusIcon />
 								</Button>
 							{/if}
 						</li>
@@ -385,7 +384,7 @@
 			>
 				{#snippet action()}
 					<Button variant="secondary" size="sm" onclick={() => (clientPickerOpen = true)}>
-						<LucidePlus />
+						<PlusIcon />
 						{m.allow_clients_ellipsis()}
 					</Button>
 				{/snippet}
@@ -417,7 +416,7 @@
 								})}
 								onclick={() => removeClient(client)}
 							>
-								<LucideX />
+								<XIcon />
 							</Button>
 						</li>
 					{:else}
@@ -430,7 +429,7 @@
 				</ul>
 				{#if openClients.length}
 					<p class="text-caption text-fg-muted mt-3 flex items-start gap-1.5">
-						<LucideInfo class="mt-[3px] size-3 shrink-0" />
+						<InfoIcon class="mt-[3px] size-3 shrink-0" />
 						{openClients.length === 1
 							? m.client_open_to_everyone({ client: openClients[0].name })
 							: m.clients_open_to_everyone({ clients: joinNames(openClients.map((c) => c.name)) })}
@@ -444,7 +443,7 @@
 				<CustomClaimsInput bind:customClaims={group.customClaims} />
 			</SettingsSection>
 		</Tabs.Content>
-	</Tabs.Root>
+	</HashTabs>
 </div>
 
 <PickerDialog

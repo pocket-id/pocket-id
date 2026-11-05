@@ -14,18 +14,17 @@
 
 <script lang="ts">
 	import { page } from '$app/state';
-	import CopyField from '#lib/components/copy-field.svelte';
+	import CopyButton from '#lib/components/copy-button.svelte';
 	import Qrcode from '#lib/components/qrcode/qrcode.svelte';
-	import { Button } from '#lib/components/ui/button/index.ts';
-	import * as Dialog from '#lib/components/ui/dialog/index.ts';
-	import * as Field from '#lib/components/ui/field/index.ts';
-	import * as Select from '#lib/components/ui/select/index.ts';
+	import { Button } from '@pocket-id/ui/button';
+	import * as Dialog from '@pocket-id/ui/dialog';
+	import * as Field from '@pocket-id/ui/field';
+	import * as Select from '@pocket-id/ui/select';
 	import { getLocale } from '#lib/paraglide/runtime.js';
 	import UserService from '#lib/services/user-service.ts';
 	import appConfigStore from '#lib/stores/application-configuration-store.ts';
 	import type { User } from '#lib/types/user.type.ts';
 	import { axiosErrorToast } from '#lib/utils/error-util.ts';
-	import { LucideInfo } from '@lucide/svelte';
 	import { toast } from 'svelte-sonner';
 
 	let { user = $bindable() }: { user: User | null } = $props();
@@ -80,7 +79,7 @@
 </script>
 
 <Dialog.Root bind:open onOpenChangeComplete={(o) => !o && reset()}>
-	<Dialog.Content class={code ? 'max-w-(--dialog-lg)' : undefined}>
+	<Dialog.Content>
 		<Dialog.Header>
 			<Dialog.Title>{m.login_code_for_name({ name: user?.displayName ?? '' })}</Dialog.Title>
 			<Dialog.Description>{m.login_code_description({ name })}</Dialog.Description>
@@ -121,17 +120,22 @@
 				</Button>
 			</Dialog.Footer>
 		{:else}
-			<CopyField label={m.code()} value={code} copyLabel={m.copy_code()} />
-			<CopyField
-				label={m.link()}
-				value={link!}
-				copyLabel={m.copy_link()}
-				testId="login-code-link"
-			/>
-			<div class="flex items-center gap-6">
-				<Qrcode value={link} size={140} class="shrink-0 rounded-sm bg-white p-2" />
-				<div class="text-caption flex flex-col gap-1">
-					<p class="text-fg tabular-nums">
+			<!-- The admin can hold the screen up for the person to scan, so the QR half stays light in both themes -->
+			<div class="overflow-hidden rounded-lg border">
+				<div class="bg-qr-bg flex flex-col items-center gap-3 px-6 pt-6 pb-5 text-[#121212]">
+					<Qrcode value={link} size={168} class="p-0" />
+					<p class="text-control font-semibold">{user?.displayName}</p>
+				</div>
+				<div
+					class="bg-surface-sunken flex flex-col items-center gap-1 border-t px-6 py-5 text-center"
+				>
+					<p
+						class="font-mono text-lg font-medium tracking-wider break-all"
+						data-testid="login-code"
+					>
+						{code}
+					</p>
+					<p class="text-caption text-fg-muted tabular-nums">
 						{m.expires_in_duration_at_time({
 							duration: expiration.label,
 							time: expiresAt!.toLocaleTimeString(getLocale(), {
@@ -142,10 +146,10 @@
 					</p>
 				</div>
 			</div>
-			<p class="text-caption text-fg-muted flex items-start gap-1.5">
-				<LucideInfo class="mt-[3px] size-3 shrink-0" />
-				{m.login_code_share_note({ name })}
-			</p>
+			<div class="grid grid-cols-2 gap-2">
+				<CopyButton labeled value={code} label={m.copy_code()} text={m.copy_code()} />
+				<CopyButton labeled value={link!} label={m.copy_link()} text={m.copy_link()} />
+			</div>
 			<Dialog.Footer>
 				<Button onclick={close}>{m.done()}</Button>
 			</Dialog.Footer>

@@ -1,11 +1,12 @@
 <script lang="ts">
-	import * as Command from '#lib/components/ui/command/index.ts';
-	import { filledFieldClass } from '#lib/components/ui/input/index.ts';
-	import * as Popover from '#lib/components/ui/popover/index.ts';
-	import { Spinner } from '#lib/components/ui/spinner/index.ts';
+	import * as Command from '@pocket-id/ui/command';
+	import { filledFieldClass } from '@pocket-id/ui/input';
+	import * as Popover from '@pocket-id/ui/popover';
+	import { Spinner } from '@pocket-id/ui/spinner';
 	import { m } from '#lib/paraglide/messages.js';
-	import { cn } from '#lib/utils/style.ts';
-	import { LucideCheck, LucideChevronDown } from '@lucide/svelte';
+	import { cn } from '@pocket-id/ui/utils';
+	import CheckIcon from '~icons/solar/check-linear';
+	import ChevronDownIcon from '~icons/solar/alt-arrow-down-linear';
 	import type { FormEventHandler, HTMLAttributes } from 'svelte/elements';
 
 	let {
@@ -72,7 +73,7 @@
 				<span class={cn('truncate', !selectedLabel && 'text-fg-muted')}>
 					{selectedLabel || selectText}
 				</span>
-				<LucideChevronDown class="text-fg-muted size-3.5 shrink-0" />
+				<ChevronDownIcon class="text-fg-muted size-3.5 shrink-0" />
 			</button>
 		{/snippet}
 	</Popover.Trigger>
@@ -106,9 +107,7 @@
 							open = false;
 						}}
 					>
-						<LucideCheck
-							class={cn('size-4 shrink-0', value !== item.value && 'text-transparent')}
-						/>
+						<CheckIcon class={cn('size-4 shrink-0', value !== item.value && 'text-transparent')} />
 						{#if item.description === undefined}
 							{item.label}
 						{:else}

@@ -40,7 +40,7 @@ func initRouter(db *gorm.DB, svc *services, rateLimitServices map[string]*rateli
 	if err != nil {
 		return nil, err
 	}
-	auth := middleware.NewAuthorization(svc.apiKeyModule, svc.userService, svc.jwtService, svc.appConfigService)
+	auth := middleware.NewAuthorization(svc.apiKeyModule, svc.oidcModule, svc.userService, svc.sessionModule, svc.appConfigService)
 	err = registerRoutes(r, db, svc, auth, rateLimitServices)
 	if err != nil {
 		return nil, err
@@ -139,10 +139,7 @@ func registerGlobalMiddleware(r *gin.Engine) {
 
 func registerRoutes(r *gin.Engine, db *gorm.DB, svc *services, auth *authz.Middleware, rateLimitServices map[string]*ratelimit.RateLimitService) error {
 
-	err := frontend.RegisterFrontend(r, func(ctx context.Context) bool {
-		cfg, err := svc.appConfigService.GetConfig(ctx)
-		return err == nil && cfg.DisableAnimations.IsTrue()
-	})
+	err := frontend.RegisterFrontend(r)
 	if errors.Is(err, frontend.ErrFrontendNotIncluded) {
 		slog.Warn("Frontend is not included in the build. Skipping frontend registration.")
 	} else if err != nil {
@@ -164,6 +161,7 @@ func registerRoutes(r *gin.Engine, db *gorm.DB, svc *services, auth *authz.Middl
 	baseRouter := auth.Router(baseGroup)
 
 	svc.apiKeyModule.RegisterRoutes(apiRouter)
+	svc.sessionModule.RegisterRoutes(apiRouter)
 	svc.webauthnModule.RegisterRoutes(apiRouter,
 		rateLimitMiddleware.Add(middleware.RateLimitWebauthnLogin),
 		rateLimitMiddleware.Add(middleware.RateLimitWebauthnReauthenticate),
@@ -174,11 +172,11 @@ func registerRoutes(r *gin.Engine, db *gorm.DB, svc *services, auth *authz.Middl
 		rateLimitMiddleware.Add(middleware.RateLimitDeviceLoginVerification),
 	)
 	controller.NewOidcController(apiRouter, fileSizeLimitMiddleware, svc.oidcService, svc.appConfigService)
-	controller.NewUserController(apiRouter, fileSizeLimitMiddleware, svc.appConfigService, svc.userService, svc.webauthnModule, rateLimitMiddleware.Add(middleware.RateLimitSendEmailVerification))
+	controller.NewUserController(apiRouter, fileSizeLimitMiddleware, svc.appConfigService, svc.userService, svc.webauthnModule)
 	svc.claimMappingPolicyModule.RegisterRoutes(apiRouter)
 	controller.NewAppConfigController(apiRouter, svc.appConfigService, svc.emailModule)
 	svc.ldapSyncModule.RegisterRoutes(apiRouter)
-	controller.NewAppImagesController(apiRouter, fileSizeLimitMiddleware, svc.appImagesService)
+	controller.NewAppAssetsController(apiRouter, fileSizeLimitMiddleware, svc.appAssetsService)
 	svc.auditLogsModule.RegisterRoutes(apiRouter)
 	controller.NewUserGroupController(apiRouter, svc.appConfigService, svc.userGroupService)
 	svc.apiModule.RegisterRoutes(apiRouter)
@@ -192,15 +190,12 @@ func registerRoutes(r *gin.Engine, db *gorm.DB, svc *services, auth *authz.Middl
 		rateLimitMiddleware.Add(middleware.RateLimitOneTimeAccessToken),
 		rateLimitMiddleware.Add(middleware.RateLimitOneTimeAccessEmail),
 	)
-	svc.emailVerificationModule.RegisterRoutes(apiRouter,
-		rateLimitMiddleware.Add(middleware.RateLimitSendEmailVerification),
-		rateLimitMiddleware.Add(middleware.RateLimitVerifyEmail),
-	)
+	svc.emailVerificationModule.RegisterRoutes(apiRouter, rateLimitMiddleware.Add(middleware.RateLimitVerifyEmail))
 	svc.oidcModule.RegisterRoutes(baseRouter, apiRouter)
 
 	registerTestRoutes(apiRouter, db, svc)
 
-	controller.NewWellKnownController(baseGroup, svc.jwtService, svc.appConfigService.GetCIMDURLAllowlist)
+	controller.NewWebManifestController(baseGroup, svc.appConfigService)
 
 	// These are not rate-limited.
 	controller.NewHealthzController(r)
@@ -405,10 +400,11 @@ func shutdownServer(srv *http.Server) error {
 
 func initLogger(r *gin.Engine) {
 	loggerSkipPathsPrefix := []string{
-		"GET /api/application-images/logo",
-		"GET /api/application-images/background",
-		"GET /api/application-images/favicon",
-		"GET /api/application-images/email",
+		"GET /api/application-assets/logo",
+		"GET /api/application-assets/background",
+		"GET /api/application-assets/favicon",
+		"GET /api/application-assets/email",
+		"GET /api/application-assets/font",
 		"GET /_app",
 		"GET /fonts",
 		"GET /healthz",

@@ -9,6 +9,7 @@ import (
 
 	francishost "github.com/italypaleale/francis/host"
 	"github.com/lestrrat-go/jwx/v4/jwa"
+	"github.com/pocket-id/fosite"
 	"go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp"
 	"gorm.io/gorm"
 
@@ -32,12 +33,22 @@ type TokenSigner interface {
 	GetKeyID() (string, bool)
 }
 
+// Signer is the instance key, which signs tokens and is published for the discovery endpoints
+type Signer interface {
+	TokenSigner
+	KeyPublisher
+}
+
 type CustomClaimSource interface {
 	GetCustomClaimsForUserWithUserGroups(ctx context.Context, userID string, tx *gorm.DB) ([]model.CustomClaim, error)
 }
 
 type ReauthenticationTokenConsumer interface {
 	ConsumeReauthenticationToken(ctx context.Context, tx *gorm.DB, token string, userID string) (time.Time, error)
+}
+
+type SessionRevoker interface {
+	Revoke(ctx context.Context, userID, sessionID string) error
 }
 
 type AuditLogger interface {
@@ -53,10 +64,11 @@ type Dependencies struct {
 
 	GetCIMDURLAllowlist func() []string
 
-	Signer       TokenSigner
+	Signer       Signer
 	CustomClaims CustomClaimSource
 	Reauth       ReauthenticationTokenConsumer
 	AuditLog     AuditLogger
+	Sessions     SessionRevoker
 	APIAccess    APIAccessProvider
 	AppConfig    appconfig.AppConfigResolver
 
@@ -68,6 +80,7 @@ type Module struct {
 	Preview *ClientPreviewBuilder
 
 	config       Config
+	provider     fosite.OAuth2Provider
 	store        *Store
 	cimdResolver *cimdClientResolver
 
@@ -80,6 +93,7 @@ type Module struct {
 	deviceHandler        *deviceHandler
 
 	claimMappingsPreviewHandler *claimMappingsPreviewHandler
+	discoveryHandler            *discoveryHandler
 }
 
 func New(ctx context.Context, deps Dependencies) (*Module, error) {
@@ -132,6 +146,7 @@ func New(ctx context.Context, deps Dependencies) (*Module, error) {
 		Preview: previewBuilder,
 
 		config:       deps.Config,
+		provider:     provider,
 		store:        store,
 		cimdResolver: cimdResolver,
 
@@ -140,10 +155,11 @@ func New(ctx context.Context, deps Dependencies) (*Module, error) {
 		userInfoHandler:      newUserInfoHandler(provider, claimsService, deps.Config.BaseURL),
 		parHandler:           newPARHandler(provider),
 		introspectionHandler: newIntrospectionHandler(provider, authenticator, deps.Config.BaseURL),
-		endSessionHandler:    newEndSessionHandler(endSessionService, deps.Config.BaseURL),
+		endSessionHandler:    newEndSessionHandler(endSessionService, deps.Sessions, deps.Config.BaseURL),
 		deviceHandler:        newDeviceHandler(provider, deviceService),
 
 		claimMappingsPreviewHandler: &claimMappingsPreviewHandler{claimsService: claimsService},
+		discoveryHandler:            &discoveryHandler{keys: deps.Signer, getCIMDURLAllowlist: deps.GetCIMDURLAllowlist},
 	}, nil
 }
 
@@ -152,11 +168,27 @@ func (m *Module) RefreshClientMetadata(ctx context.Context, clientID string) (mo
 	return m.cimdResolver.RefreshMetadataClient(ctx, clientID)
 }
 
+// VerifyAccessToken validates an access token Pocket ID issued, including that it hasn't been revoked, and returns the request it was granted for
+func (m *Module) VerifyAccessToken(ctx context.Context, token string) (fosite.AccessRequester, error) {
+	tokenType, accessRequest, err := m.provider.IntrospectToken(ctx, token, fosite.AccessToken, NewEmptySession())
+	if err != nil {
+		return nil, err
+	}
+	if tokenType != fosite.AccessToken {
+		return nil, fosite.ErrRequestUnauthorized.WithDescription("Only access tokens are accepted.")
+	}
+	return accessRequest, nil
+}
+
 func (m *Module) RegisterRoutes(root, api *authz.Router) {
 	// Browsers reach the authorize endpoint through a redirect, so authorization errors are shown on the interaction error page instead of as JSON
 	authorize := root.Use(m.authorizationHandler.redirectAuthorizationErrors).Optional()
 	authorize.GET("/authorize", authz.AccountAuthorize, m.authorizationHandler.authorize)
 	authorize.POST("/authorize", authz.AccountAuthorize, m.authorizationHandler.authorize)
+
+	root.Public().GET("/.well-known/jwks.json", httpserver.Handle(m.discoveryHandler.jwksHandler))
+	root.Public().GET("/.well-known/openid-configuration", httpserver.Handle(m.discoveryHandler.openIDConfigurationHandler))
+	root.Public().GET("/.well-known/oauth-authorization-server", httpserver.Handle(m.discoveryHandler.oauthAuthorizationServerHandler))
 
 	api.Public().GET("/oidc/interactions/:id", m.authorizationHandler.getInteractionSession)
 	api.POST("/oidc/interactions/:id/complete", authz.AccountAuthorize, m.authorizationHandler.completeInteraction)

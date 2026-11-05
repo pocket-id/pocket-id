@@ -3,22 +3,23 @@
 	import { page as currentPage } from '$app/state';
 	import ActionsMenu from '#lib/components/actions-menu.svelte';
 	import ListPagination from '#lib/components/list-pagination.svelte';
-	import { Button } from '#lib/components/ui/button/index.ts';
-	import Checkbox from '#lib/components/ui/checkbox/checkbox.svelte';
-	import * as Table from '#lib/components/ui/table/index.js';
+	import { Button } from '@pocket-id/ui/button';
+	import { Checkbox } from '@pocket-id/ui/checkbox';
+	import * as Table from '@pocket-id/ui/table';
 	import { m } from '#lib/paraglide/messages.js';
 	import type {
 		AdvancedTableColumn,
 		CreateAdvancedTableActions
 	} from '#lib/types/advanced-table.type.ts';
 	import type { ListRequestOptions, Paginated, SortRequest } from '#lib/types/list-request.type.ts';
-	import { cn, cssMs } from '#lib/utils/style.ts';
-	import ArrowDownIcon from '@lucide/svelte/icons/arrow-down';
-	import ArrowUpIcon from '@lucide/svelte/icons/arrow-up';
+	import { cn } from '@pocket-id/ui/utils';
+	import { cssMs } from '#lib/utils/style.ts';
+	import ArrowDownIcon from '~icons/solar/arrow-down-linear';
+	import ArrowUpIcon from '~icons/solar/arrow-up-linear';
 	import { PersistedState } from 'runed';
 	import { onMount } from 'svelte';
 	import { fade } from 'svelte/transition';
-	import { Skeleton } from '../ui/skeleton';
+	import { Skeleton } from '@pocket-id/ui/skeleton';
 	import AdvancedTableColumnSelection from './advanced-table-column-selection.svelte';
 	import AdvancedTableToolbar from './advanced-table-toolbar.svelte';
 
@@ -208,6 +209,35 @@
 			column.hideBelow === 520 && '@max-[520px]:hidden'
 		);
 
+	let tableRef = $state<HTMLTableElement | null>(null);
+	let stickyOverlaps = $state(false);
+
+	// Cells pass under the sticky column until the scroller reaches its right end
+	$effect(() => {
+		const scroller = tableRef?.parentElement;
+		if (!tableRef || !scroller || !hasStickyColumn) return;
+		const update = () =>
+			(stickyOverlaps = scroller.scrollLeft + scroller.clientWidth < scroller.scrollWidth - 1);
+		update();
+		const observer = new ResizeObserver(update);
+		observer.observe(scroller);
+		observer.observe(tableRef);
+		scroller.addEventListener('scroll', update, { passive: true });
+		return () => {
+			observer.disconnect();
+			scroller.removeEventListener('scroll', update);
+		};
+	});
+
+	// The fade inherits the cell's fill and hover shadow so it blends into the row in every state
+	const stickyCellClass = $derived(
+		cn(
+			'sticky right-0 z-(--z-sticky) w-px pr-2 pl-2 text-right',
+			stickyOverlaps &&
+				'before:pointer-events-none before:absolute before:inset-y-0 before:right-full before:w-8 before:[mask-image:linear-gradient(to_right,transparent,black)] before:[background:inherit] before:[box-shadow:inherit] before:[transition:inherit]'
+		)
+	);
+
 	function getPrimaryAction(item: T) {
 		if (!actions) return null;
 		const availableActions = actions(item).filter((a) => a.primary);
@@ -254,7 +284,7 @@
 {#if !items}
 	<!-- Fast responses replace the skeleton before it fades in, so it never flashes -->
 	<div aria-busy="true" class="transition-opacity delay-(--t-skeleton-delay) starting:opacity-0">
-		<Skeleton class="h-10 w-full rounded-sm" />
+		<Skeleton class="mb-1 h-10 w-full rounded-sm" />
 		{#each Array.from({ length: tablePreferences.current.length || 5 }, (_, i) => i) as i (i)}
 			<div class="flex h-(--row-2line) items-center border-b px-4">
 				<Skeleton class="h-3.5 w-2/5" />
@@ -271,7 +301,7 @@
 			isRefreshing && 'pointer-events-none opacity-50 delay-(--t-dim-delay)'
 		)}
 	>
-		<Table.Root class="min-w-full table-auto">
+		<Table.Root bind:ref={tableRef} class="min-w-full table-auto">
 			<Table.Header>
 				<Table.Row>
 					{#if selectedIds}
@@ -325,7 +355,7 @@
 					{/each}
 					{#if hasStickyColumn}
 						<!-- Pinned to the right edge so the actions stay reachable when the table scrolls horizontally -->
-						<Table.Head class="sticky right-0 z-(--z-sticky) w-px pr-2 pl-2 text-right">
+						<Table.Head class={stickyCellClass}>
 							{#if hasOptionalColumns}
 								<AdvancedTableColumnSelection
 									{columns}
@@ -342,7 +372,7 @@
 					{@const nameId = `${id}-${item.id}-name`}
 					<Table.Row
 						data-state={selected ? 'selected' : undefined}
-						class={cn('group/row', (getPrimaryAction(item) || onRowClick) && 'cursor-pointer')}
+						class={cn((getPrimaryAction(item) || onRowClick) && 'cursor-pointer')}
 						onclick={onRowClick ? () => onRowClick(item) : getPrimaryAction(item)}
 					>
 						{#if selectedIds}
@@ -369,10 +399,8 @@
 							</Table.Cell>
 						{/each}
 						{#if hasStickyColumn}
-							<!-- The sticky cell is opaque so scrolled cells pass under it, so it repeats the row's hover and selected fills -->
-							<Table.Cell
-								class="bg-surface group-hover/row:bg-fill-row-hover group-has-focus-visible/row:bg-fill-row-hover group-data-[state=selected]/row:bg-fill-muted sticky right-0 z-(--z-sticky) w-px py-0 pr-2 pl-2 text-right transition-colors duration-(--dur-fast)"
-							>
+							<!-- The sticky cell is opaque so scrolled cells pass under it -->
+							<Table.Cell class={cn(stickyCellClass, 'bg-surface py-0')}>
 								{#if actions}
 									<ActionsMenu
 										{item}

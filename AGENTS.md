@@ -7,7 +7,9 @@ the binary for production). This file lists what isn't obvious from reading the 
 
 - `backend/` — Go module (gin, GORM, [ory/fosite fork](#backend-go)). Its own toolchain, not part of the repository.
 - `frontend/` — SvelteKit 5 SPA. Builds into `backend/frontend/dist` and is embedded via `go:embed`.
-- `tests/` — Playwright end-to-end tests (drives a Dockerized full stack).
+- `packages/ui/` — `@pocket-id/ui` on npm: the bits-ui based primitives, design tokens and fonts, shared with other Pocket ID projects. The frontend consumes its source via `workspace:*`, so edits apply without a build step. `release.yml` publishes it with every Pocket ID release that includes commits to it, under its own version derived from those commits and tracked by `ui-v*` tags.
+- `packages/tests/` — Playwright end-to-end tests (drives a Dockerized full stack).
+- `packages/email-templates/` — React Email templates, built into `backend/resources/email-templates`.
 
 ## Build / test / lint
 
@@ -21,18 +23,18 @@ POCKET_ID_TEST_POSTGRES_URL='postgres://postgres:postgres@localhost:55432/postgr
 golangci-lint run  # lint (config: backend/.golangci.yml - includes build tags)
 
 # frontend/  (or root)
-pnpm check        # svelte-check — the ONLY frontend type gate (no unit tests exist)
+pnpm check        # svelte-check on packages/ui and frontend — the ONLY frontend type gate (no unit tests exist)
 pnpm lint         # vp check — oxlint + oxfmt check via Vite+ (note: not enforced by CI)
 pnpm format       # vp fmt — REQUIRED before opening a PR
 ```
 
-End-to-end (needs Docker; **stop any local backend on `:1411` first** — see gotchas):
+End-to-end (needs Docker; the stack serves the app on `:1511`, so a dev backend on `:1411` can keep running):
 
 ```sh
-cd tests/setup && docker compose up -d --build   # rebuild after ANY code change, or you test stale code
+cd packages/tests/setup && docker compose up -d --build   # rebuild after ANY code change, or you test stale code
 # docker-compose-francis.yml runs the same suite against a standalone Francis runtime instead of the embedded one
-# It needs FRANCIS_VERSION in tests/setup/.env: echo "FRANCIS_VERSION=$(./francis-version.sh)" > .env
-cd ../.. && pnpm test                            # = playwright test in tests/
+# It needs FRANCIS_VERSION in packages/tests/setup/.env: echo "FRANCIS_VERSION=$(./francis-version.sh)" > .env
+cd ../../.. && pnpm test                         # = playwright test in packages/tests/
 ```
 
 ## Critical gotchas
@@ -64,6 +66,12 @@ cd ../.. && pnpm test                            # = playwright test in tests/
   modifiers are gone — use `preventDefault` from `#lib/utils/event-util.ts` (`onsubmit={preventDefault(fn)}`).
 - **Forms:** use the custom `createForm(schema, initial)` from `#lib/utils/form-util.ts` with
   `form-input.svelte` — match the surrounding file. Import zod as `import { z } from 'zod/v4'`.
+- **UI primitives live in `packages/ui`**, imported as `@pocket-id/ui/<component>` and `cn` from `@pocket-id/ui/utils`.
+  Single components are named exports (`import { Button } from '@pocket-id/ui/button'`), compound ones are namespaces with unprefixed parts (`import * as Dialog from '@pocket-id/ui/dialog'`, then `Dialog.Content`).
+  They must stay app-agnostic because Astro and other SvelteKit apps use them: no Paraglide, `$app/*`, `mode-watcher` or Pocket ID services.
+  The few strings they render come from `setUiLabels` in the root layout; app behavior goes in a wrapper under `frontend/src/lib/components` (e.g. `hash-tabs.svelte`).
+- **Icons are Solar**, bundled at build time by `unplugin-icons` (`import TrashIcon from '~icons/solar/trash-bin-minimalistic-bold'`), never Lucide, in `packages/ui` too, so its consumers need the plugin.
+  Bold for actions (buttons, menu items and the "…" that opens them, command palette commands, confirm dialogs), Bold Duotone for icons that stand for something (nav items, features, setting rows, devices, claims, states), Linear for controls (close, chevrons, arrows, checkmarks, search, sidebar toggles).
 
 ## Coding Style Guidelines
 

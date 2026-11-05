@@ -9,14 +9,16 @@
 	} from '#lib/components/auth/auth-util.ts';
 	import { openConfirmDialog } from '#lib/components/confirm-dialog/index.ts';
 	import SignInWrapper from '#lib/components/login-wrapper.svelte';
-	import { Button } from '#lib/components/ui/button/index.ts';
+	import { Button } from '@pocket-id/ui/button';
 	import { m } from '#lib/paraglide/messages.js';
 	import WebAuthnService from '#lib/services/webauthn-service.ts';
 	import appConfigStore from '#lib/stores/application-configuration-store.ts';
 	import { getWebauthnErrorMessage } from '#lib/utils/error-util.ts';
+	import { cssMs } from '#lib/utils/style.ts';
 	import { goto } from '$app/navigation';
 	import { startRegistration } from '@simplewebauthn/browser';
-	import { LucideSkipForward } from '@lucide/svelte';
+	import SkipForwardIcon from '~icons/solar/skip-next-bold';
+	import { fade } from 'svelte/transition';
 
 	const webauthnService = new WebAuthnService();
 
@@ -49,7 +51,7 @@
 			confirm: {
 				label: m.skip_for_now(),
 				destructive: true,
-				icon: LucideSkipForward,
+				icon: SkipForwardIcon,
 				action: () => {
 					dismiss();
 					goto('/settings/account');
@@ -69,11 +71,8 @@
 </svelte:head>
 
 <SignInWrapper>
-	<AuthTile {success} />
-	<AuthHeading
-		title={success ? m.auth_passkey_added() : m.auth_add_a_passkey()}
-		tone={failure ? (failure.closed ? 'info' : 'danger') : undefined}
-	>
+	<AuthTile {success} error={!!failure} />
+	<AuthHeading title={success ? m.auth_passkey_added() : m.auth_add_a_passkey()}>
 		{#if success}
 			{m.auth_taking_you_to_your_account()}
 		{:else if failure}
@@ -82,16 +81,14 @@
 			{m.auth_add_passkey_description({ appName: $appConfigStore.appName })}
 		{/if}
 	</AuthHeading>
-	<div
-		class="flex flex-col items-center gap-3 transition-opacity duration-(--dur-fast)"
-		class:opacity-0={success}
-		inert={success}
-	>
-		<Button class={authPrimaryClass} onclick={createPasskeyAndContinue} {isLoading}>
-			{failure ? m.try_again() : m.add_passkey()}
-		</Button>
-		<Button variant="link" class={authQuietClass} onclick={skipForNow} disabled={isLoading}>
-			{m.skip_for_now()}
-		</Button>
-	</div>
+	{#if !success}
+		<div class="flex flex-col items-center gap-3" out:fade={{ duration: cssMs('--dur-fast') }}>
+			<Button class={authPrimaryClass} onclick={createPasskeyAndContinue} {isLoading}>
+				{failure ? m.try_again() : m.add_passkey()}
+			</Button>
+			<Button variant="link" class={authQuietClass} onclick={skipForNow} disabled={isLoading}>
+				{m.skip_for_now()}
+			</Button>
+		</div>
+	{/if}
 </SignInWrapper>

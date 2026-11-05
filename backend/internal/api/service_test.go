@@ -350,13 +350,13 @@ func TestPermissionsAreReturnedByKey(t *testing.T) {
 	assert.Equal(t, []string{"alpha", "beta", "delta", "epsilon", "gamma"}, keys)
 }
 
-func TestCreateRejectsIssuerResource(t *testing.T) {
+func TestCreateRejectsReservedResources(t *testing.T) {
 	db := testutils.NewDatabaseForTest(t)
 	const issuer = "https://id.example.com"
 	svc := New(Dependencies{DB: db, Issuer: issuer}).service
 
-	// The issuer itself, a trailing-slash variant, and a different-cased variant are all reserved
-	for _, resource := range []string{issuer, issuer + "/", "https://ID.example.com"} {
+	// The issuer and the built-in API's resource are reserved, including trailing-slash and different-cased variants
+	for _, resource := range []string{issuer, issuer + "/", "https://ID.example.com", issuer + "/api", issuer + "/api/", "https://ID.example.com/API"} {
 		_, err := svc.Create(t.Context(), apiCreateDto{Name: "Reserved", Resource: resource})
 		require.Error(t, err, "resource %q must be rejected", resource)
 		require.True(t, apperror.IsCode(err, apperror.CodeValidationFailed))

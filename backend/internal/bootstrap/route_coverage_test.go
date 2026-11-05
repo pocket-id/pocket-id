@@ -21,6 +21,7 @@ import (
 	"github.com/pocket-id/pocket-id/backend/internal/oidc"
 	"github.com/pocket-id/pocket-id/backend/internal/onetimeaccess"
 	"github.com/pocket-id/pocket-id/backend/internal/scimsync"
+	"github.com/pocket-id/pocket-id/backend/internal/session"
 	"github.com/pocket-id/pocket-id/backend/internal/usersignup"
 	"github.com/pocket-id/pocket-id/backend/internal/webauthn"
 )
@@ -40,6 +41,7 @@ func TestEveryAPIRouteDeclaresItsAccess(t *testing.T) {
 		webauthnModule:           &webauthn.Module{},
 		userSignUpModule:         &usersignup.Module{},
 		oneTimeAccessModule:      &onetimeaccess.Module{},
+		sessionModule:            &session.Module{},
 		emailVerificationModule:  &emailverification.Module{},
 		apiModule:                &api.Module{},
 		claimMappingPolicyModule: &claimmappingpolicy.Module{},
@@ -49,7 +51,7 @@ func TestEveryAPIRouteDeclaresItsAccess(t *testing.T) {
 	}
 
 	engine := gin.New()
-	auth := middleware.NewAuthorization(nil, nil, nil, nil)
+	auth := middleware.NewAuthorization(nil, nil, nil, nil, nil)
 	require.NoError(t, registerRoutes(engine, nil, svc, auth, nil))
 
 	// Collect every API route that bypassed the authz routers

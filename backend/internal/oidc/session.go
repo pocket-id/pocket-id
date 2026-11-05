@@ -177,3 +177,9 @@ func (s *Session) GetJWTHeader() *fositejwt.Headers {
 	}
 	return s.JWTHeader
 }
+
+// ClientSubject is the synthetic subject of a token a client obtained for itself through the client credentials grant
+// It can't collide with a user's subject because user IDs are UUIDs
+func ClientSubject(clientID string) string {
+	return "client-" + clientID
+}

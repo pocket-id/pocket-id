@@ -1,18 +1,19 @@
 <script lang="ts">
 	import { openConfirmDialog } from '#lib/components/confirm-dialog/index.ts';
 	import SettingsSection from '#lib/components/settings-section.svelte';
-	import { Badge } from '#lib/components/ui/badge/index.ts';
-	import { Button } from '#lib/components/ui/button/index.ts';
-	import * as Dialog from '#lib/components/ui/dialog/index.ts';
-	import * as Field from '#lib/components/ui/field/index.ts';
-	import * as Select from '#lib/components/ui/select/index.ts';
+	import { Badge } from '@pocket-id/ui/badge';
+	import { Button } from '@pocket-id/ui/button';
+	import * as Dialog from '@pocket-id/ui/dialog';
+	import * as Field from '@pocket-id/ui/field';
+	import * as Select from '@pocket-id/ui/select';
 	import { m } from '#lib/paraglide/messages.js';
 	import { getLocale } from '#lib/paraglide/runtime.js';
 	import OidcService from '#lib/services/oidc-service.ts';
 	import clientSecretStore, { autoCreatedSecretId } from '#lib/stores/client-secret-store.ts';
 	import type { OidcClient, OidcClientSecret } from '#lib/types/oidc.type.ts';
 	import { axiosErrorToast } from '#lib/utils/error-util.ts';
-	import { LucidePlus, LucideTrash2 } from '@lucide/svelte';
+	import PlusIcon from '~icons/solar/add-circle-bold';
+	import Trash2Icon from '~icons/solar/trash-bin-minimalistic-bold';
 	import { toast } from 'svelte-sonner';
 	import SecretReveal from './secret-reveal.svelte';
 
@@ -109,17 +110,13 @@
 
 <SettingsSection
 	title={m.client_secrets()}
-	description={client.isPublic
-		? undefined
-		: limitReached
-			? m.client_secrets_limit_reached()
-			: m.client_secrets_section_description()}
+	description={!client.isPublic && limitReached ? m.client_secrets_limit_reached() : undefined}
 >
 	<!-- An empty list offers the action in its row, so the header shows it only once secrets exist -->
 	{#snippet action()}
 		{#if !client.isPublic && secrets.length > 0}
 			<Button variant="secondary" size="sm" disabled={limitReached} onclick={openGenerate}>
-				<LucidePlus />
+				<PlusIcon />
 				{m.generate_secret_ellipsis()}
 			</Button>
 		{/if}
@@ -164,7 +161,7 @@
 							aria-label={m.delete_secret_prefix({ prefix: secret.prefix })}
 							onclick={() => deleteSecret(secret)}
 						>
-							<LucideTrash2 />
+							<Trash2Icon />
 						</Button>
 					</li>
 				{:else}
@@ -173,7 +170,7 @@
 							{m.name_has_no_client_secrets_yet({ name: client.name })}
 						</span>
 						<Button variant="ghost" size="sm" onclick={openGenerate}>
-							<LucidePlus />
+							<PlusIcon />
 							{m.generate_secret_ellipsis()}
 						</Button>
 					</li>

@@ -102,7 +102,7 @@ func (h *tokenHandler) token(c *gin.Context) {
 	if requestSession.Subject == "" {
 		client, ok := accessRequest.GetClient().(Client)
 		if ok && accessRequest.GetGrantTypes().Has(string(fosite.GrantTypeClientCredentials)) {
-			requestSession.Subject = "client-" + client.GetID()
+			requestSession.Subject = ClientSubject(client.GetID())
 		}
 	}
 
@@ -127,7 +127,19 @@ func (h *tokenHandler) validateRefreshAPIGrant(ctx context.Context, client Clien
 	}
 
 	_, _, err = resolveResource(ctx, nil, h.apiAccess, client.GetID(), resource, accessRequest.GetGrantedScopes(), SubjectTypeUser)
-	return err
+	if err != nil || resource == "" {
+		return err
+	}
+
+	// A user who lost a role since consenting keeps only the scopes they still hold, so the refreshed tokens don't list the others
+	held, err := h.apiAccess.HeldScopes(ctx, nil, accessRequest.GetSession().GetSubject(), resource, accessRequest.GetGrantedScopes())
+	if err != nil {
+		return err
+	}
+	if accessReq, ok := accessRequest.(*fosite.AccessRequest); ok {
+		accessReq.GrantedScope = held
+	}
+	return nil
 }
 
 // refreshGrantResource recovers the API resource of a refresh grant from its granted audience

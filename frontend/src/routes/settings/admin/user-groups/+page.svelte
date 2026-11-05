@@ -4,8 +4,8 @@
 	import PageHeader from '#lib/components/page-header.svelte';
 	import EmptyList from '#lib/components/empty-list.svelte';
 	import AdvancedTable from '#lib/components/table/advanced-table.svelte';
-	import { Badge } from '#lib/components/ui/badge/index.ts';
-	import { Button } from '#lib/components/ui/button/index.ts';
+	import { Badge } from '@pocket-id/ui/badge';
+	import { Button } from '@pocket-id/ui/button';
 	import { m } from '#lib/paraglide/messages.js';
 	import { getLocale } from '#lib/paraglide/runtime.js';
 	import UserGroupService from '#lib/services/user-group-service.ts';
@@ -17,7 +17,9 @@
 	import type { ListRequestOptions } from '#lib/types/list-request.type.ts';
 	import type { UserGroupMinimal } from '#lib/types/user-group.type.ts';
 	import { openOnCreateParam } from '#lib/utils/create-param-util.ts';
-	import { LucideArrowRight, LucidePlus, LucideTrash2 } from '@lucide/svelte';
+	import ArrowRightIcon from '~icons/solar/arrow-right-linear';
+	import PlusIcon from '~icons/solar/add-circle-bold';
+	import Trash2Icon from '~icons/solar/trash-bin-minimalistic-bold';
 	import { confirmDeleteGroup } from './user-group-actions';
 	import UserGroupCreateSheet from './user-group-create-sheet.svelte';
 
@@ -55,10 +57,10 @@
 	];
 
 	const actions: CreateAdvancedTableActions<UserGroupMinimal> = () => [
-		{ label: m.open(), primary: true, icon: LucideArrowRight, onClick: (g) => goto(href(g)) },
+		{ label: m.open(), primary: true, icon: ArrowRightIcon, onClick: (g) => goto(href(g)) },
 		{
 			label: m.delete_ellipsis(),
-			icon: LucideTrash2,
+			icon: Trash2Icon,
 			variant: 'danger',
 			onClick: (g) =>
 				confirmDeleteGroup({ ...g, memberCount: g.userCount }, () => tableRef?.refresh())
@@ -100,7 +102,7 @@
 		{#snippet actions()}
 			{#if !empty}
 				<Button onclick={() => (createOpen = true)}>
-					<LucidePlus />
+					<PlusIcon />
 					{m.add_group()}
 				</Button>
 			{/if}
@@ -112,7 +114,7 @@
 			{#snippet description()}{m.groups_page_description()}{/snippet}
 			{#snippet action()}
 				<Button onclick={() => (createOpen = true)}>
-					<LucidePlus />
+					<PlusIcon />
 					{m.add_group()}
 				</Button>
 			{/snippet}

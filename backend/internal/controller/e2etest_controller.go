@@ -42,7 +42,7 @@ func (tc *TestController) resetAndSeedHandler(c *gin.Context) error {
 		return err
 	}
 
-	if err := tc.TestService.ResetApplicationImages(c.Request.Context()); err != nil {
+	if err := tc.TestService.ResetApplicationAssets(c.Request.Context()); err != nil {
 		return err
 	}
 

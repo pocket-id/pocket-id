@@ -1,5 +1,5 @@
 <script lang="ts">
-	import * as Select from '#lib/components/ui/select/index.ts';
+	import * as Select from '@pocket-id/ui/select';
 	import { getLocale, type Locale } from '#lib/paraglide/runtime.js';
 	import UserService from '#lib/services/user-service.ts';
 	import userStore from '#lib/stores/user-store.ts';
@@ -49,7 +49,7 @@
 </script>
 
 <Select.Root type="single" value={currentLocale} onValueChange={(v) => updateLocale(v as Locale)}>
-	<Select.Trigger {...controlProps}>
+	<Select.Trigger {...controlProps} size="sm" class="min-w-40">
 		{locales[currentLocale]}
 	</Select.Trigger>
 	<Select.Content align="end" collisionPadding={16} class="max-h-100">

@@ -1,3 +1,18 @@
+## v2.19.2
+
+### Other
+
+- remove question issue template ([b023bc3](https://github.com/pocket-id/pocket-id/commit/b023bc3d57adbe1f0bf087c3171d7ced58db9991) by @stonith404)
+- bump react-email ([5953b14](https://github.com/pocket-id/pocket-id/commit/5953b14b24a24064317ded4c9c799075b2c0e776) by @stonith404)
+- Bump the "all-dependencies" group with 4 updates across multiple ecosystems ([\#1872](https://github.com/pocket-id/pocket-id/pull/1872) by @dependabot\[bot\])
+- update vulnerable dependencies ([32c4d7f](https://github.com/pocket-id/pocket-id/commit/32c4d7f7a4853b503752d00163074aa4440ae297) by @stonith404)
+- add OSS Scanner Dockerfile and threat model ([166d84f](https://github.com/pocket-id/pocket-id/commit/166d84f8182957e04b2823debdb0190c61e37938) by @stonith404)
+- update francis to 0.2.0 ([\#1879](https://github.com/pocket-id/pocket-id/pull/1879) by @ItalyPaleAle)
+- Bump the "all-dependencies" group with 3 updates across multiple ecosystems ([\#1887](https://github.com/pocket-id/pocket-id/pull/1887) by @dependabot\[bot\])
+- release v2 patches from the v2 branch ([38f5bfb](https://github.com/pocket-id/pocket-id/commit/38f5bfb9c03712b2b8e38e5be4ee518f733c0b8a) by @Elias Schneider)
+- update francis to 0.2.1 ([755e9e8](https://github.com/pocket-id/pocket-id/commit/755e9e84a4355517179fb0282e00ebf8117633ce) by @Elias Schneider)
+
+**Full Changelog**: https://github.com/pocket-id/pocket-id/compare/v2.19.1...v2.19.2
 ## v2.19.1
 
 ### Bug Fixes

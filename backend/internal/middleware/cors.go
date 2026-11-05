@@ -2,6 +2,7 @@ package middleware
 
 import (
 	"net/http"
+	"strings"
 
 	"github.com/gin-gonic/gin"
 )
@@ -20,14 +21,21 @@ func (m *CorsMiddleware) Add() gin.HandlerFunc {
 			path = c.Request.URL.Path
 		}
 
-		if !isCorsPath(path) {
+		switch {
+		case isCorsPath(path):
+			c.Writer.Header().Set("Access-Control-Allow-Origin", "*")
+			c.Writer.Header().Set("Access-Control-Allow-Headers", "Authorization")
+			c.Writer.Header().Set("Access-Control-Allow-Methods", "GET, POST")
+		case strings.HasPrefix(path, "/api/") && (c.Request.Method == http.MethodOptions || c.GetHeader("Authorization") != ""):
+			// Browser apps on other origins call the API with OAuth access tokens
+			// Credentials are never allowed, so the browser refuses to send or expose a cross-origin request that relies on the session cookie
+			c.Writer.Header().Set("Access-Control-Allow-Origin", "*")
+			c.Writer.Header().Set("Access-Control-Allow-Headers", "Authorization, Content-Type")
+			c.Writer.Header().Set("Access-Control-Allow-Methods", "GET, POST, PUT, PATCH, DELETE")
+		default:
 			c.Next()
 			return
 		}
-
-		c.Writer.Header().Set("Access-Control-Allow-Origin", "*")
-		c.Writer.Header().Set("Access-Control-Allow-Headers", "Authorization")
-		c.Writer.Header().Set("Access-Control-Allow-Methods", "GET, POST")
 
 		// Preflight request
 		if c.Request.Method == http.MethodOptions {

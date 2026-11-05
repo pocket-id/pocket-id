@@ -1,7 +1,7 @@
 <script lang="ts">
 	import { authPrimaryClass } from '#lib/components/auth/auth-util.ts';
 	import FormInput from '#lib/components/form/form-input.svelte';
-	import { Button } from '#lib/components/ui/button/index.ts';
+	import { Button } from '@pocket-id/ui/button';
 	import { m } from '#lib/paraglide/messages.js';
 	import appConfigStore from '#lib/stores/application-configuration-store.ts';
 	import type { UserSignUp } from '#lib/types/user.type.ts';
@@ -67,7 +67,6 @@
 	</div>
 	<FormInput
 		label={m.username()}
-		description={m.username_rule()}
 		autocomplete="username"
 		inputClass="h-(--h-xl)"
 		bind:input={$inputs.username}

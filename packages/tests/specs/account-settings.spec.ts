@@ -1,0 +1,210 @@
+import test, { expect } from '@playwright/test';
+import { emailVerificationTokens, users } from '../data';
+import authUtil from '../utils/auth.util';
+import { cleanupBackend } from '../utils/cleanup.util';
+import passkeyUtil from '../utils/passkey.util';
+import { saveUnsavedChanges, unsavedChangesBar } from '../utils/unsaved-changes.util';
+
+test.beforeEach(async () => await cleanupBackend());
+
+test('Update account details', async ({ page }) => {
+	await page.goto('/settings/account');
+
+	await page.getByLabel('Display Name').fill('Tim Apple');
+	await page.getByLabel('First name').fill('Timothy');
+	await page.getByLabel('Last name').fill('Apple');
+	await page.getByLabel('Display Name').fill('Timothy Apple');
+	await page.getByLabel('Email').fill('timothy.apple@test.com');
+	await page.getByLabel('Username').fill('timothy');
+	await saveUnsavedChanges(page);
+});
+
+test('Failed account update remains dirty and can be retried', async ({ page }) => {
+	await page.goto('/settings/account');
+
+	let failedUpdates = 0;
+	await page.route('**/api/users/me', async (route) => {
+		if (route.request().method() !== 'PUT' || failedUpdates > 0) {
+			await route.fallback();
+			return;
+		}
+
+		failedUpdates++;
+		await route.fulfill({
+			status: 500,
+			contentType: 'application/json',
+			body: JSON.stringify({ error: 'Temporary account update failure' })
+		});
+	});
+
+	const displayName = page.getByLabel('Display Name');
+	await displayName.fill('Retryable Account');
+	await page.getByRole('button', { name: 'Save', exact: true }).click();
+
+	await expect(
+		unsavedChangesBar(page).getByText('Temporary account update failure', { exact: true })
+	).toBeVisible();
+	await expect(page.getByRole('button', { name: 'Save', exact: true })).toBeVisible();
+	expect(failedUpdates).toBe(1);
+
+	await saveUnsavedChanges(page);
+	await page.reload();
+	await expect(page.getByLabel('Display Name')).toHaveValue('Retryable Account');
+});
+
+test('Update account details fails with already taken email', async ({ page }) => {
+	await page.goto('/settings/account');
+
+	await page.getByLabel('Email').fill(users.craig.email);
+
+	await page.getByRole('button', { name: 'Save', exact: true }).click();
+
+	await expect(
+		unsavedChangesBar(page).getByText('Email is already in use', { exact: true })
+	).toBeVisible();
+});
+
+test('Update account details fails with already taken username', async ({ page }) => {
+	await page.goto('/settings/account');
+
+	await page.getByLabel('Username').fill(users.craig.username);
+
+	await page.getByRole('button', { name: 'Save', exact: true }).click();
+
+	await expect(
+		unsavedChangesBar(page).getByText('Username is already in use', { exact: true })
+	).toBeVisible();
+});
+
+test('Update account details fails with already taken username in different casing', async ({
+	page
+}) => {
+	await page.goto('/settings/account');
+
+	await page.getByLabel('Username').fill(users.craig.username.toUpperCase());
+
+	await page.getByRole('button', { name: 'Save', exact: true }).click();
+
+	await expect(
+		unsavedChangesBar(page).getByText('Username is already in use', { exact: true })
+	).toBeVisible();
+});
+
+test('Change Locale', async ({ page }) => {
+	await page.goto('/settings/account#preferences');
+
+	await page.getByLabel('Language').click();
+	await page.getByRole('option', { name: 'Nederlands' }).click();
+
+	// Check if th language heading now says 'Taal' instead of 'Language'
+	await expect(page.getByText('Taal', { exact: true })).toBeVisible();
+
+	// Saving still validates in the new language
+	await page.getByRole('tab', { name: 'Profiel' }).click();
+	const username = page.getByRole('textbox', { name: 'Gebruikersnaam' });
+	await username.fill('');
+	await page.getByRole('button', { name: 'Opslaan' }).click();
+	await expect(username).toHaveAttribute('aria-invalid', 'true');
+
+	// Clear all cookies and sign in again to check if the language is still set to Dutch
+	await page.context().clearCookies();
+	await authUtil.authenticate(page);
+
+	await expect(page.getByRole('tab', { name: 'Profiel' })).toBeVisible();
+
+	await username.fill('');
+	await page.getByRole('button', { name: 'Opslaan' }).click();
+	await expect(username).toHaveAttribute('aria-invalid', 'true');
+});
+
+test('Add passkey to an account', async ({ page }) => {
+	await page.goto('/settings/account#passkeys');
+
+	await (await passkeyUtil.init(page)).addPasskey('timNew');
+
+	await page.getByRole('tabpanel').getByRole('button', { name: 'Add Passkey' }).click();
+
+	await page.getByLabel('Name', { exact: true }).fill('Test Passkey');
+	await page.getByLabel('Name Passkey').getByRole('button', { name: 'Save' }).click();
+
+	await expect(page.getByText('Test Passkey', { exact: true })).toBeVisible();
+});
+
+test('Adding a device passkey fails when only security keys are allowed', async ({ page }) => {
+	await page.goto('/settings/admin/application-configuration/passkeys');
+	await page.getByLabel('Allowed authenticator type').click();
+	await page.getByRole('option', { name: /^Security keys only/ }).click();
+	await saveUnsavedChanges(page);
+
+	// Drop the attachment filter to act like browsers that ignore it, such as the Windows passkey dialog
+	await page.route('**/api/webauthn/register/start', async (route) => {
+		const response = await route.fetch();
+		const body = await response.json();
+		delete body.authenticatorSelection.authenticatorAttachment;
+		await route.fulfill({ response, json: body });
+	});
+
+	await page.goto('/settings/account#passkeys');
+	await passkeyUtil.init(page);
+	await page.getByRole('tabpanel').getByRole('button', { name: 'Add Passkey' }).click();
+
+	await expect(page.locator('[data-type="error"]')).toHaveText(
+		'This type of passkey is not allowed by your administrator'
+	);
+});
+
+test('Rename passkey', async ({ page }) => {
+	await page.goto('/settings/account#passkeys');
+
+	await page
+		.getByRole('button', { name: /^Actions for / })
+		.first()
+		.click();
+	await page.getByRole('menuitem', { name: 'Rename' }).click();
+
+	await page.getByLabel('Name', { exact: true }).fill('Renamed Passkey');
+	await page.getByLabel('Name Passkey').getByRole('button', { name: 'Save' }).click();
+
+	await expect(page.getByText('Renamed Passkey', { exact: true })).toBeVisible();
+});
+
+test('Delete passkey from account', async ({ page }) => {
+	await page.goto('/settings/account#passkeys');
+
+	await page
+		.getByRole('button', { name: /^Actions for / })
+		.first()
+		.click();
+	await page.getByRole('menuitem', { name: 'Delete' }).click();
+	await page.getByLabel('Delete Passkey').getByRole('button', { name: 'Delete' }).click();
+
+	await expect(page.locator('[data-type="success"]')).toHaveText('Passkey deleted successfully');
+});
+
+test('Email verification succeeds', async ({ page, context }) => {
+	await context.clearCookies();
+
+	const token = emailVerificationTokens.find((t) => !t.expired)!.token;
+	await page.goto(`/verify-email?token=${token}`);
+	await (await passkeyUtil.init(page)).addPasskey('craig');
+
+	await page.getByRole('button', { name: 'Sign in with passkey' }).click();
+	await page.waitForURL('/settings/account?emailVerificationState=success');
+
+	await expect(page.getByText(`${users.craig.email} is verified`)).toBeVisible();
+});
+
+test('Email verification fails with expired token', async ({ page, context }) => {
+	await context.clearCookies();
+
+	const token = emailVerificationTokens.find((t) => t.expired)!.token;
+	await page.goto(`/verify-email?token=${token}`);
+	await (await passkeyUtil.init(page)).addPasskey('craig');
+
+	await page.getByRole('button', { name: 'Sign in with passkey' }).click();
+	await page.waitForURL(
+		'/settings/account?emailVerificationState=Email+verification+token+is+invalid'
+	);
+
+	await expect(page.getByText('Email verification token is invalid')).toBeVisible();
+});

@@ -8,7 +8,6 @@ import (
 
 	"github.com/gin-gonic/gin"
 	francishost "github.com/italypaleale/francis/host"
-	"github.com/lestrrat-go/jwx/v4/jwt"
 	"gorm.io/gorm"
 
 	"github.com/pocket-id/pocket-id/backend/internal/appconfig"
@@ -18,10 +17,9 @@ import (
 	"github.com/pocket-id/pocket-id/backend/internal/model"
 )
 
-type TokenService interface {
-	GenerateAccessToken(user model.User, authenticationMethod string, sessionDuration time.Duration) (string, error)
-	VerifyAccessToken(tokenString string) (jwt.Token, error)
-	GetAuthenticationMethod(token jwt.Token) (string, error)
+type SessionStore interface {
+	Create(ctx context.Context, userID, authenticationMethod, ipAddress, userAgent string, duration time.Duration) (string, error)
+	Revoke(ctx context.Context, userID, sessionID string) error
 }
 
 type AuditLogger interface {
@@ -35,7 +33,7 @@ type Dependencies struct {
 	Actors francishost.Host
 	AppURL string
 
-	Signer    TokenService
+	Sessions  SessionStore
 	AuditLog  AuditLogger
 	AppConfig appconfig.AppConfigResolver
 
@@ -109,8 +107,8 @@ func (m *Module) ListCredentials(ctx context.Context, userID string) ([]model.We
 	return m.service.ListCredentials(ctx, userID)
 }
 
-// DeleteCredential removes a passkey, optionally on behalf of an admin acting for another user
+// DeleteCredential removes a passkey, optionally on behalf of an admin or a client acting for another user
 // It is consumed by the user controller for the admin "manage passkeys" view
-func (m *Module) DeleteCredential(ctx context.Context, userID, credentialID, ipAddress, userAgent, actorUserID string) error {
-	return m.service.DeleteCredential(ctx, userID, credentialID, ipAddress, userAgent, actorUserID)
+func (m *Module) DeleteCredential(ctx context.Context, userID, credentialID, ipAddress, userAgent string, actor authz.Principal) error {
+	return m.service.DeleteCredential(ctx, userID, credentialID, ipAddress, userAgent, actor)
 }

@@ -24,7 +24,7 @@ type fakeAuthenticator struct {
 	calls      int
 }
 
-func (a *fakeAuthenticator) Kind() PrincipalKind {
+func (a *fakeAuthenticator) Kinds() PrincipalKind {
 	return a.kind
 }
 

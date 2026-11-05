@@ -45,7 +45,6 @@ const (
 
 type OidcService struct {
 	db                *gorm.DB
-	jwtService        *JwtService
 	previewBuilder    oidcClientPreviewBuilder
 	metadataRefresher metadataRefresher
 	scimSyncScheduler ScimSyncScheduler
@@ -65,7 +64,6 @@ type metadataRefresher interface {
 
 func NewOidcService(
 	db *gorm.DB,
-	jwtService *JwtService,
 	previewBuilder oidcClientPreviewBuilder,
 	metadataRefresher metadataRefresher,
 	scimSyncScheduler ScimSyncScheduler,
@@ -75,7 +73,6 @@ func NewOidcService(
 ) (s *OidcService, err error) {
 	s = &OidcService{
 		db:                db,
-		jwtService:        jwtService,
 		previewBuilder:    previewBuilder,
 		metadataRefresher: metadataRefresher,
 		scimSyncScheduler: scimSyncScheduler,
@@ -154,12 +151,15 @@ func (s *OidcService) ListClients(ctx context.Context, name string, listRequestO
 	return clients, response, err
 }
 
+// CreateClient creates a client on behalf of userID, which is empty when a client acting as itself creates it
 func (s *OidcService) CreateClient(ctx context.Context, input dto.OidcClientCreateDto, userID string, autoCreateSecret bool) (model.OidcClient, string, error) {
 	client := model.OidcClient{
 		Base: model.Base{
 			ID: input.ID,
 		},
-		CreatedByID: new(userID),
+	}
+	if userID != "" {
+		client.CreatedByID = &userID
 	}
 	err := updateOIDCClientModelFromDto(&client, &input.OidcClientUpdateDto)
 	if err != nil {

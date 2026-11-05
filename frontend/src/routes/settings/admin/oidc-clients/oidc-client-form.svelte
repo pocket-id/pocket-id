@@ -6,7 +6,7 @@
 	import FormattedMessage from '#lib/components/formatted-message.svelte';
 	import SettingRow from '#lib/components/setting-row.svelte';
 	import SettingsSection from '#lib/components/settings-section.svelte';
-	import { Switch } from '#lib/components/ui/switch/index.ts';
+	import { Switch } from '@pocket-id/ui/switch';
 	import { m } from '#lib/paraglide/messages.js';
 	import OidcClaimMappingPolicyService from '#lib/services/oidc-claim-mapping-policy-service.ts';
 	import appConfigStore from '#lib/stores/application-configuration-store.ts';
@@ -16,14 +16,14 @@
 		OidcClientCreateWithLogo,
 		OidcClientLogoPreset
 	} from '#lib/types/oidc.type.ts';
-	import { cachedOidcClientLogo } from '#lib/utils/cached-image-util.ts';
+	import { cachedOidcClientLogo } from '#lib/utils/cached-asset-util.ts';
 	import { debounced } from '#lib/utils/debounce-util.ts';
 	import { axiosErrorToast } from '#lib/utils/error-util.ts';
 	import { preventDefault } from '#lib/utils/event-util.ts';
 	import { createForm } from '#lib/utils/form-util.ts';
 	import { trackFormChanges } from '#lib/utils/unsaved-changes-util.svelte.ts';
 	import { callbackUrlSchema, optionalUrl } from '#lib/utils/zod-util.ts';
-	import { LucideArrowRight } from '@lucide/svelte';
+	import ArrowRightIcon from '~icons/solar/arrow-right-linear';
 	import { z } from 'zod/v4';
 	import { claimsCount, policyHref } from '../claim-mappings/claim-mapping-util';
 	import ChangedMarker from './changed-marker.svelte';
@@ -264,7 +264,7 @@
 {#snippet switchRow(
 	key: 'skipConsent' | 'requiresPushedAuthorizationRequests',
 	title: string,
-	description: string,
+	description: string | undefined,
 	isChanged: boolean
 )}
 	<SettingRow
@@ -419,16 +419,13 @@
 				{@render switchRow(
 					'requiresPushedAuthorizationRequests',
 					m.requires_pushed_authorization_requests(),
-					m.requires_par_row_description(),
+					undefined,
 					changed.par
 				)}
 			</div>
 		</SettingsSection>
 
-		<SettingsSection
-			title={m.token_lifetimes()}
-			description={m.token_lifetimes_section_description()}
-		>
+		<SettingsSection title={m.token_lifetimes()}>
 			<div class="grid gap-6 pt-2 sm:grid-cols-2">
 				<div class="relative min-w-0">
 					<DurationInput
@@ -464,10 +461,7 @@
 		</SettingsSection>
 
 		{#if claimMappingPolicies}
-			<SettingsSection
-				title={m.claims()}
-				description={m.claims_section_description({ name: existingClient.name })}
-			>
+			<SettingsSection title={m.claims()}>
 				<div class="flex flex-col gap-3 pt-2">
 					<div class="relative max-w-100 min-w-0">
 						<FormInput
@@ -498,7 +492,7 @@
 							class="text-control text-fg focus-visible:outline-ring inline-flex w-fit items-center gap-1 rounded-xs font-medium hover:underline focus-visible:outline-2 focus-visible:outline-offset-2"
 						>
 							{m.see_the_claims_in_name({ name: appliedPolicy.name })}
-							<LucideArrowRight class="size-3.5" />
+							<ArrowRightIcon class="size-3.5" />
 						</a>
 					{/if}
 				</div>

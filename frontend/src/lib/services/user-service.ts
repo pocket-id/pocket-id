@@ -10,7 +10,7 @@ import type {
 	UserCreate,
 	UserSignUp
 } from '#lib/types/user.type.ts';
-import { cachedProfilePicture } from '#lib/utils/cached-image-util.ts';
+import { cachedProfilePicture } from '#lib/utils/cached-asset-util.ts';
 import { get } from 'svelte/store';
 import APIService from './api-service';
 

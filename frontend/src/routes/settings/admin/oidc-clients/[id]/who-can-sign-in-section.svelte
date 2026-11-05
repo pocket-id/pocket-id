@@ -1,8 +1,8 @@
 <script lang="ts">
 	import { openConfirmDialog } from '#lib/components/confirm-dialog/index.ts';
 	import SettingsSection from '#lib/components/settings-section.svelte';
-	import * as Field from '#lib/components/ui/field/index.ts';
-	import * as RadioGroup from '#lib/components/ui/radio-group/index.ts';
+	import * as Field from '@pocket-id/ui/field';
+	import * as RadioGroup from '@pocket-id/ui/radio-group';
 	import UserGroupSelection from '#lib/components/user-group-selection.svelte';
 	import { m } from '#lib/paraglide/messages.js';
 	import OidcService from '#lib/services/oidc-service.ts';
@@ -10,7 +10,7 @@
 	import type { OidcClient } from '#lib/types/oidc.type.ts';
 	import { axiosErrorToast } from '#lib/utils/error-util.ts';
 	import { trackUnsavedValue } from '#lib/utils/unsaved-changes-util.svelte.ts';
-	import { LucideLockOpen } from '@lucide/svelte';
+	import LockOpenIcon from '~icons/solar/lock-unlocked-bold';
 	import { toast } from 'svelte-sonner';
 
 	type AccessMode = 'all' | 'restricted';
@@ -63,7 +63,7 @@
 			confirm: {
 				label: m.allow_all_users(),
 				destructive: true,
-				icon: LucideLockOpen,
+				icon: LockOpenIcon,
 				action: async () => {
 					try {
 						await oidcService.updateClient(client.id, { ...client, isGroupRestricted: false });

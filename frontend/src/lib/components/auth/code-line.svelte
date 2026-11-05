@@ -1,7 +1,7 @@
 <script lang="ts">
-	import { Spinner } from '#lib/components/ui/spinner/index.ts';
-	import { cn } from '#lib/utils/style.ts';
-	import { LucideCircleAlert, LucideInfo } from '@lucide/svelte';
+	import { Spinner } from '@pocket-id/ui/spinner';
+	import { cn } from '@pocket-id/ui/utils';
+	import CircleAlertIcon from '~icons/solar/danger-circle-bold-duotone';
 	import type { Snippet } from 'svelte';
 
 	let {
@@ -10,7 +10,7 @@
 		children
 	}: {
 		id: string;
-		tone?: 'checking' | 'error' | 'info';
+		tone?: 'checking' | 'error';
 		children?: Snippet;
 	} = $props();
 </script>
@@ -21,15 +21,13 @@
 	aria-live="polite"
 	class={cn(
 		'text-control mt-2 flex min-h-5 items-start gap-1.5',
-		tone === 'error' ? 'text-danger-fg' : tone === 'info' ? 'text-fg' : 'text-fg-muted'
+		tone === 'error' ? 'text-danger-fg' : 'text-fg-muted'
 	)}
 >
 	{#if tone === 'checking'}
 		<Spinner class="mt-1 size-3" />
 	{:else if tone === 'error'}
-		<LucideCircleAlert class="mt-1 size-3 shrink-0" />
-	{:else if tone === 'info'}
-		<LucideInfo class="mt-1 size-3 shrink-0" />
+		<CircleAlertIcon class="mt-1 size-3 shrink-0" />
 	{/if}
 	<span>{@render children?.()}</span>
 </p>

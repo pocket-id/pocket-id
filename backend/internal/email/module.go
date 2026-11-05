@@ -139,7 +139,7 @@ func send[V any](ctx context.Context, module *Module, dbConfig *appconfig.AppCon
 	// Combine application metadata with message-specific data before rendering both MIME alternatives
 	templateData := &templateData[V]{
 		AppName: dbConfig.AppName.String(),
-		LogoURL: common.EnvConfig.AppURL + "/api/application-images/email",
+		LogoURL: common.EnvConfig.AppURL + "/api/application-assets/email",
 		AppURL:  common.EnvConfig.AppURL,
 		Data:    data,
 	}

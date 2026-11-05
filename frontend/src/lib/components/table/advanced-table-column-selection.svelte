@@ -1,10 +1,10 @@
 <script lang="ts" generics="TData extends Record<string, any>">
-	import { Button, buttonVariants } from '#lib/components/ui/button/index.js';
-	import * as Popover from '#lib/components/ui/popover/index.js';
+	import { Button, buttonVariants } from '@pocket-id/ui/button';
+	import * as Popover from '@pocket-id/ui/popover';
 	import { m } from '#lib/paraglide/messages.js';
 	import type { AdvancedTableColumn } from '#lib/types/advanced-table.type.ts';
-	import CheckIcon from '@lucide/svelte/icons/check';
-	import SlidersHorizontalIcon from '@lucide/svelte/icons/sliders-horizontal';
+	import CheckIcon from '~icons/solar/check-linear';
+	import SlidersHorizontalIcon from '~icons/solar/tuning-2-bold';
 
 	let {
 		columns,

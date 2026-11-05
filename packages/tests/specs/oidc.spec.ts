@@ -1,0 +1,1727 @@
+import test, { expect, type APIRequestContext, type Page, type Request } from '@playwright/test';
+import { oidcClients, refreshTokens, users } from '../data';
+import { cleanupBackend } from '../utils/cleanup.util';
+import { generateIdToken } from '../utils/jwt.util';
+import * as oidcUtil from '../utils/oidc.util';
+import passkeyUtil from '../utils/passkey.util';
+import { saveUnsavedChanges } from '../utils/unsaved-changes.util';
+
+// This file holds a third of the suite, so the CI shards may split it instead of one shard running it whole
+test.describe.configure({ mode: 'parallel' });
+
+test.beforeEach(async () => await cleanupBackend());
+
+async function generateSeededOauthAccessToken(
+	request: APIRequestContext,
+	userId: string,
+	clientId: string,
+	expired = false
+) {
+	return request
+		.post('/api/test/accesstoken', {
+			data: {
+				client: clientId,
+				expired,
+				user: userId
+			}
+		})
+		.then((r) => r.text());
+}
+
+test('Authorize existing client', async ({ page }) => {
+	const oidcClient = oidcClients.nextcloud;
+	const urlParams = createUrlParams(oidcClient);
+	await expectCallbackRedirect(page, oidcClient.callbackUrl, () =>
+		page.goto(`/authorize?${urlParams.toString()}`)
+	);
+});
+
+test('Authorize existing client with POST while signed in', async ({ page }, testInfo) => {
+	const oidcClient = oidcClients.nextcloud;
+	const formFields = Array.from(createUrlParams(oidcClient));
+	const authorizeURL = new URL('/authorize', testInfo.project.use.baseURL).toString();
+	const clientPageURL = new URL('/post-authorize-test', oidcClient.callbackUrl).toString();
+
+	await page.route(clientPageURL, async (route) => {
+		await route.fulfill({ status: 200, contentType: 'text/html', body: '<!doctype html>' });
+	});
+	await page.goto(clientPageURL);
+
+	const authorizeRequestPromise = page.waitForRequest(
+		(request) => request.method() === 'POST' && new URL(request.url()).pathname === '/authorize'
+	);
+	await expectCallbackRedirect(page, oidcClient.callbackUrl, async () => {
+		// Create and submit a form with the OIDC parameters to simulate a POST request to the /authorize endpoint
+		await page.evaluate(
+			({ fields, target }) => {
+				const doc = (globalThis as any).document;
+				const form = doc.createElement('form');
+				form.method = 'POST';
+				form.action = target;
+
+				for (const [name, value] of fields) {
+					const input = doc.createElement('input');
+					input.type = 'hidden';
+					input.name = name;
+					input.value = value;
+					form.append(input);
+				}
+
+				doc.body.append(form);
+				form.submit();
+			},
+			{ fields: formFields, target: authorizeURL }
+		);
+
+		// Since the access token isn't sent with the POST request because of SameSite cookie restrictions,
+		// /authorize thinks the user is not signed in and shows the login page.
+		// The interaction page has the access token so the user just needs to click "Continue to …" to finish the flow.
+		await page.getByRole('button', { name: /^Continue to / }).click();
+	});
+	await authorizeRequestPromise;
+});
+
+test('Authorize existing client while not signed in', async ({ page }) => {
+	const oidcClient = oidcClients.nextcloud;
+	const urlParams = createUrlParams(oidcClient);
+	await page.context().clearCookies();
+
+	await expectCallbackRedirect(page, oidcClient.callbackUrl, async () => {
+		await page.goto(`/authorize?${urlParams.toString()}`);
+
+		await (await passkeyUtil.init(page)).addPasskey();
+		await page.getByRole('button', { name: 'Sign in with passkey' }).click();
+	});
+});
+
+test('Authorize new client', async ({ page }) => {
+	const oidcClient = oidcClients.immich;
+	const urlParams = createUrlParams(oidcClient);
+	await page.goto(`/authorize?${urlParams.toString()}`);
+
+	await expectScopes(page, ['Email', 'Profile']);
+
+	await expectCallbackRedirect(page, oidcClient.callbackUrl, () =>
+		page.getByRole('button', { name: /^Continue to / }).click()
+	);
+});
+
+test('Cancel on the consent screen returns access_denied to the client', async ({ page }) => {
+	const oidcClient = oidcClients.immich;
+	const urlParams = createUrlParams(oidcClient);
+	await page.goto(`/authorize?${urlParams.toString()}`);
+
+	await expectScopes(page, ['Email', 'Profile']);
+
+	const callbackUrl = await expectCallbackRedirect(page, oidcClient.callbackUrl, () =>
+		page.getByRole('link', { name: 'Cancel', exact: true }).click()
+	);
+	expect(callbackUrl.searchParams.get('error')).toBe('access_denied');
+	expect(callbackUrl.searchParams.get('code')).toBeNull();
+	expect(callbackUrl.searchParams.get('state')).toBe(urlParams.get('state'));
+});
+
+test('Authorize client requesting offline_access scope', async ({ page }) => {
+	const oidcClient = oidcClients.immich;
+	const urlParams = createUrlParams(oidcClient);
+	urlParams.set('scope', 'openid profile email offline_access');
+	await page.goto(`/authorize?${urlParams.toString()}`);
+
+	// offline_access is a valid OIDC scope: the flow must reach the consent screen rather than
+	// being rejected with invalid_scope (offline_access itself has no displayable scope item)
+	await expectScopes(page, ['Email', 'Profile']);
+
+	const callbackUrl = await expectCallbackRedirect(page, oidcClient.callbackUrl, () =>
+		page.getByRole('button', { name: /^Continue to / }).click()
+	);
+	expect(callbackUrl.searchParams.get('code')).toBeTruthy();
+	expect(callbackUrl.searchParams.get('error')).toBeNull();
+});
+
+test('Authorize new client with a deselected scope', async ({ page }) => {
+	const oidcClient = oidcClients.immich;
+	const urlParams = createUrlParams(oidcClient);
+	await page.goto(`/authorize?${urlParams.toString()}`);
+
+	await expectScopes(page, ['Email', 'Profile']);
+	await page.getByRole('checkbox', { name: 'Email' }).click();
+	await expect(page.getByRole('checkbox', { name: 'Email' })).not.toBeChecked();
+	await expect(page.getByRole('checkbox', { name: 'Profile' })).toBeChecked();
+
+	const callbackUrl = await expectCallbackRedirect(page, oidcClient.callbackUrl, () =>
+		page.getByRole('button', { name: /^Continue to / }).click()
+	);
+
+	// The deselected scope must be missing from the issued token and therefore from the userinfo claims
+	const token = (await oidcUtil.exchangeCode(page, {
+		grant_type: 'authorization_code',
+		code: callbackUrl.searchParams.get('code')!,
+		redirect_uri: oidcClient.callbackUrl,
+		client_id: oidcClient.id,
+		client_secret: oidcClient.secret
+	})) as { access_token?: string; scope?: string };
+	expect(token.scope?.split(' ').sort()).toEqual(['openid', 'profile']);
+
+	const userinfo = await page.request
+		.get('/api/oidc/userinfo', { headers: { Authorization: `Bearer ${token.access_token}` } })
+		.then((r) => r.json());
+	expect(userinfo.sub).toBe(users.tim.id);
+	expect(userinfo.given_name).toBeTruthy();
+	expect(userinfo.email).toBeUndefined();
+});
+
+test('Authorize existing client without scopes', async ({ page }) => {
+	const oidcClient = oidcClients.nextcloud;
+	const urlParams = new URLSearchParams({
+		client_id: oidcClient.id,
+		response_type: 'code',
+		redirect_uri: oidcClient.callbackUrl,
+		state: 'no-scope-state',
+		nonce: 'no-scope-nonce'
+	});
+
+	await expectCallbackRedirect(page, oidcClient.callbackUrl, () =>
+		page.goto(`/authorize?${urlParams.toString()}`)
+	);
+});
+
+test('Authorize new client without scopes', async ({ page }) => {
+	const oidcClient = oidcClients.immich;
+	const urlParams = new URLSearchParams({
+		client_id: oidcClient.id,
+		response_type: 'code',
+		redirect_uri: oidcClient.callbackUrl,
+		state: 'no-scope-new-client',
+		nonce: 'no-scope-new-nonce'
+	});
+
+	await page.goto(`/authorize?${urlParams.toString()}`);
+
+	// With no scopes there is nothing to display, but the page should still allow sign-in
+	await expect(page.getByRole('button', { name: /^Continue to / })).toBeVisible();
+
+	const callbackUrl = await expectCallbackRedirect(page, oidcClient.callbackUrl, () =>
+		page.getByRole('button', { name: /^Continue to / }).click()
+	);
+	expect(callbackUrl.searchParams.get('code')).toBeTruthy();
+	expect(callbackUrl.searchParams.get('error')).toBeNull();
+	expect(callbackUrl.searchParams.get('state')).toBe('no-scope-new-client');
+});
+
+test('Authorize new client while not signed in', async ({ page }) => {
+	const oidcClient = oidcClients.immich;
+	const urlParams = createUrlParams(oidcClient);
+	await page.context().clearCookies();
+	await page.goto(`/authorize?${urlParams.toString()}`);
+
+	await (await passkeyUtil.init(page)).addPasskey();
+	await page.getByRole('button', { name: 'Sign in with passkey' }).click();
+
+	await expectScopes(page, ['Email', 'Profile']);
+
+	await expectCallbackRedirect(page, oidcClient.callbackUrl, () =>
+		page.getByRole('button', { name: /^Continue to / }).click()
+	);
+});
+
+test('Authorize new client shows Pocket ID error when user group not allowed', async ({ page }) => {
+	const oidcClient = oidcClients.immich;
+	const urlParams = createUrlParams(oidcClient);
+
+	await page.context().clearCookies();
+	await page.goto(`/authorize?${urlParams.toString()}`);
+
+	await (await passkeyUtil.init(page)).addPasskey('craig');
+	await page.getByRole('button', { name: 'Sign in with passkey' }).click();
+
+	await expectScopes(page, ['Email', 'Profile']);
+
+	await page.getByRole('button', { name: /^Continue to / }).click();
+
+	await expect(page).toHaveURL(/\/interaction\/error\?error=/);
+	await expect(
+		page.getByRole('paragraph').filter({ hasText: 'You are not allowed to access this service.' })
+	).toBeVisible();
+});
+
+test('Unknown authorize interaction shows the interaction error page', async ({
+	page
+}, testInfo) => {
+	const relyingPartyUrl = new URL('/client-return', testInfo.project.use.baseURL).toString();
+	await page.goto(`/interaction?interaction=${crypto.randomUUID()}`, { referer: relyingPartyUrl });
+
+	await expect(page).toHaveURL(/\/interaction\/error\?error=/);
+	await expect(page.getByRole('heading', { name: 'We couldn’t sign you in' })).toBeVisible();
+	await expect(page.getByText('OIDC interaction not found or expired')).toBeVisible();
+	await expect(page.getByRole('link', { name: 'Go back' })).toHaveAttribute(
+		'href',
+		relyingPartyUrl
+	);
+});
+
+function createUrlParams(oidcClient: { id: string; callbackUrl: string }) {
+	return new URLSearchParams({
+		client_id: oidcClient.id,
+		response_type: 'code',
+		scope: 'openid profile email',
+		redirect_uri: oidcClient.callbackUrl,
+		state: 'nXx-6Qr-owc1SHBa',
+		nonce: 'P1gN3PtpKHJgKUVcLpLjm'
+	});
+}
+
+async function expectScopes(page: Page, scopes: string[]) {
+	const scopeList = page.getByTestId('scopes').filter({ hasText: scopes[0] }).last();
+	await expect(scopeList).toBeVisible();
+
+	for (const scope of scopes) {
+		await expect(scopeList.getByText(scope, { exact: true })).toBeVisible();
+	}
+}
+
+test('End session without id token hint shows confirmation page', async ({ page }) => {
+	await page.goto('/api/oidc/end-session');
+
+	await expect(page).toHaveURL('/logout');
+	await page.getByRole('button', { name: 'Sign out' }).click();
+	await expect(page.getByRole('heading', { name: 'You’re signed out' })).toBeVisible();
+	await page.getByRole('link', { name: 'Sign in again' }).click();
+
+	await expect(page).toHaveURL('/login');
+});
+
+test('End session with id token hint redirects to callback URL', async ({ page }) => {
+	const client = oidcClients.nextcloud;
+	const idToken = await generateIdToken(
+		'fe81c12a-7336-4aee-bebc-d901a873bf48',
+		users.tim,
+		client.id
+	);
+	await expectCallbackRedirect(page, client.logoutCallbackUrl, () =>
+		page.goto(
+			`/api/oidc/end-session?id_token_hint=${idToken}&post_logout_redirect_uri=${client.logoutCallbackUrl}`
+		)
+	);
+});
+
+test('End session with id token hint redirects to callback URL without UI session', async ({
+	page
+}) => {
+	const client = oidcClients.nextcloud;
+	const idToken = await generateIdToken(
+		'fe81c12a-7336-4aee-bebc-d901a873bf48',
+		users.tim,
+		client.id
+	);
+	await page.context().clearCookies();
+
+	const callbackUrl = await expectCallbackRedirect(page, client.logoutCallbackUrl, () =>
+		page.goto(
+			`/api/oidc/end-session?id_token_hint=${idToken}&post_logout_redirect_uri=${client.logoutCallbackUrl}&state=logout-state`
+		)
+	);
+	expect(callbackUrl.searchParams.get('state')).toBe('logout-state');
+});
+
+test('End session ignores an unregistered post_logout_redirect_uri', async ({ page }) => {
+	// A post_logout_redirect_uri the client never registered must not be honored, otherwise
+	// RP-initiated logout becomes an open redirect. The handler falls back to the in-app
+	// logout confirmation instead of bouncing the user to the attacker URL.
+	const client = oidcClients.nextcloud;
+	const idToken = await generateIdToken(
+		'fe81c12a-7336-4aee-bebc-d901a873bf48',
+		users.tim,
+		client.id
+	);
+
+	await page.goto(
+		`/api/oidc/end-session?id_token_hint=${idToken}&post_logout_redirect_uri=http://evil.localhost/steal`
+	);
+
+	await expect(page).toHaveURL('/logout');
+});
+
+test('End session rejects an id token hint with a mismatched client_id', async ({ page }) => {
+	const client = oidcClients.nextcloud;
+	const idToken = await generateIdToken(
+		'fe81c12a-7336-4aee-bebc-d901a873bf48',
+		users.tim,
+		client.id
+	);
+
+	// The explicit client_id contradicts the audience baked into the id_token_hint, so the
+	// logout must not be auto-confirmed against another client's callback.
+	await page.goto(
+		`/api/oidc/end-session?id_token_hint=${idToken}&client_id=${oidcClients.immich.id}`
+	);
+
+	await expect(page).toHaveURL('/logout');
+});
+
+test('Successfully refresh tokens with valid refresh token', async ({ request }) => {
+	const { token, clientId, userId } = refreshTokens.filter((token) => !token.expired)[0];
+	const clientSecret = 'w2mUeZISmEvIDMEDvpY0PnxQIpj1m3zY';
+
+	// Sign the refresh token
+	const refreshToken = await request
+		.post('/api/test/refreshtoken', {
+			data: {
+				rt: token,
+				client: clientId,
+				user: userId
+			}
+		})
+		.then((r) => r.text());
+
+	// Perform the exchange
+	const refreshResponse = await request.post('/api/oidc/token', {
+		headers: {
+			'Content-Type': 'application/x-www-form-urlencoded'
+		},
+		form: {
+			grant_type: 'refresh_token',
+			client_id: clientId,
+			refresh_token: refreshToken,
+			client_secret: clientSecret
+		}
+	});
+
+	// Verify we got new tokens
+	const tokenData = await refreshResponse.json();
+	expect(tokenData.access_token).toBeDefined();
+	expect(tokenData.refresh_token).toBeDefined();
+	expect(tokenData.id_token).toBeDefined();
+	expect(tokenData.token_type).toBe('bearer');
+	expect(tokenData.expires_in).toBeGreaterThanOrEqual(3598);
+	expect(tokenData.expires_in).toBeLessThanOrEqual(3600);
+
+	// The new refresh token should be different from the old one
+	expect(tokenData.refresh_token).not.toBe(token);
+});
+
+test('Refresh token fails when used for the wrong client', async ({ request }) => {
+	const { token, clientId, userId } = refreshTokens.filter((token) => !token.expired)[0];
+	const clientSecret = 'w2mUeZISmEvIDMEDvpY0PnxQIpj1m3zY';
+
+	// Sign the refresh token
+	const refreshToken = await request
+		.post('/api/test/refreshtoken', {
+			data: {
+				rt: token,
+				client: 'bad-client',
+				user: userId
+			}
+		})
+		.then((r) => r.text());
+
+	// Perform the exchange
+	const refreshResponse = await request.post('/api/oidc/token', {
+		headers: {
+			'Content-Type': 'application/x-www-form-urlencoded'
+		},
+		form: {
+			grant_type: 'refresh_token',
+			client_id: clientId,
+			refresh_token: refreshToken,
+			client_secret: clientSecret
+		}
+	});
+
+	expect(refreshResponse.status()).toBe(400);
+});
+
+test('Refresh token fails when used for the wrong user', async ({ request }) => {
+	const { token, clientId } = refreshTokens.filter((token) => !token.expired)[0];
+	const clientSecret = 'w2mUeZISmEvIDMEDvpY0PnxQIpj1m3zY';
+
+	// Sign the refresh token
+	const refreshToken = await request
+		.post('/api/test/refreshtoken', {
+			data: {
+				rt: token,
+				client: clientId,
+				user: '44cb5d71-db31-4555-9a1b-5484650f6002'
+			}
+		})
+		.then((r) => r.text());
+
+	// Perform the exchange
+	const refreshResponse = await request.post('/api/oidc/token', {
+		headers: {
+			'Content-Type': 'application/x-www-form-urlencoded'
+		},
+		form: {
+			grant_type: 'refresh_token',
+			client_id: clientId,
+			refresh_token: refreshToken,
+			client_secret: clientSecret
+		}
+	});
+
+	expect(refreshResponse.status()).toBe(400);
+});
+
+test.describe('Introspection endpoint', () => {
+	test('fails without client credentials', async ({ request }) => {
+		const validAccessToken = await generateSeededOauthAccessToken(
+			request,
+			users.tim.id,
+			oidcClients.nextcloud.id
+		);
+		const introspectionResponse = await request.post('/api/oidc/introspect', {
+			headers: {
+				'Content-Type': 'application/x-www-form-urlencoded'
+			},
+			form: {
+				token: validAccessToken
+			}
+		});
+		expect(introspectionResponse.status()).toBe(401);
+	});
+
+	test('succeeds with client credentials', async ({ request, baseURL }) => {
+		const validAccessToken = await generateSeededOauthAccessToken(
+			request,
+			users.tim.id,
+			oidcClients.nextcloud.id
+		);
+		const introspectionResponse = await request.post('/api/oidc/introspect', {
+			headers: {
+				'Content-Type': 'application/x-www-form-urlencoded',
+				Authorization:
+					'Basic ' +
+					Buffer.from(`${oidcClients.nextcloud.id}:${oidcClients.nextcloud.secret}`).toString(
+						'base64'
+					)
+			},
+			form: {
+				token: validAccessToken
+			}
+		});
+		expect(introspectionResponse.status()).toBe(200);
+		const introspectionBody = await introspectionResponse.json();
+		expect(introspectionBody.active).toBe(true);
+		expect(introspectionBody.iss).toBe(baseURL);
+		expect(introspectionBody.sub).toBe(users.tim.id);
+		// An identity access token is audienced to the client and additionally to the issuer, so it can be presented at /userinfo
+		expect(introspectionBody.aud).toStrictEqual([oidcClients.nextcloud.id, baseURL]);
+	});
+
+	test('succeeds with federated client credentials', async ({ page, request, baseURL }) => {
+		const validAccessToken = await generateSeededOauthAccessToken(
+			request,
+			users.tim.id,
+			oidcClients.federated.id
+		);
+		const clientAssertion = await oidcUtil.getClientAssertion(
+			page,
+			oidcClients.federated.federatedJWT
+		);
+		const introspectionResponse = await request.post('/api/oidc/introspect', {
+			headers: {
+				'Content-Type': 'application/x-www-form-urlencoded',
+				Authorization: 'Bearer ' + clientAssertion
+			},
+			form: {
+				client_id: oidcClients.federated.id,
+				token: validAccessToken
+			}
+		});
+
+		expect(introspectionResponse.status()).toBe(200);
+		const introspectionBody = await introspectionResponse.json();
+		expect(introspectionBody.active).toBe(true);
+		expect(introspectionBody.iss).toBe(baseURL);
+		expect(introspectionBody.sub).toBe(users.tim.id);
+		// An identity access token is audienced to the client and additionally to the issuer, so it can be presented at /userinfo
+		expect(introspectionBody.aud).toStrictEqual([oidcClients.federated.id, baseURL]);
+	});
+
+	test('fails with client credentials for wrong app', async ({ request }) => {
+		const validAccessToken = await generateSeededOauthAccessToken(
+			request,
+			users.tim.id,
+			oidcClients.nextcloud.id
+		);
+		const introspectionResponse = await request.post('/api/oidc/introspect', {
+			headers: {
+				'Content-Type': 'application/x-www-form-urlencoded',
+				Authorization:
+					'Basic ' +
+					Buffer.from(`${oidcClients.immich.id}:${oidcClients.immich.secret}`).toString('base64')
+			},
+			form: {
+				token: validAccessToken
+			}
+		});
+
+		const introspectionBody = await introspectionResponse.json();
+		expect(introspectionBody.active).toBe(false);
+	});
+
+	test('fails with federated credentials for wrong app', async ({ page, request }) => {
+		const validAccessToken = await generateSeededOauthAccessToken(
+			request,
+			users.tim.id,
+			oidcClients.nextcloud.id
+		);
+		const clientAssertion = await oidcUtil.getClientAssertion(
+			page,
+			oidcClients.federated.federatedJWT
+		);
+		const introspectionResponse = await request.post('/api/oidc/introspect', {
+			headers: {
+				'Content-Type': 'application/x-www-form-urlencoded',
+				Authorization: 'Bearer ' + clientAssertion
+			},
+			form: {
+				client_id: oidcClients.federated.id,
+				token: validAccessToken
+			}
+		});
+
+		expect(introspectionResponse.status()).toBe(200);
+		const introspectionBody = await introspectionResponse.json();
+		expect(introspectionBody.active).toBe(false);
+	});
+
+	test('non-expired refresh_token can be verified', async ({ request }) => {
+		const { token, clientId, userId } = refreshTokens.filter((token) => !token.expired)[0];
+
+		// Sign the refresh token
+		const refreshToken = await request
+			.post('/api/test/refreshtoken', {
+				data: {
+					rt: token,
+					client: clientId,
+					user: userId
+				}
+			})
+			.then((r) => r.text());
+
+		const introspectionResponse = await request.post('/api/oidc/introspect', {
+			headers: {
+				'Content-Type': 'application/x-www-form-urlencoded',
+				Authorization:
+					'Basic ' +
+					Buffer.from(`${oidcClients.nextcloud.id}:${oidcClients.nextcloud.secret}`).toString(
+						'base64'
+					)
+			},
+			form: {
+				token: refreshToken
+			}
+		});
+
+		expect(introspectionResponse.status()).toBe(200);
+		const introspectionBody = await introspectionResponse.json();
+		expect(introspectionBody.active).toBe(true);
+	});
+
+	test('expired refresh_token can be verified', async ({ request }) => {
+		const { token, clientId, userId } = refreshTokens.filter((token) => token.expired)[0];
+
+		// Sign the refresh token
+		const refreshToken = await request
+			.post('/api/test/refreshtoken', {
+				data: {
+					rt: token,
+					client: clientId,
+					user: userId
+				}
+			})
+			.then((r) => r.text());
+
+		const introspectionResponse = await request.post('/api/oidc/introspect', {
+			headers: {
+				'Content-Type': 'application/x-www-form-urlencoded',
+				Authorization:
+					'Basic ' +
+					Buffer.from(`${oidcClients.nextcloud.id}:${oidcClients.nextcloud.secret}`).toString(
+						'base64'
+					)
+			},
+			form: {
+				token: refreshToken
+			}
+		});
+
+		expect(introspectionResponse.status()).toBe(200);
+		const introspectionBody = await introspectionResponse.json();
+		expect(introspectionBody.active).toBe(false);
+	});
+
+	test("expired access_token can't be verified", async ({ request }) => {
+		const expiredAccessToken = await generateSeededOauthAccessToken(
+			request,
+			users.tim.id,
+			oidcClients.nextcloud.id,
+			true
+		);
+		const introspectionResponse = await request.post('/api/oidc/introspect', {
+			headers: {
+				'Content-Type': 'application/x-www-form-urlencoded',
+				Authorization:
+					'Basic ' +
+					Buffer.from(`${oidcClients.nextcloud.id}:${oidcClients.nextcloud.secret}`).toString(
+						'base64'
+					)
+			},
+			form: {
+				token: expiredAccessToken
+			}
+		});
+
+		expect(introspectionResponse.status()).toBe(200);
+		const introspectionBody = await introspectionResponse.json();
+		expect(introspectionBody.active).toBe(false);
+	});
+});
+
+test.describe('Userinfo endpoint', () => {
+	test('returns the claims for the granted scopes', async ({ request, baseURL }) => {
+		const accessToken = await generateSeededOauthAccessToken(
+			request,
+			users.tim.id,
+			oidcClients.nextcloud.id
+		);
+
+		const res = await request.get('/api/oidc/userinfo', {
+			headers: { Authorization: 'Bearer ' + accessToken }
+		});
+
+		expect(res.status()).toBe(200);
+		const body = await res.json();
+		expect(body.sub).toBe(users.tim.id);
+		expect(body.email).toBe(users.tim.email);
+		expect(body.given_name).toBe(users.tim.firstname);
+		expect(body.family_name).toBe(users.tim.lastname);
+		expect(body.preferred_username).toBe(users.tim.username);
+		// The picture claim must point at this instance, not leak an arbitrary host.
+		expect(body.picture).toBe(`${baseURL}/api/users/${users.tim.id}/profile-picture.png`);
+	});
+
+	test('fails without an access token', async ({ request }) => {
+		const res = await request.get('/api/oidc/userinfo');
+		expect(res.status()).toBe(401);
+	});
+
+	test('fails with an invalid access token', async ({ request }) => {
+		const res = await request.get('/api/oidc/userinfo', {
+			headers: { Authorization: 'Bearer not-a-real-token' }
+		});
+		expect(res.status()).not.toBe(200);
+	});
+});
+
+test('Authorize new client with device authorization flow', async ({ page }) => {
+	const client = oidcClients.immich;
+	const userCode = await oidcUtil.getUserCode(page, client.id, client.secret);
+
+	await page.goto(`/device?user_code=${userCode}`);
+	await page.getByRole('button', { name: 'Continue', exact: true }).click();
+
+	await expectScopes(page, ['Email', 'Profile']);
+
+	await page.getByRole('button', { name: 'Approve' }).click();
+
+	await expect(page.getByRole('heading', { name: 'Authorized' })).toBeVisible();
+});
+
+test('Authorize new client with device authorization flow and a deselected scope', async ({
+	page
+}) => {
+	const client = oidcClients.immich;
+	const credentials = { client_id: client.id, client_secret: client.secret };
+	const device = await page.request
+		.post('/api/oidc/device/authorize', {
+			form: { ...credentials, scope: 'openid profile email' }
+		})
+		.then((r) => r.json());
+
+	await page.goto(`/device?user_code=${device.user_code}`);
+	await page.getByRole('button', { name: 'Continue', exact: true }).click();
+
+	await expectScopes(page, ['Email', 'Profile']);
+	await page.getByRole('checkbox', { name: 'Email' }).click();
+	await expect(page.getByRole('checkbox', { name: 'Email' })).not.toBeChecked();
+	await expect(page.getByRole('checkbox', { name: 'Profile' })).toBeChecked();
+
+	await page.getByRole('button', { name: 'Approve' }).click();
+	await expect(page.getByRole('heading', { name: 'Authorized' })).toBeVisible();
+
+	// The deselected scope must be missing from the token the device receives and therefore from the userinfo claims
+	await page.waitForTimeout(device.interval * 1000 + 100);
+	const token = (await oidcUtil.exchangeCode(page, {
+		...credentials,
+		grant_type: 'urn:ietf:params:oauth:grant-type:device_code',
+		device_code: device.device_code
+	})) as { access_token?: string; scope?: string };
+	expect(token.scope?.split(' ').sort()).toEqual(['openid', 'profile']);
+
+	const userinfo = await page.request
+		.get('/api/oidc/userinfo', { headers: { Authorization: `Bearer ${token.access_token}` } })
+		.then((r) => r.json());
+	expect(userinfo.sub).toBe(users.tim.id);
+	expect(userinfo.given_name).toBeTruthy();
+	expect(userinfo.email).toBeUndefined();
+});
+
+test('Authorize new client with device authorization flow while not signed in', async ({
+	page
+}) => {
+	await page.context().clearCookies();
+	const client = oidcClients.immich;
+	const userCode = await oidcUtil.getUserCode(page, client.id, client.secret);
+
+	await page.goto(`/device?user_code=${userCode}`);
+
+	await (await passkeyUtil.init(page)).addPasskey();
+	await page.getByRole('button', { name: 'Continue', exact: true }).click();
+
+	await expectScopes(page, ['Email', 'Profile']);
+
+	await page.getByRole('button', { name: 'Approve' }).click();
+
+	await expect(page.getByRole('heading', { name: 'Authorized' })).toBeVisible();
+});
+
+for (const scenario of [
+	{ name: 'new client', client: oidcClients.immich, consentRequired: true },
+	{ name: 'previously authorized client', client: oidcClients.nextcloud, consentRequired: false },
+	{ name: 'skip-consent client', client: oidcClients.skipConsent, consentRequired: false },
+	{
+		name: 'public skip-consent client',
+		client: oidcClients.skipConsent,
+		consentRequired: false,
+		isPublic: true
+	}
+]) {
+	for (const decision of ['authorize', 'cancel'] as const) {
+		test(`Device authorization requires code confirmation for ${scenario.name}: ${decision}`, async ({
+			page,
+			request
+		}) => {
+			test.setTimeout(30000);
+			const client = scenario.client;
+			if (scenario.isPublic) {
+				const response = await request.put(`/api/oidc/clients/${client.id}`, {
+					data: {
+						name: client.name,
+						callbackURLs: [client.callbackUrl],
+						isPublic: true,
+						pkceEnabled: true,
+						skipConsent: true
+					}
+				});
+				expect(response.ok()).toBe(true);
+			}
+
+			const credentials: Record<string, string> = { client_id: client.id };
+			if (!scenario.isPublic) credentials.client_secret = client.secret;
+			const response = await request.post('/api/oidc/device/authorize', {
+				form: { ...credentials, scope: 'openid profile email' }
+			});
+			expect(response.ok()).toBe(true);
+			const device = await response.json();
+			const tokenRequest = {
+				...credentials,
+				grant_type: 'urn:ietf:params:oauth:grant-type:device_code',
+				device_code: device.device_code
+			};
+			const approvals: Request[] = [];
+			page.on('request', (request) => {
+				if (new URL(request.url()).pathname === '/api/oidc/device/verify') approvals.push(request);
+			});
+
+			await page.goto(device.verification_uri_complete);
+			await expect(page.getByRole('textbox', { name: 'Device code' })).toHaveValue(
+				device.user_code
+			);
+			await expect(page.getByRole('button', { name: 'Continue', exact: true })).toBeEnabled();
+			expect(approvals).toHaveLength(0);
+			expect(await oidcUtil.exchangeCode(page, tokenRequest)).toMatchObject({
+				error: 'authorization_pending'
+			});
+
+			if (decision === 'cancel') {
+				await page.getByRole('link', { name: 'Cancel', exact: true }).click();
+				await expect(page).not.toHaveURL(/\/device/);
+			} else {
+				await page.getByRole('button', { name: 'Continue', exact: true }).click();
+				if (scenario.consentRequired) {
+					await expectScopes(page, ['Email', 'Profile']);
+					await page.getByRole('button', { name: 'Approve', exact: true }).click();
+				}
+				await expect(page.getByRole('heading', { name: 'Authorized' })).toBeVisible();
+			}
+
+			// Respect the device polling interval before checking the result of the user's decision
+			await page.waitForTimeout(device.interval * 1000 + 100);
+			const token = await oidcUtil.exchangeCode(page, tokenRequest);
+			if (decision === 'cancel') {
+				expect(approvals).toHaveLength(0);
+				expect(token).toMatchObject({ error: 'authorization_pending' });
+				expect(token.access_token).toBeUndefined();
+			} else {
+				expect(approvals).toHaveLength(1);
+				expect(token.access_token).toBeTruthy();
+				const userinfo = await request.get('/api/oidc/userinfo', {
+					headers: { Authorization: `Bearer ${token.access_token}` }
+				});
+				expect(await userinfo.json()).toMatchObject({ sub: users.tim.id });
+			}
+		});
+	}
+}
+
+test('Authorize existing client with device authorization flow while not signed in', async ({
+	page
+}) => {
+	await page.context().clearCookies();
+	const client = oidcClients.nextcloud;
+	const userCode = await oidcUtil.getUserCode(page, client.id, client.secret);
+
+	await page.goto(`/device?user_code=${userCode}`);
+
+	await (await passkeyUtil.init(page)).addPasskey();
+	await page.getByRole('button', { name: 'Continue', exact: true }).click();
+
+	await expect(page.getByRole('heading', { name: 'Authorized' })).toBeVisible();
+});
+
+test('Device authorization submits manually entered codes with Enter', async ({ page }) => {
+	const client = oidcClients.nextcloud;
+	const userCode = await oidcUtil.getUserCode(page, client.id, client.secret);
+	const approvals: Request[] = [];
+	page.on('request', (request) => {
+		if (new URL(request.url()).pathname === '/api/oidc/device/verify') approvals.push(request);
+	});
+
+	await page.goto('/device');
+	await page.getByRole('textbox', { name: 'Device code' }).fill(userCode);
+	expect(approvals).toHaveLength(0);
+	await page.getByRole('textbox', { name: 'Device code' }).press('Enter');
+	await expect(page.getByRole('heading', { name: 'Authorized' })).toBeVisible();
+	expect(approvals).toHaveLength(1);
+});
+
+test('Device authorization flow forces reauthentication when client requires it', async ({
+	page,
+	request
+}) => {
+	const client = oidcClients.nextcloud;
+	await request.put(`/api/oidc/clients/${client.id}`, {
+		data: {
+			name: client.name,
+			callbackURLs: [client.callbackUrl],
+			logoutCallbackURLs: [client.logoutCallbackUrl],
+			isPublic: false,
+			pkceEnabled: false,
+			pkceSupported: false,
+			requiresReauthentication: true,
+			requiresPushedAuthorizationRequests: false,
+			credentials: { federatedIdentities: [] },
+			isGroupRestricted: false
+		}
+	});
+
+	const userCode = await oidcUtil.getUserCode(page, client.id, client.secret);
+	const directVerify = await page.request.post(`/api/oidc/device/verify?code=${userCode}`);
+	expect(directVerify.status()).toBe(401);
+
+	let reauthCalled = false;
+	await page.route('/api/webauthn/login/start', async (route) => {
+		reauthCalled = true;
+		await route.continue();
+	});
+	await page.route('/api/webauthn/reauthenticate', async (route) => {
+		reauthCalled = true;
+		await route.continue();
+	});
+	await (await passkeyUtil.init(page)).addPasskey();
+
+	await page.goto(`/device?user_code=${userCode}`);
+	await page.getByRole('button', { name: 'Continue', exact: true }).click();
+	await expect(page.getByRole('heading', { name: 'Nextcloud' })).toBeVisible();
+
+	await page.getByRole('button', { name: 'Approve' }).click();
+
+	await expect(page.getByRole('heading', { name: 'Authorized' })).toBeVisible();
+	expect(reauthCalled).toBe(true);
+});
+
+test('Authorize client with device authorization flow with invalid code', async ({ page }) => {
+	await page.goto('/device?user_code=E0000000');
+	await page.getByRole('button', { name: 'Continue', exact: true }).click();
+
+	await expect(
+		page
+			.getByRole('paragraph')
+			.filter({ hasText: 'That code didn’t work. Check it and try again.' })
+	).toBeVisible();
+});
+
+test('Authorize new client with device authorization with user group not allowed', async ({
+	page
+}) => {
+	await page.context().clearCookies();
+	const client = oidcClients.immich;
+	const userCode = await oidcUtil.getUserCode(page, client.id, client.secret);
+
+	await page.goto(`/device?user_code=${userCode}`);
+
+	await (await passkeyUtil.init(page)).addPasskey('craig');
+	await page.getByRole('button', { name: 'Continue', exact: true }).click();
+
+	await expectScopes(page, ['Email', 'Profile']);
+
+	await page.getByRole('button', { name: 'Approve' }).click();
+
+	await expect(
+		page.getByRole('paragraph').filter({ hasText: "You're not allowed to access this service." })
+	).toBeVisible();
+});
+
+test('Federated identity fails with invalid client assertion', async ({ page }) => {
+	const client = oidcClients.federated;
+
+	const res = await oidcUtil.exchangeCode(page, {
+		client_assertion_type: 'urn:ietf:params:oauth:client-assertion-type:jwt-bearer',
+		grant_type: 'authorization_code',
+		redirect_uri: client.callbackUrl,
+		code: client.accessCodes[0],
+		client_id: client.id,
+		client_assertion: 'not-an-assertion'
+	});
+
+	expect(res?.error).toBe('invalid_client');
+});
+
+test('Authorize existing client with federated identity', async ({ page }) => {
+	const client = oidcClients.federated;
+	const clientAssertion = await oidcUtil.getClientAssertion(page, client.federatedJWT);
+	const urlParams = createUrlParams(client);
+
+	const callbackUrl = await expectCallbackRedirect(page, client.callbackUrl, async () => {
+		await page.goto(`/authorize?${urlParams.toString()}`);
+
+		const signInButton = page.getByRole('button', { name: /^Continue/ });
+		await expect(signInButton).toBeVisible();
+		await signInButton.click();
+	});
+	const code = callbackUrl.searchParams.get('code');
+	expect(code).toBeTruthy();
+
+	const res = await oidcUtil.exchangeCode(page, {
+		client_assertion_type: 'urn:ietf:params:oauth:client-assertion-type:jwt-bearer',
+		grant_type: 'authorization_code',
+		redirect_uri: client.callbackUrl,
+		code: code!,
+		client_id: client.id,
+		client_assertion: clientAssertion
+	});
+
+	expect(res.access_token).not.toBeNull();
+	expect(res.expires_in).not.toBeNull();
+	expect(res.token_type).toBe('bearer');
+});
+
+test('Forces reauthentication when client requires it', async ({ page, request }) => {
+	let reauthCalled = false;
+	await page.route('/api/webauthn/login/start', async (route) => {
+		reauthCalled = true;
+		await route.continue();
+	});
+	await page.route('/api/webauthn/reauthenticate', async (route) => {
+		reauthCalled = true;
+		await route.continue();
+	});
+
+	await request.put(`/api/oidc/clients/${oidcClients.nextcloud.id}`, {
+		data: {
+			name: oidcClients.nextcloud.name,
+			callbackURLs: [oidcClients.nextcloud.callbackUrl],
+			logoutCallbackURLs: [oidcClients.nextcloud.logoutCallbackUrl],
+			isPublic: false,
+			pkceEnabled: false,
+			pkceSupported: false,
+			requiresReauthentication: true,
+			requiresPushedAuthorizationRequests: false,
+			credentials: { federatedIdentities: [] },
+			isGroupRestricted: false
+		}
+	});
+
+	await (await passkeyUtil.init(page)).addPasskey();
+
+	const urlParams = createUrlParams(oidcClients.nextcloud);
+	await expectCallbackRedirect(page, oidcClients.nextcloud.callbackUrl, async () => {
+		await page.goto(`/authorize?${urlParams.toString()}`);
+		await expect(page.getByTestId('scopes')).not.toBeVisible();
+		await expect(page.getByRole('button', { name: 'Continue with passkey' })).toBeVisible();
+		await page.getByRole('button', { name: 'Continue with passkey' }).click();
+	});
+
+	expect(reauthCalled).toBe(true);
+});
+
+test('Authorize existing client while not signed in with response_mode=form_post', async ({
+	page
+}) => {
+	const oidcClient = oidcClients.nextcloud;
+	const urlParams = createUrlParams(oidcClient);
+	urlParams.set('response_mode', 'form_post');
+	await page.context().clearCookies();
+
+	await page.goto(`/authorize?${urlParams.toString()}`);
+
+	await (await passkeyUtil.init(page)).addPasskey();
+
+	await expectFormPostCallback(page, oidcClient.callbackUrl, () =>
+		page.getByRole('button', { name: 'Sign in with passkey' }).click()
+	);
+});
+
+test('Authorize existing client with response_mode=form_post', async ({ page }) => {
+	const oidcClient = oidcClients.nextcloud;
+	const urlParams = createUrlParams(oidcClient);
+	urlParams.set('response_mode', 'form_post');
+
+	await expectFormPostCallback(page, oidcClient.callbackUrl, () =>
+		page.goto(`/authorize?${urlParams.toString()}`)
+	);
+});
+
+test('Authorize existing client with response_mode=fragment', async ({ page }) => {
+	const oidcClient = oidcClients.nextcloud;
+	const urlParams = createUrlParams(oidcClient);
+	urlParams.set('response_mode', 'fragment');
+
+	const redirectUrl = await expectCallbackRedirect(page, oidcClient.callbackUrl, () =>
+		page.goto(`/authorize?${urlParams.toString()}`)
+	);
+	expect(redirectUrl.search).toBe('');
+
+	const fragmentParams = new URLSearchParams(redirectUrl.hash.slice(1));
+	expect(fragmentParams.get('code')).toBeTruthy();
+	expect(fragmentParams.get('state')).toBe('nXx-6Qr-owc1SHBa');
+	expect(fragmentParams.get('iss')).toBeTruthy();
+});
+
+async function expectFormPostCallback(
+	page: Page,
+	callbackUrl: string,
+	action: () => Promise<unknown>,
+	expectedState = 'nXx-6Qr-owc1SHBa'
+): Promise<URLSearchParams> {
+	const isCallbackURL = callbackURLMatcher(callbackUrl);
+	const callbackRouteMatcher = await routeCallbackPage(page, callbackUrl);
+
+	try {
+		const requestPromise = page.waitForRequest(
+			(request) => request.method() === 'POST' && isCallbackURL(new URL(request.url())),
+			{ timeout: 5000 }
+		);
+		const actionPromise = action().then(
+			() => undefined,
+			(error) => error
+		);
+		const request = await requestPromise;
+		await actionPromise;
+
+		const formData = new URLSearchParams(request.postData() ?? '');
+		expect(formData.get('code')).toBeTruthy();
+		expect(formData.get('state')).toBe(expectedState);
+		expect(formData.get('iss')).toBeTruthy();
+		return formData;
+	} finally {
+		if (!page.isClosed()) {
+			await page.unroute(callbackRouteMatcher).catch(() => {});
+		}
+	}
+}
+
+test.describe('OIDC prompt parameter', () => {
+	test('prompt=none redirects with login_required when user not authenticated', async ({
+		page
+	}) => {
+		await page.context().clearCookies();
+		const oidcClient = oidcClients.nextcloud;
+		const urlParams = createUrlParams(oidcClient);
+		urlParams.set('prompt', 'none');
+
+		// Should redirect to callback URL with error
+		const redirectUrl = await oidcUtil.interceptCallbackRedirect(page, '/auth/callback', () =>
+			page.goto(`/authorize?${urlParams.toString()}`).then(() => {})
+		);
+
+		expect(redirectUrl.searchParams.get('error')).toBe('login_required');
+		expect(redirectUrl.searchParams.get('state')).toBe('nXx-6Qr-owc1SHBa');
+	});
+
+	test('prompt=none does not redirect login_required to an unregistered redirect_uri', async ({
+		page
+	}) => {
+		await page.context().clearCookies();
+		const oidcClient = oidcClients.nextcloud;
+		const urlParams = createUrlParams(oidcClient);
+		urlParams.set('prompt', 'none');
+		urlParams.set('redirect_uri', 'https://attacker.example/collect');
+
+		let attackerRedirected = false;
+		await page.route('https://attacker.example/**', async (route) => {
+			attackerRedirected = true;
+			await route.fulfill({ status: 200, body: 'attacker' });
+		});
+
+		await page.goto(`/authorize?${urlParams.toString()}`);
+
+		await expect(page.locator('body')).toContainText('is not registered for this client.');
+		expect(attackerRedirected).toBe(false);
+	});
+
+	test('prompt=none redirects errors with response_mode=fragment', async ({ page }) => {
+		await page.context().clearCookies();
+		const oidcClient = oidcClients.nextcloud;
+		const urlParams = createUrlParams(oidcClient);
+		urlParams.set('prompt', 'none');
+		urlParams.set('response_mode', 'fragment');
+
+		const redirectUrl = await expectCallbackRedirect(page, oidcClient.callbackUrl, () =>
+			page.goto(`/authorize?${urlParams.toString()}`)
+		);
+		expect(redirectUrl.search).toBe('');
+
+		const fragmentParams = new URLSearchParams(redirectUrl.hash.slice(1));
+		expect(fragmentParams.get('error')).toBe('login_required');
+		expect(fragmentParams.get('state')).toBe('nXx-6Qr-owc1SHBa');
+	});
+
+	test('prompt=none redirects with consent_required when authorization needed', async ({
+		page
+	}) => {
+		const oidcClient = oidcClients.immich;
+		const urlParams = createUrlParams(oidcClient);
+		urlParams.set('prompt', 'none');
+
+		// Should redirect to callback URL with error
+		const redirectUrl = await oidcUtil.interceptCallbackRedirect(page, '/auth/callback', () =>
+			page.goto(`/authorize?${urlParams.toString()}`).then(() => {})
+		);
+
+		expect(redirectUrl.searchParams.get('error')).toBe('consent_required');
+		expect(redirectUrl.searchParams.get('state')).toBe('nXx-6Qr-owc1SHBa');
+	});
+
+	test('prompt=none does not redirect consent_required to an unregistered redirect_uri', async ({
+		page
+	}) => {
+		const oidcClient = oidcClients.immich;
+		const urlParams = createUrlParams(oidcClient);
+		urlParams.set('prompt', 'none');
+		urlParams.set('redirect_uri', 'https://attacker.example/collect');
+
+		let attackerRedirected = false;
+		await page.route('https://attacker.example/**', async (route) => {
+			attackerRedirected = true;
+			await route.fulfill({ status: 200, body: 'attacker' });
+		});
+
+		await page.goto(`/authorize?${urlParams.toString()}`);
+
+		await expect(page.locator('body')).toContainText('');
+
+		expect(attackerRedirected).toBe(false);
+	});
+
+	test('prompt=none succeeds when user is authenticated and authorized', async ({ page }) => {
+		const oidcClient = oidcClients.nextcloud;
+		const urlParams = createUrlParams(oidcClient);
+		urlParams.set('prompt', 'none');
+
+		await expectCallbackRedirect(page, oidcClient.callbackUrl, () =>
+			page.goto(`/authorize?${urlParams.toString()}`)
+		);
+	});
+
+	test('prompt=consent forces consent display even for authorized client', async ({ page }) => {
+		const oidcClient = oidcClients.nextcloud;
+		const urlParams = createUrlParams(oidcClient);
+		urlParams.set('prompt', 'consent');
+
+		await page.goto(`/authorize?${urlParams.toString()}`);
+
+		// Should show consent UI even though client was already authorized
+		await expectScopes(page, ['Profile', 'Email']);
+
+		await expectCallbackRedirect(page, oidcClient.callbackUrl, () =>
+			page.getByRole('button', { name: /^Continue to / }).click()
+		);
+	});
+
+	test('prompt=login forces reauthentication', async ({ page }) => {
+		const oidcClient = oidcClients.nextcloud;
+		const urlParams = createUrlParams(oidcClient);
+		urlParams.set('prompt', 'login');
+
+		let reauthCalled = false;
+		await page.route('/api/webauthn/login/start', async (route) => {
+			reauthCalled = true;
+			await route.continue();
+		});
+		await page.route('/api/webauthn/reauthenticate', async (route) => {
+			reauthCalled = true;
+			await route.continue();
+		});
+
+		await (await passkeyUtil.init(page)).addPasskey();
+		await expectCallbackRedirect(page, oidcClient.callbackUrl, async () => {
+			await page.goto(`/authorize?${urlParams.toString()}`);
+			await expect(page.getByRole('button', { name: 'Continue with passkey' })).toBeVisible();
+			await page.getByRole('button', { name: 'Continue with passkey' }).click();
+		});
+
+		expect(reauthCalled).toBe(true);
+	});
+
+	test('prompt=select_account shows current user and continues on confirm', async ({ page }) => {
+		const oidcClient = oidcClients.nextcloud;
+		const urlParams = createUrlParams(oidcClient);
+		urlParams.set('prompt', 'select_account');
+
+		await page.goto(`/authorize?${urlParams.toString()}`);
+
+		// Account selection card with the signed-in user should appear
+		const selectionCard = page.getByTestId('account-selection');
+		await expect(selectionCard).toBeVisible();
+		await expect(selectionCard).toContainText('Tim Cook');
+
+		await expectCallbackRedirect(page, oidcClient.callbackUrl, () =>
+			selectionCard.getByRole('button').click()
+		);
+	});
+
+	test('prompt=select_account account can be changed', async ({ page }) => {
+		const oidcClient = oidcClients.nextcloud;
+		const urlParams = createUrlParams(oidcClient);
+		urlParams.set('prompt', 'select_account');
+
+		await page.goto(`/authorize?${urlParams.toString()}`);
+
+		await page.getByRole('button', { name: 'Use a different account' }).click();
+		await expect(page.getByRole('heading', { name: 'Nextcloud' })).toBeVisible();
+
+		(await passkeyUtil.init(page)).addPasskey('craig');
+
+		await page.getByRole('button', { name: 'Sign in with passkey' }).click();
+		await expect(page.getByRole('button', { name: 'Continue to Nextcloud' })).toBeVisible();
+
+		await expectCallbackRedirect(page, oidcClient.callbackUrl, () =>
+			page.getByRole('button', { name: 'Continue to Nextcloud' }).click()
+		);
+	});
+
+	test('prompt=none with prompt=consent returns invalid_request', async ({ page }) => {
+		const oidcClient = oidcClients.nextcloud;
+		const urlParams = createUrlParams(oidcClient);
+		urlParams.set('prompt', 'none consent');
+
+		// Should redirect with error since both can't be satisfied
+		const redirectUrl = await oidcUtil.interceptCallbackRedirect(page, '/auth/callback', () =>
+			page.goto(`/authorize?${urlParams.toString()}`).then(() => {})
+		);
+
+		expect(redirectUrl.searchParams.get('error')).toBe('invalid_request');
+		expect(redirectUrl.searchParams.get('state')).toBe('nXx-6Qr-owc1SHBa');
+	});
+
+	test('prompt=none with prompt=login returns invalid_request', async ({ page }) => {
+		const oidcClient = oidcClients.nextcloud;
+		const urlParams = createUrlParams(oidcClient);
+		urlParams.set('prompt', 'none login');
+
+		// Should redirect with error since both can't be satisfied
+		const redirectUrl = await oidcUtil.interceptCallbackRedirect(page, '/auth/callback', () =>
+			page.goto(`/authorize?${urlParams.toString()}`).then(() => {})
+		);
+
+		expect(redirectUrl.searchParams.get('error')).toBe('invalid_request');
+		expect(redirectUrl.searchParams.get('state')).toBe('nXx-6Qr-owc1SHBa');
+	});
+
+	test('prompt=none with prompt=select_account returns invalid_request', async ({ page }) => {
+		const oidcClient = oidcClients.nextcloud;
+		const urlParams = createUrlParams(oidcClient);
+		urlParams.set('prompt', 'none select_account');
+
+		// Should redirect with error since both can't be satisfied
+		const redirectUrl = await oidcUtil.interceptCallbackRedirect(page, '/auth/callback', () =>
+			page.goto(`/authorize?${urlParams.toString()}`).then(() => {})
+		);
+
+		expect(redirectUrl.searchParams.get('error')).toBe('invalid_request');
+		expect(redirectUrl.searchParams.get('state')).toBe('nXx-6Qr-owc1SHBa');
+	});
+});
+
+async function waitForCallbackURL(page: Page, callbackUrl: string): Promise<URL> {
+	const isCallbackURL = callbackURLMatcher(callbackUrl);
+	const callbackRequest = await page.waitForRequest((request) =>
+		isCallbackURL(new URL(request.url()))
+	);
+
+	const redirectURL = await callbackRedirectURL(callbackRequest, isCallbackURL);
+	if (redirectURL) {
+		return redirectURL;
+	}
+
+	await page.waitForURL(isCallbackURL, { waitUntil: 'commit', timeout: 5000 }).catch(() => {});
+
+	const currentURL = new URL(page.url());
+	if (isCallbackURL(currentURL)) {
+		return currentURL;
+	}
+
+	return new URL(callbackRequest.url());
+}
+
+function callbackURLMatcher(callbackUrl: string): (url: URL) => boolean {
+	const expectedUrl = new URL(callbackUrl);
+	return (url) => url.origin === expectedUrl.origin && url.pathname === expectedUrl.pathname;
+}
+
+async function callbackRedirectURL(
+	request: Request,
+	isCallbackURL: (url: URL) => boolean
+): Promise<URL | null> {
+	const redirectResponse = await request.redirectedFrom()?.response();
+	if (!redirectResponse) {
+		return null;
+	}
+
+	const redirectLocation = redirectResponse.headers().location;
+	if (!redirectLocation) {
+		return null;
+	}
+
+	const redirectURL = new URL(redirectLocation, redirectResponse.url());
+	return isCallbackURL(redirectURL) ? redirectURL : null;
+}
+
+async function expectCallbackRedirect(
+	page: Page,
+	callbackUrl: string,
+	action: () => Promise<unknown>
+): Promise<URL> {
+	const callbackRouteMatcher = await routeCallbackPage(page, callbackUrl);
+
+	try {
+		const callbackURLPromise = waitForCallbackURL(page, callbackUrl);
+		const actionPromise = action().then(
+			() => undefined,
+			(error) => error
+		);
+		const callbackURL = await callbackURLPromise;
+		await actionPromise;
+		return callbackURL;
+	} finally {
+		if (!page.isClosed()) {
+			await page.unroute(callbackRouteMatcher).catch(() => {});
+		}
+	}
+}
+
+async function routeCallbackPage(page: Page, callbackUrl: string): Promise<(url: URL) => boolean> {
+	const callbackRouteMatcher = callbackURLMatcher(callbackUrl);
+
+	await page.route(callbackRouteMatcher, async (route) => {
+		await route.fulfill({
+			status: 200,
+			contentType: 'text/html',
+			body: '<!doctype html><title>OIDC callback</title>'
+		});
+	});
+
+	return callbackRouteMatcher;
+}
+
+// ─── PAR (Pushed Authorization Requests - RFC 9126) ──────────────────────────
+
+test.describe('Pushed Authorization Requests (PAR)', () => {
+	const client = oidcClients.parClient;
+
+	test('PAR endpoint returns request_uri for valid confidential client', async ({ page }) => {
+		const result = await oidcUtil.pushAuthorizationRequest(page, {
+			clientId: client.id,
+			clientSecret: client.secret,
+			redirectUri: client.callbackUrl
+		});
+
+		expect(result.request_uri).toMatch(/^urn:ietf:params:oauth:request_uri:/);
+		expect(result.expires_in).toBe(90);
+		expect(result.error).toBeUndefined();
+	});
+
+	test('PAR full flow: push then authorize then exchange tokens', async ({ page }) => {
+		// Step 1: Push authorization parameters
+		const parResult = await oidcUtil.pushAuthorizationRequest(page, {
+			clientId: client.id,
+			clientSecret: client.secret,
+			redirectUri: client.callbackUrl,
+			nonce: 'par-nonce-123'
+		});
+		expect(parResult.request_uri).toBeDefined();
+		expect(parResult.error).toBeUndefined();
+
+		// Step 2: Navigate to /authorize using the request_uri
+		const urlParams = new URLSearchParams({
+			client_id: client.id,
+			request_uri: parResult.request_uri!
+		});
+
+		const callbackUrl = await expectCallbackRedirect(page, client.callbackUrl, () =>
+			page.goto(`/authorize?${urlParams.toString()}`)
+		);
+		const code = callbackUrl.searchParams.get('code');
+		expect(code).toBeTruthy();
+
+		// Step 3: Exchange the authorization code for tokens
+		const tokenResult = await oidcUtil.exchangeCode(page, {
+			grant_type: 'authorization_code',
+			code: code!,
+			client_id: client.id,
+			client_secret: client.secret,
+			redirect_uri: client.callbackUrl
+		});
+		expect(tokenResult.access_token).toBeTruthy();
+		expect(tokenResult.token_type).toBe('bearer');
+		expect(tokenResult.error).toBeUndefined();
+	});
+
+	test('PAR full flow carries the resolved state into the callback redirect', async ({ page }) => {
+		const state = 'par-flow-state-7b21';
+		const parResult = await oidcUtil.pushAuthorizationRequest(page, {
+			clientId: client.id,
+			clientSecret: client.secret,
+			redirectUri: client.callbackUrl,
+			state,
+			responseMode: 'form_post'
+		});
+		expect(parResult.request_uri).toBeDefined();
+
+		const urlParams = new URLSearchParams({
+			client_id: client.id,
+			request_uri: parResult.request_uri!
+		});
+
+		const formData = await expectFormPostCallback(
+			page,
+			client.callbackUrl,
+			() => page.goto(`/authorize?${urlParams.toString()}`),
+			state
+		);
+		expect(formData.get('code')).toBeTruthy();
+		expect(formData.get('state')).toBe(state);
+	});
+
+	test('PAR full flow shows consent screen when authorization is required', async ({ page }) => {
+		// The parClient is pre-authorized for "openid profile email"; pushing a different
+		// scope means consent is required and the consent screen must be shown rather than
+		// silently authorizing.
+		const parResult = await oidcUtil.pushAuthorizationRequest(page, {
+			clientId: client.id,
+			clientSecret: client.secret,
+			redirectUri: client.callbackUrl,
+			scope: 'openid profile groups'
+		});
+		expect(parResult.request_uri).toBeDefined();
+
+		const urlParams = new URLSearchParams({
+			client_id: client.id,
+			request_uri: parResult.request_uri!
+		});
+		await page.goto(`/authorize?${urlParams.toString()}`);
+
+		// Consent screen with the requested scope (resolved from the PAR) must be shown
+		await expectScopes(page, ['Groups']);
+
+		// Confirming proceeds with the authorization
+		await expectCallbackRedirect(page, client.callbackUrl, () =>
+			page.getByRole('button', { name: /^Continue to / }).click()
+		);
+	});
+
+	test('PAR request_uri is single-use', async ({ page }) => {
+		// Push two requests — use the first via the browser, then try to reuse it
+		const parResult = await oidcUtil.pushAuthorizationRequest(page, {
+			clientId: client.id,
+			clientSecret: client.secret,
+			redirectUri: client.callbackUrl
+		});
+		expect(parResult.request_uri).toBeDefined();
+
+		// First use — navigate to /authorize (must succeed and consume the request_uri)
+		const urlParams = new URLSearchParams({
+			client_id: client.id,
+			request_uri: parResult.request_uri!
+		});
+		const firstCallbackUrl = await expectCallbackRedirect(page, client.callbackUrl, () =>
+			page.goto(`/authorize?${urlParams.toString()}`)
+		);
+		expect(firstCallbackUrl.searchParams.get('code')).toBeTruthy();
+
+		await page.goto(`/authorize?${urlParams.toString()}`);
+		await expect(page.locator('body')).toContainText('Invalid PAR session');
+	});
+
+	test('PAR endpoint rejects confidential client request without client credentials', async ({
+		page
+	}) => {
+		const result = await oidcUtil.pushAuthorizationRequest(page, {
+			clientId: client.id,
+			// no clientSecret
+			redirectUri: client.callbackUrl
+		});
+
+		expect(result.error).toBeDefined();
+		expect(result.request_uri).toBeUndefined();
+	});
+
+	test('PAR endpoint accepts public client with PKCE', async ({ page }) => {
+		// The PAR test client is confidential by default, so make it public first.
+		await page.request.put(`/api/oidc/clients/${client.id}`, {
+			headers: { 'Content-Type': 'application/json' },
+			data: {
+				name: client.name,
+				callbackURLs: [client.callbackUrl],
+				logoutCallbackURLs: [],
+				isPublic: true,
+				pkceEnabled: true,
+				pkceSupported: false,
+				requiresReauthentication: false,
+				requiresPushedAuthorizationRequests: false,
+				credentials: { federatedIdentities: [] },
+				isGroupRestricted: false
+			}
+		});
+
+		const result = await oidcUtil.pushAuthorizationRequest(page, {
+			clientId: client.id,
+			redirectUri: client.callbackUrl,
+			codeChallenge: 'K2-ltc83acc4h0c9w6ESC_rEMTJ3bww-uCHaoeK1t8U',
+			codeChallengeMethod: 'S256'
+		});
+
+		expect(result.error).toBeUndefined();
+		expect(result.request_uri).toBeDefined();
+	});
+
+	test('PAR endpoint rejects invalid redirect_uri at push time', async ({ page }) => {
+		const result = await oidcUtil.pushAuthorizationRequest(page, {
+			clientId: client.id,
+			clientSecret: client.secret,
+			redirectUri: 'http://evil.example.com/steal'
+		});
+
+		expect(result.error).toBeDefined();
+		expect(result.request_uri).toBeUndefined();
+	});
+
+	test('Client with requiresPushedAuthorizationRequests rejects direct /authorize', async ({
+		page,
+		request
+	}) => {
+		// Enable the PAR requirement on the client
+		await request.put(`/api/oidc/clients/${client.id}`, {
+			headers: { 'Content-Type': 'application/json' },
+			data: {
+				name: client.name,
+				callbackURLs: [client.callbackUrl],
+				logoutCallbackURLs: [],
+				isPublic: false,
+				pkceEnabled: false,
+				pkceSupported: false,
+				requiresReauthentication: false,
+				requiresPushedAuthorizationRequests: true,
+				credentials: { federatedIdentities: [] },
+				isGroupRestricted: false
+			}
+		});
+
+		const urlParams = createUrlParams(client);
+		urlParams.set('scope', 'openid profile');
+
+		const callbackUrl = await expectCallbackRedirect(page, client.callbackUrl, () =>
+			page.goto(`/authorize?${urlParams.toString()}`)
+		);
+		expect(callbackUrl.searchParams.get('error')).toBeTruthy();
+	});
+
+	test('Admin UI: PAR toggle persists after save', async ({ page }) => {
+		await page.goto(`/settings/admin/oidc-clients/${client.id}`);
+		const advanced = page.getByRole('button', { name: /^Advanced/ });
+		if ((await advanced.getAttribute('aria-expanded')) !== 'true') await advanced.click();
+
+		// Enable the PAR toggle
+		const parToggle = page.getByRole('switch', { name: 'Requires Pushed Authorization' });
+		if (!(await parToggle.isChecked())) {
+			await parToggle.click();
+		}
+
+		await saveUnsavedChanges(page);
+		await page.reload();
+
+		const savedToggle = page.getByRole('switch', { name: 'Requires Pushed Authorization' });
+		await expect(savedToggle).toBeChecked();
+	});
+});
+
+test.describe('OIDC skip consent', () => {
+	// This seeded client has skip-consent enabled and is not pre-authorized for the signed-in
+	// user, so the consent screen would normally be shown on first authorization.
+	const client = oidcClients.skipConsent;
+
+	test('skips the consent screen on first authorization', async ({ page }) => {
+		// The flow must go straight through to the callback instead of stopping at the consent screen
+		const urlParams = createUrlParams(client);
+		const callbackUrl = await expectCallbackRedirect(page, client.callbackUrl, () =>
+			page.goto(`/authorize?${urlParams.toString()}`)
+		);
+
+		expect(callbackUrl.searchParams.get('code')).toBeTruthy();
+		expect(callbackUrl.searchParams.get('error')).toBeNull();
+	});
+
+	test('still shows the consent screen when prompt=consent is requested', async ({ page }) => {
+		const urlParams = createUrlParams(client);
+		urlParams.set('prompt', 'consent');
+		await page.goto(`/authorize?${urlParams.toString()}`);
+
+		// prompt=consent overrides the client's skip-consent setting, so the scopes must still be shown
+		await expectScopes(page, ['Email', 'Profile']);
+
+		const callbackUrl = await expectCallbackRedirect(page, client.callbackUrl, () =>
+			page.getByRole('button', { name: /^Continue to / }).click()
+		);
+		expect(callbackUrl.searchParams.get('code')).toBeTruthy();
+	});
+
+	test('Admin UI: skip consent toggle reflects the seeded value and persists', async ({ page }) => {
+		await page.goto(`/settings/admin/oidc-clients/${client.id}`);
+
+		// The seeded client has skip-consent enabled, so the toggle loads checked
+		const toggle = page.getByRole('switch', { name: 'Skip consent screen' });
+		await expect(toggle).toBeChecked();
+
+		// Disabling it and saving must persist across a reload
+		await toggle.click();
+		await expect(toggle).not.toBeChecked();
+		await saveUnsavedChanges(page);
+		await page.reload();
+
+		// The Advanced disclosure only opens on its own while it holds a setting changed from its default
+		await page.getByRole('button', { name: /^Advanced/ }).click();
+		await expect(page.getByRole('switch', { name: 'Skip consent screen' })).not.toBeChecked();
+	});
+});

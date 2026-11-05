@@ -7,6 +7,7 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"github.com/pocket-id/pocket-id/backend/internal/appconfig"
+	"github.com/pocket-id/pocket-id/backend/internal/apperror"
 	"github.com/pocket-id/pocket-id/backend/internal/authz"
 	"github.com/pocket-id/pocket-id/backend/internal/common"
 	"github.com/pocket-id/pocket-id/backend/internal/dto"
@@ -168,7 +169,11 @@ func (acc *AppConfigController) testEmailHandler(c *gin.Context) error {
 		return err
 	}
 
+	// The test email goes to the caller, which a client acting as itself doesn't have
 	userID := authz.PrincipalFrom(c).UserID
+	if userID == "" {
+		return apperror.ClientTokenAuthNotAllowed()
+	}
 
 	err = acc.emailSender.SendTestEmail(c.Request.Context(), dbConfig, userID)
 	if err != nil {

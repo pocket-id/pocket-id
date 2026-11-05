@@ -4,6 +4,7 @@ import adapter from '@sveltejs/adapter-static';
 import { vitePreprocess } from '@sveltejs/vite-plugin-svelte';
 import tailwindcss from '@tailwindcss/vite';
 import sbom from 'rollup-plugin-sbom';
+import Icons from 'unplugin-icons/vite';
 import { defineConfig, type Plugin, lazyPlugins } from 'vite-plus';
 import packageJson from './package.json' with { type: 'json' };
 
@@ -34,6 +35,7 @@ export default defineConfig(() => {
 				}
 			}),
 			tailwindcss(),
+			Icons({ compiler: 'svelte' }),
 			frontendSbom,
 			paraglideVitePlugin({
 				project: './project.inlang',
@@ -46,6 +48,8 @@ export default defineConfig(() => {
 
 		server: {
 			host: process.env.HOST,
+			// SvelteKit replaces Vite's default allow list, which would include the workspace, so the linked UI package needs its own entry
+			fs: { allow: ['../packages/ui'] },
 			proxy: {
 				'/api': {
 					target: process.env.DEVELOPMENT_BACKEND_URL || 'http://localhost:1411'
@@ -54,6 +58,9 @@ export default defineConfig(() => {
 					target: process.env.DEVELOPMENT_BACKEND_URL || 'http://localhost:1411'
 				},
 				'/.well-known': {
+					target: process.env.DEVELOPMENT_BACKEND_URL || 'http://localhost:1411'
+				},
+				'/app.webmanifest': {
 					target: process.env.DEVELOPMENT_BACKEND_URL || 'http://localhost:1411'
 				},
 				'^/authorize(?:\\?.*)?$': {

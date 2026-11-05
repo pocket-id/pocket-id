@@ -141,6 +141,7 @@ type ScopeInfoDto struct {
 	Key         string `json:"key"`
 	Name        string `json:"name"`
 	Description string `json:"description,omitempty"`
+	BuiltIn     bool   `json:"builtIn"`
 }
 
 type DeviceCodeInfoDto struct {

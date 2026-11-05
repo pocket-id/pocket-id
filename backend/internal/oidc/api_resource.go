@@ -37,6 +37,9 @@ type APIAccessProvider interface {
 	// DescribePermissions returns the display information for the given permission keys of the API identified by audience
 	// Unknown keys are omitted
 	DescribePermissions(ctx context.Context, audience string, keys []string) ([]dto.ScopeInfoDto, error)
+	// HeldScopes drops the scopes of the API identified by audience that the user can never hold, which only applies to Pocket ID's own API whose scopes follow the user's role
+	// It keeps a user from being asked to consent to, or being granted, scopes that Pocket ID would refuse anyway
+	HeldScopes(ctx context.Context, tx *gorm.DB, userID, audience string, scopes []string) ([]string, error)
 }
 
 // resolveResource maps an RFC 8707 resource, which may be empty, to the audience to stamp on the issued token and the subset of requestedScopes that may be granted

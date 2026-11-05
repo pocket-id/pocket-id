@@ -3,7 +3,7 @@ import { m } from '#lib/paraglide/messages.js';
 import UserService from '#lib/services/user-service.ts';
 import type { User } from '#lib/types/user.type.ts';
 import { axiosErrorToast } from '#lib/utils/error-util.ts';
-import { LucideBan } from '@lucide/svelte';
+import BanIcon from '~icons/solar/forbidden-circle-bold';
 import { toast } from 'svelte-sonner';
 
 const userService = new UserService();
@@ -43,7 +43,7 @@ export function confirmDisableUsers(users: User[], onDone: () => unknown) {
 				? m.disable_name_action({ name: users[0].displayName })
 				: m.disable_count_users({ count: users.length }),
 			destructive: true,
-			icon: LucideBan,
+			icon: BanIcon,
 			action: async () => {
 				const done = await forEachUser(users, (u) => setDisabled(u, true));
 				if (!done) return;

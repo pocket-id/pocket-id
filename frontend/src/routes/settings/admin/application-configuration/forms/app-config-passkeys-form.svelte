@@ -1,13 +1,15 @@
 <script lang="ts">
 	import SettingRow from '#lib/components/setting-row.svelte';
 	import SettingsSection from '#lib/components/settings-section.svelte';
-	import { Switch } from '#lib/components/ui/switch/index.ts';
+	import { Switch } from '@pocket-id/ui/switch';
 	import { m } from '#lib/paraglide/messages.js';
 	import appConfigStore from '#lib/stores/application-configuration-store.ts';
 	import type { AllAppConfig } from '#lib/types/application-configuration.type.ts';
 	import { createForm, pickSchemaValues } from '#lib/utils/form-util.ts';
 	import { trackFormChanges } from '#lib/utils/unsaved-changes-util.svelte.ts';
-	import { LucideFingerprint, LucideKeyRound, LucideRefreshCw } from '@lucide/svelte';
+	import FingerprintIcon from '~icons/solar/face-scan-square-bold-duotone';
+	import KeyRoundIcon from '~icons/solar/key-minimalistic-bold-duotone';
+	import RefreshCwIcon from '~icons/solar/refresh-bold-duotone';
 	import { z } from 'zod/v4';
 	import OptionSelect from './option-select.svelte';
 
@@ -70,7 +72,7 @@
 		<SettingRow
 			title={m.user_verification()}
 			description={m.config_user_verification_description()}
-			icon={LucideFingerprint}
+			icon={FingerprintIcon}
 		>
 			{#snippet control(props)}
 				<OptionSelect
@@ -84,16 +86,13 @@
 		<SettingRow
 			title={m.allow_synced_passkeys()}
 			description={m.config_allow_synced_passkeys_description()}
-			consequence={$inputs.webauthnAllowSyncedPasskeys.value
-				? undefined
-				: m.config_synced_passkeys_off_note()}
-			icon={LucideRefreshCw}
+			icon={RefreshCwIcon}
 		>
 			{#snippet control(props)}
 				<Switch {...props} bind:checked={$inputs.webauthnAllowSyncedPasskeys.value} />
 			{/snippet}
 		</SettingRow>
-		<SettingRow title={m.allowed_authenticator_type()} icon={LucideKeyRound}>
+		<SettingRow title={m.allowed_authenticator_type()} icon={KeyRoundIcon}>
 			{#snippet control(props)}
 				<OptionSelect
 					{...props}

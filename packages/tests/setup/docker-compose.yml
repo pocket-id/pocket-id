@@ -1,0 +1,41 @@
+# This Docker Compose file is used to set up the environment for the tests.
+services:
+  lldap:
+    image: pocket-id-test-lldap
+    build:
+      context: .
+      dockerfile: Dockerfile
+    environment:
+      - LLDAP_JWT_SECRET=secret
+      - LLDAP_LDAP_USER_EMAIL=admin@pocket-id.org
+      - LLDAP_LDAP_USER_PASS=admin_password
+      - LLDAP_LDAP_BASE_DN=dc=pocket-id,dc=org
+  scim-test-server:
+    image: ghcr.io/pocket-id/scim-test-server:latest
+    ports:
+      - '${SCIM_PORT:-18123}:8080'
+  pocket-id:
+    image: pocket-id:test
+    extra_hosts:
+      - 'host.docker.internal:host-gateway'
+    ports:
+      - '${APP_PORT:-1511}:${APP_PORT:-1511}'
+    environment:
+      APP_ENV: test
+      PORT: ${APP_PORT:-1511}
+      APP_URL: http://localhost:${APP_PORT:-1511}
+      ENCRYPTION_KEY: test-encryption-key
+      FILE_BACKEND: ${FILE_BACKEND}
+      OUTBOUND_ALLOWED_HOSTS_BACKCHANNEL_LOGOUT: private,loopback,host.docker.internal
+      OUTBOUND_ALLOWED_HOSTS_SCIM: private,loopback,host.docker.internal
+      OUTBOUND_ALLOWED_HOSTS_FEDERATED_JWKS: private,loopback,host.docker.internal
+    volumes:
+      - pocket-id-test-data:/app/data
+    build:
+      args:
+        - BUILD_TAGS=e2etest
+      context: ../../..
+      dockerfile: docker/Dockerfile
+
+volumes:
+  pocket-id-test-data:

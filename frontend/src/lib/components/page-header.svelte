@@ -1,7 +1,8 @@
 <script lang="ts">
 	import { m } from '#lib/paraglide/messages.js';
-	import { cn } from '#lib/utils/style.ts';
-	import { LucideChevronLeft, LucideChevronRight } from '@lucide/svelte';
+	import { cn } from '@pocket-id/ui/utils';
+	import ChevronLeftIcon from '~icons/solar/alt-arrow-left-linear';
+	import ChevronRightIcon from '~icons/solar/alt-arrow-right-linear';
 	import type { Snippet } from 'svelte';
 
 	type Crumb = { label: string; href?: string };
@@ -55,7 +56,7 @@
 							{:else}
 								{crumb.label}
 							{/if}
-							<LucideChevronRight class="size-3" />
+							<ChevronRightIcon class="size-3" />
 						</li>
 					{/each}
 					<li><span aria-current="page" class="text-fg">{title}</span></li>
@@ -65,7 +66,7 @@
 						href={backCrumb.href}
 						class="text-caption text-fg-muted hover:text-fg inline-flex items-center gap-1 sm:hidden"
 					>
-						<LucideChevronLeft class="size-3" />
+						<ChevronLeftIcon class="size-3" />
 						{backCrumb.label}
 					</a>
 				{/if}
@@ -90,6 +91,9 @@
 						<div class="text-control text-fg-muted mt-2 flex flex-wrap items-center gap-2">
 							{@render tags()}
 						</div>
+					{/if}
+					{#if description}
+						<p class="text-body text-fg-muted mt-2">{@render text(description)}</p>
 					{/if}
 				</div>
 			</div>

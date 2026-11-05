@@ -2,12 +2,15 @@
 	import { goto } from '$app/navigation';
 	import { page } from '$app/state';
 	import Logo from '#lib/components/logo.svelte';
-	import * as DropdownMenu from '#lib/components/ui/dropdown-menu/index.ts';
+	import * as DropdownMenu from '@pocket-id/ui/dropdown-menu';
 	import { m } from '#lib/paraglide/messages.js';
 	import appConfigStore from '#lib/stores/application-configuration-store.ts';
 	import { commandPalette } from '#lib/stores/command-palette-store.svelte.ts';
-	import { cn } from '#lib/utils/style.ts';
-	import { Check, CircleChevronUp, Ellipsis, Search } from '@lucide/svelte';
+	import { cn } from '@pocket-id/ui/utils';
+	import Check from '~icons/solar/check-linear';
+	import CircleChevronUp from '~icons/solar/round-alt-arrow-up-linear';
+	import Ellipsis from '~icons/solar/menu-dots-bold';
+	import Search from '~icons/solar/magnifier-linear';
 	import AccountMenu from './account-menu.svelte';
 	import { activeHref, type NavGroup, type NavItem } from './nav-items.ts';
 
@@ -62,7 +65,7 @@
 					moreActive ? 'bg-fill-selected text-fg font-medium' : 'text-fg-muted'
 				)}
 			>
-				<Ellipsis class="size-5" />
+				<Ellipsis class={cn('size-5', moreActive && 'text-primary-control')} />
 				{m.more()}
 			</DropdownMenu.Trigger>
 			<DropdownMenu.Content side="top" align="end" class="w-64" data-jumping={jumping || undefined}>
@@ -97,7 +100,7 @@
 							>
 								<item.icon />
 								<span class="flex-1">{item.label}</span>
-								{#if item.href === current}<Check />{/if}
+								{#if item.href === current}<Check class="text-primary-control" />{/if}
 							</DropdownMenu.Item>
 						{/each}
 					</DropdownMenu.Group>
@@ -130,7 +133,7 @@
 			active ? 'bg-fill-selected text-fg font-medium' : 'text-fg-muted'
 		)}
 	>
-		<Icon class="size-5" />
+		<Icon class={cn('size-5', active && 'text-primary-control')} />
 		<span class="max-w-full truncate px-1">{label}</span>
 	</a>
 {/snippet}

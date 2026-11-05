@@ -8,8 +8,8 @@ import (
 
 // Authenticator resolves a principal from one kind of credential
 type Authenticator interface {
-	// Kind reports the kind of principal this authenticator produces
-	Kind() PrincipalKind
+	// Kinds reports every kind of principal this authenticator can produce, as a set of flags
+	Kinds() PrincipalKind
 
 	// Present reports whether the request carries this authenticator's credential at all, without validating it
 	Present(c *gin.Context) bool
@@ -58,7 +58,7 @@ func routeKey(method, path string) string {
 // An optional route lets requests without a usable credential through as anonymous instead of rejecting them
 func (m *Middleware) require(scope Scope, optional bool) gin.HandlerFunc {
 	return func(c *gin.Context) {
-		principal, kindRejected, err := m.authenticate(c, scope)
+		principal, rejectedKind, err := m.authenticate(c, scope)
 		if err != nil {
 			c.Abort()
 			_ = c.Error(err)
@@ -73,9 +73,17 @@ func (m *Middleware) require(scope Scope, optional bool) gin.HandlerFunc {
 			}
 
 			c.Abort()
-			if kindRejected {
-				// Only API keys can be rejected by kind today, so the error tells the caller to use a browser session instead
+			// A credential rejected by kind tells the caller which credential the route needs instead
+			if rejectedKind == KindAPIKey {
 				_ = c.Error(apperror.APIKeyAuthNotAllowed())
+				return
+			}
+			if rejectedKind == KindOAuthClient {
+				_ = c.Error(apperror.ClientTokenAuthNotAllowed())
+				return
+			}
+			if rejectedKind&KindOAuthUser != 0 {
+				_ = c.Error(apperror.OAuthTokenAuthNotAllowed())
 				return
 			}
 			_ = c.Error(apperror.NotSignedIn())
@@ -100,29 +108,34 @@ func (m *Middleware) require(scope Scope, optional bool) gin.HandlerFunc {
 }
 
 // authenticate resolves the principal from the first credential that can hold the scope and validates
-// Credentials whose kind can never hold the scope are not validated at all, and kindRejected reports that one was present
-func (m *Middleware) authenticate(c *gin.Context, scope Scope) (principal *Principal, kindRejected bool, err error) {
+// Credentials whose kind can never hold the scope are not validated at all, and rejectedKind reports the last one that was present
+func (m *Middleware) authenticate(c *gin.Context, scope Scope) (principal *Principal, rejectedKind PrincipalKind, err error) {
 	for _, authenticator := range m.authenticators {
 		if !authenticator.Present(c) {
 			continue
 		}
 
 		// Skip credentials that could never satisfy the route so they are not validated or marked as used
-		if !scope.GrantableTo(authenticator.Kind()) {
-			kindRejected = true
+		if !scope.GrantableTo(authenticator.Kinds()) {
+			rejectedKind = authenticator.Kinds()
 			continue
 		}
 
 		principal, err = authenticator.Authenticate(c)
+		// An authenticator that produces several kinds only knows the kind once the credential is validated
+		if err == nil && !scope.GrantableTo(principal.Kind) {
+			rejectedKind = principal.Kind
+			continue
+		}
 		if err == nil {
-			return principal, false, nil
+			return principal, 0, nil
 		}
 
 		// An invalid credential falls through to the next authenticator, while a valid but rejected one ends the request
 		if !apperror.IsCode(err, apperror.CodeNotSignedIn) {
-			return nil, false, err
+			return nil, 0, err
 		}
 	}
 
-	return nil, kindRejected, nil
+	return nil, rejectedKind, nil
 }

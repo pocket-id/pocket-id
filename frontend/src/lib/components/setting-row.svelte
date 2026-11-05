@@ -1,9 +1,10 @@
 <script lang="ts">
-	import { Button } from '#lib/components/ui/button/index.ts';
-	import * as Tooltip from '#lib/components/ui/tooltip/index.ts';
+	import { Button } from '@pocket-id/ui/button';
+	import * as Tooltip from '@pocket-id/ui/tooltip';
 	import { m } from '#lib/paraglide/messages.js';
-	import { cn } from '#lib/utils/style.ts';
-	import { LucideInfo, LucideRotateCcw } from '@lucide/svelte';
+	import { cn } from '@pocket-id/ui/utils';
+	import InfoIcon from '~icons/solar/info-circle-bold-duotone';
+	import RotateCcwIcon from '~icons/solar/restart-bold';
 	import { tick, type Component, type Snippet } from 'svelte';
 
 	type ControlProps = { id: string; 'aria-describedby': string | undefined };
@@ -86,7 +87,7 @@
 			{/if}
 			{#if consequence}
 				<p id="{uid}-consequence" class="text-caption text-fg-muted mt-1 flex items-start gap-1.5">
-					<LucideInfo class="mt-[3px] size-3 shrink-0" />
+					<InfoIcon class="mt-[3px] size-3 shrink-0" />
 					{consequence}
 				</p>
 			{/if}
@@ -107,7 +108,7 @@
 							aria-label={m.reset_setting_to_default({ setting: title })}
 							onclick={reset}
 						>
-							<LucideRotateCcw />
+							<RotateCcwIcon />
 						</Button>
 					{/snippet}
 				</Tooltip.Trigger>

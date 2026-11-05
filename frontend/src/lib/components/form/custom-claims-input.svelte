@@ -1,10 +1,11 @@
 <script lang="ts">
-	import { Button } from '#lib/components/ui/button/index.ts';
-	import { Input } from '#lib/components/ui/input/index.ts';
+	import { Button } from '@pocket-id/ui/button';
+	import { Input } from '@pocket-id/ui/input';
 	import { m } from '#lib/paraglide/messages.js';
 	import CustomClaimService from '#lib/services/custom-claim-service.ts';
 	import type { CustomClaim } from '#lib/types/custom-claim.type.ts';
-	import { LucidePlus, LucideX } from '@lucide/svelte';
+	import PlusIcon from '~icons/solar/add-circle-bold';
+	import XIcon from '~icons/solar/close-linear';
 	import { onMount, tick } from 'svelte';
 	import AutoCompleteInput from './auto-complete-input.svelte';
 
@@ -41,7 +42,7 @@
 			<div class="text-control text-fg-muted flex min-h-(--row-2line) items-center gap-3 px-4">
 				{m.no_custom_claims()}
 				<Button variant="ghost" size="sm" onclick={add}>
-					<LucidePlus />
+					<PlusIcon />
 					{m.add_custom_claim()}
 				</Button>
 			</div>
@@ -76,13 +77,13 @@
 						aria-label={m.remove_custom_claim()}
 						onclick={() => (customClaims = customClaims.filter((_, index) => index !== i))}
 					>
-						<LucideX />
+						<XIcon />
 					</Button>
 				</div>
 			{/each}
 			<div class="px-2 py-1.5">
 				<Button variant="ghost" size="sm" disabled={customClaims.length >= limit} onclick={add}>
-					<LucidePlus />
+					<PlusIcon />
 					{m.add_another()}
 				</Button>
 			</div>

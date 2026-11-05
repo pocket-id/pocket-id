@@ -1,11 +1,13 @@
 <script lang="ts">
 	import ActionsMenu from '#lib/components/actions-menu.svelte';
-	import { Button } from '#lib/components/ui/button/index.ts';
+	import { Button } from '@pocket-id/ui/button';
 	import { m } from '#lib/paraglide/messages.js';
 	import { getLocale } from '#lib/paraglide/runtime.js';
 	import type { Passkey } from '#lib/types/passkey.type.ts';
-	import { authenticatorIconUrl } from '#lib/utils/cached-image-util.ts';
-	import { LucideKeyRound, LucidePencil, LucideTrash2 } from '@lucide/svelte';
+	import { authenticatorIconUrl } from '#lib/utils/cached-asset-util.ts';
+	import KeyRoundIcon from '~icons/solar/key-minimalistic-bold-duotone';
+	import PencilIcon from '~icons/solar/pen-bold';
+	import Trash2Icon from '~icons/solar/trash-bin-minimalistic-bold';
 	import { mode } from 'mode-watcher';
 
 	let {
@@ -41,11 +43,11 @@
 		</span>
 	{:else}
 		<span class="bg-fill-muted text-fg-muted grid size-8 shrink-0 place-items-center rounded-[8px]">
-			<LucideKeyRound class="size-4" />
+			<KeyRoundIcon class="size-[18px]" />
 		</span>
 	{/if}
 	<div class="flex min-w-0 flex-1 flex-col gap-0.5">
-		<p class="text-heading truncate">{passkey.name}</p>
+		<p class="text-heading wrap-anywhere">{passkey.name}</p>
 		<p class="text-caption text-fg-muted">
 			{m.added_on()}
 			{new Date(passkey.createdAt).toLocaleDateString(getLocale(), { dateStyle: 'medium' })}
@@ -57,8 +59,8 @@
 			size="icon-sm"
 			label={m.actions_for_name({ name: passkey.name })}
 			actions={[
-				{ label: m.rename(), icon: LucidePencil, onClick: onRename },
-				{ label: m.delete_ellipsis(), icon: LucideTrash2, variant: 'danger', onClick: onDelete }
+				{ label: m.rename(), icon: PencilIcon, onClick: onRename },
+				{ label: m.delete_ellipsis(), icon: Trash2Icon, variant: 'danger', onClick: onDelete }
 			]}
 		/>
 	{:else}
@@ -68,7 +70,7 @@
 			aria-label={m.delete_name_action({ name: passkey.name })}
 			onclick={onDelete}
 		>
-			<LucideTrash2 />
+			<Trash2Icon />
 		</Button>
 	{/if}
 </div>

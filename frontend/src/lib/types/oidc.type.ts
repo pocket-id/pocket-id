@@ -136,6 +136,7 @@ export type InteractionScopeInfo = {
 	key: string;
 	name: string;
 	description?: string;
+	builtIn: boolean;
 };
 
 export type InteractionClient = Pick<

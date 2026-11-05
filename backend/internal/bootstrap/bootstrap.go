@@ -14,6 +14,7 @@ import (
 	"github.com/italypaleale/go-kit/servicerunner"
 	"gorm.io/gorm"
 
+	"github.com/pocket-id/pocket-id/backend/internal/api"
 	"github.com/pocket-id/pocket-id/backend/internal/claimmappingpolicy"
 	"github.com/pocket-id/pocket-id/backend/internal/common"
 	"github.com/pocket-id/pocket-id/backend/internal/instanceid"
@@ -75,14 +76,20 @@ func Bootstrap(ctx context.Context) error {
 		}
 	}()
 
-	// Init application images
-	imageExtensions, err := initApplicationImages(ctx, fileStorage)
+	// Init application assets like images and fonts
+	assetExtensions, err := initApplicationAssets(ctx, fileStorage)
 	if err != nil {
-		return fmt.Errorf("failed to initialize application images: %w", err)
+		return fmt.Errorf("failed to initialize application assets: %w", err)
 	}
 
 	// Init built-in claim policy mapping
 	err = claimmappingpolicy.Bootstrap(ctx, db)
+	if err != nil {
+		return err
+	}
+
+	// Init the built-in API that lets OAuth clients call Pocket ID's own API
+	err = api.Bootstrap(ctx, db, common.EnvConfig.AppURL)
 	if err != nil {
 		return err
 	}
@@ -108,7 +115,7 @@ func Bootstrap(ctx context.Context) error {
 	services = append(services, actorsRun)
 
 	// Create all services
-	svc, err := initServices(ctx, db, instanceID, actors, httpClient, outboundClients, imageExtensions, fileStorage)
+	svc, err := initServices(ctx, db, instanceID, actors, httpClient, outboundClients, assetExtensions, fileStorage, rateLimitServices)
 	if err != nil {
 		return fmt.Errorf("failed to initialize services: %w", err)
 	}

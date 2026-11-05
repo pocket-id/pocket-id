@@ -16,6 +16,7 @@ import (
 	"github.com/pocket-id/pocket-id/backend/internal/appconfig"
 	"github.com/pocket-id/pocket-id/backend/internal/apperror"
 	"github.com/pocket-id/pocket-id/backend/internal/auditlogs"
+	"github.com/pocket-id/pocket-id/backend/internal/authz"
 	"github.com/pocket-id/pocket-id/backend/internal/model"
 	datatype "github.com/pocket-id/pocket-id/backend/internal/model/types"
 	"github.com/pocket-id/pocket-id/backend/internal/utils"
@@ -33,7 +34,7 @@ const missingUserVerificationErrorInfo = "User verification required but flag no
 type Service struct {
 	db       *gorm.DB
 	webAuthn *gowebauthn.WebAuthn
-	signer   TokenService
+	sessions SessionStore
 	auditLog AuditLogger
 }
 
@@ -66,7 +67,7 @@ func newService(deps Dependencies) (*Service, error) {
 	return &Service{
 		db:       deps.DB,
 		webAuthn: wa,
-		signer:   deps.Signer,
+		sessions: deps.Sessions,
 		auditLog: deps.AuditLog,
 	}, nil
 }
@@ -313,11 +314,6 @@ func (s *Service) VerifyLogin(ctx context.Context, dbConfig *appconfig.AppConfig
 		return model.User{}, model.LoginTokens{}, apperror.UserDisabled()
 	}
 
-	token, err := s.signer.GenerateAccessToken(*user, authenticationMethodPhishingResistant, dbConfig.SessionDuration.AsDurationMinutes())
-	if err != nil {
-		return model.User{}, model.LoginTokens{}, err
-	}
-
 	// Prepare browser recognition and the notification within the login transaction
 	signIn := s.auditLog.CreateSignIn(ctx, auditlogs.EventSignIn, ipAddress, userAgent, user.ID, browserToken, tx, dbConfig.EmailLoginNotificationMode)
 	if !signIn.Created {
@@ -329,9 +325,15 @@ func (s *Service) VerifyLogin(ctx context.Context, dbConfig *appconfig.AppConfig
 		return model.User{}, model.LoginTokens{}, err
 	}
 
+	// Start the session only after the login transaction has committed, since it invokes an actor
+	token, err := s.sessions.Create(ctx, user.ID, authenticationMethodPhishingResistant, ipAddress, userAgent, dbConfig.SessionDuration.AsDurationMinutes())
+	if err != nil {
+		return model.User{}, model.LoginTokens{}, err
+	}
+
 	// Deliver the notification only after the login transaction has committed
 	s.auditLog.SendSignInNotification(ctx, signIn)
-	return *user, model.LoginTokens{AccessToken: token, KnownBrowserToken: signIn.KnownBrowserToken}, nil
+	return *user, model.LoginTokens{SessionToken: token, KnownBrowserToken: signIn.KnownBrowserToken}, nil
 }
 
 func (s *Service) ListCredentials(ctx context.Context, userID string) ([]model.WebauthnCredential, error) {
@@ -346,7 +348,8 @@ func (s *Service) ListCredentials(ctx context.Context, userID string) ([]model.W
 	return credentials, nil
 }
 
-func (s *Service) DeleteCredential(ctx context.Context, userID string, credentialID string, ipAddress string, userAgent string, actorUserID string) error {
+// DeleteCredential removes a passkey of userID on behalf of actor, who is named in the audit log when it isn't the passkey's owner
+func (s *Service) DeleteCredential(ctx context.Context, userID string, credentialID string, ipAddress string, userAgent string, actor authz.Principal) error {
 	tx := s.db.Begin()
 	defer func() {
 		tx.Rollback()
@@ -365,11 +368,23 @@ func (s *Service) DeleteCredential(ctx context.Context, userID string, credentia
 	}
 
 	auditLogData := auditlogs.Data{"credentialID": hex.EncodeToString(credential.CredentialID), "passkeyName": credential.Name}
-	if actorUserID != "" && actorUserID != userID {
-		var actor model.User
+	if actor.Kind == authz.KindOAuthClient {
+		var client model.OidcClient
 		err := tx.
 			WithContext(ctx).
-			First(&actor, "id = ?", actorUserID).
+			Select("name").
+			First(&client, "id = ?", actor.ClientID).
+			Error
+		if err != nil {
+			return fmt.Errorf("failed to load actor client: %w", err)
+		}
+		auditLogData["actorClientID"] = actor.ClientID
+		auditLogData["actorClientName"] = client.Name
+	} else if actor.UserID != "" && actor.UserID != userID {
+		var actorUser model.User
+		err := tx.
+			WithContext(ctx).
+			First(&actorUser, "id = ?", actor.UserID).
 			Error
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			return apperror.UserNotFound()
@@ -377,8 +392,8 @@ func (s *Service) DeleteCredential(ctx context.Context, userID string, credentia
 		if err != nil {
 			return fmt.Errorf("failed to load actor user: %w", err)
 		}
-		auditLogData["actorUserID"] = actorUserID
-		auditLogData["actorUsername"] = actor.Username
+		auditLogData["actorUserID"] = actor.UserID
+		auditLogData["actorUsername"] = actorUser.Username
 	}
 	s.auditLog.Create(ctx, auditlogs.EventPasskeyRemoved, ipAddress, userAgent, userID, auditLogData, tx)
 
@@ -460,52 +475,27 @@ func validateCredentialPolicy(dbConfig *appconfig.AppConfigModel, credential *go
 		return apperror.SyncedPasskeyNotAllowed()
 	}
 
+	// Browsers treat the requested attachment as a filter they may ignore, e.g. Windows still offers Windows Hello when only security keys are requested
+	// The reported attachment isn't signed by the authenticator, so this enforces the admin's policy rather than proving the authenticator type
+	if attachment := authenticatorAttachment(dbConfig); attachment != "" && credential.Authenticator.Attachment != attachment {
+		return apperror.AuthenticatorAttachmentNotAllowed()
+	}
+
 	return nil
 }
 
-func (s *Service) CreateReauthenticationTokenWithAccessToken(ctx context.Context, accessToken string) (string, error) {
+// CreateReauthenticationTokenWithSession lets a passkey sign-in that just happened count as reauthentication, so the user isn't asked for their passkey twice in a row
+func (s *Service) CreateReauthenticationTokenWithSession(ctx context.Context, principal authz.Principal) (string, error) {
+	if principal.AuthenticationMethod != authenticationMethodPhishingResistant || time.Since(principal.AuthenticationTime) > time.Minute {
+		return "", apperror.ReauthenticationRequired()
+	}
+
 	tx := s.db.Begin()
 	defer func() {
 		tx.Rollback()
 	}()
 
-	token, err := s.signer.VerifyAccessToken(accessToken)
-	if err != nil {
-		return "", apperror.ReauthenticationRequiredWithCause(err)
-	}
-
-	userID, ok := token.Subject()
-	if !ok {
-		return "", apperror.ReauthenticationRequiredWithCause(errors.New("access token does not contain user ID"))
-	}
-
-	authenticationMethod, err := s.signer.GetAuthenticationMethod(token)
-	if err != nil {
-		return "", apperror.ReauthenticationRequiredWithCause(err)
-	}
-	if authenticationMethod != authenticationMethodPhishingResistant {
-		return "", apperror.ReauthenticationRequired()
-	}
-
-	// Check if token is issued less than a minute ago
-	tokenExpiration, ok := token.IssuedAt()
-	if !ok || time.Since(tokenExpiration) > time.Minute {
-		return "", apperror.ReauthenticationRequired()
-	}
-
-	var user model.User
-	err = tx.
-		WithContext(ctx).
-		First(&user, "id = ?", userID).
-		Error
-	if errors.Is(err, gorm.ErrRecordNotFound) {
-		return "", apperror.ReauthenticationRequiredWithCause(err)
-	}
-	if err != nil {
-		return "", fmt.Errorf("failed to load user: %w", err)
-	}
-
-	reauthToken, err := s.createReauthenticationToken(ctx, tx, user.ID)
+	reauthToken, err := s.createReauthenticationToken(ctx, tx, principal.UserID)
 	if err != nil {
 		return "", err
 	}

@@ -31,9 +31,8 @@ import (
 
 type UserService struct {
 	db                 *gorm.DB
-	jwtService         *JwtService
 	customClaimService *CustomClaimService
-	appImagesService   *AppImagesService
+	appAssetsService   *AppAssetsService
 	scimSyncScheduler  ScimSyncScheduler
 	backchannelLogout  *backchannellogout.Service
 	fileStorage        storage.FileStorage
@@ -42,6 +41,7 @@ type UserService struct {
 
 // EmailVerificationSender emails verification links for a user's current email or for an email they want to change to
 type EmailVerificationSender interface {
+	AllowSend(ctx context.Context, userID string) error
 	Send(ctx context.Context, dbConfig *appconfig.AppConfigModel, userID string) error
 	RequestEmailChange(ctx context.Context, dbConfig *appconfig.AppConfigModel, userID, newEmail string) error
 }
@@ -54,12 +54,11 @@ type ownEmailChange struct {
 	deferred *string
 }
 
-func NewUserService(db *gorm.DB, jwtService *JwtService, customClaimService *CustomClaimService, appImagesService *AppImagesService, scimSyncScheduler ScimSyncScheduler, backchannelLogout *backchannellogout.Service, fileStorage storage.FileStorage, emailVerification EmailVerificationSender) *UserService {
+func NewUserService(db *gorm.DB, customClaimService *CustomClaimService, appAssetsService *AppAssetsService, scimSyncScheduler ScimSyncScheduler, backchannelLogout *backchannellogout.Service, fileStorage storage.FileStorage, emailVerification EmailVerificationSender) *UserService {
 	return &UserService{
 		db:                 db,
-		jwtService:         jwtService,
 		customClaimService: customClaimService,
-		appImagesService:   appImagesService,
+		appAssetsService:   appAssetsService,
 		scimSyncScheduler:  scimSyncScheduler,
 		backchannelLogout:  backchannelLogout,
 		fileStorage:        fileStorage,
@@ -128,8 +127,8 @@ func (s *UserService) GetProfilePicture(ctx context.Context, userID string) (io.
 	}
 
 	// Try default global profile picture
-	if s.appImagesService.IsDefaultProfilePictureSet() {
-		reader, size, _, err := s.appImagesService.GetImage(ctx, "default-profile-picture")
+	if s.appAssetsService.IsDefaultProfilePictureSet() {
+		reader, size, _, err := s.appAssetsService.GetAsset(ctx, "default-profile-picture")
 		if err == nil {
 			return reader, size, nil
 		}
@@ -604,6 +603,12 @@ func (s *UserService) prepareOwnEmailChange(ctx context.Context, cfg *appconfig.
 	}
 	if taken {
 		return change, apperror.AlreadyInUse("email")
+	}
+
+	// The link is only sent after the update is saved, so a throttled change rejects the whole update instead of saving it without the email
+	err = s.emailVerification.AllowSend(ctx, userID)
+	if err != nil {
+		return change, err
 	}
 
 	change.deferred = updatedUser.Email

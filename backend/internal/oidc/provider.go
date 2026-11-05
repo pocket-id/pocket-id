@@ -13,6 +13,7 @@ import (
 	fositeoauth2 "github.com/pocket-id/fosite/handler/oauth2"
 	"github.com/pocket-id/fosite/handler/openid"
 	"github.com/pocket-id/fosite/token/jwt"
+	"github.com/pocket-id/pocket-id/backend/internal/common"
 	"github.com/pocket-id/pocket-id/backend/internal/utils"
 	"golang.org/x/crypto/hkdf"
 )
@@ -35,10 +36,16 @@ func newProvider(store *Store, authenticator *federatedClientAuthenticator, sign
 		return nil, err
 	}
 
+	devicePollingInterval := 5 * time.Second
+	if common.EnvConfig.AppEnv.IsTest() {
+		// The E2E tests wait out the polling interval before each device token request
+		devicePollingInterval = time.Second
+	}
+
 	var fositeConfig = &fosite.Config{
 		RefreshTokenLifespan:                    30 * 24 * time.Hour,
 		DeviceAndUserCodeLifespan:               15 * time.Minute,
-		DeviceAuthTokenPollingInterval:          5 * time.Second,
+		DeviceAuthTokenPollingInterval:          devicePollingInterval,
 		DeviceVerificationURL:                   config.BaseURL + "/device",
 		PushedAuthorizeContextLifespan:          90 * time.Second,
 		IDTokenIssuer:                           config.BaseURL,

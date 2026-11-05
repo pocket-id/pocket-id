@@ -672,6 +672,26 @@ func TestTokenHandlerRefreshGrantPreservesAudienceAndScope(t *testing.T) {
 		require.Equal(t, []string{"openid", "read:orders"}, jwtScopes(claims))
 	})
 
+	t.Run("refresh drops scopes the user no longer holds", func(t *testing.T) {
+		db := testutils.NewDatabaseForTest(t)
+		require.NoError(t, claimmappingpolicy.Bootstrap(t.Context(), db))
+		const clientID, userID = "client-demoted", "user-demoted"
+		seedUserAndClient(t, db, clientID, userID)
+
+		token := mintRefreshToken(t, db, clientID, userID,
+			fosite.Arguments{"openid", "read:orders", "write:orders"},
+			fosite.Arguments{apiResource},
+		)
+		// The user lost the role that lets them hold write:orders since they consented
+		demotedAPI := userAccess(map[string][]string{apiResource: {"read:orders", "write:orders"}})
+		demotedAPI.unheld = []string{"write:orders"}
+		body := doRefresh(t, db, demotedAPI, clientID, token, nil)
+		require.NotEmpty(t, body["access_token"], "expected a new access token, got error: %v", body["error"])
+
+		claims := decodeJWTPart(t, body["access_token"].(string), 1)
+		require.Equal(t, []string{"openid", "read:orders"}, jwtScopes(claims))
+	})
+
 	t.Run("revoking the client API grant makes the next refresh fail", func(t *testing.T) {
 		db := testutils.NewDatabaseForTest(t)
 		require.NoError(t, claimmappingpolicy.Bootstrap(t.Context(), db))

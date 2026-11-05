@@ -3,10 +3,10 @@
 	import FormattedMessage from '#lib/components/formatted-message.svelte';
 	import type { AnyFormattedMessage, AnyMessage } from '#lib/components/formatted-message.ts';
 	import ListPagination from '#lib/components/list-pagination.svelte';
-	import * as Avatar from '#lib/components/ui/avatar/index.ts';
-	import { Badge } from '#lib/components/ui/badge/index.ts';
-	import { Button } from '#lib/components/ui/button/index.ts';
-	import { Skeleton } from '#lib/components/ui/skeleton/index.ts';
+	import * as Avatar from '@pocket-id/ui/avatar';
+	import { Badge } from '@pocket-id/ui/badge';
+	import { Button } from '@pocket-id/ui/button';
+	import { Skeleton } from '@pocket-id/ui/skeleton';
 	import { m } from '#lib/paraglide/messages.js';
 	import { getLocale } from '#lib/paraglide/runtime.js';
 	import AuditLogService from '#lib/services/audit-log-service.ts';
@@ -14,9 +14,11 @@
 	import type { AuditLog, AuditLogDateRange, AuditLogFilter } from '#lib/types/audit-log.type.ts';
 	import type { ListRequestOptions, Paginated } from '#lib/types/list-request.type.ts';
 	import { translateAuditLogEvent } from '#lib/utils/audit-log-translator.ts';
-	import { cachedProfilePicture } from '#lib/utils/cached-image-util.ts';
-	import { cn } from '#lib/utils/style.ts';
-	import { LucideChevronDown, LucideMonitor, LucideSmartphone } from '@lucide/svelte';
+	import { cachedProfilePicture } from '#lib/utils/cached-asset-util.ts';
+	import { cn } from '@pocket-id/ui/utils';
+	import ChevronDownIcon from '~icons/solar/alt-arrow-down-linear';
+	import MonitorIcon from '~icons/solar/monitor-bold-duotone';
+	import SmartphoneIcon from '~icons/solar/smartphone-bold-duotone';
 	import { untrack } from 'svelte';
 	import { SvelteSet } from 'svelte/reactivity';
 
@@ -184,7 +186,7 @@
 	>
 		<div
 			class={cn(
-				'bg-surface-sunken text-caption text-fg-muted hidden h-10 items-center gap-4 rounded-sm px-4 font-medium sm:grid',
+				'bg-surface-sunken text-caption text-fg-muted mb-1 hidden h-10 items-center gap-4 rounded-sm px-4 font-medium sm:grid',
 				columnsClass
 			)}
 		>
@@ -209,25 +211,33 @@
 		{/if}
 
 		{#each days as day (day.label)}
-			<h2 class="text-caption text-fg-muted flex h-9 items-center border-b px-4 font-medium">
+			<h2
+				class="text-caption text-fg-muted flex h-9 items-center border-b px-4 font-medium transition-colors duration-(--dur-fast) has-[+ul>li:first-child>button:is(:hover,:focus-visible)]:border-transparent"
+			>
 				{day.label}
 			</h2>
 			<ul>
 				{#each day.logs as log (log.id)}
 					{@const { sentence, via } = describe(log)}
-					{@const by =
-						isAdmin && log.actorUsername && log.actorUsername !== log.username
-							? log.actorUsername
-							: undefined}
+					{@const by = !isAdmin
+						? undefined
+						: log.data?.actorClientName
+							? m.audit_by_client({ name: log.data.actorClientName })
+							: log.actorUsername && log.actorUsername !== log.username
+								? m.audit_by_actor({ name: log.actorUsername })
+								: undefined}
 					{@const open = expanded.has(log.id)}
-					{@const DeviceIcon = isPhone(log.device) ? LucideSmartphone : LucideMonitor}
-					<li class="border-b">
+					{@const DeviceIcon = isPhone(log.device) ? SmartphoneIcon : MonitorIcon}
+					<!-- Like table rows, a filled row hides the dividers around it, but an open row keeps the one below its details -->
+					<li
+						class="border-b transition-colors duration-(--dur-fast) has-[+li>button:is(:hover,:focus-visible)]:border-transparent has-[>button[aria-expanded=false]:is(:hover,:focus-visible)]:border-transparent"
+					>
 						<button
 							type="button"
 							aria-expanded={open}
 							aria-controls={`audit-detail-${log.id}`}
 							class={cn(
-								'hover:bg-fill-row-hover focus-visible:bg-fill-row-hover focus-visible:outline-ring grid min-h-(--row-2line) w-full grid-cols-[minmax(0,1fr)_16px] items-center gap-x-4 px-4 py-2 text-start transition-colors duration-(--dur-fast) focus-visible:outline-2 focus-visible:-outline-offset-2',
+								'hover:bg-fill-row-hover focus-visible:bg-fill-row-hover focus-visible:outline-ring grid min-h-(--row-2line) w-full grid-cols-[minmax(0,1fr)_16px] items-center gap-x-4 rounded-sm px-4 py-2 text-start transition-colors duration-(--dur-fast) focus-visible:outline-2 focus-visible:-outline-offset-2',
 								columnsClass
 							)}
 							onclick={() => toggle(log.id)}
@@ -252,9 +262,7 @@
 									{/if}
 									{@render sentenceText(sentence)}
 									{#if by}
-										<span class="text-control text-fg-muted"
-											>· {m.audit_by_actor({ name: by })}</span
-										>
+										<span class="text-control text-fg-muted">· {by}</span>
 									{/if}
 								</span>
 								<span class="text-caption text-fg-muted flex min-w-0 items-center gap-x-1.5">
@@ -290,7 +298,7 @@
 							>
 								{formatTime(log)}
 							</time>
-							<LucideChevronDown
+							<ChevronDownIcon
 								class={cn(
 									'text-fg-muted size-3 justify-self-center transition-transform duration-(--dur-base)',
 									open && 'rotate-180'
@@ -331,7 +339,7 @@
 									<summary
 										class="text-control text-fg-muted hover:text-fg inline-flex cursor-pointer list-none items-center gap-1 rounded-xs"
 									>
-										<LucideChevronDown
+										<ChevronDownIcon
 											class="size-3 -rotate-90 transition-transform duration-(--dur-base) group-open/raw:rotate-0"
 										/>
 										{m.raw_data()}

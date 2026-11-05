@@ -1,14 +1,16 @@
 <script lang="ts">
-	import { Button } from '#lib/components/ui/button/index.ts';
-	import * as Tooltip from '#lib/components/ui/tooltip/index.ts';
+	import { Button } from '@pocket-id/ui/button';
+	import * as Tooltip from '@pocket-id/ui/tooltip';
 	import { m } from '#lib/paraglide/messages.js';
-	import { cn } from '#lib/utils/style.ts';
-	import { LucideCheck, LucideCopy } from '@lucide/svelte';
+	import { cn } from '@pocket-id/ui/utils';
+	import CheckIcon from '~icons/solar/check-linear';
+	import CopyIcon from '~icons/solar/copy-bold';
 
 	let {
 		value,
 		label = m.copy(),
 		labeled = false,
+		text = m.copy(),
 		class: className
 	}: {
 		value: string;
@@ -16,6 +18,7 @@
 		label?: string;
 		// A secondary button that reads "Copy" instead of an icon button with a tooltip
 		labeled?: boolean;
+		text?: string;
 		class?: string;
 	} = $props();
 
@@ -35,8 +38,8 @@
 
 {#snippet icon()}
 	<span class="grid" aria-hidden="true">
-		<LucideCopy class={cn(markClass, copied && 'scale-60 opacity-0')} />
-		<LucideCheck
+		<CopyIcon class={cn(markClass, copied && 'scale-60 opacity-0')} />
+		<CheckIcon
 			class={cn(markClass, !copied && 'scale-60 opacity-0', copied && 'duration-(--dur-base)')}
 		/>
 	</span>
@@ -48,13 +51,13 @@
 		variant="secondary"
 		size="sm"
 		class={className}
-		aria-label={label === m.copy() ? undefined : label}
+		aria-label={label === text ? undefined : label}
 		onclick={copy}
 	>
 		{@render icon()}
 		<span class="grid">
 			<span class={cn('col-start-1 row-start-1 transition-opacity', copied && 'opacity-0')}>
-				{m.copy()}
+				{text}
 			</span>
 			<span
 				class={cn('col-start-1 row-start-1 transition-opacity', !copied && 'opacity-0')}

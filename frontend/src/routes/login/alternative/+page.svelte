@@ -4,10 +4,13 @@
 	import AuthTile from '#lib/components/auth/auth-tile.svelte';
 	import { authQuietClass, emailedLoginCode } from '#lib/components/auth/auth-util.ts';
 	import SignInWrapper from '#lib/components/login-wrapper.svelte';
-	import { Button } from '#lib/components/ui/button/index.ts';
+	import { Button } from '@pocket-id/ui/button';
 	import { m } from '#lib/paraglide/messages.js';
 	import appConfigStore from '#lib/stores/application-configuration-store.ts';
-	import { LucideChevronRight, LucideKeyboard, LucideMail, LucideSmartphone } from '@lucide/svelte';
+	import ChevronRightIcon from '~icons/solar/alt-arrow-right-linear';
+	import KeyboardIcon from '~icons/solar/keyboard-bold-duotone';
+	import MailIcon from '~icons/solar/letter-bold-duotone';
+	import SmartphoneIcon from '~icons/solar/smartphone-bold-duotone';
 
 	const emailCodes = $appConfigStore.emailOneTimeAccessAsUnauthenticatedEnabled;
 
@@ -16,13 +19,13 @@
 
 	const methods = [
 		{
-			icon: LucideSmartphone,
+			icon: SmartphoneIcon,
 			title: m.auth_use_another_device(),
 			description: m.auth_use_another_device_description(),
 			href: '/login/alternative/device'
 		},
 		{
-			icon: LucideKeyboard,
+			icon: KeyboardIcon,
 			title: m.auth_enter_a_login_code(),
 			description: emailCodes
 				? m.auth_enter_a_login_code_description()
@@ -32,7 +35,7 @@
 		...(emailCodes
 			? [
 					{
-						icon: LucideMail,
+						icon: MailIcon,
 						title: m.auth_email_me_a_login_code(),
 						description: m.auth_email_me_a_login_code_description(),
 						href: '/login/alternative/email'
@@ -48,9 +51,7 @@
 
 <SignInWrapper back={'/login' + page.url.search}>
 	<AuthTile />
-	<AuthHeading title={m.auth_other_ways_to_sign_in()}>
-		{m.auth_other_ways_to_sign_in_description()}
-	</AuthHeading>
+	<AuthHeading title={m.auth_other_ways_to_sign_in()} />
 	<ul class="-mx-3 mb-6 flex flex-col gap-0.5">
 		{#each methods as method (method.href)}
 			<li>
@@ -65,7 +66,7 @@
 						<span class="text-heading font-medium">{method.title}</span>
 						<span class="text-control text-fg-muted">{method.description}</span>
 					</span>
-					<LucideChevronRight
+					<ChevronRightIcon
 						class="text-fg-muted size-4 shrink-0 transition-transform duration-(--dur-fast) group-hover/method:translate-x-(--nudge)"
 					/>
 				</a>

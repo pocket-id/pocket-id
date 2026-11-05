@@ -1,10 +1,10 @@
 <script lang="ts">
-	import * as DropdownMenu from '#lib/components/ui/dropdown-menu/index.ts';
+	import * as DropdownMenu from '@pocket-id/ui/dropdown-menu';
 	import { m } from '#lib/paraglide/messages.js';
-	import { cn } from '#lib/utils/style.ts';
-	import { LucideChevronDown } from '@lucide/svelte';
-	import { Badge } from '../ui/badge';
-	import { filledFieldClass } from '../ui/input';
+	import { cn } from '@pocket-id/ui/utils';
+	import ChevronDownIcon from '~icons/solar/alt-arrow-down-linear';
+	import { Badge } from '@pocket-id/ui/badge';
+	import { filledFieldClass } from '@pocket-id/ui/input';
 
 	let {
 		items,
@@ -57,7 +57,7 @@
 						<span class="text-fg-muted truncate">{placeholder}</span>
 					{/each}
 				</span>
-				<LucideChevronDown class="text-fg-muted size-3.5 shrink-0" />
+				<ChevronDownIcon class="text-fg-muted size-3.5 shrink-0" />
 			</button>
 		{/snippet}
 	</DropdownMenu.Trigger>

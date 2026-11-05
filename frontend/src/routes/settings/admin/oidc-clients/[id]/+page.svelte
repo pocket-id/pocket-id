@@ -5,10 +5,11 @@
 	import CopyButton from '#lib/components/copy-button.svelte';
 	import OidcClientAvatar from '#lib/components/oidc-client-avatar.svelte';
 	import PageHeader from '#lib/components/page-header.svelte';
-	import * as Alert from '#lib/components/ui/alert/index.ts';
-	import { Badge } from '#lib/components/ui/badge/index.ts';
-	import { Button } from '#lib/components/ui/button/index.ts';
-	import * as Tabs from '#lib/components/ui/tabs/index.ts';
+	import * as Alert from '@pocket-id/ui/alert';
+	import { Badge } from '@pocket-id/ui/badge';
+	import { Button } from '@pocket-id/ui/button';
+	import HashTabs from '#lib/components/hash-tabs.svelte';
+	import * as Tabs from '@pocket-id/ui/tabs';
 	import { m } from '#lib/paraglide/messages.js';
 	import OidcService from '#lib/services/oidc-service.ts';
 	import ScimService from '#lib/services/scim-service.ts';
@@ -21,8 +22,9 @@
 		OidcClientSecret
 	} from '#lib/types/oidc.type.ts';
 	import type { ScimServiceProviderCreate } from '#lib/types/scim.type.ts';
-	import { cachedOidcClientLogo } from '#lib/utils/cached-image-util.ts';
-	import { LucideEye, LucideInfo } from '@lucide/svelte';
+	import { cachedOidcClientLogo } from '#lib/utils/cached-asset-util.ts';
+	import EyeIcon from '~icons/solar/eye-bold';
+	import InfoIcon from '~icons/solar/info-circle-bold-duotone';
 	import { onDestroy } from 'svelte';
 	import { backNavigate } from '../../users/navigate-back-util';
 	import { deleteClientAction, refreshClientAction, typeLabel } from '../oidc-client-actions';
@@ -223,7 +225,7 @@
 	{/snippet}
 	{#snippet actions()}
 		<Button variant="secondary" onclick={() => (showPreview = true)}>
-			<LucideEye />
+			<EyeIcon />
 			<span class="max-sm:sr-only">{m.data_preview()}</span>
 		</Button>
 		<ActionsMenu item={client} actions={menuActions} label={m.more_actions()} variant="outline" />
@@ -231,7 +233,7 @@
 </PageHeader>
 
 {#key reloadCount}
-	<Tabs.Root bind:value={tab} useHash class="mt-4 gap-8">
+	<HashTabs bind:value={tab} class="mt-4 gap-8">
 		<div class="flex shadow-[inset_0_-1px_0_var(--border)]">
 			<div class="scroll-fade-x min-w-0 [scrollbar-width:none] overflow-x-auto">
 				<Tabs.List
@@ -261,7 +263,7 @@
 		<Tabs.Content value="general" class="flex flex-col gap-10">
 			{#if client.clientType === 'cimd'}
 				<Alert.Root variant="info">
-					<LucideInfo />
+					<InfoIcon />
 					<Alert.Title>{m.some_settings_come_from_a_metadata_document()}</Alert.Title>
 					<Alert.Description>
 						{m.cimd_client_read_only_description({ name: client.name })}
@@ -315,7 +317,7 @@
 				onSave={saveScimServiceProvider}
 			/>
 		</Tabs.Content>
-	</Tabs.Root>
+	</HashTabs>
 {/key}
 
 <OidcClientPreviewSheet bind:open={showPreview} {client} />

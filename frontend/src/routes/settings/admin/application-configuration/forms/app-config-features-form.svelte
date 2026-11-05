@@ -2,7 +2,7 @@
 	import { invalidate } from '$app/navigation';
 	import SettingRow from '#lib/components/setting-row.svelte';
 	import SettingsSection from '#lib/components/settings-section.svelte';
-	import { Switch } from '#lib/components/ui/switch/index.ts';
+	import { Switch } from '@pocket-id/ui/switch';
 	import { m } from '#lib/paraglide/messages.js';
 	import appConfigStore from '#lib/stores/application-configuration-store.ts';
 	import type { AllAppConfig } from '#lib/types/application-configuration.type.ts';
@@ -46,11 +46,11 @@
 
 <fieldset class="flex min-w-0 flex-col gap-10" disabled={$appConfigStore.uiConfigDisabled}>
 	{#each sections as section (section.title)}
-		<SettingsSection title={section.title} description={section.description}>
+		<SettingsSection title={section.title}>
 			{#each section.rows as row (row.id)}
 				<SettingRow
 					title={row.title}
-					description={`${row.description} ${row.adds}`}
+					description={row.description}
 					consequence={features[row.id].inUse ? row.inUse : undefined}
 					icon={row.icon}
 				>

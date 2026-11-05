@@ -3,10 +3,11 @@
 	import OidcClientAvatar from '#lib/components/oidc-client-avatar.svelte';
 	import PageHeader from '#lib/components/page-header.svelte';
 	import SettingsSection from '#lib/components/settings-section.svelte';
-	import { Badge } from '#lib/components/ui/badge/index.ts';
-	import { Button } from '#lib/components/ui/button/index.ts';
-	import * as DropdownMenu from '#lib/components/ui/dropdown-menu/index.ts';
-	import * as Tabs from '#lib/components/ui/tabs/index.ts';
+	import { Badge } from '@pocket-id/ui/badge';
+	import { Button } from '@pocket-id/ui/button';
+	import * as DropdownMenu from '@pocket-id/ui/dropdown-menu';
+	import HashTabs from '#lib/components/hash-tabs.svelte';
+	import * as Tabs from '@pocket-id/ui/tabs';
 	import { m } from '#lib/paraglide/messages.js';
 	import CustomClaimService from '#lib/services/custom-claim-service.ts';
 	import UserGroupService from '#lib/services/user-group-service.ts';
@@ -16,17 +17,15 @@
 	import type { UserGroup, UserGroupMinimal } from '#lib/types/user-group.type.ts';
 	import { axiosErrorToast } from '#lib/utils/error-util.ts';
 	import { trackUnsavedValue } from '#lib/utils/unsaved-changes-util.svelte.ts';
-	import {
-		LucideCopy,
-		LucideEllipsis,
-		LucideKeyRound,
-		LucideLock,
-		LucidePlus,
-		LucideTrash2,
-		LucideUserCheck,
-		LucideUserMinus,
-		LucideUserX
-	} from '@lucide/svelte';
+	import CopyIcon from '~icons/solar/copy-bold';
+	import EllipsisIcon from '~icons/solar/menu-dots-bold';
+	import KeyRoundIcon from '~icons/solar/key-minimalistic-bold';
+	import LockIcon from '~icons/solar/lock-bold-duotone';
+	import PlusIcon from '~icons/solar/add-circle-bold';
+	import Trash2Icon from '~icons/solar/trash-bin-minimalistic-bold';
+	import UserCheckIcon from '~icons/solar/user-check-rounded-bold';
+	import UserMinusIcon from '~icons/solar/user-minus-rounded-bold';
+	import UserXIcon from '~icons/solar/user-block-rounded-bold';
 	import { toast } from 'svelte-sonner';
 	import PickerDialog, { groupsConfirmLabel } from '../../user-groups/picker-dialog.svelte';
 	import LoginCodeDialog from '../login-code-dialog.svelte';
@@ -36,10 +35,12 @@
 	import UserForm from '../user-form.svelte';
 	import UserStatus from '../user-status.svelte';
 	import AdminPasskeyList from './admin-passkey-list.svelte';
+	import AdminSessionList from './admin-session-list.svelte';
 
 	let { data } = $props();
 	let user = $state(data.user);
 	let passkeys = $state(data.passkeys);
+	let sessions = $state(data.sessions);
 	let tab = $state('general');
 	let loginCodeUser = $state<typeof user | null>(null);
 	let groupPickerOpen = $state(false);
@@ -137,12 +138,12 @@
 					usePromiseLoading
 					onclick={() => enableUsers([user], reloadUser)}
 				>
-					<LucideUserCheck />
+					<UserCheckIcon />
 					{m.enable_user()}
 				</Button>
 			{:else}
 				<Button variant="secondary" onclick={() => (loginCodeUser = user)}>
-					<LucideKeyRound />
+					<KeyRoundIcon />
 					{m.login_code_ellipsis()}
 				</Button>
 			{/if}
@@ -150,13 +151,13 @@
 				<DropdownMenu.Trigger>
 					{#snippet child({ props })}
 						<Button {...props} variant="outline" size="icon" aria-label={m.more_actions()}>
-							<LucideEllipsis />
+							<EllipsisIcon />
 						</Button>
 					{/snippet}
 				</DropdownMenu.Trigger>
 				<DropdownMenu.Content align="end">
 					<DropdownMenu.Item onclick={copyUserId}>
-						<LucideCopy />
+						<CopyIcon />
 						{m.copy_user_id()}
 					</DropdownMenu.Item>
 					{#if !user.disabled && !readOnly}
@@ -164,7 +165,7 @@
 							disabled={isMe}
 							onclick={() => confirmDisableUsers([user], reloadUser)}
 						>
-							<LucideUserX />
+							<UserXIcon />
 							{m.disable_user_ellipsis()}
 						</DropdownMenu.Item>
 					{/if}
@@ -175,7 +176,7 @@
 							disabled={isMe}
 							onclick={() => confirmDeleteUsers([user], backNavigation.leave)}
 						>
-							<LucideTrash2 />
+							<Trash2Icon />
 							{m.delete_user_ellipsis()}
 						</DropdownMenu.Item>
 					{/if}
@@ -184,7 +185,7 @@
 		{/snippet}
 	</PageHeader>
 
-	<Tabs.Root bind:value={tab} useHash class="gap-10">
+	<HashTabs bind:value={tab} class="gap-10">
 		<div class="flex shadow-[inset_0_-1px_0_var(--border)]">
 			<div class="scroll-fade-x min-w-0 [scrollbar-width:none] overflow-x-auto">
 				<Tabs.List variant="line" class="shadow-none max-sm:gap-4" aria-label={m.user_sections()}>
@@ -195,6 +196,10 @@
 					<Tabs.Trigger value="passkeys"
 						>{m.passkeys()} {@render count(passkeys.length)}</Tabs.Trigger
 					>
+					<Tabs.Trigger value="devices">
+						{m.devices()}
+						{@render count(sessions.length)}
+					</Tabs.Trigger>
 					{#if data.features?.customClaims.enabled}
 						<Tabs.Trigger value="custom-claims">
 							{m.custom_claims()}
@@ -214,14 +219,14 @@
 				{#snippet action()}
 					{#if !readOnly}
 						<Button variant="secondary" size="sm" onclick={() => (groupPickerOpen = true)}>
-							<LucidePlus />
+							<PlusIcon />
 							{m.add_to_groups_ellipsis()}
 						</Button>
 					{/if}
 				{/snippet}
 				{#if readOnly}
 					<p class="text-caption text-fg-muted mb-2 flex items-start gap-1.5">
-						<LucideLock class="mt-1 size-3 shrink-0" />
+						<LockIcon class="mt-1 size-3 shrink-0" />
 						{m.group_memberships_come_from_ldap()}
 					</p>
 				{/if}
@@ -253,7 +258,7 @@
 									})}
 									onclick={() => removeFromGroup(group)}
 								>
-									<LucideUserMinus />
+									<UserMinusIcon />
 								</Button>
 							{/if}
 						</li>
@@ -274,12 +279,16 @@
 			</SettingsSection>
 		</Tabs.Content>
 
+		<Tabs.Content value="devices">
+			<AdminSessionList userId={user.id} {firstName} bind:sessions />
+		</Tabs.Content>
+
 		<Tabs.Content value="custom-claims">
 			<SettingsSection title={m.custom_claims()} description={m.user_custom_claims_description()}>
 				<CustomClaimsInput bind:customClaims={user.customClaims} />
 			</SettingsSection>
 		</Tabs.Content>
-	</Tabs.Root>
+	</HashTabs>
 </div>
 
 <LoginCodeDialog bind:user={loginCodeUser} />

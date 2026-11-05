@@ -1,15 +1,16 @@
 <script lang="ts">
 	import SettingRow from '#lib/components/setting-row.svelte';
-	import { Button } from '#lib/components/ui/button/index.ts';
-	import * as Field from '#lib/components/ui/field/index.ts';
-	import { Input } from '#lib/components/ui/input/index.ts';
-	import { Label } from '#lib/components/ui/label/index.ts';
-	import * as RadioGroup from '#lib/components/ui/radio-group/index.ts';
-	import { Switch } from '#lib/components/ui/switch/index.ts';
+	import { Button } from '@pocket-id/ui/button';
+	import * as Field from '@pocket-id/ui/field';
+	import { Input } from '@pocket-id/ui/input';
+	import { Label } from '@pocket-id/ui/label';
+	import * as RadioGroup from '@pocket-id/ui/radio-group';
+	import { Switch } from '@pocket-id/ui/switch';
 	import { m } from '#lib/paraglide/messages.js';
 	import appConfigStore from '#lib/stores/application-configuration-store.ts';
 	import type { OidcClientFederatedIdentity } from '#lib/types/oidc.type.ts';
-	import { LucidePlus, LucideX } from '@lucide/svelte';
+	import PlusIcon from '~icons/solar/add-circle-bold';
+	import XIcon from '~icons/solar/close-linear';
 	import { z } from 'zod/v4';
 	import FederatedIdentityKeysInput from './federated-identity-keys-input.svelte';
 
@@ -103,7 +104,7 @@
 					onclick={() => removeFederatedIdentity(i)}
 					aria-label={m.remove_credential_number({ number: i + 1 })}
 				>
-					<LucideX />
+					<XIcon />
 				</Button>
 			{/if}
 		</div>
@@ -179,7 +180,7 @@
 		<span class="text-control text-fg-muted">{m.no_federated_credentials()}</span>
 		{#if !disabled}
 			<Button variant="ghost" size="sm" onclick={onAdd}>
-				<LucidePlus />
+				<PlusIcon />
 				{m.add_credential()}
 			</Button>
 		{/if}

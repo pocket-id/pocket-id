@@ -5,15 +5,15 @@
 	import FormattedMessage from '#lib/components/formatted-message.svelte';
 	import SettingRow from '#lib/components/setting-row.svelte';
 	import SettingsSection from '#lib/components/settings-section.svelte';
-	import * as Field from '#lib/components/ui/field/index.ts';
-	import { Switch } from '#lib/components/ui/switch/index.ts';
+	import * as Field from '@pocket-id/ui/field';
+	import { Switch } from '@pocket-id/ui/switch';
 	import { m } from '#lib/paraglide/messages.js';
 	import appConfigStore from '#lib/stores/application-configuration-store.ts';
 	import type { AllAppConfig } from '#lib/types/application-configuration.type.ts';
 	import type { OidcDiscoveryConfiguration } from '#lib/types/oidc.type.ts';
 	import { createForm } from '#lib/utils/form-util.ts';
 	import { trackFormChanges, trackUnsavedValue } from '#lib/utils/unsaved-changes-util.svelte.ts';
-	import { LucideKey } from '@lucide/svelte';
+	import KeyIcon from '~icons/solar/key-bold-duotone';
 	import { z } from 'zod/v4';
 
 	let {
@@ -81,7 +81,7 @@
 			<SettingRow
 				title={m.config_auto_secret()}
 				description={m.config_auto_secret_description()}
-				icon={LucideKey}
+				icon={KeyIcon}
 			>
 				{#snippet control(props)}
 					<Switch {...props} bind:checked={$inputs.autoCreateOidcClientSecret.value} />

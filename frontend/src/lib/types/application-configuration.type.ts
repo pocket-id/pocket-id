@@ -1,3 +1,4 @@
+import type { Appearance } from '#lib/components/appearance/appearance.svelte.ts';
 import type { CustomClaim } from './custom-claim.type';
 import type { Feature } from './feature.type';
 
@@ -11,9 +12,8 @@ export type AppConfig = {
 	emailVerification: 'disabled' | 'optional' | 'required';
 	ldapEnabled: boolean;
 	ldapAllowProfilePictureOverride: boolean;
-	disableAnimations: boolean;
 	uiConfigDisabled: boolean;
-	colorTheme: string;
+	appearance: Partial<Appearance>;
 	requireUserEmail: boolean;
 	tracingEnabled: boolean;
 	iconLibrary: 'default' | 'custom' | 'disabled';

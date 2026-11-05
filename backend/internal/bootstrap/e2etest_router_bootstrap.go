@@ -17,7 +17,7 @@ import (
 func init() {
 	registerTestControllers = []func(apiRouter *authz.Router, db *gorm.DB, svc *services){
 		func(apiRouter *authz.Router, db *gorm.DB, svc *services) {
-			testService, err := service.NewTestService(db, svc.actors, svc.appConfigService, svc.jwtService, svc.ldapSyncModule, svc.fileStorage)
+			testService, err := service.NewTestService(db, svc.actors, svc.appConfigService, svc.signingKey, svc.auditLogsModule, svc.ldapSyncModule, svc.fileStorage)
 			if err != nil {
 				slog.Error("Failed to initialize test service", slog.Any("error", err))
 				os.Exit(1)

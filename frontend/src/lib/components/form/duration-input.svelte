@@ -1,8 +1,8 @@
 <script lang="ts">
-	import * as ButtonGroup from '#lib/components/ui/button-group/index.ts';
-	import * as Field from '#lib/components/ui/field/index.ts';
-	import { Input } from '#lib/components/ui/input/index.ts';
-	import * as Select from '#lib/components/ui/select/index.ts';
+	import * as ButtonGroup from '@pocket-id/ui/button-group';
+	import * as Field from '@pocket-id/ui/field';
+	import { Input } from '@pocket-id/ui/input';
+	import * as Select from '@pocket-id/ui/select';
 	import { m } from '#lib/paraglide/messages.js';
 	import type { FormInput } from '#lib/utils/form-util.ts';
 

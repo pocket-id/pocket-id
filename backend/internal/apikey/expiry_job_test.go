@@ -126,7 +126,7 @@ func TestAPIKeyExpiryCronJobNotifiesAgainAfterRenewal(t *testing.T) {
 	service, err := newService(t.Context(), db, "")
 	require.NoError(t, err)
 
-	renewed, _, err := service.RenewApiKey(t.Context(), user.ID, renewedKey.ID, time.Now().Add(3*24*time.Hour))
+	renewed, _, err := service.RenewApiKey(t.Context(), user.ID, renewedKey.ID, time.Now().Add(3*24*time.Hour), 0)
 	require.NoError(t, err)
 	require.False(t, renewed.ExpirationEmailSent)
 

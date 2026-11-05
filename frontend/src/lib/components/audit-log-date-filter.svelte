@@ -1,12 +1,13 @@
 <script lang="ts">
-	import { Button } from '#lib/components/ui/button/index.ts';
-	import { Input } from '#lib/components/ui/input/index.ts';
-	import * as Popover from '#lib/components/ui/popover/index.ts';
+	import { Button } from '@pocket-id/ui/button';
+	import { Input } from '@pocket-id/ui/input';
+	import * as Popover from '@pocket-id/ui/popover';
 	import { m } from '#lib/paraglide/messages.js';
 	import { getLocale } from '#lib/paraglide/runtime.js';
 	import type { AuditLogDateRange } from '#lib/types/audit-log.type.ts';
 	import { preventDefault } from '#lib/utils/event-util.ts';
-	import { Check, ChevronDown } from '@lucide/svelte';
+	import Check from '~icons/solar/check-linear';
+	import ChevronDown from '~icons/solar/alt-arrow-down-linear';
 
 	let { range = $bindable({}) }: { range: AuditLogDateRange } = $props();
 

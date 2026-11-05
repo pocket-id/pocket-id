@@ -3,11 +3,11 @@
 	import FormInput from '#lib/components/form/form-input.svelte';
 	import SettingRow from '#lib/components/setting-row.svelte';
 	import SettingsSection from '#lib/components/settings-section.svelte';
-	import { Badge } from '#lib/components/ui/badge/index.ts';
-	import { Button } from '#lib/components/ui/button/index.ts';
-	import * as Field from '#lib/components/ui/field/index.ts';
-	import { Input } from '#lib/components/ui/input/index.ts';
-	import { Switch } from '#lib/components/ui/switch/index.ts';
+	import { Badge } from '@pocket-id/ui/badge';
+	import { Button } from '@pocket-id/ui/button';
+	import * as Field from '@pocket-id/ui/field';
+	import { Input } from '@pocket-id/ui/input';
+	import { Switch } from '@pocket-id/ui/switch';
 	import { m } from '#lib/paraglide/messages.js';
 	import AppConfigService from '#lib/services/app-config-service.ts';
 	import appConfigStore from '#lib/stores/application-configuration-store.ts';
@@ -15,13 +15,11 @@
 	import { axiosErrorToast, getAxiosErrorMessage } from '#lib/utils/error-util.ts';
 	import { createForm, pickSchemaValues } from '#lib/utils/form-util.ts';
 	import { trackFormChanges } from '#lib/utils/unsaved-changes-util.svelte.ts';
-	import {
-		LucideBan,
-		LucideImage,
-		LucideRefreshCw,
-		LucideShieldOff,
-		LucideUserX
-	} from '@lucide/svelte';
+	import BanIcon from '~icons/solar/forbidden-circle-bold';
+	import ImageIcon from '~icons/solar/gallery-bold-duotone';
+	import RefreshCwIcon from '~icons/solar/refresh-bold';
+	import ShieldOffIcon from '~icons/solar/shield-cross-bold-duotone';
+	import UserXIcon from '~icons/solar/user-block-rounded-bold-duotone';
 	import { tick } from 'svelte';
 	import { toast } from 'svelte-sonner';
 	import { z } from 'zod/v4';
@@ -190,7 +188,7 @@
 			confirm: {
 				label: m.config_disable_ldap_confirm(),
 				destructive: true,
-				icon: LucideBan,
+				icon: BanIcon,
 				action: async () => {
 					await callback({ ldapEnabled: false });
 					ldapEnabled = false;
@@ -220,7 +218,7 @@
 			<div class="flex flex-wrap items-center gap-2">
 				{#if ldapEnabled}
 					<Button size="sm" variant="secondary" isLoading={syncing} onclick={onSync}>
-						<LucideRefreshCw />
+						<RefreshCwIcon />
 						{m.sync_now()}
 					</Button>
 					<Button
@@ -246,10 +244,7 @@
 	</SettingsSection>
 
 	<fieldset class="contents" disabled={$appConfigStore.uiConfigDisabled}>
-		<SettingsSection
-			title={m.config_connection()}
-			description={m.config_connection_description({ appName })}
-		>
+		<SettingsSection title={m.config_connection()}>
 			<div class="flex flex-col gap-4 py-4 shadow-[inset_0_-1px_0_var(--border)]">
 				<FormInput
 					class="max-w-[400px]"
@@ -281,7 +276,7 @@
 			<SettingRow
 				title={m.skip_certificate_verification()}
 				description={m.config_self_signed_only()}
-				icon={LucideShieldOff}
+				icon={ShieldOffIcon}
 			>
 				{#snippet control(props)}
 					<Switch {...props} bind:checked={$inputs.ldapSkipCertVerify.value} />
@@ -289,10 +284,7 @@
 			</SettingRow>
 		</SettingsSection>
 
-		<SettingsSection
-			title={m.config_search()}
-			description={m.config_search_description({ appName })}
-		>
+		<SettingsSection title={m.config_search()}>
 			<div class="flex flex-col gap-4 py-4 shadow-[inset_0_-1px_0_var(--border)]">
 				<FormInput
 					inputClass="font-mono"
@@ -310,7 +302,7 @@
 			<SettingRow
 				title={m.config_keep_removed_ldap_users()}
 				description={m.config_keep_removed_ldap_users_description()}
-				icon={LucideUserX}
+				icon={UserXIcon}
 			>
 				{#snippet control(props)}
 					<Switch {...props} bind:checked={$inputs.ldapSoftDeleteUsers.value} />
@@ -319,7 +311,7 @@
 			<SettingRow
 				title={m.ldap_allow_profile_picture_override()}
 				description={m.ldap_allow_profile_picture_override_description()}
-				icon={LucideImage}
+				icon={ImageIcon}
 			>
 				{#snippet control(props)}
 					<Switch {...props} bind:checked={$inputs.ldapAllowProfilePictureOverride.value} />

@@ -5,9 +5,9 @@
 	import EmptyList from '#lib/components/empty-list.svelte';
 	import PageHeader from '#lib/components/page-header.svelte';
 	import AdvancedTable from '#lib/components/table/advanced-table.svelte';
-	import { Badge } from '#lib/components/ui/badge/index.ts';
-	import { Button } from '#lib/components/ui/button/index.ts';
-	import * as Tooltip from '#lib/components/ui/tooltip/index.ts';
+	import { Badge } from '@pocket-id/ui/badge';
+	import { Button } from '@pocket-id/ui/button';
+	import * as Tooltip from '@pocket-id/ui/tooltip';
 	import { m } from '#lib/paraglide/messages.js';
 	import OIDCService from '#lib/services/oidc-service.ts';
 	import appConfigStore from '#lib/stores/application-configuration-store.ts';
@@ -19,7 +19,9 @@
 	import type { OidcClientWithAllowedGroups } from '#lib/types/oidc.type.ts';
 	import { encodeClientIdParam } from '#lib/utils/client-id-util.ts';
 	import { openOnCreateParam } from '#lib/utils/create-param-util.ts';
-	import { LucideArrowRight, LucideArrowUpRight, LucidePlus } from '@lucide/svelte';
+	import ArrowRightIcon from '~icons/solar/arrow-right-linear';
+	import ArrowUpRightIcon from '~icons/solar/arrow-right-up-linear';
+	import PlusIcon from '~icons/solar/add-circle-bold';
 	import OidcClientCreateSheet from './oidc-client-create-sheet.svelte';
 	import {
 		copyClientIdAction,
@@ -122,7 +124,7 @@
 		{
 			label: m.open(),
 			primary: true,
-			icon: LucideArrowRight,
+			icon: ArrowRightIcon,
 			onClick: (client) => goto(detailHref(client))
 		},
 		copyClientIdAction(),
@@ -210,7 +212,7 @@
 		{#snippet actions()}
 			{#if !empty}
 				<Button onclick={() => (createOpen = true)}>
-					<LucidePlus />
+					<PlusIcon />
 					{m.add_oidc_client()}
 				</Button>
 			{/if}
@@ -224,12 +226,12 @@
 			{/snippet}
 			{#snippet action()}
 				<Button onclick={() => (createOpen = true)}>
-					<LucidePlus />
+					<PlusIcon />
 					{m.add_oidc_client()}
 				</Button>
 				<Button variant="link" class="gap-1" href={connectDocsUrl} target="_blank" rel="noreferrer">
 					{m.docs()}
-					<LucideArrowUpRight />
+					<ArrowUpRightIcon />
 				</Button>
 			{/snippet}
 		</EmptyList>

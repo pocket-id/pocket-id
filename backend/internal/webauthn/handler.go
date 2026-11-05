@@ -120,7 +120,7 @@ func (h *handler) verifyLogin(c *gin.Context) error {
 	}
 
 	maxAge := int(dbConfig.SessionDuration.AsDurationMinutes().Seconds())
-	cookie.AddAccessTokenCookie(c, maxAge, tokens.AccessToken)
+	cookie.AddSessionTokenCookie(c, maxAge, tokens.SessionToken)
 	if tokens.KnownBrowserToken != "" {
 		cookie.AddKnownBrowserCookie(c, tokens.KnownBrowserToken, int(auditlogs.KnownBrowserLifetime.Seconds()))
 	}
@@ -146,12 +146,12 @@ func (h *handler) listCredentials(c *gin.Context) error {
 }
 
 func (h *handler) deleteCredential(c *gin.Context) error {
-	userID := authz.PrincipalFrom(c).UserID
+	principal := authz.PrincipalFrom(c)
 	credentialID := c.Param("id")
 	clientIP := c.ClientIP()
 	userAgent := c.Request.UserAgent()
 
-	err := h.service.DeleteCredential(c.Request.Context(), userID, credentialID, clientIP, userAgent, userID)
+	err := h.service.DeleteCredential(c.Request.Context(), principal.UserID, credentialID, clientIP, userAgent, principal)
 	if err != nil {
 		return err
 	}
@@ -184,7 +184,13 @@ func (h *handler) updateCredential(c *gin.Context) error {
 }
 
 func (h *handler) logout(c *gin.Context) error {
-	cookie.AddAccessTokenCookie(c, 0, "")
+	principal := authz.PrincipalFrom(c)
+	err := h.service.sessions.Revoke(c.Request.Context(), principal.UserID, principal.SessionID)
+	if err != nil {
+		return err
+	}
+
+	cookie.AddSessionTokenCookie(c, 0, "")
 	c.Status(http.StatusNoContent)
 	return nil
 }
@@ -205,9 +211,8 @@ func (h *handler) reauthenticate(c *gin.Context) error {
 			return err
 		}
 	} else {
-		// If WebAuthn fails, try to create a reauthentication token with the access token
-		accessToken, _ := c.Cookie(cookie.AccessTokenCookieName)
-		token, err = h.service.CreateReauthenticationTokenWithAccessToken(c.Request.Context(), accessToken)
+		// Without a passkey response, a fresh passkey sign-in can stand in for reauthentication
+		token, err = h.service.CreateReauthenticationTokenWithSession(c.Request.Context(), authz.PrincipalFrom(c))
 		if err != nil {
 			return err
 		}

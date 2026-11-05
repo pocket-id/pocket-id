@@ -121,6 +121,38 @@ func TestDeviceServiceAcceptGrantsOnlyApprovedScopes(t *testing.T) {
 	require.Equal(t, "openid groups", response.GetExtra("scope"))
 }
 
+// TestDeviceServiceAcceptDropsScopesTheUserCantHold guards that a scope granted up front, before the user was known, is dropped once a user who can't hold it approves
+func TestDeviceServiceAcceptDropsScopesTheUserCantHold(t *testing.T) {
+	const (
+		userID   = "test-user"
+		clientID = "test-client"
+		audience = "https://id.example.com/api"
+	)
+	apiAccess := userAccess(map[string][]string{audience: {"users:read", "users:write"}})
+	apiAccess.unheld = []string{"users:write"}
+	service, _, provider := newTestDeviceService(t, clientID, userID, false, nil, apiAccess)
+
+	form := url.Values{
+		"client_id": {clientID},
+		"resource":  {audience},
+		"scope":     {"users:read users:write"},
+	}
+	req := httptest.NewRequestWithContext(t.Context(), http.MethodPost, "/api/oidc/device/authorize", strings.NewReader(form.Encode()))
+	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+	authorization, _, err := service.createDeviceAuthorization(t.Context(), req)
+	require.NoError(t, err)
+
+	info, err := service.getDeviceCodeInfo(t.Context(), authorization.UserCode, userID)
+	require.NoError(t, err)
+	require.Equal(t, []string{"users:read"}, info.Scope)
+
+	require.NoError(t, service.acceptDeviceCode(t.Context(), authorization.UserCode, userID, "phr", time.Now().UTC(), nil, "", requestMeta{}))
+
+	response, err := exchangeDeviceCode(t, provider, clientID, authorization.DeviceCode)
+	require.NoError(t, err)
+	require.Equal(t, "users:read", response.GetExtra("scope"))
+}
+
 func TestDeviceServiceAcceptRejectsUnrequestedScopes(t *testing.T) {
 	const (
 		userID   = "test-user"

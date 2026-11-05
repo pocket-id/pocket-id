@@ -34,7 +34,7 @@ type Service struct {
 	db                *gorm.DB
 	actorService      *actor.Service
 	userCreator       UserCreator
-	signer            TokenService
+	sessions          SessionCreator
 	auditLog          AuditLogger
 	scimSync          ScimSyncScheduler
 	emailVerification EmailVerificationSender
@@ -45,7 +45,7 @@ func newService(deps Dependencies, actorService *actor.Service) *Service {
 		db:                deps.DB,
 		actorService:      actorService,
 		userCreator:       deps.UserCreator,
-		signer:            deps.Signer,
+		sessions:          deps.Sessions,
 		auditLog:          deps.AuditLog,
 		scimSync:          deps.ScimSync,
 		emailVerification: deps.EmailVerification,
@@ -92,11 +92,16 @@ func (s *Service) SignUp(ctx context.Context, config *appconfig.AppConfigModel, 
 
 	// The token has now been consumed
 	// From this point on, if we hit an error we compensate by releasing the token (best-effort)
-	user, accessToken, err := s.createSignedUpUser(ctx, config, userToCreate, signupData.Token, tokenProvided, ipAddress, userAgent)
+	user, err := s.createSignedUpUser(ctx, config, userToCreate, signupData.Token, tokenProvided, ipAddress, userAgent)
 	if err != nil {
 		if tokenProvided {
 			s.releaseSignupToken(ctx, signupData.Token)
 		}
+		return model.User{}, "", err
+	}
+
+	sessionToken, err := s.sessions.Create(ctx, user.ID, "", ipAddress, userAgent, config.SessionDuration.AsDurationMinutes())
+	if err != nil {
 		return model.User{}, "", err
 	}
 
@@ -107,12 +112,12 @@ func (s *Service) SignUp(ctx context.Context, config *appconfig.AppConfigModel, 
 		}
 	}
 
-	return user, accessToken, nil
+	return user, sessionToken, nil
 }
 
-// createSignedUpUser creates the user and issues an access token within a single transaction.
+// createSignedUpUser creates the user within a single transaction.
 // It performs no actor calls, so it's safe to keep the transaction open for its whole duration.
-func (s *Service) createSignedUpUser(ctx context.Context, config *appconfig.AppConfigModel, userToCreate dto.UserCreateDto, token string, tokenProvided bool, ipAddress, userAgent string) (model.User, string, error) {
+func (s *Service) createSignedUpUser(ctx context.Context, config *appconfig.AppConfigModel, userToCreate dto.UserCreateDto, token string, tokenProvided bool, ipAddress, userAgent string) (model.User, error) {
 	tx := s.db.Begin()
 	defer func() {
 		tx.Rollback()
@@ -120,7 +125,7 @@ func (s *Service) createSignedUpUser(ctx context.Context, config *appconfig.AppC
 
 	user, err := s.userCreator.CreateUserInternal(ctx, config, userToCreate, false, tx)
 	if err != nil {
-		return model.User{}, "", err
+		return model.User{}, err
 	}
 
 	// Give the account a deadline to verify its email, after which it is deleted so abandoned signups cannot squat an address
@@ -128,14 +133,9 @@ func (s *Service) createSignedUpUser(ctx context.Context, config *appconfig.AppC
 		deadline := datatype.DateTime(time.Now().Add(signupVerificationPeriod))
 		err = tx.WithContext(ctx).Model(&user).Update("email_verification_deadline", deadline).Error
 		if err != nil {
-			return model.User{}, "", err
+			return model.User{}, err
 		}
 		user.EmailVerificationDeadline = &deadline
-	}
-
-	accessToken, err := s.signer.GenerateAccessToken(user, "", config.SessionDuration.AsDurationMinutes())
-	if err != nil {
-		return model.User{}, "", err
 	}
 
 	if tokenProvided {
@@ -150,13 +150,13 @@ func (s *Service) createSignedUpUser(ctx context.Context, config *appconfig.AppC
 
 	err = tx.Commit().Error
 	if err != nil {
-		return model.User{}, "", err
+		return model.User{}, err
 	}
 	if s.scimSync != nil {
 		s.scimSync.ScheduleSync(ctx)
 	}
 
-	return user, accessToken, nil
+	return user, nil
 }
 
 // releaseSignupToken reverts the usage count increment performed while consuming a token, used to compensate when the signup could not be completed.
@@ -172,7 +172,7 @@ func (s *Service) releaseSignupToken(parentCtx context.Context, token string) {
 	}
 }
 
-func (s *Service) SignUpInitialAdmin(ctx context.Context, config *appconfig.AppConfigModel, signUpData signUpDto) (model.User, string, error) {
+func (s *Service) SignUpInitialAdmin(ctx context.Context, config *appconfig.AppConfigModel, signUpData signUpDto, ipAddress, userAgent string) (model.User, string, error) {
 	tx := s.db.Begin()
 	defer func() {
 		tx.Rollback()
@@ -208,18 +208,18 @@ func (s *Service) SignUpInitialAdmin(ctx context.Context, config *appconfig.AppC
 		return model.User{}, "", err
 	}
 
-	// Issue the setup session before committing so failures roll back the transaction
-	token, err := s.signer.GenerateAccessToken(user, authenticationMethodOneTimePassword, config.SessionDuration.AsDurationMinutes())
-	if err != nil {
-		return model.User{}, "", err
-	}
-
 	err = tx.Commit().Error
 	if err != nil {
 		return model.User{}, "", err
 	}
 	if s.scimSync != nil {
 		s.scimSync.ScheduleSync(ctx)
+	}
+
+	// Start the session only after the transaction has committed, since it invokes an actor
+	token, err := s.sessions.Create(ctx, user.ID, authenticationMethodOneTimePassword, ipAddress, userAgent, config.SessionDuration.AsDurationMinutes())
+	if err != nil {
+		return model.User{}, "", err
 	}
 
 	return user, token, nil

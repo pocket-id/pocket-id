@@ -12,13 +12,14 @@ import (
 
 	"github.com/pocket-id/pocket-id/backend/internal/apperror"
 	"github.com/pocket-id/pocket-id/backend/internal/authz"
+	"github.com/pocket-id/pocket-id/backend/internal/common"
 	"github.com/pocket-id/pocket-id/backend/internal/model"
 	testutils "github.com/pocket-id/pocket-id/backend/internal/utils/testing"
 )
 
 func TestAuditLogRoutesPreservePermissionsAndResponses(t *testing.T) {
 	db := testutils.NewDatabaseForTest(t)
-	module, err := New(Dependencies{DB: db, CleanupDisabled: true})
+	module, err := New(t.Context(), Dependencies{DB: db, EnvConfig: &common.EnvConfigSchema{EncryptionKey: []byte("0123456789abcdef0123456789abcdef")}, CleanupDisabled: true})
 	require.NoError(t, err)
 
 	// Different owners make accidental loss of the current-user filter visible
@@ -73,7 +74,7 @@ func TestAuditLogRoutesPreservePermissionsAndResponses(t *testing.T) {
 // auditLogTestAuthenticator signs in as alice with the role named in the X-Test-Role header
 type auditLogTestAuthenticator struct{}
 
-func (auditLogTestAuthenticator) Kind() authz.PrincipalKind {
+func (auditLogTestAuthenticator) Kinds() authz.PrincipalKind {
 	return authz.KindSession
 }
 

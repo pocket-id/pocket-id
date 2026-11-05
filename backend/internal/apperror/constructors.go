@@ -135,6 +135,10 @@ func SyncedPasskeyNotAllowed() *Error {
 	return New(CodeSyncedPasskeyNotAllowed, http.StatusBadRequest, "Synced passkeys are not allowed")
 }
 
+func AuthenticatorAttachmentNotAllowed() *Error {
+	return New(CodeAuthenticatorAttachmentNotAllowed, http.StatusBadRequest, "This type of passkey is not allowed")
+}
+
 func ReservedClaim(key string) *Error {
 	return New(CodeReservedClaim, http.StatusBadRequest, fmt.Sprintf("Claim %s is reserved and can't be used", key)).
 		WithDetail("key", key).
@@ -169,6 +173,10 @@ func LdapUserGroupUpdate() *Error {
 
 func BuiltInClaimMappingPolicyReadOnly(message string) *Error {
 	return New(CodeBuiltInClaimMappingPolicyReadOnly, http.StatusForbidden, message)
+}
+
+func BuiltInAPIReadOnly(message string) *Error {
+	return New(CodeBuiltInAPIReadOnly, http.StatusForbidden, message)
 }
 
 func OidcAccessDenied() *Error {
@@ -220,10 +228,6 @@ func APIKeyNotFound() *Error {
 	return New(CodeAPIKeyNotFound, http.StatusNotFound, "API key not found")
 }
 
-func APIKeyNotExpired() *Error {
-	return New(CodeAPIKeyNotExpired, http.StatusConflict, "API key is not expired yet")
-}
-
 func InvalidAPIKeyExpiration() *Error {
 	return New(CodeInvalidAPIKeyExpiration, http.StatusBadRequest, "API key expiration time must be in the future").WithFields([]FieldError{{
 		Field:   "expiresAt",
@@ -232,8 +236,24 @@ func InvalidAPIKeyExpiration() *Error {
 	}})
 }
 
+func InvalidAPIKeyScope(scope string) *Error {
+	return New(CodeInvalidAPIKeyScope, http.StatusBadRequest, "API key cannot be granted the scope "+scope).WithFields([]FieldError{{
+		Field:   "scopes",
+		Code:    "invalid_value",
+		Message: "contains a scope you cannot grant",
+	}})
+}
+
 func APIKeyAuthNotAllowed() *Error {
 	return New(CodeAPIKeyAuthNotAllowed, http.StatusForbidden, "API key authentication is not allowed for this endpoint")
+}
+
+func OAuthTokenAuthNotAllowed() *Error {
+	return New(CodeOAuthTokenAuthNotAllowed, http.StatusForbidden, "OAuth access tokens are not allowed for this endpoint")
+}
+
+func ClientTokenAuthNotAllowed() *Error {
+	return New(CodeClientTokenAuthNotAllowed, http.StatusForbidden, "This endpoint acts on a user account, so it doesn't accept tokens a client obtained for itself")
 }
 
 func UserDisabled() *Error {

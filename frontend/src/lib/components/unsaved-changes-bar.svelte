@@ -1,13 +1,13 @@
 <script lang="ts">
 	import { modKey } from '#lib/utils/keyboard-util.ts';
 	import { beforeNavigate } from '$app/navigation';
-	import { Button } from '#lib/components/ui/button/index.ts';
-	import * as Tooltip from '#lib/components/ui/tooltip/index.ts';
+	import { Button } from '@pocket-id/ui/button';
+	import * as Tooltip from '@pocket-id/ui/tooltip';
 	import { m } from '#lib/paraglide/messages.js';
-	import appConfigStore from '#lib/stores/application-configuration-store.ts';
 	import unsavedChanges from '#lib/stores/unsaved-changes-store.svelte.ts';
-	import { cn } from '#lib/utils/style.ts';
-	import { LucideCircleAlert, LucideCircleCheck } from '@lucide/svelte';
+	import { cn } from '@pocket-id/ui/utils';
+	import CircleAlertIcon from '~icons/solar/danger-circle-bold-duotone';
+	import CircleCheckIcon from '~icons/solar/check-circle-bold-duotone';
 	import { tick } from 'svelte';
 	import { cubicOut } from 'svelte/easing';
 	import { prefersReducedMotion } from 'svelte/motion';
@@ -34,7 +34,7 @@
 	let statusMessage = $state<HTMLElement>();
 	let actions = $state<HTMLElement>();
 
-	const animate = $derived(!$appConfigStore?.disableAnimations && !prefersReducedMotion.current);
+	const animate = $derived(!prefersReducedMotion.current);
 	const status = $derived(unsavedChanges.status);
 	const showingStatus = $derived(!!status);
 	const showingActions = $derived(unsavedChanges.hasChanges);
@@ -239,14 +239,14 @@
 				inert={!statusSettled}
 			>
 				<span aria-hidden="true" class="grid">
-					<LucideCircleCheck
+					<CircleCheckIcon
 						class={cn(
 							SLOT_GLYPH,
 							'text-success-solid',
 							shownStatus?.type !== 'success' && 'opacity-0'
 						)}
 					/>
-					<LucideCircleAlert
+					<CircleAlertIcon
 						class={cn(
 							SLOT_GLYPH,
 							'text-danger-solid',

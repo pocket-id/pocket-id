@@ -70,7 +70,7 @@ jobs:
 
           {
             matches '^backend/' "$files" && echo "backend=true" || echo "backend=false"
-            matches '^(frontend/|package\.json$|pnpm-lock\.yaml$|pnpm-workspace\.yaml$|\.node-version$|vite\.config\.ts$|\.github/svelte-check-matcher\.json$)' "$files" && echo "frontend=true" || echo "frontend=false"
+            matches '^(frontend/|packages/ui/|package\.json$|pnpm-lock\.yaml$|pnpm-workspace\.yaml$|\.node-version$|vite\.config\.ts$|\.github/svelte-check-matcher\.json$)' "$files" && echo "frontend=true" || echo "frontend=false"
             matches '.' "$e2e_files" && echo "e2e=true" || echo "e2e=false"
           } >> "$GITHUB_OUTPUT"
 
@@ -237,6 +237,9 @@ jobs:
       - name: Run svelte-check
         run: vp -C frontend run check
 
+      - name: Run svelte-check on the UI package
+        run: vp -C packages/ui run check
+
   e2e:
     name: E2E (${{ matrix.db }}, ${{ matrix.storage }}, ${{ matrix.francis }})
     needs: changes
@@ -246,6 +249,9 @@ jobs:
       contents: read
       # Needed by Depot to authenticate the Docker builds
       id-token: write
+    env:
+      # Each shard runs against its own stack on this runner, which saves the per-job setup that sharding across jobs would repeat
+      E2E_SHARDS: 4
     strategy:
       fail-fast: false
       matrix:
@@ -342,7 +348,7 @@ jobs:
 
       - name: Resolve Francis runtime image
         id: francis-image
-        working-directory: ./tests/setup
+        working-directory: ./packages/tests/setup
         run: |
           # Read the version of Francis from backend/go.mod and use that runtime
           VERSION=$(./francis-version.sh)
@@ -366,22 +372,20 @@ jobs:
         run: docker load < /tmp/francis-image.tar
 
       - name: Install test dependencies
-        run: vp -C tests install --frozen-lockfile
+        run: vp -C packages/tests install --frozen-lockfile
 
       - name: Install Playwright Browsers
         if: steps.playwright-cache.outputs.cache-hit != 'true'
-        run: vp -C tests exec playwright install --with-deps chromium
+        run: vp -C packages/tests exec playwright install --with-deps chromium
 
       - name: Run Docker containers
-        working-directory: ./tests/setup
+        working-directory: ./packages/tests/setup
         run: |
           DOCKER_COMPOSE_FILE=docker-compose.yml
 
           cat > .env <<EOF
           FILE_BACKEND=${{ matrix.storage }}
           FRANCIS_VERSION=${{ steps.francis-image.outputs.version }}
-          SCIM_SERVICE_PROVIDER_URL=http://localhost:18123/v2
-          SCIM_SERVICE_PROVIDER_URL_INTERNAL=http://scim-test-server:8080/v2
           EOF
 
           if [ "${{ matrix.francis }}" = "remote" ]; then
@@ -392,35 +396,67 @@ jobs:
             DOCKER_COMPOSE_FILE=docker-compose-s3.yml
           fi
 
-          docker compose -f "$DOCKER_COMPOSE_FILE" up -d --build
+          docker compose -f "$DOCKER_COMPOSE_FILE" build
 
-          {
-            LOG_FILE="/tmp/backend.log"
-            while true; do
-              CID=$(docker compose -f "$DOCKER_COMPOSE_FILE" ps -q pocket-id)
-              if [ -n "$CID" ]; then
-                echo "[$(date)] Attaching logs for $CID" >> "$LOG_FILE"
-                docker logs -f --since=0 "$CID" >> "$LOG_FILE" 2>&1
-              else
-                echo "[$(date)] Container not yet running…" >> "$LOG_FILE"
-              fi
-              sleep 1
-            done
-          } &
+          for shard in $(seq "$E2E_SHARDS"); do
+            export COMPOSE_PROJECT_NAME="e2e-$shard" APP_PORT=$((1510 + shard)) SCIM_PORT=$((18200 + shard))
+            docker compose -f "$DOCKER_COMPOSE_FILE" up -d --no-build
 
-          if [ "${{ matrix.francis }}" = "remote" ]; then
-            docker compose -f "$DOCKER_COMPOSE_FILE" logs -f --no-log-prefix francis-runtime > /tmp/francis-runtime.log 2>&1 &
-          fi
+            {
+              LOG_FILE="/tmp/backend-$shard.log"
+              while true; do
+                CID=$(docker compose -f "$DOCKER_COMPOSE_FILE" ps -q pocket-id)
+                if [ -n "$CID" ]; then
+                  echo "[$(date)] Attaching logs for $CID" >> "$LOG_FILE"
+                  docker logs -f --since=0 "$CID" >> "$LOG_FILE" 2>&1
+                else
+                  echo "[$(date)] Container not yet running…" >> "$LOG_FILE"
+                fi
+                sleep 1
+              done
+            } &
+
+            if [ "${{ matrix.francis }}" = "remote" ]; then
+              docker compose -f "$DOCKER_COMPOSE_FILE" logs -f --no-log-prefix francis-runtime > "/tmp/francis-runtime-$shard.log" 2>&1 &
+            fi
+          done
 
       - name: Run Playwright tests
-        run: vp -C tests exec playwright test
+        working-directory: ./packages/tests
+        run: |
+          pids=()
+          for shard in $(seq "$E2E_SHARDS"); do
+            (
+              export E2E_SHARD="$shard" COMPOSE_PROJECT_NAME="e2e-$shard" APP_PORT=$((1510 + shard)) SCIM_PORT=$((18200 + shard))
+              export APP_URL="http://localhost:$APP_PORT" SCIM_SERVICE_PROVIDER_URL="http://localhost:$SCIM_PORT/v2" SCIM_SERVICE_PROVIDER_URL_INTERNAL=http://scim-test-server:8080/v2
+              vp exec playwright test --shard="$shard/$E2E_SHARDS" > "/tmp/playwright-$shard.log" 2>&1
+            ) &
+            pids+=($!)
+          done
+
+          status=0
+          for shard in $(seq "$E2E_SHARDS"); do
+            wait "${pids[shard - 1]}" || status=1
+            echo "::group::Shard $shard"
+            cat "/tmp/playwright-$shard.log"
+            echo "::endgroup::"
+          done
+          exit "$status"
+
+      - name: Merge test reports
+        if: always()
+        working-directory: ./packages/tests
+        run: |
+          mkdir -p .blob/all
+          cp .blob/shard-*/*.zip .blob/all/
+          PLAYWRIGHT_HTML_OUTPUT_DIR=.report vp exec playwright merge-reports --reporter html .blob/all
 
       - name: Upload Test Report
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         if: always()
         with:
           name: playwright-report-${{ matrix.db }}-${{ matrix.storage }}-francis-${{ matrix.francis }}
-          path: tests/.report
+          path: packages/tests/.report
           include-hidden-files: true
           retention-days: 15
 
@@ -429,7 +465,7 @@ jobs:
         if: always()
         with:
           name: backend-${{ matrix.db }}-${{ matrix.storage }}-francis-${{ matrix.francis }}
-          path: /tmp/backend.log
+          path: /tmp/backend-*.log
           include-hidden-files: true
           retention-days: 15
 
@@ -438,7 +474,7 @@ jobs:
         if: always() && matrix.francis == 'remote'
         with:
           name: francis-runtime-${{ matrix.db }}-${{ matrix.storage }}
-          path: /tmp/francis-runtime.log
+          path: /tmp/francis-runtime-*.log
           include-hidden-files: true
           retention-days: 15
 

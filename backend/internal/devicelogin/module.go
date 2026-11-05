@@ -14,11 +14,10 @@ import (
 	"github.com/pocket-id/pocket-id/backend/internal/authz"
 	"github.com/pocket-id/pocket-id/backend/internal/httpserver"
 	"github.com/pocket-id/pocket-id/backend/internal/iplocation"
-	"github.com/pocket-id/pocket-id/backend/internal/model"
 )
 
-type TokenService interface {
-	GenerateAccessToken(user model.User, authenticationMethod string, sessionDuration time.Duration) (string, error)
+type SessionCreator interface {
+	Create(ctx context.Context, userID, authenticationMethod, ipAddress, userAgent string, duration time.Duration) (string, error)
 }
 
 type ReauthenticationTokenConsumer interface {
@@ -37,7 +36,7 @@ type Dependencies struct {
 	Actors  francishost.Host
 	BaseURL string
 
-	Signer    TokenService
+	Sessions  SessionCreator
 	Reauth    ReauthenticationTokenConsumer
 	AuditLog  AuditLogger
 	IPLocator iplocation.Resolver
@@ -50,7 +49,7 @@ type Module struct {
 }
 
 func New(deps Dependencies) (*Module, error) {
-	service := NewService(deps.Actors.Service(), deps.DB, deps.Signer, deps.Reauth, deps.AuditLog, deps.IPLocator)
+	service := NewService(deps.Actors.Service(), deps.DB, deps.Sessions, deps.Reauth, deps.AuditLog, deps.IPLocator)
 	module := &Module{
 		service: service,
 		handler: newHandler(service, deps.BaseURL, deps.AppConfig),

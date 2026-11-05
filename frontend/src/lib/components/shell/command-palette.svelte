@@ -1,9 +1,9 @@
 <script lang="ts">
 	import { goto } from '$app/navigation';
 	import OidcClientAvatar from '#lib/components/oidc-client-avatar.svelte';
-	import * as Avatar from '#lib/components/ui/avatar/index.ts';
-	import * as Command from '#lib/components/ui/command/index.ts';
-	import * as Dialog from '#lib/components/ui/dialog/index.ts';
+	import * as Avatar from '@pocket-id/ui/avatar';
+	import * as Command from '@pocket-id/ui/command';
+	import * as Dialog from '@pocket-id/ui/dialog';
 	import { m } from '#lib/paraglide/messages.js';
 	import ApisService from '#lib/services/apis-service.ts';
 	import OIDCService from '#lib/services/oidc-service.ts';
@@ -11,23 +11,21 @@
 	import UserService from '#lib/services/user-service.ts';
 	import appConfigStore from '#lib/stores/application-configuration-store.ts';
 	import { commandPalette } from '#lib/stores/command-palette-store.svelte.ts';
-	import { cachedProfilePicture } from '#lib/utils/cached-image-util.ts';
+	import { cachedProfilePicture } from '#lib/utils/cached-asset-util.ts';
 	import { encodeClientIdParam } from '#lib/utils/client-id-util.ts';
 	import { setModeInstantly } from '#lib/utils/color-theme-util.ts';
 	import { signOut } from '#lib/utils/sign-out-util.ts';
-	import {
-		ArrowUpRight,
-		LogOut,
-		Monitor,
-		Moon,
-		Plus,
-		Search,
-		Server,
-		Settings2,
-		SlidersHorizontal,
-		Sun,
-		UsersRound
-	} from '@lucide/svelte';
+	import ArrowUpRight from '~icons/solar/arrow-right-up-linear';
+	import LogOut from '~icons/solar/logout-2-bold';
+	import Monitor from '~icons/solar/monitor-bold';
+	import Moon from '~icons/solar/moon-bold';
+	import Plus from '~icons/solar/add-circle-bold';
+	import Search from '~icons/solar/magnifier-linear';
+	import Server from '~icons/solar/server-bold-duotone';
+	import Settings2 from '~icons/solar/settings-bold';
+	import SlidersHorizontal from '~icons/solar/tuning-2-bold';
+	import Sun from '~icons/solar/sun-bold';
+	import UsersRound from '~icons/solar/users-group-rounded-bold-duotone';
 	import { Command as CommandPrimitive } from 'bits-ui';
 	import { userPrefersMode } from 'mode-watcher';
 	import { PersistedState } from 'runed';
@@ -137,11 +135,9 @@
 			category('email', m.email()),
 			...(ldap ? [category('ldap', m.ldap())] : []),
 			category('oidc', m.oidc()),
-			category('branding', m.config_tab_branding()),
+			category('appearance', m.appearance()),
 			setting(m.application_name(), 'general', m.general()),
 			setting(m.session_duration(), 'general', m.general()),
-			setting(m.color_theme(), 'general', m.general()),
-			setting(m.disable_animations(), 'general', m.general()),
 			setting(m.user_verification(), 'passkeys', m.passkeys()),
 			setting(m.email_verification(), 'email', m.email()),
 			...(ldap ? [setting(m.config_server_url(), 'ldap', m.ldap())] : []),
@@ -150,8 +146,8 @@
 				.flatMap((section) => section.rows)
 				.filter((row) => !features?.[row.id].enabled)
 				.map((row) => setting(row.title, 'features', m.config_tab_features())),
-			setting(m.logo(), 'branding', m.config_tab_branding()),
-			setting(m.config_signin_background(), 'branding', m.config_tab_branding())
+			setting(m.logo(), 'appearance', m.appearance()),
+			setting(m.config_signin_background(), 'appearance', m.appearance())
 		];
 	});
 
@@ -168,10 +164,17 @@
 					create(m.add_group(), 'user-groups'),
 					create(m.add_oidc_client(), 'oidc-clients'),
 					...(features?.claimMappings.enabled ? [create(m.add_policy(), 'claim-mappings')] : []),
-					...(features?.apis.enabled ? [create(m.add_api(), 'apis')] : []),
-					...(features?.apiKeys.enabled ? [create(m.create_api_key(), 'api-keys')] : [])
+					...(features?.apis.enabled ? [create(m.add_api(), 'apis')] : [])
 				]
 			: [];
+		if (features?.apiKeys.enabled) {
+			list.push({
+				key: 'new:api-keys',
+				label: m.create_api_key(),
+				lead: icon(Plus),
+				run: () => jump('/settings/account/api-keys?new')
+			});
+		}
 		list.push({
 			key: 'sign-out',
 			label: m.sign_out(),
@@ -362,7 +365,7 @@
 		showCloseButton={false}
 		overlayClass={jumping ? 'data-closed:duration-0' : undefined}
 		class={[
-			'bg-popover/72 border-fg/6 dark:border-fg/10 [@media(prefers-reduced-transparency:reduce)]:bg-popover! top-[15%] flex h-[min(70dvh,600px)] max-w-(--palette-w) translate-y-0 flex-col gap-0 overflow-hidden rounded-lg p-0 backdrop-blur-[40px] backdrop-saturate-150 max-sm:inset-0 max-sm:h-dvh max-sm:max-h-none max-sm:w-full max-sm:max-w-none max-sm:translate-x-0 max-sm:rounded-none max-sm:border-0 max-sm:pb-[env(safe-area-inset-bottom)] max-sm:before:hidden [@media(prefers-reduced-transparency:reduce)]:backdrop-filter-none!',
+			'bg-surface-raised/72 border-fg/6 dark:border-fg/10 [@media(prefers-reduced-transparency:reduce)]:bg-surface-raised! top-[15%] flex h-[min(70dvh,600px)] max-w-(--palette-w) translate-y-0 flex-col gap-0 overflow-hidden rounded-lg p-0 backdrop-blur-[40px] backdrop-saturate-150 max-sm:inset-0 max-sm:h-dvh max-sm:max-h-none max-sm:w-full max-sm:max-w-none max-sm:translate-x-0 max-sm:rounded-none max-sm:border-0 max-sm:pb-[env(safe-area-inset-bottom)] max-sm:before:hidden [@media(prefers-reduced-transparency:reduce)]:backdrop-filter-none!',
 			jumping && 'data-closed:duration-0'
 		]}
 	>

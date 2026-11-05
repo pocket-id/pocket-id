@@ -4,7 +4,7 @@ import { m } from '#lib/paraglide/messages.js';
 import { cssMs } from '#lib/utils/style.ts';
 
 // The one filled button of an auth step, full width and taller in the desktop card
-export const authPrimaryClass = 'h-(--h-xl) w-full text-heading lg:h-13';
+export const authPrimaryClass = 'h-(--h-xl) w-full text-heading sm:h-13';
 
 // Every other path on an auth step is a quiet text action with a full-height hit area
 export const authQuietClass =

@@ -1,17 +1,13 @@
 {
   "name": "pocket-id-repo",
   "private": true,
-  "workspaces": [
-    "frontend",
-    "tests"
-  ],
   "scripts": {
     "preinstall": "npx only-allow pnpm",
     "prepare": "vp config --no-agent",
     "dev": "vp -C frontend run dev",
     "build": "vp -C frontend run build",
-    "test": "vp -C tests run test",
-    "check": "vp -C frontend run check",
+    "test": "vp -C packages/tests run test",
+    "check": "vp -C packages/ui run check && vp -C frontend run check",
     "lint": "vp check",
     "format": "vp fmt",
     "format:check": "vp fmt --check"

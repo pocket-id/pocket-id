@@ -244,6 +244,59 @@ func TestAuthorizationServiceConsentStepGrantsOnlyApprovedScopes(t *testing.T) {
 	require.ElementsMatch(t, []string{"openid", "email", "users.read"}, []string(requester.GetGrantedScopes()))
 }
 
+// TestAuthorizationServiceHidesScopesTheUserCantHold guards that a scope the user's role lacks is neither shown on the consent screen, consented to, nor granted
+func TestAuthorizationServiceHidesScopesTheUserCantHold(t *testing.T) {
+	db := testutils.NewDatabaseForTest(t)
+	require.NoError(t, claimmappingpolicy.Bootstrap(t.Context(), db))
+
+	const (
+		userID        = "test-user"
+		clientID      = "test-client"
+		interactionID = "test-interaction"
+		api           = "https://id.example.com/api"
+	)
+
+	apiAccess := userAccess(map[string][]string{api: {"users:read", "users:write"}})
+	apiAccess.unheld = []string{"users:write"}
+	service := newAuthorizationService(db, newInteractionSessionService(db), newClaimsService(db, nil, "", nil, appconfig.StaticResolver{}), nil, nil, apiAccess)
+
+	require.NoError(t, db.Create(&model.User{Base: model.Base{ID: userID}}).Error)
+	require.NoError(t, db.Create(&model.OidcClient{Base: model.Base{ID: clientID}, Name: "Test Client"}).Error)
+	require.NoError(t, db.Create(&InteractionSession{
+		Base:            model.Base{ID: interactionID},
+		UserID:          new(userID),
+		Scopes:          datatype.StringList{"openid", "users:read", "users:write"},
+		ClientID:        clientID,
+		ConsentRequired: true,
+		RequestedAt:     datatype.DateTime(time.Now().UTC()),
+		Parameters:      map[string]string{"scope": "openid users:read users:write", "resource": api},
+	}).Error)
+
+	interaction, err := service.getInteractionSession(t.Context(), interactionID)
+	require.NoError(t, err)
+	require.Equal(t, []string{"openid", "users:read"}, interaction.Scopes)
+	require.Len(t, interaction.ScopeInfo, 1)
+
+	_, err = service.completeInteractionStep(t.Context(), interactionID, userID, interactionStepConsent, nil, "", time.Now().UTC(), requestMeta{})
+	require.NoError(t, err)
+
+	var authorizedClient model.UserAuthorizedOidcClient
+	require.NoError(t, db.First(&authorizedClient, "user_id = ? AND client_id = ?", userID, clientID).Error)
+	require.NotContains(t, authorizedClient.Scope, consentScopeKey(api, "users:write"))
+
+	requester := newTestAuthorizeRequesterWithForm("resumed-request", clientID, url.Values{"resource": {api}})
+	requester.(*fosite.AuthorizeRequest).RequestedScope = fosite.Arguments{"openid", "users:read", "users:write"}
+	authorization, err := service.authorize(t.Context(), authorizeInput{
+		userID:             userID,
+		authenticationTime: time.Now().UTC(),
+		requester:          requester,
+		interactionID:      interactionID,
+	})
+	require.NoError(t, err)
+	require.False(t, authorization.RequiresInteraction)
+	require.ElementsMatch(t, []string{"openid", "users:read"}, []string(requester.GetGrantedScopes()))
+}
+
 func TestAuthorizationServiceConsentStepRejectsUnrequestedScopes(t *testing.T) {
 	db := testutils.NewDatabaseForTest(t)
 	service := newAuthorizationService(db, newInteractionSessionService(db), newClaimsService(db, nil, "", nil, appconfig.StaticResolver{}), nil, nil, nil)

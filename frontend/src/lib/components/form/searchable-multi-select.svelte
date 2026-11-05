@@ -1,12 +1,13 @@
 <script lang="ts">
-	import { Badge } from '#lib/components/ui/badge/index.ts';
-	import { filledFieldClass } from '#lib/components/ui/input/index.ts';
-	import * as Command from '#lib/components/ui/command/index.ts';
-	import * as Popover from '#lib/components/ui/popover/index.ts';
-	import { Spinner } from '#lib/components/ui/spinner/index.ts';
+	import { Badge } from '@pocket-id/ui/badge';
+	import { filledFieldClass } from '@pocket-id/ui/input';
+	import * as Command from '@pocket-id/ui/command';
+	import * as Popover from '@pocket-id/ui/popover';
+	import { Spinner } from '@pocket-id/ui/spinner';
 	import { m } from '#lib/paraglide/messages.js';
-	import { cn } from '#lib/utils/style.ts';
-	import { LucideCheck, LucideChevronDown } from '@lucide/svelte';
+	import { cn } from '@pocket-id/ui/utils';
+	import CheckIcon from '~icons/solar/check-linear';
+	import ChevronDownIcon from '~icons/solar/alt-arrow-down-linear';
 	import type { FormEventHandler } from 'svelte/elements';
 
 	type Item = {
@@ -97,7 +98,7 @@
 						<span class="text-fg-muted">{m.select_items()}</span>
 					{/if}
 				</span>
-				<LucideChevronDown class="text-fg-muted size-3.5 shrink-0" />
+				<ChevronDownIcon class="text-fg-muted size-3.5 shrink-0" />
 			</button>
 		{/snippet}
 	</Popover.Trigger>
@@ -129,7 +130,7 @@
 							handleItemSelect(item.value);
 						}}
 					>
-						<LucideCheck
+						<CheckIcon
 							class={cn('size-4', !selectedItems.includes(item.value) && 'text-transparent')}
 						/>
 						<span class="min-w-0 wrap-anywhere">{item.label}</span>

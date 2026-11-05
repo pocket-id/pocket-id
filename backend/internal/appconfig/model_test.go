@@ -260,7 +260,7 @@ func TestAppConfigModel_Update(t *testing.T) {
 	t.Run("an empty value resets the property to its default", func(t *testing.T) {
 		m := getDefaultConfig()
 		m.SmtpTls = "tls"         // default is "none"
-		m.SessionDuration = "120" // default is "60"
+		m.SessionDuration = "120" // default is "1440"
 
 		err := m.Update(map[string]string{"smtpTls": "", "sessionDuration": ""})
 		require.NoError(t, err)
@@ -272,11 +272,11 @@ func TestAppConfigModel_Update(t *testing.T) {
 	t.Run("stores raw string values without type coercion", func(t *testing.T) {
 		m := getDefaultConfig()
 
-		err := m.Update(map[string]string{"sessionDuration": "120", "disableAnimations": "true"})
+		err := m.Update(map[string]string{"sessionDuration": "120", "allowOwnAccountEdit": "false"})
 		require.NoError(t, err)
 
 		assert.Equal(t, AppConfigValue("120"), m.SessionDuration)
-		assert.Equal(t, AppConfigValue("true"), m.DisableAnimations)
+		assert.Equal(t, AppConfigValue("false"), m.AllowOwnAccountEdit)
 	})
 
 	t.Run("an empty map is a no-op", func(t *testing.T) {
@@ -344,34 +344,5 @@ func TestAppConfigModel_DecodeMsgpack(t *testing.T) {
 
 		assert.Equal(t, AppConfigValue(LoginNotificationAlways), m.EmailLoginNotificationMode)
 		assert.Equal(t, AppConfigValue(EmailVerificationRequired), m.EmailVerification)
-	})
-
-	t.Run("maps the legacy accent color to a color theme", func(t *testing.T) {
-		tests := map[string]AppConfigValue{
-			"default":            "mono",
-			"oklch(0.6 0.2 240)": "mist",
-			"oklch(0.63 0.2 15)": "custom:oklch(0.63 0.2 15)",
-		}
-		for accent, expected := range tests {
-			data, err := msgpack.Marshal(map[string]string{"AccentColor": accent})
-			require.NoError(t, err)
-
-			var m AppConfigModel
-			err = msgpack.Unmarshal(data, &m)
-			require.NoError(t, err)
-
-			assert.Equal(t, expected, m.ColorTheme)
-		}
-	})
-
-	t.Run("an explicit color theme wins over the legacy accent color", func(t *testing.T) {
-		data, err := msgpack.Marshal(map[string]string{"ColorTheme": "sage", "AccentColor": "default"})
-		require.NoError(t, err)
-
-		var m AppConfigModel
-		err = msgpack.Unmarshal(data, &m)
-		require.NoError(t, err)
-
-		assert.Equal(t, AppConfigValue("sage"), m.ColorTheme)
 	})
 }

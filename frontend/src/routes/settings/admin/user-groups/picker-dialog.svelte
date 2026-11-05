@@ -10,14 +10,15 @@
 </script>
 
 <script lang="ts" generics="T extends { id: string }">
-	import { Button } from '#lib/components/ui/button/index.ts';
-	import { Checkbox } from '#lib/components/ui/checkbox/index.ts';
-	import * as Dialog from '#lib/components/ui/dialog/index.ts';
-	import * as InputGroup from '#lib/components/ui/input-group/index.ts';
-	import { Skeleton } from '#lib/components/ui/skeleton/index.ts';
+	import { Button } from '@pocket-id/ui/button';
+	import { Checkbox } from '@pocket-id/ui/checkbox';
+	import * as Dialog from '@pocket-id/ui/dialog';
+	import * as InputGroup from '@pocket-id/ui/input-group';
+	import { ScrollArea } from '@pocket-id/ui/scroll-area';
+	import { Skeleton } from '@pocket-id/ui/skeleton';
 	import { debounced } from '#lib/utils/debounce-util.ts';
 	import { axiosErrorToast } from '#lib/utils/error-util.ts';
-	import { LucideSearch } from '@lucide/svelte';
+	import SearchIcon from '~icons/solar/magnifier-linear';
 	import { untrack, type Snippet } from 'svelte';
 
 	let {
@@ -105,12 +106,13 @@
 				type="search"
 				oninput={() => onSearch()}
 			/>
-			<InputGroup.Addon><LucideSearch /></InputGroup.Addon>
+			<InputGroup.Addon><SearchIcon /></InputGroup.Addon>
 		</InputGroup.Root>
-		<div
+		<ScrollArea
 			role="group"
 			aria-label={shownTitle}
-			class="max-h-90 min-h-(--row-2line) overflow-y-auto rounded-md border"
+			class="rounded-md border"
+			viewportClass="max-h-90 min-h-(--row-2line)"
 		>
 			{#if !visible}
 				{#each [0, 1, 2] as i (i)}
@@ -152,7 +154,7 @@
 					</label>
 				{/each}
 			{/if}
-		</div>
+		</ScrollArea>
 		<Dialog.Footer>
 			<Button variant="ghost" disabled={busy} onclick={() => (open = false)}>{m.cancel()}</Button>
 			<Button disabled={selected.length === 0} isLoading={busy} onclick={confirm}>

@@ -11,6 +11,7 @@ import (
 
 	"github.com/pocket-id/fosite"
 	"github.com/pocket-id/pocket-id/backend/internal/apperror"
+	"github.com/pocket-id/pocket-id/backend/internal/authz"
 	"github.com/pocket-id/pocket-id/backend/internal/model"
 	datatype "github.com/pocket-id/pocket-id/backend/internal/model/types"
 	"github.com/pocket-id/pocket-id/backend/internal/oidc"
@@ -50,10 +51,15 @@ func permissionsByKey(db *gorm.DB) *gorm.DB {
 	return db.Order("api_permissions.key")
 }
 
-// isIssuerAudience reports whether the audience refers to Pocket ID itself (the issuer)
-// A custom API must not claim the issuer as its audience, otherwise its tokens would be indistinguishable from Pocket ID's own identity tokens
-func isIssuerAudience(audience, issuer string) bool {
-	return issuer != "" && strings.ToLower(strings.TrimRight(audience, "/")) == issuer
+// isReservedAudience reports whether the audience refers to Pocket ID itself, either as the issuer or as the built-in API
+// A custom API must not claim the issuer, otherwise its tokens would be indistinguishable from Pocket ID's own identity tokens
+// Nor may it claim the built-in API's resource, otherwise its tokens could call Pocket ID's API
+func isReservedAudience(audience, issuer string) bool {
+	if issuer == "" {
+		return false
+	}
+	audience = strings.ToLower(strings.TrimRight(audience, "/"))
+	return audience == issuer || audience == authz.ResourceURI(issuer)
 }
 
 func (s *Service) List(ctx context.Context, search string, listRequestOptions utils.ListRequestOptions) (apis []API, response utils.PaginationResponse, err error) {
@@ -69,6 +75,14 @@ func (s *Service) List(ctx context.Context, search string, listRequestOptions ut
 	if search != "" {
 		like := "%" + search + "%"
 		query = query.Where("name LIKE ? OR audience LIKE ?", like, like)
+	}
+
+	// Without a chosen sort, the built-in API leads and the others follow by name
+	if listRequestOptions.Sort.Column == "" {
+		query = query.Clauses(clause.OrderBy{Expression: clause.Expr{
+			SQL:  "CASE WHEN id = ? THEN 0 ELSE 1 END, LOWER(name)",
+			Vars: []any{BuiltInAPIID},
+		}})
 	}
 
 	response, err = utils.PaginateFilterAndSort(listRequestOptions, query, &apis)
@@ -97,8 +111,7 @@ func (s *Service) Create(ctx context.Context, input apiCreateDto) (api API, err 
 	// Store one canonical resource identifier so trailing-slash variants cannot create separate audiences
 	input.Resource = strings.TrimRight(input.Resource, "/")
 
-	// Reject the issuer as an audience so a custom API cannot impersonate Pocket ID's own identity tokens
-	if isIssuerAudience(input.Resource, s.issuer) {
+	if isReservedAudience(input.Resource, s.issuer) {
 		return API{}, apperror.InvalidField("resource", "reserved", "is reserved by Pocket ID and cannot be used for a custom API")
 	}
 
@@ -128,6 +141,9 @@ func (s *Service) Update(ctx context.Context, id string, input apiUpdateDto) (ap
 	if err != nil {
 		return API{}, err
 	}
+	if api.ID == BuiltInAPIID {
+		return API{}, apperror.BuiltInAPIReadOnly("The built-in Pocket ID API can't be renamed")
+	}
 
 	api.Name = input.Name
 	api.UpdatedAt = new(datatype.DateTime(time.Now()))
@@ -154,8 +170,11 @@ func (s *Service) Delete(ctx context.Context, id string) error {
 	if err != nil {
 		return err
 	}
+	if api.ID == BuiltInAPIID {
+		return apperror.BuiltInAPIReadOnly("The built-in Pocket ID API can't be deleted")
+	}
 
-	if err = s.deletePermissions(ctx, tx, collectIDs(api.Permissions)); err != nil {
+	if err = deletePermissions(ctx, tx, collectIDs(api.Permissions)); err != nil {
 		return err
 	}
 
@@ -177,6 +196,9 @@ func (s *Service) UpdatePermissions(ctx context.Context, id string, input apiPer
 	api, err = s.Get(ctx, tx, id)
 	if err != nil {
 		return API{}, err
+	}
+	if api.ID == BuiltInAPIID {
+		return API{}, apperror.BuiltInAPIReadOnly("The permissions of the built-in Pocket ID API follow Pocket ID's scopes and can't be changed")
 	}
 
 	// Reject keys with invalid characters, that collide with Pocket ID's reserved scopes and claims, or that repeat within the request before persisting anything
@@ -214,7 +236,7 @@ func (s *Service) UpdatePermissions(ctx context.Context, id string, input apiPer
 			removedIDs = append(removedIDs, p.ID)
 		}
 	}
-	if err = s.deletePermissions(ctx, tx, removedIDs); err != nil {
+	if err = deletePermissions(ctx, tx, removedIDs); err != nil {
 		return API{}, err
 	}
 
@@ -719,7 +741,17 @@ func (s *Service) SetAPIClientAccess(ctx context.Context, apiID, clientID string
 
 	permissionIDs := collectIDs(api.Permissions)
 	applied.UserDelegatedPermissionIDs = intersectIDs(permissionIDs, grant.UserDelegatedPermissionIDs)
-	applied.ClientPermissionIDs = intersectIDs(permissionIDs, grant.ClientPermissionIDs)
+	// A client acting as itself has no account, so on Pocket ID's own API it can only be granted admin scopes
+	clientPermissionIDs := permissionIDs
+	if api.ID == BuiltInAPIID {
+		clientPermissionIDs = nil
+		for _, permission := range api.Permissions {
+			if authz.Scope(permission.Key).GrantableTo(authz.KindOAuthClient) {
+				clientPermissionIDs = append(clientPermissionIDs, permission.ID)
+			}
+		}
+	}
+	applied.ClientPermissionIDs = intersectIDs(clientPermissionIDs, grant.ClientPermissionIDs)
 	// A public client can't use the client credentials grant, so drop any client-subject grant that could never produce a token
 	if client.IsPublic {
 		grant.ClientAccess = false
@@ -1050,12 +1082,30 @@ func (s *Service) DescribePermissions(ctx context.Context, audience string, keys
 	return permissions, nil
 }
 
-// deletePermissions removes permissions by ID; deleting them cascades to any client permission grants that reference them (oidc_clients_allowed_api_permissions.api_permission_id ON DELETE CASCADE)
-// A client's access to an API is dropped together with the last permission it held there, so removing a permission never leaves a client with lingering scopeless access it never asked for; access granted without any permission is untouched because such a client holds none of the deleted permissions
-func (s *Service) deletePermissions(ctx context.Context, tx *gorm.DB, permissionIDs []string) error {
+// HeldScopes drops the built-in API's scopes that the user's role doesn't grant, and returns the scopes of any other API unchanged
+func (s *Service) HeldScopes(ctx context.Context, tx *gorm.DB, userID, audience string, scopes []string) ([]string, error) {
+	if strings.TrimRight(audience, "/") != authz.ResourceURI(s.issuer) {
+		return scopes, nil
+	}
 	if tx == nil {
 		tx = s.db
 	}
+
+	var user model.User
+	err := tx.WithContext(ctx).Select("is_admin").Where("id = ?", userID).First(&user).Error
+	if err != nil {
+		return nil, err
+	}
+
+	held := authz.UserScopes(user.IsAdmin, authz.KindOAuthUser)
+	return slices.DeleteFunc(slices.Clone(scopes), func(scope string) bool {
+		return authz.Scope(scope).Known() && !held.Has(authz.Scope(scope))
+	}), nil
+}
+
+// deletePermissions removes permissions by ID; deleting them cascades to any client permission grants that reference them (oidc_clients_allowed_api_permissions.api_permission_id ON DELETE CASCADE)
+// A client's access to an API is dropped together with the last permission it held there, so removing a permission never leaves a client with lingering scopeless access it never asked for; access granted without any permission is untouched because such a client holds none of the deleted permissions
+func deletePermissions(ctx context.Context, tx *gorm.DB, permissionIDs []string) error {
 	if len(permissionIDs) == 0 {
 		return nil
 	}

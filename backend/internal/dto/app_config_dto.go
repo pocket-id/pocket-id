@@ -18,12 +18,11 @@ type AppConfigUpdateDto struct {
 	SessionDuration                            string `json:"sessionDuration" binding:"required,integer_string"`
 	HomePageURL                                string `json:"homePageUrl" binding:"required"`
 	EmailsVerified                             string `json:"emailsVerified" binding:"required,boolean_string"`
-	DisableAnimations                          string `json:"disableAnimations" binding:"required,boolean_string"`
 	AllowOwnAccountEdit                        string `json:"allowOwnAccountEdit" binding:"required,boolean_string"`
 	AllowUserSignups                           string `json:"allowUserSignups" binding:"required,oneof=disabled withToken open"`
 	SignupDefaultUserGroupIDs                  string `json:"signupDefaultUserGroupIDs" binding:"omitempty,json_string_array"`
 	SignupDefaultCustomClaims                  string `json:"signupDefaultCustomClaims" binding:"omitempty,json_custom_claims"`
-	ColorTheme                                 string `json:"colorTheme"`
+	Appearance                                 string `json:"appearance" binding:"omitempty,json"`
 	RequireUserEmail                           string `json:"requireUserEmail" binding:"required,boolean_string"`
 	SmtpHost                                   string `json:"smtpHost"`
 	SmtpPort                                   string `json:"smtpPort"`

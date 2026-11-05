@@ -3,10 +3,10 @@
 	import FormInput from '#lib/components/form/form-input.svelte';
 	import UserGroupInput from '#lib/components/form/user-group-input.svelte';
 	import SettingRow from '#lib/components/setting-row.svelte';
-	import { Button } from '#lib/components/ui/button/index.ts';
-	import { Checkbox } from '#lib/components/ui/checkbox/index.ts';
-	import * as Sheet from '#lib/components/ui/sheet/index.ts';
-	import { Switch } from '#lib/components/ui/switch/index.ts';
+	import { Button } from '@pocket-id/ui/button';
+	import { Checkbox } from '@pocket-id/ui/checkbox';
+	import * as Sheet from '@pocket-id/ui/sheet';
+	import { Switch } from '@pocket-id/ui/switch';
 	import { m } from '#lib/paraglide/messages.js';
 	import UserService from '#lib/services/user-service.ts';
 	import appConfigStore from '#lib/stores/application-configuration-store.ts';
@@ -109,15 +109,10 @@
 			<FormInput
 				label={m.display_name()}
 				optional
-				description={m.display_name_follows_names()}
 				bind:input={$inputs.displayName}
 				onInput={() => (displayNameEdited = true)}
 			/>
-			<FormInput
-				label={m.username()}
-				description={m.username_rule()}
-				bind:input={$inputs.username}
-			/>
+			<FormInput label={m.username()} bind:input={$inputs.username} />
 			<div class="flex flex-col gap-3">
 				<FormInput
 					label={m.email()}

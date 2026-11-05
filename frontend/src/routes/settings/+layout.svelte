@@ -2,21 +2,20 @@
 	import { onNavigate } from '$app/navigation';
 	import { page } from '$app/state';
 	import DocsLink from '#lib/components/docs-link.svelte';
-	import AppSidebar from '#lib/components/shell/app-sidebar.svelte';
 	import CommandPalette from '#lib/components/shell/command-palette.svelte';
 	import { navGroups } from '#lib/components/shell/nav-items.ts';
-	import PhoneNav from '#lib/components/shell/phone-nav.svelte';
-	import * as Alert from '#lib/components/ui/alert/index.ts';
-	import * as Tooltip from '#lib/components/ui/tooltip/index.ts';
+	import { appearance } from '#lib/components/appearance/appearance.svelte.ts';
+	import { shells } from '#lib/components/shell/variants/registry.ts';
+	import * as Alert from '@pocket-id/ui/alert';
+	import * as Tooltip from '@pocket-id/ui/tooltip';
 	import { m } from '#lib/paraglide/messages.js';
 	import { appReveal } from '#lib/stores/app-reveal-store.svelte.ts';
 	import appConfigStore from '#lib/stores/application-configuration-store.ts';
 	import { pageTransition } from '#lib/stores/page-transition-store.svelte.ts';
 	import userStore from '#lib/stores/user-store.ts';
 	import { isEmailVerificationPending } from '#lib/utils/email-verification-util.ts';
-	import { cn } from '#lib/utils/style.ts';
-	import { LucideTriangleAlert } from '@lucide/svelte';
-	import { PersistedState } from 'runed';
+	import { cn } from '@pocket-id/ui/utils';
+	import TriangleAlertIcon from '~icons/solar/danger-triangle-bold-duotone';
 	import type { Snippet } from 'svelte';
 	import type { LayoutData } from './$types';
 
@@ -33,8 +32,15 @@
 	const isAdmin = $derived(!!($userStore?.isAdmin || user?.isAdmin));
 	const verificationPending = $derived(isEmailVerificationPending(user, $appConfigStore));
 	const showUpdate = $derived(isAdmin && versionInformation.isUpToDate === false);
-	const groups = $derived(navGroups({ isAdmin, verificationPending, features: data.features }));
-	const collapsed = new PersistedState('sidebar-collapsed', false);
+	const groups = $derived(
+		navGroups({
+			isAdmin,
+			verificationPending,
+			features: data.features,
+			homePageUrl: $appConfigStore.homePageUrl
+		})
+	);
+	const Shell = $derived(shells[appearance.saved.layout]);
 
 	// List pages run gutter to gutter, the other pages keep the centered column
 	const listPage = $derived(
@@ -44,7 +50,7 @@
 			'/settings/admin/oidc-clients',
 			'/settings/admin/claim-mappings',
 			'/settings/admin/apis',
-			'/settings/admin/api-keys',
+			'/settings/account/api-keys',
 			'/settings/audit-log',
 			'/settings/audit-log/global'
 		].includes(page.route.id ?? '')
@@ -61,7 +67,6 @@
 		if (
 			navigation.shallow ||
 			!document.startViewTransition ||
-			document.documentElement.classList.contains('no-motion') ||
 			window.matchMedia('(prefers-reduced-motion: reduce)').matches ||
 			!navigation.to?.url.pathname.startsWith('/settings/') ||
 			navigation.from?.url.pathname === navigation.to.url.pathname ||
@@ -88,14 +93,8 @@
 </script>
 
 <Tooltip.Provider>
-	<div class={cn('bg-surface flex min-h-dvh', revealing && 'app-reveal')}>
-		<AppSidebar {groups} {versionInformation} {showUpdate} bind:collapsed={collapsed.current} />
-		<div class="flex min-w-0 flex-1 flex-col">
-			<PhoneNav
-				{groups}
-				version="Pocket ID {versionInformation.currentVersion}"
-				newestVersion={showUpdate ? versionInformation.newestVersion : null}
-			/>
+	<div class={cn('contents', revealing && 'app-reveal')}>
+		<Shell {groups} {versionInformation} {showUpdate}>
 			<main
 				bind:this={mainEl}
 				class={cn(
@@ -105,7 +104,7 @@
 			>
 				{#if sqliteStorageWarning && isAdmin}
 					<Alert.Root variant="warning">
-						<LucideTriangleAlert />
+						<TriangleAlertIcon />
 						<Alert.Description>
 							{m.sqlite_network_storage_warning()}
 							<DocsLink
@@ -119,7 +118,11 @@
 					{@render children()}
 				{/key}
 			</main>
-		</div>
+		</Shell>
 	</div>
-	<CommandPalette {groups} features={data.features} isAdmin={isAdmin && !verificationPending} />
+	<CommandPalette
+		{groups}
+		features={verificationPending ? null : data.features}
+		isAdmin={isAdmin && !verificationPending}
+	/>
 </Tooltip.Provider>

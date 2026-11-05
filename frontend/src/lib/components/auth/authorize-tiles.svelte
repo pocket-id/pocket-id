@@ -1,14 +1,13 @@
 <script lang="ts">
 	import Logo from '#lib/components/logo.svelte';
 	import OidcClientAvatar from '#lib/components/oidc-client-avatar.svelte';
-	import CheckmarkAnimated from '#lib/icons/checkmark-animated.svelte';
 	import ConnectArrow from '#lib/icons/connect-arrow.svelte';
-	import CrossAnimated from '#lib/icons/cross-animated.svelte';
-	import appConfigStore from '#lib/stores/application-configuration-store.ts';
 	import type { InteractionClient } from '#lib/types/oidc.type.ts';
 	import { untrack } from 'svelte';
 	import { cubicIn, cubicOut } from 'svelte/easing';
 	import { prefersReducedMotion, Tween } from 'svelte/motion';
+	import CheckIcon from '~icons/solar/check-bold';
+	import CrossIcon from '~icons/solar/close-bold';
 
 	type Outcome = 'success' | 'error';
 
@@ -64,8 +63,7 @@
 
 	async function show(outcome: Outcome | null) {
 		// An outcome that is already set when the page loads is shown without replaying the animation
-		const animate =
-			hasMounted && !$appConfigStore.disableAnimations && !prefersReducedMotion.current;
+		const animate = hasMounted && !prefersReducedMotion.current;
 		hasMounted = true;
 
 		resultTile?.getAnimations().forEach((animation) => animation.cancel());
@@ -108,11 +106,7 @@
 	/>
 
 	<div class="shrink-0" style:transform="translateX({-TRAVEL * travelled}px)">
-		<div
-			bind:this={resultTile}
-			class="relative isolate size-14 overflow-hidden rounded-md"
-			class:animated
-		>
+		<div bind:this={resultTile} class="relative isolate size-14 rounded-md" class:animated>
 			<div class="client" class:faded={result}>
 				{#if client}
 					<OidcClientAvatar
@@ -127,17 +121,20 @@
 			</div>
 
 			<!-- The outcome color floods in from the edge where the tiles collided -->
+			<!-- The tile itself does not clip, because clipping at its own radius eats into the client tile's 1px ring on fractional positions -->
 			<div
-				class="fill absolute inset-0 {result === 'error' ? 'bg-danger-soft' : 'bg-success-soft'}"
+				class="fill absolute inset-0 rounded-[inherit] {result === 'error'
+					? 'bg-danger-soft'
+					: 'bg-success-soft'}"
 				class:flooded={result}
 			></div>
 
 			{#if result}
 				<div class="glyph absolute inset-0 grid place-items-center">
 					{#if result === 'success'}
-						<CheckmarkAnimated class="stroke-success-solid! size-7" />
+						<CheckIcon class="text-success-solid size-7" />
 					{:else}
-						<CrossAnimated class="stroke-danger-solid! size-5" />
+						<CrossIcon class="text-danger-solid size-5.5" />
 					{/if}
 				</div>
 			{/if}
@@ -170,14 +167,15 @@
 			scale 160ms 40ms;
 	}
 
-	/* The global motion safety net zeroes animation durations but not delays, so the glyph strokes would still appear late and in steps */
-	:global(html.no-motion) .glyph :global(path) {
-		animation-delay: 0s;
+	/* The icon pops in once the flood has passed the middle of the tile */
+	.animated .glyph {
+		animation: glyph-in var(--dur-base) var(--ease-out) 120ms backwards;
 	}
 
-	@media (prefers-reduced-motion: reduce) {
-		.glyph :global(path) {
-			animation-delay: 0s;
+	@keyframes glyph-in {
+		from {
+			opacity: 0;
+			scale: 0.6;
 		}
 	}
 </style>

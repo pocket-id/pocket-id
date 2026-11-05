@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"net/http"
 
+	"github.com/italypaleale/francis/builtin/ratelimit"
 	francishost "github.com/italypaleale/francis/host"
 	"gorm.io/gorm"
 
@@ -24,11 +25,14 @@ import (
 	"github.com/pocket-id/pocket-id/backend/internal/iplocation"
 	"github.com/pocket-id/pocket-id/backend/internal/ldapsync"
 	"github.com/pocket-id/pocket-id/backend/internal/logopreset"
+	"github.com/pocket-id/pocket-id/backend/internal/middleware"
 	"github.com/pocket-id/pocket-id/backend/internal/oidc"
 	"github.com/pocket-id/pocket-id/backend/internal/onetimeaccess"
 	"github.com/pocket-id/pocket-id/backend/internal/outbound"
 	"github.com/pocket-id/pocket-id/backend/internal/scimsync"
 	"github.com/pocket-id/pocket-id/backend/internal/service"
+	"github.com/pocket-id/pocket-id/backend/internal/session"
+	"github.com/pocket-id/pocket-id/backend/internal/signingkey"
 	"github.com/pocket-id/pocket-id/backend/internal/storage"
 	"github.com/pocket-id/pocket-id/backend/internal/usersignup"
 	"github.com/pocket-id/pocket-id/backend/internal/webauthn"
@@ -36,11 +40,11 @@ import (
 
 type services struct {
 	appConfigService         *appconfig.AppConfigService
-	appImagesService         *service.AppImagesService
+	appAssetsService         *service.AppAssetsService
 	emailModule              *email.Module
 	geoLiteModule            *geolite.Module
 	ipLocator                iplocation.Resolver
-	jwtService               *service.JwtService
+	signingKey               *signingkey.Key
 	userService              *service.UserService
 	customClaimService       *service.CustomClaimService
 	claimMappingPolicyModule *claimmappingpolicy.Module
@@ -57,6 +61,7 @@ type services struct {
 	webauthnModule          *webauthn.Module
 	userSignUpModule        *usersignup.Module
 	oneTimeAccessModule     *onetimeaccess.Module
+	sessionModule           *session.Module
 	emailVerificationModule *emailverification.Module
 	apiModule               *api.Module
 	environmentModule       *environment.Module
@@ -73,8 +78,9 @@ func initServices(
 	actors francishost.Host,
 	httpClient *http.Client,
 	outboundClients *outbound.Clients,
-	imageExtensions map[string]string,
+	assetExtensions map[string]string,
 	fileStorage storage.FileStorage,
+	rateLimitServices map[string]*ratelimit.RateLimitService,
 ) (svc *services, err error) {
 	svc = &services{
 		actors: actors,
@@ -87,7 +93,7 @@ func initServices(
 	}
 
 	svc.fileStorage = fileStorage
-	svc.appImagesService = service.NewAppImagesService(imageExtensions, fileStorage)
+	svc.appAssetsService = service.NewAppAssetsService(assetExtensions, fileStorage)
 
 	svc.emailModule, err = email.New(db)
 	if err != nil {
@@ -100,13 +106,14 @@ func initServices(
 		return nil, fmt.Errorf("failed to create IP location resolver: %w", err)
 	}
 
-	svc.jwtService, err = service.NewJwtService(ctx, db, instanceID)
+	svc.signingKey, err = signingkey.Load(ctx, db, &common.EnvConfig, instanceID)
 	if err != nil {
-		return nil, fmt.Errorf("failed to create JWT service: %w", err)
+		return nil, fmt.Errorf("failed to load signing key: %w", err)
 	}
 
-	svc.auditLogsModule, err = auditlogs.New(auditlogs.Dependencies{
-		Signer:        svc.jwtService,
+	svc.auditLogsModule, err = auditlogs.New(ctx, auditlogs.Dependencies{
+		EnvConfig:     &common.EnvConfig,
+		InstanceID:    instanceID,
 		AppURL:        common.EnvConfig.AppURL,
 		EmailSender:   svc.emailModule,
 		IPLocator:     svc.ipLocator,
@@ -121,12 +128,20 @@ func initServices(
 		return nil, fmt.Errorf("failed to create audit logs module: %w", err)
 	}
 
+	svc.sessionModule, err = session.New(session.Dependencies{
+		Actors:    actors,
+		IPLocator: svc.ipLocator,
+	})
+	if err != nil {
+		return nil, fmt.Errorf("failed to create session module: %w", err)
+	}
+
 	svc.customClaimService = service.NewCustomClaimService(db)
 	svc.webauthnModule, err = webauthn.New(webauthn.Dependencies{
 		DB:        db,
 		Actors:    actors,
 		AppURL:    common.EnvConfig.AppURL,
-		Signer:    svc.jwtService,
+		Sessions:  svc.sessionModule,
 		AuditLog:  svc.auditLogsModule,
 		AppConfig: svc.appConfigService,
 		// Disable in test environment
@@ -139,7 +154,7 @@ func initServices(
 		DB:        db,
 		BaseURL:   common.EnvConfig.AppURL,
 		Actors:    actors,
-		Signer:    svc.jwtService,
+		Sessions:  svc.sessionModule,
 		Reauth:    svc.webauthnModule,
 		AuditLog:  svc.auditLogsModule,
 		IPLocator: svc.ipLocator,
@@ -174,10 +189,11 @@ func initServices(
 			Secret:                    common.EnvConfig.EncryptionKey,
 			AllowInsecureCallbackURLs: common.EnvConfig.AllowInsecureCallbackURLs,
 		},
-		Signer:       svc.jwtService,
+		Signer:       svc.signingKey,
 		CustomClaims: svc.customClaimService,
 		Reauth:       svc.webauthnModule,
 		AuditLog:     svc.auditLogsModule,
+		Sessions:     svc.sessionModule,
 		APIAccess:    svc.apiModule,
 		AppConfig:    svc.appConfigService,
 		// Disable in test environment
@@ -187,12 +203,12 @@ func initServices(
 		return nil, fmt.Errorf("failed to create OIDC module: %w", err)
 	}
 
-	backchannelLogoutService, err := backchannellogout.NewService(db, svc.jwtService, outboundClients.Client(outbound.PurposeBackchannelLogout), actors)
+	backchannelLogoutService, err := backchannellogout.NewService(db, backchannellogout.NewTokenSigner(svc.signingKey, common.EnvConfig.AppURL), outboundClients.Client(outbound.PurposeBackchannelLogout), actors)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create back-channel logout service: %w", err)
 	}
 
-	svc.oidcService, err = service.NewOidcService(db, svc.jwtService, svc.oidcModule.Preview, svc.oidcModule, svc.scimSyncModule, backchannelLogoutService, outboundClients.Client(outbound.PurposeClientLogo), fileStorage)
+	svc.oidcService, err = service.NewOidcService(db, svc.oidcModule.Preview, svc.oidcModule, svc.scimSyncModule, backchannelLogoutService, outboundClients.Client(outbound.PurposeClientLogo), fileStorage)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create OIDC service: %w", err)
 	}
@@ -200,11 +216,16 @@ func initServices(
 	svc.claimMappingPolicyModule = claimmappingpolicy.New(claimmappingpolicy.Dependencies{DB: db})
 	svc.userGroupService = service.NewUserGroupService(db, svc.scimSyncModule, backchannelLogoutService)
 	// The user service sends verification links through this module, so it's created first and never depends on the user service itself
+	var sendLimiter emailverification.SendLimiter
+	if middleware.RateLimitingEnabled() {
+		sendLimiter = rateLimitServices[middleware.RateLimitSendEmailVerification]
+	}
 	svc.emailVerificationModule, err = emailverification.New(emailverification.Dependencies{
 		DB:          db,
 		Actors:      actors,
 		EmailSender: svc.emailModule,
 		ScimSync:    svc.scimSyncModule,
+		SendLimiter: sendLimiter,
 		AppConfig:   svc.appConfigService,
 		AppURL:      common.EnvConfig.AppURL,
 	})
@@ -212,7 +233,7 @@ func initServices(
 		return nil, fmt.Errorf("failed to create email verification module: %w", err)
 	}
 
-	svc.userService = service.NewUserService(db, svc.jwtService, svc.customClaimService, svc.appImagesService, svc.scimSyncModule, backchannelLogoutService, fileStorage, svc.emailVerificationModule)
+	svc.userService = service.NewUserService(db, svc.customClaimService, svc.appAssetsService, svc.scimSyncModule, backchannelLogoutService, fileStorage, svc.emailVerificationModule)
 
 	svc.ldapSyncModule, err = ldapsync.New(ldapsync.Dependencies{
 		DB:                db,
@@ -246,7 +267,7 @@ func initServices(
 	svc.userSignUpModule, err = usersignup.New(usersignup.Dependencies{
 		DB:                db,
 		Actors:            actors,
-		Signer:            svc.jwtService,
+		Sessions:          svc.sessionModule,
 		AuditLog:          svc.auditLogsModule,
 		UserCreator:       svc.userService,
 		AppConfig:         svc.appConfigService,
@@ -263,7 +284,7 @@ func initServices(
 	svc.oneTimeAccessModule, err = onetimeaccess.New(onetimeaccess.Dependencies{
 		DB:           db,
 		Actors:       actors,
-		Signer:       svc.jwtService,
+		Sessions:     svc.sessionModule,
 		AuditLog:     svc.auditLogsModule,
 		UserProvider: svc.userService,
 		EmailSender:  svc.emailModule,

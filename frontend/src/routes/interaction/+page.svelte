@@ -14,8 +14,8 @@
 	import IdentityRow from '#lib/components/identity-row.svelte';
 	import SignInWrapper from '#lib/components/login-wrapper.svelte';
 	import ScopeList from '#lib/components/scope-list.svelte';
-	import { Button } from '#lib/components/ui/button/index.ts';
-	import { Spinner } from '#lib/components/ui/spinner/index.ts';
+	import { Button } from '@pocket-id/ui/button';
+	import { Spinner } from '@pocket-id/ui/spinner';
 	import { m } from '#lib/paraglide/messages.js';
 	import OidcService from '#lib/services/oidc-service.ts';
 	import WebAuthnService from '#lib/services/webauthn-service.ts';
@@ -26,7 +26,7 @@
 	import { getAxiosErrorCode, getWebauthnErrorMessage } from '#lib/utils/error-util.ts';
 	import { cssMs } from '#lib/utils/style.ts';
 	import { startAuthentication } from '@simplewebauthn/browser';
-	import { LucideChevronRight } from '@lucide/svelte';
+	import ChevronRightIcon from '~icons/solar/alt-arrow-right-linear';
 	import type { PageProps } from './$types';
 
 	const webauthnService = new WebAuthnService();
@@ -141,7 +141,7 @@
 </svelte:head>
 
 <SignInWrapper wide={view === 'consent' && hasScopes}>
-	<AuthorizeTiles {client} success={!!redirectUrl} error={!!failure && !failure.closed} />
+	<AuthorizeTiles {client} success={!!redirectUrl} error={!!failure} />
 
 	{#if view === 'success'}
 		<AuthHeading title={m.auth_signed_in()}>
@@ -154,7 +154,7 @@
 		>
 			<Button variant="link" class="text-body h-(--h-xl) max-w-full gap-1" href={redirectUrl}>
 				<span class="truncate">{m.auth_continue_to({ name: clientName })}</span>
-				<LucideChevronRight />
+				<ChevronRightIcon />
 			</Button>
 		</div>
 	{:else}
@@ -164,7 +164,6 @@
 				: view === 'reauthenticate'
 					? m.auth_confirm_its_you()
 					: client.name}
-			tone={failure ? (failure.closed ? 'info' : 'danger') : undefined}
 		>
 			{#if failure}
 				{failure.closed ? m.auth_passkey_prompt_closed() : failure.message}
@@ -195,7 +194,7 @@
 							{#if isLoading}
 								<Spinner class="size-4" />
 							{:else}
-								<LucideChevronRight
+								<ChevronRightIcon
 									class="size-4 transition-transform duration-(--dur-fast) group-hover/account:translate-x-(--nudge)"
 								/>
 							{/if}
@@ -257,10 +256,6 @@
 					{m.cancel()}
 				</Button>
 			</div>
-
-			{#if view === 'consent'}
-				<p class="text-control text-fg-muted mt-2 text-center">{m.auth_remove_access_anytime()}</p>
-			{/if}
 		</ActionPanel>
 	{/if}
 </SignInWrapper>

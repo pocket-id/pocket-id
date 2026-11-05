@@ -36,7 +36,7 @@ const (
 type Service struct {
 	actService *actor.Service
 	db         *gorm.DB
-	signer     TokenService
+	sessions   SessionCreator
 	reauth     ReauthenticationTokenConsumer
 	auditLog   AuditLogger
 	ipLocator  iplocation.Resolver
@@ -51,11 +51,11 @@ type VerificationInfo struct {
 	ExpiresAt datatype.DateTime
 }
 
-func NewService(actService *actor.Service, db *gorm.DB, signer TokenService, reauth ReauthenticationTokenConsumer, auditLog AuditLogger, ipLocator iplocation.Resolver) *Service {
+func NewService(actService *actor.Service, db *gorm.DB, sessions SessionCreator, reauth ReauthenticationTokenConsumer, auditLog AuditLogger, ipLocator iplocation.Resolver) *Service {
 	return &Service{
 		actService: actService,
 		db:         db,
-		signer:     signer,
+		sessions:   sessions,
 		reauth:     reauth,
 		auditLog:   auditLog,
 		ipLocator:  ipLocator,
@@ -200,7 +200,7 @@ func (s *Service) Exchange(ctx context.Context, requestID, deviceToken, ipAddres
 			}
 
 			// Mint the session with login-code semantics because the waiting device did not perform WebAuthn
-			accessToken, err := s.signer.GenerateAccessToken(user, authenticationMethodOneTimePassword, sessionDuration)
+			sessionToken, err := s.sessions.Create(ctx, user.ID, authenticationMethodOneTimePassword, ipAddress, userAgent, sessionDuration)
 			if err != nil {
 				return dto.UserDto{}, model.LoginTokens{}, consume.Status, err
 			}
@@ -212,7 +212,7 @@ func (s *Service) Exchange(ctx context.Context, requestID, deviceToken, ipAddres
 			}
 
 			s.auditLog.SendSignInNotification(ctx, signIn)
-			return userDTO, model.LoginTokens{AccessToken: accessToken, KnownBrowserToken: signIn.KnownBrowserToken}, consume.Status, nil
+			return userDTO, model.LoginTokens{SessionToken: sessionToken, KnownBrowserToken: signIn.KnownBrowserToken}, consume.Status, nil
 		case RequestStatusPending:
 			// no-op
 		case RequestStatusDenied:

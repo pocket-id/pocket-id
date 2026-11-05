@@ -19,6 +19,8 @@ type Dependencies struct {
 
 	EmailSender EmailSender
 	ScimSync    ScimSyncScheduler
+	// SendLimiter is nil when rate limiting is disabled
+	SendLimiter SendLimiter
 	AppConfig   appconfig.AppConfigResolver
 	AppURL      string
 }
@@ -34,7 +36,7 @@ func New(deps Dependencies) (*Module, error) {
 		return nil, fmt.Errorf("error registering the %s actor: %w", ActorType, err)
 	}
 
-	service := newService(deps.DB, deps.Actors.Service(), deps.EmailSender, deps.ScimSync, deps.AppURL)
+	service := newService(deps.DB, deps.Actors.Service(), deps.EmailSender, deps.ScimSync, deps.SendLimiter, deps.AppURL)
 	return &Module{
 		service: service,
 		handler: newHandler(service, deps.AppConfig),
@@ -46,14 +48,19 @@ func (m *Module) Send(ctx context.Context, dbConfig *appconfig.AppConfigModel, u
 	return m.service.Send(ctx, dbConfig, userID)
 }
 
+// AllowSend consumes one of the user's verification emails, or returns a rate-limit error once they're used up
+func (m *Module) AllowSend(ctx context.Context, userID string) error {
+	return m.service.AllowSend(ctx, userID)
+}
+
 // RequestEmailChange emails a verification link to a new address, which replaces the user's current email once the link is used
 func (m *Module) RequestEmailChange(ctx context.Context, dbConfig *appconfig.AppConfigModel, userID, newEmail string) error {
 	return m.service.RequestEmailChange(ctx, dbConfig, userID, newEmail)
 }
 
 // RegisterRoutes mounts the email verification endpoints
-func (m *Module) RegisterRoutes(r *authz.Router, sendRateLimit, verifyRateLimit gin.HandlerFunc) {
-	r.POST("/users/me/send-email-verification", authz.AccountWrite, sendRateLimit, httpserver.Handle(m.handler.send))
+func (m *Module) RegisterRoutes(r *authz.Router, verifyRateLimit gin.HandlerFunc) {
+	r.POST("/users/me/send-email-verification", authz.AccountWrite, httpserver.Handle(m.handler.send))
 	r.POST("/users/me/verify-email", authz.AccountWrite, verifyRateLimit, httpserver.Handle(m.handler.verify))
 	r.GET("/users/me/email-change", authz.AccountRead, httpserver.Handle(m.handler.pendingEmailChange))
 	r.DELETE("/users/me/email-change", authz.AccountWrite, httpserver.Handle(m.handler.cancelEmailChange))
