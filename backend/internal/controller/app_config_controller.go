@@ -55,11 +55,10 @@ type AppConfigController struct {
 // @Failure default {object} dto.ErrorDto "Error"
 // @Router /api/application-configuration [get]
 func (acc *AppConfigController) listAppConfigHandler(c *gin.Context) error {
-	dbConfig, err := acc.appConfigService.GetConfig(c.Request.Context())
+	configuration, err := acc.appConfigService.ListAppConfig(c.Request.Context(), false)
 	if err != nil {
 		return err
 	}
-	configuration := dbConfig.ToAppConfigVariableSlice(false, true)
 
 	var configVariablesDto []dto.PublicAppConfigVariableDto
 	if err := dto.MapStructList(configuration, &configVariablesDto); err != nil {
@@ -111,11 +110,10 @@ func iconLibraryStatus() string {
 // @Failure default {object} dto.ErrorDto "Error"
 // @Router /api/application-configuration/all [get]
 func (acc *AppConfigController) listAllAppConfigHandler(c *gin.Context) error {
-	dbConfig, err := acc.appConfigService.GetConfig(c.Request.Context())
+	configuration, err := acc.appConfigService.ListAppConfig(c.Request.Context(), true)
 	if err != nil {
 		return err
 	}
-	configuration := dbConfig.ToAppConfigVariableSlice(true, true)
 
 	var configVariablesDto []dto.AppConfigVariableDto
 	if err := dto.MapStructList(configuration, &configVariablesDto); err != nil {

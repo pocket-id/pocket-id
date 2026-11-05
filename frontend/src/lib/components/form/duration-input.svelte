@@ -3,6 +3,7 @@
 	import * as Field from '@pocket-id/ui/field';
 	import { Input } from '@pocket-id/ui/input';
 	import * as Select from '@pocket-id/ui/select';
+	import EnvOverrideLock from '#lib/components/env-override-lock.svelte';
 	import { m } from '#lib/paraglide/messages.js';
 	import type { FormInput } from '#lib/utils/form-util.ts';
 
@@ -21,13 +22,16 @@
 		label,
 		description,
 		input = $bindable(),
-		changed = false
+		changed = false,
+		envOverride = false
 	}: {
 		id: string;
 		label: string;
 		description?: string;
 		input: FormInput<number>;
 		changed?: boolean;
+		// Makes the input read-only and marks it as set by an environment variable
+		envOverride?: boolean;
 	} = $props();
 
 	function preferredUnit(minutes: number): DurationUnit {
@@ -92,8 +96,11 @@
 			<span class="bg-fg size-1.5 shrink-0 rounded-full"></span>
 			<span class="sr-only">{m.changed_from_the_default()}</span>
 		{/if}
+		{#if envOverride}
+			<EnvOverrideLock />
+		{/if}
 	</div>
-	<div class="flex flex-col gap-1.5">
+	<fieldset class="flex min-w-0 flex-col gap-1.5" disabled={envOverride}>
 		<ButtonGroup.Root class="w-full">
 			<Input
 				{id}
@@ -127,5 +134,5 @@
 		{:else if description}
 			<Field.Description>{description}</Field.Description>
 		{/if}
-	</div>
+	</fieldset>
 </Field.Field>

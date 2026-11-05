@@ -31,9 +31,11 @@
 
 	let {
 		callback,
-		appConfig
+		appConfig,
+		envOverrides
 	}: {
 		appConfig: AllAppConfig;
+		envOverrides: Set<keyof AllAppConfig>;
 		callback: (appConfig: Partial<AllAppConfig>) => Promise<void>;
 	} = $props();
 
@@ -216,6 +218,7 @@
 				title={m.config_require_email()}
 				description={m.config_require_email_description()}
 				icon={AtSignIcon}
+				envOverride={envOverrides.has('requireUserEmail')}
 			>
 				{#snippet control(props)}
 					<Switch {...props} bind:checked={$inputs.requireUserEmail.value} />
@@ -226,6 +229,7 @@
 				description={$inputs.emailVerification.error ? verificationError : undefined}
 				consequence={verificationRequired ? m.config_verification_required_note() : undefined}
 				icon={MailCheckIcon}
+				envOverride={envOverrides.has('emailVerification')}
 			>
 				{#snippet control(props)}
 					<OptionSelect
@@ -245,6 +249,7 @@
 				title={m.config_treat_as_verified()}
 				disabledReason={verificationRequired ? m.config_treat_as_verified_locked() : undefined}
 				icon={BadgeCheckIcon}
+				envOverride={envOverrides.has('emailsVerified')}
 			>
 				{#snippet control(props)}
 					<Switch
@@ -272,6 +277,7 @@
 					inputClass="font-mono"
 					label={m.config_smtp_host()}
 					placeholder="smtp.example.com"
+					envOverride={envOverrides.has('smtpHost')}
 					bind:input={$inputs.smtpHost}
 				/>
 				<FormInput
@@ -279,6 +285,7 @@
 					inputClass="max-w-30"
 					label={m.config_smtp_port()}
 					type="number"
+					envOverride={envOverrides.has('smtpPort')}
 					bind:input={$inputs.smtpPort}
 				/>
 				<FormInput
@@ -286,6 +293,7 @@
 					inputClass="font-mono"
 					label={m.username()}
 					optional
+					envOverride={envOverrides.has('smtpUser')}
 					bind:input={$inputs.smtpUser}
 				/>
 				<FormInput
@@ -294,6 +302,7 @@
 					label={m.config_password()}
 					optional
 					type="password"
+					envOverride={envOverrides.has('smtpPassword')}
 					bind:input={$inputs.smtpPassword}
 				/>
 				<FormInput
@@ -301,10 +310,15 @@
 					inputClass="font-mono"
 					label={m.config_from_address()}
 					placeholder="id@example.com"
+					envOverride={envOverrides.has('smtpFrom')}
 					bind:input={$inputs.smtpFrom}
 				/>
 			</div>
-			<SettingRow title={m.config_encryption()} icon={LockIcon}>
+			<SettingRow
+				title={m.config_encryption()}
+				icon={LockIcon}
+				envOverride={envOverrides.has('smtpTls')}
+			>
 				{#snippet control(props)}
 					<OptionSelect
 						{...props}
@@ -318,6 +332,7 @@
 				title={m.skip_certificate_verification()}
 				description={m.config_self_signed_only()}
 				icon={ShieldOffIcon}
+				envOverride={envOverrides.has('smtpSkipCertVerify')}
 			>
 				{#snippet control(props)}
 					<Switch {...props} bind:checked={$inputs.smtpSkipCertVerify.value} />
@@ -339,6 +354,7 @@
 				title={m.config_signin_notifications()}
 				description={m.config_signin_notifications_description()}
 				icon={BellIcon}
+				envOverride={envOverrides.has('emailLoginNotificationMode')}
 			>
 				{#snippet control(props)}
 					<OptionSelect
@@ -353,12 +369,17 @@
 				title={m.config_admin_login_codes()}
 				description={m.config_admin_login_codes_description()}
 				icon={PlaneIcon}
+				envOverride={envOverrides.has('emailOneTimeAccessAsAdminEnabled')}
 			>
 				{#snippet control(props)}
 					<Switch {...props} bind:checked={$inputs.emailOneTimeAccessAsAdminEnabled.value} />
 				{/snippet}
 			</SettingRow>
-			<SettingRow title={m.config_api_key_expiry()} icon={AlarmClockIcon}>
+			<SettingRow
+				title={m.config_api_key_expiry()}
+				icon={AlarmClockIcon}
+				envOverride={envOverrides.has('emailApiKeyExpirationEnabled')}
+			>
 				{#snippet control(props)}
 					<Switch {...props} bind:checked={$inputs.emailApiKeyExpirationEnabled.value} />
 				{/snippet}
@@ -370,6 +391,7 @@
 					? m.config_user_login_codes_note()
 					: undefined}
 				icon={HashIcon}
+				envOverride={envOverrides.has('emailOneTimeAccessAsUnauthenticatedEnabled')}
 			>
 				{#snippet control(props)}
 					<Switch

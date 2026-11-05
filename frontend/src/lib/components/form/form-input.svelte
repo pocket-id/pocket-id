@@ -1,4 +1,5 @@
 <script lang="ts">
+	import EnvOverrideLock from '#lib/components/env-override-lock.svelte';
 	import DatePicker from '#lib/components/form/date-picker.svelte';
 	import * as Field from '@pocket-id/ui/field';
 	import { Input, type FormInputEvent } from '@pocket-id/ui/input';
@@ -33,6 +34,7 @@
 		inputClass,
 		changed = false,
 		optional = false,
+		envOverride = false,
 		class: className,
 		...restProps
 	}: HTMLAttributes<HTMLDivElement> &
@@ -47,13 +49,15 @@
 			readonly?: boolean;
 			changed?: boolean;
 			optional?: boolean;
+			// Makes the input read-only and marks it as set by an environment variable
+			envOverride?: boolean;
 			onInput?: (e: FormInputEvent) => void;
 		} = $props();
 
 	const id = label?.toLowerCase().replace(/ /g, '-');
 </script>
 
-<Field.Field data-disabled={disabled} class={className} {...restProps}>
+<Field.Field data-disabled={disabled || envOverride} class={className} {...restProps}>
 	{#if label}
 		<div class="flex items-center gap-2">
 			<Field.Label optional={optional && !readonly} for={labelFor ?? id}>{label}</Field.Label>
@@ -61,6 +65,9 @@
 			{#if changed}
 				<span class="bg-fg size-1.5 shrink-0 rounded-full"></span>
 				<span class="sr-only">{m.changed_from_the_default()}</span>
+			{/if}
+			{#if envOverride}
+				<EnvOverrideLock />
 			{/if}
 		</div>
 	{/if}
@@ -94,7 +101,7 @@
 							input.error = null;
 						}
 					}
-					{disabled}
+					disabled={disabled || envOverride}
 					oninput={(e) => onInput?.(e)}
 					{readonly}
 				/>

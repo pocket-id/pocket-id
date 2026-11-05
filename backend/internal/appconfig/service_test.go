@@ -396,11 +396,11 @@ func TestService_ListAppConfig(t *testing.T) {
 		assert.Equal(t, "Listed App", got)
 	})
 
-	t.Run("redacts sensitive values when the UI config is disabled", func(t *testing.T) {
+	t.Run("redacts sensitive values set in the environment", func(t *testing.T) {
 		setUIConfigDisabled(t, true)
-		svc := NewTestAppConfigService(&AppConfigModel{
-			SmtpPassword: "super-secret",
-		})
+		t.Setenv("SMTP_PASSWORD", "super-secret")
+		svc, err := NewService(t.Context(), nil, nil)
+		require.NoError(t, err)
 
 		vars, err := svc.ListAppConfig(t.Context(), true)
 		require.NoError(t, err)
@@ -408,6 +408,53 @@ func TestService_ListAppConfig(t *testing.T) {
 		got, ok := findConfigValue(vars, "smtpPassword")
 		require.True(t, ok)
 		assert.Equal(t, "XXXXXXXXXX", got)
+	})
+}
+
+func TestService_EnvOverrides(t *testing.T) {
+	t.Run("environment values take precedence over the saved ones and are never saved", func(t *testing.T) {
+		setUIConfigDisabled(t, false)
+		t.Setenv("APP_NAME", "Env App")
+		t.Setenv("SMTP_PASSWORD", "env-secret")
+		db := testutils.NewDatabaseForTest(t)
+		svc := newActorBackedService(t, db)
+
+		res, err := svc.UpdateAppConfig(t.Context(), dto.AppConfigUpdateDto{
+			AppName:         "UI App",
+			SessionDuration: "120",
+			SmtpPassword:    "XXXXXXXXXX",
+		})
+		require.NoError(t, err)
+		appName, _ := findConfigValue(res, "appName")
+		assert.Equal(t, "Env App", appName)
+
+		cfg, err := svc.GetConfig(t.Context())
+		require.NoError(t, err)
+		assert.Equal(t, AppConfigValue("Env App"), cfg.AppName)
+		assert.Equal(t, AppConfigValue("env-secret"), cfg.SmtpPassword)
+		assert.Equal(t, AppConfigValue("120"), cfg.SessionDuration)
+
+		saved, err := svc.getSavedConfig(t.Context())
+		require.NoError(t, err)
+		assert.Equal(t, getDefaultConfig().AppName, saved.AppName)
+		assert.Empty(t, saved.SmtpPassword)
+
+		vars, err := svc.ListAppConfig(t.Context(), true)
+		require.NoError(t, err)
+		for _, v := range vars {
+			assert.Equal(t, v.Key == "appName" || v.Key == "smtpPassword", v.EnvOverride, v.Key)
+		}
+	})
+
+	t.Run("cross-property rules are left to saving when the UI config is enabled", func(t *testing.T) {
+		setUIConfigDisabled(t, false)
+		t.Setenv("EMAIL_VERIFICATION", "required")
+		db := testutils.NewDatabaseForTest(t)
+		svc := newActorBackedService(t, db)
+
+		cfg, err := svc.GetConfig(t.Context())
+		require.NoError(t, err)
+		assert.Equal(t, AppConfigValue(EmailVerificationRequired), cfg.EmailVerification)
 	})
 }
 
@@ -461,7 +508,15 @@ func TestService_CIMDURLAllowlist(t *testing.T) {
 	})
 }
 
-func TestService_LoadDbConfigFromEnv(t *testing.T) {
+func TestService_LoadEnvConfig(t *testing.T) {
+	loadEnvConfig := func() (*AppConfigModel, error) {
+		overrides, err := loadEnvOverrides()
+		if err != nil {
+			return nil, err
+		}
+		return newEnvConfig(overrides)
+	}
+
 	t.Run("required verification rejects conflicting settings", func(t *testing.T) {
 		for _, setting := range []struct{ name, value string }{
 			{"EMAILS_VERIFIED", "true"},
@@ -470,6 +525,7 @@ func TestService_LoadDbConfigFromEnv(t *testing.T) {
 			{"SMTP_FROM", ""},
 		} {
 			t.Run(setting.name, func(t *testing.T) {
+				setUIConfigDisabled(t, true)
 				t.Setenv("EMAIL_VERIFICATION", "required")
 				t.Setenv("EMAILS_VERIFIED", "false")
 				t.Setenv("REQUIRE_USER_EMAIL", "true")
@@ -477,7 +533,7 @@ func TestService_LoadDbConfigFromEnv(t *testing.T) {
 				t.Setenv("SMTP_FROM", "pocket-id@example.com")
 				t.Setenv(setting.name, setting.value)
 
-				_, err := (&AppConfigService{}).loadDbConfigFromEnv()
+				_, err := loadEnvConfig()
 				require.ErrorContains(t, err, "EMAIL_VERIFICATION requires user emails, an SMTP host and sender address, and forbids emails verified by default")
 			})
 		}
@@ -488,7 +544,7 @@ func TestService_LoadDbConfigFromEnv(t *testing.T) {
 		t.Setenv("SMTP_HOST", "smtp.example.com")
 		t.Setenv("SMTP_FROM", "pocket-id@example.com")
 
-		cfg, err := (&AppConfigService{}).loadDbConfigFromEnv()
+		cfg, err := loadEnvConfig()
 		require.NoError(t, err)
 		assert.Equal(t, AppConfigValue(EmailVerificationRequired), cfg.EmailVerification)
 	})
@@ -507,8 +563,7 @@ func TestService_LoadDbConfigFromEnv(t *testing.T) {
 	t.Run("loads a sensitive value from a file", func(t *testing.T) {
 		t.Setenv("LDAP_BIND_PASSWORD_FILE", writeSecretFile(t, "my-ldap-password"))
 
-		svc := &AppConfigService{}
-		cfg, err := svc.loadDbConfigFromEnv()
+		cfg, err := loadEnvConfig()
 		require.NoError(t, err)
 
 		assert.Equal(t, AppConfigValue("my-ldap-password"), cfg.LdapBindPassword)
@@ -519,8 +574,7 @@ func TestService_LoadDbConfigFromEnv(t *testing.T) {
 		t.Setenv("LDAP_BIND_PASSWORD_FILE", writeSecretFile(t, "my-ldap-password\n"))
 		t.Setenv("SMTP_PASSWORD_FILE", writeSecretFile(t, "  my-smtp-password  \r\n"))
 
-		svc := &AppConfigService{}
-		cfg, err := svc.loadDbConfigFromEnv()
+		cfg, err := loadEnvConfig()
 		require.NoError(t, err)
 
 		assert.Equal(t, AppConfigValue("my-ldap-password"), cfg.LdapBindPassword)
@@ -531,8 +585,7 @@ func TestService_LoadDbConfigFromEnv(t *testing.T) {
 		t.Setenv("LDAP_BIND_PASSWORD", "from-env")
 		t.Setenv("LDAP_BIND_PASSWORD_FILE", writeSecretFile(t, "from-file\n"))
 
-		svc := &AppConfigService{}
-		cfg, err := svc.loadDbConfigFromEnv()
+		cfg, err := loadEnvConfig()
 		require.NoError(t, err)
 
 		assert.Equal(t, AppConfigValue("from-file"), cfg.LdapBindPassword)
@@ -541,8 +594,7 @@ func TestService_LoadDbConfigFromEnv(t *testing.T) {
 	t.Run("values that are not sensitive are not loaded from a file", func(t *testing.T) {
 		t.Setenv("LDAP_BIND_DN_FILE", writeSecretFile(t, "cn=from-file"))
 
-		svc := &AppConfigService{}
-		cfg, err := svc.loadDbConfigFromEnv()
+		cfg, err := loadEnvConfig()
 		require.NoError(t, err)
 
 		assert.Empty(t, cfg.LdapBindDn)
@@ -551,8 +603,7 @@ func TestService_LoadDbConfigFromEnv(t *testing.T) {
 	t.Run("returns an error when the file cannot be read", func(t *testing.T) {
 		t.Setenv("LDAP_BIND_PASSWORD_FILE", filepath.Join(t.TempDir(), "does-not-exist.txt"))
 
-		svc := &AppConfigService{}
-		_, err := svc.loadDbConfigFromEnv()
+		_, err := loadEnvConfig()
 		require.Error(t, err)
 		assert.ErrorContains(t, err, "LDAP_BIND_PASSWORD_FILE")
 	})

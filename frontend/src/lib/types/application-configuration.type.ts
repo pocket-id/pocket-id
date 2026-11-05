@@ -69,6 +69,7 @@ export type AppConfigRawResponse = {
 	key: string;
 	type: string;
 	value: string;
+	envOverride?: boolean;
 }[];
 
 export type AppVersionInformation = {

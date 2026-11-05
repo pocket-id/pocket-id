@@ -10,8 +10,8 @@ export const load: PageLoad = async ({ params, fetch }) => {
 	const category = params.category as Category;
 	if (!categories.includes(category)) error(404, m.page_not_found());
 
-	const [appConfig, oidcConfiguration] = await Promise.all([
-		new AppConfigService().list(true),
+	const [{ appConfig, envOverrides }, oidcConfiguration] = await Promise.all([
+		new AppConfigService().listWithEnvOverrides(),
 		category === 'oidc'
 			? fetch('/.well-known/openid-configuration').then(
 					(res) => res.json() as Promise<OidcDiscoveryConfiguration>
@@ -19,5 +19,5 @@ export const load: PageLoad = async ({ params, fetch }) => {
 			: undefined
 	]);
 
-	return { category, appConfig, oidcConfiguration };
+	return { category, appConfig, envOverrides, oidcConfiguration };
 };

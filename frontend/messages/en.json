@@ -464,6 +464,8 @@
 	"config_oidc_intro_basic": "Endpoints and defaults for new clients.",
 	"config_env_managed_title": "Configuration is managed by environment variables",
 	"config_env_managed_description": "Settings here are read-only because UI_CONFIG_DISABLED is set. Change them in your environment and restart Pocket ID.",
+	"config_set_by_env": "Set by an environment variable",
+	"config_set_by_env_description": "Change it in your environment and restart Pocket ID.",
 	"config_session_duration_maximum": "Enter 30 days or less",
 	"config_session_duration_whole_minutes": "Use whole minutes",
 	"config_home_page_description": "Where people land after signing in.",

@@ -9,7 +9,6 @@ import (
 
 	"github.com/italypaleale/go-kit/utils"
 
-	"github.com/pocket-id/pocket-id/backend/internal/common"
 	"github.com/pocket-id/pocket-id/backend/internal/dto"
 )
 
@@ -278,14 +277,15 @@ func (m *AppConfigModel) Update(values map[string]string) error {
 
 // AppConfigVariable is a single application configuration property, as a key/value pair
 type AppConfigVariable struct {
-	Key   string
-	Value string
+	Key         string
+	Value       string
+	EnvOverride bool
 }
 
 // ToAppConfigVariableSlice returns the configuration as a slice of key/value pairs
 // If showAll is false, only properties marked as public are included
-// If redactSensitiveValues is true, sensitive values are redacted when the UI config is disabled
-func (m *AppConfigModel) ToAppConfigVariableSlice(showAll bool, redactSensitiveValues bool) []AppConfigVariable {
+// Properties in envOverrides are marked as set in the environment, and their sensitive values are redacted
+func (m *AppConfigModel) ToAppConfigVariableSlice(showAll bool, envOverrides map[string]string) []AppConfigVariable {
 	// Iterate through all fields
 	cfgValue := reflect.ValueOf(m).Elem()
 	cfgType := cfgValue.Type()
@@ -305,15 +305,15 @@ func (m *AppConfigModel) ToAppConfigVariableSlice(showAll bool, redactSensitiveV
 		}
 
 		value := cfgValue.Field(i).String()
-
-		// Redact sensitive values if the value isn't empty, the UI config is disabled, and redactSensitiveValues is true
-		if value != "" && common.EnvConfig.UiConfigDisabled && redactSensitiveValues && field.Tag.Get("sensitive") == "true" {
+		_, envOverride := envOverrides[key]
+		if envOverride && field.Tag.Get("sensitive") == "true" {
 			value = "XXXXXXXXXX"
 		}
 
 		res = append(res, AppConfigVariable{
-			Key:   key,
-			Value: value,
+			Key:         key,
+			Value:       value,
+			EnvOverride: envOverride,
 		})
 	}
 

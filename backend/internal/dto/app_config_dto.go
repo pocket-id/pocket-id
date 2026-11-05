@@ -10,7 +10,8 @@ type PublicAppConfigVariableDto struct {
 
 type AppConfigVariableDto struct {
 	PublicAppConfigVariableDto
-	IsPublic bool `json:"isPublic"`
+	IsPublic    bool `json:"isPublic"`
+	EnvOverride bool `json:"envOverride"`
 }
 
 type AppConfigUpdateDto struct {

@@ -1,5 +1,6 @@
 <script lang="ts">
 	import { openConfirmDialog } from '#lib/components/confirm-dialog/index.ts';
+	import EnvOverrideLock from '#lib/components/env-override-lock.svelte';
 	import FormInput from '#lib/components/form/form-input.svelte';
 	import SettingRow from '#lib/components/setting-row.svelte';
 	import SettingsSection from '#lib/components/settings-section.svelte';
@@ -25,9 +26,11 @@
 
 	let {
 		callback,
-		appConfig
+		appConfig,
+		envOverrides
 	}: {
 		appConfig: AllAppConfig;
+		envOverrides: Set<keyof AllAppConfig>;
 		callback: (appConfig: Partial<AllAppConfig>) => Promise<void>;
 	} = $props();
 
@@ -219,7 +222,9 @@
 					<Button
 						size="sm"
 						variant="ghost"
-						disabled={$appConfigStore.uiConfigDisabled || syncing}
+						disabled={$appConfigStore.uiConfigDisabled ||
+							envOverrides.has('ldapEnabled') ||
+							syncing}
 						onclick={onDisable}
 					>
 						{m.config_disable_ldap()}
@@ -228,11 +233,14 @@
 					<Button
 						size="sm"
 						variant="secondary"
-						disabled={$appConfigStore.uiConfigDisabled}
+						disabled={$appConfigStore.uiConfigDisabled || envOverrides.has('ldapEnabled')}
 						onclick={onEnable}
 					>
 						{m.config_enable_ldap()}
 					</Button>
+				{/if}
+				{#if envOverrides.has('ldapEnabled')}
+					<EnvOverrideLock />
 				{/if}
 			</div>
 		</div>
@@ -246,12 +254,14 @@
 					inputClass="font-mono"
 					label={m.config_server_url()}
 					placeholder="ldaps://ldap.example.com:636"
+					envOverride={envOverrides.has('ldapUrl')}
 					bind:input={$inputs.ldapUrl}
 				/>
 				<FormInput
 					inputClass="font-mono"
 					label={m.config_bind_dn()}
 					placeholder="cn=pocketid,ou=services,dc=example,dc=com"
+					envOverride={envOverrides.has('ldapBindDn')}
 					bind:input={$inputs.ldapBindDn}
 				/>
 				<FormInput
@@ -259,12 +269,14 @@
 					inputClass="font-mono"
 					label={m.config_bind_password()}
 					type="password"
+					envOverride={envOverrides.has('ldapBindPassword')}
 					bind:input={$inputs.ldapBindPassword}
 				/>
 				<FormInput
 					inputClass="font-mono"
 					label={m.config_base_dn()}
 					placeholder="dc=example,dc=com"
+					envOverride={envOverrides.has('ldapBase')}
 					bind:input={$inputs.ldapBase}
 				/>
 			</div>
@@ -272,6 +284,7 @@
 				title={m.skip_certificate_verification()}
 				description={m.config_self_signed_only()}
 				icon={ShieldOffIcon}
+				envOverride={envOverrides.has('ldapSkipCertVerify')}
 			>
 				{#snippet control(props)}
 					<Switch {...props} bind:checked={$inputs.ldapSkipCertVerify.value} />
@@ -285,12 +298,14 @@
 					inputClass="font-mono"
 					label={m.config_user_search_filter()}
 					placeholder="(objectClass=person)"
+					envOverride={envOverrides.has('ldapUserSearchFilter')}
 					bind:input={$inputs.ldapUserSearchFilter}
 				/>
 				<FormInput
 					inputClass="font-mono"
 					label={m.config_group_search_filter()}
 					placeholder="(objectClass=groupOfNames)"
+					envOverride={envOverrides.has('ldapUserGroupSearchFilter')}
 					bind:input={$inputs.ldapUserGroupSearchFilter}
 				/>
 			</div>
@@ -298,6 +313,7 @@
 				title={m.config_keep_removed_ldap_users()}
 				description={m.config_keep_removed_ldap_users_description()}
 				icon={UserXIcon}
+				envOverride={envOverrides.has('ldapSoftDeleteUsers')}
 			>
 				{#snippet control(props)}
 					<Switch {...props} bind:checked={$inputs.ldapSoftDeleteUsers.value} />
@@ -324,6 +340,7 @@
 				<tbody class="max-sm:block">
 					{#each mapping as row (row.key)}
 						{@const input = $inputs[row.key]!}
+						{@const envOverride = envOverrides.has(row.key)}
 						<tr
 							class="shadow-[inset_0_-1px_0_var(--border)] last:shadow-none max-sm:flex max-sm:flex-col max-sm:gap-1.5 max-sm:p-3"
 						>
@@ -331,7 +348,12 @@
 								scope="row"
 								class="py-1.5 pe-3 text-start font-normal max-sm:p-0 max-sm:font-medium"
 							>
-								<label for="ldap-map-{row.key}">{row.label}</label>
+								<span class="inline-flex items-center gap-1">
+									<label for="ldap-map-{row.key}">{row.label}</label>
+									{#if envOverride}
+										<EnvOverrideLock />
+									{/if}
+								</span>
 							</th>
 							<td class="py-1.5 pe-3 max-sm:p-0">
 								<Input
@@ -342,6 +364,7 @@
 									aria-describedby={input.error || row.note
 										? `ldap-map-${row.key}-note`
 										: undefined}
+									disabled={envOverride}
 									bind:value={
 										() => input.value as string | undefined,
 										(value) => {

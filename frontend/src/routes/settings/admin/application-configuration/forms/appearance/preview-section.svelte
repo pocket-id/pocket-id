@@ -13,12 +13,15 @@
 		title,
 		stageClass,
 		class: className,
+		disabled = false,
 		children,
 		preview
 	}: {
 		title: string;
 		stageClass?: string;
 		class?: string;
+		// Disables the controls but not the preview, whose sample controls would look disabled too
+		disabled?: boolean;
 		children: Snippet;
 		// Without one the section is a column of controls beside a preview its parent places
 		preview?: Snippet;
@@ -37,7 +40,9 @@
 >
 	<div class="flex min-w-0 flex-col gap-7">
 		<h2 id={headingId} class="text-title text-fg">{title}</h2>
-		{@render children()}
+		<fieldset class="contents" {disabled}>
+			{@render children()}
+		</fieldset>
 	</div>
 
 	{#if preview}

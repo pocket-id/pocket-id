@@ -16,9 +16,11 @@
 
 	let {
 		callback,
-		appConfig
+		appConfig,
+		envOverrides
 	}: {
 		appConfig: AllAppConfig;
+		envOverrides: Set<keyof AllAppConfig>;
 		callback: (appConfig: Partial<AllAppConfig>) => Promise<void>;
 	} = $props();
 
@@ -49,11 +51,17 @@
 <fieldset class="flex min-w-0 flex-col gap-10" disabled={$appConfigStore.uiConfigDisabled}>
 	<SettingsSection title={m.application()}>
 		<div class="flex flex-col gap-4 py-4 shadow-[inset_0_-1px_0_var(--border)]">
-			<FormInput class="max-w-[400px]" label={m.application_name()} bind:input={$inputs.appName} />
+			<FormInput
+				class="max-w-[400px]"
+				label={m.application_name()}
+				envOverride={envOverrides.has('appName')}
+				bind:input={$inputs.appName}
+			/>
 			<div class="max-w-[400px]">
 				<DurationInput
 					id="session-duration"
 					label={m.session_duration()}
+					envOverride={envOverrides.has('sessionDuration')}
 					bind:input={$inputs.sessionDuration}
 				/>
 			</div>
@@ -62,6 +70,7 @@
 			title={m.app_config_home_page()}
 			description={m.config_home_page_description()}
 			icon={HouseIcon}
+			envOverride={envOverrides.has('homePageUrl')}
 		>
 			{#snippet control(props)}
 				<OptionSelect
@@ -76,6 +85,7 @@
 			title={m.config_self_account_editing()}
 			description={m.config_self_account_editing_description()}
 			icon={UserPenIcon}
+			envOverride={envOverrides.has('allowOwnAccountEdit')}
 		>
 			{#snippet control(props)}
 				<Switch {...props} bind:checked={$inputs.allowOwnAccountEdit.value} />

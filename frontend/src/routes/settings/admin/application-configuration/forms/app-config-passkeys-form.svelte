@@ -15,9 +15,11 @@
 
 	let {
 		callback,
-		appConfig
+		appConfig,
+		envOverrides
 	}: {
 		appConfig: AllAppConfig;
+		envOverrides: Set<keyof AllAppConfig>;
 		callback: (appConfig: Partial<AllAppConfig>) => Promise<void>;
 	} = $props();
 
@@ -73,6 +75,7 @@
 			title={m.user_verification()}
 			description={m.config_user_verification_description()}
 			icon={FingerprintIcon}
+			envOverride={envOverrides.has('webauthnUserVerification')}
 		>
 			{#snippet control(props)}
 				<OptionSelect
@@ -87,12 +90,17 @@
 			title={m.allow_synced_passkeys()}
 			description={m.config_allow_synced_passkeys_description()}
 			icon={RefreshCwIcon}
+			envOverride={envOverrides.has('webauthnAllowSyncedPasskeys')}
 		>
 			{#snippet control(props)}
 				<Switch {...props} bind:checked={$inputs.webauthnAllowSyncedPasskeys.value} />
 			{/snippet}
 		</SettingRow>
-		<SettingRow title={m.allowed_authenticator_type()} icon={KeyRoundIcon}>
+		<SettingRow
+			title={m.allowed_authenticator_type()}
+			icon={KeyRoundIcon}
+			envOverride={envOverrides.has('webauthnAuthenticatorAttachment')}
+		>
 			{#snippet control(props)}
 				<OptionSelect
 					{...props}

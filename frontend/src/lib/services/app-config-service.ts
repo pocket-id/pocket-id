@@ -22,6 +22,15 @@ export default class AppConfigService extends APIService {
 		return parseConfigList(data);
 	};
 
+	// The keys an environment variable sets are read-only in the UI
+	listWithEnvOverrides = async () => {
+		const { data } = await this.api.get<AppConfigRawResponse>('/application-configuration/all');
+		const envOverrides = new Set(
+			data.filter((v) => v.envOverride).map((v) => v.key as keyof AllAppConfig)
+		);
+		return { appConfig: parseConfigList(data), envOverrides };
+	};
+
 	update = async (appConfig: AllAppConfig) => {
 		// Convert all values to string, stringifying JSON where needed
 		const appConfigConvertedToString: Record<string, string> = {};
