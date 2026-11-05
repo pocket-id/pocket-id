@@ -888,7 +888,6 @@
 	"auth_continue_with_passkey": "Continue with passkey",
 	"auth_not_registered_by_admin": "Not registered by your administrator",
 	"auth_not_registered_by_admin_description": "It describes itself at {host}. Continue only if you trust that site.",
-	"auth_registered_by_admin": "Registered by your administrator",
 	"auth_could_not_sign_you_in": "We couldn’t sign you in",
 	"auth_missing_interaction": "This sign-in link is incomplete. Start again from the app.",
 	"auth_connect_a_device": "Connect a device",
