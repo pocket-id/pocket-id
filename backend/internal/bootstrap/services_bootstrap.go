@@ -101,7 +101,7 @@ func initServices(
 	}
 
 	// Select the location provider once so all consumers use the configured implementation
-	svc.ipLocator, svc.geoLiteModule, err = initIPLocationResolver(ctx, httpClient, &common.EnvConfig)
+	svc.ipLocator, svc.geoLiteModule, err = initIPLocationResolver(ctx, &common.EnvConfig)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create IP location resolver: %w", err)
 	}
@@ -314,14 +314,15 @@ func initServices(
 	return svc, nil
 }
 
-func initIPLocationResolver(ctx context.Context, httpClient *http.Client, config *common.EnvConfigSchema) (iplocation.Resolver, *geolite.Module, error) {
+func initIPLocationResolver(ctx context.Context, config *common.EnvConfigSchema) (iplocation.Resolver, *geolite.Module, error) {
 	// Cloudflare locations need no database initialization or background refresh
 	if config.CloudflareLocationHeaders {
 		return iplocation.NewCloudflareResolver(), nil, nil
 	}
 
 	module, err := geolite.New(ctx, geolite.Dependencies{
-		HTTPClient:  httpClient,
+		// The shared client is instrumented with OpenTelemetry, which would record the license key in the url.full span attribute
+		HTTPClient:  &http.Client{},
 		DBPath:      config.GeoLiteDBPath,
 		DownloadURL: config.GeoLiteDBUrl,
 		LicenseKey:  config.MaxMindLicenseKey,

@@ -40,7 +40,7 @@ func TestCloudflareLocationMiddlewareOnlyWhenEnabled(t *testing.T) {
 		}
 		t.Run(name, func(t *testing.T) {
 			common.EnvConfig.CloudflareLocationHeaders = enabled
-			locator, geoLiteModule, err := initIPLocationResolver(t.Context(), nil, &common.EnvConfigSchema{
+			locator, geoLiteModule, err := initIPLocationResolver(t.Context(), &common.EnvConfigSchema{
 				GeoLiteDBPath:             filepath.Join(t.TempDir(), "missing.mmdb"),
 				CloudflareLocationHeaders: enabled,
 			})
