@@ -232,7 +232,7 @@
 	"name_z_to_a": "Name Z–A",
 	"search_apps": "Search apps…",
 	"revoke_access_description": "{#b}{clientName}{/b} can no longer read your account details until you sign in to it again.",
-	"invalid_client_id": "Client ID can only contain letters, numbers, underscores, and hyphens",
+	"invalid_client_id": "Client ID can only contain visible ASCII characters and must not start with ~ or https://",
 	"generated": "Generated",
 	"administration": "Administration",
 	"display_name": "Display name",

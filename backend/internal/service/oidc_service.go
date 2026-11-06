@@ -414,11 +414,11 @@ func (s *OidcService) DeleteClient(ctx context.Context, clientID string) error {
 	// Delete images if present
 	// Note that storage operations must be done outside of a transaction
 	if client.ImageType != nil && *client.ImageType != "" {
-		old := oidcClientImagePath(client.ID, "", *client.ImageType)
+		old := OidcClientImagePath(client.ID, "", *client.ImageType)
 		_ = s.fileStorage.Delete(ctx, old)
 	}
 	if client.DarkImageType != nil && *client.DarkImageType != "" {
-		old := oidcClientImagePath(client.ID, "-dark", *client.DarkImageType)
+		old := OidcClientImagePath(client.ID, "-dark", *client.DarkImageType)
 		_ = s.fileStorage.Delete(ctx, old)
 	}
 
@@ -576,7 +576,7 @@ func (s *OidcService) GetClientLogo(ctx context.Context, clientID string, light 
 	if mimeType == "" {
 		return nil, 0, "", fmt.Errorf("unsupported image type '%s'", ext)
 	}
-	key := oidcClientImagePath(client.ID, suffix, ext)
+	key := OidcClientImagePath(client.ID, suffix, ext)
 	reader, size, err := s.fileStorage.Open(ctx, key)
 	if err != nil {
 		if storage.IsNotExist(err) {
@@ -599,7 +599,7 @@ func (s *OidcService) UpdateClientLogo(ctx context.Context, clientID string, fil
 		darkSuffix = "-dark"
 	}
 
-	imagePath := oidcClientImagePath(clientID, darkSuffix, fileType)
+	imagePath := OidcClientImagePath(clientID, darkSuffix, fileType)
 	reader, err := file.Open()
 	if err != nil {
 		return err
@@ -680,7 +680,7 @@ func (s *OidcService) deleteClientLogoInternal(ctx context.Context, clientID str
 	}
 
 	// All storage operations must be performed outside of a database transaction
-	imagePath := oidcClientImagePath(client.ID, imagePathSuffix, oldImageType)
+	imagePath := OidcClientImagePath(client.ID, imagePathSuffix, oldImageType)
 	err = s.fileStorage.Delete(ctx, imagePath)
 	if err != nil {
 		return err
@@ -1066,7 +1066,7 @@ func (s *OidcService) downloadAndSaveLogoFromURL(parentCtx context.Context, clie
 		return apperror.LogoDownloadFailed(err)
 	}
 
-	imagePath := oidcClientImagePath(clientID, darkSuffix, ext)
+	imagePath := OidcClientImagePath(clientID, darkSuffix, ext)
 	err = s.fileStorage.Save(ctx, imagePath, strippedReader)
 	if errors.Is(err, utils.ErrSizeExceeded) {
 		return apperror.LogoTooLarge("2 MB")
@@ -1131,17 +1131,15 @@ func (s *OidcService) updateClientLogoType(ctx context.Context, clientID string,
 
 	// Storage operations must be executed outside of a transaction
 	if currentType != nil && *currentType != ext {
-		old := oidcClientImagePath(client.ID, darkSuffix, *currentType)
+		old := OidcClientImagePath(client.ID, darkSuffix, *currentType)
 		_ = s.fileStorage.Delete(ctx, old)
 	}
 
 	return nil
 }
 
-func oidcClientImagePath(clientID string, suffix string, extension string) string {
-	storageID := clientID
-	if !dto.ValidateClientID(clientID) {
-		storageID = "cimd-" + utils.CreateSha256Hash(clientID)
-	}
-	return path.Join("oidc-client-images", storageID+suffix+"."+extension)
+// OidcClientImagePath returns the storage path of a client logo
+// The client ID is hashed because it may contain characters that are unsafe in file names
+func OidcClientImagePath(clientID string, suffix string, extension string) string {
+	return path.Join("oidc-client-images", utils.CreateSha256Hash(clientID)+suffix+"."+extension)
 }

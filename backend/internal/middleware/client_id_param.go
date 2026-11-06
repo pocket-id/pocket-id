@@ -8,13 +8,13 @@ import (
 )
 
 // clientIDParamPrefix marks a path parameter whose value is a base64url-encoded
-// client ID. CIMD client IDs are full https URLs, so they contain slashes and
-// colons that cannot be carried in a single path segment. The frontend encodes
-// such IDs as "~<base64url>"; this middleware decodes them back before
-// handlers read c.Param.
+// client ID. Client IDs may contain slashes and other characters that cannot be
+// carried in a single path segment, e.g. CIMD client IDs are full https URLs. The
+// frontend encodes such IDs as "~<base64url>"; this middleware decodes them back
+// before handlers read c.Param.
 //
 // The prefix "~" is unreserved in RFC 3986 (so proxies leave it intact) and never
-// appears in raw pocket-id client IDs ([a-zA-Z0-9._-]+) or user UUIDs, making the
+// starts a client ID (dto.ValidateClientID rejects it) or a user UUID, making the
 // encoding unambiguous and backward compatible: unprefixed params pass through
 // untouched, so external API consumers using plain client IDs are unaffected.
 const clientIDParamPrefix = "~"

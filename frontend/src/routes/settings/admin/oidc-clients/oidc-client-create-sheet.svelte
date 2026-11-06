@@ -35,7 +35,7 @@
 				.string()
 				.min(2)
 				.max(128)
-				.regex(/^[a-zA-Z0-9_-]+$/, { message: m.invalid_client_id() })
+				.regex(/^(?!~|https:\/\/)[!-~]+$/i, { message: m.invalid_client_id() })
 		)
 	});
 

@@ -140,11 +140,14 @@ func TestValidateClientID(t *testing.T) {
 		{"valid with underscore", "client_id", true},
 		{"valid with hyphen", "client-id", true},
 		{"valid with all", "client.id-123_abc", true},
+		{"valid DID", "did:web:example.com", true},
+		{"valid non-https URI", "api://client/id", true},
 		{"contains space", "client id", false},
-		{"contains at", "client@id", false},
+		{"contains non-ASCII", "clïent", false},
 		{"empty", "", false},
-		{"only special chars", "-._", true},
-		{"invalid char", "client!id", false},
+		{"leading tilde", "~client", false},
+		{"https URL", "https://example.com/client", false},
+		{"uppercase https URL", "HTTPS://example.com/client", false},
 	}
 
 	for _, tt := range tests {

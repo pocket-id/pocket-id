@@ -82,6 +82,11 @@ func Bootstrap(ctx context.Context) error {
 		return fmt.Errorf("failed to initialize application assets: %w", err)
 	}
 
+	err = moveLegacyOidcClientImages(ctx, db, fileStorage)
+	if err != nil {
+		return fmt.Errorf("failed to move OIDC client logos: %w", err)
+	}
+
 	// Init built-in claim policy mapping
 	err = claimmappingpolicy.Bootstrap(ctx, db)
 	if err != nil {

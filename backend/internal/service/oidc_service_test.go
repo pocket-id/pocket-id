@@ -141,7 +141,7 @@ func TestOidcService_updateClientLogoType(t *testing.T) {
 
 	t.Run("Updates light logo type and deletes old file when type changes", func(t *testing.T) {
 		// Create the old PNG file in storage
-		oldPath := "oidc-client-images/" + client.ID + ".png"
+		oldPath := OidcClientImagePath(client.ID, "", "png")
 		createDummyFile(t, oldPath)
 		require.True(t, fileExists(t, oldPath), "Old file should exist before update")
 
@@ -162,7 +162,7 @@ func TestOidcService_updateClientLogoType(t *testing.T) {
 
 	t.Run("Updates dark logo type and deletes old file when type changes", func(t *testing.T) {
 		// Create the old JPG dark file in storage
-		oldPath := "oidc-client-images/" + client.ID + "-dark.jpg"
+		oldPath := OidcClientImagePath(client.ID, "-dark", "jpg")
 		createDummyFile(t, oldPath)
 		require.True(t, fileExists(t, oldPath), "Old dark file should exist before update")
 
@@ -183,7 +183,7 @@ func TestOidcService_updateClientLogoType(t *testing.T) {
 
 	t.Run("Does not delete file when type remains the same", func(t *testing.T) {
 		// Create the WEBP file in storage
-		webpPath := "oidc-client-images/" + client.ID + ".webp"
+		webpPath := OidcClientImagePath(client.ID, "", "webp")
 		createDummyFile(t, webpPath)
 		require.True(t, fileExists(t, webpPath), "WEBP file should exist before update")
 
@@ -207,18 +207,6 @@ func TestOidcService_updateClientLogoType(t *testing.T) {
 		require.Error(t, err)
 		require.True(t, apperror.IsCode(err, apperror.CodeNotFound))
 	})
-}
-
-func TestOidcClientImagePath(t *testing.T) {
-	const metadataClientID = "https://app.example.com/oauth/client"
-
-	assert.Equal(t, "oidc-client-images/client-id.png", oidcClientImagePath("client-id", "", "png"))
-	assert.Equal(
-		t,
-		"oidc-client-images/cimd-"+utils.CreateSha256Hash(metadataClientID)+"-dark.webp",
-		oidcClientImagePath(metadataClientID, "-dark", "webp"),
-	)
-	assert.NotContains(t, oidcClientImagePath(metadataClientID, "", "png"), "app.example.com")
 }
 
 func TestOidcService_downloadAndSaveLogoFromURL(t *testing.T) {
@@ -289,7 +277,7 @@ func TestOidcService_downloadAndSaveLogoFromURL(t *testing.T) {
 		require.NoError(t, err)
 
 		// Verify the file was saved
-		logoPath := "oidc-client-images/" + client.ID + ".png"
+		logoPath := OidcClientImagePath(client.ID, "", "png")
 		require.True(t, fileExists(t, logoPath), "Logo file should exist in storage")
 
 		// Verify the content
@@ -333,7 +321,7 @@ func TestOidcService_downloadAndSaveLogoFromURL(t *testing.T) {
 		require.NoError(t, err)
 
 		// Verify the dark logo file was saved
-		darkLogoPath := "oidc-client-images/" + client.ID + "-dark.webp"
+		darkLogoPath := OidcClientImagePath(client.ID, "-dark", "webp")
 		require.True(t, fileExists(t, darkLogoPath), "Dark logo file should exist in storage")
 
 		// Verify the content
@@ -371,7 +359,7 @@ func TestOidcService_downloadAndSaveLogoFromURL(t *testing.T) {
 		require.NoError(t, err)
 
 		// Verify SVG file was saved
-		logoPath := "oidc-client-images/" + client.ID + ".svg"
+		logoPath := OidcClientImagePath(client.ID, "", "svg")
 		require.True(t, fileExists(t, logoPath), "SVG logo should exist")
 	})
 
@@ -402,7 +390,7 @@ func TestOidcService_downloadAndSaveLogoFromURL(t *testing.T) {
 		require.NoError(t, err)
 
 		// Verify JPG file was saved (jpeg extension is normalized to jpg)
-		logoPath := "oidc-client-images/" + client.ID + ".jpg"
+		logoPath := OidcClientImagePath(client.ID, "", "jpg")
 		require.True(t, fileExists(t, logoPath), "JPG logo should exist")
 	})
 
@@ -443,7 +431,7 @@ func TestOidcService_downloadAndSaveLogoFromURL(t *testing.T) {
 		// The operator configured the library, so its loopback address is trusted
 		err = s.downloadAndSaveLogoFromURL(t.Context(), client.ID, iconLibraryURL+"/svg/nextcloud.svg", true)
 		require.NoError(t, err)
-		require.True(t, fileExists(t, "oidc-client-images/"+client.ID+".svg"))
+		require.True(t, fileExists(t, OidcClientImagePath(client.ID, "", "svg")))
 
 		// Other private hosts are still blocked, even when they resolve to the same address
 		err = s.downloadAndSaveLogoFromURL(t.Context(), client.ID, strings.Replace(server.URL, "127.0.0.1", "localhost", 1)+"/icons/svg/nextcloud.svg", true)
@@ -1284,10 +1272,10 @@ func TestOidcService_GetClientLogo(t *testing.T) {
 		require.NoError(t, db.Create(&client).Error)
 
 		if light {
-			require.NoError(t, dbStorage.Save(t.Context(), oidcClientImagePath(client.ID, "", "png"), strings.NewReader("light")))
+			require.NoError(t, dbStorage.Save(t.Context(), OidcClientImagePath(client.ID, "", "png"), strings.NewReader("light")))
 		}
 		if dark {
-			require.NoError(t, dbStorage.Save(t.Context(), oidcClientImagePath(client.ID, "-dark", "png"), strings.NewReader("dark")))
+			require.NoError(t, dbStorage.Save(t.Context(), OidcClientImagePath(client.ID, "-dark", "png"), strings.NewReader("dark")))
 		}
 		return client.ID
 	}
