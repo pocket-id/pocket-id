@@ -64,13 +64,15 @@ func (h *userInfoHandler) userInfo(c *gin.Context) {
 		return
 	}
 
-	claimsSource, err := h.claimsService.loadUserClaimsSource(ctx, session.GetSubject(), accessRequest.GetClient().GetID())
-	if err != nil {
-		// A token whose subject no longer resolves to a user is an authentication failure, not a missing resource
-		if errors.Is(err, errClaimsUserNotFound) {
-			writeUserInfoError(c, fosite.ErrRequestUnauthorized.WithDescription("The access token is invalid"))
-			return
-		}
+	// Disabling a user or removing them from the client's groups does not revoke the tokens already issued, so the user is re-checked like on the token endpoint
+	client, _ := accessRequest.GetClient().(Client)
+	claimsSource, err := h.claimsService.loadGrantClaimsSource(ctx, session.GetSubject(), client)
+	var rfcErr *fosite.RFC6749Error
+	if errors.As(err, &rfcErr) {
+		// A token whose user was deleted or lost access is an authentication failure, not a missing or forbidden resource
+		writeUserInfoError(c, fosite.ErrRequestUnauthorized.WithDescription("The access token is invalid").WithHint(rfcErr.HintField))
+		return
+	} else if err != nil {
 		_ = c.Error(err)
 		return
 	}

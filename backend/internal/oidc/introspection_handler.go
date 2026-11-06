@@ -2,6 +2,7 @@ package oidc
 
 import (
 	"context"
+	"errors"
 	"log/slog"
 	"net/url"
 	"strings"
@@ -13,13 +14,15 @@ import (
 type introspectionHandler struct {
 	provider      fosite.OAuth2Provider
 	authenticator *federatedClientAuthenticator
+	claimsService *ClaimsService
 	baseURL       string
 }
 
-func newIntrospectionHandler(provider fosite.OAuth2Provider, authenticator *federatedClientAuthenticator, baseURL string) *introspectionHandler {
+func newIntrospectionHandler(provider fosite.OAuth2Provider, authenticator *federatedClientAuthenticator, claimsService *ClaimsService, baseURL string) *introspectionHandler {
 	return &introspectionHandler{
 		provider:      provider,
 		authenticator: authenticator,
+		claimsService: claimsService,
 		baseURL:       baseURL,
 	}
 }
@@ -54,7 +57,7 @@ func (h *introspectionHandler) introspectToken(c *gin.Context) {
 		return
 	}
 
-	h.provider.WriteIntrospectionResponse(ctx, c.Writer, response)
+	h.writeUserCheckedResponse(ctx, c, response)
 }
 
 // tryFederatedClientAssertionIntrospection handles introspection requests authenticated
@@ -93,8 +96,26 @@ func (h *introspectionHandler) tryFederatedClientAssertionIntrospection(c *gin.C
 		return true
 	}
 
-	h.provider.WriteIntrospectionResponse(ctx, c.Writer, response)
+	h.writeUserCheckedResponse(ctx, c, response)
 	return true
+}
+
+// writeUserCheckedResponse writes the introspection response, reporting the token as inactive when its user may no longer use the client
+// Disabling a user or removing them from the client's groups does not revoke the tokens already issued, so resource servers learn about it only here
+func (h *introspectionHandler) writeUserCheckedResponse(ctx context.Context, c *gin.Context, response fosite.IntrospectionResponder) {
+	requester := response.GetAccessRequester()
+	client, _ := requester.GetClient().(Client)
+	_, err := h.claimsService.loadGrantClaimsSource(ctx, requester.GetSession().GetSubject(), client)
+	var rfcErr *fosite.RFC6749Error
+	if errors.As(err, &rfcErr) {
+		h.provider.WriteIntrospectionResponse(ctx, c.Writer, &fosite.IntrospectionResponse{Active: false})
+		return
+	} else if err != nil {
+		h.provider.WriteIntrospectionError(ctx, c.Writer, err)
+		return
+	}
+
+	h.provider.WriteIntrospectionResponse(ctx, c.Writer, response)
 }
 
 // callerClientID resolves the client that authenticated this introspection request.
