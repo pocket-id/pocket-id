@@ -61,6 +61,9 @@ test('Update user group members', async ({ page }) => {
 		})
 		.click();
 
+	await expect(
+		page.getByText(`${users.tim.displayName} removed from ${group.friendlyName}`, { exact: true })
+	).toBeVisible();
 	await page.reload();
 
 	const members = page.getByRole('tabpanel');
