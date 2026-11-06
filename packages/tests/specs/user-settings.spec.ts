@@ -284,6 +284,11 @@ test('Update user group assignments', async ({ page }) => {
 		})
 		.click();
 
+	await expect(
+		page.getByText(`${user.firstname} removed from ${userGroups.developers.friendlyName}`, {
+			exact: true
+		})
+	).toBeVisible();
 	await page.reload();
 
 	const groups = page.getByRole('tabpanel');
