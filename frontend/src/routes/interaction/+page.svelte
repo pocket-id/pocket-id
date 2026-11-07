@@ -6,8 +6,7 @@
 		alternativeSignInHref,
 		authPrimaryClass,
 		authQuietClass,
-		isPasskeyPromptClosed,
-		successHold
+		isPasskeyPromptClosed
 	} from '#lib/components/auth/auth-util.ts';
 	import AuthorizeTiles from '#lib/components/auth/authorize-tiles.svelte';
 	import TrustLine from '#lib/components/auth/trust-line.svelte';
@@ -130,9 +129,12 @@
 			redirectUrl = result.redirectUrl;
 			// The way forward becomes a link when the browser has not left after a few seconds
 			setTimeout(() => (showFallback = true), cssMs('--t-redirect-fallback'));
-			await successHold();
-			window.location.href = result.redirectUrl;
 		}
+	}
+
+	// The redirect waits for the tiles to settle, because a fast client would otherwise replace the check before it is seen
+	function redirect() {
+		setTimeout(() => (window.location.href = redirectUrl!), cssMs('--t-success-dwell'));
 	}
 </script>
 
@@ -141,7 +143,7 @@
 </svelte:head>
 
 <SignInWrapper wide={view === 'consent' && hasScopes}>
-	<AuthorizeTiles {client} success={!!redirectUrl} error={!!failure} />
+	<AuthorizeTiles {client} success={!!redirectUrl} error={!!failure} onsuccessshown={redirect} />
 
 	{#if view === 'success'}
 		<AuthHeading title={m.auth_signed_in()}>

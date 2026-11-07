@@ -14,11 +14,13 @@
 	const {
 		success,
 		error,
-		client
+		client,
+		onsuccessshown
 	}: {
 		success?: boolean;
 		error?: boolean;
 		client?: InteractionClient;
+		onsuccessshown?: () => void;
 	} = $props();
 
 	// The 56px tiles start this far apart, with the 100px arrow and 12px on each side of it
@@ -82,11 +84,17 @@
 		animated = animate;
 		result = outcome;
 		if (animate) {
-			resultTile?.animate(outcome === 'success' ? SQUASH : SHAKE, {
-				duration: outcome === 'success' ? 380 : 620,
-				easing: 'ease-out'
-			});
+			try {
+				await resultTile?.animate(outcome === 'success' ? SQUASH : SHAKE, {
+					duration: outcome === 'success' ? 380 : 620,
+					easing: 'ease-out'
+				}).finished;
+			} catch {
+				// A newer outcome cancelled the animation, so this one never counts as shown
+				return;
+			}
 		}
+		if (outcome === 'success') onsuccessshown?.();
 	}
 </script>
 

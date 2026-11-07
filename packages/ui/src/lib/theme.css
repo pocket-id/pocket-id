@@ -39,6 +39,7 @@
 	--press-scale: 0.98;
 	--pop-scale: 0.96;
 	--t-success-hold: 800ms;
+	--t-success-dwell: 300ms;
 	--t-redirect-fallback: 3000ms;
 	--t-dim-delay: 200ms;
 	--t-skeleton-delay: 150ms;
