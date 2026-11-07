@@ -154,7 +154,7 @@ func (s *Service) CreateToken(ctx context.Context, userID string, ttl time.Durat
 	return token, nil
 }
 
-func (s *Service) ExchangeToken(ctx context.Context, dbConfig *appconfig.AppConfigModel, token, deviceToken, ipAddress, userAgent, browserToken string) (model.User, model.LoginTokens, error) {
+func (s *Service) ExchangeToken(ctx context.Context, dbConfig *appconfig.AppConfigModel, token, deviceToken, ipAddress, userAgent, browserToken string, remember bool) (model.User, model.LoginTokens, error) {
 	token = utils.NormalizeUnambiguousString(token)
 
 	// Consume the token by invoking its actor: this atomically validates it and, if valid, deletes it.
@@ -184,7 +184,7 @@ func (s *Service) ExchangeToken(ctx context.Context, dbConfig *appconfig.AppConf
 	}
 
 	// The token has now been consumed. From this point on, if we hit an error we compensate by restoring the token (this is best-effort).
-	user, tokens, err := s.completeTokenExchange(ctx, dbConfig, consumeRes.State, ipAddress, userAgent, browserToken)
+	user, tokens, err := s.completeTokenExchange(ctx, dbConfig, consumeRes.State, ipAddress, userAgent, browserToken, remember)
 	if err != nil {
 		s.restoreToken(ctx, token, consumeRes.State)
 		return model.User{}, model.LoginTokens{}, err
@@ -194,7 +194,7 @@ func (s *Service) ExchangeToken(ctx context.Context, dbConfig *appconfig.AppConf
 }
 
 // completeTokenExchange performs the work that follows consuming a token: loading the user, validating it, and starting a session.
-func (s *Service) completeTokenExchange(ctx context.Context, dbConfig *appconfig.AppConfigModel, state TokenState, ipAddress, userAgent, browserToken string) (model.User, model.LoginTokens, error) {
+func (s *Service) completeTokenExchange(ctx context.Context, dbConfig *appconfig.AppConfigModel, state TokenState, ipAddress, userAgent, browserToken string, remember bool) (model.User, model.LoginTokens, error) {
 	var user model.User
 	err := s.db.
 		WithContext(ctx).
@@ -211,7 +211,7 @@ func (s *Service) completeTokenExchange(ctx context.Context, dbConfig *appconfig
 		return model.User{}, model.LoginTokens{}, apperror.UserDisabled()
 	}
 
-	sessionToken, err := s.sessions.Create(ctx, user.ID, authenticationMethodOneTimePassword, ipAddress, userAgent, dbConfig.SessionDuration.AsDurationMinutes())
+	sessionToken, err := s.sessions.Create(ctx, user.ID, authenticationMethodOneTimePassword, ipAddress, userAgent, dbConfig.SessionDuration.AsDurationMinutes(), remember)
 	if err != nil {
 		return model.User{}, model.LoginTokens{}, err
 	}

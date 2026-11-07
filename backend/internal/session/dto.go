@@ -47,7 +47,7 @@ func toSessionDtos(sessions []Session, currentSessionID string) []sessionDto {
 			Current:              session.ID == currentSessionID,
 			CreatedAt:            session.CreatedAt,
 			LastActiveAt:         session.LastActiveAt,
-			ExpiresAt:            session.ExpiresAt,
+			ExpiresAt:            session.endsAt(),
 		}
 	}
 	return dtos

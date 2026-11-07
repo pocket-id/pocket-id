@@ -109,7 +109,8 @@ func (h *handler) verifyLogin(c *gin.Context) error {
 	}
 
 	browserToken, _ := c.Cookie(cookie.KnownBrowserCookieName)
-	user, tokens, err := h.service.VerifyLogin(c.Request.Context(), dbConfig, sessionID, credentialAssertionData, c.ClientIP(), c.Request.UserAgent(), browserToken)
+	remember := cookie.RememberSignIn(c)
+	user, tokens, err := h.service.VerifyLogin(c.Request.Context(), dbConfig, sessionID, credentialAssertionData, c.ClientIP(), c.Request.UserAgent(), browserToken, remember)
 	if err != nil {
 		return err
 	}
@@ -119,8 +120,7 @@ func (h *handler) verifyLogin(c *gin.Context) error {
 		return err
 	}
 
-	maxAge := int(dbConfig.SessionDuration.AsDurationMinutes().Seconds())
-	cookie.AddSessionTokenCookie(c, maxAge, tokens.SessionToken)
+	cookie.AddSignInSessionTokenCookie(c, dbConfig.SessionDuration.AsDurationMinutes(), remember, tokens.SessionToken)
 	if tokens.KnownBrowserToken != "" {
 		cookie.AddKnownBrowserCookie(c, tokens.KnownBrowserToken, int(auditlogs.KnownBrowserLifetime.Seconds()))
 	}

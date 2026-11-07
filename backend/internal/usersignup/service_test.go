@@ -51,7 +51,7 @@ func (f *fakeEmailVerificationSender) Send(_ context.Context, _ *appconfig.AppCo
 
 type fakeSessionCreator struct{}
 
-func (fakeSessionCreator) Create(_ context.Context, _, _, _, _ string, _ time.Duration) (string, error) {
+func (fakeSessionCreator) Create(_ context.Context, _, _, _, _ string, _ time.Duration, _ bool) (string, error) {
 	return "session-token", nil
 }
 

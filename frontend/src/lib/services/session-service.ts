@@ -8,6 +8,10 @@ class SessionService extends APIService {
 		await this.api.delete(`/sessions/${id}`);
 	};
 
+	rememberCurrent = async () => {
+		await this.api.post('/sessions/current/remember');
+	};
+
 	revokeOthers = async () => {
 		await this.api.delete('/sessions');
 	};

@@ -33,11 +33,12 @@ func New(deps Dependencies) (*Module, error) {
 	return &Module{service: service, handler: &handler{service: service}}, nil
 }
 
-// RegisterRoutes mounts the endpoints to review and revoke the caller's own sessions and those of any user
+// RegisterRoutes mounts the endpoints to review, remember and revoke the caller's own sessions and those of any user
 func (m *Module) RegisterRoutes(r *authz.Router) {
 	r.GET("/sessions", authz.AccountSession, httpserver.Handle(m.handler.listOwn))
 	r.DELETE("/sessions", authz.AccountSession, httpserver.Handle(m.handler.revokeOtherOwn))
 	r.DELETE("/sessions/:id", authz.AccountSession, httpserver.Handle(m.handler.revokeOwn))
+	r.POST("/sessions/current/remember", authz.AccountSession, httpserver.Handle(m.handler.rememberCurrent))
 
 	r.GET("/users/:id/sessions", authz.UsersRead, httpserver.Handle(m.handler.listForUser))
 	r.DELETE("/users/:id/sessions", authz.UsersWrite, httpserver.Handle(m.handler.revokeAllForUser))
@@ -46,8 +47,8 @@ func (m *Module) RegisterRoutes(r *authz.Router) {
 
 // Create starts a session for the user and returns its token
 // It invokes an actor, so it must not be called while a database transaction is open
-func (m *Module) Create(ctx context.Context, userID, authenticationMethod, ipAddress, userAgent string, duration time.Duration) (string, error) {
-	return m.service.Create(ctx, userID, authenticationMethod, ipAddress, userAgent, duration)
+func (m *Module) Create(ctx context.Context, userID, authenticationMethod, ipAddress, userAgent string, duration time.Duration, remember bool) (string, error) {
+	return m.service.Create(ctx, userID, authenticationMethod, ipAddress, userAgent, duration, remember)
 }
 
 // Validate returns the ID of the user and the active session the token belongs to

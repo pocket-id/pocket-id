@@ -19,6 +19,7 @@
 	import { m } from '#lib/paraglide/messages.js';
 	import UserService from '#lib/services/user-service.ts';
 	import appConfigStore from '#lib/stores/application-configuration-store.ts';
+	import { keepSignedIn } from '#lib/stores/keep-signed-in-store.svelte.ts';
 	import userStore from '#lib/stores/user-store.js';
 	import { getAxiosErrorCode, getAxiosErrorMessage } from '#lib/utils/error-util.ts';
 	import { preventDefault } from '#lib/utils/event-util.ts';
@@ -60,6 +61,7 @@
 		error = undefined;
 		try {
 			const user = await userService.exchangeOneTimeAccessToken(token);
+			await keepSignedIn.ask();
 			await userStore.setUser(user);
 			success = true;
 			await successHold();

@@ -2,6 +2,7 @@ package session
 
 import (
 	"net/http"
+	"time"
 
 	"github.com/gin-gonic/gin"
 
@@ -64,6 +65,26 @@ func (h *handler) revokeOtherOwn(c *gin.Context) error {
 		return err
 	}
 
+	c.Status(http.StatusNoContent)
+	return nil
+}
+
+// rememberCurrent godoc
+// @Summary Remember current session
+// @Description Keep the current session signed in after the browser closes and while it goes unused, for a sign-in that was not remembered
+// @Tags Sessions
+// @Success 204 "No Content"
+// @Router /api/sessions/current/remember [post]
+func (h *handler) rememberCurrent(c *gin.Context) error {
+	principal := authz.PrincipalFrom(c)
+	session, err := h.service.Remember(c.Request.Context(), principal.UserID, principal.SessionID)
+	if err != nil {
+		return err
+	}
+
+	// The cookie of a sign-in that was not remembered ends with the browser, so it is set again with the session's lifetime
+	token, _ := c.Cookie(cookie.SessionTokenCookieName)
+	cookie.AddSessionTokenCookie(c, int(time.Until(session.ExpiresAt).Seconds()), token)
 	c.Status(http.StatusNoContent)
 	return nil
 }

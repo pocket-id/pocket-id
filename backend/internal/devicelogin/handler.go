@@ -62,6 +62,7 @@ func (h *handler) createRequest(c *gin.Context) error {
 // @Tags Device Login
 // @Produce json
 // @Param id path string true "Device login request ID"
+// @Param remember query bool false "Set to false for a session that ends when the browser closes or after 20 minutes without activity" default(true)
 // @Success 200 {object} dto.UserDto "Approved request exchanged for a user session"
 // @Success 202 "Authorization pending"
 // @Router /api/device-login/requests/{id}/exchange [post]
@@ -75,7 +76,8 @@ func (h *handler) exchangeRequest(c *gin.Context) error {
 	deviceToken, _ := c.Cookie(cookie.DeviceLoginTokenCookieName)
 	sessionDuration := dbConfig.SessionDuration.AsDurationMinutes()
 	browserToken, _ := c.Cookie(cookie.KnownBrowserCookieName)
-	user, tokens, status, err := h.service.Exchange(c.Request.Context(), requestID, deviceToken, c.ClientIP(), c.Request.UserAgent(), browserToken, sessionDuration, dbConfig.EmailLoginNotificationMode)
+	remember := cookie.RememberSignIn(c)
+	user, tokens, status, err := h.service.Exchange(c.Request.Context(), requestID, deviceToken, c.ClientIP(), c.Request.UserAgent(), browserToken, sessionDuration, remember, dbConfig.EmailLoginNotificationMode)
 	if err != nil {
 		if c.Request.Context().Err() != nil {
 			// Context canceled = the client stopped the request
@@ -90,8 +92,7 @@ func (h *handler) exchangeRequest(c *gin.Context) error {
 		return nil
 	}
 
-	maxAge := int(sessionDuration.Seconds())
-	cookie.AddSessionTokenCookie(c, maxAge, tokens.SessionToken)
+	cookie.AddSignInSessionTokenCookie(c, sessionDuration, remember, tokens.SessionToken)
 	if tokens.KnownBrowserToken != "" {
 		cookie.AddKnownBrowserCookie(c, tokens.KnownBrowserToken, int(auditlogs.KnownBrowserLifetime.Seconds()))
 	}

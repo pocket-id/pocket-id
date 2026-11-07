@@ -133,6 +133,7 @@ func (h *handler) requestEmailAsAdmin(c *gin.Context) error {
 // @Description Exchange a one-time access token for a session token
 // @Tags Users
 // @Param token path string true "One-time access token"
+// @Param remember query bool false "Set to false for a session that ends when the browser closes or after 20 minutes without activity" default(true)
 // @Success 200 {object} dto.UserDto
 // @Router /api/one-time-access-token/{token} [post]
 func (h *handler) exchangeToken(c *gin.Context) error {
@@ -149,7 +150,8 @@ func (h *handler) exchangeToken(c *gin.Context) error {
 
 	deviceToken, _ := c.Cookie(cookie.DeviceTokenCookieName)
 	browserToken, _ := c.Cookie(cookie.KnownBrowserCookieName)
-	user, tokens, err := h.service.ExchangeToken(c.Request.Context(), cfg, loginCode, deviceToken, c.ClientIP(), c.Request.UserAgent(), browserToken)
+	remember := cookie.RememberSignIn(c)
+	user, tokens, err := h.service.ExchangeToken(c.Request.Context(), cfg, loginCode, deviceToken, c.ClientIP(), c.Request.UserAgent(), browserToken, remember)
 	if err != nil {
 		return err
 	}
@@ -160,8 +162,7 @@ func (h *handler) exchangeToken(c *gin.Context) error {
 		return err
 	}
 
-	maxAge := int(cfg.SessionDuration.AsDurationMinutes().Seconds())
-	cookie.AddSessionTokenCookie(c, maxAge, tokens.SessionToken)
+	cookie.AddSignInSessionTokenCookie(c, cfg.SessionDuration.AsDurationMinutes(), remember, tokens.SessionToken)
 	if tokens.KnownBrowserToken != "" {
 		cookie.AddKnownBrowserCookie(c, tokens.KnownBrowserToken, int(auditlogs.KnownBrowserLifetime.Seconds()))
 	}

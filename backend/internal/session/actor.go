@@ -29,6 +29,7 @@ const (
 	methodTouch     = "touch"
 	methodRevoke    = "revoke"
 	methodRevokeAll = "revokeAll"
+	methodRemember  = "remember"
 )
 
 // Session is a browser in which a user is signed in to Pocket ID
@@ -44,6 +45,17 @@ type Session struct {
 	CreatedAt            time.Time
 	LastActiveAt         time.Time
 	ExpiresAt            time.Time
+	// IdleTimeout ends the session once it has gone unused for this long, and is zero for a session that lasts until ExpiresAt
+	IdleTimeout time.Duration
+}
+
+// endsAt is when the session stops being valid, which comes before ExpiresAt once a session with an idle timeout goes unused
+func (s Session) endsAt() time.Time {
+	idleEnd := s.LastActiveAt.Add(s.IdleTimeout)
+	if s.IdleTimeout == 0 || s.ExpiresAt.Before(idleEnd) {
+		return s.ExpiresAt
+	}
+	return idleEnd
 }
 
 type actorState struct {
@@ -111,6 +123,12 @@ func (a *sessionsActor) Invoke(ctx context.Context, method string, data actor.En
 			return nil, err
 		}
 		return nil, a.revokeAll(ctx, req.ExceptSessionID)
+	case methodRemember:
+		var req sessionRequest
+		if err := decode(data, method, &req); err != nil {
+			return nil, err
+		}
+		return a.remember(ctx, req.SessionID)
 	default:
 		return nil, common.ErrUnsupportedActorMethod{Method: method}
 	}
@@ -150,7 +168,7 @@ func (a *sessionsActor) validate(ctx context.Context, req validateRequest) (vali
 	}
 
 	session, ok := state.Sessions[req.SessionID]
-	if !ok || !session.ExpiresAt.After(time.Now()) {
+	if !ok || !session.endsAt().After(time.Now()) {
 		return validateResponse{}, nil
 	}
 	if subtle.ConstantTimeCompare([]byte(session.TokenHash), []byte(req.TokenHash)) != 1 {
@@ -169,7 +187,7 @@ func (a *sessionsActor) list(ctx context.Context) ([]Session, error) {
 	now := time.Now()
 	sessions := make([]Session, 0, len(state.Sessions))
 	for _, session := range state.Sessions {
-		if session.ExpiresAt.After(now) {
+		if session.endsAt().After(now) {
 			sessions = append(sessions, session)
 		}
 	}
@@ -219,6 +237,24 @@ func (a *sessionsActor) revokeAll(ctx context.Context, exceptSessionID string) e
 	return a.save(ctx, state)
 }
 
+// remember drops the idle timeout of a session, so it lasts until it expires
+// It returns the zero Session when the session does not exist
+func (a *sessionsActor) remember(ctx context.Context, sessionID string) (Session, error) {
+	state, err := a.loadForWrite(ctx)
+	if err != nil {
+		return Session{}, err
+	}
+
+	session, ok := state.Sessions[sessionID]
+	if !ok {
+		return Session{}, nil
+	}
+
+	session.IdleTimeout = 0
+	state.Sessions[sessionID] = session
+	return session, a.save(ctx, state)
+}
+
 // loadForWrite returns a copy of the state that can be modified without touching the client's state cache, which must keep the old state if saving fails
 func (a *sessionsActor) loadForWrite(ctx context.Context) (actorState, error) {
 	state, err := a.client.GetState(ctx)
@@ -231,16 +267,16 @@ func (a *sessionsActor) loadForWrite(ctx context.Context) (actorState, error) {
 	return actorState{Sessions: sessions}, nil
 }
 
-// save drops expired sessions and persists the rest until the last of them expires
+// save drops ended sessions and persists the rest until the last of them ends
 func (a *sessionsActor) save(ctx context.Context, state actorState) error {
 	now := time.Now()
 	var lastExpiry time.Time
 	maps.DeleteFunc(state.Sessions, func(_ string, session Session) bool {
-		return !session.ExpiresAt.After(now)
+		return !session.endsAt().After(now)
 	})
 	for _, session := range state.Sessions {
-		if session.ExpiresAt.After(lastExpiry) {
-			lastExpiry = session.ExpiresAt
+		if session.endsAt().After(lastExpiry) {
+			lastExpiry = session.endsAt()
 		}
 	}
 

@@ -7,9 +7,11 @@
 
 <script lang="ts">
 	import { beforeNavigate, onNavigate } from '$app/navigation';
+	import StaySignedInStep from '#lib/components/auth/stay-signed-in-step.svelte';
 	import { Button } from '@pocket-id/ui/button';
 	import { m } from '#lib/paraglide/messages.js';
 	import { appReveal } from '#lib/stores/app-reveal-store.svelte.ts';
+	import { keepSignedIn } from '#lib/stores/keep-signed-in-store.svelte.ts';
 	import { cachedBackgroundImage } from '#lib/utils/cached-asset-util.ts';
 	import { cn } from '@pocket-id/ui/utils';
 	import { cssMs, cssVar } from '#lib/utils/style.ts';
@@ -20,7 +22,7 @@
 
 	let {
 		children,
-		back,
+		back: backHref,
 		wide = false,
 		columns = true
 	}: {
@@ -31,6 +33,9 @@
 		// A wide step with choices that need the whole width keeps one column
 		columns?: boolean;
 	} = $props();
+
+	// Going back from the question would leave a sign-in that already happened
+	const back = $derived(keepSignedIn.asking ? undefined : backHref);
 
 	const isCard = new MediaQuery('(min-width: 640px)');
 	const photo = $derived(backgroundImageExists !== false);
@@ -285,7 +290,12 @@
 							'lg:block lg:columns-2 lg:gap-x-24 lg:[column-rule:1px_solid_var(--border)] lg:*:break-inside-avoid'
 					)}
 				>
-					{@render children()}
+					<!-- Every sign-in page asks in its own card, so the question sits here instead of in each page -->
+					{#if keepSignedIn.asking}
+						<StaySignedInStep />
+					{:else}
+						{@render children()}
+					{/if}
 				</div>
 			</main>
 

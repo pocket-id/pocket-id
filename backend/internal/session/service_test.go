@@ -33,9 +33,9 @@ func newServiceForTest(t *testing.T) *Service {
 func TestValidate(t *testing.T) {
 	service := newServiceForTest(t)
 
-	token, err := service.Create(t.Context(), "user-1", "phr", "198.51.100.1", "test-agent", time.Hour)
+	token, err := service.Create(t.Context(), "user-1", "phr", "198.51.100.1", "test-agent", time.Hour, true)
 	require.NoError(t, err)
-	expiredToken, err := service.Create(t.Context(), "user-1", "phr", "198.51.100.1", "test-agent", -time.Minute)
+	expiredToken, err := service.Create(t.Context(), "user-1", "phr", "198.51.100.1", "test-agent", -time.Minute, true)
 	require.NoError(t, err)
 
 	t.Run("accepts a token of an active session", func(t *testing.T) {
@@ -59,11 +59,43 @@ func TestValidate(t *testing.T) {
 	}
 }
 
+func TestSessionEndsAt(t *testing.T) {
+	now := time.Now()
+
+	tests := []struct {
+		name    string
+		session Session
+		want    time.Time
+	}{
+		{
+			name:    "remembered session lasts until it expires",
+			session: Session{LastActiveAt: now.Add(-24 * time.Hour), ExpiresAt: now.Add(time.Hour)},
+			want:    now.Add(time.Hour),
+		},
+		{
+			name:    "unused session ends after its idle timeout",
+			session: Session{LastActiveAt: now.Add(-20 * time.Minute), ExpiresAt: now.Add(time.Hour), IdleTimeout: 30 * time.Minute},
+			want:    now.Add(10 * time.Minute),
+		},
+		{
+			name:    "active session still ends when it expires",
+			session: Session{LastActiveAt: now, ExpiresAt: now.Add(10 * time.Minute), IdleTimeout: 30 * time.Minute},
+			want:    now.Add(10 * time.Minute),
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			require.Equal(t, tt.want, tt.session.endsAt())
+		})
+	}
+}
+
 func TestRevoke(t *testing.T) {
 	service := newServiceForTest(t)
 
 	createSession := func(userID string) (string, Session) {
-		token, err := service.Create(t.Context(), userID, "phr", "", "", time.Hour)
+		token, err := service.Create(t.Context(), userID, "phr", "", "", time.Hour, true)
 		require.NoError(t, err)
 		_, session, err := service.Validate(t.Context(), token)
 		require.NoError(t, err)
@@ -104,5 +136,30 @@ func TestRevoke(t *testing.T) {
 		require.NoError(t, err)
 		require.Len(t, sessions, 1)
 		require.Equal(t, kept.ID, sessions[0].ID)
+	})
+}
+
+func TestRemember(t *testing.T) {
+	service := newServiceForTest(t)
+
+	t.Run("drops the idle timeout of the session", func(t *testing.T) {
+		token, err := service.Create(t.Context(), "remember", "phr", "", "", time.Hour, false)
+		require.NoError(t, err)
+		_, session, err := service.Validate(t.Context(), token)
+		require.NoError(t, err)
+		require.Equal(t, idleTimeout, session.IdleTimeout)
+
+		remembered, err := service.Remember(t.Context(), "remember", session.ID)
+		require.NoError(t, err)
+		require.Zero(t, remembered.IdleTimeout)
+
+		_, session, err = service.Validate(t.Context(), token)
+		require.NoError(t, err)
+		require.Zero(t, session.IdleTimeout)
+	})
+
+	t.Run("reports an unknown session", func(t *testing.T) {
+		_, err := service.Remember(t.Context(), "remember", "unknown")
+		require.True(t, apperror.IsCode(err, apperror.CodeNotFound))
 	})
 }

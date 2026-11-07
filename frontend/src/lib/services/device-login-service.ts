@@ -4,6 +4,7 @@ import type {
 	DeviceLoginRequest,
 	DeviceLoginVerificationInfo
 } from '#lib/types/device-login.type.ts';
+import { keepSignedIn } from '#lib/stores/keep-signed-in-store.svelte.ts';
 import APIService from './api-service';
 
 export default class DeviceLoginService extends APIService {
@@ -19,7 +20,7 @@ export default class DeviceLoginService extends APIService {
 		const response = await this.api.post(
 			`/device-login/requests/${requestId}/exchange`,
 			undefined,
-			{ signal }
+			{ signal, params: { remember: keepSignedIn.current } }
 		);
 		return response.status === 202 ? null : response.data;
 	};

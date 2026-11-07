@@ -258,7 +258,7 @@ func (s *Service) BeginLogin(ctx context.Context, dbConfig *appconfig.AppConfigM
 	}, nil
 }
 
-func (s *Service) VerifyLogin(ctx context.Context, dbConfig *appconfig.AppConfigModel, sessionID string, credentialAssertionData *protocol.ParsedCredentialAssertionData, ipAddress, userAgent, browserToken string) (model.User, model.LoginTokens, error) {
+func (s *Service) VerifyLogin(ctx context.Context, dbConfig *appconfig.AppConfigModel, sessionID string, credentialAssertionData *protocol.ParsedCredentialAssertionData, ipAddress, userAgent, browserToken string, remember bool) (model.User, model.LoginTokens, error) {
 	tx := s.db.Begin()
 	defer func() {
 		tx.Rollback()
@@ -326,7 +326,7 @@ func (s *Service) VerifyLogin(ctx context.Context, dbConfig *appconfig.AppConfig
 	}
 
 	// Start the session only after the login transaction has committed, since it invokes an actor
-	token, err := s.sessions.Create(ctx, user.ID, authenticationMethodPhishingResistant, ipAddress, userAgent, dbConfig.SessionDuration.AsDurationMinutes())
+	token, err := s.sessions.Create(ctx, user.ID, authenticationMethodPhishingResistant, ipAddress, userAgent, dbConfig.SessionDuration.AsDurationMinutes(), remember)
 	if err != nil {
 		return model.User{}, model.LoginTokens{}, err
 	}

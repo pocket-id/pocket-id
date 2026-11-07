@@ -11,9 +11,9 @@
 	import SignInWrapper from '#lib/components/login-wrapper.svelte';
 	import Qrcode from '#lib/components/qrcode/qrcode.svelte';
 	import { Button } from '@pocket-id/ui/button';
-	import { Spinner } from '@pocket-id/ui/spinner';
 	import { m } from '#lib/paraglide/messages.js';
 	import DeviceLoginService from '#lib/services/device-login-service.ts';
+	import { keepSignedIn } from '#lib/stores/keep-signed-in-store.svelte.ts';
 	import userStore from '#lib/stores/user-store.ts';
 	import type { DeviceLoginRequest } from '#lib/types/device-login.type.ts';
 	import { getAxiosErrorCode, getAxiosErrorMessage } from '#lib/utils/error-util.ts';
@@ -101,6 +101,7 @@
 			}
 
 			clearTimers();
+			await keepSignedIn.ask();
 			await userStore.setUser(user);
 			// Navigate only after confirming that this attempt is still active
 			if (requestController !== controller) return;
@@ -264,11 +265,6 @@
 				<Button class={authPrimaryClass} usePromiseLoading onclick={startRequest}>
 					{ended?.kind === 'denied' ? m.try_again() : m.auth_get_a_new_code()}
 				</Button>
-			{:else}
-				<p class="text-control text-fg-muted flex items-center gap-2" aria-live="polite">
-					<Spinner class="size-3 shrink-0" />
-					{request ? m.auth_waiting_for_approval() : m.auth_creating_sign_in_request()}
-				</p>
 			{/if}
 		</div>
 	{/if}

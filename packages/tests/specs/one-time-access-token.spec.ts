@@ -1,13 +1,14 @@
 import test, { expect, type Browser } from '@playwright/test';
 import { oneTimeAccessTokens } from '../data';
 import { cleanupBackend } from '../utils/cleanup.util';
+import { signedOutState } from '../utils/auth.util';
 import { authFile } from '../utils/fs.util';
 import passkeyUtil from '../utils/passkey.util';
 
 test.beforeEach(async () => await cleanupBackend());
 
 // Disable authentication for these tests
-test.use({ storageState: { cookies: [], origins: [] } });
+test.use({ storageState: signedOutState });
 
 test('Sign in with login code', async ({ page }) => {
 	const token = oneTimeAccessTokens.filter((t) => !t.expired)[0];

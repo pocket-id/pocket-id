@@ -19,6 +19,10 @@ import (
 // touchInterval throttles how often a session's last activity is written, so most requests only read the session
 const touchInterval = 5 * time.Minute
 
+// idleTimeout ends a session the user chose not to keep once it goes unused, so a shared computer does not stay signed in
+// It must stay well above touchInterval, because the recorded last activity can lag behind by up to that interval
+const idleTimeout = 20 * time.Minute
+
 type Service struct {
 	actorService *actor.Service
 	ipLocator    iplocation.Resolver
@@ -29,8 +33,9 @@ func newService(actorService *actor.Service, ipLocator iplocation.Resolver) *Ser
 }
 
 // Create starts a session for the user and returns its token
+// A session that is not remembered also ends after idleTimeout without activity
 // It invokes an actor, so it must not be called while a database transaction is open, which would deadlock on SQLite
-func (s *Service) Create(ctx context.Context, userID, authenticationMethod, ipAddress, userAgent string, duration time.Duration) (string, error) {
+func (s *Service) Create(ctx context.Context, userID, authenticationMethod, ipAddress, userAgent string, duration time.Duration, remember bool) (string, error) {
 	sessionID, err := utils.GenerateRandomAlphanumericString(16)
 	if err != nil {
 		return "", err
@@ -46,6 +51,11 @@ func (s *Service) Create(ctx context.Context, userID, authenticationMethod, ipAd
 		slog.WarnContext(ctx, "Failed to get IP location", slog.String("ip", ipAddress), slog.Any("error", err))
 	}
 
+	var sessionIdleTimeout time.Duration
+	if !remember {
+		sessionIdleTimeout = idleTimeout
+	}
+
 	now := time.Now()
 	_, err = s.actorService.Invoke(ctx, ActorType, userID, MethodCreate, Session{
 		ID:                   sessionID,
@@ -58,6 +68,7 @@ func (s *Service) Create(ctx context.Context, userID, authenticationMethod, ipAd
 		CreatedAt:            now,
 		LastActiveAt:         now,
 		ExpiresAt:            now.Add(duration),
+		IdleTimeout:          sessionIdleTimeout,
 	})
 	if err != nil {
 		return "", fmt.Errorf("error creating session: %w", err)
@@ -144,6 +155,23 @@ func (s *Service) RevokeAll(ctx context.Context, userID, exceptSessionID string)
 		return fmt.Errorf("error revoking sessions: %w", err)
 	}
 	return nil
+}
+
+// Remember keeps a session that was started without being remembered until it expires, and returns it
+func (s *Service) Remember(ctx context.Context, userID, sessionID string) (Session, error) {
+	envelope, err := s.actorService.Invoke(ctx, ActorType, userID, methodRemember, sessionRequest{SessionID: sessionID})
+	if err != nil {
+		return Session{}, fmt.Errorf("error remembering session: %w", err)
+	}
+	var session Session
+	err = envelope.Decode(&session)
+	if err != nil {
+		return Session{}, fmt.Errorf("error decoding remembered session: %w", err)
+	}
+	if session.ID == "" {
+		return Session{}, apperror.NotFound("session")
+	}
+	return session, nil
 }
 
 func parseToken(token string) (userID, sessionID, secret string, ok bool) {

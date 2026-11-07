@@ -19,7 +19,7 @@ import (
 
 type fakeSessionCreator struct{}
 
-func (fakeSessionCreator) Create(_ context.Context, _, _, _, _ string, _ time.Duration) (string, error) {
+func (fakeSessionCreator) Create(_ context.Context, _, _, _, _ string, _ time.Duration, _ bool) (string, error) {
 	return "session-token", nil
 }
 
@@ -106,7 +106,7 @@ func TestExchangeTokenSuccess(t *testing.T) {
 
 	dbConfig := appconfig.NewTestConfig(nil)
 	dbConfig.EmailLoginNotificationMode = appconfig.LoginNotificationBrowserRecognition
-	exchangedUser, accessToken, err := svc.ExchangeToken(t.Context(), dbConfig, token, "", "1.2.3.4", "test-agent", "")
+	exchangedUser, accessToken, err := svc.ExchangeToken(t.Context(), dbConfig, token, "", "1.2.3.4", "test-agent", "", true)
 	require.NoError(t, err)
 	require.Equal(t, user.ID, exchangedUser.ID)
 	require.NotEmpty(t, accessToken.SessionToken)
@@ -140,7 +140,7 @@ func TestExchangeTokenAcceptsAmbiguousAliases(t *testing.T) {
 	}, &actor.SetStateOpts{TTL: time.Minute}))
 
 	dbConfig := appconfig.NewTestConfig(nil)
-	exchangedUser, _, err := svc.ExchangeToken(t.Context(), dbConfig, "aIObc2", "", "", "", "")
+	exchangedUser, _, err := svc.ExchangeToken(t.Context(), dbConfig, "aIObc2", "", "", "", "", true)
 	require.NoError(t, err)
 	require.Equal(t, user.ID, exchangedUser.ID)
 }
@@ -150,7 +150,7 @@ func TestExchangeTokenInvalidToken(t *testing.T) {
 	svc, _, _ := newServiceForTest(t, db)
 
 	dbConfig := appconfig.NewTestConfig(nil)
-	_, _, err := svc.ExchangeToken(t.Context(), dbConfig, "does-not-exist", "", "", "", "")
+	_, _, err := svc.ExchangeToken(t.Context(), dbConfig, "does-not-exist", "", "", "", "", true)
 
 	require.True(t, apperror.IsCode(err, apperror.CodeTokenInvalidOrExpired))
 }
@@ -171,7 +171,7 @@ func TestExchangeTokenDeviceMismatch(t *testing.T) {
 	require.NotNil(t, deviceToken)
 
 	dbConfig := appconfig.NewTestConfig(nil)
-	_, _, err = svc.ExchangeToken(t.Context(), dbConfig, token, "wrong-device-token", "", "", "")
+	_, _, err = svc.ExchangeToken(t.Context(), dbConfig, token, "wrong-device-token", "", "", "", true)
 
 	require.True(t, apperror.IsCode(err, apperror.CodeDeviceCodeInvalid))
 
@@ -198,7 +198,7 @@ func TestExchangeTokenRejectsDisabledUser(t *testing.T) {
 	require.NoError(t, err)
 
 	dbConfig := appconfig.NewTestConfig(nil)
-	exchangedUser, accessToken, err := svc.ExchangeToken(t.Context(), dbConfig, token, "", "", "", "")
+	exchangedUser, accessToken, err := svc.ExchangeToken(t.Context(), dbConfig, token, "", "", "", "", true)
 
 	require.True(t, apperror.IsCode(err, apperror.CodeUserDisabled))
 	require.Empty(t, exchangedUser.ID)

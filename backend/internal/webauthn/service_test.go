@@ -316,7 +316,7 @@ func TestCeremoniesRejectSessionThatDoesNotExist(t *testing.T) {
 	t.Run("login rejects an unknown session", func(t *testing.T) {
 		service := setupService(t)
 
-		_, token, err := service.VerifyLogin(t.Context(), &appconfig.AppConfigModel{}, "does-not-exist", nil, "127.0.0.1", "test-agent", "")
+		_, token, err := service.VerifyLogin(t.Context(), &appconfig.AppConfigModel{}, "does-not-exist", nil, "127.0.0.1", "test-agent", "", true)
 
 		assert.Empty(t, token)
 		require.Error(t, err)

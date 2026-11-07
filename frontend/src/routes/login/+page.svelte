@@ -15,6 +15,7 @@
 	import { m } from '#lib/paraglide/messages.js';
 	import WebAuthnService from '#lib/services/webauthn-service.ts';
 	import appConfigStore from '#lib/stores/application-configuration-store.ts';
+	import { keepSignedIn } from '#lib/stores/keep-signed-in-store.svelte.ts';
 	import userStore from '#lib/stores/user-store.ts';
 	import { getWebauthnErrorMessage } from '#lib/utils/error-util.ts';
 	import { cssMs } from '#lib/utils/style.ts';
@@ -49,6 +50,7 @@
 			const authResponse = await startAuthentication({ optionsJSON: loginOptions });
 			const user = await webauthnService.finishLogin(authResponse);
 
+			await keepSignedIn.ask();
 			await userStore.setUser(user);
 			success = true;
 			await successHold();

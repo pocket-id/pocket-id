@@ -1,3 +1,4 @@
+import { keepSignedIn } from '#lib/stores/keep-signed-in-store.svelte.ts';
 import userStore from '#lib/stores/user-store.ts';
 import type { ListRequestOptions, Paginated } from '#lib/types/list-request.type.ts';
 import type { Passkey } from '#lib/types/passkey.type.ts';
@@ -102,7 +103,9 @@ export default class UserService extends APIService {
 	};
 
 	exchangeOneTimeAccessToken = async (token: string) => {
-		const res = await this.api.post(`/one-time-access-token/${token}`);
+		const res = await this.api.post(`/one-time-access-token/${token}`, undefined, {
+			params: { remember: keepSignedIn.current }
+		});
 		return res.data as User;
 	};
 

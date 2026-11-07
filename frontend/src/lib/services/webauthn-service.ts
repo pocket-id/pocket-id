@@ -1,3 +1,4 @@
+import { keepSignedIn } from '#lib/stores/keep-signed-in-store.svelte.ts';
 import userStore from '#lib/stores/user-store.ts';
 import type { Passkey } from '#lib/types/passkey.type.ts';
 import type { User } from '#lib/types/user.type.ts';
@@ -14,7 +15,11 @@ class WebAuthnService extends APIService {
 	getLoginOptions = async () => (await this.api.get(`/webauthn/login/start`)).data;
 
 	finishLogin = async (body: AuthenticationResponseJSON) =>
-		(await this.api.post(`/webauthn/login/finish`, body)).data as User;
+		(
+			await this.api.post(`/webauthn/login/finish`, body, {
+				params: { remember: keepSignedIn.current }
+			})
+		).data as User;
 
 	logout = async () => {
 		await this.api.post(`/webauthn/logout`).catch((e) => {

@@ -155,7 +155,7 @@ func (s *Service) Decide(ctx context.Context, code, decision, userID, reauthenti
 	return actorResultError(result.Code)
 }
 
-func (s *Service) Exchange(ctx context.Context, requestID, deviceToken, ipAddress, userAgent, browserToken string, sessionDuration time.Duration, notificationMode appconfig.AppConfigValue) (dto.UserDto, model.LoginTokens, RequestStatus, error) {
+func (s *Service) Exchange(ctx context.Context, requestID, deviceToken, ipAddress, userAgent, browserToken string, sessionDuration time.Duration, remember bool, notificationMode appconfig.AppConfigValue) (dto.UserDto, model.LoginTokens, RequestStatus, error) {
 	if requestID == "" || deviceToken == "" || sessionDuration <= 0 {
 		return dto.UserDto{}, model.LoginTokens{}, "", apperror.DeviceLoginRequestInvalidOrExpired()
 	}
@@ -200,7 +200,7 @@ func (s *Service) Exchange(ctx context.Context, requestID, deviceToken, ipAddres
 			}
 
 			// Mint the session with login-code semantics because the waiting device did not perform WebAuthn
-			sessionToken, err := s.sessions.Create(ctx, user.ID, authenticationMethodOneTimePassword, ipAddress, userAgent, sessionDuration)
+			sessionToken, err := s.sessions.Create(ctx, user.ID, authenticationMethodOneTimePassword, ipAddress, userAgent, sessionDuration, remember)
 			if err != nil {
 				return dto.UserDto{}, model.LoginTokens{}, consume.Status, err
 			}

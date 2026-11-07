@@ -17,7 +17,7 @@ import (
 )
 
 type SessionCreator interface {
-	Create(ctx context.Context, userID, authenticationMethod, ipAddress, userAgent string, duration time.Duration) (string, error)
+	Create(ctx context.Context, userID, authenticationMethod, ipAddress, userAgent string, duration time.Duration, remember bool) (string, error)
 }
 
 type ReauthenticationTokenConsumer interface {

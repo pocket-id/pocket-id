@@ -1,4 +1,5 @@
 import { expect, test, type Browser } from '@playwright/test';
+import { signedOutState } from '../utils/auth.util';
 import { cleanupBackend } from '../utils/cleanup.util';
 import passkeyUtil from '../utils/passkey.util';
 
@@ -50,7 +51,7 @@ test('authenticates a signed-out primary device before manual-code approval', as
 	const waiting = await openWaitingDevice(browser, '/settings/account');
 	const primaryContext = await browser.newContext({
 		baseURL: test.info().project.use.baseURL,
-		storageState: { cookies: [], origins: [] }
+		storageState: signedOutState
 	});
 	const primaryPage = await primaryContext.newPage();
 
@@ -95,7 +96,7 @@ test('denies a pending request without passkey reauthentication', async ({ brows
 async function openWaitingDevice(browser: Browser, redirect = '/settings') {
 	const context = await browser.newContext({
 		baseURL: test.info().project.use.baseURL,
-		storageState: { cookies: [], origins: [] }
+		storageState: signedOutState
 	});
 	const page = await context.newPage();
 	const createResponse = page.waitForResponse(

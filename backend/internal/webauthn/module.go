@@ -18,7 +18,7 @@ import (
 )
 
 type SessionStore interface {
-	Create(ctx context.Context, userID, authenticationMethod, ipAddress, userAgent string, duration time.Duration) (string, error)
+	Create(ctx context.Context, userID, authenticationMethod, ipAddress, userAgent string, duration time.Duration, remember bool) (string, error)
 	Revoke(ctx context.Context, userID, sessionID string) error
 }
 

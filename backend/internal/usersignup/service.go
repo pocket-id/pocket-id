@@ -100,7 +100,7 @@ func (s *Service) SignUp(ctx context.Context, config *appconfig.AppConfigModel, 
 		return model.User{}, "", err
 	}
 
-	sessionToken, err := s.sessions.Create(ctx, user.ID, "", ipAddress, userAgent, config.SessionDuration.AsDurationMinutes())
+	sessionToken, err := s.sessions.Create(ctx, user.ID, "", ipAddress, userAgent, config.SessionDuration.AsDurationMinutes(), true)
 	if err != nil {
 		return model.User{}, "", err
 	}
@@ -217,7 +217,7 @@ func (s *Service) SignUpInitialAdmin(ctx context.Context, config *appconfig.AppC
 	}
 
 	// Start the session only after the transaction has committed, since it invokes an actor
-	token, err := s.sessions.Create(ctx, user.ID, authenticationMethodOneTimePassword, ipAddress, userAgent, config.SessionDuration.AsDurationMinutes())
+	token, err := s.sessions.Create(ctx, user.ID, authenticationMethodOneTimePassword, ipAddress, userAgent, config.SessionDuration.AsDurationMinutes(), true)
 	if err != nil {
 		return model.User{}, "", err
 	}
