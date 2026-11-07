@@ -548,6 +548,8 @@
 	"config_group_search_filter": "Group search filter",
 	"config_keep_removed_ldap_users": "Keep people removed from LDAP",
 	"config_keep_removed_ldap_users_description": "They’re disabled instead of deleted.",
+	"ldap_allow_profile_picture_override": "Allow profile picture override",
+	"ldap_allow_profile_picture_override_description": "When enabled, users can set their own profile picture and the LDAP sync will not overwrite it.",
 	"config_pocket_id_field": "Pocket ID field",
 	"config_ldap_attribute": "LDAP attribute",
 	"config_notes": "Notes",

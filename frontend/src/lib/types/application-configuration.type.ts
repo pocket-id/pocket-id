@@ -11,6 +11,7 @@ export type AppConfig = {
 	emailOneTimeAccessAsAdminEnabled: boolean;
 	emailVerification: 'disabled' | 'optional' | 'required';
 	ldapEnabled: boolean;
+	ldapAllowProfilePictureOverride: boolean;
 	uiConfigDisabled: boolean;
 	appearance: Partial<Appearance>;
 	requireUserEmail: boolean;

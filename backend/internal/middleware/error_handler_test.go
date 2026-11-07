@@ -221,6 +221,7 @@ func TestValidationResponseUsesAppConfigTypeMessages(t *testing.T) {
 		LdapEnabled:                      "false",
 		LdapSkipCertVerify:               "false",
 		LdapSoftDeleteUsers:              "true",
+		LdapAllowProfilePictureOverride:  "false",
 		WebauthnUserVerification:         "preferred",
 		WebauthnAllowSyncedPasskeys:      "true",
 		WebauthnAuthenticatorAttachment:  "any",
