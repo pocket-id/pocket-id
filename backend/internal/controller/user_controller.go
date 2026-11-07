@@ -111,9 +111,10 @@ func (uc *UserController) listUserWebauthnCredentialsHandler(c *gin.Context) err
 
 // listUsersHandler godoc
 // @Summary List users
-// @Description Get a paginated list of users with optional search and sorting
+// @Description Get a paginated list of users with optional search, membership filtering and sorting
 // @Tags Users
 // @Param search query string false "Search term to filter users"
+// @Param filters[userGroups] query []string false "Match membership in any selected user group"
 // @Param pagination[page] query int false "Page number for pagination" default(1)
 // @Param pagination[limit] query int false "Number of items per page" default(20)
 // @Param sort[column] query string false "Column to sort by"
