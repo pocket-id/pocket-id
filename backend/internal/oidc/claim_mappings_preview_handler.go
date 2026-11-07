@@ -9,6 +9,9 @@ import (
 	"github.com/pocket-id/pocket-id/backend/internal/authz"
 	"github.com/pocket-id/pocket-id/backend/internal/claimmappingpolicy"
 	"github.com/pocket-id/pocket-id/backend/internal/httpserver"
+
+	// Needed for swag to resolve dto.ErrorDto
+	_ "github.com/pocket-id/pocket-id/backend/internal/dto"
 )
 
 type claimMappingsPreviewHandler struct {
