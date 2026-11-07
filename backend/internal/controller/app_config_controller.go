@@ -84,6 +84,13 @@ func (acc *AppConfigController) listAppConfigHandler(c *gin.Context) error {
 		Value: iconLibraryStatus(),
 	})
 
+	// Manually add netbirdEnabled, derived from NETBIRD_PROXY_SECRET, so the authorize page only asks for a NetBird identity when one can exist
+	configVariablesDto = append(configVariablesDto, dto.PublicAppConfigVariableDto{
+		Key:   "netbirdEnabled",
+		Value: strconv.FormatBool(common.EnvConfig.NetBirdProxySecret != ""),
+		Type:  "boolean",
+	})
+
 	c.JSON(http.StatusOK, configVariablesDto)
 	return nil
 }

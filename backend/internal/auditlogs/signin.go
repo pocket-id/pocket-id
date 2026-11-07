@@ -62,7 +62,7 @@ func (s *service) CreateSignIn(ctx context.Context, event Event, ipAddress, user
 	return result
 }
 
-var signInEvents = []Event{EventSignIn, EventOneTimeAccessTokenSignIn, EventRemoteSignIn}
+var signInEvents = []Event{EventSignIn, EventOneTimeAccessTokenSignIn, EventRemoteSignIn, EventNetBirdSignIn}
 
 // isNewBrowser reports whether the user has signed in before, but never with this browser on this operating system
 // It ignores versions, so a browser update is not a new browser, and it never flags an account's first sign-in
@@ -161,6 +161,8 @@ func signInMethod(event Event) string {
 		return "One-time code"
 	case EventRemoteSignIn:
 		return "Another device (QR code)"
+	case EventNetBirdSignIn:
+		return "NetBird"
 	default:
 		return "Unknown"
 	}

@@ -16,13 +16,20 @@
 	import { Button } from '@pocket-id/ui/button';
 	import { Spinner } from '@pocket-id/ui/spinner';
 	import { m } from '#lib/paraglide/messages.js';
+	import NetBirdMark from '#lib/components/netbird-mark.svelte';
+	import NetBirdService from '#lib/services/netbird-service.ts';
 	import OidcService from '#lib/services/oidc-service.ts';
 	import WebAuthnService from '#lib/services/webauthn-service.ts';
 	import appConfigStore from '#lib/stores/application-configuration-store.ts';
 	import userStore from '#lib/stores/user-store.ts';
+	import type { NetBirdIdentity } from '#lib/types/netbird.type.ts';
 	import type { InteractionStep } from '#lib/types/oidc.type.ts';
 	import { getClientIDHost } from '#lib/utils/client-id-util.ts';
-	import { getAxiosErrorCode, getWebauthnErrorMessage } from '#lib/utils/error-util.ts';
+	import {
+		getAxiosErrorCode,
+		getAxiosErrorMessage,
+		getWebauthnErrorMessage
+	} from '#lib/utils/error-util.ts';
 	import { cssMs } from '#lib/utils/style.ts';
 	import { startAuthentication } from '@simplewebauthn/browser';
 	import ChevronRightIcon from '~icons/solar/alt-arrow-right-linear';
@@ -30,6 +37,7 @@
 
 	const webauthnService = new WebAuthnService();
 	const oidcService = new OidcService();
+	const netbirdService = new NetBirdService();
 
 	let { data }: PageProps = $props();
 	let interactionSession = $state(data.interactionSession);
@@ -67,13 +75,13 @@
 		await refreshAll();
 	}
 
-	async function handlePipeline() {
+	async function handlePipeline(signIn: () => Promise<void> = authenticate) {
 		isLoading = true;
 		signingIn = !$userStore;
 		failure = undefined;
 		try {
 			if (!$userStore) {
-				await authenticate();
+				await signIn();
 			}
 
 			if (currentStep === 'reauthenticate') {
@@ -83,7 +91,7 @@
 			await completeInteraction(currentStep!);
 		} catch (e) {
 			failure = {
-				message: getWebauthnErrorMessage(e),
+				message: signIn === authenticate ? getWebauthnErrorMessage(e) : getAxiosErrorMessage(e),
 				code: getAxiosErrorCode(e),
 				closed: isPasskeyPromptClosed(e)
 			};
@@ -97,6 +105,12 @@
 		const loginOptions = await webauthnService.getLoginOptions();
 		const authResponse = await startAuthentication({ optionsJSON: loginOptions });
 		const user = await webauthnService.finishLogin(authResponse);
+		await userStore.setUser(user);
+		await refreshAll();
+	}
+
+	async function authenticateWithNetBird(identity: NetBirdIdentity) {
+		const user = await netbirdService.login(identity.id);
 		await userStore.setUser(user);
 		await refreshAll();
 	}
@@ -189,7 +203,7 @@
 					class="group/account focus-visible:outline-ring after:bg-fg/4 transition-motion relative block w-full rounded-md text-start after:pointer-events-none after:absolute after:inset-0 after:rounded-[inherit] after:opacity-0 after:transition-opacity after:duration-(--dur-fast) hover:after:opacity-100 focus-visible:outline-2 focus-visible:outline-offset-2 active:scale-(--press-scale)"
 					aria-busy={isLoading || undefined}
 					disabled={isLoading}
-					onclick={handlePipeline}
+					onclick={() => handlePipeline()}
 				>
 					<IdentityRow user={$userStore!}>
 						<span class="text-fg-muted shrink-0">
@@ -226,8 +240,26 @@
 					<Button class={authPrimaryClass} href="/settings/account">
 						{m.verify_email_address()}
 					</Button>
+				{:else if view === 'sign-in' && data.netbirdIdentity}
+					{@const identity = data.netbirdIdentity}
+					<Button
+						class={authPrimaryClass}
+						{isLoading}
+						onclick={() => handlePipeline(() => authenticateWithNetBird(identity))}
+					>
+						<NetBirdMark />
+						{m.auth_continue_as({ name: identity.name })}
+					</Button>
+					<Button
+						variant="link"
+						class={authQuietClass}
+						disabled={isLoading}
+						onclick={() => handlePipeline()}
+					>
+						{m.auth_sign_in_with_passkey()}
+					</Button>
 				{:else if view === 'sign-in'}
-					<Button class={authPrimaryClass} {isLoading} onclick={handlePipeline}>
+					<Button class={authPrimaryClass} {isLoading} onclick={() => handlePipeline()}>
 						{failure ? m.try_again() : m.auth_sign_in_with_passkey()}
 					</Button>
 					<Button variant="link" class={authQuietClass} href={alternativeSignInHref()}>
@@ -239,7 +271,7 @@
 					</Button>
 				{:else}
 					<!-- A metadata-document client goes by its host, which can be longer than the button -->
-					<Button class={authPrimaryClass} {isLoading} onclick={handlePipeline}>
+					<Button class={authPrimaryClass} {isLoading} onclick={() => handlePipeline()}>
 						<span class="truncate">
 							{failure
 								? m.try_again()

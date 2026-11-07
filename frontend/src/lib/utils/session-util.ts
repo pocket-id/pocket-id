@@ -17,6 +17,8 @@ export function sessionSignInMethod(session: Session) {
 			return m.passkey();
 		case 'otp':
 			return m.sign_in_method_login_code();
+		case 'netbird':
+			return 'NetBird';
 		default:
 			return m.sign_in_method_account_creation();
 	}

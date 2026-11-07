@@ -4,6 +4,7 @@ export const eventTypes: Record<string, string> = {
 	SIGN_IN: m.audit_event_sign_in(),
 	TOKEN_SIGN_IN: m.audit_event_token_sign_in(),
 	REMOTE_SIGN_IN: m.audit_event_remote_sign_in(),
+	NETBIRD_SIGN_IN: m.audit_event_netbird_sign_in(),
 	CLIENT_AUTHORIZATION: m.audit_event_client_authorization(),
 	NEW_CLIENT_AUTHORIZATION: m.audit_event_new_client_authorization(),
 	ACCOUNT_CREATED: m.audit_event_account_created(),

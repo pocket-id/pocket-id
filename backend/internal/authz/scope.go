@@ -152,6 +152,9 @@ func (s ScopeSet) Intersect(other ScopeSet) ScopeSet {
 	return set
 }
 
+// authorizeOnlyScopes are the scopes a session keeps when its sign-in method only vouches for signing in to apps
+var authorizeOnlyScopes = NewScopeSet(AccountAuthorize, AccountSession)
+
 // unverifiedScopes are the scopes a user keeps while their email still has to be verified
 var unverifiedScopes = NewScopeSet(AccountRead, AccountWrite, AccountPasskeys, AccountPasskeysEnroll, AccountSession)
 

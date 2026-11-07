@@ -20,6 +20,7 @@ import (
 	"github.com/pocket-id/pocket-id/backend/internal/common"
 	"github.com/pocket-id/pocket-id/backend/internal/model"
 	datatype "github.com/pocket-id/pocket-id/backend/internal/model/types"
+	"github.com/pocket-id/pocket-id/backend/internal/netbird"
 	"github.com/pocket-id/pocket-id/backend/internal/oidc"
 	"github.com/pocket-id/pocket-id/backend/internal/service"
 	"github.com/pocket-id/pocket-id/backend/internal/session"
@@ -60,6 +61,8 @@ func TestAuthorizationWithRealCredentials(t *testing.T) {
 	userSession, err := sessions.Create(t.Context(), user.ID, "", "", "", time.Hour)
 	require.NoError(t, err)
 	unverifiedSession, err := sessions.Create(t.Context(), unverified.ID, "", "", "", time.Hour)
+	require.NoError(t, err)
+	netbirdAdminSession, err := sessions.Create(t.Context(), admin.ID, netbird.AuthenticationMethod, "", "", time.Hour)
 	require.NoError(t, err)
 	revokedSession, err := sessions.Create(t.Context(), user.ID, "", "", "", time.Hour)
 	require.NoError(t, err)
@@ -128,6 +131,10 @@ func TestAuthorizationWithRealCredentials(t *testing.T) {
 		{name: "unverified user session on apps route", path: "/api/apps", sessionCookie: unverifiedSession, status: http.StatusForbidden, errorCode: "email_verification_required"},
 		{name: "unverified user session on authorize route", path: "/api/authorize", sessionCookie: unverifiedSession, status: http.StatusForbidden, errorCode: "email_verification_required"},
 		{name: "verified user session on authorize route", path: "/api/authorize", sessionCookie: userSession, status: http.StatusOK, userID: user.ID},
+		{name: "NetBird session on authorize route", path: "/api/authorize", sessionCookie: netbirdAdminSession, status: http.StatusOK, userID: admin.ID},
+		{name: "NetBird session on session-only route", path: "/api/session-only", sessionCookie: netbirdAdminSession, status: http.StatusOK, userID: admin.ID},
+		{name: "NetBird session on account route", path: "/api/account", sessionCookie: netbirdAdminSession, status: http.StatusForbidden, errorCode: "forbidden"},
+		{name: "NetBird session of an admin on admin route", path: "/api/admin", sessionCookie: netbirdAdminSession, status: http.StatusForbidden, errorCode: "forbidden"},
 		{name: "unverified user API key on account route", path: "/api/account", apiKey: unverifiedAPIKey, status: http.StatusOK, userID: unverified.ID},
 		{name: "unverified user API key on apps route", path: "/api/apps", apiKey: unverifiedAPIKey, status: http.StatusForbidden, errorCode: "email_verification_required"},
 		{name: "unverified admin API key on admin route", path: "/api/admin", apiKey: unverifiedAdminAPIKey, status: http.StatusOK, userID: unverifiedAdmin.ID},

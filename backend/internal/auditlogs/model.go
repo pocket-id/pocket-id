@@ -31,6 +31,7 @@ const (
 	EventSignIn                     Event = "SIGN_IN"
 	EventOneTimeAccessTokenSignIn   Event = "TOKEN_SIGN_IN"
 	EventRemoteSignIn               Event = "REMOTE_SIGN_IN"
+	EventNetBirdSignIn              Event = "NETBIRD_SIGN_IN"
 	EventAccountCreated             Event = "ACCOUNT_CREATED"
 	EventClientAuthorization        Event = "CLIENT_AUTHORIZATION"
 	EventNewClientAuthorization     Event = "NEW_CLIENT_AUTHORIZATION"

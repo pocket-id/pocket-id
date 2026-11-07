@@ -40,6 +40,11 @@ func (p *Principal) RestrictUnverified() {
 	p.WithheldUntilVerified = withheld
 }
 
+// RestrictToAuthorize keeps only the scopes needed to sign in to apps and to sign out
+func (p *Principal) RestrictToAuthorize() {
+	p.Scopes = p.Scopes.Intersect(authorizeOnlyScopes)
+}
+
 // PrincipalFrom returns the principal the authorization middleware attached to the request
 // Anonymous requests on optional and public routes get the zero Principal, whose UserID is empty
 func PrincipalFrom(c *gin.Context) Principal {

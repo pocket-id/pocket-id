@@ -16,6 +16,7 @@ export type AppConfig = {
 	requireUserEmail: boolean;
 	tracingEnabled: boolean;
 	iconLibrary: 'default' | 'custom' | 'disabled';
+	netbirdEnabled: boolean;
 };
 
 export type AllAppConfig = AppConfig & {

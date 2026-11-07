@@ -26,6 +26,7 @@ import (
 	"github.com/pocket-id/pocket-id/backend/internal/ldapsync"
 	"github.com/pocket-id/pocket-id/backend/internal/logopreset"
 	"github.com/pocket-id/pocket-id/backend/internal/middleware"
+	"github.com/pocket-id/pocket-id/backend/internal/netbird"
 	"github.com/pocket-id/pocket-id/backend/internal/oidc"
 	"github.com/pocket-id/pocket-id/backend/internal/onetimeaccess"
 	"github.com/pocket-id/pocket-id/backend/internal/outbound"
@@ -55,6 +56,7 @@ type services struct {
 	apiKeyModule            *apikey.Module
 	auditLogsModule         *auditlogs.Module
 	deviceLoginModule       *devicelogin.Module
+	netbirdModule           *netbird.Module
 	ldapSyncModule          *ldapsync.Module
 	scimSyncModule          *scimsync.Module
 	oidcModule              *oidc.Module
@@ -293,6 +295,13 @@ func initServices(
 	if err != nil {
 		return nil, fmt.Errorf("failed to create one-time access module: %w", err)
 	}
+
+	svc.netbirdModule = netbird.New(netbird.Dependencies{
+		DB:        db,
+		Sessions:  svc.sessionModule,
+		AuditLog:  svc.auditLogsModule,
+		AppConfig: svc.appConfigService,
+	})
 
 	svc.environmentModule = environment.New(environment.Dependencies{
 		HTTPClient:                  httpClient,

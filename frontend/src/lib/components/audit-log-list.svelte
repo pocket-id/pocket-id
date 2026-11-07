@@ -132,6 +132,8 @@
 				return { sentence: signedIn, via: m.audit_via_login_code() };
 			case 'REMOTE_SIGN_IN':
 				return { sentence: signedIn, via: m.audit_via_another_device() };
+			case 'NETBIRD_SIGN_IN':
+				return { sentence: signedIn, via: m.audit_via_netbird() };
 			case 'ACCOUNT_CREATED':
 				return { sentence: m.audit_sentence_account_created() };
 		}

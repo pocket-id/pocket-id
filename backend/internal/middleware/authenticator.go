@@ -14,6 +14,7 @@ import (
 	"github.com/pocket-id/pocket-id/backend/internal/common"
 	"github.com/pocket-id/pocket-id/backend/internal/emailverification"
 	"github.com/pocket-id/pocket-id/backend/internal/model"
+	"github.com/pocket-id/pocket-id/backend/internal/netbird"
 	"github.com/pocket-id/pocket-id/backend/internal/oidc"
 	"github.com/pocket-id/pocket-id/backend/internal/service"
 	"github.com/pocket-id/pocket-id/backend/internal/session"
@@ -102,6 +103,11 @@ func (a *SessionAuthenticator) Authenticate(c *gin.Context) (*authz.Principal, e
 	err = restrictUnverified(c.Request.Context(), a.appConfig, &user, principal)
 	if err != nil {
 		return nil, err
+	}
+
+	// NetBird only vouches for the device's network, so its sessions may sign in to apps but not manage the account
+	if userSession.AuthenticationMethod == netbird.AuthenticationMethod {
+		principal.RestrictToAuthorize()
 	}
 
 	return principal, nil

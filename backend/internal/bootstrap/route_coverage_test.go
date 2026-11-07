@@ -18,6 +18,7 @@ import (
 	"github.com/pocket-id/pocket-id/backend/internal/ldapsync"
 	"github.com/pocket-id/pocket-id/backend/internal/logopreset"
 	"github.com/pocket-id/pocket-id/backend/internal/middleware"
+	"github.com/pocket-id/pocket-id/backend/internal/netbird"
 	"github.com/pocket-id/pocket-id/backend/internal/oidc"
 	"github.com/pocket-id/pocket-id/backend/internal/onetimeaccess"
 	"github.com/pocket-id/pocket-id/backend/internal/scimsync"
@@ -35,6 +36,7 @@ func TestEveryAPIRouteDeclaresItsAccess(t *testing.T) {
 		apiKeyModule:             &apikey.Module{},
 		auditLogsModule:          &auditlogs.Module{},
 		deviceLoginModule:        &devicelogin.Module{},
+		netbirdModule:            &netbird.Module{},
 		ldapSyncModule:           &ldapsync.Module{},
 		scimSyncModule:           &scimsync.Module{},
 		oidcModule:               &oidc.Module{},

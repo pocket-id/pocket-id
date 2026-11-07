@@ -112,6 +112,10 @@ type EnvConfigSchema struct {
 	// CloudflareLocationHeaders trusts location headers supplied by a Cloudflare proxy instead of using GeoLite
 	CloudflareLocationHeaders bool `env:"CLOUDFLARE_LOCATION_HEADERS"`
 
+	// NetBirdProxySecret is the value of the secret header the NetBird reverse proxy adds to every request it forwards, and enables sign-in via NetBird when set
+	// Only requests carrying it may carry a NetBird identity
+	NetBirdProxySecret string `env:"NETBIRD_PROXY_SECRET" options:"file"`
+
 	// IconLibraryURL is the base URL of the icon collection admins can pick OIDC client logos from
 	// It must serve index.json and the svg and png directories in the same layout as the selfh.st/icons repository
 	// Setting it to "disabled" turns the icon library off, so Pocket ID never contacts it
