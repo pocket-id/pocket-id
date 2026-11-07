@@ -1,6 +1,10 @@
+import { signInAgain } from '#lib/stores/sign-in-again-store.svelte.ts';
+import userStore from '#lib/stores/user-store.ts';
+import { getAxiosErrorCode } from '#lib/utils/error-util.ts';
 import { endRequestSpan, startRequestSpan } from '#lib/utils/tracing-util.ts';
 import axios, { AxiosError, type InternalAxiosRequestConfig } from 'axios';
 import type { Span } from '@opentelemetry/api';
+import { get } from 'svelte/store';
 
 // Tracks the in-flight span for each request config so the response/error interceptor can end it.
 const requestSpans = new WeakMap<InternalAxiosRequestConfig, Span>();
@@ -30,12 +34,22 @@ abstract class APIService {
 				requestSpans.delete(response.config);
 				return response;
 			},
-			(error: unknown) => {
-				if (error instanceof AxiosError && error.config) {
-					endRequestSpan(requestSpans.get(error.config), error.response?.status, error);
-					requestSpans.delete(error.config);
+			async (error: unknown) => {
+				if (!(error instanceof AxiosError && error.config)) throw error;
+				endRequestSpan(requestSpans.get(error.config), error.response?.status, error);
+				requestSpans.delete(error.config);
+
+				// A signed-in person whose session ended signs in again in a dialog, and the request then runs once more
+				// Signing out with an ended session has nothing left to end, so it never asks
+				if (
+					getAxiosErrorCode(error) === 'not_signed_in' &&
+					get(userStore) &&
+					error.config.url !== '/webauthn/logout' &&
+					(await signInAgain.wait())
+				) {
+					return this.api.request(error.config);
 				}
-				return Promise.reject(error);
+				throw error;
 			}
 		);
 	}

@@ -1232,5 +1232,8 @@
 	"sign_out_user_everywhere_question": "Sign {name} out everywhere?",
 	"sign_out_user_everywhere_consequence": "{name} will have to sign in again on every device.",
 	"user_signed_out_everywhere": "{name} was signed out everywhere",
-	"sign_out_user_device_consequence": "{name} will have to sign in again on this device."
+	"sign_out_user_device_consequence": "{name} will have to sign in again on this device.",
+	"sign_in_again_title": "You've been signed out",
+	"sign_in_again_description": "Sign in again to pick up where you left off.",
+	"sign_in_again_picking_up": "Picking up where you left off…"
 }

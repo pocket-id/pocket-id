@@ -1,6 +1,7 @@
 import userStore from '#lib/stores/user-store.ts';
 import type { Passkey } from '#lib/types/passkey.type.ts';
 import type { User } from '#lib/types/user.type.ts';
+import { getAxiosErrorCode } from '#lib/utils/error-util.ts';
 import type { AuthenticationResponseJSON, RegistrationResponseJSON } from '@simplewebauthn/browser';
 import APIService from './api-service';
 
@@ -16,7 +17,10 @@ class WebAuthnService extends APIService {
 		(await this.api.post(`/webauthn/login/finish`, body)).data as User;
 
 	logout = async () => {
-		await this.api.post(`/webauthn/logout`);
+		await this.api.post(`/webauthn/logout`).catch((e) => {
+			// A session that already ended is signed out anyway
+			if (getAxiosErrorCode(e) !== 'not_signed_in') throw e;
+		});
 		userStore.clearUser();
 	};
 
