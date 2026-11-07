@@ -21,14 +21,19 @@
 
 	let {
 		open = $bindable(),
-		emailsVerifiedPerDefault
-	}: { open: boolean; emailsVerifiedPerDefault: boolean } = $props();
+		emailsVerifiedPerDefault,
+		defaultUserGroupIds = []
+	}: {
+		open: boolean;
+		emailsVerifiedPerDefault: boolean;
+		defaultUserGroupIds?: string[];
+	} = $props();
 
 	const userService = new UserService();
 	const formId = $props.id();
 
 	let isLoading = $state(false);
-	let groupIds = $state<string[]>([]);
+	let groupIds = $state<string[]>([...defaultUserGroupIds]);
 
 	const formSchema = z.object({
 		firstName: z.string().max(50),
@@ -66,7 +71,7 @@
 		if (open) return;
 		untrack(() => {
 			formStore.reset();
-			groupIds = [];
+			groupIds = [...defaultUserGroupIds];
 			displayNameEdited = false;
 		});
 	});
@@ -76,8 +81,7 @@
 		if (!data) return;
 		isLoading = true;
 		try {
-			const user = await userService.create({ ...data, disabled: false });
-			if (groupIds.length) await userService.updateUserGroups(user.id, groupIds);
+			const user = await userService.create({ ...data, disabled: false, userGroupIds: groupIds });
 			open = false;
 			toast.success(m.name_added({ name: user.displayName }));
 			goto(`/settings/admin/users/${user.id}`);
