@@ -4,6 +4,7 @@
 	const HOUR = 60 * 60;
 
 	export const expirations = () => [
+		{ label: m.fifteen_minutes(), seconds: 15 * 60 },
 		{ label: m.one_hour(), seconds: HOUR },
 		{ label: m.twelve_hours(), seconds: HOUR * 12 },
 		{ label: m.one_day(), seconds: HOUR * 24 },
