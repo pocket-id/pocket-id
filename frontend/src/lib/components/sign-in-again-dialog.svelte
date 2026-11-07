@@ -11,6 +11,7 @@
 	import { m } from '#lib/paraglide/messages.js';
 	import WebAuthnService from '#lib/services/webauthn-service.ts';
 	import { signInAgain } from '#lib/stores/sign-in-again-store.svelte.ts';
+	import unsavedChangesStore from '#lib/stores/unsaved-changes-store.svelte.ts';
 	import userStore from '#lib/stores/user-store.ts';
 	import { getWebauthnErrorMessage } from '#lib/utils/error-util.ts';
 	import * as AlertDialog from '@pocket-id/ui/alert-dialog';
@@ -40,7 +41,9 @@
 			const user = await webauthnService.finishLogin(authResponse);
 
 			// The page holds the previous account's data, so another account starts over instead of replaying its requests
+			// Its unsaved changes can't be saved by this account, so they're dropped rather than making the browser ask to leave
 			if (user.id !== $userStore?.id) {
+				unsavedChangesStore.discardAll();
 				window.location.assign('/settings');
 				return;
 			}
