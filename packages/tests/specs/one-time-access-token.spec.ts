@@ -81,7 +81,6 @@ test('Sign in with login code entered manually when email login is enabled', asy
 	const token = oneTimeAccessTokens.find((t) => !t.expired)!;
 	await page.goto('/lc');
 
-	await page.getByText('I have a 12-character code').click();
 	await page.getByLabel('Login code').fill(token.token);
 	await page.getByRole('button', { name: 'Sign in', exact: true }).click();
 

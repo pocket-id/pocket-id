@@ -30,7 +30,6 @@
 
 	const SHORT = 6;
 	const LONG = 12;
-	const emailCodes = $appConfigStore.emailOneTimeAccessAsUnauthenticatedEnabled;
 	const userService = new UserService();
 
 	const sentTo = data.code ? '' : emailedLoginCode.sentTo;
@@ -38,7 +37,8 @@
 		data.redirect === '/settings' ? '' : `?redirect=${encodeURIComponent(data.redirect)}`;
 
 	let code = $state(data.code ?? '');
-	let long = $state(!sentTo && (code ? code.length > SHORT : !emailCodes));
+	// A code the user just requested by email is always short, any other code can have either length
+	const long = !sentTo;
 	let resendIn = $state(30);
 	let resending = $state(false);
 	let checking = $state(false);
@@ -46,7 +46,7 @@
 	let error: { message: string; invalid: boolean } | undefined = $state();
 
 	const token = $derived(code.replace(/[\s-]/g, ''));
-	const complete = $derived(token.length >= (long ? LONG : SHORT));
+	const complete = $derived(token.length === SHORT || (long && token.length === LONG));
 
 	// Typing again clears the last outcome
 	$effect(() => {
@@ -72,15 +72,6 @@
 			error = { message: invalid ? m.auth_code_did_not_work() : getAxiosErrorMessage(e), invalid };
 		}
 		checking = false;
-	}
-
-	// The last outcome belonged to the other format, and the new field takes over the typing
-	async function switchFormat() {
-		long = !long;
-		error = undefined;
-		if (token.length > (long ? LONG : SHORT)) code = '';
-		await tick();
-		document.getElementById('login-code')?.focus();
 	}
 
 	// Resend code becomes available once the countdown under the primary runs out
@@ -130,10 +121,8 @@
 					inputs={{ email: sentTo, appName: $appConfigStore.appName }}
 				/>
 			</span>
-		{:else if long}
-			{m.auth_login_code_long_description()}
 		{:else}
-			{m.auth_login_code_short_description()}
+			{m.auth_login_code_description()}
 		{/if}
 	</AuthHeading>
 	{#if !success}
@@ -194,10 +183,6 @@
 							{m.auth_resend_code()}
 						</Button>
 					{/if}
-				{:else if emailCodes}
-					<Button variant="link" class={authQuietClass} disabled={checking} onclick={switchFormat}>
-						{long ? m.auth_i_have_a_6_character_code() : m.auth_i_have_a_12_character_code()}
-					</Button>
 				{/if}
 			</div>
 		</form>
