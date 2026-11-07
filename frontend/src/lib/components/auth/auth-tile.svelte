@@ -29,6 +29,7 @@
 			'transition-motion relative col-start-1 row-start-1 size-8 duration-(--dur-base)',
 			outcome && 'scale-60 opacity-0'
 		)}
+		animate={false}
 	/>
 	<CheckIcon
 		class={cn(
