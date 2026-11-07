@@ -2,7 +2,11 @@
 	import { page } from '$app/state';
 	import AuthHeading from '#lib/components/auth/auth-heading.svelte';
 	import AuthTile from '#lib/components/auth/auth-tile.svelte';
-	import { authQuietClass, emailedLoginCode } from '#lib/components/auth/auth-util.ts';
+	import {
+		authQuietClass,
+		emailedLoginCode,
+		leaveAlternativeSignInHref
+	} from '#lib/components/auth/auth-util.ts';
 	import SignInWrapper from '#lib/components/login-wrapper.svelte';
 	import { Button } from '@pocket-id/ui/button';
 	import { m } from '#lib/paraglide/messages.js';
@@ -49,7 +53,7 @@
 	<title>{m.auth_other_ways_to_sign_in()}</title>
 </svelte:head>
 
-<SignInWrapper back={'/login' + page.url.search}>
+<SignInWrapper back={leaveAlternativeSignInHref()}>
 	<AuthTile />
 	<AuthHeading title={m.auth_other_ways_to_sign_in()} />
 	<ul class="-mx-3 mb-6 flex flex-col gap-0.5">
@@ -73,7 +77,7 @@
 			</li>
 		{/each}
 	</ul>
-	<Button variant="link" class={authQuietClass} href={'/login' + page.url.search}>
+	<Button variant="link" class={authQuietClass} href={leaveAlternativeSignInHref()}>
 		{m.auth_use_your_passkey_instead()}
 	</Button>
 </SignInWrapper>
