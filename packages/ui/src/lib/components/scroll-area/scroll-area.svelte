@@ -17,10 +17,11 @@
 	class={cn('relative', className)}
 	{...restProps}
 >
+	<!-- A positioned viewport keeps absolutely positioned descendants such as sr-only labels scrolling with the content instead of overflowing the root -->
 	<ScrollAreaPrimitive.Viewport
 		data-slot="scroll-area-viewport"
 		class={cn(
-			'focus-visible:outline-ring size-full rounded-[inherit] outline-none focus-visible:outline-2 focus-visible:-outline-offset-2',
+			'focus-visible:outline-ring scroll-fade-y relative size-full rounded-[inherit] outline-none focus-visible:outline-2 focus-visible:-outline-offset-2',
 			viewportClass
 		)}
 	>

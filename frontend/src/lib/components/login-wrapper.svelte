@@ -309,8 +309,7 @@
 						</div>
 						{#if wide && isTwoColumn.current}
 							<!-- The padding gives focus rings room inside the scroll clip and puts the scrollbar beside the content instead of over it -->
-							<!-- A positioned viewport keeps absolutely positioned descendants such as sr-only labels inside the scroll area, otherwise they overflow the stack and scroll the whole card -->
-							<ScrollArea class="-m-1 -mr-4" viewportClass="relative p-1 pr-4">
+							<ScrollArea class="-m-1 -mr-4" viewportClass="p-1 pr-4">
 								{@render side()}
 							</ScrollArea>
 						{:else}

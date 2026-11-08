@@ -121,7 +121,7 @@
 					{m.no_items_found()}
 				{/if}
 			</Command.Empty>
-			<Command.Group class="max-h-60 overflow-y-auto">
+			<Command.Group class="scroll-fade-y max-h-60 overflow-y-auto">
 				{#each filteredItems as item (item.value)}
 					<Command.Item
 						aria-checked={selectedItems.includes(item.value)}

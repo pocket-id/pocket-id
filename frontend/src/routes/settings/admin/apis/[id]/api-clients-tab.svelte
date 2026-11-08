@@ -8,6 +8,7 @@
 	import { Button } from '@pocket-id/ui/button';
 	import * as Dialog from '@pocket-id/ui/dialog';
 	import * as InputGroup from '@pocket-id/ui/input-group';
+	import { ScrollArea } from '@pocket-id/ui/scroll-area';
 	import { m } from '#lib/paraglide/messages.js';
 	import ApisService from '#lib/services/apis-service.ts';
 	import type { Api, ApiClient, ApiClientAccess, ApiClientGrant } from '#lib/types/api.type.ts';
@@ -185,7 +186,7 @@
 			/>
 			<InputGroup.Addon><SearchIcon /></InputGroup.Addon>
 		</InputGroup.Root>
-		<div class="max-h-90 overflow-y-auto rounded-md border">
+		<ScrollArea class="rounded-md border" viewportClass="max-h-90">
 			{#each pickerItems ?? [] as client (client.id)}
 				<button
 					type="button"
@@ -209,7 +210,7 @@
 					{assignable ? m.every_client_already_has_access({ name: api.name }) : m.loading()}
 				</p>
 			{/each}
-		</div>
+		</ScrollArea>
 	</Dialog.Content>
 </Dialog.Root>
 
