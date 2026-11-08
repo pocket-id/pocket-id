@@ -10,7 +10,7 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/pocket-id/pocket-id/backend/internal/model"
-	"github.com/pocket-id/pocket-id/backend/internal/service"
+	"github.com/pocket-id/pocket-id/backend/internal/oidc"
 	"github.com/pocket-id/pocket-id/backend/internal/storage"
 	"github.com/pocket-id/pocket-id/backend/internal/utils"
 	testutils "github.com/pocket-id/pocket-id/backend/internal/utils/testing"
@@ -44,9 +44,9 @@ func TestMoveLegacyOidcClientImages(t *testing.T) {
 		require.NoError(t, err)
 		assert.Equal(t, expected, string(payload))
 	}
-	assertStored(service.OidcClientImagePath("plain", "", "png"), "light")
-	assertStored(service.OidcClientImagePath("plain", "-dark", "svg"), "dark")
-	assertStored(service.OidcClientImagePath(cimdClientID, "", "webp"), "cimd")
+	assertStored(oidc.ClientImagePath("plain", "", "png"), "light")
+	assertStored(oidc.ClientImagePath("plain", "-dark", "svg"), "dark")
+	assertStored(oidc.ClientImagePath(cimdClientID, "", "webp"), "cimd")
 
 	files, err := store.List(t.Context(), "oidc-client-images")
 	require.NoError(t, err)

@@ -1,4 +1,4 @@
-package service
+package usergroups
 
 import (
 	"context"
@@ -7,28 +7,28 @@ import (
 	"slices"
 	"time"
 
-	"github.com/pocket-id/pocket-id/backend/internal/appconfig"
-	datatype "github.com/pocket-id/pocket-id/backend/internal/model/types"
 	"gorm.io/gorm"
 
+	"github.com/pocket-id/pocket-id/backend/internal/appconfig"
 	"github.com/pocket-id/pocket-id/backend/internal/apperror"
 	"github.com/pocket-id/pocket-id/backend/internal/backchannellogout"
 	"github.com/pocket-id/pocket-id/backend/internal/dto"
 	"github.com/pocket-id/pocket-id/backend/internal/model"
+	datatype "github.com/pocket-id/pocket-id/backend/internal/model/types"
 	"github.com/pocket-id/pocket-id/backend/internal/utils"
 )
 
-type UserGroupService struct {
+type Service struct {
 	db                *gorm.DB
 	scimSyncScheduler ScimSyncScheduler
 	backchannelLogout *backchannellogout.Service
 }
 
-func NewUserGroupService(db *gorm.DB, scimSyncScheduler ScimSyncScheduler, backchannelLogout *backchannellogout.Service) *UserGroupService {
-	return &UserGroupService{db: db, scimSyncScheduler: scimSyncScheduler, backchannelLogout: backchannelLogout}
+func newService(db *gorm.DB, scimSyncScheduler ScimSyncScheduler, backchannelLogout *backchannellogout.Service) *Service {
+	return &Service{db: db, scimSyncScheduler: scimSyncScheduler, backchannelLogout: backchannelLogout}
 }
 
-func (s *UserGroupService) List(ctx context.Context, name string, listRequestOptions utils.ListRequestOptions) (groups []model.UserGroup, response utils.PaginationResponse, err error) {
+func (s *Service) List(ctx context.Context, name string, listRequestOptions utils.ListRequestOptions) (groups []model.UserGroup, response utils.PaginationResponse, err error) {
 	query := s.db.
 		WithContext(ctx).
 		Preload("CustomClaims").
@@ -51,11 +51,11 @@ func (s *UserGroupService) List(ctx context.Context, name string, listRequestOpt
 	return groups, response, err
 }
 
-func (s *UserGroupService) Get(ctx context.Context, id string) (group model.UserGroup, err error) {
+func (s *Service) Get(ctx context.Context, id string) (group model.UserGroup, err error) {
 	return s.getInternal(ctx, id, s.db)
 }
 
-func (s *UserGroupService) getInternal(ctx context.Context, id string, tx *gorm.DB) (group model.UserGroup, err error) {
+func (s *Service) getInternal(ctx context.Context, id string, tx *gorm.DB) (group model.UserGroup, err error) {
 	err = tx.
 		WithContext(ctx).
 		Where("id = ?", id).
@@ -70,7 +70,7 @@ func (s *UserGroupService) getInternal(ctx context.Context, id string, tx *gorm.
 	return group, err
 }
 
-func (s *UserGroupService) Delete(ctx context.Context, cfg *appconfig.AppConfigModel, id string) error {
+func (s *Service) Delete(ctx context.Context, cfg *appconfig.AppConfigModel, id string) error {
 	tx := s.db.Begin()
 	defer func() {
 		tx.Rollback()
@@ -130,7 +130,7 @@ func (s *UserGroupService) Delete(ctx context.Context, cfg *appconfig.AppConfigM
 }
 
 // memberIDs returns the IDs of the users that are currently members of the group
-func (s *UserGroupService) memberIDs(ctx context.Context, tx *gorm.DB, groupID string) ([]string, error) {
+func (s *Service) memberIDs(ctx context.Context, tx *gorm.DB, groupID string) ([]string, error) {
 	var userIDs []string
 	err := tx.
 		WithContext(ctx).
@@ -144,8 +144,8 @@ func (s *UserGroupService) memberIDs(ctx context.Context, tx *gorm.DB, groupID s
 	return userIDs, nil
 }
 
-func (s *UserGroupService) Create(ctx context.Context, input dto.UserGroupCreateDto) (group model.UserGroup, err error) {
-	group, err = s.CreateInternal(ctx, input, s.db)
+func (s *Service) Create(ctx context.Context, input dto.UserGroupCreateDto) (group model.UserGroup, err error) {
+	group, err = s.createInternal(ctx, input, s.db)
 	if err != nil {
 		return model.UserGroup{}, err
 	}
@@ -156,9 +156,8 @@ func (s *UserGroupService) Create(ctx context.Context, input dto.UserGroupCreate
 	return group, nil
 }
 
-// CreateInternal creates a user group within an existing transaction
-// It's exported for the LDAP sync, which reconciles users and groups in a single transaction of its own
-func (s *UserGroupService) CreateInternal(ctx context.Context, input dto.UserGroupCreateDto, tx *gorm.DB) (model.UserGroup, error) {
+// createInternal creates a user group within an existing transaction
+func (s *Service) createInternal(ctx context.Context, input dto.UserGroupCreateDto, tx *gorm.DB) (model.UserGroup, error) {
 	group := model.UserGroup{
 		FriendlyName: input.FriendlyName,
 		Name:         input.Name,
@@ -182,7 +181,7 @@ func (s *UserGroupService) CreateInternal(ctx context.Context, input dto.UserGro
 	return group, nil
 }
 
-func (s *UserGroupService) Update(ctx context.Context, cfg *appconfig.AppConfigModel, id string, input dto.UserGroupCreateDto) (group model.UserGroup, err error) {
+func (s *Service) Update(ctx context.Context, cfg *appconfig.AppConfigModel, id string, input dto.UserGroupCreateDto) (group model.UserGroup, err error) {
 	tx := s.db.Begin()
 	defer func() {
 		tx.Rollback()
@@ -204,13 +203,7 @@ func (s *UserGroupService) Update(ctx context.Context, cfg *appconfig.AppConfigM
 	return group, nil
 }
 
-// UpdateInternal updates a user group within an existing transaction
-// It's exported for the LDAP sync, which reconciles users and groups in a single transaction of its own
-func (s *UserGroupService) UpdateInternal(ctx context.Context, cfg *appconfig.AppConfigModel, id string, input dto.UserGroupCreateDto, isLdapSync bool, tx *gorm.DB) (model.UserGroup, error) {
-	return s.updateInternal(ctx, id, input, isLdapSync, tx, cfg)
-}
-
-func (s *UserGroupService) updateInternal(ctx context.Context, id string, input dto.UserGroupCreateDto, isLdapSync bool, tx *gorm.DB, cfg *appconfig.AppConfigModel) (group model.UserGroup, err error) {
+func (s *Service) updateInternal(ctx context.Context, id string, input dto.UserGroupCreateDto, isLdapSync bool, tx *gorm.DB, cfg *appconfig.AppConfigModel) (group model.UserGroup, err error) {
 	group, err = s.getInternal(ctx, id, tx)
 	if err != nil {
 		return model.UserGroup{}, err
@@ -241,7 +234,7 @@ func (s *UserGroupService) updateInternal(ctx context.Context, id string, input 
 	return group, nil
 }
 
-func (s *UserGroupService) UpdateUsers(ctx context.Context, id string, userIds []string) (group model.UserGroup, err error) {
+func (s *Service) UpdateUsers(ctx context.Context, id string, userIds []string) (group model.UserGroup, err error) {
 	tx := s.db.Begin()
 	defer func() {
 		tx.Rollback()
@@ -257,7 +250,7 @@ func (s *UserGroupService) UpdateUsers(ctx context.Context, id string, userIds [
 		}
 	}
 
-	group, err = s.UpdateUsersInternal(ctx, id, userIds, tx)
+	group, err = s.updateUsersInternal(ctx, id, userIds, tx)
 	if err != nil {
 		return model.UserGroup{}, err
 	}
@@ -289,9 +282,8 @@ func (s *UserGroupService) UpdateUsers(ctx context.Context, id string, userIds [
 	return group, nil
 }
 
-// UpdateUsersInternal replaces the members of a user group within an existing transaction
-// It's exported for the LDAP sync, which reconciles users and groups in a single transaction of its own
-func (s *UserGroupService) UpdateUsersInternal(ctx context.Context, id string, userIds []string, tx *gorm.DB) (model.UserGroup, error) {
+// updateUsersInternal replaces the members of a user group within an existing transaction
+func (s *Service) updateUsersInternal(ctx context.Context, id string, userIds []string, tx *gorm.DB) (model.UserGroup, error) {
 	group, err := s.getInternal(ctx, id, tx)
 	if err != nil {
 		return model.UserGroup{}, err
@@ -334,7 +326,7 @@ func (s *UserGroupService) UpdateUsersInternal(ctx context.Context, id string, u
 	return group, nil
 }
 
-func (s *UserGroupService) GetUserCountOfGroup(ctx context.Context, id string) (int64, error) {
+func (s *Service) GetUserCountOfGroup(ctx context.Context, id string) (int64, error) {
 	// We only perform select queries here, so we can rollback in all cases
 	tx := s.db.Begin()
 	defer func() {
@@ -362,7 +354,7 @@ func (s *UserGroupService) GetUserCountOfGroup(ctx context.Context, id string) (
 	return count, nil
 }
 
-func (s *UserGroupService) UpdateAllowedOidcClient(ctx context.Context, id string, input dto.UserGroupUpdateAllowedOidcClientsDto) (group model.UserGroup, err error) {
+func (s *Service) UpdateAllowedOidcClient(ctx context.Context, id string, input dto.UserGroupUpdateAllowedOidcClientsDto) (group model.UserGroup, err error) {
 	tx := s.db.Begin()
 	defer func() {
 		tx.Rollback()

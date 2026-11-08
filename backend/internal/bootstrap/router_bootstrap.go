@@ -40,7 +40,7 @@ func initRouter(db *gorm.DB, svc *services, rateLimitServices map[string]*rateli
 	if err != nil {
 		return nil, err
 	}
-	auth := middleware.NewAuthorization(svc.apiKeyModule, svc.oidcModule, svc.userService, svc.sessionModule, svc.appConfigService)
+	auth := middleware.NewAuthorization(svc.apiKeyModule, svc.oidcModule, svc.usersModule, svc.sessionModule, svc.appConfigService)
 	err = registerRoutes(r, db, svc, auth, rateLimitServices)
 	if err != nil {
 		return nil, err
@@ -171,14 +171,13 @@ func registerRoutes(r *gin.Engine, db *gorm.DB, svc *services, auth *authz.Middl
 		rateLimitMiddleware.Add(middleware.RateLimitDeviceLoginExchange),
 		rateLimitMiddleware.Add(middleware.RateLimitDeviceLoginVerification),
 	)
-	controller.NewOidcController(apiRouter, fileSizeLimitMiddleware, svc.oidcService, svc.appConfigService)
-	controller.NewUserController(apiRouter, fileSizeLimitMiddleware, svc.appConfigService, svc.userService, svc.webauthnModule)
+	svc.usersModule.RegisterRoutes(apiRouter, fileSizeLimitMiddleware.Add(10<<20))
 	svc.claimMappingPolicyModule.RegisterRoutes(apiRouter)
 	controller.NewAppConfigController(apiRouter, svc.appConfigService, svc.emailModule)
 	svc.ldapSyncModule.RegisterRoutes(apiRouter)
 	controller.NewAppAssetsController(apiRouter, fileSizeLimitMiddleware, svc.appAssetsService)
 	svc.auditLogsModule.RegisterRoutes(apiRouter)
-	controller.NewUserGroupController(apiRouter, svc.appConfigService, svc.userGroupService)
+	svc.userGroupsModule.RegisterRoutes(apiRouter)
 	svc.apiModule.RegisterRoutes(apiRouter)
 	controller.NewCustomClaimController(apiRouter, svc.customClaimService)
 	svc.environmentModule.RegisterRoutes(apiRouter)
@@ -191,7 +190,7 @@ func registerRoutes(r *gin.Engine, db *gorm.DB, svc *services, auth *authz.Middl
 		rateLimitMiddleware.Add(middleware.RateLimitOneTimeAccessEmail),
 	)
 	svc.emailVerificationModule.RegisterRoutes(apiRouter, rateLimitMiddleware.Add(middleware.RateLimitVerifyEmail))
-	svc.oidcModule.RegisterRoutes(baseRouter, apiRouter)
+	svc.oidcModule.RegisterRoutes(baseRouter, apiRouter, fileSizeLimitMiddleware.Add(2<<20))
 
 	registerTestRoutes(apiRouter, db, svc)
 

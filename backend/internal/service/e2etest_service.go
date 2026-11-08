@@ -83,6 +83,11 @@ const (
 	authenticationMethodPhishingResistant = "phr"
 )
 
+const (
+	accessTokenDuration  = time.Duration(model.DefaultAccessTokenDurationMinutes) * time.Minute
+	refreshTokenDuration = time.Duration(model.DefaultRefreshTokenDurationMinutes) * time.Minute
+)
+
 func NewTestService(db *gorm.DB, actors francishost.Host, appConfigService *appconfig.AppConfigService, signingKey *signingkey.Key, browserKey BrowserKeyReloader, ldapSyncer LdapSyncer, fileStorage storage.FileStorage) (*TestService, error) {
 	s := &TestService{
 		db:               db,
@@ -884,7 +889,7 @@ func (s *TestService) SignRefreshToken(ctx context.Context, userID, clientID, fi
 	}
 	strategy := compose.NewOAuth2HMACStrategy(&fosite.Config{
 		GlobalSecret:         globalSecret,
-		RefreshTokenLifespan: RefreshTokenDuration,
+		RefreshTokenLifespan: refreshTokenDuration,
 	})
 
 	token, signature, err := strategy.GenerateRefreshToken(ctx, nil)
@@ -947,7 +952,7 @@ func seededRefreshTokenFixture(userID string, clientID string, fixtureRefreshTok
 
 func (s *TestService) SignAccessToken(ctx context.Context, userID, clientID string, expired bool) (string, error) {
 	fositeConfig := &fosite.Config{
-		AccessTokenLifespan: AccessTokenDuration,
+		AccessTokenLifespan: accessTokenDuration,
 		AccessTokenIssuer:   common.EnvConfig.AppURL,
 	}
 	keyGetter := func(context.Context) (interface{}, error) {
@@ -955,7 +960,7 @@ func (s *TestService) SignAccessToken(ctx context.Context, userID, clientID stri
 	}
 	strategy := oidc.NewAccessTokenStrategy(compose.NewOAuth2RFC9068JWTStrategy(keyGetter, fositeConfig), common.EnvConfig.AppURL)
 
-	expiresAt := time.Now().UTC().Add(AccessTokenDuration)
+	expiresAt := time.Now().UTC().Add(accessTokenDuration)
 	if expired {
 		expiresAt = time.Now().UTC().Add(-time.Minute)
 	}

@@ -18,6 +18,8 @@ import (
 	datatype "github.com/pocket-id/pocket-id/backend/internal/model/types"
 	"github.com/pocket-id/pocket-id/backend/internal/service"
 	"github.com/pocket-id/pocket-id/backend/internal/storage"
+	"github.com/pocket-id/pocket-id/backend/internal/usergroups"
+	"github.com/pocket-id/pocket-id/backend/internal/users"
 	testutils "github.com/pocket-id/pocket-id/backend/internal/utils/testing"
 )
 
@@ -577,23 +579,20 @@ func newTestLdapService(t *testing.T, client ldapClient) (*Service, *gorm.DB) {
 	require.NoError(t, err)
 
 	// The sync is exercised against the real user and group services, so the assertions below can check what actually lands in the database
-	groupService := service.NewUserGroupService(db, nil, nil)
-	userService := service.NewUserService(
-		db,
-		service.NewCustomClaimService(db),
-		service.NewAppAssetsService(map[string]string{}, fileStorage),
-		nil,
-		nil,
-		fileStorage,
-		nil,
-	)
+	groupsModule := usergroups.New(usergroups.Dependencies{DB: db})
+	usersModule := users.New(users.Dependencies{
+		DB:           db,
+		FileStorage:  fileStorage,
+		CustomClaims: service.NewCustomClaimService(db),
+		AppAssets:    service.NewAppAssetsService(map[string]string{}, fileStorage),
+	})
 
 	svc := newService(Dependencies{
 		DB:          db,
 		HTTPClient:  &http.Client{},
 		FileStorage: fileStorage,
-		Users:       userService,
-		Groups:      groupService,
+		Users:       usersModule,
+		Groups:      groupsModule,
 	})
 	svc.clientFactory = func(dbConfig *appconfig.AppConfigModel) (ldapClient, error) {
 		return client, nil

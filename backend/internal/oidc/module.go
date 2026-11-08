@@ -7,6 +7,7 @@ import (
 	"net/http"
 	"time"
 
+	"github.com/gin-gonic/gin"
 	francishost "github.com/italypaleale/francis/host"
 	"github.com/lestrrat-go/jwx/v4/jwa"
 	"github.com/pocket-id/fosite"
@@ -16,8 +17,10 @@ import (
 	"github.com/pocket-id/pocket-id/backend/internal/appconfig"
 	"github.com/pocket-id/pocket-id/backend/internal/auditlogs"
 	"github.com/pocket-id/pocket-id/backend/internal/authz"
+	"github.com/pocket-id/pocket-id/backend/internal/backchannellogout"
 	"github.com/pocket-id/pocket-id/backend/internal/httpserver"
 	"github.com/pocket-id/pocket-id/backend/internal/model"
+	"github.com/pocket-id/pocket-id/backend/internal/storage"
 )
 
 type Config struct {
@@ -55,6 +58,11 @@ type AuditLogger interface {
 	Create(ctx context.Context, event auditlogs.Event, ipAddress, userAgent, userID string, data auditlogs.Data, tx *gorm.DB) (auditlogs.AuditLog, bool)
 }
 
+// ScimSyncScheduler schedules SCIM after a client change has committed
+type ScimSyncScheduler interface {
+	ScheduleSync(ctx context.Context)
+}
+
 type Dependencies struct {
 	DB                  *gorm.DB
 	Actors              francishost.Host
@@ -64,21 +72,25 @@ type Dependencies struct {
 
 	GetCIMDURLAllowlist func() []string
 
-	Signer       Signer
-	CustomClaims CustomClaimSource
-	Reauth       ReauthenticationTokenConsumer
-	AuditLog     AuditLogger
-	Sessions     SessionRevoker
-	APIAccess    APIAccessProvider
-	AppConfig    appconfig.AppConfigResolver
+	// LogoHTTPClient downloads the logos admins set by URL
+	LogoHTTPClient *http.Client
+	FileStorage    storage.FileStorage
+
+	Signer            Signer
+	CustomClaims      CustomClaimSource
+	Reauth            ReauthenticationTokenConsumer
+	AuditLog          AuditLogger
+	Sessions          SessionRevoker
+	APIAccess         APIAccessProvider
+	AppConfig         appconfig.AppConfigResolver
+	ScimSync          ScimSyncScheduler
+	BackchannelLogout *backchannellogout.Service
 
 	// CleanupDisabled skips registering the cron jobs that delete expired rows from the database, for example in tests
 	CleanupDisabled bool
 }
 
 type Module struct {
-	Preview *ClientPreviewBuilder
-
 	config       Config
 	provider     fosite.OAuth2Provider
 	store        *Store
@@ -94,6 +106,7 @@ type Module struct {
 
 	claimMappingsPreviewHandler *claimMappingsPreviewHandler
 	discoveryHandler            *discoveryHandler
+	clientHandler               *clientHandler
 }
 
 func New(ctx context.Context, deps Dependencies) (*Module, error) {
@@ -143,8 +156,6 @@ func New(ctx context.Context, deps Dependencies) (*Module, error) {
 	}
 
 	return &Module{
-		Preview: previewBuilder,
-
 		config:       deps.Config,
 		provider:     provider,
 		store:        store,
@@ -160,12 +171,11 @@ func New(ctx context.Context, deps Dependencies) (*Module, error) {
 
 		claimMappingsPreviewHandler: &claimMappingsPreviewHandler{claimsService: claimsService},
 		discoveryHandler:            &discoveryHandler{keys: deps.Signer, getCIMDURLAllowlist: deps.GetCIMDURLAllowlist},
+		clientHandler: &clientHandler{
+			service:   newClientService(deps.DB, previewBuilder, cimdResolver, deps.ScimSync, deps.BackchannelLogout, deps.LogoHTTPClient, deps.FileStorage),
+			appConfig: deps.AppConfig,
+		},
 	}, nil
-}
-
-// RefreshClientMetadata forces a re-fetch of the OAuth Client ID Metadata Document.
-func (m *Module) RefreshClientMetadata(ctx context.Context, clientID string) (model.OidcClient, error) {
-	return m.cimdResolver.RefreshMetadataClient(ctx, clientID)
 }
 
 // VerifyAccessToken validates an access token Pocket ID issued, including that it hasn't been revoked, and returns the request it was granted for
@@ -180,7 +190,7 @@ func (m *Module) VerifyAccessToken(ctx context.Context, token string) (fosite.Ac
 	return accessRequest, nil
 }
 
-func (m *Module) RegisterRoutes(root, api *authz.Router) {
+func (m *Module) RegisterRoutes(root, api *authz.Router, logoSizeLimit gin.HandlerFunc) {
 	// Browsers reach the authorize endpoint through a redirect, so authorization errors are shown on the interaction error page instead of as JSON
 	authorize := root.Use(m.authorizationHandler.redirectAuthorizationErrors).Optional()
 	authorize.GET("/authorize", authz.AccountAuthorize, m.authorizationHandler.authorize)
@@ -211,4 +221,30 @@ func (m *Module) RegisterRoutes(root, api *authz.Router) {
 
 	// The preview renders a user's claims, so it is guarded by the user scope like the client preview
 	api.POST("/oidc/claim-mapping-policies/preview", authz.UsersRead, httpserver.Handle(m.claimMappingsPreviewHandler.previewClaimMappings))
+
+	api.GET("/oidc/clients", authz.OidcClientsRead, httpserver.Handle(m.clientHandler.listClientsHandler))
+	api.POST("/oidc/clients", authz.OidcClientsWrite, httpserver.Handle(m.clientHandler.createClientHandler))
+	api.GET("/oidc/clients/:id", authz.OidcClientsRead, httpserver.Handle(m.clientHandler.getClientHandler))
+	api.PUT("/oidc/clients/:id", authz.OidcClientsWrite, httpserver.Handle(m.clientHandler.updateClientHandler))
+	api.POST("/oidc/clients/:id/refresh", authz.OidcClientsWrite, httpserver.Handle(m.clientHandler.refreshClientMetadataHandler))
+	api.DELETE("/oidc/clients/:id", authz.OidcClientsWrite, httpserver.Handle(m.clientHandler.deleteClientHandler))
+
+	api.PUT("/oidc/clients/:id/allowed-user-groups", authz.OidcClientsWrite, httpserver.Handle(m.clientHandler.updateAllowedUserGroupsHandler))
+	api.GET("/oidc/clients/:id/secrets", authz.OidcClientsRead, httpserver.Handle(m.clientHandler.listClientSecretsHandler))
+	api.POST("/oidc/clients/:id/secrets", authz.OidcClientsWrite, httpserver.Handle(m.clientHandler.createClientSecretHandler))
+	api.DELETE("/oidc/clients/:id/secrets/:secretId", authz.OidcClientsWrite, httpserver.Handle(m.clientHandler.deleteClientSecretHandler))
+
+	api.Public().GET("/oidc/clients/:id/logo", httpserver.Handle(m.clientHandler.getClientLogoHandler))
+	api.DELETE("/oidc/clients/:id/logo", authz.OidcClientsWrite, httpserver.Handle(m.clientHandler.deleteClientLogoHandler))
+	api.POST("/oidc/clients/:id/logo", authz.OidcClientsWrite, logoSizeLimit, httpserver.Handle(m.clientHandler.updateClientLogoHandler))
+
+	// The preview renders a user's claims, so it is guarded by the user scope rather than the client scope
+	api.GET("/oidc/clients/:id/preview/:userId", authz.UsersRead, httpserver.Handle(m.clientHandler.getClientPreviewHandler))
+
+	api.GET("/oidc/users/me/authorized-clients", authz.AccountApps, httpserver.Handle(m.clientHandler.listOwnAuthorizedClientsHandler))
+	api.GET("/oidc/users/:id/authorized-clients", authz.UsersRead, httpserver.Handle(m.clientHandler.listAuthorizedClientsHandler))
+
+	api.DELETE("/oidc/users/me/authorized-clients/:clientId", authz.AccountApps, httpserver.Handle(m.clientHandler.revokeOwnClientAuthorizationHandler))
+
+	api.GET("/oidc/users/me/clients", authz.AccountApps, httpserver.Handle(m.clientHandler.listOwnAccessibleClientsHandler))
 }

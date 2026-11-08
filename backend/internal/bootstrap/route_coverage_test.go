@@ -22,6 +22,8 @@ import (
 	"github.com/pocket-id/pocket-id/backend/internal/onetimeaccess"
 	"github.com/pocket-id/pocket-id/backend/internal/scimsync"
 	"github.com/pocket-id/pocket-id/backend/internal/session"
+	"github.com/pocket-id/pocket-id/backend/internal/usergroups"
+	"github.com/pocket-id/pocket-id/backend/internal/users"
 	"github.com/pocket-id/pocket-id/backend/internal/usersignup"
 	"github.com/pocket-id/pocket-id/backend/internal/webauthn"
 )
@@ -48,6 +50,8 @@ func TestEveryAPIRouteDeclaresItsAccess(t *testing.T) {
 		environmentModule:        &environment.Module{},
 		logoPresetModule:         &logopreset.Module{},
 		featureModule:            &feature.Module{},
+		usersModule:              &users.Module{},
+		userGroupsModule:         &usergroups.Module{},
 	}
 
 	engine := gin.New()

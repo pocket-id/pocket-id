@@ -71,6 +71,12 @@ func (s *CustomClaimService) UpdateCustomClaimsForUser(ctx context.Context, user
 	return updatedClaims, nil
 }
 
+// UpdateCustomClaimsForUserInternal replaces a user's custom claims within an existing transaction
+// It's exported for the users module, which applies the default custom claims to new users
+func (s *CustomClaimService) UpdateCustomClaimsForUserInternal(ctx context.Context, userID string, claims []dto.CustomClaimCreateDto, tx *gorm.DB) ([]model.CustomClaim, error) {
+	return s.updateCustomClaimsInternal(ctx, UserID, userID, claims, tx)
+}
+
 // UpdateCustomClaimsForUserGroup updates the custom claims for a user group
 func (s *CustomClaimService) UpdateCustomClaimsForUserGroup(ctx context.Context, userGroupID string, claims []dto.CustomClaimCreateDto) ([]model.CustomClaim, error) {
 	tx := s.db.Begin()

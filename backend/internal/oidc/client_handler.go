@@ -1,4 +1,4 @@
-package controller
+package oidc
 
 import (
 	"net/http"
@@ -13,51 +13,12 @@ import (
 	"github.com/pocket-id/pocket-id/backend/internal/authz"
 	"github.com/pocket-id/pocket-id/backend/internal/dto"
 	"github.com/pocket-id/pocket-id/backend/internal/httpserver"
-	"github.com/pocket-id/pocket-id/backend/internal/middleware"
-	"github.com/pocket-id/pocket-id/backend/internal/service"
 	"github.com/pocket-id/pocket-id/backend/internal/utils"
 )
 
-// NewOidcController creates a new controller for OIDC related endpoints
-// @Summary OIDC controller
-// @Description Initializes all OIDC-related API endpoints for authentication and client management
-// @Tags OIDC
-func NewOidcController(r *authz.Router, fileSizeLimitMiddleware *middleware.FileSizeLimitMiddleware, oidcService *service.OidcService, appConfigService appconfig.AppConfigResolver) {
-	oc := &OidcController{
-		oidcService:      oidcService,
-		appConfigService: appConfigService,
-	}
-
-	r.GET("/oidc/clients", authz.OidcClientsRead, httpserver.Handle(oc.listClientsHandler))
-	r.POST("/oidc/clients", authz.OidcClientsWrite, httpserver.Handle(oc.createClientHandler))
-	r.GET("/oidc/clients/:id", authz.OidcClientsRead, httpserver.Handle(oc.getClientHandler))
-	r.PUT("/oidc/clients/:id", authz.OidcClientsWrite, httpserver.Handle(oc.updateClientHandler))
-	r.POST("/oidc/clients/:id/refresh", authz.OidcClientsWrite, httpserver.Handle(oc.refreshClientMetadataHandler))
-	r.DELETE("/oidc/clients/:id", authz.OidcClientsWrite, httpserver.Handle(oc.deleteClientHandler))
-
-	r.PUT("/oidc/clients/:id/allowed-user-groups", authz.OidcClientsWrite, httpserver.Handle(oc.updateAllowedUserGroupsHandler))
-	r.GET("/oidc/clients/:id/secrets", authz.OidcClientsRead, httpserver.Handle(oc.listClientSecretsHandler))
-	r.POST("/oidc/clients/:id/secrets", authz.OidcClientsWrite, httpserver.Handle(oc.createClientSecretHandler))
-	r.DELETE("/oidc/clients/:id/secrets/:secretId", authz.OidcClientsWrite, httpserver.Handle(oc.deleteClientSecretHandler))
-
-	r.Public().GET("/oidc/clients/:id/logo", httpserver.Handle(oc.getClientLogoHandler))
-	r.DELETE("/oidc/clients/:id/logo", authz.OidcClientsWrite, httpserver.Handle(oc.deleteClientLogoHandler))
-	r.POST("/oidc/clients/:id/logo", authz.OidcClientsWrite, fileSizeLimitMiddleware.Add(2<<20), httpserver.Handle(oc.updateClientLogoHandler))
-
-	// The preview renders a user's claims, so it is guarded by the user scope rather than the client scope
-	r.GET("/oidc/clients/:id/preview/:userId", authz.UsersRead, httpserver.Handle(oc.getClientPreviewHandler))
-
-	r.GET("/oidc/users/me/authorized-clients", authz.AccountApps, httpserver.Handle(oc.listOwnAuthorizedClientsHandler))
-	r.GET("/oidc/users/:id/authorized-clients", authz.UsersRead, httpserver.Handle(oc.listAuthorizedClientsHandler))
-
-	r.DELETE("/oidc/users/me/authorized-clients/:clientId", authz.AccountApps, httpserver.Handle(oc.revokeOwnClientAuthorizationHandler))
-
-	r.GET("/oidc/users/me/clients", authz.AccountApps, httpserver.Handle(oc.listOwnAccessibleClientsHandler))
-}
-
-type OidcController struct {
-	oidcService      *service.OidcService
-	appConfigService appconfig.AppConfigResolver
+type clientHandler struct {
+	service   *clientService
+	appConfig appconfig.AppConfigResolver
 }
 
 // getClientHandler godoc
@@ -69,9 +30,9 @@ type OidcController struct {
 // @Success 200 {object} dto.OidcClientWithAllowedUserGroupsDto "Client information"
 // @Failure default {object} dto.ErrorDto "Error"
 // @Router /api/oidc/clients/{id} [get]
-func (oc *OidcController) getClientHandler(c *gin.Context) error {
+func (h *clientHandler) getClientHandler(c *gin.Context) error {
 	clientId := c.Param("id")
-	client, err := oc.oidcService.GetClient(c.Request.Context(), clientId)
+	client, err := h.service.GetClient(c.Request.Context(), clientId)
 	if err != nil {
 		return err
 	}
@@ -98,11 +59,11 @@ func (oc *OidcController) getClientHandler(c *gin.Context) error {
 // @Success 200 {object} dto.Paginated[dto.OidcClientWithAllowedGroupsDto]
 // @Failure default {object} dto.ErrorDto "Error"
 // @Router /api/oidc/clients [get]
-func (oc *OidcController) listClientsHandler(c *gin.Context) error {
+func (h *clientHandler) listClientsHandler(c *gin.Context) error {
 	searchTerm := c.Query("search")
 	listRequestOptions := utils.ParseListRequestOptions(c)
 
-	clients, pagination, err := oc.oidcService.ListClients(c.Request.Context(), searchTerm, listRequestOptions)
+	clients, pagination, err := h.service.ListClients(c.Request.Context(), searchTerm, listRequestOptions)
 	if err != nil {
 		return err
 	}
@@ -135,19 +96,19 @@ func (oc *OidcController) listClientsHandler(c *gin.Context) error {
 // @Success 201 {object} dto.OidcClientCreatedDto "Created client"
 // @Failure default {object} dto.ErrorDto "Error"
 // @Router /api/oidc/clients [post]
-func (oc *OidcController) createClientHandler(c *gin.Context) error {
+func (h *clientHandler) createClientHandler(c *gin.Context) error {
 	var input dto.OidcClientCreateDto
 	err := httpserver.BindJSON(c, &input)
 	if err != nil {
 		return err
 	}
 
-	config, err := oc.appConfigService.GetConfig(c.Request.Context())
+	config, err := h.appConfig.GetConfig(c.Request.Context())
 	if err != nil {
 		return err
 	}
 
-	client, createdSecret, err := oc.oidcService.CreateClient(c.Request.Context(), input, authz.PrincipalFrom(c).UserID, config.AutoCreateOIDCClientSecret.IsTrue())
+	client, createdSecret, err := h.service.CreateClient(c.Request.Context(), input, authz.PrincipalFrom(c).UserID, config.AutoCreateOIDCClientSecret.IsTrue())
 	if err != nil {
 		return err
 	}
@@ -178,8 +139,8 @@ func (oc *OidcController) createClientHandler(c *gin.Context) error {
 // @Success 204 "No Content"
 // @Failure default {object} dto.ErrorDto "Error"
 // @Router /api/oidc/clients/{id} [delete]
-func (oc *OidcController) deleteClientHandler(c *gin.Context) error {
-	err := oc.oidcService.DeleteClient(c.Request.Context(), c.Param("id"))
+func (h *clientHandler) deleteClientHandler(c *gin.Context) error {
+	err := h.service.DeleteClient(c.Request.Context(), c.Param("id"))
 	if err != nil {
 		return err
 	}
@@ -199,14 +160,14 @@ func (oc *OidcController) deleteClientHandler(c *gin.Context) error {
 // @Success 200 {object} dto.OidcClientWithAllowedUserGroupsDto "Updated client"
 // @Failure default {object} dto.ErrorDto "Error"
 // @Router /api/oidc/clients/{id} [put]
-func (oc *OidcController) updateClientHandler(c *gin.Context) error {
+func (h *clientHandler) updateClientHandler(c *gin.Context) error {
 	var input dto.OidcClientUpdateDto
 	err := httpserver.BindJSON(c, &input)
 	if err != nil {
 		return err
 	}
 
-	client, err := oc.oidcService.UpdateClient(c.Request.Context(), c.Param("id"), input)
+	client, err := h.service.UpdateClient(c.Request.Context(), c.Param("id"), input)
 	if err != nil {
 		return err
 	}
@@ -230,8 +191,8 @@ func (oc *OidcController) updateClientHandler(c *gin.Context) error {
 // @Success 200 {object} dto.OidcClientWithAllowedUserGroupsDto "Refreshed client"
 // @Failure default {object} dto.ErrorDto "Error"
 // @Router /api/oidc/clients/{id}/refresh [post]
-func (oc *OidcController) refreshClientMetadataHandler(c *gin.Context) error {
-	client, err := oc.oidcService.RefreshClientMetadata(c.Request.Context(), c.Param("id"))
+func (h *clientHandler) refreshClientMetadataHandler(c *gin.Context) error {
+	client, err := h.service.RefreshClientMetadata(c.Request.Context(), c.Param("id"))
 	if err != nil {
 		return err
 	}
@@ -256,8 +217,8 @@ func (oc *OidcController) refreshClientMetadataHandler(c *gin.Context) error {
 // @Success 200 {array} dto.OidcClientSecretDto "Client secrets"
 // @Failure default {object} dto.ErrorDto "Error"
 // @Router /api/oidc/clients/{id}/secrets [get]
-func (oc *OidcController) listClientSecretsHandler(c *gin.Context) error {
-	secrets, err := oc.oidcService.ListClientSecrets(c.Request.Context(), c.Param("id"))
+func (h *clientHandler) listClientSecretsHandler(c *gin.Context) error {
+	secrets, err := h.service.ListClientSecrets(c.Request.Context(), c.Param("id"))
 	if err != nil {
 		return err
 	}
@@ -283,14 +244,14 @@ func (oc *OidcController) listClientSecretsHandler(c *gin.Context) error {
 // @Success 201 {object} dto.OidcClientSecretCreatedDto "Created client secret"
 // @Failure default {object} dto.ErrorDto "Error"
 // @Router /api/oidc/clients/{id}/secrets [post]
-func (oc *OidcController) createClientSecretHandler(c *gin.Context) error {
+func (h *clientHandler) createClientSecretHandler(c *gin.Context) error {
 	var input dto.OidcClientSecretCreateDto
 	err := httpserver.BindOptionalJSON(c, &input)
 	if err != nil {
 		return err
 	}
 
-	created, secret, err := oc.oidcService.CreateClientSecret(c.Request.Context(), c.Param("id"), input)
+	created, secret, err := h.service.CreateClientSecret(c.Request.Context(), c.Param("id"), input)
 	if err != nil {
 		return err
 	}
@@ -315,8 +276,8 @@ func (oc *OidcController) createClientSecretHandler(c *gin.Context) error {
 // @Success 204 "No content"
 // @Failure default {object} dto.ErrorDto "Error"
 // @Router /api/oidc/clients/{id}/secrets/{secretId} [delete]
-func (oc *OidcController) deleteClientSecretHandler(c *gin.Context) error {
-	err := oc.oidcService.DeleteClientSecret(c.Request.Context(), c.Param("id"), c.Param("secretId"))
+func (h *clientHandler) deleteClientSecretHandler(c *gin.Context) error {
+	err := h.service.DeleteClientSecret(c.Request.Context(), c.Param("id"), c.Param("secretId"))
 	if err != nil {
 		return err
 	}
@@ -337,10 +298,10 @@ func (oc *OidcController) deleteClientSecretHandler(c *gin.Context) error {
 // @Success 200 {file} binary "Logo image"
 // @Failure default {object} dto.ErrorDto "Error"
 // @Router /api/oidc/clients/{id}/logo [get]
-func (oc *OidcController) getClientLogoHandler(c *gin.Context) error {
+func (h *clientHandler) getClientLogoHandler(c *gin.Context) error {
 	lightLogo, _ := strconv.ParseBool(c.DefaultQuery("light", "true"))
 
-	reader, size, mimeType, err := oc.oidcService.GetClientLogo(c.Request.Context(), c.Param("id"), lightLogo)
+	reader, size, mimeType, err := h.service.GetClientLogo(c.Request.Context(), c.Param("id"), lightLogo)
 	if err != nil {
 		return err
 	}
@@ -364,7 +325,7 @@ func (oc *OidcController) getClientLogoHandler(c *gin.Context) error {
 // @Success 204 "No Content"
 // @Failure default {object} dto.ErrorDto "Error"
 // @Router /api/oidc/clients/{id}/logo [post]
-func (oc *OidcController) updateClientLogoHandler(c *gin.Context) error {
+func (h *clientHandler) updateClientLogoHandler(c *gin.Context) error {
 	file, err := httpserver.FormFile(c, "file")
 	if err != nil {
 		return err
@@ -372,7 +333,7 @@ func (oc *OidcController) updateClientLogoHandler(c *gin.Context) error {
 
 	lightLogo, _ := strconv.ParseBool(c.DefaultQuery("light", "true"))
 
-	err = oc.oidcService.UpdateClientLogo(c.Request.Context(), c.Param("id"), file, lightLogo)
+	err = h.service.UpdateClientLogo(c.Request.Context(), c.Param("id"), file, lightLogo)
 	if err != nil {
 		return err
 	}
@@ -390,14 +351,14 @@ func (oc *OidcController) updateClientLogoHandler(c *gin.Context) error {
 // @Success 204 "No Content"
 // @Failure default {object} dto.ErrorDto "Error"
 // @Router /api/oidc/clients/{id}/logo [delete]
-func (oc *OidcController) deleteClientLogoHandler(c *gin.Context) error {
+func (h *clientHandler) deleteClientLogoHandler(c *gin.Context) error {
 	var err error
 
 	lightLogo, _ := strconv.ParseBool(c.DefaultQuery("light", "true"))
 	if lightLogo {
-		err = oc.oidcService.DeleteClientLogo(c.Request.Context(), c.Param("id"))
+		err = h.service.DeleteClientLogo(c.Request.Context(), c.Param("id"))
 	} else {
-		err = oc.oidcService.DeleteClientDarkLogo(c.Request.Context(), c.Param("id"))
+		err = h.service.DeleteClientDarkLogo(c.Request.Context(), c.Param("id"))
 	}
 
 	if err != nil {
@@ -419,13 +380,13 @@ func (oc *OidcController) deleteClientLogoHandler(c *gin.Context) error {
 // @Success 200 {object} dto.OidcClientDto "Updated client"
 // @Failure default {object} dto.ErrorDto "Error"
 // @Router /api/oidc/clients/{id}/allowed-user-groups [put]
-func (oc *OidcController) updateAllowedUserGroupsHandler(c *gin.Context) error {
+func (h *clientHandler) updateAllowedUserGroupsHandler(c *gin.Context) error {
 	var input dto.OidcUpdateAllowedUserGroupsDto
 	if err := httpserver.BindJSON(c, &input); err != nil {
 		return err
 	}
 
-	oidcClient, err := oc.oidcService.UpdateAllowedUserGroups(c.Request.Context(), c.Param("id"), input)
+	oidcClient, err := h.service.UpdateAllowedUserGroups(c.Request.Context(), c.Param("id"), input)
 	if err != nil {
 		return err
 	}
@@ -453,9 +414,9 @@ func (oc *OidcController) updateAllowedUserGroupsHandler(c *gin.Context) error {
 // @Success 200 {object} dto.Paginated[dto.AuthorizedOidcClientDto]
 // @Failure default {object} dto.ErrorDto "Error"
 // @Router /api/oidc/users/me/authorized-clients [get]
-func (oc *OidcController) listOwnAuthorizedClientsHandler(c *gin.Context) error {
+func (h *clientHandler) listOwnAuthorizedClientsHandler(c *gin.Context) error {
 	userID := authz.PrincipalFrom(c).UserID
-	return oc.listAuthorizedClients(c, userID)
+	return h.listAuthorizedClients(c, userID)
 }
 
 // listAuthorizedClientsHandler godoc
@@ -472,16 +433,16 @@ func (oc *OidcController) listOwnAuthorizedClientsHandler(c *gin.Context) error 
 // @Success 200 {object} dto.Paginated[dto.AuthorizedOidcClientDto]
 // @Failure default {object} dto.ErrorDto "Error"
 // @Router /api/oidc/users/{id}/authorized-clients [get]
-func (oc *OidcController) listAuthorizedClientsHandler(c *gin.Context) error {
+func (h *clientHandler) listAuthorizedClientsHandler(c *gin.Context) error {
 	userID := c.Param("id")
-	return oc.listAuthorizedClients(c, userID)
+	return h.listAuthorizedClients(c, userID)
 }
 
-func (oc *OidcController) listAuthorizedClients(c *gin.Context, userID string) error {
+func (h *clientHandler) listAuthorizedClients(c *gin.Context, userID string) error {
 	searchTerm := c.Query("search")
 	listRequestOptions := utils.ParseListRequestOptions(c)
 
-	authorizedClients, pagination, err := oc.oidcService.ListAuthorizedClients(c.Request.Context(), userID, searchTerm, listRequestOptions)
+	authorizedClients, pagination, err := h.service.ListAuthorizedClients(c.Request.Context(), userID, searchTerm, listRequestOptions)
 	if err != nil {
 		return err
 	}
@@ -507,12 +468,12 @@ func (oc *OidcController) listAuthorizedClients(c *gin.Context, userID string) e
 // @Success 204 "No Content"
 // @Failure default {object} dto.ErrorDto "Error"
 // @Router /api/oidc/users/me/authorized-clients/{clientId} [delete]
-func (oc *OidcController) revokeOwnClientAuthorizationHandler(c *gin.Context) error {
+func (h *clientHandler) revokeOwnClientAuthorizationHandler(c *gin.Context) error {
 	clientID := c.Param("clientId")
 
 	userID := authz.PrincipalFrom(c).UserID
 
-	err := oc.oidcService.RevokeAuthorizedClient(c.Request.Context(), userID, clientID)
+	err := h.service.RevokeAuthorizedClient(c.Request.Context(), userID, clientID)
 	if err != nil {
 		return err
 	}
@@ -534,13 +495,13 @@ func (oc *OidcController) revokeOwnClientAuthorizationHandler(c *gin.Context) er
 // @Success 200 {object} dto.Paginated[dto.AccessibleOidcClientDto]
 // @Failure default {object} dto.ErrorDto "Error"
 // @Router /api/oidc/users/me/clients [get]
-func (oc *OidcController) listOwnAccessibleClientsHandler(c *gin.Context) error {
+func (h *clientHandler) listOwnAccessibleClientsHandler(c *gin.Context) error {
 	searchTerm := c.Query("search")
 	listRequestOptions := utils.ParseListRequestOptions(c)
 
 	userID := authz.PrincipalFrom(c).UserID
 
-	clients, pagination, err := oc.oidcService.ListAccessibleOidcClients(c.Request.Context(), userID, searchTerm, listRequestOptions)
+	clients, pagination, err := h.service.ListAccessibleOidcClients(c.Request.Context(), userID, searchTerm, listRequestOptions)
 	if err != nil {
 		return err
 	}
@@ -564,7 +525,7 @@ func (oc *OidcController) listOwnAccessibleClientsHandler(c *gin.Context) error 
 // @Security BearerAuth
 // @Failure default {object} dto.ErrorDto "Error"
 // @Router /api/oidc/clients/{id}/preview/{userId} [get]
-func (oc *OidcController) getClientPreviewHandler(c *gin.Context) error {
+func (h *clientHandler) getClientPreviewHandler(c *gin.Context) error {
 	clientID := c.Param("id")
 	userID := c.Param("userId")
 	scopes := c.Query("scopes")
@@ -577,7 +538,7 @@ func (oc *OidcController) getClientPreviewHandler(c *gin.Context) error {
 		return apperror.MissingField("userId")
 	}
 
-	preview, err := oc.oidcService.GetClientPreview(
+	preview, err := h.service.GetClientPreview(
 		c.Request.Context(),
 		clientID,
 		userID,

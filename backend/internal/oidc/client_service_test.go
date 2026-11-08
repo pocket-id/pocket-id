@@ -1,4 +1,4 @@
-package service
+package oidc
 
 import (
 	"io"
@@ -19,7 +19,6 @@ import (
 	"github.com/pocket-id/pocket-id/backend/internal/dto"
 	"github.com/pocket-id/pocket-id/backend/internal/model"
 	datatype "github.com/pocket-id/pocket-id/backend/internal/model/types"
-	"github.com/pocket-id/pocket-id/backend/internal/oidc"
 	"github.com/pocket-id/pocket-id/backend/internal/outbound"
 	"github.com/pocket-id/pocket-id/backend/internal/storage"
 	"github.com/pocket-id/pocket-id/backend/internal/utils"
@@ -27,14 +26,14 @@ import (
 )
 
 func TestListAuthorizedClientsRejectsMissingUser(t *testing.T) {
-	service := &OidcService{db: testutils.NewDatabaseForTest(t)}
+	service := &clientService{db: testutils.NewDatabaseForTest(t)}
 
 	_, _, err := service.ListAuthorizedClients(t.Context(), "missing-user", "", utils.ListRequestOptions{})
 
 	require.True(t, apperror.IsCode(err, apperror.CodeUserNotFound))
 }
 
-func TestOidcService_DeleteClientDeletesOAuth2Sessions(t *testing.T) {
+func TestClientService_DeleteClientDeletesOAuth2Sessions(t *testing.T) {
 	db := testutils.NewDatabaseForTest(t)
 	require.NoError(t, db.Exec("PRAGMA foreign_keys = ON").Error)
 
@@ -44,7 +43,7 @@ func TestOidcService_DeleteClientDeletesOAuth2Sessions(t *testing.T) {
 	require.NoError(t, db.Create(&otherClient).Error)
 
 	for i, kind := range []string{"authorize_code", "access_token", "refresh_token", "par", "device_code"} {
-		session := oidc.OAuth2Session{
+		session := OAuth2Session{
 			Base:        model.Base{ID: "deleted-client-session-" + strconv.Itoa(i)},
 			Kind:        kind,
 			Key:         "deleted-client-key-" + strconv.Itoa(i),
@@ -55,7 +54,7 @@ func TestOidcService_DeleteClientDeletesOAuth2Sessions(t *testing.T) {
 		}
 		require.NoError(t, db.Create(&session).Error)
 	}
-	require.NoError(t, db.Create(&oidc.OAuth2Session{
+	require.NoError(t, db.Create(&OAuth2Session{
 		Base:        model.Base{ID: "other-client-session"},
 		Kind:        "refresh_token",
 		Key:         "other-client-key",
@@ -65,19 +64,19 @@ func TestOidcService_DeleteClientDeletesOAuth2Sessions(t *testing.T) {
 		RequestData: `{"client_id":"other-client","session":{"subject":"test-user"}}`,
 	}).Error)
 
-	service := &OidcService{db: db}
+	service := &clientService{db: db}
 	require.NoError(t, service.DeleteClient(t.Context(), client.ID))
 
 	var deletedClientSessionCount int64
-	require.NoError(t, db.Model(&oidc.OAuth2Session{}).Where("client_id = ?", client.ID).Count(&deletedClientSessionCount).Error)
+	require.NoError(t, db.Model(&OAuth2Session{}).Where("client_id = ?", client.ID).Count(&deletedClientSessionCount).Error)
 	assert.Zero(t, deletedClientSessionCount)
 
 	var otherClientSessionCount int64
-	require.NoError(t, db.Model(&oidc.OAuth2Session{}).Where("client_id = ?", otherClient.ID).Count(&otherClientSessionCount).Error)
+	require.NoError(t, db.Model(&OAuth2Session{}).Where("client_id = ?", otherClient.ID).Count(&otherClientSessionCount).Error)
 	assert.Equal(t, int64(1), otherClientSessionCount)
 }
 
-func TestOidcService_updateClientLogoType(t *testing.T) {
+func TestClientService_updateClientLogoType(t *testing.T) {
 	// Create a test database
 	db := testutils.NewDatabaseForTest(t)
 
@@ -86,7 +85,7 @@ func TestOidcService_updateClientLogoType(t *testing.T) {
 	require.NoError(t, err)
 
 	// Init the OidcService
-	s := &OidcService{
+	s := &clientService{
 		db:          db,
 		fileStorage: dbStorage,
 	}
@@ -141,7 +140,7 @@ func TestOidcService_updateClientLogoType(t *testing.T) {
 
 	t.Run("Updates light logo type and deletes old file when type changes", func(t *testing.T) {
 		// Create the old PNG file in storage
-		oldPath := OidcClientImagePath(client.ID, "", "png")
+		oldPath := ClientImagePath(client.ID, "", "png")
 		createDummyFile(t, oldPath)
 		require.True(t, fileExists(t, oldPath), "Old file should exist before update")
 
@@ -162,7 +161,7 @@ func TestOidcService_updateClientLogoType(t *testing.T) {
 
 	t.Run("Updates dark logo type and deletes old file when type changes", func(t *testing.T) {
 		// Create the old JPG dark file in storage
-		oldPath := OidcClientImagePath(client.ID, "-dark", "jpg")
+		oldPath := ClientImagePath(client.ID, "-dark", "jpg")
 		createDummyFile(t, oldPath)
 		require.True(t, fileExists(t, oldPath), "Old dark file should exist before update")
 
@@ -183,7 +182,7 @@ func TestOidcService_updateClientLogoType(t *testing.T) {
 
 	t.Run("Does not delete file when type remains the same", func(t *testing.T) {
 		// Create the WEBP file in storage
-		webpPath := OidcClientImagePath(client.ID, "", "webp")
+		webpPath := ClientImagePath(client.ID, "", "webp")
 		createDummyFile(t, webpPath)
 		require.True(t, fileExists(t, webpPath), "WEBP file should exist before update")
 
@@ -209,7 +208,7 @@ func TestOidcService_updateClientLogoType(t *testing.T) {
 	})
 }
 
-func TestOidcService_downloadAndSaveLogoFromURL(t *testing.T) {
+func TestClientService_downloadAndSaveLogoFromURL(t *testing.T) {
 	const publicLogoHost = "https://8.8.8.8"
 
 	// Create a test database
@@ -266,7 +265,7 @@ func TestOidcService_downloadAndSaveLogoFromURL(t *testing.T) {
 		}
 
 		// Init the OidcService with mock HTTP client
-		s := &OidcService{
+		s := &clientService{
 			db:          db,
 			fileStorage: dbStorage,
 			httpClient:  httpClient,
@@ -277,7 +276,7 @@ func TestOidcService_downloadAndSaveLogoFromURL(t *testing.T) {
 		require.NoError(t, err)
 
 		// Verify the file was saved
-		logoPath := OidcClientImagePath(client.ID, "", "png")
+		logoPath := ClientImagePath(client.ID, "", "png")
 		require.True(t, fileExists(t, logoPath), "Logo file should exist in storage")
 
 		// Verify the content
@@ -310,7 +309,7 @@ func TestOidcService_downloadAndSaveLogoFromURL(t *testing.T) {
 			},
 		}
 
-		s := &OidcService{
+		s := &clientService{
 			db:          db,
 			fileStorage: dbStorage,
 			httpClient:  httpClient,
@@ -321,7 +320,7 @@ func TestOidcService_downloadAndSaveLogoFromURL(t *testing.T) {
 		require.NoError(t, err)
 
 		// Verify the dark logo file was saved
-		darkLogoPath := OidcClientImagePath(client.ID, "-dark", "webp")
+		darkLogoPath := ClientImagePath(client.ID, "-dark", "webp")
 		require.True(t, fileExists(t, darkLogoPath), "Dark logo file should exist in storage")
 
 		// Verify the content
@@ -349,7 +348,7 @@ func TestOidcService_downloadAndSaveLogoFromURL(t *testing.T) {
 			},
 		}
 
-		s := &OidcService{
+		s := &clientService{
 			db:          db,
 			fileStorage: dbStorage,
 			httpClient:  httpClient,
@@ -359,7 +358,7 @@ func TestOidcService_downloadAndSaveLogoFromURL(t *testing.T) {
 		require.NoError(t, err)
 
 		// Verify SVG file was saved
-		logoPath := OidcClientImagePath(client.ID, "", "svg")
+		logoPath := ClientImagePath(client.ID, "", "svg")
 		require.True(t, fileExists(t, logoPath), "SVG logo should exist")
 	})
 
@@ -380,7 +379,7 @@ func TestOidcService_downloadAndSaveLogoFromURL(t *testing.T) {
 			},
 		}
 
-		s := &OidcService{
+		s := &clientService{
 			db:          db,
 			fileStorage: dbStorage,
 			httpClient:  httpClient,
@@ -390,12 +389,12 @@ func TestOidcService_downloadAndSaveLogoFromURL(t *testing.T) {
 		require.NoError(t, err)
 
 		// Verify JPG file was saved (jpeg extension is normalized to jpg)
-		logoPath := OidcClientImagePath(client.ID, "", "jpg")
+		logoPath := ClientImagePath(client.ID, "", "jpg")
 		require.True(t, fileExists(t, logoPath), "JPG logo should exist")
 	})
 
 	t.Run("Returns error for invalid URL", func(t *testing.T) {
-		s := &OidcService{
+		s := &clientService{
 			db:          db,
 			fileStorage: dbStorage,
 			httpClient:  &http.Client{},
@@ -422,7 +421,7 @@ func TestOidcService_downloadAndSaveLogoFromURL(t *testing.T) {
 
 		clients, err := outbound.New(&common.EnvConfig)
 		require.NoError(t, err)
-		s := &OidcService{
+		s := &clientService{
 			db:          db,
 			fileStorage: dbStorage,
 			httpClient:  clients.Client(outbound.PurposeClientLogo),
@@ -431,7 +430,7 @@ func TestOidcService_downloadAndSaveLogoFromURL(t *testing.T) {
 		// The operator configured the library, so its loopback address is trusted
 		err = s.downloadAndSaveLogoFromURL(t.Context(), client.ID, iconLibraryURL+"/svg/nextcloud.svg", true)
 		require.NoError(t, err)
-		require.True(t, fileExists(t, OidcClientImagePath(client.ID, "", "svg")))
+		require.True(t, fileExists(t, ClientImagePath(client.ID, "", "svg")))
 
 		// Other private hosts are still blocked, even when they resolve to the same address
 		err = s.downloadAndSaveLogoFromURL(t.Context(), client.ID, strings.Replace(server.URL, "127.0.0.1", "localhost", 1)+"/icons/svg/nextcloud.svg", true)
@@ -450,7 +449,7 @@ func TestOidcService_downloadAndSaveLogoFromURL(t *testing.T) {
 			},
 		}
 
-		s := &OidcService{
+		s := &clientService{
 			db:          db,
 			fileStorage: dbStorage,
 			httpClient:  httpClient,
@@ -480,7 +479,7 @@ func TestOidcService_downloadAndSaveLogoFromURL(t *testing.T) {
 			},
 		}
 
-		s := &OidcService{
+		s := &clientService{
 			db:          db,
 			fileStorage: dbStorage,
 			httpClient:  httpClient,
@@ -506,7 +505,7 @@ func TestOidcService_downloadAndSaveLogoFromURL(t *testing.T) {
 			},
 		}
 
-		s := &OidcService{
+		s := &clientService{
 			db:          db,
 			fileStorage: dbStorage,
 			httpClient:  httpClient,
@@ -532,7 +531,7 @@ func TestOidcService_downloadAndSaveLogoFromURL(t *testing.T) {
 			},
 		}
 
-		s := &OidcService{
+		s := &clientService{
 			db:          db,
 			fileStorage: dbStorage,
 			httpClient:  httpClient,
@@ -544,11 +543,10 @@ func TestOidcService_downloadAndSaveLogoFromURL(t *testing.T) {
 	})
 }
 
-func TestOidcService_CreateClient_withDescription(t *testing.T) {
+func TestClientService_CreateClient_withDescription(t *testing.T) {
 	db := testutils.NewDatabaseForTest(t)
 
-	s, err := NewOidcService(db, nil, nil, nil, nil, nil, nil)
-	require.NoError(t, err)
+	s := &clientService{db: db}
 
 	description := "A test client description"
 	input := dto.OidcClientCreateDto{
@@ -569,12 +567,11 @@ func TestOidcService_CreateClient_withDescription(t *testing.T) {
 	assert.Equal(t, description, fetched.Description)
 }
 
-func TestOidcService_CreateClient_byClientActingForItself(t *testing.T) {
+func TestClientService_CreateClient_byClientActingForItself(t *testing.T) {
 	db := testutils.NewDatabaseForTest(t)
 	require.NoError(t, db.Exec("PRAGMA foreign_keys = ON").Error)
 
-	s, err := NewOidcService(db, nil, nil, nil, nil, nil, nil)
-	require.NoError(t, err)
+	s := &clientService{db: db}
 
 	input := dto.OidcClientCreateDto{OidcClientUpdateDto: dto.OidcClientUpdateDto{Name: "Provisioned Client"}}
 	client, _, err := s.CreateClient(t.Context(), input, "", true)
@@ -585,11 +582,10 @@ func TestOidcService_CreateClient_byClientActingForItself(t *testing.T) {
 	assert.Nil(t, fetched.CreatedByID)
 }
 
-func TestOidcService_CreateClient_withoutDescription(t *testing.T) {
+func TestClientService_CreateClient_withoutDescription(t *testing.T) {
 	db := testutils.NewDatabaseForTest(t)
 
-	s, err := NewOidcService(db, nil, nil, nil, nil, nil, nil)
-	require.NoError(t, err)
+	s := &clientService{db: db}
 
 	input := dto.OidcClientCreateDto{
 		OidcClientUpdateDto: dto.OidcClientUpdateDto{
@@ -607,7 +603,7 @@ func TestOidcService_CreateClient_withoutDescription(t *testing.T) {
 	assert.Empty(t, fetched.Description)
 }
 
-func TestOidcService_CreateClient_initialSecret(t *testing.T) {
+func TestClientService_CreateClient_initialSecret(t *testing.T) {
 	for _, test := range []struct {
 		name             string
 		isPublic         bool
@@ -620,7 +616,7 @@ func TestOidcService_CreateClient_initialSecret(t *testing.T) {
 	} {
 		t.Run(test.name, func(t *testing.T) {
 			db := testutils.NewDatabaseForTest(t)
-			s := &OidcService{db: db}
+			s := &clientService{db: db}
 			input := dto.OidcClientCreateDto{
 				OidcClientUpdateDto: dto.OidcClientUpdateDto{
 					Name:     "Test Client",
@@ -649,7 +645,7 @@ func TestOidcService_CreateClient_initialSecret(t *testing.T) {
 	}
 }
 
-func TestOidcService_CreateClient_tokenLifetimes(t *testing.T) {
+func TestClientService_CreateClient_tokenLifetimes(t *testing.T) {
 	for _, test := range []struct {
 		name        string
 		access      int64
@@ -679,8 +675,7 @@ func TestOidcService_CreateClient_tokenLifetimes(t *testing.T) {
 		t.Run(test.name, func(t *testing.T) {
 			db := testutils.NewDatabaseForTest(t)
 
-			s, err := NewOidcService(db, nil, nil, nil, nil, nil, nil)
-			require.NoError(t, err)
+			s := &clientService{db: db}
 
 			input := dto.OidcClientCreateDto{
 				OidcClientUpdateDto: dto.OidcClientUpdateDto{
@@ -703,11 +698,10 @@ func TestOidcService_CreateClient_tokenLifetimes(t *testing.T) {
 	}
 }
 
-func TestOidcService_UpdateClient_tokenLifetimes(t *testing.T) {
+func TestClientService_UpdateClient_tokenLifetimes(t *testing.T) {
 	db := testutils.NewDatabaseForTest(t)
 
-	s, err := NewOidcService(db, nil, nil, nil, nil, nil, nil)
-	require.NoError(t, err)
+	s := &clientService{db: db}
 
 	client := model.OidcClient{
 		Name:                        "Test Client",
@@ -722,7 +716,7 @@ func TestOidcService_UpdateClient_tokenLifetimes(t *testing.T) {
 		Name:         "Test Client",
 		CallbackURLs: []string{"https://example.com/callback"},
 	}
-	_, err = s.UpdateClient(t.Context(), client.ID, input)
+	_, err := s.UpdateClient(t.Context(), client.ID, input)
 	require.NoError(t, err)
 
 	var fetched model.OidcClient
@@ -740,14 +734,13 @@ func TestOidcService_UpdateClient_tokenLifetimes(t *testing.T) {
 	assert.Equal(t, model.DefaultRefreshTokenDurationMinutes, fetched.RefreshTokenDurationMinutes)
 }
 
-func TestOidcService_CreateClientSecret_withCustomSecret(t *testing.T) {
+func TestClientService_CreateClientSecret_withCustomSecret(t *testing.T) {
 	db := testutils.NewDatabaseForTest(t)
 
-	s, err := NewOidcService(db, nil, nil, nil, nil, nil, nil)
-	require.NoError(t, err)
+	s := &clientService{db: db}
 
 	client := model.OidcClient{Name: "Test Client"}
-	err = db.Create(&client).Error
+	err := db.Create(&client).Error
 	require.NoError(t, err)
 
 	customSecret := "custom-client-secret-with-a-minimum-length"
@@ -769,14 +762,13 @@ func TestOidcService_CreateClientSecret_withCustomSecret(t *testing.T) {
 	assert.Equal(t, utils.CreateSha256Hash(customSecret), fetched.Credentials.Secrets[0].Hash)
 }
 
-func TestOidcService_CreateClientSecret_multipleSecrets(t *testing.T) {
+func TestClientService_CreateClientSecret_multipleSecrets(t *testing.T) {
 	db := testutils.NewDatabaseForTest(t)
 
-	s, err := NewOidcService(db, nil, nil, nil, nil, nil, nil)
-	require.NoError(t, err)
+	s := &clientService{db: db}
 
 	client := model.OidcClient{Name: "Test Client"}
-	err = db.Create(&client).Error
+	err := db.Create(&client).Error
 	require.NoError(t, err)
 
 	// Adding a second secret leaves the first one in place
@@ -807,14 +799,13 @@ func TestOidcService_CreateClientSecret_multipleSecrets(t *testing.T) {
 	require.Error(t, err)
 }
 
-func TestOidcService_CreateClientSecret_expirationInThePast(t *testing.T) {
+func TestClientService_CreateClientSecret_expirationInThePast(t *testing.T) {
 	db := testutils.NewDatabaseForTest(t)
 
-	s, err := NewOidcService(db, nil, nil, nil, nil, nil, nil)
-	require.NoError(t, err)
+	s := &clientService{db: db}
 
 	client := model.OidcClient{Name: "Test Client"}
-	err = db.Create(&client).Error
+	err := db.Create(&client).Error
 	require.NoError(t, err)
 
 	expiresAt := datatype.DateTime(time.Now().Add(-time.Minute))
@@ -822,14 +813,13 @@ func TestOidcService_CreateClientSecret_expirationInThePast(t *testing.T) {
 	require.Error(t, err)
 }
 
-func TestOidcService_CreateClientSecret_limit(t *testing.T) {
+func TestClientService_CreateClientSecret_limit(t *testing.T) {
 	db := testutils.NewDatabaseForTest(t)
 
-	s, err := NewOidcService(db, nil, nil, nil, nil, nil, nil)
-	require.NoError(t, err)
+	s := &clientService{db: db}
 
 	client := model.OidcClient{Name: "Test Client"}
-	err = db.Create(&client).Error
+	err := db.Create(&client).Error
 	require.NoError(t, err)
 
 	for range model.MaxOidcClientSecrets {
@@ -841,11 +831,10 @@ func TestOidcService_CreateClientSecret_limit(t *testing.T) {
 	require.Error(t, err)
 }
 
-func TestOidcService_CreateClientSecret_preservesFederatedIdentities(t *testing.T) {
+func TestClientService_CreateClientSecret_preservesFederatedIdentities(t *testing.T) {
 	db := testutils.NewDatabaseForTest(t)
 
-	s, err := NewOidcService(db, nil, nil, nil, nil, nil, nil)
-	require.NoError(t, err)
+	s := &clientService{db: db}
 
 	client := model.OidcClient{
 		Name:         "Test Client",
@@ -854,7 +843,7 @@ func TestOidcService_CreateClientSecret_preservesFederatedIdentities(t *testing.
 			FederatedIdentities: []model.OidcClientFederatedIdentity{{Issuer: "https://issuer.example.com"}},
 		},
 	}
-	err = db.Create(&client).Error
+	err := db.Create(&client).Error
 	require.NoError(t, err)
 
 	_, _, err = s.CreateClientSecret(t.Context(), client.ID, dto.OidcClientSecretCreateDto{})
@@ -877,18 +866,17 @@ func TestOidcService_CreateClientSecret_preservesFederatedIdentities(t *testing.
 	assert.Equal(t, "https://other.example.com", fetched.Credentials.FederatedIdentities[0].Issuer)
 }
 
-func TestOidcService_UpdateClient_description(t *testing.T) {
+func TestClientService_UpdateClient_description(t *testing.T) {
 	db := testutils.NewDatabaseForTest(t)
 
-	s, err := NewOidcService(db, nil, nil, nil, nil, nil, nil)
-	require.NoError(t, err)
+	s := &clientService{db: db}
 
 	// Create a client without a description
 	client := model.OidcClient{
 		Name:         "Test Client",
 		CallbackURLs: datatype.StringList{"https://example.com/callback"},
 	}
-	err = db.Create(&client).Error
+	err := db.Create(&client).Error
 	require.NoError(t, err)
 
 	// Update with a description
@@ -918,11 +906,10 @@ func TestOidcService_UpdateClient_description(t *testing.T) {
 	assert.Empty(t, fetched.Description)
 }
 
-func TestOidcService_UpdateClient_CIMDPreservesMetadataFields(t *testing.T) {
+func TestClientService_UpdateClient_CIMDPreservesMetadataFields(t *testing.T) {
 	db := testutils.NewDatabaseForTest(t)
 
-	s, err := NewOidcService(db, nil, nil, nil, nil, nil, nil)
-	require.NoError(t, err)
+	s := &clientService{db: db}
 
 	client := model.OidcClient{
 		Name:               "Metadata Client",
@@ -968,7 +955,7 @@ func TestOidcService_UpdateClient_CIMDPreservesMetadataFields(t *testing.T) {
 		},
 	}
 
-	_, err = s.UpdateClient(t.Context(), client.ID, input)
+	_, err := s.UpdateClient(t.Context(), client.ID, input)
 	require.NoError(t, err)
 
 	var fetched model.OidcClient
@@ -990,11 +977,10 @@ func TestOidcService_UpdateClient_CIMDPreservesMetadataFields(t *testing.T) {
 	assert.Equal(t, new(claimmappingpolicy.BuiltInClaimMappingPolicyID), fetched.ClaimMappingPolicyId)
 }
 
-func TestOidcService_UpdateClient_CIMDDoesNotOverwriteConcurrentMetadataRefresh(t *testing.T) {
+func TestClientService_UpdateClient_CIMDDoesNotOverwriteConcurrentMetadataRefresh(t *testing.T) {
 	db := testutils.NewDatabaseForTest(t)
 
-	s, err := NewOidcService(db, nil, nil, nil, nil, nil, nil)
-	require.NoError(t, err)
+	s := &clientService{db: db}
 
 	client := model.OidcClient{
 		Name:         "Original metadata name",
@@ -1015,7 +1001,7 @@ func TestOidcService_UpdateClient_CIMDDoesNotOverwriteConcurrentMetadataRefresh(
 	input := dto.OidcClientUpdateDto{
 		Description: "Locally managed description",
 	}
-	_, err = s.UpdateClient(t.Context(), client.ID, input)
+	_, err := s.UpdateClient(t.Context(), client.ID, input)
 	require.NoError(t, err)
 
 	var fetched model.OidcClient
@@ -1024,10 +1010,9 @@ func TestOidcService_UpdateClient_CIMDDoesNotOverwriteConcurrentMetadataRefresh(
 	assert.Equal(t, input.Description, fetched.Description)
 }
 
-func TestOidcService_ListAccessibleOidcClients_requiresExplicitGroupPermission(t *testing.T) {
+func TestClientService_ListAccessibleOidcClients_requiresExplicitGroupPermission(t *testing.T) {
 	db := testutils.NewDatabaseForTest(t)
-	s, err := NewOidcService(db, nil, nil, nil, nil, nil, nil)
-	require.NoError(t, err)
+	s := &clientService{db: db}
 
 	allowedGroup := model.UserGroup{Name: "allowed", FriendlyName: "Allowed"}
 	otherGroup := model.UserGroup{Name: "other", FriendlyName: "Other"}
@@ -1058,10 +1043,9 @@ func TestOidcService_ListAccessibleOidcClients_requiresExplicitGroupPermission(t
 	assert.Equal(t, []string{"Unrestricted"}, accessibleClientNames(noGroupClients))
 }
 
-func TestOidcService_ListClientViewsFilterByLaunchURLPresence(t *testing.T) {
+func TestClientService_ListClientViewsFilterByLaunchURLPresence(t *testing.T) {
 	db := testutils.NewDatabaseForTest(t)
-	s, err := NewOidcService(db, nil, nil, nil, nil, nil, nil)
-	require.NoError(t, err)
+	s := &clientService{db: db}
 
 	user := model.User{Username: "launch-url-filter"}
 	require.NoError(t, db.Create(&user).Error)
@@ -1112,10 +1096,9 @@ func TestOidcService_ListClientViewsFilterByLaunchURLPresence(t *testing.T) {
 	})
 }
 
-func TestOidcService_ListAccessibleOidcClients_searchAndSort(t *testing.T) {
+func TestClientService_ListAccessibleOidcClients_searchAndSort(t *testing.T) {
 	forEachTestDatabase(t, func(t *testing.T, db *gorm.DB) {
-		s, err := NewOidcService(db, nil, nil, nil, nil, nil, nil)
-		require.NoError(t, err)
+		s := &clientService{db: db}
 
 		user := model.User{Username: "search-and-sort"}
 		require.NoError(t, db.Create(&user).Error)
@@ -1165,10 +1148,9 @@ func TestOidcService_ListAccessibleOidcClients_searchAndSort(t *testing.T) {
 	})
 }
 
-func TestOidcService_ListAuthorizedClients_searchAndSort(t *testing.T) {
+func TestClientService_ListAuthorizedClients_searchAndSort(t *testing.T) {
 	forEachTestDatabase(t, func(t *testing.T, db *gorm.DB) {
-		s, err := NewOidcService(db, nil, nil, nil, nil, nil, nil)
-		require.NoError(t, err)
+		s := &clientService{db: db}
 
 		user := model.User{Username: "authorized-search-and-sort"}
 		require.NoError(t, db.Create(&user).Error)
@@ -1252,11 +1234,11 @@ func accessibleClientNames(clients []dto.AccessibleOidcClientDto) []string {
 	return names
 }
 
-func TestOidcService_GetClientLogo(t *testing.T) {
+func TestClientService_GetClientLogo(t *testing.T) {
 	db := testutils.NewDatabaseForTest(t)
 	dbStorage, err := storage.NewDatabaseStorage(db)
 	require.NoError(t, err)
-	s := &OidcService{db: db, fileStorage: dbStorage}
+	s := &clientService{db: db, fileStorage: dbStorage}
 
 	// createClient stores the given variants with their name as content, so the test can tell which one was served
 	createClient := func(t *testing.T, light, dark bool) string {
@@ -1272,10 +1254,10 @@ func TestOidcService_GetClientLogo(t *testing.T) {
 		require.NoError(t, db.Create(&client).Error)
 
 		if light {
-			require.NoError(t, dbStorage.Save(t.Context(), OidcClientImagePath(client.ID, "", "png"), strings.NewReader("light")))
+			require.NoError(t, dbStorage.Save(t.Context(), ClientImagePath(client.ID, "", "png"), strings.NewReader("light")))
 		}
 		if dark {
-			require.NoError(t, dbStorage.Save(t.Context(), OidcClientImagePath(client.ID, "-dark", "png"), strings.NewReader("dark")))
+			require.NoError(t, dbStorage.Save(t.Context(), ClientImagePath(client.ID, "-dark", "png"), strings.NewReader("dark")))
 		}
 		return client.ID
 	}
@@ -1318,16 +1300,15 @@ func TestOidcService_GetClientLogo(t *testing.T) {
 	})
 }
 
-func TestOidcService_UpdateClient_unknownClaimMappingPolicy(t *testing.T) {
+func TestClientService_UpdateClient_unknownClaimMappingPolicy(t *testing.T) {
 	db := testutils.NewDatabaseForTest(t)
 
-	s, err := NewOidcService(db, nil, nil, nil, nil, nil, nil)
-	require.NoError(t, err)
+	s := &clientService{db: db}
 
 	client := model.OidcClient{Name: "Test Client", CallbackURLs: datatype.StringList{"https://example.com/callback"}}
 	require.NoError(t, db.Create(&client).Error)
 
-	_, err = s.UpdateClient(t.Context(), client.ID, dto.OidcClientUpdateDto{
+	_, err := s.UpdateClient(t.Context(), client.ID, dto.OidcClientUpdateDto{
 		Name:                 "Test Client",
 		CallbackURLs:         []string{"https://example.com/callback"},
 		ClaimMappingPolicyId: "00000000-0000-0000-0000-000000000099",

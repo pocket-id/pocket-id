@@ -1,4 +1,4 @@
-package service
+package users
 
 import (
 	"context"
@@ -10,17 +10,19 @@ import (
 	"uuid"
 
 	"github.com/stretchr/testify/require"
+	"gorm.io/gorm"
 
 	"github.com/pocket-id/pocket-id/backend/internal/appconfig"
 	"github.com/pocket-id/pocket-id/backend/internal/apperror"
 	"github.com/pocket-id/pocket-id/backend/internal/dto"
 	"github.com/pocket-id/pocket-id/backend/internal/model"
 	datatype "github.com/pocket-id/pocket-id/backend/internal/model/types"
+	"github.com/pocket-id/pocket-id/backend/internal/service"
 	"github.com/pocket-id/pocket-id/backend/internal/storage"
 	testutils "github.com/pocket-id/pocket-id/backend/internal/utils/testing"
 )
 
-func newTestUserService(t *testing.T) (*UserService, *UserGroupService) {
+func newTestUserService(t *testing.T) *Service {
 	t.Helper()
 
 	db := testutils.NewDatabaseForTest(t)
@@ -28,35 +30,39 @@ func newTestUserService(t *testing.T) (*UserService, *UserGroupService) {
 	fileStorage, err := storage.NewDatabaseStorage(db)
 	require.NoError(t, err)
 
-	userService := NewUserService(
-		db,
-		NewCustomClaimService(db),
-		NewAppAssetsService(map[string]string{}, fileStorage),
-		nil,
-		nil,
-		fileStorage,
-		nil,
-	)
-	groupService := NewUserGroupService(db, nil, nil)
-
-	return userService, groupService
+	return newService(Dependencies{
+		DB:           db,
+		CustomClaims: service.NewCustomClaimService(db),
+		AppAssets:    service.NewAppAssetsService(map[string]string{}, fileStorage),
+		FileStorage:  fileStorage,
+	})
 }
 
-func TestUserAndGroupLookupsReturnSpecificNotFoundErrors(t *testing.T) {
-	userService, groupService := newTestUserService(t)
+func createTestGroup(t *testing.T, db *gorm.DB, name, friendlyName string) model.UserGroup {
+	t.Helper()
+
+	group := model.UserGroup{Name: name, FriendlyName: friendlyName}
+	require.NoError(t, db.Create(&group).Error)
+	return group
+}
+
+func getTestGroup(t *testing.T, db *gorm.DB, id string) model.UserGroup {
+	t.Helper()
+
+	var group model.UserGroup
+	require.NoError(t, db.Preload("Users").First(&group, "id = ?", id).Error)
+	return group
+}
+
+func TestGetUserReturnsUserNotFound(t *testing.T) {
+	userService := newTestUserService(t)
 
 	_, err := userService.GetUser(t.Context(), "missing-user")
 	require.True(t, apperror.IsCode(err, apperror.CodeUserNotFound))
-
-	_, err = groupService.Get(t.Context(), "missing-group")
-	require.True(t, apperror.IsCode(err, apperror.CodeNotFound))
-	var appErr *apperror.Error
-	require.ErrorAs(t, err, &appErr)
-	require.Equal(t, "User group", appErr.Details()["resource"])
 }
 
 func TestUpdateProfilePictureRejectsInvalidImageData(t *testing.T) {
-	userService, _ := newTestUserService(t)
+	userService := newTestUserService(t)
 	config := &appconfig.AppConfigModel{RequireUserEmail: "false"}
 	user, err := userService.CreateUser(t.Context(), config, dto.UserCreateDto{
 		ID:       uuid.NewV4().String(),
@@ -74,7 +80,7 @@ func TestUpdateProfilePictureRejectsInvalidImageData(t *testing.T) {
 }
 
 func TestProfilePictureUpdatesRejectMissingUser(t *testing.T) {
-	userService, _ := newTestUserService(t)
+	userService := newTestUserService(t)
 	missingUserID := uuid.NewV4().String()
 
 	err := userService.UpdateProfilePicture(t.Context(), missingUserID, strings.NewReader("not an image"))
@@ -86,19 +92,15 @@ func TestProfilePictureUpdatesRejectMissingUser(t *testing.T) {
 
 func TestCreateUserBumpsGroupUpdatedAt(t *testing.T) {
 	config := &appconfig.AppConfigModel{RequireUserEmail: "false"}
-	userService, groupService := newTestUserService(t)
+	userService := newTestUserService(t)
 
-	group, err := groupService.Create(t.Context(), dto.UserGroupCreateDto{
-		Name:         "members",
-		FriendlyName: "Members",
-	})
-	require.NoError(t, err)
+	group := createTestGroup(t, userService.db, "members", "Members")
 	require.Nil(t, group.UpdatedAt, "a freshly created group has no UpdatedAt yet")
 
 	// Create a user that is a member of the group
 	// This mirrors signing up via an invite link that adds the user to a group
 	email := "member@example.com"
-	_, err = userService.CreateUser(t.Context(), config, dto.UserCreateDto{
+	_, err := userService.CreateUser(t.Context(), config, dto.UserCreateDto{
 		Username:     "member",
 		Email:        &email,
 		FirstName:    "Group",
@@ -108,8 +110,7 @@ func TestCreateUserBumpsGroupUpdatedAt(t *testing.T) {
 	require.NoError(t, err)
 
 	// The group's UpdatedAt must now be set
-	updated, err := groupService.Get(t.Context(), group.ID)
-	require.NoError(t, err)
+	updated := getTestGroup(t, userService.db, group.ID)
 	require.NotNil(t, updated.UpdatedAt, "creating a group member must bump the group's UpdatedAt")
 	require.False(t, updated.LastModified().Before(updated.CreatedAt.ToTime()), "group LastModified must not predate its CreatedAt after a membership change")
 	require.Len(t, updated.Users, 1, "the user should be a member of the group")
@@ -117,13 +118,9 @@ func TestCreateUserBumpsGroupUpdatedAt(t *testing.T) {
 
 func TestCreateUserBumpsDefaultGroupUpdatedAt(t *testing.T) {
 	config := &appconfig.AppConfigModel{RequireUserEmail: "false"}
-	userService, groupService := newTestUserService(t)
+	userService := newTestUserService(t)
 
-	group, err := groupService.Create(t.Context(), dto.UserGroupCreateDto{
-		Name:         "default",
-		FriendlyName: "Default",
-	})
-	require.NoError(t, err)
+	group := createTestGroup(t, userService.db, "default", "Default")
 	require.Nil(t, group.UpdatedAt)
 
 	// Configure the group as a default signup group
@@ -141,20 +138,17 @@ func TestCreateUserBumpsDefaultGroupUpdatedAt(t *testing.T) {
 	})
 	require.NoError(t, err)
 
-	updated, err := groupService.Get(t.Context(), group.ID)
-	require.NoError(t, err)
+	updated := getTestGroup(t, userService.db, group.ID)
 	require.NotNil(t, updated.UpdatedAt, "adding a default group member must bump the group's UpdatedAt")
 	require.Len(t, updated.Users, 1)
 }
 
 func TestUpdateUserGroupsBumpsRemovedGroupUpdatedAt(t *testing.T) {
 	config := &appconfig.AppConfigModel{RequireUserEmail: "false"}
-	userService, groupService := newTestUserService(t)
+	userService := newTestUserService(t)
 
-	oldGroup, err := groupService.Create(t.Context(), dto.UserGroupCreateDto{Name: "old", FriendlyName: "Old"})
-	require.NoError(t, err)
-	newGroup, err := groupService.Create(t.Context(), dto.UserGroupCreateDto{Name: "new", FriendlyName: "New"})
-	require.NoError(t, err)
+	oldGroup := createTestGroup(t, userService.db, "old", "Old")
+	newGroup := createTestGroup(t, userService.db, "new", "New")
 
 	user, err := userService.CreateUser(t.Context(), config, dto.UserCreateDto{
 		Username:     "mover",
@@ -173,18 +167,16 @@ func TestUpdateUserGroupsBumpsRemovedGroupUpdatedAt(t *testing.T) {
 	require.NoError(t, err)
 
 	for _, groupID := range []string{oldGroup.ID, newGroup.ID} {
-		updated, err := groupService.Get(t.Context(), groupID)
-		require.NoError(t, err)
+		updated := getTestGroup(t, userService.db, groupID)
 		require.True(t, updated.LastModified().After(past), "group %s changed membership, so its UpdatedAt must be bumped", updated.Name)
 	}
 }
 
 func TestDeleteUserBumpsGroupUpdatedAt(t *testing.T) {
 	config := &appconfig.AppConfigModel{RequireUserEmail: "false"}
-	userService, groupService := newTestUserService(t)
+	userService := newTestUserService(t)
 
-	group, err := groupService.Create(t.Context(), dto.UserGroupCreateDto{Name: "members", FriendlyName: "Members"})
-	require.NoError(t, err)
+	group := createTestGroup(t, userService.db, "members", "Members")
 
 	user, err := userService.CreateUser(t.Context(), config, dto.UserCreateDto{
 		Username:     "leaver",
@@ -201,8 +193,7 @@ func TestDeleteUserBumpsGroupUpdatedAt(t *testing.T) {
 	err = userService.DeleteUser(t.Context(), config, user.ID, false)
 	require.NoError(t, err)
 
-	updated, err := groupService.Get(t.Context(), group.ID)
-	require.NoError(t, err)
+	updated := getTestGroup(t, userService.db, group.ID)
 	require.Empty(t, updated.Users)
 	require.True(t, updated.LastModified().After(past), "deleting a member must bump the group's UpdatedAt")
 }
@@ -230,12 +221,12 @@ func (r *recordingEmailVerificationSender) RequestEmailChange(_ context.Context,
 
 func TestUpdateOwnEmailWithVerification(t *testing.T) {
 	// setup creates a user with the given verification state and an update that changes only their email
-	setup := func(t *testing.T, mode string, emailVerified bool) (*UserService, *recordingEmailVerificationSender, *appconfig.AppConfigModel, model.User, dto.UserCreateDto) {
+	setup := func(t *testing.T, mode string, emailVerified bool) (*Service, *recordingEmailVerificationSender, *appconfig.AppConfigModel, model.User, dto.UserCreateDto) {
 		t.Helper()
 
 		config := appconfig.NewTestConfig(nil)
 		config.EmailVerification = appconfig.AppConfigValue(mode)
-		userService, _ := newTestUserService(t)
+		userService := newTestUserService(t)
 		sender := &recordingEmailVerificationSender{}
 		userService.emailVerification = sender
 
@@ -370,7 +361,7 @@ func TestUpdateOwnEmailWithVerification(t *testing.T) {
 
 func TestMarkingEmailVerifiedClearsSignupDeadline(t *testing.T) {
 	config := appconfig.NewTestConfig(nil)
-	userService, _ := newTestUserService(t)
+	userService := newTestUserService(t)
 
 	user, err := userService.CreateUser(t.Context(), config, dto.UserCreateDto{
 		Username:  "pending",

@@ -1,4 +1,4 @@
-package service
+package oidc
 
 import (
 	"cmp"
@@ -25,7 +25,6 @@ import (
 	"github.com/pocket-id/pocket-id/backend/internal/dto"
 	"github.com/pocket-id/pocket-id/backend/internal/model"
 	datatype "github.com/pocket-id/pocket-id/backend/internal/model/types"
-	"github.com/pocket-id/pocket-id/backend/internal/oidc"
 	"github.com/pocket-id/pocket-id/backend/internal/outbound"
 	"github.com/pocket-id/pocket-id/backend/internal/storage"
 	"github.com/pocket-id/pocket-id/backend/internal/utils"
@@ -33,20 +32,11 @@ import (
 	jwkutils "github.com/pocket-id/pocket-id/backend/internal/utils/jwk"
 )
 
-const (
-	GrantTypeAuthorizationCode = "authorization_code"
-	GrantTypeRefreshToken      = "refresh_token"
-	GrantTypeDeviceCode        = "urn:ietf:params:oauth:grant-type:device_code"
-	GrantTypeClientCredentials = "client_credentials"
-
-	AccessTokenDuration  = time.Duration(model.DefaultAccessTokenDurationMinutes) * time.Minute
-	RefreshTokenDuration = time.Duration(model.DefaultRefreshTokenDurationMinutes) * time.Minute
-)
-
-type OidcService struct {
+// clientService manages the OIDC clients admins set up and the clients users have authorized
+type clientService struct {
 	db                *gorm.DB
-	previewBuilder    oidcClientPreviewBuilder
-	metadataRefresher metadataRefresher
+	previewBuilder    *ClientPreviewBuilder
+	cimdResolver      *cimdClientResolver
 	scimSyncScheduler ScimSyncScheduler
 	backchannelLogout *backchannellogout.Service
 
@@ -54,47 +44,26 @@ type OidcService struct {
 	fileStorage storage.FileStorage
 }
 
-type oidcClientPreviewBuilder interface {
-	BuildClientPreview(ctx context.Context, client model.OidcClient, userID string, scopes []string, authenticationMethod string) (*oidc.ClientPreview, error)
-}
-
-type metadataRefresher interface {
-	RefreshClientMetadata(ctx context.Context, clientID string) (model.OidcClient, error)
-}
-
-func NewOidcService(
-	db *gorm.DB,
-	previewBuilder oidcClientPreviewBuilder,
-	metadataRefresher metadataRefresher,
-	scimSyncScheduler ScimSyncScheduler,
-	backchannelLogout *backchannellogout.Service,
-	httpClient *http.Client,
-	fileStorage storage.FileStorage,
-) (s *OidcService, err error) {
-	s = &OidcService{
+func newClientService(db *gorm.DB, previewBuilder *ClientPreviewBuilder, cimdResolver *cimdClientResolver, scimSyncScheduler ScimSyncScheduler, backchannelLogout *backchannellogout.Service, httpClient *http.Client, fileStorage storage.FileStorage) *clientService {
+	return &clientService{
 		db:                db,
 		previewBuilder:    previewBuilder,
-		metadataRefresher: metadataRefresher,
+		cimdResolver:      cimdResolver,
 		scimSyncScheduler: scimSyncScheduler,
 		backchannelLogout: backchannelLogout,
 		httpClient:        httpClient,
 		fileStorage:       fileStorage,
 	}
-
-	return s, nil
 }
 
-func (s *OidcService) GetClient(ctx context.Context, clientID string) (model.OidcClient, error) {
+func (s *clientService) GetClient(ctx context.Context, clientID string) (model.OidcClient, error) {
 	return s.getClientInternal(ctx, clientID, s.db, false)
 }
 
 // RefreshClientMetadata forces a re-fetch of the OAuth Client ID Metadata Document
 // for a CIMD client, bypassing the cache TTL, and returns the refreshed client.
-func (s *OidcService) RefreshClientMetadata(ctx context.Context, clientID string) (model.OidcClient, error) {
-	if s.metadataRefresher == nil {
-		return model.OidcClient{}, apperror.ValidationMessage("Client ID metadata documents are not enabled")
-	}
-	client, err := s.metadataRefresher.RefreshClientMetadata(ctx, clientID)
+func (s *clientService) RefreshClientMetadata(ctx context.Context, clientID string) (model.OidcClient, error) {
+	client, err := s.cimdResolver.RefreshMetadataClient(ctx, clientID)
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			return model.OidcClient{}, err
@@ -104,7 +73,7 @@ func (s *OidcService) RefreshClientMetadata(ctx context.Context, clientID string
 	return client, nil
 }
 
-func (s *OidcService) getClientInternal(ctx context.Context, clientID string, tx *gorm.DB, forUpdate bool) (model.OidcClient, error) {
+func (s *clientService) getClientInternal(ctx context.Context, clientID string, tx *gorm.DB, forUpdate bool) (model.OidcClient, error) {
 	var client model.OidcClient
 	q := tx.
 		WithContext(ctx).
@@ -123,7 +92,7 @@ func (s *OidcService) getClientInternal(ctx context.Context, clientID string, tx
 	return client, nil
 }
 
-func (s *OidcService) ListClients(ctx context.Context, name string, listRequestOptions utils.ListRequestOptions) ([]model.OidcClient, utils.PaginationResponse, error) {
+func (s *clientService) ListClients(ctx context.Context, name string, listRequestOptions utils.ListRequestOptions) ([]model.OidcClient, utils.PaginationResponse, error) {
 	var clients []model.OidcClient
 
 	query := s.db.
@@ -152,7 +121,7 @@ func (s *OidcService) ListClients(ctx context.Context, name string, listRequestO
 }
 
 // CreateClient creates a client on behalf of userID, which is empty when a client acting as itself creates it
-func (s *OidcService) CreateClient(ctx context.Context, input dto.OidcClientCreateDto, userID string, autoCreateSecret bool) (model.OidcClient, string, error) {
+func (s *clientService) CreateClient(ctx context.Context, input dto.OidcClientCreateDto, userID string, autoCreateSecret bool) (model.OidcClient, string, error) {
 	client := model.OidcClient{
 		Base: model.Base{
 			ID: input.ID,
@@ -211,7 +180,7 @@ func (s *OidcService) CreateClient(ctx context.Context, input dto.OidcClientCrea
 	return client, createdSecret, nil
 }
 
-func (s *OidcService) UpdateClient(ctx context.Context, clientID string, input dto.OidcClientUpdateDto) (model.OidcClient, error) {
+func (s *clientService) UpdateClient(ctx context.Context, clientID string, input dto.OidcClientUpdateDto) (model.OidcClient, error) {
 	tx := s.db.Begin()
 	defer func() {
 		tx.Rollback()
@@ -373,7 +342,7 @@ func updateOIDCClientModelFromDto(client *model.OidcClient, input *dto.OidcClien
 	return nil
 }
 
-func (s *OidcService) DeleteClient(ctx context.Context, clientID string) error {
+func (s *clientService) DeleteClient(ctx context.Context, clientID string) error {
 	tx := s.db.Begin()
 	defer func() {
 		tx.Rollback()
@@ -414,11 +383,11 @@ func (s *OidcService) DeleteClient(ctx context.Context, clientID string) error {
 	// Delete images if present
 	// Note that storage operations must be done outside of a transaction
 	if client.ImageType != nil && *client.ImageType != "" {
-		old := OidcClientImagePath(client.ID, "", *client.ImageType)
+		old := ClientImagePath(client.ID, "", *client.ImageType)
 		_ = s.fileStorage.Delete(ctx, old)
 	}
 	if client.DarkImageType != nil && *client.DarkImageType != "" {
-		old := OidcClientImagePath(client.ID, "-dark", *client.DarkImageType)
+		old := ClientImagePath(client.ID, "-dark", *client.DarkImageType)
 		_ = s.fileStorage.Delete(ctx, old)
 	}
 
@@ -426,7 +395,7 @@ func (s *OidcService) DeleteClient(ctx context.Context, clientID string) error {
 }
 
 // ListClientSecrets returns all secrets configured for a client, including the expired ones
-func (s *OidcService) ListClientSecrets(ctx context.Context, clientID string) ([]model.OidcClientSecret, error) {
+func (s *clientService) ListClientSecrets(ctx context.Context, clientID string) ([]model.OidcClientSecret, error) {
 	client, err := s.getClientInternal(ctx, clientID, s.db, false)
 	if err != nil {
 		return nil, err
@@ -436,7 +405,7 @@ func (s *OidcService) ListClientSecrets(ctx context.Context, clientID string) ([
 }
 
 // CreateClientSecret adds a new secret to a client and returns both the stored record and the secret's value, which is not recoverable afterwards
-func (s *OidcService) CreateClientSecret(ctx context.Context, clientID string, input dto.OidcClientSecretCreateDto) (model.OidcClientSecret, string, error) {
+func (s *clientService) CreateClientSecret(ctx context.Context, clientID string, input dto.OidcClientSecretCreateDto) (model.OidcClientSecret, string, error) {
 	// An expiration date in the past would create a secret that can never be used
 	if input.ExpiresAt != nil && !input.ExpiresAt.ToTime().After(time.Now()) {
 		return model.OidcClientSecret{}, "", apperror.ValidationMessage("The expiration date of a client secret must be in the future")
@@ -507,7 +476,7 @@ func newOIDCClientSecret(input dto.OidcClientSecretCreateDto) (model.OidcClientS
 }
 
 // DeleteClientSecret removes a single secret from a client, making it immediately unusable
-func (s *OidcService) DeleteClientSecret(ctx context.Context, clientID string, secretID string) error {
+func (s *clientService) DeleteClientSecret(ctx context.Context, clientID string, secretID string) error {
 	tx := s.db.Begin()
 	defer func() {
 		tx.Rollback()
@@ -553,7 +522,7 @@ func clientSecretPrefix(clientSecret string) string {
 	return clientSecret[:model.OidcClientSecretPrefixLength]
 }
 
-func (s *OidcService) GetClientLogo(ctx context.Context, clientID string, light bool) (io.ReadCloser, int64, string, error) {
+func (s *clientService) GetClientLogo(ctx context.Context, clientID string, light bool) (io.ReadCloser, int64, string, error) {
 	client, err := s.getClientInternal(ctx, clientID, s.db, false)
 	if err != nil {
 		return nil, 0, "", err
@@ -576,7 +545,7 @@ func (s *OidcService) GetClientLogo(ctx context.Context, clientID string, light 
 	if mimeType == "" {
 		return nil, 0, "", fmt.Errorf("unsupported image type '%s'", ext)
 	}
-	key := OidcClientImagePath(client.ID, suffix, ext)
+	key := ClientImagePath(client.ID, suffix, ext)
 	reader, size, err := s.fileStorage.Open(ctx, key)
 	if err != nil {
 		if storage.IsNotExist(err) {
@@ -588,7 +557,7 @@ func (s *OidcService) GetClientLogo(ctx context.Context, clientID string, light 
 	return reader, size, mimeType, nil
 }
 
-func (s *OidcService) UpdateClientLogo(ctx context.Context, clientID string, file *multipart.FileHeader, light bool) error {
+func (s *clientService) UpdateClientLogo(ctx context.Context, clientID string, file *multipart.FileHeader, light bool) error {
 	fileType := strings.ToLower(utils.GetFileExtension(file.Filename))
 	if mimeType := utils.GetImageMimeType(fileType); mimeType == "" {
 		return apperror.UnsupportedFileType("")
@@ -599,7 +568,7 @@ func (s *OidcService) UpdateClientLogo(ctx context.Context, clientID string, fil
 		darkSuffix = "-dark"
 	}
 
-	imagePath := OidcClientImagePath(clientID, darkSuffix, fileType)
+	imagePath := ClientImagePath(clientID, darkSuffix, fileType)
 	reader, err := file.Open()
 	if err != nil {
 		return err
@@ -626,7 +595,7 @@ func (s *OidcService) UpdateClientLogo(ctx context.Context, clientID string, fil
 	return nil
 }
 
-func (s *OidcService) DeleteClientLogo(ctx context.Context, clientID string) error {
+func (s *clientService) DeleteClientLogo(ctx context.Context, clientID string) error {
 	return s.deleteClientLogoInternal(ctx, clientID, "", func(client *model.OidcClient) (string, error) {
 		if client.ImageType == nil {
 			return "", apperror.ImageNotFound()
@@ -638,7 +607,7 @@ func (s *OidcService) DeleteClientLogo(ctx context.Context, clientID string) err
 	})
 }
 
-func (s *OidcService) DeleteClientDarkLogo(ctx context.Context, clientID string) error {
+func (s *clientService) DeleteClientDarkLogo(ctx context.Context, clientID string) error {
 	return s.deleteClientLogoInternal(ctx, clientID, "-dark", func(client *model.OidcClient) (string, error) {
 		if client.DarkImageType == nil {
 			return "", apperror.ImageNotFound()
@@ -650,7 +619,7 @@ func (s *OidcService) DeleteClientDarkLogo(ctx context.Context, clientID string)
 	})
 }
 
-func (s *OidcService) deleteClientLogoInternal(ctx context.Context, clientID string, imagePathSuffix string, setClientImage func(*model.OidcClient) (string, error)) error {
+func (s *clientService) deleteClientLogoInternal(ctx context.Context, clientID string, imagePathSuffix string, setClientImage func(*model.OidcClient) (string, error)) error {
 	tx := s.db.Begin()
 	defer func() {
 		tx.Rollback()
@@ -680,7 +649,7 @@ func (s *OidcService) deleteClientLogoInternal(ctx context.Context, clientID str
 	}
 
 	// All storage operations must be performed outside of a database transaction
-	imagePath := OidcClientImagePath(client.ID, imagePathSuffix, oldImageType)
+	imagePath := ClientImagePath(client.ID, imagePathSuffix, oldImageType)
 	err = s.fileStorage.Delete(ctx, imagePath)
 	if err != nil {
 		return err
@@ -689,7 +658,7 @@ func (s *OidcService) deleteClientLogoInternal(ctx context.Context, clientID str
 	return nil
 }
 
-func (s *OidcService) UpdateAllowedUserGroups(ctx context.Context, id string, input dto.OidcUpdateAllowedUserGroupsDto) (client model.OidcClient, err error) {
+func (s *clientService) UpdateAllowedUserGroups(ctx context.Context, id string, input dto.OidcUpdateAllowedUserGroupsDto) (client model.OidcClient, err error) {
 	tx := s.db.Begin()
 	defer func() {
 		tx.Rollback()
@@ -749,7 +718,7 @@ func (s *OidcService) UpdateAllowedUserGroups(ctx context.Context, id string, in
 	return client, nil
 }
 
-func (s *OidcService) ListAuthorizedClients(ctx context.Context, userID string, search string, listRequestOptions utils.ListRequestOptions) ([]model.UserAuthorizedOidcClient, utils.PaginationResponse, error) {
+func (s *clientService) ListAuthorizedClients(ctx context.Context, userID string, search string, listRequestOptions utils.ListRequestOptions) ([]model.UserAuthorizedOidcClient, utils.PaginationResponse, error) {
 	tx := s.db.Begin()
 	defer func() {
 		tx.Rollback()
@@ -800,7 +769,7 @@ func (s *OidcService) ListAuthorizedClients(ctx context.Context, userID string, 
 	return authorizedClients, response, err
 }
 
-func (s *OidcService) RevokeAuthorizedClient(ctx context.Context, userID string, clientID string) error {
+func (s *clientService) RevokeAuthorizedClient(ctx context.Context, userID string, clientID string) error {
 	tx := s.db.Begin()
 	defer func() {
 		tx.Rollback()
@@ -833,7 +802,7 @@ func (s *OidcService) RevokeAuthorizedClient(ctx context.Context, userID string,
 		return err
 	}
 
-	if err = oidc.RevokeUserClientSessions(ctx, tx, userID, clientID); err != nil {
+	if err = RevokeUserClientSessions(ctx, tx, userID, clientID); err != nil {
 		return err
 	}
 
@@ -848,7 +817,7 @@ func (s *OidcService) RevokeAuthorizedClient(ctx context.Context, userID string,
 	return nil
 }
 
-func (s *OidcService) ListAccessibleOidcClients(ctx context.Context, userID string, search string, listRequestOptions utils.ListRequestOptions) ([]dto.AccessibleOidcClientDto, utils.PaginationResponse, error) {
+func (s *clientService) ListAccessibleOidcClients(ctx context.Context, userID string, search string, listRequestOptions utils.ListRequestOptions) ([]dto.AccessibleOidcClientDto, utils.PaginationResponse, error) {
 	tx := s.db.Begin()
 	defer func() {
 		tx.Rollback()
@@ -945,7 +914,7 @@ func getHasLaunchURLFilter(listRequestOptions utils.ListRequestOptions) (bool, b
 	return hasLaunchURL, ok
 }
 
-func (s *OidcService) GetClientPreview(ctx context.Context, clientID string, userID string, scopes []string, authenticationMethod string) (*dto.OidcClientPreviewDto, error) {
+func (s *clientService) GetClientPreview(ctx context.Context, clientID string, userID string, scopes []string, authenticationMethod string) (*dto.OidcClientPreviewDto, error) {
 	client, err := s.getClientInternal(ctx, clientID, s.db, false)
 	if err != nil {
 		return nil, err
@@ -964,7 +933,7 @@ func (s *OidcService) GetClientPreview(ctx context.Context, clientID string, use
 		return nil, err
 	}
 
-	if !oidc.IsUserGroupAllowedToAuthorize(user, client) {
+	if !IsUserGroupAllowedToAuthorize(user, client) {
 		return nil, apperror.OidcAccessDenied()
 	}
 
@@ -995,7 +964,7 @@ func httpClientWithCheckRedirect(source *http.Client, checkRedirect func(req *ht
 	return client
 }
 
-func (s *OidcService) downloadAndSaveLogoFromURL(parentCtx context.Context, clientID string, raw string, light bool) error {
+func (s *clientService) downloadAndSaveLogoFromURL(parentCtx context.Context, clientID string, raw string, light bool) error {
 	u, err := url.Parse(raw)
 	if err != nil {
 		return apperror.InvalidLogoURL(err)
@@ -1066,7 +1035,7 @@ func (s *OidcService) downloadAndSaveLogoFromURL(parentCtx context.Context, clie
 		return apperror.LogoDownloadFailed(err)
 	}
 
-	imagePath := OidcClientImagePath(clientID, darkSuffix, ext)
+	imagePath := ClientImagePath(clientID, darkSuffix, ext)
 	err = s.fileStorage.Save(ctx, imagePath, strippedReader)
 	if errors.Is(err, utils.ErrSizeExceeded) {
 		return apperror.LogoTooLarge("2 MB")
@@ -1082,7 +1051,7 @@ func (s *OidcService) downloadAndSaveLogoFromURL(parentCtx context.Context, clie
 	return nil
 }
 
-func (s *OidcService) updateClientLogoType(ctx context.Context, clientID string, ext string, light bool) error {
+func (s *clientService) updateClientLogoType(ctx context.Context, clientID string, ext string, light bool) error {
 	var darkSuffix string
 	if !light {
 		darkSuffix = "-dark"
@@ -1131,15 +1100,15 @@ func (s *OidcService) updateClientLogoType(ctx context.Context, clientID string,
 
 	// Storage operations must be executed outside of a transaction
 	if currentType != nil && *currentType != ext {
-		old := OidcClientImagePath(client.ID, darkSuffix, *currentType)
+		old := ClientImagePath(client.ID, darkSuffix, *currentType)
 		_ = s.fileStorage.Delete(ctx, old)
 	}
 
 	return nil
 }
 
-// OidcClientImagePath returns the storage path of a client logo
+// ClientImagePath returns the storage path of a client logo
 // The client ID is hashed because it may contain characters that are unsafe in file names
-func OidcClientImagePath(clientID string, suffix string, extension string) string {
+func ClientImagePath(clientID string, suffix string, extension string) string {
 	return path.Join("oidc-client-images", utils.CreateSha256Hash(clientID)+suffix+"."+extension)
 }

@@ -9,7 +9,7 @@ import (
 	"gorm.io/gorm"
 
 	"github.com/pocket-id/pocket-id/backend/internal/model"
-	"github.com/pocket-id/pocket-id/backend/internal/service"
+	"github.com/pocket-id/pocket-id/backend/internal/oidc"
 	"github.com/pocket-id/pocket-id/backend/internal/storage"
 	"github.com/pocket-id/pocket-id/backend/internal/utils"
 )
@@ -53,7 +53,7 @@ func moveLegacyOidcClientImages(ctx context.Context, db *gorm.DB, fileStorage st
 			if err != nil {
 				return err
 			}
-			err = fileStorage.Save(ctx, service.OidcClientImagePath(client.ID, suffix, *ext), reader)
+			err = fileStorage.Save(ctx, oidc.ClientImagePath(client.ID, suffix, *ext), reader)
 			reader.Close()
 			if err != nil {
 				return err

@@ -1,16 +1,28 @@
-package service
+package usergroups
 
 import (
 	"testing"
 
 	"github.com/stretchr/testify/require"
 
+	"github.com/pocket-id/pocket-id/backend/internal/apperror"
 	"github.com/pocket-id/pocket-id/backend/internal/dto"
 	"github.com/pocket-id/pocket-id/backend/internal/utils"
+	testutils "github.com/pocket-id/pocket-id/backend/internal/utils/testing"
 )
 
+func TestGetReturnsUserGroupNotFound(t *testing.T) {
+	groupService := newService(testutils.NewDatabaseForTest(t), nil, nil)
+
+	_, err := groupService.Get(t.Context(), "missing-group")
+	require.True(t, apperror.IsCode(err, apperror.CodeNotFound))
+	var appErr *apperror.Error
+	require.ErrorAs(t, err, &appErr)
+	require.Equal(t, "User group", appErr.Details()["resource"])
+}
+
 func TestUserGroupListSearchMatchesFriendlyName(t *testing.T) {
-	_, groupService := newTestUserService(t)
+	groupService := newService(testutils.NewDatabaseForTest(t), nil, nil)
 
 	_, err := groupService.Create(t.Context(), dto.UserGroupCreateDto{
 		Name:         "qa_team",
