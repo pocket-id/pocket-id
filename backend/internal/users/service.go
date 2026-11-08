@@ -512,7 +512,13 @@ func (s *Service) UpdateUser(ctx context.Context, cfg *appconfig.AppConfigModel,
 		}
 	}
 
-	user, err := s.updateUserInternal(ctx, cfg, userID, updatedUser, updateOwnUser, isLdapSync, tx)
+	_, err := s.updateUserInternal(ctx, cfg, userID, updatedUser, updateOwnUser, isLdapSync, tx)
+	if err != nil {
+		return model.User{}, err
+	}
+
+	// The update doesn't load the user's groups and claims, which callers return along with the changed fields
+	user, err := s.getUserInternal(ctx, userID, tx)
 	if err != nil {
 		return model.User{}, err
 	}

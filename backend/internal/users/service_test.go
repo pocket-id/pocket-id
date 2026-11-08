@@ -387,3 +387,23 @@ func TestMarkingEmailVerifiedClearsSignupDeadline(t *testing.T) {
 	require.NoError(t, err)
 	require.Nil(t, stored.EmailVerificationDeadline)
 }
+
+func TestUpdateUserReturnsGroupsAndCustomClaims(t *testing.T) {
+	userService := newTestUserService(t)
+	group := createTestGroup(t, userService.db, "family", "Family")
+	user := model.User{
+		Username:     "member",
+		UserGroups:   []model.UserGroup{group},
+		CustomClaims: []model.CustomClaim{{Key: "office", Value: "Zurich"}},
+	}
+	require.NoError(t, userService.db.Create(&user).Error)
+
+	updated, err := userService.UpdateUser(t.Context(), &appconfig.AppConfigModel{RequireUserEmail: "false"}, user.ID, dto.UserCreateDto{Username: "member", FirstName: "Updated"}, false, false)
+	require.NoError(t, err)
+
+	require.Equal(t, "Updated", updated.FirstName)
+	require.Len(t, updated.UserGroups, 1)
+	require.Equal(t, group.ID, updated.UserGroups[0].ID)
+	require.Len(t, updated.CustomClaims, 1)
+	require.Equal(t, "office", updated.CustomClaims[0].Key)
+}
