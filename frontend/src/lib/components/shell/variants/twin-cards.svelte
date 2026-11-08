@@ -15,7 +15,7 @@
 		{versionInformation}
 		{showUpdate}
 		bind:collapsed={collapsed.current}
-		class="border-border top-2 h-[calc(100dvh-1rem)] rounded-xl border"
+		class="outline-border top-2 h-[calc(100dvh-1rem)] rounded-xl outline -outline-offset-1"
 	/>
 	<div
 		class="bg-surface sm:border-border flex min-w-0 flex-1 flex-col sm:rounded-xl sm:border sm:shadow-(--card-shadow)"
