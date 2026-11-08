@@ -288,29 +288,6 @@
 		<div class="mb-6">
 			<IdentityRow user={$userStore!} />
 		</div>
-		{#if authorizationRequired}
-			<div class="mb-6 lg:break-before-column">
-				<ScopeList
-					scopes={deviceInfo!.scope || []}
-					scopeInfo={deviceInfo!.scopeInfo || []}
-					bind:selectedScopes
-				/>
-			</div>
-		{/if}
-		<ActionPanel>
-			<div class="flex flex-col items-center gap-3">
-				{#if failure?.code === 'email_verification_required'}
-					<Button class={authPrimaryClass} href="/settings/account">
-						{m.verify_email_address()}
-					</Button>
-				{:else}
-					<Button class={authPrimaryClass} {isLoading} onclick={authorize}>
-						{statusFailure ? m.try_again() : m.approve()}
-					</Button>
-				{/if}
-				<Button variant="link" class={authQuietClass} href="/">{m.cancel()}</Button>
-			</div>
-		</ActionPanel>
 	{:else}
 		<AuthHeading title={m.auth_connect_a_device()}>
 			{@render status(
@@ -351,4 +328,32 @@
 			</div>
 		</form>
 	{/if}
+
+	{#snippet side()}
+		{#if view === 'consent' && client}
+			{#if authorizationRequired}
+				<div class="mb-6">
+					<ScopeList
+						scopes={deviceInfo!.scope || []}
+						scopeInfo={deviceInfo!.scopeInfo || []}
+						bind:selectedScopes
+					/>
+				</div>
+			{/if}
+			<ActionPanel>
+				<div class="flex flex-col items-center gap-3">
+					{#if failure?.code === 'email_verification_required'}
+						<Button class={authPrimaryClass} href="/settings/account">
+							{m.verify_email_address()}
+						</Button>
+					{:else}
+						<Button class={authPrimaryClass} {isLoading} onclick={authorize}>
+							{statusFailure ? m.try_again() : m.approve()}
+						</Button>
+					{/if}
+					<Button variant="link" class={authQuietClass} href="/">{m.cancel()}</Button>
+				</div>
+			</ActionPanel>
+		{/if}
+	{/snippet}
 </SignInWrapper>

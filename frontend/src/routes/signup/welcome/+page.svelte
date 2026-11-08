@@ -77,7 +77,7 @@
 	<title>{m.welcome_question()}</title>
 </svelte:head>
 
-<SignInWrapper wide columns={false}>
+<SignInWrapper wide>
 	<AuthTile />
 	<AuthHeading title={m.welcome_question()}>{m.welcome_description()}</AuthHeading>
 

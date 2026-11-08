@@ -211,55 +211,59 @@
 				<IdentityRow user={$userStore} />
 			</div>
 		{/if}
-
-		{#if view === 'consent' && hasScopes}
-			<div class="mb-6 lg:break-before-column">
-				<ScopeList
-					scopes={interactionSession.scopes || []}
-					scopeInfo={interactionSession.scopeInfo ?? []}
-					bind:selectedScopes
-				/>
-			</div>
-		{/if}
-
-		<ActionPanel>
-			<div class="flex flex-col items-center gap-3">
-				{#if view === 'verify'}
-					<Button class={authPrimaryClass} href="/settings/account">
-						{m.verify_email_address()}
-					</Button>
-				{:else if view === 'sign-in'}
-					<Button class={authPrimaryClass} {isLoading} onclick={handlePipeline}>
-						{failure ? m.try_again() : m.auth_sign_in_with_passkey()}
-					</Button>
-					<Button variant="link" class={authQuietClass} href={alternativeSignInHref()}>
-						{m.auth_other_ways_to_sign_in()}
-					</Button>
-				{:else if view === 'select_account'}
-					<Button variant="link" class={authQuietClass} onclick={useDifferentAccount}>
-						{m.use_a_different_account()}
-					</Button>
-				{:else}
-					<!-- A metadata-document client goes by its host, which can be longer than the button -->
-					<Button class={authPrimaryClass} {isLoading} onclick={handlePipeline}>
-						<span class="truncate">
-							{failure
-								? m.try_again()
-								: view === 'reauthenticate'
-									? m.auth_continue_with_passkey()
-									: m.auth_continue_to({ name: clientName })}
-						</span>
-					</Button>
-				{/if}
-				<!-- Cancel goes back through authorize, so the app hears access_denied instead of the person being left on Pocket ID -->
-				<Button
-					variant="link"
-					class={authQuietClass}
-					href={`/authorize?interaction=${encodeURIComponent(interactionSession.id)}&cancel=true`}
-				>
-					{m.cancel()}
-				</Button>
-			</div>
-		</ActionPanel>
 	{/if}
+
+	{#snippet side()}
+		{#if view !== 'success'}
+			{#if view === 'consent' && hasScopes}
+				<div class="mb-6">
+					<ScopeList
+						scopes={interactionSession.scopes || []}
+						scopeInfo={interactionSession.scopeInfo ?? []}
+						bind:selectedScopes
+					/>
+				</div>
+			{/if}
+
+			<ActionPanel>
+				<div class="flex flex-col items-center gap-3">
+					{#if view === 'verify'}
+						<Button class={authPrimaryClass} href="/settings/account">
+							{m.verify_email_address()}
+						</Button>
+					{:else if view === 'sign-in'}
+						<Button class={authPrimaryClass} {isLoading} onclick={handlePipeline}>
+							{failure ? m.try_again() : m.auth_sign_in_with_passkey()}
+						</Button>
+						<Button variant="link" class={authQuietClass} href={alternativeSignInHref()}>
+							{m.auth_other_ways_to_sign_in()}
+						</Button>
+					{:else if view === 'select_account'}
+						<Button variant="link" class={authQuietClass} onclick={useDifferentAccount}>
+							{m.use_a_different_account()}
+						</Button>
+					{:else}
+						<!-- A metadata-document client goes by its host, which can be longer than the button -->
+						<Button class={authPrimaryClass} {isLoading} onclick={handlePipeline}>
+							<span class="truncate">
+								{failure
+									? m.try_again()
+									: view === 'reauthenticate'
+										? m.auth_continue_with_passkey()
+										: m.auth_continue_to({ name: clientName })}
+							</span>
+						</Button>
+					{/if}
+					<!-- Cancel goes back through authorize, so the app hears access_denied instead of the person being left on Pocket ID -->
+					<Button
+						variant="link"
+						class={authQuietClass}
+						href={`/authorize?interaction=${encodeURIComponent(interactionSession.id)}&cancel=true`}
+					>
+						{m.cancel()}
+					</Button>
+				</div>
+			</ActionPanel>
+		{/if}
+	{/snippet}
 </SignInWrapper>

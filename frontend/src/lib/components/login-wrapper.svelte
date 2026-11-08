@@ -9,6 +9,7 @@
 	import { beforeNavigate, onNavigate } from '$app/navigation';
 	import StaySignedInStep from '#lib/components/auth/stay-signed-in-step.svelte';
 	import { Button } from '@pocket-id/ui/button';
+	import { ScrollArea } from '@pocket-id/ui/scroll-area';
 	import { m } from '#lib/paraglide/messages.js';
 	import { appReveal } from '#lib/stores/app-reveal-store.svelte.ts';
 	import { keepSignedIn } from '#lib/stores/keep-signed-in-store.svelte.ts';
@@ -22,22 +23,24 @@
 
 	let {
 		children,
+		side,
 		back: backHref,
-		wide = false,
-		columns = true
+		wide = false
 	}: {
 		children: Snippet;
+		// Follows the children on narrow steps and fills the second column of a wide one, next to the children that stay in view while it scrolls
+		side?: Snippet;
 		back?: string;
-		// Steps with scopes or technical details grow the desktop card to two columns
+		// Steps with scopes or technical details grow the desktop card
 		wide?: boolean;
-		// A wide step with choices that need the whole width keeps one column
-		columns?: boolean;
 	} = $props();
 
 	// Going back from the question would leave a sign-in that already happened
 	const back = $derived(keepSignedIn.asking ? undefined : backHref);
 
 	const isCard = new MediaQuery('(min-width: 640px)');
+	// Matches the lg breakpoint where a wide card splits into two columns
+	const isTwoColumn = new MediaQuery('(min-width: 1024px)');
 	const photo = $derived(backgroundImageExists !== false);
 
 	let card = $state<HTMLDivElement>();
@@ -278,7 +281,13 @@
 				{/if}
 			</div>
 
-			<main class="flex flex-[1_0_auto] items-center justify-center sm:pt-4 sm:pb-8">
+			<!-- In two columns the stack shrinks with the card so the side column scrolls on its own instead of the whole card -->
+			<main
+				class={cn(
+					'flex flex-[1_0_auto] items-center justify-center sm:pt-4 sm:pb-8',
+					wide && side && 'lg:min-h-0 lg:shrink'
+				)}
+			>
 				<div
 					bind:this={stack}
 					class={cn(
@@ -286,13 +295,27 @@
 						photo ? 'sm:max-w-(--col-auth)' : 'max-w-(--col-auth)',
 						wide && 'lg:max-w-none',
 						wide &&
-							columns &&
-							'lg:block lg:columns-2 lg:gap-x-24 lg:[column-rule:1px_solid_var(--border)] lg:*:break-inside-avoid'
+							side &&
+							'lg:before:bg-border lg:relative lg:grid lg:h-full lg:grid-cols-2 lg:grid-rows-[minmax(0,1fr)] lg:gap-x-24 lg:before:absolute lg:before:inset-y-0 lg:before:left-1/2 lg:before:w-px'
 					)}
 				>
 					<!-- Every sign-in page asks in its own card, so the question sits here instead of in each page -->
 					{#if keepSignedIn.asking}
 						<StaySignedInStep />
+					{:else if side}
+						<!-- The columns dissolve outside the wide layout, so the phone action panel still sticks to the whole sheet -->
+						<div class={cn('contents', wide && 'lg:flex lg:flex-col')}>
+							{@render children()}
+						</div>
+						{#if wide && isTwoColumn.current}
+							<!-- The padding gives focus rings room inside the scroll clip and puts the scrollbar beside the content instead of over it -->
+							<!-- A positioned viewport keeps absolutely positioned descendants such as sr-only labels inside the scroll area, otherwise they overflow the stack and scroll the whole card -->
+							<ScrollArea class="-m-1 -mr-4" viewportClass="relative p-1 pr-4">
+								{@render side()}
+							</ScrollArea>
+						{:else}
+							{@render side()}
+						{/if}
 					{:else}
 						{@render children()}
 					{/if}
