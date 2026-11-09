@@ -163,8 +163,8 @@
 
 	const columnsClass = $derived(
 		isAdmin
-			? 'sm:grid-cols-[minmax(0,1fr)_minmax(0,150px)_64px_16px] lg:grid-cols-[minmax(0,180px)_minmax(0,1fr)_minmax(0,160px)_64px_16px] xl:grid-cols-[minmax(0,180px)_minmax(0,1fr)_minmax(0,200px)_minmax(0,170px)_64px_16px]'
-			: 'sm:grid-cols-[minmax(0,1fr)_minmax(0,180px)_64px_16px] xl:grid-cols-[minmax(0,1fr)_minmax(0,200px)_minmax(0,170px)_64px_16px]'
+			? 'sm:grid-cols-[minmax(0,1fr)_minmax(0,150px)_64px_16px] lg:grid-cols-[minmax(0,180px)_minmax(0,1fr)_minmax(0,170px)_64px_16px] xl:grid-cols-[minmax(0,180px)_minmax(0,1fr)_minmax(0,200px)_minmax(0,170px)_64px_16px]'
+			: 'sm:grid-cols-[minmax(0,1fr)_minmax(0,180px)_64px_16px] xl:grid-cols-[minmax(0,1fr)_minmax(0,200px)_minmax(0,180px)_64px_16px]'
 	);
 </script>
 
@@ -193,7 +193,7 @@
 			{#if isAdmin}<span class="hidden lg:block">{m.username()}</span>{/if}
 			<span>{m.event()}</span>
 			<span class="hidden xl:block">{m.device()}</span>
-			<span>{m.ip_address()}</span>
+			<span>{m.approximate_location()}</span>
 			<span class="text-right">{m.time()}</span>
 			<span></span>
 		</div>
@@ -266,15 +266,12 @@
 									{/if}
 								</span>
 								<span class="text-caption text-fg-muted flex min-w-0 items-center gap-x-1.5">
-									{#if isAdmin}
-										<Badge variant="mono" class="max-sm:hidden">{log.event}</Badge>
-									{/if}
 									{#if log.data?.newBrowser === 'true'}
 										<Badge variant="warning" title={m.new_browser_hint()}>{m.new_browser()}</Badge>
 									{/if}
 									{#if via}<span class="shrink-0 max-sm:hidden">{via}</span>{/if}
 									<!-- Below xl the Device column folds into this line so the sentence keeps its width -->
-									{#if via || isAdmin}
+									{#if via}
 										<span aria-hidden="true" class="hidden sm:inline xl:hidden">·</span>
 									{/if}
 									<span class="hidden min-w-0 truncate sm:inline xl:hidden">{log.device}</span>
@@ -287,9 +284,8 @@
 								<DeviceIcon class="text-fg-muted size-4 shrink-0" />
 								<span class="truncate">{log.device}</span>
 							</span>
-							<span class="hidden min-w-0 flex-col sm:flex">
-								<span class="text-control truncate">{log.ipAddress}</span>
-								<span class="text-caption text-fg-muted truncate">{formatLocation(log)}</span>
+							<span class="text-control hidden truncate sm:block" title={log.ipAddress}>
+								{formatLocation(log)}
 							</span>
 							<time
 								class="text-control hidden text-right tabular-nums sm:block"
