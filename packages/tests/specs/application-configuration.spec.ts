@@ -254,7 +254,8 @@ test('Update email configuration', async ({ page }) => {
 	await expect(page.getByLabel('Host')).toHaveValue('smtp.gmail.com');
 	await expect(page.getByLabel('Port')).toHaveValue('587');
 	await expect(page.getByLabel('Username')).toHaveValue('test@gmail.com');
-	await expect(page.getByLabel('Password')).toHaveValue('password');
+	// The saved password is never sent back to the browser
+	await expect(page.getByLabel('Password')).toHaveValue('XXXXXXXXXX');
 	await expect(page.getByLabel('From address')).toHaveValue('test@gmail.com');
 	await expect(page.getByLabel('Sign-in notifications')).toContainText('Unrecognized browser');
 	await expect(page.getByLabel('Login codes requested by people')).toBeChecked();
