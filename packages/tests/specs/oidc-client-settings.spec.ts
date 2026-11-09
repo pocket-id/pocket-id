@@ -832,6 +832,11 @@ test('Filter OIDC clients by PAR requirement', async ({ page, request }) => {
 	});
 
 	await page.goto('/settings/admin/oidc-clients');
+	await expect(page.getByTestId('facet-par-trigger')).not.toBeVisible();
+
+	await page.getByRole('button', { name: 'Display' }).click();
+	await page.getByRole('button', { name: 'PAR', exact: true }).click();
+	await page.keyboard.press('Escape');
 
 	// Open PAR filter and select "On"
 	await page.getByTestId('facet-par-trigger').click();
@@ -851,6 +856,13 @@ test('Filter OIDC clients by PAR requirement', async ({ page, request }) => {
 	// PAR client should be hidden, others visible
 	await expect(page.getByRole('row', { name: oidcClients.nextcloud.name })).toBeVisible();
 	await expect(page.getByRole('row', { name: parClient.name })).not.toBeVisible();
+
+	// Hiding the column drops its filter
+	await page.getByRole('button', { name: 'Display' }).click();
+	await page.getByRole('button', { name: 'PAR', exact: true }).click();
+	await page.keyboard.press('Escape');
+	await expect(page.getByTestId('facet-par-trigger')).not.toBeVisible();
+	await expect(page.getByRole('row', { name: parClient.name })).toBeVisible();
 });
 
 test('Update OIDC client allowed user groups', async ({ page }) => {

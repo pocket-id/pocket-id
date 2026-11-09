@@ -77,12 +77,6 @@
 		filters: initializeFilters()
 	});
 
-	const requestOptions = $state<ListRequestOptions>({
-		sort: tablePreferences.current.sort ?? defaultSort,
-		pagination: { limit: tablePreferences.current.paginationLimit, page: 1 },
-		filters: tablePreferences.current.filters
-	});
-
 	const columnKey = (column: AdvancedTableColumn<T>) => column.column ?? column.key!;
 
 	// The identity column stays first because it names the row and is the only one phones show
@@ -112,6 +106,12 @@
 				(tablePreferences.current.visibleColumns?.includes(c.column ?? c.key!) ?? true)
 		)
 	);
+
+	const requestOptions = $state<ListRequestOptions>({
+		sort: tablePreferences.current.sort ?? defaultSort,
+		pagination: { limit: tablePreferences.current.paginationLimit, page: 1 },
+		filters: visibleFilters(tablePreferences.current.filters)
+	});
 
 	const narrowed = $derived(
 		!!query ||
@@ -176,6 +176,24 @@
 			...requestOptions.filters,
 			[column]: value === undefined ? [] : [value]
 		};
+		tablePreferences.current.filters = requestOptions.filters;
+		await refresh();
+	}
+
+	// Filters only show for visible columns, so a hidden column's filter would narrow the list without saying why
+	function visibleFilters(filters: ListRequestOptions['filters']) {
+		return Object.fromEntries(
+			Object.entries(filters ?? {}).filter(([column]) => isColumnVisible(column))
+		);
+	}
+
+	async function onVisibleColumnsChange(keys: string[]) {
+		tablePreferences.current.visibleColumns = keys;
+		const dropsFilter = Object.entries(requestOptions.filters ?? {}).some(
+			([column, values]) => values.length > 0 && !isColumnVisible(column)
+		);
+		if (!dropsFilter) return;
+		requestOptions.filters = visibleFilters(requestOptions.filters);
 		tablePreferences.current.filters = requestOptions.filters;
 		await refresh();
 	}
@@ -320,7 +338,7 @@
 </script>
 
 <AdvancedTableToolbar
-	{columns}
+	columns={visibleColumns}
 	{requestOptions}
 	{searchValue}
 	bind:searchInput
@@ -441,7 +459,9 @@
 							{#if hasOptionalColumns}
 								<AdvancedTableColumnSelection
 									columns={orderedColumns}
-									bind:selectedColumns={tablePreferences.current.visibleColumns}
+									bind:selectedColumns={
+										() => tablePreferences.current.visibleColumns, onVisibleColumnsChange
+									}
 									bind:columnOrder={tablePreferences.current.columnOrder}
 								/>
 							{/if}
