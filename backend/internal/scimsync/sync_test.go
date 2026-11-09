@@ -169,6 +169,17 @@ func TestSyncCreatesCompliantUsersBeforeGroups(t *testing.T) {
 	fixture.transport.requireCompliant(t)
 }
 
+func TestSyncSkipsDisabledClient(t *testing.T) {
+	fixture := newSCIMSyncFixture(t, false)
+	fixture.createUser(t, "user-alice", "alice", nil, false)
+	require.NoError(t, fixture.db.Model(&fixture.client).Update("disabled", true).Error)
+
+	require.NoError(t, fixture.service.SyncServiceProvider(t.Context(), fixture.provider.ID))
+
+	require.Empty(t, fixture.transport.requestsSnapshot())
+	fixture.requireLastSynced(t, false)
+}
+
 func TestSyncUpdatesExistingUsersAndGroupsWithPUT(t *testing.T) {
 	fixture := newSCIMSyncFixture(t, false)
 	email := "updated@example.com"

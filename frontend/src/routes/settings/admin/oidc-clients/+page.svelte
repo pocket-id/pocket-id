@@ -27,6 +27,7 @@
 		copyClientIdAction,
 		deleteClientAction,
 		refreshClientAction,
+		toggleClientDisabledAction,
 		typeLabel
 	} from './oidc-client-actions';
 
@@ -76,6 +77,17 @@
 			]
 		},
 		{ label: m.type(), key: 'type', value: typeLabel, hideBelow: 760 },
+		{
+			label: m.status(),
+			column: 'disabled',
+			sortable: true,
+			cell: StatusCell,
+			hideBelow: 520,
+			filterableValues: [
+				{ label: m.active(), value: false },
+				{ label: m.disabled(), value: true }
+			]
+		},
 		...(data.features?.cimd.enabled
 			? ([
 					{
@@ -131,6 +143,7 @@
 		},
 		copyClientIdAction(),
 		refreshClientAction(client, refresh),
+		toggleClientDisabledAction(client, refresh),
 		deleteClientAction(refresh)
 	];
 </script>
@@ -157,6 +170,7 @@
 				{/if}
 			</span>
 			<span class="text-caption text-fg-muted truncate sm:hidden">
+				{#if item.disabled}{m.disabled()} ·{/if}
 				{#if item.isGroupRestricted && item.allowedUserGroups.length === 0}
 					<Badge variant="warning" class="text-caption text-fg-muted before:size-1.5">
 						{accessLabel(item)}
@@ -168,6 +182,14 @@
 			</span>
 		</div>
 	</div>
+{/snippet}
+
+{#snippet StatusCell({ item }: { item: OidcClientWithAllowedGroups })}
+	{#if item.disabled}
+		<Badge variant="destructive">{m.disabled()}</Badge>
+	{:else}
+		{m.active()}
+	{/if}
 {/snippet}
 
 {#snippet AccessCell({ item }: { item: OidcClientWithAllowedGroups })}

@@ -11,9 +11,19 @@ import (
 	"github.com/stretchr/testify/require"
 	"gorm.io/gorm"
 
+	"github.com/pocket-id/pocket-id/backend/internal/apperror"
 	"github.com/pocket-id/pocket-id/backend/internal/model"
 	testutils "github.com/pocket-id/pocket-id/backend/internal/utils/testing"
 )
+
+func TestStoreGetClientRefusesDisabledClient(t *testing.T) {
+	db := testutils.NewDatabaseForTest(t)
+	store := NewStore(db, nil)
+	require.NoError(t, db.Create(&model.OidcClient{Base: model.Base{ID: "disabled-client"}, Name: "Disabled", Disabled: true}).Error)
+
+	_, err := store.GetClient(t.Context(), "disabled-client")
+	require.True(t, apperror.IsCode(err, apperror.CodeOidcClientDisabled), "expected a disabled client error, got %v", err)
+}
 
 // TestStoreGetPARSessionIsSingleUse verifies that a pushed-authorization request_uri can be
 // consumed only once (RFC 9126 §4). The consumption (read + invalidate) must be atomic so

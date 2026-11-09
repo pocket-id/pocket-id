@@ -32,6 +32,7 @@ type OidcClientDto struct {
 	AccessTokenDurationMinutes          int64                    `json:"accessTokenDurationMinutes"`
 	RefreshTokenDurationMinutes         int64                    `json:"refreshTokenDurationMinutes"`
 	ClaimMappingPolicyId                string                   `json:"claimMappingPolicyId"`
+	Disabled                            bool                     `json:"disabled"`
 }
 
 type OidcClientWithAllowedUserGroupsDto struct {
@@ -71,6 +72,7 @@ type OidcClientUpdateDto struct {
 	AccessTokenDurationMinutes          int64                    `json:"accessTokenDurationMinutes" binding:"omitempty,token_duration"`
 	RefreshTokenDurationMinutes         int64                    `json:"refreshTokenDurationMinutes" binding:"omitempty,token_duration"`
 	ClaimMappingPolicyId                string                   `json:"claimMappingPolicyId"`
+	Disabled                            bool                     `json:"disabled"`
 }
 
 type OidcClientCreateDto struct {

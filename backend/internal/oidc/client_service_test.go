@@ -977,6 +977,7 @@ func TestClientService_UpdateClient_CIMDPreservesMetadataFields(t *testing.T) {
 		AccessTokenDurationMinutes:          accessDuration,
 		RefreshTokenDurationMinutes:         refreshDuration,
 		ClaimMappingPolicyId:                claimmappingpolicy.BuiltInClaimMappingPolicyID,
+		Disabled:                            true,
 		Credentials: dto.OidcClientCredentialsDto{
 			FederatedIdentities: []dto.OidcClientFederatedIdentityDto{{
 				Issuer: "https://override.example.com",
@@ -1005,6 +1006,7 @@ func TestClientService_UpdateClient_CIMDPreservesMetadataFields(t *testing.T) {
 	assert.Equal(t, accessDuration, fetched.AccessTokenDurationMinutes)
 	assert.Equal(t, refreshDuration, fetched.RefreshTokenDurationMinutes)
 	assert.Equal(t, new(claimmappingpolicy.BuiltInClaimMappingPolicyID), fetched.ClaimMappingPolicyId)
+	assert.True(t, fetched.Disabled)
 }
 
 func TestClientService_UpdateClient_CIMDDoesNotOverwriteConcurrentMetadataRefresh(t *testing.T) {
@@ -1059,6 +1061,8 @@ func TestClientService_ListAccessibleOidcClients_requiresExplicitGroupPermission
 		{Name: "Restricted without groups", CallbackURLs: datatype.StringList{"https://empty.example.com/callback"}, IsGroupRestricted: true},
 		{Name: "Restricted to user group", CallbackURLs: datatype.StringList{"https://allowed.example.com/callback"}, IsGroupRestricted: true, AllowedUserGroups: []model.UserGroup{allowedGroup}},
 		{Name: "Restricted to other group", CallbackURLs: datatype.StringList{"https://other.example.com/callback"}, IsGroupRestricted: true, AllowedUserGroups: []model.UserGroup{otherGroup}},
+		{Name: "Disabled", CallbackURLs: datatype.StringList{"https://disabled.example.com/callback"}, Disabled: true},
+		{Name: "Disabled restricted to user group", CallbackURLs: datatype.StringList{"https://disabled-allowed.example.com/callback"}, Disabled: true, IsGroupRestricted: true, AllowedUserGroups: []model.UserGroup{allowedGroup}},
 	}
 	for i := range clients {
 		require.NoError(t, db.Create(&clients[i]).Error)

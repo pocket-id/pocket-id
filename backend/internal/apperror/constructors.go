@@ -333,6 +333,10 @@ func OidcPARRequired() *Error {
 	return New(CodeOidcPARRequired, http.StatusBadRequest, "This client requires pushed authorization requests")
 }
 
+func OidcClientDisabled() *Error {
+	return New(CodeOidcClientDisabled, http.StatusForbidden, "This app has been disabled by an administrator")
+}
+
 func InvalidEmailVerificationToken() *Error {
 	return New(CodeEmailVerificationTokenInvalid, http.StatusBadRequest, "Email verification token is invalid")
 }

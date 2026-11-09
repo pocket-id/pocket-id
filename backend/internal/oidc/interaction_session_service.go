@@ -4,6 +4,7 @@ import (
 	"context"
 	"time"
 
+	"github.com/pocket-id/pocket-id/backend/internal/apperror"
 	"gorm.io/gorm"
 )
 
@@ -44,6 +45,11 @@ func (s *interactionSessionService) get(ctx context.Context, id string) (Interac
 
 	if time.Since(interactionSession.CreatedAt.ToTime()) > interactionSessionLifetime {
 		return InteractionSession{}, gorm.ErrRecordNotFound
+	}
+
+	// The client is loaded here without going through Store.GetClient, so a client disabled mid-interaction must be refused before the consent step records an authorization
+	if interactionSession.Client.Disabled {
+		return InteractionSession{}, apperror.OidcClientDisabled()
 	}
 
 	return interactionSession, nil

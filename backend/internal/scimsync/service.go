@@ -240,6 +240,15 @@ func (s *Service) SyncServiceProvider(ctx context.Context, serviceProviderID str
 	}
 	provider := snapshot.provider
 
+	// Provisioning pauses while the client is disabled, so archiving an app neither deprovisions its users nor keeps calling an endpoint that may be gone
+	if provider.OidcClient.Disabled {
+		slog.InfoContext(ctx, "Skipping SCIM sync because the OIDC client is disabled",
+			slog.String("provider_id", provider.ID),
+			slog.String("oidc_client_id", provider.OidcClientID),
+		)
+		return nil
+	}
+
 	slog.InfoContext(ctx, "Syncing SCIM service provider",
 		slog.String("provider_id", provider.ID),
 		slog.String("oidc_client_id", provider.OidcClientID),

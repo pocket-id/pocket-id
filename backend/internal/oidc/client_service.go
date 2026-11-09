@@ -191,6 +191,7 @@ func (s *clientService) UpdateClient(ctx context.Context, clientID string, input
 		return model.OidcClient{}, err
 	}
 	wasGroupRestricted := client.IsGroupRestricted
+	wasDisabled := client.Disabled
 
 	err = updateOIDCClientModelFromDto(&client, &input)
 	if err != nil {
@@ -224,6 +225,7 @@ func (s *clientService) UpdateClient(ctx context.Context, clientID string, input
 				"AccessTokenDurationMinutes",
 				"RefreshTokenDurationMinutes",
 				"ClaimMappingPolicyId",
+				"Disabled",
 			).
 			Updates(&client).Error
 	} else {
@@ -233,10 +235,23 @@ func (s *clientService) UpdateClient(ctx context.Context, clientID string, input
 		return model.OidcClient{}, err
 	}
 
+	// Disabling the client keeps its users signed in there, so resolve the logout notifications to deliver once the change is committed
+	notifyLogout := func() {}
+	if s.backchannelLogout != nil && !wasDisabled && client.Disabled {
+		var prepareErr error
+		notifyLogout, prepareErr = s.backchannelLogout.PrepareClientNotifications(ctx, tx, client.ID)
+		if prepareErr != nil {
+			// Notifications are best effort and must never block disabling the client
+			slog.ErrorContext(ctx, "Failed to prepare back-channel logout notifications for client", slog.String("clientId", client.ID), slog.Any("error", prepareErr))
+		}
+	}
+
 	err = tx.Commit().Error
 	if err != nil {
 		return model.OidcClient{}, err
 	}
+
+	notifyLogout()
 
 	// Turning on the group restriction revokes access for every authorized user until groups are assigned, so tell their clients to end the sessions
 	if s.backchannelLogout != nil && !wasGroupRestricted && client.IsGroupRestricted {
@@ -286,6 +301,7 @@ func updateOIDCClientModelFromDto(client *model.OidcClient, input *dto.OidcClien
 	client.SkipConsent = input.SkipConsent
 	client.LaunchURL = input.LaunchURL
 	client.IsGroupRestricted = input.IsGroupRestricted
+	client.Disabled = input.Disabled
 
 	// An empty policy id leaves the column NULL, so the client falls back to the default claim mapping policy
 	if input.ClaimMappingPolicyId == "" {
@@ -849,7 +865,8 @@ func (s *clientService) ListAccessibleOidcClients(ctx context.Context, userID st
 		Where(`oidc_clients.is_group_restricted = ? OR EXISTS (
 			SELECT 1 FROM oidc_clients_allowed_user_groups
 			WHERE oidc_clients_allowed_user_groups.oidc_client_id = oidc_clients.id
-			AND oidc_clients_allowed_user_groups.user_group_id IN (?))`, false, userGroupIDs)
+			AND oidc_clients_allowed_user_groups.user_group_id IN (?))`, false, userGroupIDs).
+		Where("oidc_clients.disabled = ?", false)
 
 	if search != "" {
 		query = query.Where("LOWER(oidc_clients.name) LIKE ?", "%"+strings.ToLower(search)+"%")

@@ -194,15 +194,16 @@ func (h *authorizationHandler) writeAuthorizeError(ctx context.Context, c *gin.C
 }
 
 func (h *authorizationHandler) redirectToInteractionError(c *gin.Context, err error) {
+	// Pocket ID's own error comes first, because Fosite wraps it in a generic hint such as "The requested OAuth 2.0 Client does not exist." for a disabled client
 	errorMessage := "An unknown error occurred during the authorization request."
-	if rfcErr, ok := errors.AsType[*fosite.RFC6749Error](err); ok {
+	if appErr, ok := errors.AsType[*apperror.Error](err); ok {
+		errorMessage = appErr.ClientMessage()
+	} else if rfcErr, ok := errors.AsType[*fosite.RFC6749Error](err); ok {
 		if rfcErr.HintField != "" {
 			errorMessage = rfcErr.HintField
 		} else if rfcErr.DescriptionField != "" {
 			errorMessage = rfcErr.DescriptionField
 		}
-	} else if appErr, ok := errors.AsType[*apperror.Error](err); ok {
-		errorMessage = appErr.ClientMessage()
 	}
 
 	query := url.Values{}

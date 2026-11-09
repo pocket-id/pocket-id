@@ -15,6 +15,7 @@ import (
 	"github.com/pocket-id/fosite/handler/openid"
 	"github.com/pocket-id/fosite/handler/pkce"
 	"github.com/pocket-id/fosite/handler/rfc8628"
+	"github.com/pocket-id/pocket-id/backend/internal/apperror"
 	"github.com/pocket-id/pocket-id/backend/internal/model"
 	datatype "github.com/pocket-id/pocket-id/backend/internal/model/types"
 	"gorm.io/gorm"
@@ -92,33 +93,23 @@ type storedRequester struct {
 
 // Satisfies fosite.ClientManager
 
+// GetClient is the lookup behind every client Fosite authenticates or restores from a stored session, so it is where a disabled client is refused
+// The error is not fosite.ErrNotFound, which keeps the CIMD resolver from fetching the metadata document of a disabled client again
 func (s *Store) GetClient(ctx context.Context, id string) (fosite.Client, error) {
-	tx := s.dbFor(ctx)
-
-	var clientModel model.OidcClient
-	err := tx.
-		Preload("AllowedUserGroups").
-		First(&clientModel, "id = ?", id).
-		Error
+	clientModel, err := s.firstClientByID(ctx, id)
 	if errors.Is(err, gorm.ErrRecordNotFound) {
 		return nil, fosite.ErrNotFound
 	} else if err != nil {
 		return nil, err
 	}
-
-	client := Client{OidcClient: clientModel}
-
-	// Populate the custom-API scopes and audiences the client may request only when the API feature is wired
-	if s.apiAccess != nil {
-		apiScopes, apiAudiences, err := s.apiAccess.ClientAPIScopes(ctx, tx, id, clientModel.IsMetadataDocument())
-		if err != nil {
-			return nil, err
-		}
-
-		client.apiScopes = apiScopes
-		client.apiAudiences = apiAudiences
+	if clientModel.Disabled {
+		return nil, apperror.OidcClientDisabled()
 	}
 
+	client, err := s.clientFromModel(ctx, s.dbFor(ctx), clientModel)
+	if err != nil {
+		return nil, err
+	}
 	return client, nil
 }
 
@@ -222,7 +213,12 @@ func (s *Store) StoreCIMDClient(ctx context.Context, resolved fosite.Client, _ *
 		}
 
 		// Reload inside the transaction so DB-managed columns and preloads are populated consistently
-		stored, err = s.GetClient(ctx, client.ID)
+		// This bypasses GetClient so an admin can still refresh the metadata of a disabled client
+		storedModel, err := s.firstClientByID(ctx, client.ID)
+		if err != nil {
+			return err
+		}
+		stored, err = s.clientFromModel(ctx, s.dbFor(ctx), storedModel)
 		return err
 	})
 	if err != nil {

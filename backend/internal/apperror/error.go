@@ -78,6 +78,7 @@ const (
 	CodeLogoPresetsUnavailable            Code = "logo_presets_unavailable"
 	CodeOidcPARRequired                   Code = "oidc_par_required"
 	CodeDocsUnavailable                   Code = "docs_unavailable"
+	CodeOidcClientDisabled                Code = "oidc_client_disabled"
 )
 
 // FieldError describes one safe, client-actionable validation failure
