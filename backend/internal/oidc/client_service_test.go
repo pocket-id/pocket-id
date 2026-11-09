@@ -98,6 +98,14 @@ func TestClientService_RevokeAuthorizedClientRevokesAccessTokenWithoutRefreshTok
 	require.NoError(t, err, "another user's access token must stay valid")
 }
 
+func TestClientService_RefreshClientMetadataReturnsNotFoundForMissingClient(t *testing.T) {
+	s := newMetadataStore(t, nil)
+	service := &clientService{db: s.db, cimdResolver: s.resolver}
+
+	_, err := service.RefreshClientMetadata(t.Context(), "https://8.8.8.8/oauth/missing-client")
+	require.True(t, apperror.IsCode(err, apperror.CodeNotFound), err)
+}
+
 func TestClientService_updateClientLogoType(t *testing.T) {
 	// Create a test database
 	db := testutils.NewDatabaseForTest(t)

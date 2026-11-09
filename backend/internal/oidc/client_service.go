@@ -66,7 +66,7 @@ func (s *clientService) RefreshClientMetadata(ctx context.Context, clientID stri
 	client, err := s.cimdResolver.RefreshMetadataClient(ctx, clientID)
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
-			return model.OidcClient{}, err
+			return model.OidcClient{}, apperror.NotFound("OIDC client")
 		}
 		return model.OidcClient{}, apperror.ValidationMessage(err.Error())
 	}
