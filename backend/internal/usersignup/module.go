@@ -105,7 +105,8 @@ func (m *Module) RunSignupTokenMigration(ctx context.Context) error {
 // signupRateLimit throttles public self-signup
 func (m *Module) RegisterRoutes(r *authz.Router, signupRateLimit gin.HandlerFunc) {
 	r.POST("/signup-tokens", authz.UsersWrite, httpserver.Handle(m.handler.createSignupToken))
-	r.GET("/signup-tokens", authz.UsersRead, httpserver.Handle(m.handler.listSignupTokens))
+	// Listing returns working token values, which can create accounts
+	r.GET("/signup-tokens", authz.UsersWrite, httpserver.Handle(m.handler.listSignupTokens))
 	r.DELETE("/signup-tokens/:id", authz.UsersWrite, httpserver.Handle(m.handler.deleteSignupToken))
 	r.Public().POST("/signup", signupRateLimit, httpserver.Handle(m.handler.signup))
 	r.Public().GET("/signup/setup", httpserver.Handle(m.handler.checkInitialAdminSetupAvailable))
