@@ -343,6 +343,7 @@
 	"clear_name_filter": "Clear {name} filter",
 	"filters": "Filters",
 	"columns": "Columns",
+	"reorder_name": "Reorder {name}",
 	"select_all": "Select all",
 	"select_all_rows_on_this_page": "Select all rows on this page",
 	"pagination": "Pagination",

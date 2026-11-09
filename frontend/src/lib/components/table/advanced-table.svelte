@@ -280,30 +280,6 @@
 		)
 	);
 
-	let draggedColumn = $state<string | null>(null);
-	let dropTarget = $state<string | null>(null);
-
-	// A column dropped on another one takes its place, so it lands before it when moved left and after it when moved right
-	function dropSide(target: string) {
-		if (!draggedColumn || target === draggedColumn) return undefined;
-		const keys = orderedColumns.map(columnKey);
-		return keys.indexOf(draggedColumn) < keys.indexOf(target) ? 'after' : 'before';
-	}
-
-	function moveColumn(target: string) {
-		if (!draggedColumn || target === draggedColumn) return;
-		const keys = orderedColumns.slice(1).map(columnKey);
-		const targetIndex = keys.indexOf(target);
-		keys.splice(keys.indexOf(draggedColumn), 1);
-		keys.splice(targetIndex, 0, draggedColumn);
-		tablePreferences.current.columnOrder = keys;
-	}
-
-	function endColumnDrag() {
-		draggedColumn = null;
-		dropTarget = null;
-	}
-
 	function getPrimaryAction(item: T) {
 		if (!actions) return null;
 		const availableActions = actions(item).filter((a) => a.primary);
@@ -392,38 +368,8 @@
 							requestOptions.sort?.column === column.column
 								? requestOptions.sort?.direction
 								: undefined}
-						{@const key = columnKey(column)}
-						{@const side = dropTarget === key ? dropSide(key) : undefined}
 						<Table.Head
-							class={cn(
-								columnClass(column, i),
-								i > 0 && 'cursor-grab',
-								draggedColumn === key && 'opacity-50',
-								side === 'before' && 'shadow-[inset_2px_0_0_var(--ring)]',
-								side === 'after' && 'shadow-[inset_-2px_0_0_var(--ring)]'
-							)}
-							draggable={i > 0}
-							ondragstart={(e) => {
-								draggedColumn = key;
-								e.dataTransfer!.effectAllowed = 'move';
-								// Firefox only starts a drag that carries data
-								e.dataTransfer!.setData('text/plain', column.label);
-							}}
-							ondragover={(e) => {
-								if (!draggedColumn || i === 0) return;
-								e.preventDefault();
-								e.dataTransfer!.dropEffect = 'move';
-								dropTarget = key;
-							}}
-							ondragleave={() => {
-								if (dropTarget === key) dropTarget = null;
-							}}
-							ondrop={(e) => {
-								e.preventDefault();
-								moveColumn(key);
-								endColumnDrag();
-							}}
-							ondragend={endColumnDrag}
+							class={columnClass(column, i)}
 							aria-sort={column.sortable
 								? sortDirection === 'asc'
 									? 'ascending'
