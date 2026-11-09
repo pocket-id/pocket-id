@@ -1,14 +1,13 @@
-import type { OidcClientMetaData } from './oidc.type';
-
 export type ScimServiceProvider = {
 	id: string;
 	endpoint: string;
-	token?: string;
+	hasToken: boolean;
 	lastSyncedAt?: string;
 	createdAt: string;
-	oidcClient: OidcClientMetaData;
 };
 
-export type ScimServiceProviderCreate = Pick<ScimServiceProvider, 'endpoint' | 'token'> & {
+export type ScimServiceProviderCreate = {
+	endpoint: string;
+	token?: string;
 	oidcClientId: string;
 };

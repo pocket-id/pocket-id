@@ -744,6 +744,7 @@
 	"never_synced": "Never synced",
 	"synced_date": "Synced {date}",
 	"scim_endpoint_helper": "The SCIM 2.0 base URL {name} gives you.",
+	"scim_token_saved_placeholder": "Saved, enter a new token to replace it",
 	"enable_provisioning": "Enable provisioning",
 	"disable_provisioning_ellipsis": "Disable provisioning…",
 	"disable_provisioning_question": "Disable provisioning?",

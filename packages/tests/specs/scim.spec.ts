@@ -22,6 +22,12 @@ async function configureOidcClient(page: Page) {
 	await expect(page.locator('[data-type="success"]')).toHaveText('Provisioning enabled');
 }
 
+async function expectSavedToken(page: Page) {
+	const token = page.getByLabel('SCIM token');
+	await expect(token).toHaveValue('');
+	await expect(token).toHaveAttribute('placeholder', 'Saved, enter a new token to replace it');
+}
+
 async function syncScimServiceProvider(page: Page) {
 	await openScimTab(page);
 
@@ -53,7 +59,7 @@ test.describe('SCIM Configuration', () => {
 		await page.reload();
 
 		await expect(page.getByLabel('SCIM endpoint')).toHaveValue('http://scim.provider/api');
-		await expect(page.getByLabel('SCIM token')).toHaveValue('supersecrettoken');
+		await expectSavedToken(page);
 	});
 
 	test('Update SCIM of OIDC client', async ({ page }) => {
@@ -69,7 +75,7 @@ test.describe('SCIM Configuration', () => {
 		await page.reload();
 
 		await expect(page.getByLabel('SCIM endpoint')).toHaveValue('http://new.scim.provider/api');
-		await expect(page.getByLabel('SCIM token')).toHaveValue('evenmoresecrettoken');
+		await expectSavedToken(page);
 	});
 
 	test('Disable SCIM of OIDC client', async ({ page }) => {

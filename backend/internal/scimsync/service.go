@@ -130,8 +130,10 @@ func (s *Service) CreateServiceProvider(ctx context.Context, input *ScimServiceP
 
 	provider := ServiceProvider{
 		Endpoint:     input.Endpoint,
-		Token:        datatype.EncryptedString(input.Token),
 		OidcClientID: input.OidcClientID,
+	}
+	if input.Token != nil {
+		provider.Token = datatype.EncryptedString(*input.Token)
 	}
 
 	err = tx.WithContext(ctx).Create(&provider).Error
@@ -168,8 +170,15 @@ func (s *Service) UpdateServiceProvider(ctx context.Context, serviceProviderID s
 		return ServiceProvider{}, err
 	}
 
+	// Keeping the stored token for a new endpoint would let anyone with write access send it to a server they control
+	if input.Token == nil && provider.Token != "" && input.Endpoint != provider.Endpoint {
+		return ServiceProvider{}, apperror.ValidationMessage("Enter the token again when you change the endpoint")
+	}
+
 	provider.Endpoint = input.Endpoint
-	provider.Token = datatype.EncryptedString(input.Token)
+	if input.Token != nil {
+		provider.Token = datatype.EncryptedString(*input.Token)
+	}
 	provider.OidcClientID = input.OidcClientID
 
 	err = tx.WithContext(ctx).Save(&provider).Error
