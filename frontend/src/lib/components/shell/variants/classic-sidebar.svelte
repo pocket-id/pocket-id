@@ -105,68 +105,55 @@
 		className
 	)}
 >
+	<!-- The search button sits under the logo in the rail and glides up beside the title in the sidebar -->
 	<div
 		class={cn(
-			'flex h-[42px] shrink-0 items-center pl-1.5 transition-[padding]',
+			'relative h-[90px] shrink-0 pl-1.5 transition-[height,padding]',
 			MOTION,
-			!collapsed && 'lg:pl-2'
+			!collapsed && 'lg:h-[42px] lg:pl-2'
 		)}
 	>
-		<a
-			href="/"
-			class="focus-visible:outline-ring flex min-w-0 items-center gap-2 rounded-sm focus-visible:outline-2 focus-visible:outline-offset-2"
-			aria-label={$appConfigStore.appName}
-		>
-			<Logo class="size-6 shrink-0" />
-			<span
-				class={cn(
-					'text-heading max-w-[calc(var(--sidebar-w)-4rem)] shrink-0 truncate',
-					sidebarFade
-				)}
+		<div class="flex h-[42px] items-center">
+			<a
+				href="/"
+				class="focus-visible:outline-ring flex min-w-0 items-center gap-2 rounded-sm focus-visible:outline-2 focus-visible:outline-offset-2"
+				aria-label={$appConfigStore.appName}
 			>
-				{$appConfigStore.appName}
-			</span>
-		</a>
-	</div>
-
-	<!-- A field-like trigger in the sidebar, a search icon in the rail -->
-	<Tooltip.Root>
-		<Tooltip.Trigger>
-			{#snippet child({ props })}
-				<button
-					{...props}
-					type="button"
-					aria-label={m.search_or_jump_to()}
-					aria-haspopup="dialog"
-					onclick={() => (commandPalette.open = true)}
+				<Logo class="size-6 shrink-0" />
+				<span
 					class={cn(
-						'text-fg-muted hover:bg-fill-hover hover:text-fg focus-visible:outline-ring mt-3 flex h-9 shrink-0 overflow-hidden rounded-sm outline-offset-[-2px] transition-colors focus-visible:outline-2',
-						!collapsed && 'lg:bg-fill-muted lg:hover:bg-fill-hover'
+						'text-heading max-w-[calc(var(--sidebar-w)-6.75rem)] shrink-0 truncate',
+						sidebarFade
 					)}
 				>
-					<span
+					{$appConfigStore.appName}
+				</span>
+			</a>
+		</div>
+		<Tooltip.Root>
+			<Tooltip.Trigger>
+				{#snippet child({ props })}
+					<button
+						{...props}
+						type="button"
+						aria-label={m.search_or_jump_to()}
+						aria-haspopup="dialog"
+						onclick={() => (commandPalette.open = true)}
 						class={cn(
-							ROW_CONTENT,
-							'gap-2 pr-3 pl-2.5 transition-[padding]',
+							'text-fg-muted hover:bg-fill-hover hover:text-fg focus-visible:outline-ring absolute top-[54px] right-0 flex size-9 items-center justify-center rounded-sm outline-offset-[-2px] transition-[top] focus-visible:outline-2',
 							MOTION,
-							!collapsed && 'lg:pl-3'
+							!collapsed && 'lg:top-[3px]'
 						)}
 					>
-						<Search class="size-4 shrink-0" />
-						<span class={cn('text-control flex-1 truncate text-left', sidebarFade)}
-							>{m.search_or_jump_to()}</span
-						>
-						<span class={cn('flex gap-0.5', sidebarFade)} aria-hidden="true">
-							<kbd class="keycap">{modKey.replace('+', '')}</kbd><kbd class="keycap">K</kbd>
-						</span>
-					</span>
-				</button>
-			{/snippet}
-		</Tooltip.Trigger>
-		<Tooltip.Content side="right" class={cn(!collapsed && 'lg:hidden')}>
-			{m.search_or_jump_to()}<span class="text-inverse-muted">{modKey}K</span>
-		</Tooltip.Content>
-	</Tooltip.Root>
+						<Search class="size-4" />
+					</button>
+				{/snippet}
+			</Tooltip.Trigger>
+			<Tooltip.Content side="right">
+				{m.search_or_jump_to()}<span class="text-inverse-muted">{modKey}K</span>
+			</Tooltip.Content>
+		</Tooltip.Root>
+	</div>
 
 	<nav
 		bind:this={navEl}
