@@ -207,6 +207,10 @@ func (h *authorizationHandler) redirectToInteractionError(c *gin.Context, err er
 
 	query := url.Values{}
 	query.Set("error", errorMessage)
+	// The code lets the error page show a translated message instead of the English one
+	if appErr, ok := errors.AsType[*apperror.Error](err); ok {
+		query.Set("code", string(appErr.Code()))
+	}
 	c.Redirect(http.StatusFound, "/interaction/error?"+query.Encode())
 }
 

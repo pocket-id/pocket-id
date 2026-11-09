@@ -23,8 +23,13 @@ const codeMessages: Record<string, () => string> = {
 	authenticator_attachment_not_allowed: () => m.passkey_type_not_allowed(),
 	device_login_expired: () => m.device_login_request_expired(),
 	email_verification_required: () => m.email_verification_required_error(),
-	email_change_not_started: () => m.email_change_not_started()
+	email_change_not_started: () => m.email_change_not_started(),
+	oidc_access_denied: () => m.not_allowed_to_access_service()
 };
+
+export function getErrorCodeMessage(code: string | null | undefined): string | undefined {
+	return code ? codeMessages[code]?.() : undefined;
+}
 
 function getApiErrorResponse(e: unknown): ApiErrorResponse | undefined {
 	if (!isAxiosError(e)) {
@@ -48,7 +53,7 @@ export function getAxiosErrorMessage(
 		return defaultMessage;
 	}
 
-	const codeMessage = response.code ? codeMessages[response.code]?.() : undefined;
+	const codeMessage = getErrorCodeMessage(response.code);
 	return codeMessage || (typeof response.error === 'string' ? response.error : defaultMessage);
 }
 

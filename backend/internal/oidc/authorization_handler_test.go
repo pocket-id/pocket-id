@@ -15,7 +15,9 @@ import (
 	"time"
 
 	"github.com/gin-gonic/gin"
+	"github.com/pocket-id/fosite"
 	"github.com/pocket-id/pocket-id/backend/internal/appconfig"
+	"github.com/pocket-id/pocket-id/backend/internal/apperror"
 	"github.com/pocket-id/pocket-id/backend/internal/authz"
 	"github.com/pocket-id/pocket-id/backend/internal/claimmappingpolicy"
 	"github.com/pocket-id/pocket-id/backend/internal/model"
@@ -78,6 +80,7 @@ func TestAuthorizationHandlerRedirectsAuthorizationErrors(t *testing.T) {
 		require.NoError(t, err)
 		require.Equal(t, "/interaction/error", location.Path)
 		require.Equal(t, "You must verify your email address before you can access this service.", location.Query().Get("error"))
+		require.Equal(t, "email_verification_required", location.Query().Get("code"))
 	})
 
 	t.Run("leaves an authorized request to the authorize handler", func(t *testing.T) {
@@ -85,6 +88,42 @@ func TestAuthorizationHandlerRedirectsAuthorizationErrors(t *testing.T) {
 
 		require.Equal(t, http.StatusNoContent, recorder.Code)
 		require.Empty(t, recorder.Header().Get("Location"))
+	})
+}
+
+// The interaction error page translates by code, so the redirect must carry it next to the English message
+func TestRedirectToInteractionErrorAddsCode(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	handler := &authorizationHandler{}
+
+	redirect := func(t *testing.T, err error) url.Values {
+		t.Helper()
+		recorder := httptest.NewRecorder()
+		c, _ := gin.CreateTestContext(recorder)
+		c.Request = httptest.NewRequestWithContext(t.Context(), http.MethodGet, "/authorize", nil)
+		handler.redirectToInteractionError(c, err)
+
+		require.Equal(t, http.StatusFound, recorder.Code)
+		location, parseErr := url.Parse(recorder.Header().Get("Location"))
+		require.NoError(t, parseErr)
+		require.Equal(t, "/interaction/error", location.Path)
+		return location.Query()
+	}
+
+	t.Run("access denied by user group", func(t *testing.T) {
+		err := fosite.ErrAccessDenied.
+			WithHint("You are not allowed to access this service.").
+			WithWrap(apperror.OidcAccessDenied())
+
+		query := redirect(t, err)
+		require.Equal(t, "You are not allowed to access this service.", query.Get("error"))
+		require.Equal(t, "oidc_access_denied", query.Get("code"))
+	})
+
+	t.Run("fosite error without application error has no code", func(t *testing.T) {
+		query := redirect(t, fosite.ErrInvalidRequest.WithHint("Something is missing."))
+		require.Equal(t, "Something is missing.", query.Get("error"))
+		require.False(t, query.Has("code"))
 	})
 }
 

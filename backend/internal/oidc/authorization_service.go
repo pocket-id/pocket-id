@@ -241,7 +241,9 @@ func (s *authorizationService) authorizeAuthenticated(ctx context.Context, req a
 	}
 
 	if !IsUserGroupAllowedToAuthorize(user, req.client.OidcClient) {
-		return authorizationResult{}, fosite.ErrAccessDenied.WithHint("You are not allowed to access this service.")
+		return authorizationResult{}, fosite.ErrAccessDenied.
+			WithHint("You are not allowed to access this service.").
+			WithWrap(apperror.OidcAccessDenied())
 	}
 
 	interactionSession := req.interactionSession
