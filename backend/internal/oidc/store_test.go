@@ -126,6 +126,8 @@ func TestStoreRevokeSessionsByIDTokenHintRevokesMatchingFositeSessions(t *testin
 	require.NoError(t, store.CreateAccessTokenSession(t.Context(), "same-client-different-access", newTestRequester("same-client-request", clientID, userID, otherIDTokenJTI)))
 	require.NoError(t, store.CreateRefreshTokenSession(t.Context(), "other-client-same-jti", "other-client-access", newTestRequester("other-client-request", otherClientID, userID, idTokenJTI)))
 	require.NoError(t, store.CreateAccessTokenSession(t.Context(), "other-client-access", newTestRequester("other-client-request", otherClientID, userID, idTokenJTI)))
+	require.NoError(t, store.CreateAccessTokenSession(t.Context(), "matching-access-only", newTestRequester("matching-access-only-request", clientID, userID, idTokenJTI)))
+	require.NoError(t, store.CreateAccessTokenSession(t.Context(), "other-access-only", newTestRequester("other-access-only-request", clientID, userID, otherIDTokenJTI)))
 
 	queryCount := 0
 	const queryCounterCallback = "test:count_session_revocation_queries"
@@ -157,6 +159,8 @@ func TestStoreRevokeSessionsByIDTokenHintRevokesMatchingFositeSessions(t *testin
 	assert.False(t, accessKeys["matching-access"])
 	assert.True(t, accessKeys["same-client-different-access"])
 	assert.True(t, accessKeys["other-client-access"])
+	assert.False(t, accessKeys["matching-access-only"])
+	assert.True(t, accessKeys["other-access-only"])
 }
 
 func TestStoreRevokeSessionsByIDTokenHintSkipsSessionsWithoutMatchingJTI(t *testing.T) {

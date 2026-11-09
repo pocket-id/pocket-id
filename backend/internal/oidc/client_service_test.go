@@ -9,6 +9,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/pocket-id/fosite"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"gorm.io/gorm"
@@ -74,6 +75,27 @@ func TestClientService_DeleteClientDeletesOAuth2Sessions(t *testing.T) {
 	var otherClientSessionCount int64
 	require.NoError(t, db.Model(&OAuth2Session{}).Where("client_id = ?", otherClient.ID).Count(&otherClientSessionCount).Error)
 	assert.Equal(t, int64(1), otherClientSessionCount)
+}
+
+func TestClientService_RevokeAuthorizedClientRevokesAccessTokenWithoutRefreshToken(t *testing.T) {
+	db := testutils.NewDatabaseForTest(t)
+	const clientID = "client-without-refresh-token"
+	require.NoError(t, db.Create(&model.OidcClient{Base: model.Base{ID: clientID}, Name: "Client"}).Error)
+	for _, userID := range []string{"revoking-user", "other-user"} {
+		require.NoError(t, db.Create(&model.User{Base: model.Base{ID: userID}, Username: userID}).Error)
+		require.NoError(t, db.Create(&model.UserAuthorizedOidcClient{UserID: userID, ClientID: clientID}).Error)
+	}
+	store := NewStore(db, nil)
+	require.NoError(t, store.CreateAccessTokenSession(t.Context(), "revoked-access", newTestRequester("revoked-request", clientID, "revoking-user", "")))
+	require.NoError(t, store.CreateAccessTokenSession(t.Context(), "other-access", newTestRequester("other-request", clientID, "other-user", "")))
+
+	service := &clientService{db: db}
+	require.NoError(t, service.RevokeAuthorizedClient(t.Context(), "revoking-user", clientID))
+
+	_, err := store.GetAccessTokenSession(t.Context(), "revoked-access", nil)
+	require.ErrorIs(t, err, fosite.ErrNotFound)
+	_, err = store.GetAccessTokenSession(t.Context(), "other-access", nil)
+	require.NoError(t, err, "another user's access token must stay valid")
 }
 
 func TestClientService_updateClientLogoType(t *testing.T) {

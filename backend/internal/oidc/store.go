@@ -436,7 +436,7 @@ func (s *Store) RevokeAccessToken(ctx context.Context, requestID string) error {
 }
 
 func (s *Store) RevokeSessionsByIDTokenHint(ctx context.Context, userID, clientID, idTokenJTI string) error {
-	_, jtiMatches, err := s.findRefreshTokenRequestIDsForUserClient(ctx, userID, clientID, idTokenJTI)
+	_, jtiMatches, err := s.findTokenRequestIDsForUserClient(ctx, userID, clientID, idTokenJTI)
 	if err != nil {
 		return err
 	}
@@ -446,20 +446,21 @@ func (s *Store) RevokeSessionsByIDTokenHint(ctx context.Context, userID, clientI
 
 func RevokeUserClientSessions(ctx context.Context, db *gorm.DB, userID, clientID string) error {
 	s := NewStore(db, nil)
-	requestIDs, _, err := s.findRefreshTokenRequestIDsForUserClient(ctx, userID, clientID, "")
+	requestIDs, _, err := s.findTokenRequestIDsForUserClient(ctx, userID, clientID, "")
 	if err != nil {
 		return err
 	}
 	return s.revokeRequestIDs(ctx, requestIDs)
 }
 
-// findRefreshTokenRequestIDsForUserClient returns request IDs for usable refresh-token sessions belonging to the user and client, plus the subset matching the optional ID token JTI
-func (s *Store) findRefreshTokenRequestIDsForUserClient(ctx context.Context, userID, clientID, idTokenJTI string) (candidates []string, jtiMatches []string, err error) {
+// findTokenRequestIDsForUserClient returns request IDs for usable token sessions belonging to the user and client, plus the subset matching the optional ID token JTI
+// Access token sessions are searched as well because clients without the refresh_token grant never get a refresh token session
+func (s *Store) findTokenRequestIDsForUserClient(ctx context.Context, userID, clientID, idTokenJTI string) (candidates []string, jtiMatches []string, err error) {
 	var sessions []OAuth2Session
 	query := s.dbFor(ctx).
 		Select("request_id", "request_data").
-		Where("kind = ? AND client_id = ?", sessionKindRefreshToken, clientID).
-		Where("active = ? OR rotated_at > ?", true, datatype.DateTime(time.Now().UTC().Add(-refreshTokenGracePeriod)))
+		Where("client_id = ?", clientID).
+		Where("kind = ? OR (kind = ? AND (active = ? OR rotated_at > ?))", sessionKindAccessToken, sessionKindRefreshToken, true, datatype.DateTime(time.Now().UTC().Add(-refreshTokenGracePeriod)))
 
 	// Filter by the user ID stored in the JSON request data
 	switch query.Name() {
