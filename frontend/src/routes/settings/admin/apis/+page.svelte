@@ -1,7 +1,6 @@
 <script lang="ts">
 	import { goto } from '$app/navigation';
 	import DocsLink from '#lib/components/docs-link.svelte';
-	import OidcClientAvatar from '#lib/components/oidc-client-avatar.svelte';
 	import PageHeader from '#lib/components/page-header.svelte';
 	import AdvancedTable from '#lib/components/table/advanced-table.svelte';
 	import { Badge } from '@pocket-id/ui/badge';
@@ -39,6 +38,7 @@
 
 	const columns: AdvancedTableColumn<Api>[] = $derived([
 		{ label: m.api(), column: 'name', sortable: true, cell: ApiCell },
+		{ label: m.api_resource_uri(), column: 'resource', sortable: true, cell: ResourceCell },
 		{ label: m.permissions(), key: 'permissions', value: (api) => api.permissions.length },
 		...(data.features?.cimd.enabled
 			? [
@@ -81,22 +81,20 @@
 </svelte:head>
 
 {#snippet ApiCell({ item }: { item: Api })}
-	<div class="flex max-w-(--table-id-max) min-w-0 items-center gap-3">
-		<OidcClientAvatar id={item.id} name={item.name} hasLogo={false} size={24} />
-		<div class="flex min-w-0 flex-col">
-			<span class="flex min-w-0 flex-wrap items-center gap-2">
-				<a
-					href={href(item)}
-					class="text-control text-fg truncate font-medium"
-					onclick={(e) => e.stopPropagation()}>{item.name}</a
-				>
-				{#if item.id === builtInApiId}
-					<Badge><LockIcon class="size-3" />{m.built_in()}</Badge>
-				{/if}
-			</span>
-			<span class="text-mono-s text-fg-muted truncate font-mono">{item.resource}</span>
-		</div>
-	</div>
+	<span class="flex max-w-(--table-id-max) min-w-0 flex-wrap items-center gap-2">
+		<a
+			href={href(item)}
+			class="text-control text-fg truncate font-medium"
+			onclick={(e) => e.stopPropagation()}>{item.name}</a
+		>
+		{#if item.id === builtInApiId}
+			<Badge><LockIcon class="size-3" />{m.built_in()}</Badge>
+		{/if}
+	</span>
+{/snippet}
+
+{#snippet ResourceCell({ item }: { item: Api })}
+	<span class="text-mono-s text-fg-muted font-mono break-all">{item.resource}</span>
 {/snippet}
 
 {#snippet CimdCell({ item }: { item: Api })}

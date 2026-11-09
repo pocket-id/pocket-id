@@ -1,7 +1,6 @@
 <script lang="ts">
 	import CopyButton from '#lib/components/copy-button.svelte';
 	import FormInput from '#lib/components/form/form-input.svelte';
-	import OidcClientAvatar from '#lib/components/oidc-client-avatar.svelte';
 	import PageHeader from '#lib/components/page-header.svelte';
 	import SettingsSection from '#lib/components/settings-section.svelte';
 	import { Button } from '@pocket-id/ui/button';
@@ -107,9 +106,6 @@
 		title={api.name}
 		breadcrumbs={[{ label: m.administration() }, { label: m.apis(), href: '/settings/admin/apis' }]}
 	>
-		{#snippet identity()}
-			<OidcClientAvatar id={api.id} name={api.name} hasLogo={false} size={40} />
-		{/snippet}
 		{#snippet tags()}
 			{#if builtIn}
 				<Badge><LockIcon class="size-3" />{m.built_in()}</Badge>
