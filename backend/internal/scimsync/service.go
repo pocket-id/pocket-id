@@ -810,7 +810,7 @@ func (s *Service) scimRequest(ctx context.Context, provider ServiceProvider, met
 
 		slog.Debug("Sending SCIM request",
 			slog.String("method", method),
-			slog.String("url", urlString),
+			slog.String("url", req.URL.Redacted()),
 			slog.String("provider_id", provider.ID),
 		)
 
@@ -828,7 +828,7 @@ func (s *Service) scimRequest(ctx context.Context, provider ServiceProvider, met
 		slog.WarnContext(ctx, "SCIM provider rate-limited, retrying",
 			slog.String("provider_id", provider.ID),
 			slog.String("method", method),
-			slog.String("url", urlString),
+			slog.String("url", req.URL.Redacted()),
 			slog.Int("attempt", attempt),
 			slog.Duration("retry_after", retryDelay),
 		)
@@ -895,7 +895,7 @@ func ensureScimStatus(ctx context.Context, resp *http.Response, provider Service
 	slog.ErrorContext(ctx, "SCIM request failed",
 		slog.String("provider_id", provider.ID),
 		slog.String("method", resp.Request.Method),
-		slog.String("url", resp.Request.URL.String()),
+		slog.String("url", resp.Request.URL.Redacted()),
 		slog.Int("status", resp.StatusCode),
 		slog.String("response_body", body),
 	)
