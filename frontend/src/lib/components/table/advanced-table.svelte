@@ -268,6 +268,10 @@
 		await changePageState(items.pagination.currentPage);
 		updateListLength(items.pagination.totalItems);
 	}
+
+	export function isColumnVisible(column: string) {
+		return visibleColumns.some((c) => (c.column ?? c.key) === column);
+	}
 </script>
 
 <AdvancedTableToolbar

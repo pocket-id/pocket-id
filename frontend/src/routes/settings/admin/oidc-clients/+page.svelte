@@ -47,6 +47,7 @@
 	}
 
 	const refresh = () => tableRef?.refresh();
+	const registrationVisible = $derived(tableRef?.isColumnVisible('clientType'));
 	const detailHref = (client: OidcClientWithAllowedGroups) =>
 		`/settings/admin/oidc-clients/${encodeClientIdParam(client.id)}`;
 
@@ -111,6 +112,7 @@
 			value: (client) => onOff(client.requiresPushedAuthorizationRequests),
 			filterableValues: onOffValues
 		},
+		{ label: m.client_id(), key: 'id', hidden: true, cell: IdCell },
 		{ label: m.launch_url(), key: 'launchURL', hidden: true, cell: LaunchUrlCell },
 		{
 			label: m.callback_urls(),
@@ -148,10 +150,12 @@
 					onclick={(e) => e.stopPropagation()}>{item.name}</a
 				>
 				{#if item.clientType === 'cimd'}
-					<Badge variant="outline">{m.metadata_document()}</Badge>
+					<!-- Phones show only the client column, so the badge stays there even when Registration is shown -->
+					<Badge variant="outline" class={registrationVisible ? 'sm:hidden' : undefined}>
+						{m.metadata_document()}
+					</Badge>
 				{/if}
 			</span>
-			<span class="text-caption text-fg-muted truncate font-mono">{item.id}</span>
 			<span class="text-caption text-fg-muted truncate sm:hidden">
 				{#if item.isGroupRestricted && item.allowedUserGroups.length === 0}
 					<Badge variant="warning" class="text-caption text-fg-muted before:size-1.5">
@@ -190,6 +194,10 @@
 			</Tooltip.Root>
 		</Tooltip.Provider>
 	{/if}
+{/snippet}
+
+{#snippet IdCell({ item }: { item: OidcClientWithAllowedGroups })}
+	<span class="text-caption block max-w-60 truncate font-mono" title={item.id}>{item.id}</span>
 {/snippet}
 
 {#snippet LaunchUrlCell({ item }: { item: OidcClientWithAllowedGroups })}
