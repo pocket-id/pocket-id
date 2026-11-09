@@ -3,6 +3,7 @@
 	import * as Popover from '@pocket-id/ui/popover';
 	import { m } from '#lib/paraglide/messages.js';
 	import type { AdvancedTableColumn } from '#lib/types/advanced-table.type.ts';
+	import AddIcon from '~icons/solar/add-linear';
 	import CheckIcon from '~icons/solar/check-linear';
 	import SlidersHorizontalIcon from '~icons/solar/tuning-2-bold';
 
@@ -44,11 +45,14 @@
 				<button
 					type="button"
 					aria-pressed={pressed}
-					class="text-control text-fg-muted hover:bg-fill-hover aria-pressed:bg-fill-selected aria-pressed:text-fg focus-visible:outline-ring transition-motion inline-flex h-(--h-sm) items-center gap-1 rounded-sm px-2 shadow-[inset_0_0_0_1px_var(--border-strong)] focus-visible:outline-2 focus-visible:outline-offset-2 active:scale-(--press-scale) aria-pressed:font-medium aria-pressed:shadow-none"
+					class="text-control text-fg-muted hover:bg-fill-hover aria-pressed:bg-fill-selected aria-pressed:text-fg focus-visible:outline-ring transition-motion inline-flex h-(--h-sm) items-center gap-1 rounded-sm px-2 shadow-[inset_0_0_0_1px_var(--border-strong)] focus-visible:outline-2 focus-visible:outline-offset-2 active:scale-(--press-scale) aria-pressed:shadow-none"
 					onclick={() => toggle(columnKey(column))}
 				>
+					<!-- Both states carry an icon of the same size so toggling never changes the chip's width -->
 					{#if pressed}
 						<CheckIcon class="size-3" />
+					{:else}
+						<AddIcon class="size-3" />
 					{/if}
 					{column.label}
 				</button>
