@@ -8,8 +8,13 @@
 
 	let {
 		columns,
-		selectedColumns = $bindable([])
-	}: { columns: AdvancedTableColumn<TData>[]; selectedColumns: string[] } = $props();
+		selectedColumns = $bindable([]),
+		columnOrder = $bindable()
+	}: {
+		columns: AdvancedTableColumn<TData>[];
+		selectedColumns: string[];
+		columnOrder?: string[];
+	} = $props();
 
 	const labelId = $props.id();
 
@@ -27,7 +32,6 @@
 		class={buttonVariants({ variant: 'ghost', size: 'sm', class: 'px-2.5 max-sm:hidden' })}
 	>
 		<SlidersHorizontalIcon />
-		{m.display()}
 	</Popover.Trigger>
 	<Popover.Content align="end" class="w-70 gap-2">
 		<p id={labelId} class="text-caption text-fg-muted font-medium">
@@ -54,7 +58,10 @@
 			<Button
 				variant="link"
 				class="text-caption text-fg-muted"
-				onclick={() => (selectedColumns = columns.filter((c) => !c.hidden).map(columnKey))}
+				onclick={() => {
+					selectedColumns = columns.filter((c) => !c.hidden).map(columnKey);
+					columnOrder = undefined;
+				}}
 			>
 				{m.reset()}
 			</Button>

@@ -64,6 +64,7 @@
 
 	type TablePreferences = {
 		visibleColumns: string[];
+		columnOrder?: string[];
 		paginationLimit: number;
 		sort?: SortRequest;
 		filters?: Record<string, (string | boolean)[]>;
@@ -82,9 +83,29 @@
 		filters: tablePreferences.current.filters
 	});
 
+	const columnKey = (column: AdvancedTableColumn<T>) => column.column ?? column.key!;
+
+	// The identity column stays first because it names the row and is the only one phones show
+	// Columns the saved order doesn't know yet, such as ones added in an update, keep their place after the ordered ones
+	const orderedColumns = $derived.by(() => {
+		const order = tablePreferences.current.columnOrder ?? [];
+		const rank = (column: AdvancedTableColumn<T>, index: number) => {
+			const position = order.indexOf(columnKey(column));
+			return position === -1 ? order.length + index : position;
+		};
+		const [identity, ...rest] = columns;
+		return [
+			identity,
+			...rest
+				.map((column, index) => ({ column, rank: rank(column, index) }))
+				.sort((a, b) => a.rank - b.rank)
+				.map(({ column }) => column)
+		];
+	});
+
 	// The identity column always shows, and so does every column of a table without a Display popover, even when an older saved preference hid them
 	let visibleColumns = $derived(
-		columns.filter(
+		orderedColumns.filter(
 			(c, i) =>
 				i === 0 ||
 				!hasOptionalColumns ||
@@ -241,6 +262,30 @@
 		)
 	);
 
+	let draggedColumn = $state<string | null>(null);
+	let dropTarget = $state<string | null>(null);
+
+	// A column dropped on another one takes its place, so it lands before it when moved left and after it when moved right
+	function dropSide(target: string) {
+		if (!draggedColumn || target === draggedColumn) return undefined;
+		const keys = orderedColumns.map(columnKey);
+		return keys.indexOf(draggedColumn) < keys.indexOf(target) ? 'after' : 'before';
+	}
+
+	function moveColumn(target: string) {
+		if (!draggedColumn || target === draggedColumn) return;
+		const keys = orderedColumns.slice(1).map(columnKey);
+		const targetIndex = keys.indexOf(target);
+		keys.splice(keys.indexOf(draggedColumn), 1);
+		keys.splice(targetIndex, 0, draggedColumn);
+		tablePreferences.current.columnOrder = keys;
+	}
+
+	function endColumnDrag() {
+		draggedColumn = null;
+		dropTarget = null;
+	}
+
 	function getPrimaryAction(item: T) {
 		if (!actions) return null;
 		const availableActions = actions(item).filter((a) => a.primary);
@@ -329,8 +374,38 @@
 							requestOptions.sort?.column === column.column
 								? requestOptions.sort?.direction
 								: undefined}
+						{@const key = columnKey(column)}
+						{@const side = dropTarget === key ? dropSide(key) : undefined}
 						<Table.Head
-							class={columnClass(column, i)}
+							class={cn(
+								columnClass(column, i),
+								i > 0 && 'cursor-grab',
+								draggedColumn === key && 'opacity-50',
+								side === 'before' && 'shadow-[inset_2px_0_0_var(--ring)]',
+								side === 'after' && 'shadow-[inset_-2px_0_0_var(--ring)]'
+							)}
+							draggable={i > 0}
+							ondragstart={(e) => {
+								draggedColumn = key;
+								e.dataTransfer!.effectAllowed = 'move';
+								// Firefox only starts a drag that carries data
+								e.dataTransfer!.setData('text/plain', column.label);
+							}}
+							ondragover={(e) => {
+								if (!draggedColumn || i === 0) return;
+								e.preventDefault();
+								e.dataTransfer!.dropEffect = 'move';
+								dropTarget = key;
+							}}
+							ondragleave={() => {
+								if (dropTarget === key) dropTarget = null;
+							}}
+							ondrop={(e) => {
+								e.preventDefault();
+								moveColumn(key);
+								endColumnDrag();
+							}}
+							ondragend={endColumnDrag}
 							aria-sort={column.sortable
 								? sortDirection === 'asc'
 									? 'ascending'
@@ -365,8 +440,9 @@
 						<Table.Head class={stickyCellClass}>
 							{#if hasOptionalColumns}
 								<AdvancedTableColumnSelection
-									{columns}
+									columns={orderedColumns}
 									bind:selectedColumns={tablePreferences.current.visibleColumns}
+									bind:columnOrder={tablePreferences.current.columnOrder}
 								/>
 							{/if}
 						</Table.Head>

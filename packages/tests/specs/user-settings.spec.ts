@@ -341,3 +341,26 @@ test('Non-admin cannot use admin passkey endpoints', async ({ page }) => {
 	);
 	expect(deleteResponse.status()).toBe(403);
 });
+
+test('Reorder table columns by dragging their headers', async ({ page }) => {
+	await page.goto('/settings/admin/users');
+
+	const header = (name: string) => page.getByRole('columnheader', { name, exact: true });
+	const headerNames = async () =>
+		(await page.getByRole('columnheader').allInnerTexts()).map((t) => t.trim()).filter(Boolean);
+	await expect.poll(headerNames).toEqual(['User', 'Username', 'Role', 'Status', 'Display']);
+
+	await header('Status').dragTo(header('Username'));
+	await expect.poll(headerNames).toEqual(['User', 'Status', 'Username', 'Role', 'Display']);
+
+	// The identity column names the row, so nothing can be dropped before it
+	await header('Role').dragTo(header('User'));
+	await expect.poll(headerNames).toEqual(['User', 'Status', 'Username', 'Role', 'Display']);
+
+	await page.reload();
+	await expect.poll(headerNames).toEqual(['User', 'Status', 'Username', 'Role', 'Display']);
+
+	await page.getByRole('button', { name: 'Display' }).click();
+	await page.getByRole('button', { name: 'Reset' }).click();
+	await expect.poll(headerNames).toEqual(['User', 'Username', 'Role', 'Status', 'Display']);
+});
