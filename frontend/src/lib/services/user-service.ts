@@ -103,9 +103,13 @@ export default class UserService extends APIService {
 	};
 
 	exchangeOneTimeAccessToken = async (token: string) => {
-		const res = await this.api.post(`/one-time-access-token/${token}`, undefined, {
-			params: { remember: keepSignedIn.current }
-		});
+		const res = await this.api.post(
+			'/one-time-access-token',
+			{ token },
+			{
+				params: { remember: keepSignedIn.current }
+			}
+		);
 		return res.data as User;
 	};
 

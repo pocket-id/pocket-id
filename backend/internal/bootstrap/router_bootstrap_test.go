@@ -16,6 +16,7 @@ import (
 	"net/http/httptest"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 	"time"
 
@@ -200,6 +201,44 @@ func TestRequestLoggerLogsAtConfiguredMinimumLevel(t *testing.T) {
 
 	require.Equal(t, http.StatusNoContent, recorder.Code)
 	require.Contains(t, output.String(), "level=INFO")
+}
+
+func TestRequestLoggerOmitsTokens(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+
+	var output bytes.Buffer
+	previousLogger := slog.Default()
+	slog.SetDefault(slog.New(slog.NewTextHandler(&output, nil)))
+	t.Cleanup(func() {
+		slog.SetDefault(previousLogger)
+	})
+
+	router := gin.New()
+	initLogger(router)
+	router.GET("/api/users/:id", func(c *gin.Context) {
+		c.Status(http.StatusNoContent)
+	})
+	router.NoRoute(func(c *gin.Context) {
+		c.Status(http.StatusOK)
+	})
+
+	requests := map[string]string{ //nolint:gosec // G101 false positive: placeholder tokens, not credentials
+		"GET /api/users/user-id?search=secret": "path=/api/users/user-id",
+		"GET /st/secret?redirect=/settings":    "path=/st/:token",
+		"GET /lc/secret":                       "path=/lc/:token",
+	}
+	for request, wantPath := range requests {
+		t.Run(request, func(t *testing.T) {
+			output.Reset()
+			method, target, _ := strings.Cut(request, " ")
+			req := httptest.NewRequestWithContext(t.Context(), method, target, nil)
+			req.Header.Set("Referer", "https://pocket-id.example/lc/secret")
+			router.ServeHTTP(httptest.NewRecorder(), req)
+
+			require.Contains(t, output.String(), wantPath+" ")
+			require.NotContains(t, output.String(), "secret")
+		})
+	}
 }
 
 func TestNewCertProviderSupportsInlineCertificateData(t *testing.T) {

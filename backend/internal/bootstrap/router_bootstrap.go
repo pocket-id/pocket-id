@@ -465,8 +465,22 @@ func enrichRequestLog(c *gin.Context, record *slog.Record) *slog.Record {
 			slog.String("span_id", spanContext.SpanID().String()),
 		)
 	}
+	// Query strings carry secrets such as ID token hints and email verification tokens, and the referer repeats them
+	// The signup and login code pages are the only paths that carry a token
 	record.Attrs(func(attr slog.Attr) bool {
-		enriched.AddAttrs(attr)
+		switch attr.Key {
+		case "path":
+			path := attr.Value.String()
+			for _, prefix := range []string{"/st/", "/lc/"} {
+				if strings.HasPrefix(path, prefix) {
+					path = prefix + ":token"
+				}
+			}
+			enriched.AddAttrs(slog.String("path", path))
+		case "query", "referer":
+		default:
+			enriched.AddAttrs(attr)
+		}
 		return true
 	})
 

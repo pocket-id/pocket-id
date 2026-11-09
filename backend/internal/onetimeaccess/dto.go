@@ -13,6 +13,10 @@ type emailAsUnauthenticatedUserDto struct {
 	RedirectPath string `json:"redirectPath"`
 }
 
+type exchangeTokenDto struct {
+	Token string `json:"token"`
+}
+
 type emailAsAdminDto struct {
 	TTL utils.JSONDuration `json:"ttl" binding:"ttl"`
 }
