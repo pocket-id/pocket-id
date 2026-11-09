@@ -628,6 +628,23 @@ func (s *authorizationService) completeInteractionStep(ctx context.Context, inte
 			return fosite.ErrLoginRequired
 		}
 
+		// The authorize endpoint only checks the group restriction once every step is done, so a user who signed in or switched accounts here is checked before the consent step can record an authorization
+		if interactionSession.Client.IsGroupRestricted {
+			tx := dbFromContext(ctx, s.db)
+			var user model.User
+			err = tx.Preload("UserGroups").First(&user, "id = ?", userID).Error
+			if err != nil {
+				return err
+			}
+			err = tx.Model(&interactionSession.Client).Association("AllowedUserGroups").Find(&interactionSession.Client.AllowedUserGroups)
+			if err != nil {
+				return err
+			}
+			if !IsUserGroupAllowedToAuthorize(user, interactionSession.Client) {
+				return apperror.OidcAccessDenied()
+			}
+		}
+
 		requiredSteps := requiredInteractionSteps(interactionSession)
 		if len(requiredSteps) == 0 {
 			response = completeInteractionResponse{RedirectURL: authorizeRedirectURL(interactionSession.ID)}

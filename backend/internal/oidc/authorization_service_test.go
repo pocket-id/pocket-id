@@ -911,6 +911,41 @@ func TestAuthorizationServiceSelectAccountRecomputesConsentForSelectedUser(t *te
 	require.Zero(t, count)
 }
 
+func TestAuthorizationServiceInteractionRejectsUserOutsideAllowedGroups(t *testing.T) {
+	db := testutils.NewDatabaseForTest(t)
+	auditLogger := &fakeAuditLogger{}
+	service := newAuthorizationService(db, newInteractionSessionService(db), newClaimsService(db, nil, "", nil, appconfig.StaticResolver{}), nil, auditLogger, nil)
+
+	const (
+		userID   = "outsider-user"
+		clientID = "restricted-client"
+	)
+
+	require.NoError(t, db.Create(&model.User{Base: model.Base{ID: userID}, Username: "outsider"}).Error)
+	require.NoError(t, db.Create(&model.OidcClient{
+		Base:              model.Base{ID: clientID},
+		Name:              "Restricted Client",
+		IsGroupRestricted: true,
+		AllowedUserGroups: []model.UserGroup{{Base: model.Base{ID: "allowed-group"}, Name: "allowed", FriendlyName: "Allowed"}},
+	}).Error)
+
+	authorization, err := service.authorize(t.Context(), authorizeInput{
+		requester: newTestAuthorizeRequester("signed-out-request", clientID, ""),
+	})
+	require.NoError(t, err)
+	require.True(t, authorization.RequiresInteraction)
+
+	for _, step := range []interactionStep{interactionStepAuthenticate, interactionStepConsent} {
+		_, err = service.completeInteractionStep(t.Context(), authorization.InteractionID, userID, step, nil, "", time.Now().UTC(), requestMeta{})
+		require.True(t, apperror.IsCode(err, apperror.CodeOidcAccessDenied), "step %s: %v", step, err)
+	}
+
+	var count int64
+	require.NoError(t, db.Model(&model.UserAuthorizedOidcClient{}).Where("user_id = ?", userID).Count(&count).Error)
+	require.Zero(t, count)
+	require.Empty(t, auditLogger.events)
+}
+
 func TestValidateClientPKCERequirement(t *testing.T) {
 	pkceClient := Client{OidcClient: model.OidcClient{Base: model.Base{ID: "c"}, PkceEnabled: true}}
 	plainClient := Client{OidcClient: model.OidcClient{Base: model.Base{ID: "c"}}}
