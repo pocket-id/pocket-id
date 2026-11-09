@@ -13,6 +13,7 @@
 	} from '#lib/types/advanced-table.type.ts';
 	import type { ListRequestOptions, Paginated, SortRequest } from '#lib/types/list-request.type.ts';
 	import { cn } from '@pocket-id/ui/utils';
+	import { createRangeSelect } from '#lib/utils/range-select-util.ts';
 	import { cssMs } from '#lib/utils/style.ts';
 	import ArrowDownIcon from '~icons/solar/arrow-down-linear';
 	import ArrowUpIcon from '~icons/solar/arrow-up-linear';
@@ -126,6 +127,8 @@
 			selectedIds = current.filter((id) => !pageIds.includes(id));
 		}
 	}
+
+	const selectRange = createRangeSelect();
 
 	async function onCheck(checked: boolean, id: string) {
 		const current = selectedIds ?? [];
@@ -381,6 +384,15 @@
 								<Checkbox
 									checked={selected}
 									aria-labelledby={nameId}
+									onclick={(e: MouseEvent) => {
+										const range = selectRange(
+											e,
+											items!.data.map((i) => i.id),
+											selectedIds!,
+											item.id
+										);
+										if (range) selectedIds = range;
+									}}
 									onCheckedChange={(c: boolean) => onCheck(c, item.id)}
 								/>
 							</Table.Cell>
