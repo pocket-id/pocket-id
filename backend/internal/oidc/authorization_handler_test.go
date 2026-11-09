@@ -111,12 +111,8 @@ func TestRedirectToInteractionErrorAddsCode(t *testing.T) {
 	}
 
 	t.Run("access denied by user group", func(t *testing.T) {
-		err := fosite.ErrAccessDenied.
-			WithHint("You are not allowed to access this service.").
-			WithWrap(apperror.OidcAccessDenied())
-
-		query := redirect(t, err)
-		require.Equal(t, "You are not allowed to access this service.", query.Get("error"))
+		query := redirect(t, errUserGroupNotAllowed())
+		require.Equal(t, apperror.OidcAccessDenied().ClientMessage(), query.Get("error"))
 		require.Equal(t, "oidc_access_denied", query.Get("code"))
 	})
 

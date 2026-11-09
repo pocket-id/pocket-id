@@ -241,9 +241,7 @@ func (s *authorizationService) authorizeAuthenticated(ctx context.Context, req a
 	}
 
 	if !IsUserGroupAllowedToAuthorize(user, req.client.OidcClient) {
-		return authorizationResult{}, fosite.ErrAccessDenied.
-			WithHint("You are not allowed to access this service.").
-			WithWrap(apperror.OidcAccessDenied())
+		return authorizationResult{}, errUserGroupNotAllowed()
 	}
 
 	interactionSession := req.interactionSession
@@ -975,4 +973,11 @@ func IsUserGroupAllowedToAuthorize(user model.User, client model.OidcClient) boo
 	}
 
 	return false
+}
+
+// errUserGroupNotAllowed is the fosite error for a user outside the client's allowed groups.
+// It wraps the application error so the frontend can show a translated message by its code.
+func errUserGroupNotAllowed() *fosite.RFC6749Error {
+	appErr := apperror.OidcAccessDenied()
+	return fosite.ErrAccessDenied.WithHint(appErr.ClientMessage()).WithWrap(appErr)
 }

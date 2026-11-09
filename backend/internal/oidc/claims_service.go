@@ -154,7 +154,7 @@ func (s *ClaimsService) loadGrantClaimsSource(ctx context.Context, userID string
 	}
 
 	if !IsUserGroupAllowedToAuthorize(src.user, client.OidcClient) {
-		return nil, fosite.ErrAccessDenied.WithHint("You are not allowed to access this service.")
+		return nil, errUserGroupNotAllowed()
 	}
 
 	return src, nil

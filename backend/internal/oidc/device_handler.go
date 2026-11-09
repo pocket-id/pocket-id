@@ -74,7 +74,7 @@ func (h *deviceHandler) verifyDeviceCode(c *gin.Context) {
 	)
 	if err != nil {
 		if errors.Is(err, fosite.ErrAccessDenied) {
-			c.JSON(http.StatusForbidden, gin.H{"error": "You're not allowed to access this service."})
+			_ = c.Error(apperror.OidcAccessDenied())
 			return
 		}
 		_ = c.Error(err)
