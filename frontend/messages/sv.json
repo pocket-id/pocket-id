@@ -692,7 +692,7 @@
 	"no_callback_urls": "Inga callback-URL:er",
 	"no_logout_callback_urls": "Inga callback-URL:er för utloggning",
 	"this_url_is_already_in_the_list": "Den här URL:en finns redan i listan",
-	"show_all_count": "Visa alla ({{count}})",
+	"show_all_count": "Visa alla ({count})",
 	"show_less": "Visa färre",
 	"added_url": "Lade till {url}",
 	"oidc_client_advanced_summary": "Utloggnings-URL:er, samtycke, PAR samt tokenlivslängder",
