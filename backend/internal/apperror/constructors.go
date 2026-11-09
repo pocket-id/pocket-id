@@ -317,6 +317,10 @@ func LogoPresetsUnavailable(cause error) *Error {
 	return Wrap(cause, CodeLogoPresetsUnavailable, http.StatusBadGateway, "Logo presets could not be loaded")
 }
 
+func DocsUnavailable(cause error) *Error {
+	return Wrap(cause, CodeDocsUnavailable, http.StatusBadGateway, "The documentation could not be loaded, search https://pocket-id.org/docs instead")
+}
+
 func InvalidLogoURL(cause error) *Error {
 	return Wrap(cause, CodeValidationFailed, http.StatusBadRequest, "Logo URL is not allowed").WithFields([]FieldError{{
 		Field:   "logoUrl",

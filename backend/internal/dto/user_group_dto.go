@@ -28,6 +28,13 @@ type UserGroupMinimalDto struct {
 	CreatedAt    datatype.DateTime `json:"createdAt"`
 }
 
+// UserGroupRefDto is a group referenced by another resource, such as a group a user belongs to, whose claims and members aren't loaded
+type UserGroupRefDto struct {
+	ID           string `json:"id"`
+	FriendlyName string `json:"friendlyName"`
+	Name         string `json:"name"`
+}
+
 type UserGroupUpdateAllowedOidcClientsDto struct {
 	OidcClientIDs []string `json:"oidcClientIds" binding:"required"`
 }

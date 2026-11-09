@@ -7,6 +7,7 @@ import (
 	"github.com/gin-gonic/gin"
 
 	"github.com/pocket-id/pocket-id/backend/internal/apperror"
+	"github.com/pocket-id/pocket-id/backend/internal/authz"
 )
 
 // CrossOriginProtectionMiddleware rejects state-changing browser requests that come from another origin to prevent CSRF
@@ -54,7 +55,9 @@ func isCrossOriginAllowedPath(path string) bool {
 	switch path {
 	case "/authorize",
 		"/api/oidc/par",
-		"/api/oidc/device/authorize":
+		"/api/oidc/device/authorize",
+		// The MCP endpoint never accepts the session cookie, so there is nothing to forge, and browser MCP clients have to reach it anonymously to get its 401 challenge
+		authz.MCPPath:
 		return true
 	default:
 		return false

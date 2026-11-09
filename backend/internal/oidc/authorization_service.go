@@ -64,7 +64,7 @@ func (s *authorizationService) heldScopes(ctx context.Context, userID, resource 
 	if userID == "" || resource == "" || s.apiAccess == nil {
 		return scopes, nil
 	}
-	return s.apiAccess.HeldScopes(ctx, dbFromContext(ctx, s.db), userID, resource, scopes)
+	return s.apiAccess.HeldScopes(ctx, dbFromContext(ctx, s.db), userID, canonicalResource(resource), scopes)
 }
 
 type requestMeta struct {
@@ -597,7 +597,7 @@ func (s *authorizationService) resolveScopeInfoForRequest(ctx context.Context, r
 		return nil, nil
 	}
 
-	infos, err := s.apiAccess.DescribePermissions(ctx, resource, customKeys)
+	infos, err := s.apiAccess.DescribePermissions(ctx, canonicalResource(resource), customKeys)
 	if err != nil {
 		return nil, err
 	}

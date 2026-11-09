@@ -9,6 +9,7 @@ import (
 	"github.com/stretchr/testify/require"
 	"gorm.io/gorm"
 
+	"github.com/pocket-id/pocket-id/backend/internal/common"
 	"github.com/pocket-id/pocket-id/backend/internal/dto"
 )
 
@@ -113,6 +114,21 @@ func TestResolveResourceTrimsTrailingSlashes(t *testing.T) {
 	require.NoError(t, err)
 	assert.Equal(t, "https://api.orders.example.com", audience)
 	assert.Equal(t, []string{"read:orders"}, granted)
+}
+
+func TestResolveResourceIssuesMCPTokensForPocketIDAPI(t *testing.T) {
+	origAppURL := common.EnvConfig.AppURL
+	t.Cleanup(func() { common.EnvConfig.AppURL = origAppURL })
+	common.EnvConfig.AppURL = "https://id.example.com"
+
+	provider := userAccess(map[string][]string{
+		"https://id.example.com/api": {"users:read"},
+	})
+
+	audience, granted, err := resolveResource(t.Context(), nil, provider, "client-1", "https://id.example.com/mcp", []string{"users:read"}, SubjectTypeUser)
+	require.NoError(t, err)
+	assert.Equal(t, "https://id.example.com/api", audience, "the API's bearer check and refresh grants only know the API's own audience")
+	assert.Equal(t, []string{"users:read"}, granted)
 }
 
 func TestResolveResourceRejectsScopeFromAnotherAPI(t *testing.T) {

@@ -65,6 +65,9 @@ export default defineConfig(() => {
 				},
 				'^/authorize(?:\\?.*)?$': {
 					target: process.env.DEVELOPMENT_BACKEND_URL || 'http://localhost:1411'
+				},
+				'^/mcp(?:\\?.*)?$': {
+					target: process.env.DEVELOPMENT_BACKEND_URL || 'http://localhost:1411'
 				}
 			}
 		}

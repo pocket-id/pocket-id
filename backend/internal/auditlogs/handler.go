@@ -1,6 +1,7 @@
 package auditlogs
 
 import (
+	"context"
 	"net/http"
 	"time"
 
@@ -20,19 +21,21 @@ func newHandler(service *service) *handler {
 	return &handler{service: service}
 }
 
-// parseDateRange reads the optional from and to query parameters, RFC 3339 times that bound the list by creation time
-func parseDateRange(c *gin.Context) (DateRange, error) {
+// parseDateRange parses the optional from and to bounds, RFC 3339 times that bound the list by creation time
+func parseDateRange(from, to string) (DateRange, error) {
 	var r DateRange
-	for name, bound := range map[string]*time.Time{"from": &r.From, "to": &r.To} {
-		value := c.Query(name)
-		if value == "" {
+	for name, bound := range map[string]struct {
+		value  string
+		target *time.Time
+	}{"from": {from, &r.From}, "to": {to, &r.To}} {
+		if bound.value == "" {
 			continue
 		}
-		t, err := time.Parse(time.RFC3339, value)
+		t, err := time.Parse(time.RFC3339, bound.value)
 		if err != nil {
 			return r, apperror.InvalidField(name, "invalid", "must be an RFC 3339 time")
 		}
-		*bound = t
+		*bound.target = t
 	}
 	return r, nil
 }
@@ -52,7 +55,7 @@ func parseDateRange(c *gin.Context) (DateRange, error) {
 // @Router /api/audit-logs [get]
 func (h *handler) listAuditLogsForUserHandler(c *gin.Context) error {
 	listRequestOptions := utils.ParseListRequestOptions(c)
-	dateRange, err := parseDateRange(c)
+	dateRange, err := parseDateRange(c.Query("from"), c.Query("to"))
 	if err != nil {
 		return err
 	}
@@ -101,20 +104,30 @@ func (h *handler) listAuditLogsForUserHandler(c *gin.Context) error {
 // @Router /api/audit-logs/all [get]
 func (h *handler) listAllAuditLogsHandler(c *gin.Context) error {
 	listRequestOptions := utils.ParseListRequestOptions(c)
-	dateRange, err := parseDateRange(c)
+	dateRange, err := parseDateRange(c.Query("from"), c.Query("to"))
 	if err != nil {
 		return err
 	}
 
-	logs, pagination, err := h.service.ListAllAuditLogs(c.Request.Context(), dateRange, listRequestOptions)
+	logs, err := h.listAllAuditLogs(c.Request.Context(), dateRange, listRequestOptions)
 	if err != nil {
 		return err
+	}
+
+	c.JSON(http.StatusOK, logs)
+	return nil
+}
+
+func (h *handler) listAllAuditLogs(ctx context.Context, dateRange DateRange, listRequestOptions utils.ListRequestOptions) (dto.Paginated[auditLogDto], error) {
+	logs, pagination, err := h.service.ListAllAuditLogs(ctx, dateRange, listRequestOptions)
+	if err != nil {
+		return dto.Paginated[auditLogDto]{}, err
 	}
 
 	var logsDtos []auditLogDto
 	err = dto.MapStructList(logs, &logsDtos)
 	if err != nil {
-		return err
+		return dto.Paginated[auditLogDto]{}, err
 	}
 
 	for i, logsDto := range logsDtos {
@@ -124,11 +137,7 @@ func (h *handler) listAllAuditLogsHandler(c *gin.Context) error {
 		logsDtos[i] = logsDto
 	}
 
-	c.JSON(http.StatusOK, dto.Paginated[auditLogDto]{
-		Data:       logsDtos,
-		Pagination: pagination,
-	})
-	return nil
+	return dto.Paginated[auditLogDto]{Data: logsDtos, Pagination: pagination}, nil
 }
 
 // listClientNamesHandler godoc

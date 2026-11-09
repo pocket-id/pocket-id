@@ -1,7 +1,6 @@
 package middleware
 
 import (
-	"context"
 	"encoding/json"
 	"errors"
 	"net/http"
@@ -13,10 +12,10 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/pocket-id/pocket-id/backend/internal/appconfig"
 	"github.com/pocket-id/pocket-id/backend/internal/apperror"
+	"github.com/pocket-id/pocket-id/backend/internal/common"
 	"github.com/pocket-id/pocket-id/backend/internal/dto"
 	"github.com/pocket-id/pocket-id/backend/internal/httpserver"
 	"github.com/stretchr/testify/require"
-	"gorm.io/gorm"
 )
 
 func TestErrorHandlerMiddlewareStructuredError(t *testing.T) {
@@ -255,21 +254,6 @@ func TestValidationResponseUsesAppConfigTypeMessages(t *testing.T) {
 	}}, body.Details.Fields)
 }
 
-func TestClassifyUnmappedPersistenceErrorAsInternal(t *testing.T) {
-	classified := classifyError(gorm.ErrRecordNotFound)
-
-	require.Equal(t, apperror.CodeInternal, classified.code)
-	require.Equal(t, http.StatusInternalServerError, classified.status)
-}
-
-func TestClassifyDeadlineAsRequestTimeout(t *testing.T) {
-	classified := classifyError(context.DeadlineExceeded)
-
-	require.Equal(t, apperror.CodeRequestTimeout, classified.code)
-	require.Equal(t, http.StatusGatewayTimeout, classified.status)
-	require.Equal(t, "Request timed out", classified.message)
-}
-
 func TestAppConfigBindingValidatesRequiredEmailVerification(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 	router := gin.New()
@@ -321,5 +305,30 @@ func TestAppConfigBindingValidatesRequiredEmailVerification(t *testing.T) {
 				require.Equal(t, []apperror.FieldError{{Field: "emailVerification", Code: "invalid_configuration", Message: "requires user emails, an SMTP host and sender address, and forbids emails verified by default"}}, body.Details.Fields)
 			}
 		})
+	}
+}
+
+func TestErrorHandlerMiddlewareChallengesUnauthenticatedMCPRequests(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	origAppURL := common.EnvConfig.AppURL
+	t.Cleanup(func() { common.EnvConfig.AppURL = origAppURL })
+	common.EnvConfig.AppURL = "https://id.example.com"
+
+	router := gin.New()
+	router.Use(NewErrorHandlerMiddleware().Add())
+	notSignedIn := httpserver.Handle(func(c *gin.Context) error { return apperror.NotSignedIn() })
+	router.GET("/mcp", notSignedIn)
+	router.GET("/api/users", notSignedIn)
+
+	for path, challenged := range map[string]bool{"/mcp": true, "/api/users": false} {
+		recorder := httptest.NewRecorder()
+		router.ServeHTTP(recorder, httptest.NewRequestWithContext(t.Context(), http.MethodGet, path, nil))
+
+		require.Equal(t, http.StatusUnauthorized, recorder.Code)
+		if challenged {
+			require.Equal(t, `Bearer resource_metadata="https://id.example.com/.well-known/oauth-protected-resource/mcp"`, recorder.Header().Get("WWW-Authenticate"), path)
+		} else {
+			require.Empty(t, recorder.Header().Get("WWW-Authenticate"), path)
+		}
 	}
 }

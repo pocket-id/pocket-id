@@ -11,8 +11,10 @@
 	import { cn } from '@pocket-id/ui/utils';
 	import IdCard from '~icons/solar/user-id-bold';
 	import LogOut from '~icons/solar/logout-2-bold';
+	import Plug from '~icons/solar/plug-circle-bold';
 	import SunMoon from '~icons/solar/palette-round-bold';
 	import { userPrefersMode } from 'mode-watcher';
+	import McpServerDialog from './mcp-server-dialog.svelte';
 
 	let {
 		variant,
@@ -25,6 +27,7 @@
 
 	let open = $state(false);
 	let jumping = $state(false);
+	let mcpServerOpen = $state(false);
 
 	const appearanceLabels = { light: m.light(), dark: m.dark(), system: m.system() };
 </script>
@@ -111,6 +114,10 @@
 					<IdCard />
 					{m.my_account()}
 				</DropdownMenu.Item>
+				<DropdownMenu.Item onclick={() => (mcpServerOpen = true)}>
+					<Plug />
+					{m.mcp_server()}
+				</DropdownMenu.Item>
 				{#if variant !== 'avatar'}
 					<DropdownMenu.Sub>
 						<DropdownMenu.SubTrigger>
@@ -143,4 +150,5 @@
 			</DropdownMenu.Item>
 		</DropdownMenu.Content>
 	</DropdownMenu.Root>
+	<McpServerDialog bind:open={mcpServerOpen} />
 {/if}

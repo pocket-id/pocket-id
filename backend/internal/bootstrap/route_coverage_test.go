@@ -17,6 +17,7 @@ import (
 	"github.com/pocket-id/pocket-id/backend/internal/feature"
 	"github.com/pocket-id/pocket-id/backend/internal/ldapsync"
 	"github.com/pocket-id/pocket-id/backend/internal/logopreset"
+	"github.com/pocket-id/pocket-id/backend/internal/mcp"
 	"github.com/pocket-id/pocket-id/backend/internal/middleware"
 	"github.com/pocket-id/pocket-id/backend/internal/oidc"
 	"github.com/pocket-id/pocket-id/backend/internal/onetimeaccess"
@@ -52,6 +53,7 @@ func TestEveryAPIRouteDeclaresItsAccess(t *testing.T) {
 		featureModule:            &feature.Module{},
 		usersModule:              &users.Module{},
 		userGroupsModule:         &usergroups.Module{},
+		mcpModule:                &mcp.Module{},
 	}
 
 	engine := gin.New()

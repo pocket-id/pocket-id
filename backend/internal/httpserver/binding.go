@@ -31,6 +31,16 @@ func BindJSON(c *gin.Context, value any) error {
 	return nil
 }
 
+// Validate validates and normalizes input that was not bound from a request, such as MCP tool arguments, with the same rules as BindJSON
+func Validate(value any) error {
+	if err := binding.Validator.ValidateStruct(value); err != nil {
+		return err
+	}
+
+	dto.Normalize(value)
+	return nil
+}
+
 // BindOptionalJSON accepts an empty body while normalizing valid input and classifying malformed JSON as invalid input
 func BindOptionalJSON(c *gin.Context, value any) error {
 	err := c.ShouldBindJSON(value)

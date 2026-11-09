@@ -238,3 +238,56 @@ func TestMiddlewarePassesThroughUnexpectedErrors(t *testing.T) {
 
 	require.ErrorIs(t, result.err, failure)
 }
+
+func TestDispatchRouteAuthenticatesWithoutScope(t *testing.T) {
+	session := &fakeAuthenticator{kind: KindSession, header: "X-Session", user: "session-user"}
+	apiKey := &fakeAuthenticator{kind: KindAPIKey, header: "X-Key", user: "key-user"}
+	m := NewMiddleware(session, apiKey)
+
+	serveDispatch := func(t *testing.T, headers map[string]string) middlewareResult {
+		t.Helper()
+		gin.SetMode(gin.TestMode)
+
+		var result middlewareResult
+		router := gin.New()
+		router.Use(func(c *gin.Context) {
+			c.Next()
+			if len(c.Errors) > 0 {
+				result.err = c.Errors.Last().Err
+			}
+		})
+		m.Router(router.Group("/api")).Dispatch(http.MethodPost, "", func(c *gin.Context) {
+			result.principal = PrincipalFrom(c)
+			c.Status(http.StatusNoContent)
+		})
+
+		req := httptest.NewRequestWithContext(t.Context(), http.MethodPost, "/api", nil)
+		for key, value := range headers {
+			req.Header.Set(key, value)
+		}
+		recorder := httptest.NewRecorder()
+		router.ServeHTTP(recorder, req)
+		result.status = recorder.Code
+		return result
+	}
+
+	t.Run("accepts an API key that holds only account scopes", func(t *testing.T) {
+		result := serveDispatch(t, map[string]string{"X-Key": "1"})
+
+		require.Equal(t, http.StatusNoContent, result.status)
+		require.Equal(t, "key-user", result.principal.UserID)
+	})
+
+	t.Run("rejects a browser session", func(t *testing.T) {
+		result := serveDispatch(t, map[string]string{"X-Session": "1"})
+
+		require.True(t, apperror.IsCode(result.err, apperror.CodeNotSignedIn))
+		require.Zero(t, session.calls, "the session must not be validated")
+	})
+
+	t.Run("rejects missing credentials", func(t *testing.T) {
+		result := serveDispatch(t, nil)
+
+		require.True(t, apperror.IsCode(result.err, apperror.CodeNotSignedIn))
+	})
+}

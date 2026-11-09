@@ -1,6 +1,7 @@
 package usergroups
 
 import (
+	"context"
 	"fmt"
 	"net/http"
 
@@ -34,12 +35,19 @@ func newHandler(appConfig appconfig.AppConfigResolver, service *Service) *handle
 // @Failure default {object} dto.ErrorDto "Error"
 // @Router /api/user-groups [get]
 func (h *handler) list(c *gin.Context) error {
-	searchTerm := c.Query("search")
-	listRequestOptions := utils.ParseListRequestOptions(c)
-
-	groups, pagination, err := h.service.List(c, searchTerm, listRequestOptions)
+	groups, err := h.listGroups(c.Request.Context(), c.Query("search"), utils.ParseListRequestOptions(c))
 	if err != nil {
 		return err
+	}
+
+	c.JSON(http.StatusOK, groups)
+	return nil
+}
+
+func (h *handler) listGroups(ctx context.Context, searchTerm string, listRequestOptions utils.ListRequestOptions) (dto.Paginated[dto.UserGroupMinimalDto], error) {
+	groups, pagination, err := h.service.List(ctx, searchTerm, listRequestOptions)
+	if err != nil {
+		return dto.Paginated[dto.UserGroupMinimalDto]{}, err
 	}
 
 	// Map the user groups to DTOs
@@ -47,20 +55,16 @@ func (h *handler) list(c *gin.Context) error {
 	for i, group := range groups {
 		var groupDto dto.UserGroupMinimalDto
 		if err := dto.MapStruct(group, &groupDto); err != nil {
-			return err
+			return dto.Paginated[dto.UserGroupMinimalDto]{}, err
 		}
-		groupDto.UserCount, err = h.service.GetUserCountOfGroup(c.Request.Context(), group.ID)
+		groupDto.UserCount, err = h.service.GetUserCountOfGroup(ctx, group.ID)
 		if err != nil {
-			return err
+			return dto.Paginated[dto.UserGroupMinimalDto]{}, err
 		}
 		groupsDto[i] = groupDto
 	}
 
-	c.JSON(http.StatusOK, dto.Paginated[dto.UserGroupMinimalDto]{
-		Data:       groupsDto,
-		Pagination: pagination,
-	})
-	return nil
+	return dto.Paginated[dto.UserGroupMinimalDto]{Data: groupsDto, Pagination: pagination}, nil
 }
 
 // get godoc
