@@ -305,7 +305,7 @@ func (s *authorizationService) authorizeAuthenticated(ctx context.Context, req a
 		authorizationEvent = auditlogs.EventNewClientAuthorization
 	}
 	if s.auditLog != nil {
-		s.auditLog.Create(ctx, authorizationEvent, req.meta.IPAddress, req.meta.UserAgent, req.userID, auditlogs.Data{"clientName": req.client.Name}, dbFromContext(ctx, s.db))
+		s.auditLog.Create(ctx, authorizationEvent, req.meta.IPAddress, req.meta.UserAgent, req.userID, auditlogs.Data{"clientID": req.client.ID, "clientName": req.client.Name}, dbFromContext(ctx, s.db))
 	}
 
 	return authorizationResult{Session: session}, nil
@@ -741,7 +741,7 @@ func (s *authorizationService) completeConsentStep(ctx context.Context, interact
 		return err
 	}
 	if !hasAlreadyAuthorizedClient && s.auditLog != nil {
-		s.auditLog.Create(ctx, auditlogs.EventNewClientAuthorization, meta.IPAddress, meta.UserAgent, userID, auditlogs.Data{"clientName": interactionSession.Client.Name}, dbFromContext(ctx, s.db))
+		s.auditLog.Create(ctx, auditlogs.EventNewClientAuthorization, meta.IPAddress, meta.UserAgent, userID, auditlogs.Data{"clientID": interactionSession.Client.ID, "clientName": interactionSession.Client.Name}, dbFromContext(ctx, s.db))
 	}
 	interactionSession.ConsentRequired = false
 	return nil

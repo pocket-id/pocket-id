@@ -22,7 +22,7 @@ func TestAuditLogRoutesPreservePermissionsAndResponses(t *testing.T) {
 	module, err := New(t.Context(), Dependencies{DB: db, EnvConfig: &common.EnvConfigSchema{EncryptionKey: []byte("0123456789abcdef0123456789abcdef")}, CleanupDisabled: true})
 	require.NoError(t, err)
 
-	// Alice's own activity includes what she did to Bob's account, while Carol's entry makes accidental loss of the current-user filter visible
+	// Alice's own activity leaves out what she did to Bob's account, which the admin list shows, while Carol's entry makes accidental loss of the current-user filter visible
 	for id, actor := range map[string]string{"alice": "alice", "bob": "alice", "carol": "carol"} {
 		require.NoError(t, db.Create(&model.User{Base: model.Base{ID: id}, Username: id}).Error)
 		require.NoError(t, db.Create(&AuditLog{
@@ -102,7 +102,7 @@ func assertAuditLogRouteResponse(t *testing.T, path string, response *httptest.R
 		}
 		require.NoError(t, json.Unmarshal(response.Body.Bytes(), &body))
 		require.NotEmpty(t, body.Pagination)
-		count := 2
+		count := 1
 		if path == "/audit-logs/all" {
 			count = 3
 		}
@@ -117,7 +117,7 @@ func assertAuditLogRouteResponse(t *testing.T, path string, response *httptest.R
 			require.Contains(t, entry, "createdAt")
 			require.NotContains(t, entry, "userAgent")
 			if path == "/audit-logs" {
-				require.Equal(t, "alice", entry["actorID"])
+				require.Equal(t, "alice", entry["userID"])
 			}
 		}
 	case "/audit-logs/filters/client-names":

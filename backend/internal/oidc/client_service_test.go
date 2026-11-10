@@ -1371,5 +1371,5 @@ func TestClientService_UpdateClient_recordsChangedSettings(t *testing.T) {
 	require.NoError(t, err)
 
 	assert.Equal(t, []auditlogs.Event{auditlogs.EventClientUpdated}, auditLog.events)
-	assert.Equal(t, auditlogs.Data{"clientName": "Photos", "changes": "callbackURLs, pkceEnabled"}, auditLog.data[0])
+	assert.Equal(t, auditlogs.Data{"clientID": client.ID, "clientName": "Photos", "changes": "callbackURLs, pkceEnabled"}, auditLog.data[0])
 }

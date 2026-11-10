@@ -103,23 +103,17 @@ func (r DateRange) apply(query *gorm.DB) *gorm.DB {
 	return query
 }
 
-// ListAuditLogsForUser retrieves the entries about the user and the actions they took
+// ListAuditLogsForUser retrieves the entries about the user, leaving out what they did to other users, clients and groups
 func (s *service) ListAuditLogsForUser(ctx context.Context, userID string, dateRange DateRange, listRequestOptions utils.ListRequestOptions) ([]AuditLog, utils.PaginationResponse, error) {
 	var logs []AuditLog
 	query := dateRange.apply(s.db.
 		WithContext(ctx).
 		Preload("User").
 		Model(&AuditLog{}).
-		Scopes(involving(userID)))
+		Where("user_id = ?", userID))
 
 	pagination, err := utils.PaginateFilterAndSort(listRequestOptions, query, &logs)
 	return logs, pagination, err
-}
-
-func involving(userID string) func(*gorm.DB) *gorm.DB {
-	return func(query *gorm.DB) *gorm.DB {
-		return query.Where("(user_id = ? OR (actor_type = ? AND actor_id = ?))", userID, ActorUser, userID)
-	}
 }
 
 func (s *service) DeviceStringFromUserAgent(userAgent string) string {
@@ -139,10 +133,10 @@ func (s *service) ListAllAuditLogs(ctx context.Context, dateRange DateRange, lis
 		Preload("User").
 		Model(&AuditLog{}))
 
-	// Filtering by a user shows what that user sees as their own activity
+	// Filtering by a user also shows the actions they took
 	if userIDs, ok := listRequestOptions.Filters["userID"]; ok && len(userIDs) > 0 {
 		userID, _ := userIDs[0].(string)
-		query = query.Scopes(involving(userID))
+		query = query.Where("(user_id = ? OR (actor_type = ? AND actor_id = ?))", userID, ActorUser, userID)
 	}
 
 	if clientName, ok := listRequestOptions.Filters["clientName"]; ok {

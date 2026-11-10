@@ -7,7 +7,6 @@ export type AuditLog = {
 	device: string;
 	userID: string;
 	username?: string;
-	actorUsername?: string;
 	actorType: 'user' | 'client' | 'ldap' | 'cli' | 'system' | '';
 	actorID: string;
 	actorName: string;

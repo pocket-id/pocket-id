@@ -43,7 +43,7 @@ func parseDateRange(from, to string) (DateRange, error) {
 
 // listAuditLogsForUserHandler godoc
 // @Summary List audit logs
-// @Description Get a paginated list of the audit logs about the current user and the actions they took
+// @Description Get a paginated list of the audit logs about the current user
 // @Tags Audit Logs
 // @Param pagination[page] query int false "Page number for pagination" default(1)
 // @Param pagination[limit] query int false "Number of items per page" default(20)

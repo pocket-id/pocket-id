@@ -437,10 +437,10 @@ func (s *Service) UpdateAllowedOidcClient(ctx context.Context, id string, input 
 
 	added, removed := utils.Changes(previousClients, clients, func(client model.OidcClient) string { return client.ID })
 	for _, client := range added {
-		s.auditLog.Record(ctx, auditlogs.EventClientGroupAdded, origin, "", auditlogs.Data{"clientName": client.Name, "groupName": group.FriendlyName}, tx)
+		s.auditLog.Record(ctx, auditlogs.EventClientGroupAdded, origin, "", auditlogs.Data{"clientID": client.ID, "clientName": client.Name, "groupName": group.FriendlyName}, tx)
 	}
 	for _, client := range removed {
-		s.auditLog.Record(ctx, auditlogs.EventClientGroupRemoved, origin, "", auditlogs.Data{"clientName": client.Name, "groupName": group.FriendlyName}, tx)
+		s.auditLog.Record(ctx, auditlogs.EventClientGroupRemoved, origin, "", auditlogs.Data{"clientID": client.ID, "clientName": client.Name, "groupName": group.FriendlyName}, tx)
 	}
 
 	// Save the updated group

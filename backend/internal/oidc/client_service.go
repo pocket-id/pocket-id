@@ -169,9 +169,9 @@ func (s *clientService) CreateClient(ctx context.Context, input dto.OidcClientCr
 		}
 		return model.OidcClient{}, "", err
 	}
-	s.auditLog.Record(ctx, auditlogs.EventClientCreated, origin, "", auditlogs.Data{"clientName": client.Name}, nil)
+	s.auditLog.Record(ctx, auditlogs.EventClientCreated, origin, "", auditlogs.Data{"clientID": client.ID, "clientName": client.Name}, nil)
 	if createdSecret != "" {
-		s.auditLog.Record(ctx, auditlogs.EventClientSecretCreated, origin, "", auditlogs.Data{"clientName": client.Name}, nil)
+		s.auditLog.Record(ctx, auditlogs.EventClientSecretCreated, origin, "", auditlogs.Data{"clientID": client.ID, "clientName": client.Name}, nil)
 	}
 
 	// All storage operations must be executed outside of a transaction
@@ -246,7 +246,7 @@ func (s *clientService) UpdateClient(ctx context.Context, clientID string, input
 		return model.OidcClient{}, err
 	}
 	if changes := clientChanges(before, client); changes != "" {
-		s.auditLog.Record(ctx, auditlogs.EventClientUpdated, origin, "", auditlogs.Data{"clientName": client.Name, "changes": changes}, tx)
+		s.auditLog.Record(ctx, auditlogs.EventClientUpdated, origin, "", auditlogs.Data{"clientID": client.ID, "clientName": client.Name, "changes": changes}, tx)
 	}
 
 	// Disabling the client keeps its users signed in there, so resolve the logout notifications to deliver once the change is committed
@@ -439,7 +439,7 @@ func (s *clientService) DeleteClient(ctx context.Context, clientID string, origi
 	if result.RowsAffected == 0 {
 		return apperror.NotFound("OIDC client")
 	}
-	s.auditLog.Record(ctx, auditlogs.EventClientDeleted, origin, "", auditlogs.Data{"clientName": client.Name}, tx)
+	s.auditLog.Record(ctx, auditlogs.EventClientDeleted, origin, "", auditlogs.Data{"clientID": client.ID, "clientName": client.Name}, tx)
 
 	err := tx.Commit().Error
 	if err != nil {
@@ -513,7 +513,7 @@ func (s *clientService) CreateClientSecret(ctx context.Context, clientID string,
 	if err != nil {
 		return model.OidcClientSecret{}, "", fmt.Errorf("failed to update OIDC client: %w", err)
 	}
-	s.auditLog.Record(ctx, auditlogs.EventClientSecretCreated, origin, "", auditlogs.Data{"clientName": client.Name}, tx)
+	s.auditLog.Record(ctx, auditlogs.EventClientSecretCreated, origin, "", auditlogs.Data{"clientID": client.ID, "clientName": client.Name}, tx)
 
 	err = tx.Commit().Error
 	if err != nil {
@@ -574,7 +574,7 @@ func (s *clientService) DeleteClientSecret(ctx context.Context, clientID string,
 	if err != nil {
 		return fmt.Errorf("failed to update OIDC client: %w", err)
 	}
-	s.auditLog.Record(ctx, auditlogs.EventClientSecretDeleted, origin, "", auditlogs.Data{"clientName": client.Name}, tx)
+	s.auditLog.Record(ctx, auditlogs.EventClientSecretDeleted, origin, "", auditlogs.Data{"clientID": client.ID, "clientName": client.Name}, tx)
 
 	err = tx.Commit().Error
 	if err != nil {
@@ -766,10 +766,10 @@ func (s *clientService) UpdateAllowedUserGroups(ctx context.Context, id string, 
 
 	added, removed := utils.Changes(previousGroups, groups, func(group model.UserGroup) string { return group.ID })
 	for _, group := range added {
-		s.auditLog.Record(ctx, auditlogs.EventClientGroupAdded, origin, "", auditlogs.Data{"clientName": client.Name, "groupName": group.FriendlyName}, tx)
+		s.auditLog.Record(ctx, auditlogs.EventClientGroupAdded, origin, "", auditlogs.Data{"clientID": client.ID, "clientName": client.Name, "groupName": group.FriendlyName}, tx)
 	}
 	for _, group := range removed {
-		s.auditLog.Record(ctx, auditlogs.EventClientGroupRemoved, origin, "", auditlogs.Data{"clientName": client.Name, "groupName": group.FriendlyName}, tx)
+		s.auditLog.Record(ctx, auditlogs.EventClientGroupRemoved, origin, "", auditlogs.Data{"clientID": client.ID, "clientName": client.Name, "groupName": group.FriendlyName}, tx)
 	}
 
 	// Save the updated client
@@ -886,7 +886,7 @@ func (s *clientService) RevokeAuthorizedClient(ctx context.Context, userID strin
 	if err = RevokeUserClientSessions(ctx, tx, userID, clientID); err != nil {
 		return err
 	}
-	s.auditLog.Record(ctx, auditlogs.EventClientAuthorizationRevoked, origin, userID, auditlogs.Data{"clientName": authorizedClient.Client.Name}, tx)
+	s.auditLog.Record(ctx, auditlogs.EventClientAuthorizationRevoked, origin, userID, auditlogs.Data{"clientID": authorizedClient.Client.ID, "clientName": authorizedClient.Client.Name}, tx)
 
 	err = tx.Commit().Error
 	if err != nil {

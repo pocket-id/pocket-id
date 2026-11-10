@@ -71,7 +71,7 @@ func TestAuthorizationServiceAuthorizeLogsClientAuthorization(t *testing.T) {
 	require.False(t, authorization.RequiresInteraction)
 
 	require.Equal(t, []auditlogs.Event{auditlogs.EventClientAuthorization}, auditLogger.events)
-	require.Equal(t, auditlogs.Data{"clientName": "Test Client"}, auditLogger.data[0])
+	require.Equal(t, auditlogs.Data{"clientID": clientID, "clientName": "Test Client"}, auditLogger.data[0])
 }
 
 func TestAuthorizationServiceRejectsCustomScopeWithoutResource(t *testing.T) {
@@ -179,7 +179,7 @@ func TestAuthorizationServiceConsentStepLogsNewClientAuthorization(t *testing.T)
 	require.NotEmpty(t, response.RedirectURL)
 
 	require.Equal(t, []auditlogs.Event{auditlogs.EventNewClientAuthorization}, auditLogger.events)
-	require.Equal(t, auditlogs.Data{"clientName": "Test Client"}, auditLogger.data[0])
+	require.Equal(t, auditlogs.Data{"clientID": clientID, "clientName": "Test Client"}, auditLogger.data[0])
 }
 
 // TestAuthorizationServiceConsentStepGrantsOnlyApprovedScopes guards that scopes the user deselects on the consent screen are neither consented to nor granted when the request resumes

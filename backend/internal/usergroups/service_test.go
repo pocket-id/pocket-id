@@ -126,6 +126,6 @@ func TestMembershipAndClientChangesAreRecorded(t *testing.T) {
 	assert.Equal(t, []recordedEntry{
 		{event: auditlogs.EventGroupMemberAdded, userID: joiner.ID, data: auditlogs.Data{"groupName": "Family"}},
 		{event: auditlogs.EventGroupMemberRemoved, userID: leaver.ID, data: auditlogs.Data{"groupName": "Family"}},
-		{event: auditlogs.EventClientGroupAdded, data: auditlogs.Data{"clientName": "Photos", "groupName": "Family"}},
+		{event: auditlogs.EventClientGroupAdded, data: auditlogs.Data{"clientID": client.ID, "clientName": "Photos", "groupName": "Family"}},
 	}, auditLog.entries)
 }
