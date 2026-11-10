@@ -8,6 +8,7 @@
 	import type { AppVersionInformation } from '#lib/types/application-configuration.type.ts';
 	import { modKey } from '#lib/utils/keyboard-util.ts';
 	import { cn } from '@pocket-id/ui/utils';
+	import { PersistedState } from 'runed';
 	import PanelLeftCloseIcon from '~icons/solar/panel-left-close-linear';
 	import PanelLeftOpenIcon from '~icons/solar/panel-left-open-linear';
 	import CircleChevronUp from '~icons/solar/round-alt-arrow-up-linear';
@@ -94,17 +95,81 @@
 		observer.observe(nav);
 		return () => observer.disconnect();
 	});
+
+	// Null keeps the default width from app.css
+	const width = new PersistedState<number | null>('sidebar-width', null);
+	const MIN_WIDTH = 208;
+	const MAX_WIDTH = 400;
+	// Dragging well past the minimum collapses the sidebar into the rail, like closing it with the toggle
+	const COLLAPSE_BELOW = 140;
+
+	let asideWidth = $state(0);
+	let drag = $state<{ startX: number; startWidth: number } | null>(null);
+	const clampWidth = (w: number) => Math.min(MAX_WIDTH, Math.max(MIN_WIDTH, Math.round(w)));
+
+	const onResizeMove = (e: PointerEvent) => {
+		if (!drag) return;
+		const next = drag.startWidth + e.clientX - drag.startX;
+		if (next < COLLAPSE_BELOW) {
+			width.current = drag.startWidth;
+			drag = null;
+			collapsed = true;
+			return;
+		}
+		width.current = clampWidth(next);
+	};
+
+	const onResizeKey = (e: KeyboardEvent) => {
+		const step = { ArrowLeft: -16, ArrowRight: 16 }[e.key];
+		if (!step) return;
+		e.preventDefault();
+		width.current = clampWidth(asideWidth + step);
+	};
 </script>
 
 <aside
+	bind:offsetWidth={asideWidth}
 	data-slot="app-sidebar"
+	style:--sidebar-w={width.current ? `${width.current}px` : undefined}
 	class={cn(
-		'bg-sidebar sticky top-0 hidden h-dvh w-(--rail-w) flex-col overflow-hidden px-3 pt-4 pb-3 shadow-[inset_-1px_0_0_var(--border)] transition-[width] sm:flex',
-		MOTION,
+		'bg-sidebar sticky top-0 hidden h-dvh w-(--rail-w) flex-col overflow-hidden px-3 pt-4 pb-3 shadow-[inset_-1px_0_0_var(--border)] sm:flex',
+		// The edge follows the pointer while dragging instead of gliding after it
+		!drag && `transition-[width] ${MOTION}`,
 		!collapsed && 'lg:w-(--sidebar-w)',
 		className
 	)}
 >
+	{#if !collapsed}
+		<!-- A focusable separator is a widget per WAI-ARIA, which Svelte does not know -->
+		<!-- svelte-ignore a11y_no_noninteractive_tabindex, a11y_no_noninteractive_element_interactions -->
+		<div
+			role="separator"
+			aria-orientation="vertical"
+			aria-label={m.resize_sidebar()}
+			aria-valuenow={asideWidth}
+			aria-valuemin={MIN_WIDTH}
+			aria-valuemax={MAX_WIDTH}
+			tabindex="0"
+			class={cn(
+				// A short grip instead of a full-height line, which the rounded corners of the card shells would clip
+				'after:bg-border-strong focus-visible:after:bg-ring absolute inset-y-0 right-0 z-10 hidden w-3 cursor-col-resize outline-none after:absolute after:top-1/2 after:right-1 after:h-8 after:w-1 after:-translate-y-1/2 after:rounded-full after:opacity-0 after:transition-[opacity,height,background-color] after:duration-(--dur-fast) after:ease-(--ease-out) hover:after:opacity-100 focus-visible:after:opacity-100 lg:block',
+				drag && 'after:bg-fg-muted after:h-12 after:opacity-100'
+			)}
+			onpointerdown={(e) => {
+				if (e.button !== 0) return;
+				// Stops the drag from selecting text, and capture keeps the move events coming when the pointer outruns the handle
+				e.preventDefault();
+				e.currentTarget.setPointerCapture(e.pointerId);
+				drag = { startX: e.clientX, startWidth: asideWidth };
+			}}
+			onpointermove={onResizeMove}
+			onpointerup={() => (drag = null)}
+			onpointercancel={() => (drag = null)}
+			onkeydown={onResizeKey}
+			ondblclick={() => (width.current = null)}
+		></div>
+	{/if}
+
 	<!-- The search button sits under the logo in the rail and glides up beside the title in the sidebar -->
 	<div
 		class={cn(
