@@ -96,7 +96,7 @@
 
 <aside
 	aria-labelledby="claims-preview-title"
-	class="bg-surface-sunken flex min-w-0 flex-col gap-3 rounded-lg p-4 shadow-[inset_0_0_0_1px_var(--border)] xl:sticky xl:top-6"
+	class="bg-surface-sunken flex min-w-0 flex-col gap-3 rounded-lg p-4 shadow-[inset_0_0_0_1px_var(--border)] xl:sticky xl:top-[calc(var(--clear-top)+var(--spacing)*6)]"
 >
 	<h3 id="claims-preview-title" class="text-heading text-fg">{m.preview()}</h3>
 
