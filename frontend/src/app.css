@@ -42,9 +42,9 @@ html.theme-switching *::after {
 	view-transition-name: settings-content;
 }
 
-::view-transition-old(root),
-::view-transition-new(root) {
-	animation: none;
+/* The shell stays live during page transitions because Firefox and Safari drop backdrop-filter from snapshots, which would unblur the backdrop layout's sidebar */
+:root {
+	view-transition-name: none;
 }
 
 /* The phone bars swap instantly and stay above the content, whose new snapshot is otherwise painted last because only the new page has its name */
