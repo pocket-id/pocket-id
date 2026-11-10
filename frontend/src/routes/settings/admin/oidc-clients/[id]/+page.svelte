@@ -23,11 +23,18 @@
 	} from '#lib/types/oidc.type.ts';
 	import type { ScimServiceProviderCreate } from '#lib/types/scim.type.ts';
 	import { cachedOidcClientLogo } from '#lib/utils/cached-asset-util.ts';
+	import EnableIcon from '~icons/solar/check-circle-bold';
 	import EyeIcon from '~icons/solar/eye-bold';
 	import InfoIcon from '~icons/solar/info-circle-bold-duotone';
 	import { onDestroy } from 'svelte';
 	import { backNavigate } from '../../users/navigate-back-util';
-	import { deleteClientAction, refreshClientAction, typeLabel } from '../oidc-client-actions';
+	import {
+		deleteClientAction,
+		refreshClientAction,
+		setClientDisabled,
+		toggleClientDisabledAction,
+		typeLabel
+	} from '../oidc-client-actions';
 	import OidcForm from '../oidc-client-form.svelte';
 	import OidcClientPreviewSheet from '../oidc-client-preview-sheet.svelte';
 	import ApiAccessSection from './api-access-section.svelte';
@@ -93,8 +100,18 @@
 
 	const menuActions = $derived([
 		refreshClientAction(client, reloadClient),
+		// A disabled client is enabled with the header button instead
+		{
+			...toggleClientDisabledAction(client, setDisabled, m.disable_client_ellipsis()),
+			hidden: client.disabled
+		},
 		deleteClientAction(backNavigation.leave, m.delete_client_ellipsis())
 	]);
+
+	// The forms read the same client, so they keep sending the new state instead of undoing it on their next save
+	function setDisabled(disabled: boolean) {
+		client.disabled = disabled;
+	}
 
 	async function reloadClient() {
 		// The refreshed metadata replaces the fields it manages, so pending edits to them would be stale
@@ -207,7 +224,9 @@
 		/>
 	{/snippet}
 	{#snippet status()}
-		{#if noOneCanSignIn}
+		{#if client.disabled}
+			<Badge variant="destructive">{m.disabled()}</Badge>
+		{:else if noOneCanSignIn}
 			<Badge variant="warning">{m.no_one_can_sign_in()}</Badge>
 		{:else if client.isGroupRestricted}
 			<Badge variant="muted">
@@ -224,6 +243,16 @@
 		{/if}
 	{/snippet}
 	{#snippet actions()}
+		{#if client.disabled}
+			<Button
+				variant="secondary"
+				usePromiseLoading
+				onclick={() => setClientDisabled(client, false, setDisabled)}
+			>
+				<EnableIcon />
+				{m.enable_client()}
+			</Button>
+		{/if}
 		<Button variant="secondary" onclick={() => (showPreview = true)}>
 			<EyeIcon />
 			<span class="max-sm:sr-only">{m.data_preview()}</span>

@@ -74,7 +74,8 @@
 				isGroupRestricted: true,
 				credentials: { federatedIdentities: [], secrets: [] },
 				accessTokenDurationMinutes: 60,
-				refreshTokenDurationMinutes: 30 * 24 * 60
+				refreshTokenDurationMinutes: 30 * 24 * 60,
+				disabled: false
 			});
 			if (client.createdSecret) {
 				clientSecretStore.setAutoCreated(client.createdSecret.id, client.createdSecret.secret);

@@ -53,13 +53,13 @@ func permissionsByKey(db *gorm.DB) *gorm.DB {
 
 // isReservedAudience reports whether the audience refers to Pocket ID itself, either as the issuer or as the built-in API
 // A custom API must not claim the issuer, otherwise its tokens would be indistinguishable from Pocket ID's own identity tokens
-// Nor may it claim the built-in API's resource, otherwise its tokens could call Pocket ID's API
+// Nor may it claim one of the built-in API's resources, otherwise its tokens could call Pocket ID's API
 func isReservedAudience(audience, issuer string) bool {
 	if issuer == "" {
 		return false
 	}
 	audience = strings.ToLower(strings.TrimRight(audience, "/"))
-	return audience == issuer || audience == authz.ResourceURI(issuer)
+	return audience == issuer || audience == authz.ResourceURI(issuer) || audience == authz.MCPResourceURI(issuer)
 }
 
 func (s *Service) List(ctx context.Context, search string, listRequestOptions utils.ListRequestOptions) (apis []API, response utils.PaginationResponse, err error) {

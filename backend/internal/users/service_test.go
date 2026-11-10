@@ -407,3 +407,14 @@ func TestUpdateUserReturnsGroupsAndCustomClaims(t *testing.T) {
 	require.Len(t, updated.CustomClaims, 1)
 	require.Equal(t, "office", updated.CustomClaims[0].Key)
 }
+
+func TestCreateUserReturnsDefaultCustomClaims(t *testing.T) {
+	userService := newTestUserService(t)
+	config := &appconfig.AppConfigModel{RequireUserEmail: "false", SignupDefaultCustomClaims: `[{"key":"office","value":"Zurich"}]`}
+
+	user, err := userService.CreateUser(t.Context(), config, dto.UserCreateDto{Username: "newcomer", FirstName: "New"})
+	require.NoError(t, err)
+
+	require.Len(t, user.CustomClaims, 1)
+	require.Equal(t, "office", user.CustomClaims[0].Key)
+}

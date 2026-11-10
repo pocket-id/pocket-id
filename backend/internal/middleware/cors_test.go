@@ -75,3 +75,21 @@ func TestCorsMiddlewareAllowsBearerRequestsToTheAPI(t *testing.T) {
 	require.Equal(t, http.StatusOK, w.Code)
 	require.Empty(t, w.Header().Get("Access-Control-Allow-Origin"))
 }
+
+func TestCorsMiddlewareLetsBrowserMCPClientsReadTheChallenge(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	router := gin.New()
+	router.Use(NewCorsMiddleware().Add())
+	router.POST("/mcp", func(c *gin.Context) {
+		c.Status(http.StatusUnauthorized)
+	})
+
+	// The first request of an MCP client carries no token yet
+	req := httptest.NewRequestWithContext(t.Context(), http.MethodPost, "/mcp", http.NoBody)
+	w := httptest.NewRecorder()
+	router.ServeHTTP(w, req)
+
+	require.Equal(t, "*", w.Header().Get("Access-Control-Allow-Origin"))
+	require.Equal(t, "WWW-Authenticate", w.Header().Get("Access-Control-Expose-Headers"))
+	require.Contains(t, w.Header().Get("Access-Control-Allow-Headers"), "Mcp-Protocol-Version")
+}

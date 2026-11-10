@@ -64,7 +64,7 @@ func (s *authorizationService) heldScopes(ctx context.Context, userID, resource 
 	if userID == "" || resource == "" || s.apiAccess == nil {
 		return scopes, nil
 	}
-	return s.apiAccess.HeldScopes(ctx, dbFromContext(ctx, s.db), userID, resource, scopes)
+	return s.apiAccess.HeldScopes(ctx, dbFromContext(ctx, s.db), userID, canonicalResource(resource), scopes)
 }
 
 type requestMeta struct {
@@ -597,7 +597,7 @@ func (s *authorizationService) resolveScopeInfoForRequest(ctx context.Context, r
 		return nil, nil
 	}
 
-	infos, err := s.apiAccess.DescribePermissions(ctx, resource, customKeys)
+	infos, err := s.apiAccess.DescribePermissions(ctx, canonicalResource(resource), customKeys)
 	if err != nil {
 		return nil, err
 	}
@@ -626,6 +626,23 @@ func (s *authorizationService) completeInteractionStep(ctx context.Context, inte
 
 		if userID == "" {
 			return fosite.ErrLoginRequired
+		}
+
+		// The authorize endpoint only checks the group restriction once every step is done, so a user who signed in or switched accounts here is checked before the consent step can record an authorization
+		if interactionSession.Client.IsGroupRestricted {
+			tx := dbFromContext(ctx, s.db)
+			var user model.User
+			err = tx.Preload("UserGroups").First(&user, "id = ?", userID).Error
+			if err != nil {
+				return err
+			}
+			err = tx.Model(&interactionSession.Client).Association("AllowedUserGroups").Find(&interactionSession.Client.AllowedUserGroups)
+			if err != nil {
+				return err
+			}
+			if !IsUserGroupAllowedToAuthorize(user, interactionSession.Client) {
+				return apperror.OidcAccessDenied()
+			}
 		}
 
 		requiredSteps := requiredInteractionSteps(interactionSession)

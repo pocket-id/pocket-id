@@ -317,6 +317,50 @@ func TestService_UpdateAppConfig(t *testing.T) {
 		require.Error(t, err)
 		assert.True(t, apperror.IsCode(err, apperror.CodeUIConfigDisabled))
 	})
+
+	t.Run("redacts saved secrets in its response and the list, leaving unset ones empty", func(t *testing.T) {
+		setUIConfigDisabled(t, false)
+		db := testutils.NewDatabaseForTest(t)
+		svc := newActorBackedService(t, db)
+
+		res, err := svc.UpdateAppConfig(t.Context(), dto.AppConfigUpdateDto{SmtpPassword: "smtp-secret"})
+		require.NoError(t, err)
+		vars, err := svc.ListAppConfig(t.Context(), true)
+		require.NoError(t, err)
+
+		for _, got := range [][]AppConfigVariable{res, vars} {
+			smtpPassword, _ := findConfigValue(got, "smtpPassword")
+			assert.Equal(t, redactedValue, smtpPassword)
+			ldapBindPassword, ok := findConfigValue(got, "ldapBindPassword")
+			require.True(t, ok)
+			assert.Empty(t, ldapBindPassword)
+		}
+
+		cfg, err := svc.GetConfig(t.Context())
+		require.NoError(t, err)
+		assert.Equal(t, AppConfigValue("smtp-secret"), cfg.SmtpPassword)
+	})
+
+	t.Run("a redacted secret keeps the saved one and a new secret replaces it", func(t *testing.T) {
+		setUIConfigDisabled(t, false)
+		db := testutils.NewDatabaseForTest(t)
+		svc := newActorBackedService(t, db)
+
+		_, err := svc.UpdateAppConfig(t.Context(), dto.AppConfigUpdateDto{SmtpPassword: "smtp-secret"})
+		require.NoError(t, err)
+
+		_, err = svc.UpdateAppConfig(t.Context(), dto.AppConfigUpdateDto{SmtpPassword: redactedValue})
+		require.NoError(t, err)
+		cfg, err := svc.GetConfig(t.Context())
+		require.NoError(t, err)
+		assert.Equal(t, AppConfigValue("smtp-secret"), cfg.SmtpPassword)
+
+		_, err = svc.UpdateAppConfig(t.Context(), dto.AppConfigUpdateDto{SmtpPassword: "new-secret"})
+		require.NoError(t, err)
+		cfg, err = svc.GetConfig(t.Context())
+		require.NoError(t, err)
+		assert.Equal(t, AppConfigValue("new-secret"), cfg.SmtpPassword)
+	})
 }
 
 func TestService_UpdateAppConfigValues(t *testing.T) {

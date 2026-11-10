@@ -181,6 +181,18 @@ test('Deleting a client still notifies its users after authorizations are delete
 	await verifyLogoutToken(request, receiver.deliveries[0], client.id, users.tim.id);
 });
 
+test('Disabling a client delivers logout to its users', async ({ request, receiver }) => {
+	const client = oidcClients.nextcloud;
+	const clientResponse = await request.get(`/api/oidc/clients/${client.id}`);
+	expect(clientResponse.ok()).toBeTruthy();
+	const disabled = await request.put(`/api/oidc/clients/${client.id}`, {
+		data: { ...(await clientResponse.json()), disabled: true }
+	});
+	expect(disabled.ok()).toBeTruthy();
+	await expect.poll(() => receiver.deliveries.length).toBe(1);
+	await verifyLogoutToken(request, receiver.deliveries[0], client.id, users.tim.id);
+});
+
 test('Group access is retained through another allowed group and revoked after the last one', async ({
 	request,
 	receiver

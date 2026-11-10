@@ -76,6 +76,7 @@ func TestIntrospectionHandlerBindsTokenToCallerClient(t *testing.T) {
 	clientBToken := issueAccessToken(t, "req-b", "client-b", "user-b")
 	clientBOtherToken := issueAccessToken(t, "req-b-2", "client-b", "user-b")
 	clientBDisabledUserToken := issueAccessToken(t, "req-b-disabled", "client-b", "user-disabled")
+	clientBMachineToken := issueAccessToken(t, "req-b-machine", "client-b", ClientSubject("client-b"))
 
 	claimsService := newClaimsService(db, nil, "https://issuer.example.com", nil, appconfig.StaticResolver{})
 	handler := newIntrospectionHandler(provider, nil, claimsService, "https://issuer.example.com")
@@ -109,6 +110,9 @@ func TestIntrospectionHandlerBindsTokenToCallerClient(t *testing.T) {
 	// A token stays inactive once its user is disabled, even though it has not expired yet.
 	disabled := introspect(t, clientBToken, clientBDisabledUserToken)
 	require.Equal(t, false, disabled["active"])
+
+	machine := introspect(t, clientBToken, clientBMachineToken)
+	require.Equal(t, true, machine["active"], "a client_credentials token has no user to re-check")
 }
 
 func TestIntrospectionHandlerAllowsReusedFederatedClientAssertion(t *testing.T) {

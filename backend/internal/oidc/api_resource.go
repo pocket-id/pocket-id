@@ -6,6 +6,8 @@ import (
 	"strings"
 
 	"github.com/pocket-id/fosite"
+	"github.com/pocket-id/pocket-id/backend/internal/authz"
+	"github.com/pocket-id/pocket-id/backend/internal/common"
 	"github.com/pocket-id/pocket-id/backend/internal/dto"
 	"gorm.io/gorm"
 )
@@ -58,8 +60,7 @@ func resolveResource(ctx context.Context, tx *gorm.DB, provider APIAccessProvide
 		if !fosite.IsValidResourceIndicatorURI(resource) || provider == nil {
 			return "", nil, fosite.ErrInvalidTarget.WithHintf("The requested resource '%s' is invalid, missing, unknown, or malformed.", resource)
 		}
-		// Resolve every trailing-slash variant against the same canonical resource and stamp that value into the token audience
-		resource = strings.TrimRight(resource, "/")
+		resource = canonicalResource(resource)
 
 		allowedScopes, apiExists, hasAccess, err := provider.AllowedScopesForAudience(ctx, tx, clientID, resource, subjectType)
 		if err != nil {
@@ -94,6 +95,16 @@ func resolveResource(ctx context.Context, tx *gorm.DB, provider APIAccessProvide
 	}
 
 	return audience, granted, nil
+}
+
+// canonicalResource maps a resource to the audience of the API it names, which is stamped into the token
+// Trailing-slash variants name the same API, and the MCP endpoint is part of Pocket ID's own API
+func canonicalResource(resource string) string {
+	resource = strings.TrimRight(resource, "/")
+	if resource == authz.MCPResourceURI(common.EnvConfig.AppURL) {
+		return authz.ResourceURI(common.EnvConfig.AppURL)
+	}
+	return resource
 }
 
 // grantResourceIndicator applies a resolved resource audience and scopes to the request

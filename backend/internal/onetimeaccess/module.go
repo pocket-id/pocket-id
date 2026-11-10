@@ -71,6 +71,6 @@ func New(deps Dependencies) (*Module, error) {
 func (m *Module) RegisterRoutes(r *authz.Router, exchangeRateLimit, emailRateLimit gin.HandlerFunc) {
 	r.POST("/users/:id/one-time-access-token", authz.UsersWrite, httpserver.Handle(m.handler.createTokenForUser))
 	r.POST("/users/:id/one-time-access-email", authz.UsersWrite, httpserver.Handle(m.handler.requestEmailAsAdmin))
-	r.Public().POST("/one-time-access-token/:token", exchangeRateLimit, httpserver.Handle(m.handler.exchangeToken))
+	r.Public().POST("/one-time-access-token", exchangeRateLimit, httpserver.Handle(m.handler.exchangeToken))
 	r.Public().POST("/one-time-access-email", emailRateLimit, httpserver.Handle(m.handler.requestEmailAsUnauthenticatedUser))
 }

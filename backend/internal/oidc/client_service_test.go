@@ -9,6 +9,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/pocket-id/fosite"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"gorm.io/gorm"
@@ -74,6 +75,35 @@ func TestClientService_DeleteClientDeletesOAuth2Sessions(t *testing.T) {
 	var otherClientSessionCount int64
 	require.NoError(t, db.Model(&OAuth2Session{}).Where("client_id = ?", otherClient.ID).Count(&otherClientSessionCount).Error)
 	assert.Equal(t, int64(1), otherClientSessionCount)
+}
+
+func TestClientService_RevokeAuthorizedClientRevokesAccessTokenWithoutRefreshToken(t *testing.T) {
+	db := testutils.NewDatabaseForTest(t)
+	const clientID = "client-without-refresh-token"
+	require.NoError(t, db.Create(&model.OidcClient{Base: model.Base{ID: clientID}, Name: "Client"}).Error)
+	for _, userID := range []string{"revoking-user", "other-user"} {
+		require.NoError(t, db.Create(&model.User{Base: model.Base{ID: userID}, Username: userID}).Error)
+		require.NoError(t, db.Create(&model.UserAuthorizedOidcClient{UserID: userID, ClientID: clientID}).Error)
+	}
+	store := NewStore(db, nil)
+	require.NoError(t, store.CreateAccessTokenSession(t.Context(), "revoked-access", newTestRequester("revoked-request", clientID, "revoking-user", "")))
+	require.NoError(t, store.CreateAccessTokenSession(t.Context(), "other-access", newTestRequester("other-request", clientID, "other-user", "")))
+
+	service := &clientService{db: db}
+	require.NoError(t, service.RevokeAuthorizedClient(t.Context(), "revoking-user", clientID))
+
+	_, err := store.GetAccessTokenSession(t.Context(), "revoked-access", nil)
+	require.ErrorIs(t, err, fosite.ErrNotFound)
+	_, err = store.GetAccessTokenSession(t.Context(), "other-access", nil)
+	require.NoError(t, err, "another user's access token must stay valid")
+}
+
+func TestClientService_RefreshClientMetadataReturnsNotFoundForMissingClient(t *testing.T) {
+	s := newMetadataStore(t, nil)
+	service := &clientService{db: s.db, cimdResolver: s.resolver}
+
+	_, err := service.RefreshClientMetadata(t.Context(), "https://8.8.8.8/oauth/missing-client")
+	require.True(t, apperror.IsCode(err, apperror.CodeNotFound), err)
 }
 
 func TestClientService_updateClientLogoType(t *testing.T) {
@@ -947,6 +977,7 @@ func TestClientService_UpdateClient_CIMDPreservesMetadataFields(t *testing.T) {
 		AccessTokenDurationMinutes:          accessDuration,
 		RefreshTokenDurationMinutes:         refreshDuration,
 		ClaimMappingPolicyId:                claimmappingpolicy.BuiltInClaimMappingPolicyID,
+		Disabled:                            true,
 		Credentials: dto.OidcClientCredentialsDto{
 			FederatedIdentities: []dto.OidcClientFederatedIdentityDto{{
 				Issuer: "https://override.example.com",
@@ -975,6 +1006,7 @@ func TestClientService_UpdateClient_CIMDPreservesMetadataFields(t *testing.T) {
 	assert.Equal(t, accessDuration, fetched.AccessTokenDurationMinutes)
 	assert.Equal(t, refreshDuration, fetched.RefreshTokenDurationMinutes)
 	assert.Equal(t, new(claimmappingpolicy.BuiltInClaimMappingPolicyID), fetched.ClaimMappingPolicyId)
+	assert.True(t, fetched.Disabled)
 }
 
 func TestClientService_UpdateClient_CIMDDoesNotOverwriteConcurrentMetadataRefresh(t *testing.T) {
@@ -1029,6 +1061,8 @@ func TestClientService_ListAccessibleOidcClients_requiresExplicitGroupPermission
 		{Name: "Restricted without groups", CallbackURLs: datatype.StringList{"https://empty.example.com/callback"}, IsGroupRestricted: true},
 		{Name: "Restricted to user group", CallbackURLs: datatype.StringList{"https://allowed.example.com/callback"}, IsGroupRestricted: true, AllowedUserGroups: []model.UserGroup{allowedGroup}},
 		{Name: "Restricted to other group", CallbackURLs: datatype.StringList{"https://other.example.com/callback"}, IsGroupRestricted: true, AllowedUserGroups: []model.UserGroup{otherGroup}},
+		{Name: "Disabled", CallbackURLs: datatype.StringList{"https://disabled.example.com/callback"}, Disabled: true},
+		{Name: "Disabled restricted to user group", CallbackURLs: datatype.StringList{"https://disabled-allowed.example.com/callback"}, Disabled: true, IsGroupRestricted: true, AllowedUserGroups: []model.UserGroup{allowedGroup}},
 	}
 	for i := range clients {
 		require.NoError(t, db.Create(&clients[i]).Error)

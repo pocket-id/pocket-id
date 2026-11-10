@@ -738,6 +738,80 @@ test('Delete OIDC client from the details page', async ({ page }) => {
 	await expect(page.getByRole('row', { name: oidcClient.name })).not.toBeVisible();
 });
 
+test('Disable and enable OIDC client', async ({ page }) => {
+	const oidcClient = oidcClients.nextcloud;
+	const authorizeURL = `/authorize?${new URLSearchParams({
+		client_id: oidcClient.id,
+		response_type: 'code',
+		scope: 'openid profile email',
+		redirect_uri: oidcClient.callbackUrl,
+		state: 'disabled-client'
+	})}`;
+	await page.goto(`/settings/admin/oidc-clients/${oidcClient.id}`);
+
+	await page.getByRole('button', { name: 'More actions' }).click();
+	await page.getByRole('menuitem', { name: 'Disable client…' }).click();
+	await page
+		.getByRole('alertdialog')
+		.getByRole('button', { name: `Disable ${oidcClient.name}` })
+		.click();
+	await expect(page.locator('[data-type="success"]')).toHaveText(`${oidcClient.name} disabled`);
+	await expect(page.getByText('Disabled', { exact: true })).toBeVisible();
+
+	await page.goto(authorizeURL);
+	await expect(
+		page
+			.getByRole('paragraph')
+			.filter({ hasText: 'This app has been disabled by an administrator' })
+	).toBeVisible();
+
+	await page.goto(`/settings/admin/oidc-clients/${oidcClient.id}`);
+	await page.getByRole('button', { name: 'Enable client' }).click();
+	await expect(page.locator('[data-type="success"]')).toHaveText(`${oidcClient.name} enabled`);
+
+	const callbackURL = await oidcUtil.interceptCallbackRedirect(
+		page,
+		new URL(oidcClient.callbackUrl).pathname,
+		() => page.goto(authorizeURL).then(() => undefined)
+	);
+	expect(callbackURL.searchParams.get('code')).toBeTruthy();
+});
+
+test('Sort and filter OIDC clients by status', async ({ page, request }) => {
+	const disabledClient = oidcClients.immich;
+	const client = await (await request.get(`/api/oidc/clients/${disabledClient.id}`)).json();
+	expect(
+		(
+			await request.put(`/api/oidc/clients/${client.id}`, { data: { ...client, disabled: true } })
+		).ok()
+	).toBeTruthy();
+
+	await page.goto('/settings/admin/oidc-clients');
+	await expect(
+		page.getByRole('row', { name: disabledClient.name }).getByText('Disabled', { exact: true })
+	).toBeVisible();
+
+	// Sorting descending puts disabled clients first
+	const statusSort = page.getByRole('columnheader', { name: 'Status' }).getByRole('button');
+	await statusSort.click();
+	await expect(page.getByRole('columnheader', { name: 'Status' })).toHaveAttribute(
+		'aria-sort',
+		'ascending'
+	);
+	await statusSort.click();
+	await expect(page.getByRole('row').nth(1)).toContainText(disabledClient.name);
+
+	await page.getByTestId('facet-status-trigger').click();
+	await page.getByTestId('facet-status-option-true').click();
+	await expect(page.getByRole('row', { name: disabledClient.name })).toBeVisible();
+	await expect(page.getByRole('row', { name: oidcClients.nextcloud.name })).not.toBeVisible();
+
+	await page.getByTestId('facet-status-trigger').click();
+	await page.getByTestId('facet-status-option-false').click();
+	await expect(page.getByRole('row', { name: oidcClients.nextcloud.name })).toBeVisible();
+	await expect(page.getByRole('row', { name: disabledClient.name })).not.toBeVisible();
+});
+
 test('Filter OIDC clients by PAR requirement', async ({ page, request }) => {
 	const parClient = oidcClients.parClient;
 
@@ -758,6 +832,11 @@ test('Filter OIDC clients by PAR requirement', async ({ page, request }) => {
 	});
 
 	await page.goto('/settings/admin/oidc-clients');
+	await expect(page.getByTestId('facet-par-trigger')).not.toBeVisible();
+
+	await page.getByRole('button', { name: 'Columns' }).click();
+	await page.getByRole('switch', { name: 'PAR' }).click();
+	await page.keyboard.press('Escape');
 
 	// Open PAR filter and select "On"
 	await page.getByTestId('facet-par-trigger').click();
@@ -777,6 +856,13 @@ test('Filter OIDC clients by PAR requirement', async ({ page, request }) => {
 	// PAR client should be hidden, others visible
 	await expect(page.getByRole('row', { name: oidcClients.nextcloud.name })).toBeVisible();
 	await expect(page.getByRole('row', { name: parClient.name })).not.toBeVisible();
+
+	// Hiding the column drops its filter
+	await page.getByRole('button', { name: 'Columns' }).click();
+	await page.getByRole('switch', { name: 'PAR' }).click();
+	await page.keyboard.press('Escape');
+	await expect(page.getByTestId('facet-par-trigger')).not.toBeVisible();
+	await expect(page.getByRole('row', { name: parClient.name })).toBeVisible();
 });
 
 test('Update OIDC client allowed user groups', async ({ page }) => {

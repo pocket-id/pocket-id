@@ -18,6 +18,7 @@
 	import { Skeleton } from '@pocket-id/ui/skeleton';
 	import { debounced } from '#lib/utils/debounce-util.ts';
 	import { axiosErrorToast } from '#lib/utils/error-util.ts';
+	import { createRangeSelect } from '#lib/utils/range-select-util.ts';
 	import SearchIcon from '~icons/solar/magnifier-linear';
 	import { untrack, type Snippet } from 'svelte';
 
@@ -50,6 +51,7 @@
 	// Taken when the dialog opens, so a parent that updates them after confirming does not change the dialog while it fades out
 	let shownTitle = $state('');
 	let excluded = $state<string[]>([]);
+	let selectRange = createRangeSelect();
 
 	const visible = $derived(items?.filter((item) => !excluded.includes(item.id)));
 
@@ -70,6 +72,7 @@
 			excluded = exclude;
 			search = '';
 			selected = [];
+			selectRange = createRangeSelect();
 			items = undefined;
 			refresh();
 		});
@@ -143,11 +146,21 @@
 				</div>
 			{:else}
 				{#each visible as item (item.id)}
+					<!-- Chrome drops a label's click when a shift-click extends the text selection, so the rows are not selectable -->
 					<label
-						class="hover:bg-fill-row-hover has-focus-visible:bg-fill-row-hover flex min-h-(--row-2line) cursor-pointer items-center gap-3 border-b px-4 py-2 transition-colors duration-(--dur-fast) last:border-b-0"
+						class="hover:bg-fill-row-hover has-focus-visible:bg-fill-row-hover flex min-h-(--row-2line) cursor-pointer items-center gap-3 border-b px-4 py-2 transition-colors duration-(--dur-fast) select-none last:border-b-0"
 					>
 						<Checkbox
 							checked={selected.includes(item.id)}
+							onclick={(e) => {
+								const range = selectRange(
+									e,
+									visible.map((i) => i.id),
+									selected,
+									item.id
+								);
+								if (range) selected = range;
+							}}
 							onCheckedChange={(checked) => toggle(item.id, checked)}
 						/>
 						{@render row(item)}

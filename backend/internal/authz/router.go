@@ -72,6 +72,16 @@ func (r *Router) Handle(method, relativePath string, scope Scope, handlers ...gi
 	r.auth.declare(method, joinPaths(r.group.BasePath(), relativePath))
 }
 
+// Dispatch registers a route that serves several operations needing different scopes, such as the MCP endpoint
+// It accepts every credential except a browser session and leaves the scope check to the handler, which must check the principal's scopes before each operation
+func (r *Router) Dispatch(method, relativePath string, handlers ...gin.HandlerFunc) {
+	chain := make([]gin.HandlerFunc, 0, len(handlers)+1)
+	chain = append(chain, r.auth.requireDispatch())
+	chain = append(chain, handlers...)
+	r.group.Handle(method, relativePath, chain...)
+	r.auth.declare(method, joinPaths(r.group.BasePath(), relativePath))
+}
+
 // PublicRouter registers routes that require no authentication
 // Routing them through here keeps public access an explicit decision instead of a missing middleware
 type PublicRouter struct {

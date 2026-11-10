@@ -15,7 +15,6 @@
 	import { preventDefault } from '#lib/utils/event-util.ts';
 	import { createForm } from '#lib/utils/form-util.ts';
 	import { trackFormChanges } from '#lib/utils/unsaved-changes-util.svelte.ts';
-	import { emptyToUndefined } from '#lib/utils/zod-util.ts';
 	import BanIcon from '~icons/solar/forbidden-circle-bold';
 	import PlugIcon from '~icons/solar/plug-circle-bold';
 	import RefreshCwIcon from '~icons/solar/refresh-bold';
@@ -39,13 +38,14 @@
 
 	const formSchema = z.object({
 		endpoint: z.url(),
-		token: emptyToUndefined(z.string())
+		token: z.string().optional()
 	});
 	type FormSchema = typeof formSchema;
 
 	const formStore = createForm<FormSchema>(formSchema, {
 		endpoint: existingProvider?.endpoint || '',
-		token: existingProvider?.token || ''
+		// The saved token is never sent to the browser, so undefined leaves it out of the request to keep it, while an empty string removes it
+		token: existingProvider?.hasToken ? undefined : ''
 	});
 	const { inputs } = formStore;
 
@@ -96,7 +96,7 @@
 					formStore.setValue('endpoint', '');
 					formStore.setValue('token', '');
 					// The cleared fields are the saved state now, so they aren't unsaved changes
-					formStore.commit({ endpoint: '', token: undefined });
+					formStore.commit({ endpoint: '', token: '' });
 				}
 			}
 		});
@@ -163,6 +163,9 @@
 			label={m.scim_token()}
 			optional
 			type="password"
+			placeholder={$inputs.token?.value === undefined
+				? m.scim_token_saved_placeholder()
+				: undefined}
 			inputClass="font-mono"
 			bind:input={$inputs.token}
 		/>

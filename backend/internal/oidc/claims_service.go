@@ -127,9 +127,10 @@ func policyHasCustomClaimMapping(policy claimmappingpolicy.OidcClaimMappingPolic
 }
 
 // loadGrantClaimsSource loads the claims source of the user behind a grant or token and re-checks that the user is still allowed to use the client
-// Grants without a resource owner (e.g. client_credentials) carry an empty subject, so they have no user to validate and get a nil source
+// Grants without a resource owner (client_credentials) have no user to validate and get a nil source
+// They carry an empty subject while the token is requested and the client's own subject once it is issued
 func (s *ClaimsService) loadGrantClaimsSource(ctx context.Context, userID string, client Client) (*userClaimsSource, error) {
-	if userID == "" {
+	if userID == "" || userID == ClientSubject(client.GetID()) {
 		return nil, nil
 	}
 

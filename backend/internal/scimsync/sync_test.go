@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"log/slog"
 	"maps"
 	"net/http"
 	"net/url"
@@ -168,6 +169,17 @@ func TestSyncCreatesCompliantUsersBeforeGroups(t *testing.T) {
 	fixture.transport.requireCompliant(t)
 }
 
+func TestSyncSkipsDisabledClient(t *testing.T) {
+	fixture := newSCIMSyncFixture(t, false)
+	fixture.createUser(t, "user-alice", "alice", nil, false)
+	require.NoError(t, fixture.db.Model(&fixture.client).Update("disabled", true).Error)
+
+	require.NoError(t, fixture.service.SyncServiceProvider(t.Context(), fixture.provider.ID))
+
+	require.Empty(t, fixture.transport.requestsSnapshot())
+	fixture.requireLastSynced(t, false)
+}
+
 func TestSyncUpdatesExistingUsersAndGroupsWithPUT(t *testing.T) {
 	fixture := newSCIMSyncFixture(t, false)
 	email := "updated@example.com"
@@ -305,6 +317,26 @@ func TestSyncRetriesRateLimitedSCIMRequests(t *testing.T) {
 	assert.Equal(t, 3, countRequests(requests, http.MethodGet, "/Users"))
 	fixture.requireLastSynced(t, true)
 	fixture.transport.requireCompliant(t)
+}
+
+func TestSCIMRequestLogsRedactEndpointCredentials(t *testing.T) {
+	var logs bytes.Buffer
+	previous := slog.Default()
+	slog.SetDefault(slog.New(slog.NewTextHandler(&logs, &slog.HandlerOptions{Level: slog.LevelDebug})))
+	t.Cleanup(func() { slog.SetDefault(previous) })
+
+	fixture := newSCIMSyncFixture(t, false)
+	fixture.provider.Endpoint = "https://admin:endpoint-password@scim.example.test"
+	fixture.transport.rateLimits[http.MethodGet+" /Users"] = 1
+
+	// The request, its rate-limited retry and the unexpected status all log the URL
+	resp, err := fixture.service.scimRequest(t.Context(), fixture.provider, http.MethodGet, "/Users", nil, nil)
+	require.NoError(t, err)
+	defer resp.Body.Close()
+	require.Error(t, ensureScimStatus(t.Context(), resp, fixture.provider, http.StatusCreated))
+
+	assert.Contains(t, logs.String(), "admin:xxxxx@scim.example.test")
+	assert.NotContains(t, logs.String(), "endpoint-password")
 }
 
 func remoteResourceData(id, externalID, schema, resourceType string, modified time.Time) ScimResourceData {

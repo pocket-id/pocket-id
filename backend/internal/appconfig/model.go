@@ -25,6 +25,8 @@ const (
 	EmailVerificationRequired = "required"
 )
 
+const redactedValue = "XXXXXXXXXX"
+
 type AppConfigModel struct {
 	// General
 	AppName             AppConfigValue `json:"appName" env:"APP_NAME" public:"true"`
@@ -212,6 +214,7 @@ func (m *AppConfigModel) applyDefaults() bool {
 
 // Replace updates every configuration property with the values from the input DTO
 // An empty string value resets the corresponding property to its default value
+// A sensitive property that receives the redacted value keeps its current value, since the admin form sends back the redacted secrets it was given
 func (m *AppConfigModel) Replace(input dto.AppConfigUpdateDto) {
 	// Collect the values from the input DTO into a map, keyed by the "json" tag
 	inRv := reflect.ValueOf(input)
@@ -232,6 +235,9 @@ func (m *AppConfigModel) Replace(input dto.AppConfigUpdateDto) {
 		key, _, _ := strings.Cut(rt.Field(i).Tag.Get("json"), ",")
 
 		value, ok := values[key]
+		if value == redactedValue && rt.Field(i).Tag.Get("sensitive") == "true" {
+			continue
+		}
 		if !ok || value == "" {
 			value = defaults.Field(i).String()
 		}
@@ -282,9 +288,10 @@ type AppConfigVariable struct {
 	EnvOverride bool
 }
 
-// ToAppConfigVariableSlice returns the configuration as a slice of key/value pairs
+// ToAppConfigVariableSlice returns the configuration as a slice of key/value pairs for HTTP responses
 // If showAll is false, only properties marked as public are included
-// Properties in envOverrides are marked as set in the environment, and their sensitive values are redacted
+// Properties in envOverrides are marked as set in the environment
+// Sensitive values that are set are redacted, because credentials that may read the config must never read secrets back
 func (m *AppConfigModel) ToAppConfigVariableSlice(showAll bool, envOverrides map[string]string) []AppConfigVariable {
 	// Iterate through all fields
 	cfgValue := reflect.ValueOf(m).Elem()
@@ -305,10 +312,10 @@ func (m *AppConfigModel) ToAppConfigVariableSlice(showAll bool, envOverrides map
 		}
 
 		value := cfgValue.Field(i).String()
-		_, envOverride := envOverrides[key]
-		if envOverride && field.Tag.Get("sensitive") == "true" {
-			value = "XXXXXXXXXX"
+		if value != "" && field.Tag.Get("sensitive") == "true" {
+			value = redactedValue
 		}
+		_, envOverride := envOverrides[key]
 
 		res = append(res, AppConfigVariable{
 			Key:         key,

@@ -81,7 +81,7 @@ func (h *handler) createServiceProvider(c *gin.Context) error {
 
 // updateServiceProvider godoc
 // @Summary Update SCIM service provider
-// @Description Update an existing SCIM service provider
+// @Description Update an existing SCIM service provider, where an omitted token keeps the stored one, an empty token removes it and a changed endpoint requires the token
 // @Tags SCIM
 // @Accept json
 // @Produce json
@@ -129,6 +129,7 @@ func respondWithServiceProvider(c *gin.Context, status int, provider ServiceProv
 	if err != nil {
 		return err
 	}
+	output.HasToken = provider.Token != ""
 
 	c.JSON(status, output)
 	return nil

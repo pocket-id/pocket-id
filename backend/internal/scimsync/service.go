@@ -130,8 +130,10 @@ func (s *Service) CreateServiceProvider(ctx context.Context, input *ScimServiceP
 
 	provider := ServiceProvider{
 		Endpoint:     input.Endpoint,
-		Token:        datatype.EncryptedString(input.Token),
 		OidcClientID: input.OidcClientID,
+	}
+	if input.Token != nil {
+		provider.Token = datatype.EncryptedString(*input.Token)
 	}
 
 	err = tx.WithContext(ctx).Create(&provider).Error
@@ -168,8 +170,15 @@ func (s *Service) UpdateServiceProvider(ctx context.Context, serviceProviderID s
 		return ServiceProvider{}, err
 	}
 
+	// Keeping the stored token for a new endpoint would let anyone with write access send it to a server they control
+	if input.Token == nil && provider.Token != "" && input.Endpoint != provider.Endpoint {
+		return ServiceProvider{}, apperror.ValidationMessage("Enter the token again when you change the endpoint")
+	}
+
 	provider.Endpoint = input.Endpoint
-	provider.Token = datatype.EncryptedString(input.Token)
+	if input.Token != nil {
+		provider.Token = datatype.EncryptedString(*input.Token)
+	}
 	provider.OidcClientID = input.OidcClientID
 
 	err = tx.WithContext(ctx).Save(&provider).Error
@@ -230,6 +239,15 @@ func (s *Service) SyncServiceProvider(ctx context.Context, serviceProviderID str
 		return err
 	}
 	provider := snapshot.provider
+
+	// Provisioning pauses while the client is disabled, so archiving an app neither deprovisions its users nor keeps calling an endpoint that may be gone
+	if provider.OidcClient.Disabled {
+		slog.InfoContext(ctx, "Skipping SCIM sync because the OIDC client is disabled",
+			slog.String("provider_id", provider.ID),
+			slog.String("oidc_client_id", provider.OidcClientID),
+		)
+		return nil
+	}
 
 	slog.InfoContext(ctx, "Syncing SCIM service provider",
 		slog.String("provider_id", provider.ID),
@@ -801,7 +819,7 @@ func (s *Service) scimRequest(ctx context.Context, provider ServiceProvider, met
 
 		slog.Debug("Sending SCIM request",
 			slog.String("method", method),
-			slog.String("url", urlString),
+			slog.String("url", req.URL.Redacted()),
 			slog.String("provider_id", provider.ID),
 		)
 
@@ -819,7 +837,7 @@ func (s *Service) scimRequest(ctx context.Context, provider ServiceProvider, met
 		slog.WarnContext(ctx, "SCIM provider rate-limited, retrying",
 			slog.String("provider_id", provider.ID),
 			slog.String("method", method),
-			slog.String("url", urlString),
+			slog.String("url", req.URL.Redacted()),
 			slog.Int("attempt", attempt),
 			slog.Duration("retry_after", retryDelay),
 		)
@@ -886,7 +904,7 @@ func ensureScimStatus(ctx context.Context, resp *http.Response, provider Service
 	slog.ErrorContext(ctx, "SCIM request failed",
 		slog.String("provider_id", provider.ID),
 		slog.String("method", resp.Request.Method),
-		slog.String("url", resp.Request.URL.String()),
+		slog.String("url", resp.Request.URL.Redacted()),
 		slog.Int("status", resp.StatusCode),
 		slog.String("response_body", body),
 	)

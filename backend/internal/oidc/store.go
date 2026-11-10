@@ -15,6 +15,7 @@ import (
 	"github.com/pocket-id/fosite/handler/openid"
 	"github.com/pocket-id/fosite/handler/pkce"
 	"github.com/pocket-id/fosite/handler/rfc8628"
+	"github.com/pocket-id/pocket-id/backend/internal/apperror"
 	"github.com/pocket-id/pocket-id/backend/internal/model"
 	datatype "github.com/pocket-id/pocket-id/backend/internal/model/types"
 	"gorm.io/gorm"
@@ -92,33 +93,23 @@ type storedRequester struct {
 
 // Satisfies fosite.ClientManager
 
+// GetClient is the lookup behind every client Fosite authenticates or restores from a stored session, so it is where a disabled client is refused
+// The error is not fosite.ErrNotFound, which keeps the CIMD resolver from fetching the metadata document of a disabled client again
 func (s *Store) GetClient(ctx context.Context, id string) (fosite.Client, error) {
-	tx := s.dbFor(ctx)
-
-	var clientModel model.OidcClient
-	err := tx.
-		Preload("AllowedUserGroups").
-		First(&clientModel, "id = ?", id).
-		Error
+	clientModel, err := s.firstClientByID(ctx, id)
 	if errors.Is(err, gorm.ErrRecordNotFound) {
 		return nil, fosite.ErrNotFound
 	} else if err != nil {
 		return nil, err
 	}
-
-	client := Client{OidcClient: clientModel}
-
-	// Populate the custom-API scopes and audiences the client may request only when the API feature is wired
-	if s.apiAccess != nil {
-		apiScopes, apiAudiences, err := s.apiAccess.ClientAPIScopes(ctx, tx, id, clientModel.IsMetadataDocument())
-		if err != nil {
-			return nil, err
-		}
-
-		client.apiScopes = apiScopes
-		client.apiAudiences = apiAudiences
+	if clientModel.Disabled {
+		return nil, apperror.OidcClientDisabled()
 	}
 
+	client, err := s.clientFromModel(ctx, s.dbFor(ctx), clientModel)
+	if err != nil {
+		return nil, err
+	}
 	return client, nil
 }
 
@@ -222,7 +213,12 @@ func (s *Store) StoreCIMDClient(ctx context.Context, resolved fosite.Client, _ *
 		}
 
 		// Reload inside the transaction so DB-managed columns and preloads are populated consistently
-		stored, err = s.GetClient(ctx, client.ID)
+		// This bypasses GetClient so an admin can still refresh the metadata of a disabled client
+		storedModel, err := s.firstClientByID(ctx, client.ID)
+		if err != nil {
+			return err
+		}
+		stored, err = s.clientFromModel(ctx, s.dbFor(ctx), storedModel)
 		return err
 	})
 	if err != nil {
@@ -436,7 +432,7 @@ func (s *Store) RevokeAccessToken(ctx context.Context, requestID string) error {
 }
 
 func (s *Store) RevokeSessionsByIDTokenHint(ctx context.Context, userID, clientID, idTokenJTI string) error {
-	_, jtiMatches, err := s.findRefreshTokenRequestIDsForUserClient(ctx, userID, clientID, idTokenJTI)
+	_, jtiMatches, err := s.findTokenRequestIDsForUserClient(ctx, userID, clientID, idTokenJTI)
 	if err != nil {
 		return err
 	}
@@ -446,20 +442,21 @@ func (s *Store) RevokeSessionsByIDTokenHint(ctx context.Context, userID, clientI
 
 func RevokeUserClientSessions(ctx context.Context, db *gorm.DB, userID, clientID string) error {
 	s := NewStore(db, nil)
-	requestIDs, _, err := s.findRefreshTokenRequestIDsForUserClient(ctx, userID, clientID, "")
+	requestIDs, _, err := s.findTokenRequestIDsForUserClient(ctx, userID, clientID, "")
 	if err != nil {
 		return err
 	}
 	return s.revokeRequestIDs(ctx, requestIDs)
 }
 
-// findRefreshTokenRequestIDsForUserClient returns request IDs for usable refresh-token sessions belonging to the user and client, plus the subset matching the optional ID token JTI
-func (s *Store) findRefreshTokenRequestIDsForUserClient(ctx context.Context, userID, clientID, idTokenJTI string) (candidates []string, jtiMatches []string, err error) {
+// findTokenRequestIDsForUserClient returns request IDs for usable token sessions belonging to the user and client, plus the subset matching the optional ID token JTI
+// Access token sessions are searched as well because clients without the refresh_token grant never get a refresh token session
+func (s *Store) findTokenRequestIDsForUserClient(ctx context.Context, userID, clientID, idTokenJTI string) (candidates []string, jtiMatches []string, err error) {
 	var sessions []OAuth2Session
 	query := s.dbFor(ctx).
 		Select("request_id", "request_data").
-		Where("kind = ? AND client_id = ?", sessionKindRefreshToken, clientID).
-		Where("active = ? OR rotated_at > ?", true, datatype.DateTime(time.Now().UTC().Add(-refreshTokenGracePeriod)))
+		Where("client_id = ?", clientID).
+		Where("kind = ? OR (kind = ? AND (active = ? OR rotated_at > ?))", sessionKindAccessToken, sessionKindRefreshToken, true, datatype.DateTime(time.Now().UTC().Add(-refreshTokenGracePeriod)))
 
 	// Filter by the user ID stored in the JSON request data
 	switch query.Name() {

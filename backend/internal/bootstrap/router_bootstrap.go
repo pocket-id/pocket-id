@@ -27,6 +27,7 @@ import (
 	"github.com/pocket-id/pocket-id/backend/internal/authz"
 	"github.com/pocket-id/pocket-id/backend/internal/common"
 	"github.com/pocket-id/pocket-id/backend/internal/controller"
+	"github.com/pocket-id/pocket-id/backend/internal/mcp"
 	"github.com/pocket-id/pocket-id/backend/internal/middleware"
 	"github.com/pocket-id/pocket-id/backend/internal/tracing"
 	"github.com/pocket-id/pocket-id/backend/internal/utils/systemd"
@@ -111,14 +112,15 @@ func configureEngine(r *gin.Engine) error {
 }
 
 // shouldTraceRequest reports whether an incoming request should be traced.
-// It traces only requests handled by real backend routes (the API, the OIDC/OAuth endpoints, and the well-known documents).
+// It traces only requests handled by real backend routes (the API, the OIDC/OAuth endpoints, the MCP endpoint, and the well-known documents).
 // Everything else falls through to the frontend NoRoute handler, which serves the SPA shell and static assets; tracing those would produce noisy, unparented spans named just "GET" with an empty http.route.
 func shouldTraceRequest(r *http.Request) bool {
 	p := r.URL.Path
 	switch {
 	case strings.HasPrefix(p, "/api/"),
 		strings.HasPrefix(p, "/.well-known/"),
-		p == "/authorize":
+		p == "/authorize",
+		p == authz.MCPPath:
 		return true
 	default:
 		return false
@@ -135,6 +137,16 @@ func registerGlobalMiddleware(r *gin.Engine) {
 	r.Use(middleware.NewCspMiddleware().Add())
 	r.Use(middleware.NewErrorHandlerMiddleware().Add())
 	r.Use(middleware.NewCrossOriginProtectionMiddleware(common.EnvConfig.AppURL).Add())
+}
+
+// registerTools collects the MCP tools of every package, the way registerRoutes collects their routes
+func registerTools(t *mcp.Tools, svc *services) {
+	svc.usersModule.RegisterTools(t)
+	svc.userGroupsModule.RegisterTools(t)
+	svc.oidcModule.RegisterTools(t)
+	svc.oneTimeAccessModule.RegisterTools(t)
+	svc.userSignUpModule.RegisterTools(t)
+	svc.auditLogsModule.RegisterTools(t)
 }
 
 func registerRoutes(r *gin.Engine, db *gorm.DB, svc *services, auth *authz.Middleware, rateLimitServices map[string]*ratelimit.RateLimitService) error {
@@ -191,6 +203,7 @@ func registerRoutes(r *gin.Engine, db *gorm.DB, svc *services, auth *authz.Middl
 	)
 	svc.emailVerificationModule.RegisterRoutes(apiRouter, rateLimitMiddleware.Add(middleware.RateLimitVerifyEmail))
 	svc.oidcModule.RegisterRoutes(baseRouter, apiRouter, fileSizeLimitMiddleware.Add(2<<20))
+	svc.mcpModule.RegisterRoutes(baseRouter)
 
 	registerTestRoutes(apiRouter, db, svc)
 
@@ -452,8 +465,22 @@ func enrichRequestLog(c *gin.Context, record *slog.Record) *slog.Record {
 			slog.String("span_id", spanContext.SpanID().String()),
 		)
 	}
+	// Query strings carry secrets such as ID token hints and email verification tokens, and the referer repeats them
+	// The signup and login code pages are the only paths that carry a token
 	record.Attrs(func(attr slog.Attr) bool {
-		enriched.AddAttrs(attr)
+		switch attr.Key {
+		case "path":
+			path := attr.Value.String()
+			for _, prefix := range []string{"/st/", "/lc/"} {
+				if strings.HasPrefix(path, prefix) {
+					path = prefix + ":token"
+				}
+			}
+			enriched.AddAttrs(slog.String("path", path))
+		case "query", "referer":
+		default:
+			enriched.AddAttrs(attr)
+		}
 		return true
 	})
 

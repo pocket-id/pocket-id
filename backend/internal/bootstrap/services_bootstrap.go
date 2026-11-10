@@ -25,6 +25,7 @@ import (
 	"github.com/pocket-id/pocket-id/backend/internal/iplocation"
 	"github.com/pocket-id/pocket-id/backend/internal/ldapsync"
 	"github.com/pocket-id/pocket-id/backend/internal/logopreset"
+	"github.com/pocket-id/pocket-id/backend/internal/mcp"
 	"github.com/pocket-id/pocket-id/backend/internal/middleware"
 	"github.com/pocket-id/pocket-id/backend/internal/oidc"
 	"github.com/pocket-id/pocket-id/backend/internal/onetimeaccess"
@@ -68,6 +69,7 @@ type services struct {
 	featureModule           *feature.Module
 	usersModule             *users.Module
 	userGroupsModule        *usergroups.Module
+	mcpModule               *mcp.Module
 	actors                  francishost.Host
 }
 
@@ -325,6 +327,10 @@ func initServices(
 	})
 
 	svc.featureModule = feature.New(feature.Dependencies{DB: db, AppConfig: svc.appConfigService})
+
+	tools := &mcp.Tools{}
+	registerTools(tools, svc)
+	svc.mcpModule = mcp.New(mcp.Dependencies{Tools: tools, HTTPClient: httpClient})
 
 	return svc, nil
 }

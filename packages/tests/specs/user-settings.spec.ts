@@ -341,3 +341,28 @@ test('Non-admin cannot use admin passkey endpoints', async ({ page }) => {
 	);
 	expect(deleteResponse.status()).toBe(403);
 });
+
+test('Reorder table columns in the column picker', async ({ page }) => {
+	await page.goto('/settings/admin/users');
+
+	const headerNames = async () =>
+		(await page.getByRole('columnheader').allInnerTexts()).map((t) => t.trim()).filter(Boolean);
+	await expect.poll(headerNames).toEqual(['User', 'Username', 'Role', 'Status']);
+
+	await page.getByRole('button', { name: 'Columns' }).click();
+	const grip = (name: string) => page.getByRole('button', { name: `Reorder ${name}` });
+
+	await grip('Status').press('ArrowUp');
+	await grip('Status').press('ArrowUp');
+	await expect.poll(headerNames).toEqual(['User', 'Status', 'Username', 'Role']);
+
+	await grip('Role').dragTo(grip('Status'));
+	await expect.poll(headerNames).toEqual(['User', 'Role', 'Status', 'Username']);
+
+	await page.reload();
+	await expect.poll(headerNames).toEqual(['User', 'Role', 'Status', 'Username']);
+
+	await page.getByRole('button', { name: 'Columns' }).click();
+	await page.getByRole('button', { name: 'Reset' }).click();
+	await expect.poll(headerNames).toEqual(['User', 'Username', 'Role', 'Status']);
+});

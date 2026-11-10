@@ -234,13 +234,8 @@ test('Authorize new client shows Pocket ID error when user group not allowed', a
 	await (await passkeyUtil.init(page)).addPasskey('craig');
 	await page.getByRole('button', { name: 'Sign in with passkey' }).click();
 
-	await expectScopes(page, ['Email', 'Profile']);
-
-	await page.getByRole('button', { name: /^Continue to / }).click();
-
-	await expect(page).toHaveURL(/\/interaction\/error\?error=/);
 	await expect(
-		page.getByRole('paragraph').filter({ hasText: 'You are not allowed to access this service.' })
+		page.getByRole('paragraph').filter({ hasText: "You're not allowed to access this service" })
 	).toBeVisible();
 });
 

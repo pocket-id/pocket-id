@@ -11,9 +11,19 @@ import (
 	"github.com/stretchr/testify/require"
 	"gorm.io/gorm"
 
+	"github.com/pocket-id/pocket-id/backend/internal/apperror"
 	"github.com/pocket-id/pocket-id/backend/internal/model"
 	testutils "github.com/pocket-id/pocket-id/backend/internal/utils/testing"
 )
+
+func TestStoreGetClientRefusesDisabledClient(t *testing.T) {
+	db := testutils.NewDatabaseForTest(t)
+	store := NewStore(db, nil)
+	require.NoError(t, db.Create(&model.OidcClient{Base: model.Base{ID: "disabled-client"}, Name: "Disabled", Disabled: true}).Error)
+
+	_, err := store.GetClient(t.Context(), "disabled-client")
+	require.True(t, apperror.IsCode(err, apperror.CodeOidcClientDisabled), "expected a disabled client error, got %v", err)
+}
 
 // TestStoreGetPARSessionIsSingleUse verifies that a pushed-authorization request_uri can be
 // consumed only once (RFC 9126 §4). The consumption (read + invalidate) must be atomic so
@@ -126,6 +136,8 @@ func TestStoreRevokeSessionsByIDTokenHintRevokesMatchingFositeSessions(t *testin
 	require.NoError(t, store.CreateAccessTokenSession(t.Context(), "same-client-different-access", newTestRequester("same-client-request", clientID, userID, otherIDTokenJTI)))
 	require.NoError(t, store.CreateRefreshTokenSession(t.Context(), "other-client-same-jti", "other-client-access", newTestRequester("other-client-request", otherClientID, userID, idTokenJTI)))
 	require.NoError(t, store.CreateAccessTokenSession(t.Context(), "other-client-access", newTestRequester("other-client-request", otherClientID, userID, idTokenJTI)))
+	require.NoError(t, store.CreateAccessTokenSession(t.Context(), "matching-access-only", newTestRequester("matching-access-only-request", clientID, userID, idTokenJTI)))
+	require.NoError(t, store.CreateAccessTokenSession(t.Context(), "other-access-only", newTestRequester("other-access-only-request", clientID, userID, otherIDTokenJTI)))
 
 	queryCount := 0
 	const queryCounterCallback = "test:count_session_revocation_queries"
@@ -157,6 +169,8 @@ func TestStoreRevokeSessionsByIDTokenHintRevokesMatchingFositeSessions(t *testin
 	assert.False(t, accessKeys["matching-access"])
 	assert.True(t, accessKeys["same-client-different-access"])
 	assert.True(t, accessKeys["other-client-access"])
+	assert.False(t, accessKeys["matching-access-only"])
+	assert.True(t, accessKeys["other-access-only"])
 }
 
 func TestStoreRevokeSessionsByIDTokenHintSkipsSessionsWithoutMatchingJTI(t *testing.T) {

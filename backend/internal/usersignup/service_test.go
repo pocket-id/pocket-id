@@ -55,9 +55,12 @@ func (fakeSessionCreator) Create(_ context.Context, _, _, _, _ string, _ time.Du
 	return "session-token", nil
 }
 
-type fakeAuditLogger struct{}
+type fakeAuditLogger struct {
+	data []auditlogs.Data
+}
 
-func (fakeAuditLogger) Create(_ context.Context, _ auditlogs.Event, _, _, _ string, _ auditlogs.Data, _ *gorm.DB) (auditlogs.AuditLog, bool) {
+func (f *fakeAuditLogger) Create(_ context.Context, _ auditlogs.Event, _, _, _ string, data auditlogs.Data, _ *gorm.DB) (auditlogs.AuditLog, bool) {
+	f.data = append(f.data, data)
 	return auditlogs.AuditLog{}, true
 }
 
@@ -68,7 +71,7 @@ func newSignupServiceForTest(t *testing.T, db *gorm.DB, userCreator UserCreator)
 		DB:          db,
 		UserCreator: userCreator,
 		Sessions:    fakeSessionCreator{},
-		AuditLog:    fakeAuditLogger{},
+		AuditLog:    &fakeAuditLogger{},
 	}, actorService)
 }
 
@@ -103,6 +106,24 @@ func TestSignUpConsumesTokenOnSuccess(t *testing.T) {
 
 	// The token's usage count must have been incremented and not rolled back
 	require.Equal(t, 1, signupTokenUsageCount(t, svc, token.ID))
+}
+
+func TestSignUpAuditsTokenIDInsteadOfValue(t *testing.T) {
+	db := testutils.NewDatabaseForTest(t)
+	svc := newSignupServiceForTest(t, db, fakeUserCreator{user: model.User{Base: model.Base{ID: "new-user"}}})
+	auditLog := &fakeAuditLogger{}
+	svc.auditLog = auditLog
+
+	token, err := svc.CreateSignupToken(t.Context(), time.Hour, 2, nil)
+	require.NoError(t, err)
+
+	_, _, err = svc.SignUp(t.Context(), appconfig.NewTestConfig(nil), signUpDto{
+		Username: "newuser",
+		Token:    token.Token,
+	}, "1.2.3.4", "test-agent")
+	require.NoError(t, err)
+
+	require.Equal(t, []auditlogs.Data{{"signupTokenID": token.ID}}, auditLog.data)
 }
 
 func TestSignUpCompensatesTokenOnFailure(t *testing.T) {

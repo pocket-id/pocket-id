@@ -132,17 +132,24 @@ func (h *handler) requestEmailAsAdmin(c *gin.Context) error {
 // @Summary Exchange one-time access token
 // @Description Exchange a one-time access token for a session token
 // @Tags Users
-// @Param token path string true "One-time access token"
+// @Accept json
+// @Param body body exchangeTokenDto true "One-time access token"
 // @Param remember query bool false "Set to false for a session that ends when the browser closes or after 20 minutes without activity" default(true)
 // @Success 200 {object} dto.UserDto
-// @Router /api/one-time-access-token/{token} [post]
+// @Router /api/one-time-access-token [post]
 func (h *handler) exchangeToken(c *gin.Context) error {
 	cfg, err := h.appConfig.GetConfig(c.Request.Context())
 	if err != nil {
 		return fmt.Errorf("error loading app configuration: %w", err)
 	}
 
-	loginCode := c.Param("token")
+	var input exchangeTokenDto
+	err = httpserver.BindJSON(c, &input)
+	if err != nil {
+		return err
+	}
+
+	loginCode := input.Token
 	// Reject values that cannot match either supported login code format
 	if len(loginCode) != shortTokenLength && len(loginCode) != longTokenLength {
 		return apperror.TokenInvalidOrExpired()

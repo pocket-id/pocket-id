@@ -161,6 +161,18 @@ func ResourceURI(appURL string) string {
 	return appURL + "/api"
 }
 
+const (
+	MCPPath = "/mcp"
+	// MCPResourceMetadataPath is where the RFC 9728 protected resource metadata of the MCP endpoint is served, which RFC 9728 derives by inserting the well-known prefix before the endpoint's path
+	MCPResourceMetadataPath = "/.well-known/oauth-protected-resource" + MCPPath
+)
+
+// MCPResourceURI returns the RFC 8707 resource identifier of Pocket ID's MCP endpoint, which MCP clients request access tokens for
+// The endpoint is part of Pocket ID's own API, so a token requested for it is issued for ResourceURI
+func MCPResourceURI(appURL string) string {
+	return appURL + MCPPath
+}
+
 // UserScopes returns the scopes a user holds when authenticated with a credential of the given kind
 // The admin flag stands in for roles: admins hold every scope and other users hold the account scopes
 func UserScopes(isAdmin bool, kind PrincipalKind) ScopeSet {

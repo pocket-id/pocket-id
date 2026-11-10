@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"gorm.io/gorm"
+	"gorm.io/gorm/clause"
 
 	"github.com/pocket-id/pocket-id/backend/internal/appconfig"
 	"github.com/pocket-id/pocket-id/backend/internal/apperror"
@@ -234,21 +235,36 @@ func (s *Service) updateInternal(ctx context.Context, id string, input dto.UserG
 	return group, nil
 }
 
-func (s *Service) UpdateUsers(ctx context.Context, id string, userIds []string) (group model.UserGroup, err error) {
+func (s *Service) UpdateUsers(ctx context.Context, id string, userIds []string) (model.UserGroup, error) {
+	return s.ChangeUsers(ctx, id, func([]string) []string { return userIds })
+}
+
+// ChangeUsers applies a change to the current members of a group in the transaction that saves them, so concurrent changes can't undo each other
+func (s *Service) ChangeUsers(ctx context.Context, id string, change func(memberIDs []string) []string) (group model.UserGroup, err error) {
 	tx := s.db.Begin()
 	defer func() {
 		tx.Rollback()
 	}()
 
-	// Capture the previous members to work out who is removed from the group by this update
-	// Notifications are best effort and must never block the update itself
-	var previousMemberIDs []string
-	if s.backchannelLogout != nil {
-		previousMemberIDs, err = s.memberIDs(ctx, tx, id)
-		if err != nil {
-			slog.ErrorContext(ctx, "Failed to find group members to notify for back-channel logout", slog.String("groupId", id), slog.Any("error", err))
-		}
+	// Lock the group so concurrent member changes on Postgres wait for each other instead of starting from the same members
+	// SQLite needs no lock, because its transactions start as immediate and already run one after the other
+	err = tx.
+		WithContext(ctx).
+		Clauses(clause.Locking{Strength: "UPDATE"}).
+		Select("id").
+		First(&model.UserGroup{}, "id = ?", id).
+		Error
+	if errors.Is(err, gorm.ErrRecordNotFound) {
+		return model.UserGroup{}, apperror.NotFound("User group")
+	} else if err != nil {
+		return model.UserGroup{}, err
 	}
+
+	previousMemberIDs, err := s.memberIDs(ctx, tx, id)
+	if err != nil {
+		return model.UserGroup{}, err
+	}
+	userIds := change(slices.Clone(previousMemberIDs))
 
 	group, err = s.updateUsersInternal(ctx, id, userIds, tx)
 	if err != nil {

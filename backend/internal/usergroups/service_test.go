@@ -1,12 +1,17 @@
 package usergroups
 
 import (
+	"strconv"
+	"sync"
 	"testing"
 
+	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"gorm.io/gorm"
 
 	"github.com/pocket-id/pocket-id/backend/internal/apperror"
 	"github.com/pocket-id/pocket-id/backend/internal/dto"
+	"github.com/pocket-id/pocket-id/backend/internal/model"
 	"github.com/pocket-id/pocket-id/backend/internal/utils"
 	testutils "github.com/pocket-id/pocket-id/backend/internal/utils/testing"
 )
@@ -48,4 +53,34 @@ func TestUserGroupListSearchMatchesFriendlyName(t *testing.T) {
 	groups, _, err = groupService.List(t.Context(), "Design", utils.ListRequestOptions{})
 	require.NoError(t, err)
 	require.Empty(t, groups)
+}
+
+func TestChangeUsersKeepsConcurrentChanges(t *testing.T) {
+	testutils.ForEachDatabase(t, func(t *testing.T, db *gorm.DB) {
+		groupService := newService(db, nil, nil)
+		group, err := groupService.Create(t.Context(), dto.UserGroupCreateDto{Name: "family", FriendlyName: "Family"})
+		require.NoError(t, err)
+
+		userIDs := make([]string, 10)
+		for i := range userIDs {
+			user := model.User{Username: "user" + strconv.Itoa(i)}
+			require.NoError(t, db.Create(&user).Error)
+			userIDs[i] = user.ID
+		}
+
+		var wg sync.WaitGroup
+		for _, userID := range userIDs {
+			wg.Go(func() {
+				_, err := groupService.ChangeUsers(t.Context(), group.ID, func(memberIDs []string) []string {
+					return append(memberIDs, userID)
+				})
+				assert.NoError(t, err)
+			})
+		}
+		wg.Wait()
+
+		memberIDs, err := groupService.memberIDs(t.Context(), db, group.ID)
+		require.NoError(t, err)
+		require.ElementsMatch(t, userIDs, memberIDs)
+	})
 }

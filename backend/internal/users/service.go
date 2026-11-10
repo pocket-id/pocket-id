@@ -471,7 +471,7 @@ func (s *Service) applyDefaultCustomClaims(ctx context.Context, user *model.User
 			return fmt.Errorf("invalid SignupDefaultCustomClaims JSON: %w", err)
 		}
 		if len(claims) > 0 {
-			_, err = s.customClaims.UpdateCustomClaimsForUserInternal(ctx, user.ID, claims, tx)
+			user.CustomClaims, err = s.customClaims.UpdateCustomClaimsForUserInternal(ctx, user.ID, claims, tx)
 			if err != nil {
 				return fmt.Errorf("failed to apply default custom claims: %w", err)
 			}
