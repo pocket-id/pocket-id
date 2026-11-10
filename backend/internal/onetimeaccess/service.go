@@ -55,16 +55,16 @@ func newService(deps Dependencies, actorService *actor.Service) *Service {
 	}
 }
 
-func (s *Service) RequestOneTimeAccessEmailAsAdmin(ctx context.Context, dbConfig *appconfig.AppConfigModel, userID string, ttl time.Duration) error {
+func (s *Service) RequestOneTimeAccessEmailAsAdmin(ctx context.Context, dbConfig *appconfig.AppConfigModel, userID string, ttl time.Duration, origin auditlogs.Origin) error {
 	if !dbConfig.EmailOneTimeAccessAsAdminEnabled.IsTrue() {
 		return apperror.OneTimeAccessDisabled()
 	}
 
-	_, err := s.requestOneTimeAccessEmailInternal(ctx, userID, "", ttl, false, dbConfig)
+	_, err := s.requestOneTimeAccessEmailInternal(ctx, userID, "", ttl, false, dbConfig, origin)
 	return err
 }
 
-func (s *Service) RequestOneTimeAccessEmailAsUnauthenticatedUser(ctx context.Context, dbConfig *appconfig.AppConfigModel, email, redirectPath string) (string, error) {
+func (s *Service) RequestOneTimeAccessEmailAsUnauthenticatedUser(ctx context.Context, dbConfig *appconfig.AppConfigModel, email, redirectPath string, origin auditlogs.Origin) (string, error) {
 	if !dbConfig.EmailOneTimeAccessAsUnauthenticatedEnabled.IsTrue() {
 		return "", apperror.OneTimeAccessDisabled()
 	}
@@ -78,7 +78,7 @@ func (s *Service) RequestOneTimeAccessEmailAsUnauthenticatedUser(ctx context.Con
 		return "", err
 	}
 
-	deviceToken, err := s.requestOneTimeAccessEmailInternal(ctx, userId, redirectPath, 15*time.Minute, true, dbConfig)
+	deviceToken, err := s.requestOneTimeAccessEmailInternal(ctx, userId, redirectPath, 15*time.Minute, true, dbConfig, origin)
 	if err != nil {
 		return "", err
 	} else if deviceToken == nil {
@@ -88,7 +88,7 @@ func (s *Service) RequestOneTimeAccessEmailAsUnauthenticatedUser(ctx context.Con
 	return *deviceToken, nil
 }
 
-func (s *Service) requestOneTimeAccessEmailInternal(ctx context.Context, userID, redirectPath string, ttl time.Duration, withDeviceToken bool, dbConfig *appconfig.AppConfigModel) (*string, error) {
+func (s *Service) requestOneTimeAccessEmailInternal(ctx context.Context, userID, redirectPath string, ttl time.Duration, withDeviceToken bool, dbConfig *appconfig.AppConfigModel, origin auditlogs.Origin) (*string, error) {
 	// Load the user to ensure it exists and has an email address
 	user, err := s.userProvider.GetUser(ctx, userID)
 	if err != nil {
@@ -103,6 +103,7 @@ func (s *Service) requestOneTimeAccessEmailInternal(ctx context.Context, userID,
 	if err != nil {
 		return nil, err
 	}
+	s.auditLog.Record(ctx, auditlogs.EventLoginCodeCreated, origin, user.ID, auditlogs.Data{"delivery": "email"}, nil)
 
 	go func() {
 		// This runs in background, so use a context without cancellation (or it would be stopped when the request ends)
@@ -137,7 +138,7 @@ func (s *Service) requestOneTimeAccessEmailInternal(ctx context.Context, userID,
 	return deviceToken, nil
 }
 
-func (s *Service) CreateToken(ctx context.Context, userID string, ttl time.Duration) (token string, err error) {
+func (s *Service) CreateToken(ctx context.Context, userID string, ttl time.Duration, origin auditlogs.Origin) (token string, err error) {
 	// Load the user to ensure it exists
 	_, err = s.userProvider.GetUser(ctx, userID)
 	if errors.Is(err, gorm.ErrRecordNotFound) {
@@ -150,6 +151,7 @@ func (s *Service) CreateToken(ctx context.Context, userID string, ttl time.Durat
 	if err != nil {
 		return "", err
 	}
+	s.auditLog.Record(ctx, auditlogs.EventLoginCodeCreated, origin, userID, auditlogs.Data{"delivery": "link"}, nil)
 
 	return token, nil
 }

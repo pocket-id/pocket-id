@@ -9,9 +9,14 @@ import (
 	"gorm.io/gorm"
 
 	"github.com/pocket-id/pocket-id/backend/internal/appconfig"
+	"github.com/pocket-id/pocket-id/backend/internal/auditlogs"
 	"github.com/pocket-id/pocket-id/backend/internal/authz"
 	"github.com/pocket-id/pocket-id/backend/internal/httpserver"
 )
+
+type AuditLogger interface {
+	Record(ctx context.Context, event auditlogs.Event, origin auditlogs.Origin, userID string, data auditlogs.Data, tx *gorm.DB)
+}
 
 type Dependencies struct {
 	DB     *gorm.DB
@@ -22,6 +27,7 @@ type Dependencies struct {
 	// SendLimiter is nil when rate limiting is disabled
 	SendLimiter SendLimiter
 	AppConfig   appconfig.AppConfigResolver
+	AuditLog    AuditLogger
 	AppURL      string
 }
 
@@ -36,7 +42,7 @@ func New(deps Dependencies) (*Module, error) {
 		return nil, fmt.Errorf("error registering the %s actor: %w", ActorType, err)
 	}
 
-	service := newService(deps.DB, deps.Actors.Service(), deps.EmailSender, deps.ScimSync, deps.SendLimiter, deps.AppURL)
+	service := newService(deps.DB, deps.Actors.Service(), deps.EmailSender, deps.ScimSync, deps.SendLimiter, deps.AuditLog, deps.AppURL)
 	return &Module{
 		service: service,
 		handler: newHandler(service, deps.AppConfig),

@@ -1,16 +1,20 @@
 package oidc
 
 import (
+	"bytes"
 	"cmp"
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"io"
 	"log/slog"
+	"maps"
 	"mime/multipart"
 	"net/http"
 	"net/url"
 	"path"
+	"reflect"
 	"slices"
 	"strings"
 	"time"
@@ -20,6 +24,7 @@ import (
 	"gorm.io/gorm/clause"
 
 	"github.com/pocket-id/pocket-id/backend/internal/apperror"
+	"github.com/pocket-id/pocket-id/backend/internal/auditlogs"
 	"github.com/pocket-id/pocket-id/backend/internal/backchannellogout"
 	"github.com/pocket-id/pocket-id/backend/internal/claimmappingpolicy"
 	"github.com/pocket-id/pocket-id/backend/internal/dto"
@@ -39,18 +44,20 @@ type clientService struct {
 	cimdResolver      *cimdClientResolver
 	scimSyncScheduler ScimSyncScheduler
 	backchannelLogout *backchannellogout.Service
+	auditLog          AuditLogger
 
 	httpClient  *http.Client
 	fileStorage storage.FileStorage
 }
 
-func newClientService(db *gorm.DB, previewBuilder *ClientPreviewBuilder, cimdResolver *cimdClientResolver, scimSyncScheduler ScimSyncScheduler, backchannelLogout *backchannellogout.Service, httpClient *http.Client, fileStorage storage.FileStorage) *clientService {
+func newClientService(db *gorm.DB, previewBuilder *ClientPreviewBuilder, cimdResolver *cimdClientResolver, scimSyncScheduler ScimSyncScheduler, backchannelLogout *backchannellogout.Service, auditLog AuditLogger, httpClient *http.Client, fileStorage storage.FileStorage) *clientService {
 	return &clientService{
 		db:                db,
 		previewBuilder:    previewBuilder,
 		cimdResolver:      cimdResolver,
 		scimSyncScheduler: scimSyncScheduler,
 		backchannelLogout: backchannelLogout,
+		auditLog:          auditLog,
 		httpClient:        httpClient,
 		fileStorage:       fileStorage,
 	}
@@ -120,13 +127,14 @@ func (s *clientService) ListClients(ctx context.Context, name string, listReques
 	return clients, response, err
 }
 
-// CreateClient creates a client on behalf of userID, which is empty when a client acting as itself creates it
-func (s *clientService) CreateClient(ctx context.Context, input dto.OidcClientCreateDto, userID string, autoCreateSecret bool) (model.OidcClient, string, error) {
+func (s *clientService) CreateClient(ctx context.Context, input dto.OidcClientCreateDto, origin auditlogs.Origin, autoCreateSecret bool) (model.OidcClient, string, error) {
 	client := model.OidcClient{
 		Base: model.Base{
 			ID: input.ID,
 		},
 	}
+	// A client acting as itself has no user to name as the creator
+	userID := origin.Principal.UserID
 	if userID != "" {
 		client.CreatedByID = &userID
 	}
@@ -161,6 +169,10 @@ func (s *clientService) CreateClient(ctx context.Context, input dto.OidcClientCr
 		}
 		return model.OidcClient{}, "", err
 	}
+	s.auditLog.Record(ctx, auditlogs.EventClientCreated, origin, "", auditlogs.Data{"clientName": client.Name}, nil)
+	if createdSecret != "" {
+		s.auditLog.Record(ctx, auditlogs.EventClientSecretCreated, origin, "", auditlogs.Data{"clientName": client.Name}, nil)
+	}
 
 	// All storage operations must be executed outside of a transaction
 	if input.LogoURL != nil {
@@ -180,7 +192,7 @@ func (s *clientService) CreateClient(ctx context.Context, input dto.OidcClientCr
 	return client, createdSecret, nil
 }
 
-func (s *clientService) UpdateClient(ctx context.Context, clientID string, input dto.OidcClientUpdateDto) (model.OidcClient, error) {
+func (s *clientService) UpdateClient(ctx context.Context, clientID string, input dto.OidcClientUpdateDto, origin auditlogs.Origin) (model.OidcClient, error) {
 	tx := s.db.Begin()
 	defer func() {
 		tx.Rollback()
@@ -190,8 +202,7 @@ func (s *clientService) UpdateClient(ctx context.Context, clientID string, input
 	if err != nil {
 		return model.OidcClient{}, err
 	}
-	wasGroupRestricted := client.IsGroupRestricted
-	wasDisabled := client.Disabled
+	before := client
 
 	err = updateOIDCClientModelFromDto(&client, &input)
 	if err != nil {
@@ -234,10 +245,13 @@ func (s *clientService) UpdateClient(ctx context.Context, clientID string, input
 	if err != nil {
 		return model.OidcClient{}, err
 	}
+	if changes := clientChanges(before, client); changes != "" {
+		s.auditLog.Record(ctx, auditlogs.EventClientUpdated, origin, "", auditlogs.Data{"clientName": client.Name, "changes": changes}, tx)
+	}
 
 	// Disabling the client keeps its users signed in there, so resolve the logout notifications to deliver once the change is committed
 	notifyLogout := func() {}
-	if s.backchannelLogout != nil && !wasDisabled && client.Disabled {
+	if s.backchannelLogout != nil && !before.Disabled && client.Disabled {
 		var prepareErr error
 		notifyLogout, prepareErr = s.backchannelLogout.PrepareClientNotifications(ctx, tx, client.ID)
 		if prepareErr != nil {
@@ -254,7 +268,7 @@ func (s *clientService) UpdateClient(ctx context.Context, clientID string, input
 	notifyLogout()
 
 	// Turning on the group restriction revokes access for every authorized user until groups are assigned, so tell their clients to end the sessions
-	if s.backchannelLogout != nil && !wasGroupRestricted && client.IsGroupRestricted {
+	if s.backchannelLogout != nil && !before.IsGroupRestricted && client.IsGroupRestricted {
 		s.backchannelLogout.NotifyLostGroupAccess(ctx, nil, client.ID)
 	}
 
@@ -274,6 +288,44 @@ func (s *clientService) UpdateClient(ctx context.Context, clientID string, input
 	}
 
 	return client, nil
+}
+
+// clientChanges names the settings an update changed, so the audit log shows what was touched
+func clientChanges(before, after model.OidcClient) string {
+	changed := map[string]bool{
+		"name":                                before.Name != after.Name,
+		"description":                         before.Description != after.Description,
+		"callbackURLs":                        !slices.Equal(before.CallbackURLs, after.CallbackURLs),
+		"logoutCallbackURLs":                  !slices.Equal(before.LogoutCallbackURLs, after.LogoutCallbackURLs),
+		"backchannelLogoutURL":                before.BackchannelLogoutURL != after.BackchannelLogoutURL,
+		"launchURL":                           !reflect.DeepEqual(before.LaunchURL, after.LaunchURL),
+		"isPublic":                            before.IsPublic != after.IsPublic,
+		"pkceEnabled":                         before.PkceEnabled != after.PkceEnabled,
+		"requiresReauthentication":            before.RequiresReauthentication != after.RequiresReauthentication,
+		"requiresPushedAuthorizationRequests": before.RequiresPushedAuthorizationRequests != after.RequiresPushedAuthorizationRequests,
+		"skipConsent":                         before.SkipConsent != after.SkipConsent,
+		"disabled":                            before.Disabled != after.Disabled,
+		"isGroupRestricted":                   before.IsGroupRestricted != after.IsGroupRestricted,
+		"accessTokenDurationMinutes":          before.AccessTokenDurationMinutes != after.AccessTokenDurationMinutes,
+		"refreshTokenDurationMinutes":         before.RefreshTokenDurationMinutes != after.RefreshTokenDurationMinutes,
+		"claimMappingPolicyId":                !reflect.DeepEqual(before.ClaimMappingPolicyId, after.ClaimMappingPolicyId),
+		"federatedIdentities":                 federatedIdentitiesChanged(before, after),
+	}
+
+	var names []string
+	for _, name := range slices.Sorted(maps.Keys(changed)) {
+		if changed[name] {
+			names = append(names, name)
+		}
+	}
+	return strings.Join(names, ", ")
+}
+
+// federatedIdentitiesChanged compares the identities the way they are stored, where an empty list and a missing one are the same
+func federatedIdentitiesChanged(before, after model.OidcClient) bool {
+	beforeJSON, beforeErr := json.Marshal(model.OidcClientCredentials{FederatedIdentities: before.Credentials.FederatedIdentities})
+	afterJSON, afterErr := json.Marshal(model.OidcClientCredentials{FederatedIdentities: after.Credentials.FederatedIdentities})
+	return beforeErr != nil || afterErr != nil || !bytes.Equal(beforeJSON, afterJSON)
 }
 
 // checkClaimMappingPolicyExists reports an unknown policy as not found, instead of letting the insert fail on the foreign key
@@ -358,7 +410,7 @@ func updateOIDCClientModelFromDto(client *model.OidcClient, input *dto.OidcClien
 	return nil
 }
 
-func (s *clientService) DeleteClient(ctx context.Context, clientID string) error {
+func (s *clientService) DeleteClient(ctx context.Context, clientID string, origin auditlogs.Origin) error {
 	tx := s.db.Begin()
 	defer func() {
 		tx.Rollback()
@@ -387,6 +439,7 @@ func (s *clientService) DeleteClient(ctx context.Context, clientID string) error
 	if result.RowsAffected == 0 {
 		return apperror.NotFound("OIDC client")
 	}
+	s.auditLog.Record(ctx, auditlogs.EventClientDeleted, origin, "", auditlogs.Data{"clientName": client.Name}, tx)
 
 	err := tx.Commit().Error
 	if err != nil {
@@ -421,7 +474,7 @@ func (s *clientService) ListClientSecrets(ctx context.Context, clientID string) 
 }
 
 // CreateClientSecret adds a new secret to a client and returns both the stored record and the secret's value, which is not recoverable afterwards
-func (s *clientService) CreateClientSecret(ctx context.Context, clientID string, input dto.OidcClientSecretCreateDto) (model.OidcClientSecret, string, error) {
+func (s *clientService) CreateClientSecret(ctx context.Context, clientID string, input dto.OidcClientSecretCreateDto, origin auditlogs.Origin) (model.OidcClientSecret, string, error) {
 	// An expiration date in the past would create a secret that can never be used
 	if input.ExpiresAt != nil && !input.ExpiresAt.ToTime().After(time.Now()) {
 		return model.OidcClientSecret{}, "", apperror.ValidationMessage("The expiration date of a client secret must be in the future")
@@ -460,6 +513,7 @@ func (s *clientService) CreateClientSecret(ctx context.Context, clientID string,
 	if err != nil {
 		return model.OidcClientSecret{}, "", fmt.Errorf("failed to update OIDC client: %w", err)
 	}
+	s.auditLog.Record(ctx, auditlogs.EventClientSecretCreated, origin, "", auditlogs.Data{"clientName": client.Name}, tx)
 
 	err = tx.Commit().Error
 	if err != nil {
@@ -492,7 +546,7 @@ func newOIDCClientSecret(input dto.OidcClientSecretCreateDto) (model.OidcClientS
 }
 
 // DeleteClientSecret removes a single secret from a client, making it immediately unusable
-func (s *clientService) DeleteClientSecret(ctx context.Context, clientID string, secretID string) error {
+func (s *clientService) DeleteClientSecret(ctx context.Context, clientID string, secretID string, origin auditlogs.Origin) error {
 	tx := s.db.Begin()
 	defer func() {
 		tx.Rollback()
@@ -520,6 +574,7 @@ func (s *clientService) DeleteClientSecret(ctx context.Context, clientID string,
 	if err != nil {
 		return fmt.Errorf("failed to update OIDC client: %w", err)
 	}
+	s.auditLog.Record(ctx, auditlogs.EventClientSecretDeleted, origin, "", auditlogs.Data{"clientName": client.Name}, tx)
 
 	err = tx.Commit().Error
 	if err != nil {
@@ -674,7 +729,7 @@ func (s *clientService) deleteClientLogoInternal(ctx context.Context, clientID s
 	return nil
 }
 
-func (s *clientService) UpdateAllowedUserGroups(ctx context.Context, id string, input dto.OidcUpdateAllowedUserGroupsDto) (client model.OidcClient, err error) {
+func (s *clientService) UpdateAllowedUserGroups(ctx context.Context, id string, input dto.OidcUpdateAllowedUserGroupsDto, origin auditlogs.Origin) (client model.OidcClient, err error) {
 	tx := s.db.Begin()
 	defer func() {
 		tx.Rollback()
@@ -699,6 +754,7 @@ func (s *clientService) UpdateAllowedUserGroups(ctx context.Context, id string, 
 	}
 
 	// Replace the current user groups with the new set of user groups
+	previousGroups := client.AllowedUserGroups
 	err = tx.
 		WithContext(ctx).
 		Model(&client).
@@ -706,6 +762,14 @@ func (s *clientService) UpdateAllowedUserGroups(ctx context.Context, id string, 
 		Replace(groups)
 	if err != nil {
 		return model.OidcClient{}, err
+	}
+
+	added, removed := utils.Changes(previousGroups, groups, func(group model.UserGroup) string { return group.ID })
+	for _, group := range added {
+		s.auditLog.Record(ctx, auditlogs.EventClientGroupAdded, origin, "", auditlogs.Data{"clientName": client.Name, "groupName": group.FriendlyName}, tx)
+	}
+	for _, group := range removed {
+		s.auditLog.Record(ctx, auditlogs.EventClientGroupRemoved, origin, "", auditlogs.Data{"clientName": client.Name, "groupName": group.FriendlyName}, tx)
 	}
 
 	// Save the updated client
@@ -785,7 +849,7 @@ func (s *clientService) ListAuthorizedClients(ctx context.Context, userID string
 	return authorizedClients, response, err
 }
 
-func (s *clientService) RevokeAuthorizedClient(ctx context.Context, userID string, clientID string) error {
+func (s *clientService) RevokeAuthorizedClient(ctx context.Context, userID string, clientID string, origin auditlogs.Origin) error {
 	tx := s.db.Begin()
 	defer func() {
 		tx.Rollback()
@@ -794,6 +858,7 @@ func (s *clientService) RevokeAuthorizedClient(ctx context.Context, userID strin
 	var authorizedClient model.UserAuthorizedOidcClient
 	err := tx.
 		WithContext(ctx).
+		Preload("Client").
 		Where("user_id = ? AND client_id = ?", userID, clientID).
 		First(&authorizedClient).Error
 	if errors.Is(err, gorm.ErrRecordNotFound) {
@@ -821,6 +886,7 @@ func (s *clientService) RevokeAuthorizedClient(ctx context.Context, userID strin
 	if err = RevokeUserClientSessions(ctx, tx, userID, clientID); err != nil {
 		return err
 	}
+	s.auditLog.Record(ctx, auditlogs.EventClientAuthorizationRevoked, origin, userID, auditlogs.Data{"clientName": authorizedClient.Client.Name}, tx)
 
 	err = tx.Commit().Error
 	if err != nil {

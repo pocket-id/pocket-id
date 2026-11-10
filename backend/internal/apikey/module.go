@@ -9,9 +9,14 @@ import (
 	"gorm.io/gorm"
 
 	"github.com/pocket-id/pocket-id/backend/internal/appconfig"
+	"github.com/pocket-id/pocket-id/backend/internal/auditlogs"
 	"github.com/pocket-id/pocket-id/backend/internal/authz"
 	"github.com/pocket-id/pocket-id/backend/internal/httpserver"
 )
+
+type AuditLogger interface {
+	Record(ctx context.Context, event auditlogs.Event, origin auditlogs.Origin, userID string, data auditlogs.Data, tx *gorm.DB)
+}
 
 type Dependencies struct {
 	DB              *gorm.DB
@@ -19,6 +24,7 @@ type Dependencies struct {
 	StaticApiKey    string
 	AppConfig       appconfig.AppConfigResolver
 	EmailSender     APIKeyExpiryEmailSender
+	AuditLog        AuditLogger
 	CleanupDisabled bool
 }
 
@@ -28,7 +34,7 @@ type Module struct {
 }
 
 func New(ctx context.Context, deps Dependencies) (*Module, error) {
-	service, err := newService(ctx, deps.DB, deps.StaticApiKey)
+	service, err := newService(ctx, deps.DB, deps.StaticApiKey, deps.AuditLog)
 	if err != nil {
 		return nil, err
 	}

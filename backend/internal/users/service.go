@@ -19,6 +19,7 @@ import (
 
 	"github.com/pocket-id/pocket-id/backend/internal/appconfig"
 	"github.com/pocket-id/pocket-id/backend/internal/apperror"
+	"github.com/pocket-id/pocket-id/backend/internal/auditlogs"
 	"github.com/pocket-id/pocket-id/backend/internal/backchannellogout"
 	"github.com/pocket-id/pocket-id/backend/internal/dto"
 	"github.com/pocket-id/pocket-id/backend/internal/emailverification"
@@ -37,6 +38,7 @@ type Service struct {
 	backchannelLogout *backchannellogout.Service
 	fileStorage       storage.FileStorage
 	emailVerification EmailVerificationSender
+	auditLog          AuditLogger
 }
 
 // ownEmailChange records how a user's change of their own email is handled once the update is committed
@@ -56,6 +58,7 @@ func newService(deps Dependencies) *Service {
 		backchannelLogout: deps.BackchannelLogout,
 		fileStorage:       deps.FileStorage,
 		emailVerification: deps.EmailVerification,
+		auditLog:          deps.AuditLog,
 	}
 }
 
@@ -207,7 +210,7 @@ func (s *Service) UpdateProfilePicture(ctx context.Context, userID string, file 
 	return nil
 }
 
-func (s *Service) DeleteUser(ctx context.Context, dbConfig *appconfig.AppConfigModel, userID string, allowLdapDelete bool) error {
+func (s *Service) DeleteUser(ctx context.Context, dbConfig *appconfig.AppConfigModel, userID string, allowLdapDelete bool, origin auditlogs.Origin) error {
 	// The user's authorizations are gone after the delete, so the clients to notify must be resolved inside the transaction
 	notifyLogout := func() {}
 	err := s.db.Transaction(func(tx *gorm.DB) error {
@@ -220,7 +223,7 @@ func (s *Service) DeleteUser(ctx context.Context, dbConfig *appconfig.AppConfigM
 			}
 		}
 
-		return s.deleteUserInternal(ctx, dbConfig, tx, userID, allowLdapDelete)
+		return s.deleteUserInternal(ctx, dbConfig, tx, userID, allowLdapDelete, origin)
 	})
 	if err != nil {
 		return fmt.Errorf("failed to delete user '%s': %w", userID, err)
@@ -242,7 +245,7 @@ func (s *Service) DeleteUser(ctx context.Context, dbConfig *appconfig.AppConfigM
 
 // deleteUserInternal deletes a user within an existing transaction
 // Note that the caller is responsible for removing the user's profile picture from the storage layer, which must happen outside of the transaction
-func (s *Service) deleteUserInternal(ctx context.Context, cfg *appconfig.AppConfigModel, tx *gorm.DB, userID string, allowLdapDelete bool) error {
+func (s *Service) deleteUserInternal(ctx context.Context, cfg *appconfig.AppConfigModel, tx *gorm.DB, userID string, allowLdapDelete bool, origin auditlogs.Origin) error {
 	var user model.User
 	err := tx.
 		WithContext(ctx).
@@ -276,6 +279,13 @@ func (s *Service) deleteUserInternal(ctx context.Context, cfg *appconfig.AppConf
 		return fmt.Errorf("failed to load user groups of user to delete: %w", err)
 	}
 
+	// Record the deletion first, so the username is kept on this entry as well
+	s.auditLog.Record(ctx, auditlogs.EventAccountDeleted, origin, userID, nil, tx)
+	err = s.auditLog.KeepUsername(ctx, userID, user.Username, tx)
+	if err != nil {
+		return fmt.Errorf("failed to keep the username in the audit log: %w", err)
+	}
+
 	err = tx.WithContext(ctx).Delete(&user).Error
 	if err != nil {
 		return fmt.Errorf("failed to delete user: %w", err)
@@ -290,7 +300,7 @@ func (s *Service) deleteUserInternal(ctx context.Context, cfg *appconfig.AppConf
 	return nil
 }
 
-func (s *Service) CreateUser(ctx context.Context, dbConfig *appconfig.AppConfigModel, input dto.UserCreateDto) (model.User, error) {
+func (s *Service) CreateUser(ctx context.Context, dbConfig *appconfig.AppConfigModel, input dto.UserCreateDto, origin auditlogs.Origin) (model.User, error) {
 	tx := s.db.Begin()
 	defer func() {
 		tx.Rollback()
@@ -300,6 +310,7 @@ func (s *Service) CreateUser(ctx context.Context, dbConfig *appconfig.AppConfigM
 	if err != nil {
 		return model.User{}, err
 	}
+	s.auditLog.Record(ctx, auditlogs.EventAccountCreated, origin, user.ID, nil, tx)
 
 	err = tx.Commit().Error
 	if err != nil {
@@ -371,6 +382,11 @@ func (s *Service) createUserInternal(ctx context.Context, input dto.UserCreateDt
 		if err != nil {
 			return model.User{}, err
 		}
+	}
+
+	// The signup and admins record the accounts they create themselves, but the LDAP sync has no request to record it with
+	if isLdapSync {
+		s.auditLog.Record(ctx, auditlogs.EventAccountCreated, auditlogs.LDAPSync, user.ID, nil, tx)
 	}
 
 	// Apply default groups and claims for new non-LDAP users
@@ -481,7 +497,7 @@ func (s *Service) applyDefaultCustomClaims(ctx context.Context, user *model.User
 	return nil
 }
 
-func (s *Service) UpdateUser(ctx context.Context, cfg *appconfig.AppConfigModel, userID string, updatedUser dto.UserCreateDto, updateOwnUser bool, isLdapSync bool) (model.User, error) {
+func (s *Service) UpdateUser(ctx context.Context, cfg *appconfig.AppConfigModel, userID string, updatedUser dto.UserCreateDto, updateOwnUser bool, isLdapSync bool, origin auditlogs.Origin) (model.User, error) {
 	tx := s.db.Begin()
 	defer func() {
 		tx.Rollback()
@@ -512,7 +528,7 @@ func (s *Service) UpdateUser(ctx context.Context, cfg *appconfig.AppConfigModel,
 		}
 	}
 
-	_, err := s.updateUserInternal(ctx, cfg, userID, updatedUser, updateOwnUser, isLdapSync, tx)
+	_, err := s.updateUserInternal(ctx, cfg, userID, updatedUser, updateOwnUser, isLdapSync, origin, tx)
 	if err != nil {
 		return model.User{}, err
 	}
@@ -622,7 +638,7 @@ func canEditProfile(cfg *appconfig.AppConfigModel, user *model.User, updateOwnUs
 }
 
 // updateUserInternal updates a user within an existing transaction
-func (s *Service) updateUserInternal(ctx context.Context, cfg *appconfig.AppConfigModel, userID string, updatedUser dto.UserCreateDto, updateOwnUser bool, isLdapSync bool, tx *gorm.DB) (model.User, error) {
+func (s *Service) updateUserInternal(ctx context.Context, cfg *appconfig.AppConfigModel, userID string, updatedUser dto.UserCreateDto, updateOwnUser bool, isLdapSync bool, origin auditlogs.Origin, tx *gorm.DB) (model.User, error) {
 	if cfg.RequireUserEmail.IsTrue() && updatedUser.Email == nil {
 		return model.User{}, apperror.MissingField("email")
 	}
@@ -641,6 +657,8 @@ func (s *Service) updateUserInternal(ctx context.Context, cfg *appconfig.AppConf
 		return model.User{}, err
 	}
 
+	wasAdmin, wasDisabled := user.IsAdmin, user.Disabled
+	var emailChange auditlogs.Data
 	if !canEditProfile(cfg, &user, updateOwnUser, isLdapSync) {
 		// Restricted update: Only locale can be changed when:
 		// - User is from LDAP, OR
@@ -657,6 +675,11 @@ func (s *Service) updateUserInternal(ctx context.Context, cfg *appconfig.AppConf
 		if (user.Email == nil && updatedUser.Email != nil) || (user.Email != nil && updatedUser.Email != nil && *user.Email != *updatedUser.Email) {
 			// Email has changed, reset email verification status
 			user.EmailVerified = cfg.EmailsVerified.IsTrue()
+
+			emailChange = auditlogs.Data{"email": *updatedUser.Email}
+			if user.Email != nil {
+				emailChange["previousEmail"] = *user.Email
+			}
 		}
 
 		user.Email = updatedUser.Email
@@ -695,10 +718,28 @@ func (s *Service) updateUserInternal(ctx context.Context, cfg *appconfig.AppConf
 		return user, err
 	}
 
+	if emailChange != nil {
+		s.auditLog.Record(ctx, auditlogs.EventEmailChanged, origin, userID, emailChange, tx)
+	}
+	if user.IsAdmin != wasAdmin {
+		event := auditlogs.EventAdminRevoked
+		if user.IsAdmin {
+			event = auditlogs.EventAdminGranted
+		}
+		s.auditLog.Record(ctx, event, origin, userID, nil, tx)
+	}
+	if user.Disabled != wasDisabled {
+		event := auditlogs.EventAccountEnabled
+		if user.Disabled {
+			event = auditlogs.EventAccountDisabled
+		}
+		s.auditLog.Record(ctx, event, origin, userID, nil, tx)
+	}
+
 	return user, nil
 }
 
-func (s *Service) UpdateUserGroups(ctx context.Context, id string, userGroupIds []string) (user model.User, err error) {
+func (s *Service) UpdateUserGroups(ctx context.Context, id string, userGroupIds []string, origin auditlogs.Origin) (user model.User, err error) {
 	tx := s.db.Begin()
 	defer func() {
 		tx.Rollback()
@@ -709,13 +750,8 @@ func (s *Service) UpdateUserGroups(ctx context.Context, id string, userGroupIds 
 		return model.User{}, err
 	}
 
-	// Only a removed group can revoke access, so adding groups skips the notification below
-	lostGroup := slices.ContainsFunc(user.UserGroups, func(group model.UserGroup) bool {
-		return !slices.Contains(userGroupIds, group.ID)
-	})
-
 	// Remember the current groups, because the groups the user leaves change their membership too
-	previousGroupIDs := userGroupIDs(user.UserGroups)
+	previousGroups := slices.Clone(user.UserGroups)
 
 	// Fetch the groups based on userGroupIds
 	var groups []model.UserGroup
@@ -747,9 +783,17 @@ func (s *Service) UpdateUserGroups(ctx context.Context, id string, userGroupIds 
 	}
 
 	// Bump the UpdatedAt of every group the user joined or left, so the SCIM sync pushes the new membership
-	err = s.touchUserGroups(ctx, tx, append(previousGroupIDs, userGroupIDs(groups)...))
+	err = s.touchUserGroups(ctx, tx, append(userGroupIDs(previousGroups), userGroupIDs(groups)...))
 	if err != nil {
 		return model.User{}, err
+	}
+
+	joined, left := utils.Changes(previousGroups, groups, func(group model.UserGroup) string { return group.ID })
+	for _, group := range joined {
+		s.auditLog.Record(ctx, auditlogs.EventGroupMemberAdded, origin, id, auditlogs.Data{"groupName": group.FriendlyName}, tx)
+	}
+	for _, group := range left {
+		s.auditLog.Record(ctx, auditlogs.EventGroupMemberRemoved, origin, id, auditlogs.Data{"groupName": group.FriendlyName}, tx)
 	}
 
 	err = tx.Commit().Error
@@ -762,7 +806,7 @@ func (s *Service) UpdateUserGroups(ctx context.Context, id string, userGroupIds 
 	}
 
 	// Losing a group can revoke access to group-restricted clients, so tell those clients to end the user's sessions
-	if s.backchannelLogout != nil && lostGroup {
+	if s.backchannelLogout != nil && len(left) > 0 {
 		s.backchannelLogout.NotifyLostGroupAccess(ctx, []string{id}, "")
 	}
 
@@ -820,20 +864,21 @@ func (s *Service) ResetProfilePicture(ctx context.Context, userID string) error 
 }
 
 // disableUserInternal disables a user within an existing transaction
-func (s *Service) disableUserInternal(ctx context.Context, tx *gorm.DB, userID string) error {
+func (s *Service) disableUserInternal(ctx context.Context, tx *gorm.DB, userID string, origin auditlogs.Origin) error {
 	// Bump UpdatedAt so the SCIM sync pushes the disabled state, but only when the user was still enabled
-	err := tx.
+	result := tx.
 		WithContext(ctx).
 		Model(&model.User{}).
 		Where("id = ? AND disabled = ?", userID, false).
 		Updates(map[string]any{
 			"disabled":   true,
 			"updated_at": datatype.DateTime(time.Now()),
-		}).
-		Error
-
-	if err != nil {
-		return err
+		})
+	if result.Error != nil {
+		return result.Error
+	}
+	if result.RowsAffected > 0 {
+		s.auditLog.Record(ctx, auditlogs.EventAccountDisabled, origin, userID, nil, tx)
 	}
 
 	return nil

@@ -134,6 +134,7 @@ func initServices(
 	svc.sessionModule, err = session.New(session.Dependencies{
 		Actors:    actors,
 		IPLocator: svc.ipLocator,
+		AuditLog:  svc.auditLogsModule,
 	})
 	if err != nil {
 		return nil, fmt.Errorf("failed to create session module: %w", err)
@@ -221,6 +222,7 @@ func initServices(
 		AppConfig:         svc.appConfigService,
 		ScimSync:          svc.scimSyncModule,
 		BackchannelLogout: backchannelLogoutService,
+		AuditLog:          svc.auditLogsModule,
 	})
 	// The users module sends verification links through this module, so it's created first and never depends on the users module itself
 	var sendLimiter emailverification.SendLimiter
@@ -234,6 +236,7 @@ func initServices(
 		ScimSync:    svc.scimSyncModule,
 		SendLimiter: sendLimiter,
 		AppConfig:   svc.appConfigService,
+		AuditLog:    svc.auditLogsModule,
 		AppURL:      common.EnvConfig.AppURL,
 	})
 	if err != nil {
@@ -250,6 +253,7 @@ func initServices(
 		ScimSync:          svc.scimSyncModule,
 		BackchannelLogout: backchannelLogoutService,
 		EmailVerification: svc.emailVerificationModule,
+		AuditLog:          svc.auditLogsModule,
 	})
 
 	svc.ldapSyncModule, err = ldapsync.New(ldapsync.Dependencies{
@@ -275,6 +279,7 @@ func initServices(
 		StaticApiKey:    common.EnvConfig.StaticApiKey,
 		AppConfig:       svc.appConfigService,
 		EmailSender:     svc.emailModule,
+		AuditLog:        svc.auditLogsModule,
 		CleanupDisabled: common.EnvConfig.AppEnv.IsTest(),
 	})
 	if err != nil {

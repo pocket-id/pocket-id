@@ -11,6 +11,7 @@ import (
 	"gorm.io/gorm/clause"
 
 	"github.com/pocket-id/pocket-id/backend/internal/apperror"
+	"github.com/pocket-id/pocket-id/backend/internal/auditlogs"
 	"github.com/pocket-id/pocket-id/backend/internal/authz"
 	"github.com/pocket-id/pocket-id/backend/internal/common"
 	"github.com/pocket-id/pocket-id/backend/internal/model"
@@ -22,12 +23,14 @@ import (
 type Service struct {
 	db           *gorm.DB
 	staticApiKey string
+	auditLog     AuditLogger
 }
 
-func newService(ctx context.Context, db *gorm.DB, staticApiKey string) (*Service, error) {
+func newService(ctx context.Context, db *gorm.DB, staticApiKey string, auditLog AuditLogger) (*Service, error) {
 	s := &Service{
 		db:           db,
 		staticApiKey: staticApiKey,
+		auditLog:     auditLog,
 	}
 
 	if staticApiKey == "" {
@@ -56,7 +59,7 @@ func (s *Service) ListApiKeys(ctx context.Context, userID string, listRequestOpt
 }
 
 // CreateApiKey creates a key for the user that holds only the requested scopes, each of which must be in grantable
-func (s *Service) CreateApiKey(ctx context.Context, userID string, grantable authz.ScopeSet, input apiKeyCreateDto) (ApiKey, string, error) {
+func (s *Service) CreateApiKey(ctx context.Context, userID string, grantable authz.ScopeSet, input apiKeyCreateDto, origin auditlogs.Origin) (ApiKey, string, error) {
 	// Check if expiration is in the future
 	if !input.ExpiresAt.ToTime().After(time.Now()) {
 		return ApiKey{}, "", apperror.InvalidAPIKeyExpiration()
@@ -92,6 +95,7 @@ func (s *Service) CreateApiKey(ctx context.Context, userID string, grantable aut
 		}
 		return ApiKey{}, "", fmt.Errorf("error creating API key: %w", err)
 	}
+	s.auditLog.Record(ctx, auditlogs.EventAPIKeyCreated, origin, userID, auditlogs.Data{"apiKeyName": apiKey.Name}, nil)
 
 	// Return the raw token only once - it cannot be retrieved later
 	return apiKey, token, nil
@@ -147,7 +151,7 @@ func grantedScopes(requested []string, grantable authz.ScopeSet) (datatype.Strin
 // RenewApiKey replaces a key's token
 // If the key has not expired yet, its old token keeps working for gracePeriod, capped at the key's previous expiration
 // The token replaced by an earlier rotation stops working right away
-func (s *Service) RenewApiKey(ctx context.Context, userID, apiKeyID string, expiration time.Time, gracePeriod time.Duration) (ApiKey, string, error) {
+func (s *Service) RenewApiKey(ctx context.Context, userID, apiKeyID string, expiration time.Time, gracePeriod time.Duration, origin auditlogs.Origin) (ApiKey, string, error) {
 	now := time.Now()
 
 	// Check if expiration is in the future
@@ -198,6 +202,7 @@ func (s *Service) RenewApiKey(ctx context.Context, userID, apiKeyID string, expi
 	if err != nil {
 		return ApiKey{}, "", fmt.Errorf("error saving API key: %w", err)
 	}
+	s.auditLog.Record(ctx, auditlogs.EventAPIKeyRenewed, origin, userID, auditlogs.Data{"apiKeyName": apiKey.Name}, tx)
 
 	err = tx.Commit().Error
 	if err != nil {
@@ -207,10 +212,11 @@ func (s *Service) RenewApiKey(ctx context.Context, userID, apiKeyID string, expi
 	return apiKey, token, nil
 }
 
-func (s *Service) RevokeApiKey(ctx context.Context, userID, apiKeyID string) error {
+func (s *Service) RevokeApiKey(ctx context.Context, userID, apiKeyID string, origin auditlogs.Origin) error {
 	var apiKey ApiKey
 	result := s.db.
 		WithContext(ctx).
+		Clauses(clause.Returning{}).
 		Where("id = ? AND user_id = ?", apiKeyID, userID).
 		Delete(&apiKey)
 	if result.Error != nil {
@@ -219,6 +225,7 @@ func (s *Service) RevokeApiKey(ctx context.Context, userID, apiKeyID string) err
 	if result.RowsAffected == 0 {
 		return apperror.APIKeyNotFound()
 	}
+	s.auditLog.Record(ctx, auditlogs.EventAPIKeyRevoked, origin, userID, auditlogs.Data{"apiKeyName": apiKey.Name}, nil)
 
 	return nil
 }

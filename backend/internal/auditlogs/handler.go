@@ -1,6 +1,7 @@
 package auditlogs
 
 import (
+	"cmp"
 	"context"
 	"net/http"
 	"time"
@@ -42,7 +43,7 @@ func parseDateRange(from, to string) (DateRange, error) {
 
 // listAuditLogsForUserHandler godoc
 // @Summary List audit logs
-// @Description Get a paginated list of audit logs for the current user
+// @Description Get a paginated list of the audit logs about the current user and the actions they took
 // @Tags Audit Logs
 // @Param pagination[page] query int false "Page number for pagination" default(1)
 // @Param pagination[limit] query int false "Number of items per page" default(20)
@@ -68,18 +69,9 @@ func (h *handler) listAuditLogsForUserHandler(c *gin.Context) error {
 		return err
 	}
 
-	// Map the audit logs to DTOs
-	var logsDtos []auditLogDto
-	err = dto.MapStructList(logs, &logsDtos)
+	logsDtos, err := h.toDtos(logs)
 	if err != nil {
 		return err
-	}
-
-	// Add device information to the logs
-	for i, logsDto := range logsDtos {
-		logsDto.Device = h.service.DeviceStringFromUserAgent(logs[i].UserAgent)
-		logsDto.ActorUsername = logsDto.Data["actorUsername"]
-		logsDtos[i] = logsDto
 	}
 
 	c.JSON(http.StatusOK, dto.Paginated[auditLogDto]{
@@ -124,20 +116,27 @@ func (h *handler) listAllAuditLogs(ctx context.Context, dateRange DateRange, lis
 		return dto.Paginated[auditLogDto]{}, err
 	}
 
-	var logsDtos []auditLogDto
-	err = dto.MapStructList(logs, &logsDtos)
+	logsDtos, err := h.toDtos(logs)
 	if err != nil {
 		return dto.Paginated[auditLogDto]{}, err
 	}
 
-	for i, logsDto := range logsDtos {
-		logsDto.Device = h.service.DeviceStringFromUserAgent(logs[i].UserAgent)
-		logsDto.Username = logs[i].User.Username
-		logsDto.ActorUsername = logsDto.Data["actorUsername"]
-		logsDtos[i] = logsDto
+	return dto.Paginated[auditLogDto]{Data: logsDtos, Pagination: pagination}, nil
+}
+
+func (h *handler) toDtos(logs []AuditLog) ([]auditLogDto, error) {
+	var logsDtos []auditLogDto
+	err := dto.MapStructList(logs, &logsDtos)
+	if err != nil {
+		return nil, err
 	}
 
-	return dto.Paginated[auditLogDto]{Data: logsDtos, Pagination: pagination}, nil
+	for i, logsDto := range logsDtos {
+		logsDto.Device = h.service.DeviceStringFromUserAgent(logs[i].UserAgent)
+		logsDto.Username = cmp.Or(logs[i].User.Username, logsDto.Data["username"])
+		logsDtos[i] = logsDto
+	}
+	return logsDtos, nil
 }
 
 // listClientNamesHandler godoc

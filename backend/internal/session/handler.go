@@ -6,6 +6,7 @@ import (
 
 	"github.com/gin-gonic/gin"
 
+	"github.com/pocket-id/pocket-id/backend/internal/auditlogs"
 	"github.com/pocket-id/pocket-id/backend/internal/authz"
 	"github.com/pocket-id/pocket-id/backend/internal/utils/cookie"
 )
@@ -39,13 +40,13 @@ func (h *handler) listOwn(c *gin.Context) error {
 // @Success 204 "No Content"
 // @Router /api/sessions/{id} [delete]
 func (h *handler) revokeOwn(c *gin.Context) error {
-	principal := authz.PrincipalFrom(c)
-	err := h.service.Revoke(c.Request.Context(), principal.UserID, c.Param("id"))
+	origin := auditlogs.OriginFrom(c)
+	err := h.service.Revoke(c.Request.Context(), origin.Principal.UserID, c.Param("id"), origin)
 	if err != nil {
 		return err
 	}
 
-	if c.Param("id") == principal.SessionID {
+	if c.Param("id") == origin.Principal.SessionID {
 		cookie.AddSessionTokenCookie(c, 0, "")
 	}
 	c.Status(http.StatusNoContent)
@@ -59,8 +60,8 @@ func (h *handler) revokeOwn(c *gin.Context) error {
 // @Success 204 "No Content"
 // @Router /api/sessions [delete]
 func (h *handler) revokeOtherOwn(c *gin.Context) error {
-	principal := authz.PrincipalFrom(c)
-	err := h.service.RevokeAll(c.Request.Context(), principal.UserID, principal.SessionID)
+	origin := auditlogs.OriginFrom(c)
+	err := h.service.RevokeAll(c.Request.Context(), origin.Principal.UserID, origin.Principal.SessionID, origin)
 	if err != nil {
 		return err
 	}
@@ -115,7 +116,7 @@ func (h *handler) listForUser(c *gin.Context) error {
 // @Success 204 "No Content"
 // @Router /api/users/{id}/sessions/{sessionId} [delete]
 func (h *handler) revokeForUser(c *gin.Context) error {
-	err := h.service.Revoke(c.Request.Context(), c.Param("id"), c.Param("sessionId"))
+	err := h.service.Revoke(c.Request.Context(), c.Param("id"), c.Param("sessionId"), auditlogs.OriginFrom(c))
 	if err != nil {
 		return err
 	}
@@ -132,7 +133,7 @@ func (h *handler) revokeForUser(c *gin.Context) error {
 // @Success 204 "No Content"
 // @Router /api/users/{id}/sessions [delete]
 func (h *handler) revokeAllForUser(c *gin.Context) error {
-	err := h.service.RevokeAll(c.Request.Context(), c.Param("id"), "")
+	err := h.service.RevokeAll(c.Request.Context(), c.Param("id"), "", auditlogs.OriginFrom(c))
 	if err != nil {
 		return err
 	}

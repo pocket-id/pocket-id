@@ -16,6 +16,7 @@ import (
 
 	"github.com/pocket-id/pocket-id/backend/internal/apikey"
 	"github.com/pocket-id/pocket-id/backend/internal/appconfig"
+	"github.com/pocket-id/pocket-id/backend/internal/auditlogs"
 	"github.com/pocket-id/pocket-id/backend/internal/authz"
 	"github.com/pocket-id/pocket-id/backend/internal/common"
 	"github.com/pocket-id/pocket-id/backend/internal/model"
@@ -54,7 +55,7 @@ func TestAuthorizationWithRealCredentials(t *testing.T) {
 
 	var sessions *session.Module
 	testutils.NewActorHostForTest(t, func(t *testing.T, h *local.Host) {
-		sessions, err = session.New(session.Dependencies{Actors: h, IPLocator: noIPLocation{}})
+		sessions, err = session.New(session.Dependencies{Actors: h, IPLocator: noIPLocation{}, AuditLog: nopAuditLogger{}})
 		require.NoError(t, err)
 	})
 	userSession, err := sessions.Create(t.Context(), user.ID, "", "", "", time.Hour, true)
@@ -65,7 +66,7 @@ func TestAuthorizationWithRealCredentials(t *testing.T) {
 	require.NoError(t, err)
 	_, revoked, err := sessions.Validate(t.Context(), revokedSession)
 	require.NoError(t, err)
-	require.NoError(t, sessions.Revoke(t.Context(), user.ID, revoked.ID))
+	require.NoError(t, sessions.Revoke(t.Context(), user.ID, revoked.ID, auditlogs.Origin{}))
 	userAPIKey := createAPIKeyForAuthorizationTest(t, db, user, "user-raw-api-key", apikey.AllScopes())
 	adminAPIKey := createAPIKeyForAuthorizationTest(t, db, admin, "admin-raw-api-key", apikey.AllScopes())
 	adminAccountOnlyAPIKey := createAPIKeyForAuthorizationTest(t, db, admin, "admin-account-only-raw-api-key", datatype.StringList{string(authz.AccountRead)})
@@ -173,6 +174,19 @@ func TestAuthorizationWithRealCredentials(t *testing.T) {
 			require.Equal(t, test.errorCode, body["code"])
 		})
 	}
+}
+
+type nopAuditLogger struct{}
+
+func (nopAuditLogger) Record(context.Context, auditlogs.Event, auditlogs.Origin, string, auditlogs.Data, *gorm.DB) {
+}
+
+func (nopAuditLogger) KeepUsername(context.Context, string, string, *gorm.DB) error {
+	return nil
+}
+
+func (nopAuditLogger) DeviceStringFromUserAgent(string) string {
+	return ""
 }
 
 type noIPLocation struct{}

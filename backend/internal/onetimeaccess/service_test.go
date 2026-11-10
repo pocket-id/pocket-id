@@ -33,6 +33,10 @@ func (f *fakeAuditLogger) Create(_ context.Context, event auditlogs.Event, _, _,
 	return auditlogs.AuditLog{}, true
 }
 
+func (f *fakeAuditLogger) Record(_ context.Context, event auditlogs.Event, _ auditlogs.Origin, _ string, _ auditlogs.Data, _ *gorm.DB) {
+	f.events = append(f.events, event)
+}
+
 type fakeUserProvider struct {
 	db *gorm.DB
 }

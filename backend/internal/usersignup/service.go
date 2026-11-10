@@ -210,6 +210,7 @@ func (s *Service) SignUpInitialAdmin(ctx context.Context, config *appconfig.AppC
 	if err != nil {
 		return model.User{}, "", err
 	}
+	s.auditLog.Create(ctx, auditlogs.EventAccountCreated, ipAddress, userAgent, user.ID, auditlogs.Data{"method": "initial_setup"}, tx)
 
 	err = tx.Commit().Error
 	if err != nil {

@@ -1,26 +1,34 @@
 package apikey
 
 import (
+	"context"
 	"testing"
 	"time"
 
 	"github.com/stretchr/testify/require"
+	"gorm.io/gorm"
 
 	"github.com/pocket-id/pocket-id/backend/internal/apperror"
+	"github.com/pocket-id/pocket-id/backend/internal/auditlogs"
 	"github.com/pocket-id/pocket-id/backend/internal/authz"
 	"github.com/pocket-id/pocket-id/backend/internal/model"
 	datatype "github.com/pocket-id/pocket-id/backend/internal/model/types"
 	testutils "github.com/pocket-id/pocket-id/backend/internal/utils/testing"
 )
 
+type nopAuditLogger struct{}
+
+func (nopAuditLogger) Record(context.Context, auditlogs.Event, auditlogs.Origin, string, auditlogs.Data, *gorm.DB) {
+}
+
 func TestMissingManagedAPIKeyReturnsNotFound(t *testing.T) {
-	service, err := newService(t.Context(), testutils.NewDatabaseForTest(t), "")
+	service, err := newService(t.Context(), testutils.NewDatabaseForTest(t), "", nopAuditLogger{})
 	require.NoError(t, err)
 
-	err = service.RevokeApiKey(t.Context(), "user-id", "missing-key")
+	err = service.RevokeApiKey(t.Context(), "user-id", "missing-key", auditlogs.Origin{})
 	require.True(t, apperror.IsCode(err, apperror.CodeAPIKeyNotFound))
 
-	_, _, err = service.RenewApiKey(t.Context(), "user-id", "missing-key", time.Now().Add(time.Hour), 0)
+	_, _, err = service.RenewApiKey(t.Context(), "user-id", "missing-key", time.Now().Add(time.Hour), 0, auditlogs.Origin{})
 	require.True(t, apperror.IsCode(err, apperror.CodeAPIKeyNotFound))
 
 	_, err = service.UpdateApiKey(t.Context(), "user-id", "missing-key", authz.NewScopeSet(authz.AccountRead), apiKeyUpdateDto{Name: "key", Scopes: datatype.StringList{"account:read"}})
@@ -29,7 +37,7 @@ func TestMissingManagedAPIKeyReturnsNotFound(t *testing.T) {
 
 func TestAPIKeyScopes(t *testing.T) {
 	db := testutils.NewDatabaseForTest(t)
-	service, err := newService(t.Context(), db, "")
+	service, err := newService(t.Context(), db, "", nopAuditLogger{})
 	require.NoError(t, err)
 
 	user := model.User{Username: "scoped-key-owner", FirstName: "Scoped", DisplayName: "Scoped"}
@@ -42,7 +50,7 @@ func TestAPIKeyScopes(t *testing.T) {
 				Name:      "rejected",
 				ExpiresAt: datatype.DateTime(time.Now().Add(time.Hour)),
 				Scopes:    datatype.StringList{string(authz.AccountRead), string(scope)},
-			})
+			}, auditlogs.Origin{})
 			require.True(t, apperror.IsCode(err, apperror.CodeInvalidAPIKeyScope), scope)
 		}
 	})
@@ -52,7 +60,7 @@ func TestAPIKeyScopes(t *testing.T) {
 			Name:      "scoped",
 			ExpiresAt: datatype.DateTime(time.Now().Add(time.Hour)),
 			Scopes:    datatype.StringList{string(authz.AccountWrite), string(authz.AccountRead), string(authz.AccountRead)},
-		})
+		}, auditlogs.Origin{})
 		require.NoError(t, err)
 		require.Equal(t, datatype.StringList{"account:read", "account:write"}, created.Scopes)
 
@@ -73,7 +81,7 @@ func TestAPIKeyScopes(t *testing.T) {
 
 func TestRenewApiKeyRotation(t *testing.T) {
 	db := testutils.NewDatabaseForTest(t)
-	service, err := newService(t.Context(), db, "")
+	service, err := newService(t.Context(), db, "", nopAuditLogger{})
 	require.NoError(t, err)
 
 	user := model.User{Username: "rotating-key-owner", FirstName: "Rotating", DisplayName: "Rotating"}
@@ -85,7 +93,7 @@ func TestRenewApiKeyRotation(t *testing.T) {
 			Name:      "rotating",
 			ExpiresAt: datatype.DateTime(expiresAt),
 			Scopes:    datatype.StringList{string(authz.AccountRead)},
-		})
+		}, auditlogs.Origin{})
 		require.NoError(t, err)
 		return key, token
 	}
@@ -103,7 +111,7 @@ func TestRenewApiKeyRotation(t *testing.T) {
 	t.Run("without a grace period the old token stops working", func(t *testing.T) {
 		key, oldToken := createKey(t, time.Now().Add(time.Hour))
 
-		_, newToken, err := service.RenewApiKey(t.Context(), user.ID, key.ID, newExpiry, 0)
+		_, newToken, err := service.RenewApiKey(t.Context(), user.ID, key.ID, newExpiry, 0, auditlogs.Origin{})
 		require.NoError(t, err)
 
 		requireValid(t, oldToken, false)
@@ -114,7 +122,7 @@ func TestRenewApiKeyRotation(t *testing.T) {
 		oldExpiry := time.Now().Add(time.Hour)
 		key, oldToken := createKey(t, oldExpiry)
 
-		renewed, newToken, err := service.RenewApiKey(t.Context(), user.ID, key.ID, newExpiry, 24*time.Hour)
+		renewed, newToken, err := service.RenewApiKey(t.Context(), user.ID, key.ID, newExpiry, 24*time.Hour, auditlogs.Origin{})
 		require.NoError(t, err)
 		require.WithinDuration(t, oldExpiry, renewed.PreviousKeyExpiresAt.ToTime(), time.Second)
 
@@ -122,7 +130,7 @@ func TestRenewApiKeyRotation(t *testing.T) {
 		requireValid(t, newToken, true)
 
 		// Rotating again replaces the token that is still in its grace period
-		_, newestToken, err := service.RenewApiKey(t.Context(), user.ID, key.ID, newExpiry, 24*time.Hour)
+		_, newestToken, err := service.RenewApiKey(t.Context(), user.ID, key.ID, newExpiry, 24*time.Hour, auditlogs.Origin{})
 		require.NoError(t, err)
 		requireValid(t, oldToken, false)
 		requireValid(t, newToken, true)
@@ -132,7 +140,7 @@ func TestRenewApiKeyRotation(t *testing.T) {
 	t.Run("the old token stops working once the grace period ends", func(t *testing.T) {
 		key, oldToken := createKey(t, time.Now().Add(time.Hour))
 
-		_, _, err := service.RenewApiKey(t.Context(), user.ID, key.ID, newExpiry, time.Hour)
+		_, _, err := service.RenewApiKey(t.Context(), user.ID, key.ID, newExpiry, time.Hour, auditlogs.Origin{})
 		require.NoError(t, err)
 		require.NoError(t, db.Model(&ApiKey{}).Where("id = ?", key.ID).Update("previous_key_expires_at", datatype.DateTime(time.Now().Add(-time.Minute))).Error)
 
@@ -143,7 +151,7 @@ func TestRenewApiKeyRotation(t *testing.T) {
 		key, oldToken := createKey(t, time.Now().Add(time.Hour))
 		require.NoError(t, db.Model(&ApiKey{}).Where("id = ?", key.ID).Update("expires_at", datatype.DateTime(time.Now().Add(-time.Hour))).Error)
 
-		renewed, newToken, err := service.RenewApiKey(t.Context(), user.ID, key.ID, newExpiry, 24*time.Hour)
+		renewed, newToken, err := service.RenewApiKey(t.Context(), user.ID, key.ID, newExpiry, 24*time.Hour, auditlogs.Origin{})
 		require.NoError(t, err)
 		require.Nil(t, renewed.PreviousKey)
 

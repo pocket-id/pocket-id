@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"slices"
 
+	"github.com/pocket-id/pocket-id/backend/internal/auditlogs"
 	"github.com/pocket-id/pocket-id/backend/internal/authz"
 	"github.com/pocket-id/pocket-id/backend/internal/dto"
 	"github.com/pocket-id/pocket-id/backend/internal/httpserver"
@@ -89,13 +90,13 @@ func (h *handler) getGroupTool(ctx context.Context, _ mcp.Call, input groupIDInp
 	return toGroupResult(group)
 }
 
-func (h *handler) createGroupTool(ctx context.Context, _ mcp.Call, input createGroupInput) (any, error) {
+func (h *handler) createGroupTool(ctx context.Context, call mcp.Call, input createGroupInput) (any, error) {
 	createDto := dto.UserGroupCreateDto{FriendlyName: input.FriendlyName, Name: input.Name}
 	if err := httpserver.Validate(&createDto); err != nil {
 		return nil, err
 	}
 
-	group, err := h.service.Create(ctx, createDto)
+	group, err := h.service.Create(ctx, createDto, auditlogs.OriginFromMCP(call))
 	if err != nil {
 		return nil, err
 	}
@@ -126,19 +127,19 @@ func (h *handler) updateGroupTool(ctx context.Context, _ mcp.Call, input updateG
 	return toGroupResult(group)
 }
 
-func (h *handler) deleteGroupTool(ctx context.Context, _ mcp.Call, input groupIDInput) (any, error) {
+func (h *handler) deleteGroupTool(ctx context.Context, call mcp.Call, input groupIDInput) (any, error) {
 	dbConfig, err := h.appConfig.GetConfig(ctx)
 	if err != nil {
 		return nil, fmt.Errorf("error loading app configuration: %w", err)
 	}
 
-	if err := h.service.Delete(ctx, dbConfig, input.ID); err != nil {
+	if err := h.service.Delete(ctx, dbConfig, input.ID, auditlogs.OriginFromMCP(call)); err != nil {
 		return nil, err
 	}
 	return mcp.Deleted, nil
 }
 
-func (h *handler) addGroupMembersTool(ctx context.Context, _ mcp.Call, input groupMembersInput) (any, error) {
+func (h *handler) addGroupMembersTool(ctx context.Context, call mcp.Call, input groupMembersInput) (any, error) {
 	group, err := h.service.ChangeUsers(ctx, input.ID, func(memberIDs []string) []string {
 		for _, userID := range input.UserIDs {
 			if !slices.Contains(memberIDs, userID) {
@@ -146,19 +147,19 @@ func (h *handler) addGroupMembersTool(ctx context.Context, _ mcp.Call, input gro
 			}
 		}
 		return memberIDs
-	})
+	}, auditlogs.OriginFromMCP(call))
 	if err != nil {
 		return nil, err
 	}
 	return toGroupResult(group)
 }
 
-func (h *handler) removeGroupMembersTool(ctx context.Context, _ mcp.Call, input groupMembersInput) (any, error) {
+func (h *handler) removeGroupMembersTool(ctx context.Context, call mcp.Call, input groupMembersInput) (any, error) {
 	group, err := h.service.ChangeUsers(ctx, input.ID, func(memberIDs []string) []string {
 		return slices.DeleteFunc(memberIDs, func(userID string) bool {
 			return slices.Contains(input.UserIDs, userID)
 		})
-	})
+	}, auditlogs.OriginFromMCP(call))
 	if err != nil {
 		return nil, err
 	}

@@ -10,6 +10,7 @@ import (
 
 	"github.com/pocket-id/pocket-id/backend/internal/appconfig"
 	"github.com/pocket-id/pocket-id/backend/internal/apperror"
+	"github.com/pocket-id/pocket-id/backend/internal/auditlogs"
 	"github.com/pocket-id/pocket-id/backend/internal/authz"
 	"github.com/pocket-id/pocket-id/backend/internal/dto"
 	"github.com/pocket-id/pocket-id/backend/internal/httpserver"
@@ -108,7 +109,7 @@ func (h *clientHandler) createClientHandler(c *gin.Context) error {
 		return err
 	}
 
-	client, createdSecret, err := h.service.CreateClient(c.Request.Context(), input, authz.PrincipalFrom(c).UserID, config.AutoCreateOIDCClientSecret.IsTrue())
+	client, createdSecret, err := h.service.CreateClient(c.Request.Context(), input, auditlogs.OriginFrom(c), config.AutoCreateOIDCClientSecret.IsTrue())
 	if err != nil {
 		return err
 	}
@@ -140,7 +141,7 @@ func (h *clientHandler) createClientHandler(c *gin.Context) error {
 // @Failure default {object} dto.ErrorDto "Error"
 // @Router /api/oidc/clients/{id} [delete]
 func (h *clientHandler) deleteClientHandler(c *gin.Context) error {
-	err := h.service.DeleteClient(c.Request.Context(), c.Param("id"))
+	err := h.service.DeleteClient(c.Request.Context(), c.Param("id"), auditlogs.OriginFrom(c))
 	if err != nil {
 		return err
 	}
@@ -167,7 +168,7 @@ func (h *clientHandler) updateClientHandler(c *gin.Context) error {
 		return err
 	}
 
-	client, err := h.service.UpdateClient(c.Request.Context(), c.Param("id"), input)
+	client, err := h.service.UpdateClient(c.Request.Context(), c.Param("id"), input, auditlogs.OriginFrom(c))
 	if err != nil {
 		return err
 	}
@@ -251,7 +252,7 @@ func (h *clientHandler) createClientSecretHandler(c *gin.Context) error {
 		return err
 	}
 
-	created, secret, err := h.service.CreateClientSecret(c.Request.Context(), c.Param("id"), input)
+	created, secret, err := h.service.CreateClientSecret(c.Request.Context(), c.Param("id"), input, auditlogs.OriginFrom(c))
 	if err != nil {
 		return err
 	}
@@ -277,7 +278,7 @@ func (h *clientHandler) createClientSecretHandler(c *gin.Context) error {
 // @Failure default {object} dto.ErrorDto "Error"
 // @Router /api/oidc/clients/{id}/secrets/{secretId} [delete]
 func (h *clientHandler) deleteClientSecretHandler(c *gin.Context) error {
-	err := h.service.DeleteClientSecret(c.Request.Context(), c.Param("id"), c.Param("secretId"))
+	err := h.service.DeleteClientSecret(c.Request.Context(), c.Param("id"), c.Param("secretId"), auditlogs.OriginFrom(c))
 	if err != nil {
 		return err
 	}
@@ -386,7 +387,7 @@ func (h *clientHandler) updateAllowedUserGroupsHandler(c *gin.Context) error {
 		return err
 	}
 
-	oidcClient, err := h.service.UpdateAllowedUserGroups(c.Request.Context(), c.Param("id"), input)
+	oidcClient, err := h.service.UpdateAllowedUserGroups(c.Request.Context(), c.Param("id"), input, auditlogs.OriginFrom(c))
 	if err != nil {
 		return err
 	}
@@ -469,11 +470,8 @@ func (h *clientHandler) listAuthorizedClients(c *gin.Context, userID string) err
 // @Failure default {object} dto.ErrorDto "Error"
 // @Router /api/oidc/users/me/authorized-clients/{clientId} [delete]
 func (h *clientHandler) revokeOwnClientAuthorizationHandler(c *gin.Context) error {
-	clientID := c.Param("clientId")
-
-	userID := authz.PrincipalFrom(c).UserID
-
-	err := h.service.RevokeAuthorizedClient(c.Request.Context(), userID, clientID)
+	origin := auditlogs.OriginFrom(c)
+	err := h.service.RevokeAuthorizedClient(c.Request.Context(), origin.Principal.UserID, c.Param("clientId"), origin)
 	if err != nil {
 		return err
 	}

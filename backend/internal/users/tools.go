@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/pocket-id/pocket-id/backend/internal/auditlogs"
 	"github.com/pocket-id/pocket-id/backend/internal/authz"
 	"github.com/pocket-id/pocket-id/backend/internal/dto"
 	"github.com/pocket-id/pocket-id/backend/internal/httpserver"
@@ -127,7 +128,7 @@ func (h *handler) getUserTool(ctx context.Context, _ mcp.Call, input userIDInput
 	return toUserResult(user)
 }
 
-func (h *handler) createUserTool(ctx context.Context, _ mcp.Call, input createUserInput) (any, error) {
+func (h *handler) createUserTool(ctx context.Context, call mcp.Call, input createUserInput) (any, error) {
 	dbConfig, err := h.appConfig.GetConfig(ctx)
 	if err != nil {
 		return nil, fmt.Errorf("error loading app configuration: %w", err)
@@ -152,14 +153,14 @@ func (h *handler) createUserTool(ctx context.Context, _ mcp.Call, input createUs
 		return nil, err
 	}
 
-	user, err := h.service.CreateUser(ctx, dbConfig, createDto)
+	user, err := h.service.CreateUser(ctx, dbConfig, createDto, auditlogs.OriginFromMCP(call))
 	if err != nil {
 		return nil, err
 	}
 	return toUserResult(user)
 }
 
-func (h *handler) updateUserTool(ctx context.Context, _ mcp.Call, input updateUserInput) (any, error) {
+func (h *handler) updateUserTool(ctx context.Context, call mcp.Call, input updateUserInput) (any, error) {
 	dbConfig, err := h.appConfig.GetConfig(ctx)
 	if err != nil {
 		return nil, fmt.Errorf("error loading app configuration: %w", err)
@@ -188,20 +189,20 @@ func (h *handler) updateUserTool(ctx context.Context, _ mcp.Call, input updateUs
 		return nil, err
 	}
 
-	user, err = h.service.UpdateUser(ctx, dbConfig, input.ID, updateDto, false, false)
+	user, err = h.service.UpdateUser(ctx, dbConfig, input.ID, updateDto, false, false, auditlogs.OriginFromMCP(call))
 	if err != nil {
 		return nil, err
 	}
 	return toUserResult(user)
 }
 
-func (h *handler) deleteUserTool(ctx context.Context, _ mcp.Call, input userIDInput) (any, error) {
+func (h *handler) deleteUserTool(ctx context.Context, call mcp.Call, input userIDInput) (any, error) {
 	dbConfig, err := h.appConfig.GetConfig(ctx)
 	if err != nil {
 		return nil, fmt.Errorf("error loading app configuration: %w", err)
 	}
 
-	if err := h.service.DeleteUser(ctx, dbConfig, input.ID, false); err != nil {
+	if err := h.service.DeleteUser(ctx, dbConfig, input.ID, false, auditlogs.OriginFromMCP(call)); err != nil {
 		return nil, err
 	}
 	return mcp.Deleted, nil

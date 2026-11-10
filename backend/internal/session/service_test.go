@@ -7,8 +7,11 @@ import (
 
 	"github.com/italypaleale/francis/host/local"
 	"github.com/stretchr/testify/require"
+	"gorm.io/gorm"
 
 	"github.com/pocket-id/pocket-id/backend/internal/apperror"
+	"github.com/pocket-id/pocket-id/backend/internal/auditlogs"
+	"github.com/pocket-id/pocket-id/backend/internal/authz"
 	testutils "github.com/pocket-id/pocket-id/backend/internal/utils/testing"
 )
 
@@ -18,12 +21,29 @@ func (fakeIPLocator) GetLocationByIP(context.Context, string) (string, string, e
 	return "Switzerland", "Zurich", nil
 }
 
+type recordedEvent struct {
+	event auditlogs.Event
+	data  auditlogs.Data
+}
+
+type fakeAuditLogger struct {
+	events []recordedEvent
+}
+
+func (f *fakeAuditLogger) Record(_ context.Context, event auditlogs.Event, _ auditlogs.Origin, _ string, data auditlogs.Data, _ *gorm.DB) {
+	f.events = append(f.events, recordedEvent{event: event, data: data})
+}
+
+func (f *fakeAuditLogger) DeviceStringFromUserAgent(userAgent string) string {
+	return "device of " + userAgent
+}
+
 func newServiceForTest(t *testing.T) *Service {
 	t.Helper()
 
 	var service *Service
 	testutils.NewActorHostForTest(t, func(t *testing.T, h *local.Host) {
-		module, err := New(Dependencies{Actors: h, IPLocator: fakeIPLocator{}})
+		module, err := New(Dependencies{Actors: h, IPLocator: fakeIPLocator{}, AuditLog: &fakeAuditLogger{}})
 		require.NoError(t, err)
 		service = module.service
 	})
@@ -93,9 +113,10 @@ func TestSessionEndsAt(t *testing.T) {
 
 func TestRevoke(t *testing.T) {
 	service := newServiceForTest(t)
+	auditLog := service.auditLog.(*fakeAuditLogger)
 
 	createSession := func(userID string) (string, Session) {
-		token, err := service.Create(t.Context(), userID, "phr", "", "", time.Hour, true)
+		token, err := service.Create(t.Context(), userID, "phr", "", "browser", time.Hour, true)
 		require.NoError(t, err)
 		_, session, err := service.Validate(t.Context(), token)
 		require.NoError(t, err)
@@ -106,18 +127,28 @@ func TestRevoke(t *testing.T) {
 		token, session := createSession("revoke-one")
 		otherToken, _ := createSession("revoke-one")
 
-		require.NoError(t, service.Revoke(t.Context(), "revoke-one", session.ID))
+		auditLog.events = nil
+		require.NoError(t, service.Revoke(t.Context(), "revoke-one", session.ID, auditlogs.Origin{Principal: authz.Principal{UserID: "admin", SessionID: session.ID}}))
 
 		_, _, err := service.Validate(t.Context(), token)
 		require.True(t, apperror.IsCode(err, apperror.CodeNotSignedIn))
 		_, _, err = service.Validate(t.Context(), otherToken)
 		require.NoError(t, err)
+		require.Equal(t, []recordedEvent{{event: auditlogs.EventSessionRevoked, data: auditlogs.Data{"device": "device of browser"}}}, auditLog.events)
+	})
+
+	t.Run("audits revoking the current session as signing out", func(t *testing.T) {
+		_, session := createSession("sign-out")
+
+		auditLog.events = nil
+		require.NoError(t, service.Revoke(t.Context(), "sign-out", session.ID, auditlogs.Origin{Principal: authz.Principal{UserID: "sign-out", SessionID: session.ID}}))
+		require.Equal(t, []recordedEvent{{event: auditlogs.EventSignedOut}}, auditLog.events)
 	})
 
 	t.Run("reports an unknown session", func(t *testing.T) {
 		_, session := createSession("revoke-unknown")
 
-		err := service.Revoke(t.Context(), "another-user", session.ID)
+		err := service.Revoke(t.Context(), "another-user", session.ID, auditlogs.Origin{})
 		require.True(t, apperror.IsCode(err, apperror.CodeNotFound))
 	})
 
@@ -125,7 +156,9 @@ func TestRevoke(t *testing.T) {
 		keptToken, kept := createSession("revoke-all")
 		otherToken, _ := createSession("revoke-all")
 
-		require.NoError(t, service.RevokeAll(t.Context(), "revoke-all", kept.ID))
+		auditLog.events = nil
+		require.NoError(t, service.RevokeAll(t.Context(), "revoke-all", kept.ID, auditlogs.Origin{}))
+		require.Equal(t, []recordedEvent{{event: auditlogs.EventSessionRevoked, data: auditlogs.Data{"sessionCount": "1", "exceptCurrent": "true"}}}, auditLog.events)
 
 		_, _, err := service.Validate(t.Context(), keptToken)
 		require.NoError(t, err)

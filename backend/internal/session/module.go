@@ -7,15 +7,23 @@ import (
 	"time"
 
 	francishost "github.com/italypaleale/francis/host"
+	"gorm.io/gorm"
 
+	"github.com/pocket-id/pocket-id/backend/internal/auditlogs"
 	"github.com/pocket-id/pocket-id/backend/internal/authz"
 	"github.com/pocket-id/pocket-id/backend/internal/httpserver"
 	"github.com/pocket-id/pocket-id/backend/internal/iplocation"
 )
 
+type AuditLogger interface {
+	Record(ctx context.Context, event auditlogs.Event, origin auditlogs.Origin, userID string, data auditlogs.Data, tx *gorm.DB)
+	DeviceStringFromUserAgent(userAgent string) string
+}
+
 type Dependencies struct {
 	Actors    francishost.Host
 	IPLocator iplocation.Resolver
+	AuditLog  AuditLogger
 }
 
 type Module struct {
@@ -29,7 +37,7 @@ func New(deps Dependencies) (*Module, error) {
 		return nil, fmt.Errorf("error registering the %s actor: %w", ActorType, err)
 	}
 
-	service := newService(deps.Actors.Service(), deps.IPLocator)
+	service := newService(deps.Actors.Service(), deps.IPLocator, deps.AuditLog)
 	return &Module{service: service, handler: &handler{service: service}}, nil
 }
 
@@ -56,7 +64,7 @@ func (m *Module) Validate(ctx context.Context, token string) (string, Session, e
 	return m.service.Validate(ctx, token)
 }
 
-// Revoke signs the user out of one session
-func (m *Module) Revoke(ctx context.Context, userID, sessionID string) error {
-	return m.service.Revoke(ctx, userID, sessionID)
+// Revoke signs the user out of one session on behalf of origin
+func (m *Module) Revoke(ctx context.Context, userID, sessionID string, origin auditlogs.Origin) error {
+	return m.service.Revoke(ctx, userID, sessionID, origin)
 }

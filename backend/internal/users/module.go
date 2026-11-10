@@ -8,6 +8,7 @@ import (
 	"gorm.io/gorm"
 
 	"github.com/pocket-id/pocket-id/backend/internal/appconfig"
+	"github.com/pocket-id/pocket-id/backend/internal/auditlogs"
 	"github.com/pocket-id/pocket-id/backend/internal/authz"
 	"github.com/pocket-id/pocket-id/backend/internal/backchannellogout"
 	"github.com/pocket-id/pocket-id/backend/internal/dto"
@@ -30,7 +31,7 @@ type AppAssetProvider interface {
 // PasskeyManager lists and deletes the passkeys of any user for admins
 type PasskeyManager interface {
 	ListCredentials(ctx context.Context, userID string) ([]model.WebauthnCredential, error)
-	DeleteCredential(ctx context.Context, userID, credentialID, ipAddress, userAgent string, actor authz.Principal) error
+	DeleteCredential(ctx context.Context, userID, credentialID string, origin auditlogs.Origin) error
 }
 
 // ScimSyncScheduler schedules SCIM after a user change has committed
@@ -45,6 +46,11 @@ type EmailVerificationSender interface {
 	RequestEmailChange(ctx context.Context, dbConfig *appconfig.AppConfigModel, userID, newEmail string) error
 }
 
+type AuditLogger interface {
+	Record(ctx context.Context, event auditlogs.Event, origin auditlogs.Origin, userID string, data auditlogs.Data, tx *gorm.DB)
+	KeepUsername(ctx context.Context, userID, username string, tx *gorm.DB) error
+}
+
 type Dependencies struct {
 	DB                *gorm.DB
 	AppConfig         appconfig.AppConfigResolver
@@ -55,6 +61,7 @@ type Dependencies struct {
 	ScimSync          ScimSyncScheduler
 	BackchannelLogout *backchannellogout.Service
 	EmailVerification EmailVerificationSender
+	AuditLog          AuditLogger
 }
 
 type Module struct {
@@ -99,8 +106,8 @@ func (m *Module) GetUser(ctx context.Context, userID string) (model.User, error)
 }
 
 // DeleteUser deletes a user and their profile picture
-func (m *Module) DeleteUser(ctx context.Context, dbConfig *appconfig.AppConfigModel, userID string, allowLdapDelete bool) error {
-	return m.service.DeleteUser(ctx, dbConfig, userID, allowLdapDelete)
+func (m *Module) DeleteUser(ctx context.Context, dbConfig *appconfig.AppConfigModel, userID string, allowLdapDelete bool, origin auditlogs.Origin) error {
+	return m.service.DeleteUser(ctx, dbConfig, userID, allowLdapDelete, origin)
 }
 
 // UpdateProfilePicture converts the image into the user's square profile picture
@@ -117,18 +124,18 @@ func (m *Module) CreateUserInternal(ctx context.Context, dbConfig *appconfig.App
 // UpdateUserInternal updates a user within an existing transaction
 // It's exported for the LDAP sync, which reconciles users and groups in a single transaction of its own
 func (m *Module) UpdateUserInternal(ctx context.Context, dbConfig *appconfig.AppConfigModel, userID string, input dto.UserCreateDto, updateOwnUser bool, isLdapSync bool, tx *gorm.DB) (model.User, error) {
-	return m.service.updateUserInternal(ctx, dbConfig, userID, input, updateOwnUser, isLdapSync, tx)
+	return m.service.updateUserInternal(ctx, dbConfig, userID, input, updateOwnUser, isLdapSync, auditlogs.LDAPSync, tx)
 }
 
 // DisableUserInternal disables a user within an existing transaction
 // It's exported for the LDAP sync, which soft-deletes users that are no longer in the directory
 func (m *Module) DisableUserInternal(ctx context.Context, tx *gorm.DB, userID string) error {
-	return m.service.disableUserInternal(ctx, tx, userID)
+	return m.service.disableUserInternal(ctx, tx, userID, auditlogs.LDAPSync)
 }
 
 // DeleteUserInternal deletes a user within an existing transaction
 // It's exported for the LDAP sync, which deletes users that are no longer in the directory
 // Note that the caller is responsible for removing the user's profile picture from the storage layer, which must happen outside of the transaction
 func (m *Module) DeleteUserInternal(ctx context.Context, dbConfig *appconfig.AppConfigModel, tx *gorm.DB, userID string, allowLdapDelete bool) error {
-	return m.service.deleteUserInternal(ctx, dbConfig, tx, userID, allowLdapDelete)
+	return m.service.deleteUserInternal(ctx, dbConfig, tx, userID, allowLdapDelete, auditlogs.LDAPSync)
 }

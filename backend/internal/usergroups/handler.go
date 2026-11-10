@@ -8,6 +8,7 @@ import (
 	"github.com/gin-gonic/gin"
 
 	"github.com/pocket-id/pocket-id/backend/internal/appconfig"
+	"github.com/pocket-id/pocket-id/backend/internal/auditlogs"
 	"github.com/pocket-id/pocket-id/backend/internal/dto"
 	"github.com/pocket-id/pocket-id/backend/internal/httpserver"
 	"github.com/pocket-id/pocket-id/backend/internal/utils"
@@ -108,7 +109,7 @@ func (h *handler) create(c *gin.Context) error {
 		return err
 	}
 
-	group, err := h.service.Create(c.Request.Context(), input)
+	group, err := h.service.Create(c.Request.Context(), input, auditlogs.OriginFrom(c))
 	if err != nil {
 		return err
 	}
@@ -174,7 +175,7 @@ func (h *handler) delete(c *gin.Context) error {
 		return fmt.Errorf("error loading app configuration: %w", err)
 	}
 
-	if err := h.service.Delete(c.Request.Context(), dbConfig, c.Param("id")); err != nil {
+	if err := h.service.Delete(c.Request.Context(), dbConfig, c.Param("id"), auditlogs.OriginFrom(c)); err != nil {
 		return err
 	}
 
@@ -199,7 +200,7 @@ func (h *handler) updateUsers(c *gin.Context) error {
 		return err
 	}
 
-	group, err := h.service.UpdateUsers(c.Request.Context(), c.Param("id"), input.UserIDs)
+	group, err := h.service.UpdateUsers(c.Request.Context(), c.Param("id"), input.UserIDs, auditlogs.OriginFrom(c))
 	if err != nil {
 		return err
 	}
@@ -230,7 +231,7 @@ func (h *handler) updateAllowedOidcClients(c *gin.Context) error {
 		return err
 	}
 
-	userGroup, err := h.service.UpdateAllowedOidcClient(c.Request.Context(), c.Param("id"), input)
+	userGroup, err := h.service.UpdateAllowedOidcClient(c.Request.Context(), c.Param("id"), input, auditlogs.OriginFrom(c))
 	if err != nil {
 		return err
 	}

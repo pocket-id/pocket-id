@@ -1,6 +1,7 @@
 package usergroups
 
 import (
+	"context"
 	"strconv"
 	"sync"
 	"testing"
@@ -10,6 +11,7 @@ import (
 	"gorm.io/gorm"
 
 	"github.com/pocket-id/pocket-id/backend/internal/apperror"
+	"github.com/pocket-id/pocket-id/backend/internal/auditlogs"
 	"github.com/pocket-id/pocket-id/backend/internal/dto"
 	"github.com/pocket-id/pocket-id/backend/internal/model"
 	"github.com/pocket-id/pocket-id/backend/internal/utils"
@@ -17,7 +19,7 @@ import (
 )
 
 func TestGetReturnsUserGroupNotFound(t *testing.T) {
-	groupService := newService(testutils.NewDatabaseForTest(t), nil, nil)
+	groupService := newService(testutils.NewDatabaseForTest(t), nil, nil, &fakeAuditLogger{})
 
 	_, err := groupService.Get(t.Context(), "missing-group")
 	require.True(t, apperror.IsCode(err, apperror.CodeNotFound))
@@ -27,12 +29,13 @@ func TestGetReturnsUserGroupNotFound(t *testing.T) {
 }
 
 func TestUserGroupListSearchMatchesFriendlyName(t *testing.T) {
-	groupService := newService(testutils.NewDatabaseForTest(t), nil, nil)
+	groupService := newService(testutils.NewDatabaseForTest(t), nil, nil, &fakeAuditLogger{})
 
 	_, err := groupService.Create(t.Context(), dto.UserGroupCreateDto{
 		Name:         "qa_team",
 		FriendlyName: "QA Engineering",
-	})
+	}, auditlogs.Origin{})
+
 	require.NoError(t, err)
 
 	// A search for the friendly name must find the group, since the
@@ -57,8 +60,8 @@ func TestUserGroupListSearchMatchesFriendlyName(t *testing.T) {
 
 func TestChangeUsersKeepsConcurrentChanges(t *testing.T) {
 	testutils.ForEachDatabase(t, func(t *testing.T, db *gorm.DB) {
-		groupService := newService(db, nil, nil)
-		group, err := groupService.Create(t.Context(), dto.UserGroupCreateDto{Name: "family", FriendlyName: "Family"})
+		groupService := newService(db, nil, nil, &fakeAuditLogger{})
+		group, err := groupService.Create(t.Context(), dto.UserGroupCreateDto{Name: "family", FriendlyName: "Family"}, auditlogs.Origin{})
 		require.NoError(t, err)
 
 		userIDs := make([]string, 10)
@@ -73,7 +76,7 @@ func TestChangeUsersKeepsConcurrentChanges(t *testing.T) {
 			wg.Go(func() {
 				_, err := groupService.ChangeUsers(t.Context(), group.ID, func(memberIDs []string) []string {
 					return append(memberIDs, userID)
-				})
+				}, auditlogs.Origin{})
 				assert.NoError(t, err)
 			})
 		}
@@ -83,4 +86,46 @@ func TestChangeUsersKeepsConcurrentChanges(t *testing.T) {
 		require.NoError(t, err)
 		require.ElementsMatch(t, userIDs, memberIDs)
 	})
+}
+
+type recordedEntry struct {
+	event  auditlogs.Event
+	userID string
+	data   auditlogs.Data
+}
+
+type fakeAuditLogger struct {
+	mu      sync.Mutex
+	entries []recordedEntry
+}
+
+func (f *fakeAuditLogger) Record(_ context.Context, event auditlogs.Event, _ auditlogs.Origin, userID string, data auditlogs.Data, _ *gorm.DB) {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	f.entries = append(f.entries, recordedEntry{event: event, userID: userID, data: data})
+}
+
+func TestMembershipAndClientChangesAreRecorded(t *testing.T) {
+	db := testutils.NewDatabaseForTest(t)
+	auditLog := &fakeAuditLogger{}
+	groupService := newService(db, nil, nil, auditLog)
+	leaver := model.User{Username: "leaver"}
+	joiner := model.User{Username: "joiner"}
+	require.NoError(t, db.Create(&leaver).Error)
+	require.NoError(t, db.Create(&joiner).Error)
+	client := model.OidcClient{Name: "Photos"}
+	require.NoError(t, db.Create(&client).Error)
+	group := model.UserGroup{Name: "family", FriendlyName: "Family", Users: []model.User{leaver}}
+	require.NoError(t, db.Create(&group).Error)
+
+	_, err := groupService.UpdateUsers(t.Context(), group.ID, []string{joiner.ID}, auditlogs.Origin{})
+	require.NoError(t, err)
+	_, err = groupService.UpdateAllowedOidcClient(t.Context(), group.ID, dto.UserGroupUpdateAllowedOidcClientsDto{OidcClientIDs: []string{client.ID}}, auditlogs.Origin{})
+	require.NoError(t, err)
+
+	assert.Equal(t, []recordedEntry{
+		{event: auditlogs.EventGroupMemberAdded, userID: joiner.ID, data: auditlogs.Data{"groupName": "Family"}},
+		{event: auditlogs.EventGroupMemberRemoved, userID: leaver.ID, data: auditlogs.Data{"groupName": "Family"}},
+		{event: auditlogs.EventClientGroupAdded, data: auditlogs.Data{"clientName": "Photos", "groupName": "Family"}},
+	}, auditLog.entries)
 }

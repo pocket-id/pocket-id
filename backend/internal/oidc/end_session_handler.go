@@ -5,7 +5,7 @@ import (
 	"net/http"
 
 	"github.com/gin-gonic/gin"
-	"github.com/pocket-id/pocket-id/backend/internal/authz"
+	"github.com/pocket-id/pocket-id/backend/internal/auditlogs"
 	"github.com/pocket-id/pocket-id/backend/internal/dto"
 	"github.com/pocket-id/pocket-id/backend/internal/utils/cookie"
 )
@@ -31,8 +31,8 @@ func (h *endSessionHandler) endSession(c *gin.Context) {
 		return
 	}
 
-	principal := authz.PrincipalFrom(c)
-	callbackURL, err := h.endSessionService.endSession(c.Request.Context(), input, principal.UserID)
+	origin := auditlogs.OriginFrom(c)
+	callbackURL, err := h.endSessionService.endSession(c.Request.Context(), input, origin.Principal.UserID)
 	if err != nil {
 		slog.WarnContext(c.Request.Context(), "Error getting logout callback URL, the user has to confirm the logout manually", "error", err)
 		c.Redirect(http.StatusFound, h.baseURL+"/logout")
@@ -40,8 +40,8 @@ func (h *endSessionHandler) endSession(c *gin.Context) {
 	}
 
 	// The redirect must still happen if revoking fails, and the cleared cookie signs the browser out either way
-	if principal.SessionID != "" {
-		err = h.sessions.Revoke(c.Request.Context(), principal.UserID, principal.SessionID)
+	if origin.Principal.SessionID != "" {
+		err = h.sessions.Revoke(c.Request.Context(), origin.Principal.UserID, origin.Principal.SessionID, origin)
 		if err != nil {
 			slog.WarnContext(c.Request.Context(), "Failed to revoke the session on logout", "error", err)
 		}

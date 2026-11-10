@@ -7,6 +7,7 @@ import (
 	"github.com/gin-gonic/gin"
 
 	"github.com/pocket-id/pocket-id/backend/internal/appconfig"
+	"github.com/pocket-id/pocket-id/backend/internal/auditlogs"
 	"github.com/pocket-id/pocket-id/backend/internal/authz"
 	"github.com/pocket-id/pocket-id/backend/internal/dto"
 	"github.com/pocket-id/pocket-id/backend/internal/httpserver"
@@ -63,7 +64,8 @@ func (h *handler) verify(c *gin.Context) error {
 		return err
 	}
 
-	err := h.service.Verify(c.Request.Context(), authz.PrincipalFrom(c).UserID, input.Token)
+	origin := auditlogs.OriginFrom(c)
+	err := h.service.Verify(c.Request.Context(), origin.Principal.UserID, input.Token, origin)
 	if err != nil {
 		return err
 	}

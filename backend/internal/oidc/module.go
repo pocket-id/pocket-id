@@ -51,11 +51,12 @@ type ReauthenticationTokenConsumer interface {
 }
 
 type SessionRevoker interface {
-	Revoke(ctx context.Context, userID, sessionID string) error
+	Revoke(ctx context.Context, userID, sessionID string, origin auditlogs.Origin) error
 }
 
 type AuditLogger interface {
 	Create(ctx context.Context, event auditlogs.Event, ipAddress, userAgent, userID string, data auditlogs.Data, tx *gorm.DB) (auditlogs.AuditLog, bool)
+	Record(ctx context.Context, event auditlogs.Event, origin auditlogs.Origin, userID string, data auditlogs.Data, tx *gorm.DB)
 }
 
 // ScimSyncScheduler schedules SCIM after a client change has committed
@@ -172,7 +173,7 @@ func New(ctx context.Context, deps Dependencies) (*Module, error) {
 		claimMappingsPreviewHandler: &claimMappingsPreviewHandler{claimsService: claimsService},
 		discoveryHandler:            &discoveryHandler{keys: deps.Signer, getCIMDURLAllowlist: deps.GetCIMDURLAllowlist},
 		clientHandler: &clientHandler{
-			service:   newClientService(deps.DB, previewBuilder, cimdResolver, deps.ScimSync, deps.BackchannelLogout, deps.LogoHTTPClient, deps.FileStorage),
+			service:   newClientService(deps.DB, previewBuilder, cimdResolver, deps.ScimSync, deps.BackchannelLogout, deps.AuditLog, deps.LogoHTTPClient, deps.FileStorage),
 			appConfig: deps.AppConfig,
 		},
 	}, nil

@@ -19,13 +19,14 @@ import (
 
 type SessionStore interface {
 	Create(ctx context.Context, userID, authenticationMethod, ipAddress, userAgent string, duration time.Duration, remember bool) (string, error)
-	Revoke(ctx context.Context, userID, sessionID string) error
+	Revoke(ctx context.Context, userID, sessionID string, origin auditlogs.Origin) error
 }
 
 type AuditLogger interface {
 	CreateSignIn(ctx context.Context, event auditlogs.Event, ipAddress, userAgent, userID, browserToken string, tx *gorm.DB, notificationMode appconfig.AppConfigValue) auditlogs.SignInResult
 	SendSignInNotification(ctx context.Context, result auditlogs.SignInResult)
 	Create(ctx context.Context, event auditlogs.Event, ipAddress, userAgent, userID string, data auditlogs.Data, tx *gorm.DB) (auditlogs.AuditLog, bool)
+	Record(ctx context.Context, event auditlogs.Event, origin auditlogs.Origin, userID string, data auditlogs.Data, tx *gorm.DB)
 }
 
 type Dependencies struct {
@@ -109,6 +110,6 @@ func (m *Module) ListCredentials(ctx context.Context, userID string) ([]model.We
 
 // DeleteCredential removes a passkey, optionally on behalf of an admin or a client acting for another user
 // It is consumed by the user controller for the admin "manage passkeys" view
-func (m *Module) DeleteCredential(ctx context.Context, userID, credentialID, ipAddress, userAgent string, actor authz.Principal) error {
-	return m.service.DeleteCredential(ctx, userID, credentialID, ipAddress, userAgent, actor)
+func (m *Module) DeleteCredential(ctx context.Context, userID, credentialID string, origin auditlogs.Origin) error {
+	return m.service.DeleteCredential(ctx, userID, credentialID, origin)
 }

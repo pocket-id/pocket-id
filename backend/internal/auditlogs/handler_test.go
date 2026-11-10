@@ -22,13 +22,14 @@ func TestAuditLogRoutesPreservePermissionsAndResponses(t *testing.T) {
 	module, err := New(t.Context(), Dependencies{DB: db, EnvConfig: &common.EnvConfigSchema{EncryptionKey: []byte("0123456789abcdef0123456789abcdef")}, CleanupDisabled: true})
 	require.NoError(t, err)
 
-	// Different owners make accidental loss of the current-user filter visible
-	for _, id := range []string{"alice", "bob"} {
+	// Alice's own activity includes what she did to Bob's account, while Carol's entry makes accidental loss of the current-user filter visible
+	for id, actor := range map[string]string{"alice": "alice", "bob": "alice", "carol": "carol"} {
 		require.NoError(t, db.Create(&model.User{Base: model.Base{ID: id}, Username: id}).Error)
 		require.NoError(t, db.Create(&AuditLog{
 			Base: model.Base{ID: id + "-log"}, UserID: id, Event: EventSignIn,
 			IpAddress: new("192.0.2.1"), UserAgent: "Firefox", Country: "Switzerland", City: "Zurich",
-			Data: Data{"clientName": id + "-client", "actorUsername": "administrator"},
+			Data:      Data{"clientName": id + "-client"},
+			ActorType: ActorUser, ActorID: actor, ActorName: actor,
 		}).Error)
 	}
 
@@ -101,31 +102,31 @@ func assertAuditLogRouteResponse(t *testing.T, path string, response *httptest.R
 		}
 		require.NoError(t, json.Unmarshal(response.Body.Bytes(), &body))
 		require.NotEmpty(t, body.Pagination)
-		count := 1
+		count := 2
 		if path == "/audit-logs/all" {
-			count = 2
+			count = 3
 		}
 		require.Len(t, body.Data, count)
 		for _, entry := range body.Data {
 			require.Equal(t, "SIGN_IN", entry["event"])
 			require.Equal(t, "192.0.2.1", entry["ipAddress"])
-			require.Equal(t, "administrator", entry["actorUsername"])
+			require.Equal(t, "user", entry["actorType"])
+			require.Equal(t, entry["actorID"], entry["actorName"])
+			require.Equal(t, entry["userID"], entry["username"])
 			require.Contains(t, entry, "device")
 			require.Contains(t, entry, "createdAt")
 			require.NotContains(t, entry, "userAgent")
 			if path == "/audit-logs" {
-				require.Equal(t, "alice", entry["userID"])
-			} else {
-				require.Equal(t, entry["userID"], entry["username"])
+				require.Equal(t, "alice", entry["actorID"])
 			}
 		}
 	case "/audit-logs/filters/client-names":
 		var names []string
 		require.NoError(t, json.Unmarshal(response.Body.Bytes(), &names))
-		require.ElementsMatch(t, []string{"alice-client", "bob-client"}, names)
+		require.ElementsMatch(t, []string{"alice-client", "bob-client", "carol-client"}, names)
 	case "/audit-logs/filters/users":
 		var users map[string]string
 		require.NoError(t, json.Unmarshal(response.Body.Bytes(), &users))
-		require.Equal(t, map[string]string{"alice": "alice", "bob": "bob"}, users)
+		require.Equal(t, map[string]string{"alice": "alice", "bob": "bob", "carol": "carol"}, users)
 	}
 }

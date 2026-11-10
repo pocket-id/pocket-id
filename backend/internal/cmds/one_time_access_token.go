@@ -11,6 +11,7 @@ import (
 	"github.com/spf13/cobra"
 	"gorm.io/gorm"
 
+	"github.com/pocket-id/pocket-id/backend/internal/auditlogs"
 	"github.com/pocket-id/pocket-id/backend/internal/bootstrap"
 	"github.com/pocket-id/pocket-id/backend/internal/common"
 	"github.com/pocket-id/pocket-id/backend/internal/instanceid"
@@ -61,6 +62,7 @@ var oneTimeAccessTokenCmd = &cobra.Command{
 		if err != nil {
 			return fmt.Errorf("failed to create access token: %w", err)
 		}
+		auditlogs.RecordCLI(cmd.Context(), db, auditlogs.EventLoginCodeCreated, user.ID, auditlogs.Data{"delivery": "link"})
 
 		// Print the result
 		fmt.Printf(`A one-time access token valid for 1 hour has been created for "%s".`+"\n", userArg)

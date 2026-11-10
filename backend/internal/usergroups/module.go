@@ -6,12 +6,17 @@ import (
 	"gorm.io/gorm"
 
 	"github.com/pocket-id/pocket-id/backend/internal/appconfig"
+	"github.com/pocket-id/pocket-id/backend/internal/auditlogs"
 	"github.com/pocket-id/pocket-id/backend/internal/authz"
 	"github.com/pocket-id/pocket-id/backend/internal/backchannellogout"
 	"github.com/pocket-id/pocket-id/backend/internal/dto"
 	"github.com/pocket-id/pocket-id/backend/internal/httpserver"
 	"github.com/pocket-id/pocket-id/backend/internal/model"
 )
+
+type AuditLogger interface {
+	Record(ctx context.Context, event auditlogs.Event, origin auditlogs.Origin, userID string, data auditlogs.Data, tx *gorm.DB)
+}
 
 // ScimSyncScheduler schedules SCIM after a group change has committed
 type ScimSyncScheduler interface {
@@ -23,6 +28,7 @@ type Dependencies struct {
 	AppConfig         appconfig.AppConfigResolver
 	ScimSync          ScimSyncScheduler
 	BackchannelLogout *backchannellogout.Service
+	AuditLog          AuditLogger
 }
 
 type Module struct {
@@ -31,7 +37,7 @@ type Module struct {
 }
 
 func New(deps Dependencies) *Module {
-	service := newService(deps.DB, deps.ScimSync, deps.BackchannelLogout)
+	service := newService(deps.DB, deps.ScimSync, deps.BackchannelLogout, deps.AuditLog)
 	return &Module{
 		service: service,
 		handler: newHandler(deps.AppConfig, service),
@@ -52,7 +58,7 @@ func (m *Module) RegisterRoutes(r *authz.Router) {
 // CreateInternal creates a user group within an existing transaction
 // It's exported for the LDAP sync, which reconciles users and groups in a single transaction of its own
 func (m *Module) CreateInternal(ctx context.Context, input dto.UserGroupCreateDto, tx *gorm.DB) (model.UserGroup, error) {
-	return m.service.createInternal(ctx, input, tx)
+	return m.service.createInternal(ctx, input, auditlogs.LDAPSync, tx)
 }
 
 // UpdateInternal updates a user group within an existing transaction
@@ -64,5 +70,11 @@ func (m *Module) UpdateInternal(ctx context.Context, cfg *appconfig.AppConfigMod
 // UpdateUsersInternal replaces the members of a user group within an existing transaction
 // It's exported for the LDAP sync, which reconciles users and groups in a single transaction of its own
 func (m *Module) UpdateUsersInternal(ctx context.Context, id string, userIDs []string, tx *gorm.DB) (model.UserGroup, error) {
-	return m.service.updateUsersInternal(ctx, id, userIDs, tx)
+	return m.service.updateUsersInternal(ctx, id, userIDs, auditlogs.LDAPSync, tx)
+}
+
+// DeleteInternal deletes a user group within an existing transaction
+// It's exported for the LDAP sync, which deletes groups that are no longer in the directory
+func (m *Module) DeleteInternal(ctx context.Context, group model.UserGroup, tx *gorm.DB) error {
+	return m.service.deleteInternal(ctx, group, auditlogs.LDAPSync, tx)
 }

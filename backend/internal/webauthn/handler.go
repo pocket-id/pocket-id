@@ -146,12 +146,8 @@ func (h *handler) listCredentials(c *gin.Context) error {
 }
 
 func (h *handler) deleteCredential(c *gin.Context) error {
-	principal := authz.PrincipalFrom(c)
-	credentialID := c.Param("id")
-	clientIP := c.ClientIP()
-	userAgent := c.Request.UserAgent()
-
-	err := h.service.DeleteCredential(c.Request.Context(), principal.UserID, credentialID, clientIP, userAgent, principal)
+	origin := auditlogs.OriginFrom(c)
+	err := h.service.DeleteCredential(c.Request.Context(), origin.Principal.UserID, c.Param("id"), origin)
 	if err != nil {
 		return err
 	}
@@ -184,8 +180,8 @@ func (h *handler) updateCredential(c *gin.Context) error {
 }
 
 func (h *handler) logout(c *gin.Context) error {
-	principal := authz.PrincipalFrom(c)
-	err := h.service.sessions.Revoke(c.Request.Context(), principal.UserID, principal.SessionID)
+	origin := auditlogs.OriginFrom(c)
+	err := h.service.sessions.Revoke(c.Request.Context(), origin.Principal.UserID, origin.Principal.SessionID, origin)
 	if err != nil {
 		return err
 	}

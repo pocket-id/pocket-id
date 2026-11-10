@@ -92,6 +92,16 @@ func (m *Module) Create(ctx context.Context, event Event, ipAddress, userAgent, 
 	return m.service.Create(ctx, event, ipAddress, userAgent, userID, data, tx)
 }
 
+// Record creates an entry about userID for an action that origin performed
+func (m *Module) Record(ctx context.Context, event Event, origin Origin, userID string, data Data, tx *gorm.DB) {
+	m.service.Record(ctx, event, origin, userID, data, tx)
+}
+
+// KeepUsername must be called within the transaction that deletes the user, before the delete
+func (m *Module) KeepUsername(ctx context.Context, userID, username string, tx *gorm.DB) error {
+	return m.service.KeepUsername(ctx, userID, username, tx)
+}
+
 // CreateSignIn prepares browser recognition and notification delivery within the caller's transaction
 func (m *Module) CreateSignIn(ctx context.Context, event Event, ipAddress, userAgent, userID, browserToken string, tx *gorm.DB, notificationMode appconfig.AppConfigValue) SignInResult {
 	return m.service.CreateSignIn(ctx, event, ipAddress, userAgent, userID, browserToken, tx, notificationMode)

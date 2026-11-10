@@ -1,7 +1,6 @@
 package webauthn
 
 import (
-	"context"
 	"errors"
 	"testing"
 	"time"
@@ -10,7 +9,6 @@ import (
 	gowebauthn "github.com/go-webauthn/webauthn/webauthn"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-	"gorm.io/gorm"
 
 	"github.com/pocket-id/pocket-id/backend/internal/appconfig"
 	"github.com/pocket-id/pocket-id/backend/internal/apperror"
@@ -281,7 +279,7 @@ func TestWebAuthnManagementOperationsReturnSpecificNotFoundErrors(t *testing.T) 
 	_, err = service.UpdateCredential(t.Context(), "missing-user", "missing-passkey", "New name")
 	require.True(t, apperror.IsCode(err, apperror.CodeNotFound))
 
-	err = service.DeleteCredential(t.Context(), "missing-user", "missing-passkey", "", "", authz.Principal{})
+	err = service.DeleteCredential(t.Context(), "missing-user", "missing-passkey", auditlogs.Origin{})
 	require.True(t, apperror.IsCode(err, apperror.CodeNotFound))
 }
 
@@ -413,32 +411,4 @@ func TestUpdateCredentialKeepsAAGUID(t *testing.T) {
 	require.NoError(t, db.First(&stored, "id = ?", credential.ID).Error)
 	assert.Equal(t, "New name", stored.Name)
 	assert.Equal(t, aaguid, stored.AAGUID)
-}
-
-// recordingAuditLogger keeps the data of the last audit event and leaves the sign-in methods unimplemented
-type recordingAuditLogger struct {
-	AuditLogger
-	data auditlogs.Data
-}
-
-func (r *recordingAuditLogger) Create(_ context.Context, _ auditlogs.Event, _, _, _ string, data auditlogs.Data, _ *gorm.DB) (auditlogs.AuditLog, bool) {
-	r.data = data
-	return auditlogs.AuditLog{}, true
-}
-
-func TestDeleteCredentialNamesTheClientActingForItself(t *testing.T) {
-	db := testutils.NewDatabaseForTest(t)
-	require.NoError(t, db.Create(&model.User{Base: model.Base{ID: "passkey-owner"}, Username: "owner"}).Error)
-	require.NoError(t, db.Create(&model.OidcClient{Base: model.Base{ID: "provisioner"}, Name: "Provisioner"}).Error)
-	credential := model.WebauthnCredential{Name: "Laptop", CredentialID: []byte("credential"), PublicKey: []byte("key"), UserID: "passkey-owner"}
-	require.NoError(t, db.Create(&credential).Error)
-
-	auditLog := &recordingAuditLogger{}
-	service := &Service{db: db, auditLog: auditLog}
-
-	err := service.DeleteCredential(t.Context(), "passkey-owner", credential.ID, "", "", authz.Principal{Kind: authz.KindOAuthClient, ClientID: "provisioner"})
-	require.NoError(t, err)
-	assert.Equal(t, "provisioner", auditLog.data["actorClientID"])
-	assert.Equal(t, "Provisioner", auditLog.data["actorClientName"])
-	assert.NotContains(t, auditLog.data, "actorUserID")
 }

@@ -514,10 +514,7 @@ func (s *Service) reconcileGroups(ctx context.Context, tx *gorm.DB, desiredGroup
 			continue
 		}
 
-		err = tx.
-			WithContext(ctx).
-			Delete(&model.UserGroup{}, "ldap_id = ?", *group.LdapID).
-			Error
+		err = s.groups.DeleteInternal(ctx, group, tx)
 		if err != nil {
 			return nil, fmt.Errorf("failed to delete group '%s': %w", group.Name, err)
 		}

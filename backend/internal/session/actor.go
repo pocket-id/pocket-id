@@ -76,10 +76,6 @@ type sessionRequest struct {
 	SessionID string
 }
 
-type revokeResponse struct {
-	Found bool
-}
-
 type revokeAllRequest struct {
 	ExceptSessionID string
 }
@@ -122,7 +118,7 @@ func (a *sessionsActor) Invoke(ctx context.Context, method string, data actor.En
 		if err := decode(data, method, &req); err != nil {
 			return nil, err
 		}
-		return nil, a.revokeAll(ctx, req.ExceptSessionID)
+		return a.revokeAll(ctx, req.ExceptSessionID)
 	case methodRemember:
 		var req sessionRequest
 		if err := decode(data, method, &req); err != nil {
@@ -211,30 +207,34 @@ func (a *sessionsActor) touch(ctx context.Context, sessionID string) error {
 	return a.save(ctx, state)
 }
 
-func (a *sessionsActor) revoke(ctx context.Context, sessionID string) (revokeResponse, error) {
+// revoke returns the revoked session, or the zero Session when it does not exist
+func (a *sessionsActor) revoke(ctx context.Context, sessionID string) (Session, error) {
 	state, err := a.loadForWrite(ctx)
 	if err != nil {
-		return revokeResponse{}, err
+		return Session{}, err
 	}
 
-	if _, ok := state.Sessions[sessionID]; !ok {
-		return revokeResponse{}, nil
+	session, ok := state.Sessions[sessionID]
+	if !ok {
+		return Session{}, nil
 	}
 
 	delete(state.Sessions, sessionID)
-	return revokeResponse{Found: true}, a.save(ctx, state)
+	return session, a.save(ctx, state)
 }
 
-func (a *sessionsActor) revokeAll(ctx context.Context, exceptSessionID string) error {
+// revokeAll returns how many sessions it revoked
+func (a *sessionsActor) revokeAll(ctx context.Context, exceptSessionID string) (int, error) {
 	state, err := a.loadForWrite(ctx)
 	if err != nil {
-		return err
+		return 0, err
 	}
 
+	count := len(state.Sessions)
 	maps.DeleteFunc(state.Sessions, func(id string, _ Session) bool {
 		return id != exceptSessionID
 	})
-	return a.save(ctx, state)
+	return count - len(state.Sessions), a.save(ctx, state)
 }
 
 // remember drops the idle timeout of a session, so it lasts until it expires

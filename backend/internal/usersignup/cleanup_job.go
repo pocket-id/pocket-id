@@ -10,6 +10,7 @@ import (
 	"gorm.io/gorm"
 
 	"github.com/pocket-id/pocket-id/backend/internal/appconfig"
+	"github.com/pocket-id/pocket-id/backend/internal/auditlogs"
 	"github.com/pocket-id/pocket-id/backend/internal/model"
 	datatype "github.com/pocket-id/pocket-id/backend/internal/model/types"
 )
@@ -23,7 +24,7 @@ const (
 
 // UserDeleter deletes a user together with everything that references it
 type UserDeleter interface {
-	DeleteUser(ctx context.Context, dbConfig *appconfig.AppConfigModel, userID string, allowLdapDelete bool) error
+	DeleteUser(ctx context.Context, dbConfig *appconfig.AppConfigModel, userID string, allowLdapDelete bool, origin auditlogs.Origin) error
 }
 
 type cleanupJob struct {
@@ -99,7 +100,7 @@ func (j *cleanupJob) deleteUnverifiedSignups(ctx context.Context) error {
 	// A failure is logged and the remaining accounts are still processed
 	deleted := 0
 	for _, userID := range userIDs {
-		err = j.users.DeleteUser(ctx, dbConfig, userID, false)
+		err = j.users.DeleteUser(ctx, dbConfig, userID, false, auditlogs.System)
 		if err != nil {
 			slog.ErrorContext(ctx, "Failed to delete an account that missed its email verification deadline", slog.String("userID", userID), slog.Any("error", err))
 			continue

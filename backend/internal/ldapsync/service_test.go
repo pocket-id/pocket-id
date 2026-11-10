@@ -2,6 +2,7 @@ package ldapsync
 
 import (
 	"bytes"
+	"context"
 	"net/http"
 	"net/http/httptest"
 	"testing"
@@ -14,6 +15,7 @@ import (
 
 	"github.com/pocket-id/pocket-id/backend/internal/appconfig"
 	"github.com/pocket-id/pocket-id/backend/internal/apperror"
+	"github.com/pocket-id/pocket-id/backend/internal/auditlogs"
 	"github.com/pocket-id/pocket-id/backend/internal/model"
 	datatype "github.com/pocket-id/pocket-id/backend/internal/model/types"
 	"github.com/pocket-id/pocket-id/backend/internal/service"
@@ -27,6 +29,14 @@ type fakeLDAPClient struct {
 	searchFn func(searchRequest *ldap.SearchRequest) (*ldap.SearchResult, error)
 }
 
+type nopAuditLogger struct{}
+
+func (nopAuditLogger) Record(context.Context, auditlogs.Event, auditlogs.Origin, string, auditlogs.Data, *gorm.DB) {
+}
+
+func (nopAuditLogger) KeepUsername(context.Context, string, string, *gorm.DB) error {
+	return nil
+}
 func TestCreateLDAPClientRejectsDisabledConfiguration(t *testing.T) {
 	svc := newService(Dependencies{})
 
@@ -579,12 +589,13 @@ func newTestLdapService(t *testing.T, client ldapClient) (*Service, *gorm.DB) {
 	require.NoError(t, err)
 
 	// The sync is exercised against the real user and group services, so the assertions below can check what actually lands in the database
-	groupsModule := usergroups.New(usergroups.Dependencies{DB: db})
+	groupsModule := usergroups.New(usergroups.Dependencies{DB: db, AuditLog: nopAuditLogger{}})
 	usersModule := users.New(users.Dependencies{
 		DB:           db,
 		FileStorage:  fileStorage,
 		CustomClaims: service.NewCustomClaimService(db),
 		AppAssets:    service.NewAppAssetsService(map[string]string{}, fileStorage),
+		AuditLog:     nopAuditLogger{},
 	})
 
 	svc := newService(Dependencies{

@@ -34,6 +34,7 @@ type GroupSyncer interface {
 	CreateInternal(ctx context.Context, input dto.UserGroupCreateDto, tx *gorm.DB) (model.UserGroup, error)
 	UpdateInternal(ctx context.Context, dbConfig *appconfig.AppConfigModel, id string, input dto.UserGroupCreateDto, isLdapSync bool, tx *gorm.DB) (model.UserGroup, error)
 	UpdateUsersInternal(ctx context.Context, id string, userIDs []string, tx *gorm.DB) (model.UserGroup, error)
+	DeleteInternal(ctx context.Context, group model.UserGroup, tx *gorm.DB) error
 }
 
 // ScimSyncScheduler schedules SCIM after the LDAP transaction has committed

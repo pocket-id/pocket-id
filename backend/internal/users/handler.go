@@ -8,6 +8,7 @@ import (
 	"github.com/gin-gonic/gin"
 
 	"github.com/pocket-id/pocket-id/backend/internal/appconfig"
+	"github.com/pocket-id/pocket-id/backend/internal/auditlogs"
 	"github.com/pocket-id/pocket-id/backend/internal/authz"
 	"github.com/pocket-id/pocket-id/backend/internal/dto"
 	"github.com/pocket-id/pocket-id/backend/internal/httpserver"
@@ -169,7 +170,7 @@ func (h *handler) deleteUserHandler(c *gin.Context) error {
 		return fmt.Errorf("error loading app configuration: %w", err)
 	}
 
-	if err := h.service.DeleteUser(c.Request.Context(), dbConfig, c.Param("id"), false); err != nil {
+	if err := h.service.DeleteUser(c.Request.Context(), dbConfig, c.Param("id"), false, auditlogs.OriginFrom(c)); err != nil {
 		return err
 	}
 
@@ -191,9 +192,7 @@ func (h *handler) deleteUserWebauthnCredentialHandler(c *gin.Context) error {
 		c.Request.Context(),
 		c.Param("id"),
 		c.Param("credentialId"),
-		c.ClientIP(),
-		c.Request.UserAgent(),
-		authz.PrincipalFrom(c),
+		auditlogs.OriginFrom(c),
 	)
 	if err != nil {
 		return err
@@ -222,7 +221,7 @@ func (h *handler) createUserHandler(c *gin.Context) error {
 		return err
 	}
 
-	user, err := h.service.CreateUser(c.Request.Context(), dbConfig, input)
+	user, err := h.service.CreateUser(c.Request.Context(), dbConfig, input, auditlogs.OriginFrom(c))
 	if err != nil {
 		return err
 	}
@@ -363,7 +362,7 @@ func (h *handler) updateUserGroups(c *gin.Context) error {
 		return err
 	}
 
-	user, err := h.service.UpdateUserGroups(c.Request.Context(), c.Param("id"), input.UserGroupIds)
+	user, err := h.service.UpdateUserGroups(c.Request.Context(), c.Param("id"), input.UserGroupIds, auditlogs.OriginFrom(c))
 	if err != nil {
 		return err
 	}
@@ -396,7 +395,7 @@ func (h *handler) updateUser(c *gin.Context, updateOwnUser bool) error {
 		userID = c.Param("id")
 	}
 
-	user, err := h.service.UpdateUser(c.Request.Context(), dbConfig, userID, input, updateOwnUser, false)
+	user, err := h.service.UpdateUser(c.Request.Context(), dbConfig, userID, input, updateOwnUser, false, auditlogs.OriginFrom(c))
 	if err != nil {
 		return err
 	}

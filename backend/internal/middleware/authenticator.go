@@ -145,9 +145,10 @@ func (a *APIKeyAuthenticator) Authenticate(c *gin.Context) (*authz.Principal, er
 		keyScopes[authz.Scope(scope)] = struct{}{}
 	}
 	principal := &authz.Principal{
-		Kind:   authz.KindAPIKey,
-		UserID: user.ID,
-		Scopes: authz.UserScopes(user.IsAdmin, authz.KindAPIKey).Intersect(keyScopes),
+		Kind:     authz.KindAPIKey,
+		UserID:   user.ID,
+		APIKeyID: key.ID,
+		Scopes:   authz.UserScopes(user.IsAdmin, authz.KindAPIKey).Intersect(keyScopes),
 	}
 	err = restrictUnverified(c.Request.Context(), a.appConfig, &user, principal)
 	if err != nil {
@@ -221,9 +222,10 @@ func (a *OAuthAuthenticator) Authenticate(c *gin.Context) (*authz.Principal, err
 
 	// A token never holds more than its user currently does, so demoting the user narrows their tokens right away
 	principal := &authz.Principal{
-		Kind:   authz.KindOAuthUser,
-		UserID: user.ID,
-		Scopes: authz.UserScopes(user.IsAdmin, authz.KindOAuthUser).Intersect(tokenScopes),
+		Kind:     authz.KindOAuthUser,
+		UserID:   user.ID,
+		ClientID: clientID,
+		Scopes:   authz.UserScopes(user.IsAdmin, authz.KindOAuthUser).Intersect(tokenScopes),
 	}
 	err = restrictUnverified(ctx, a.appConfig, &user, principal)
 	if err != nil {

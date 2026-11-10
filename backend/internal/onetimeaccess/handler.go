@@ -51,7 +51,7 @@ func (h *handler) createTokenForUser(c *gin.Context) error {
 		return apperror.MissingField("userId")
 	}
 
-	token, err := h.service.CreateToken(c.Request.Context(), userID, ttl)
+	token, err := h.service.CreateToken(c.Request.Context(), userID, ttl, auditlogs.OriginFrom(c))
 	if err != nil {
 		return err
 	}
@@ -81,7 +81,7 @@ func (h *handler) requestEmailAsUnauthenticatedUser(c *gin.Context) error {
 		return err
 	}
 
-	deviceToken, err := h.service.RequestOneTimeAccessEmailAsUnauthenticatedUser(c.Request.Context(), dbConfig, input.Email, input.RedirectPath)
+	deviceToken, err := h.service.RequestOneTimeAccessEmailAsUnauthenticatedUser(c.Request.Context(), dbConfig, input.Email, input.RedirectPath, auditlogs.OriginFrom(c))
 	if err != nil {
 		return err
 	}
@@ -119,7 +119,7 @@ func (h *handler) requestEmailAsAdmin(c *gin.Context) error {
 	if ttl <= 0 {
 		ttl = defaultTokenDuration
 	}
-	err = h.service.RequestOneTimeAccessEmailAsAdmin(c.Request.Context(), dbConfig, userID, ttl)
+	err = h.service.RequestOneTimeAccessEmailAsAdmin(c.Request.Context(), dbConfig, userID, ttl, auditlogs.OriginFrom(c))
 	if err != nil {
 		return err
 	}

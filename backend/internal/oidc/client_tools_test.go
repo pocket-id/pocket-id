@@ -9,6 +9,7 @@ import (
 	"github.com/italypaleale/francis/host/local"
 	"github.com/stretchr/testify/require"
 
+	"github.com/pocket-id/pocket-id/backend/internal/auditlogs"
 	"github.com/pocket-id/pocket-id/backend/internal/backchannellogout"
 	"github.com/pocket-id/pocket-id/backend/internal/dto"
 	"github.com/pocket-id/pocket-id/backend/internal/mcp"
@@ -18,7 +19,7 @@ import (
 
 func TestUpdateClientToolKeepsFieldsThatWereNotGiven(t *testing.T) {
 	db := testutils.NewDatabaseForTest(t)
-	s := &clientService{db: db}
+	s := &clientService{db: db, auditLog: &fakeAuditLogger{}}
 	h := clientHandler{service: s}
 
 	launchURL := "https://photos.example.com"
@@ -32,7 +33,7 @@ func TestUpdateClientToolKeepsFieldsThatWereNotGiven(t *testing.T) {
 		Credentials: dto.OidcClientCredentialsDto{FederatedIdentities: []dto.OidcClientFederatedIdentityDto{
 			{Issuer: "https://issuer.example.com", Subject: "photos", JWKS: "https://issuer.example.com/jwks"},
 		}},
-	}}, "", false)
+	}}, auditlogs.Origin{}, false)
 	require.NoError(t, err)
 
 	group := model.UserGroup{FriendlyName: "Family", Name: "family"}
@@ -86,7 +87,7 @@ func TestUpdateClientToolKeepsMembersOfNewlyAllowedGroupsSignedIn(t *testing.T) 
 		backchannelLogout, err = backchannellogout.NewService(db, userIDLogoutTokenSigner{}, logoutServer.Client(), h)
 		require.NoError(t, err)
 	})
-	h := clientHandler{service: &clientService{db: db, backchannelLogout: backchannelLogout}}
+	h := clientHandler{service: &clientService{db: db, backchannelLogout: backchannelLogout, auditLog: &fakeAuditLogger{}}}
 
 	client := model.OidcClient{Name: "Photos", BackchannelLogoutURL: logoutServer.URL}
 	require.NoError(t, db.Create(&client).Error)

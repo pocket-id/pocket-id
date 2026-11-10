@@ -3,6 +3,7 @@ package oidc
 import (
 	"context"
 
+	"github.com/pocket-id/pocket-id/backend/internal/auditlogs"
 	"github.com/pocket-id/pocket-id/backend/internal/authz"
 	"github.com/pocket-id/pocket-id/backend/internal/common"
 	"github.com/pocket-id/pocket-id/backend/internal/dto"
@@ -132,13 +133,13 @@ func (h *clientHandler) createClientTool(ctx context.Context, call mcp.Call, inp
 	}
 
 	// The secret is created regardless of the auto-create setting, because the assistant can't open the client page to create one
-	client, createdSecret, err := h.service.CreateClient(ctx, createDto, call.Principal.UserID, true)
+	client, createdSecret, err := h.service.CreateClient(ctx, createDto, auditlogs.OriginFromMCP(call), true)
 	if err != nil {
 		return nil, err
 	}
 
 	if createDto.IsGroupRestricted {
-		client, err = h.service.UpdateAllowedUserGroups(ctx, client.ID, dto.OidcUpdateAllowedUserGroupsDto{UserGroupIDs: input.AllowedUserGroupIDs})
+		client, err = h.service.UpdateAllowedUserGroups(ctx, client.ID, dto.OidcUpdateAllowedUserGroupsDto{UserGroupIDs: input.AllowedUserGroupIDs}, auditlogs.OriginFromMCP(call))
 		if err != nil {
 			return nil, err
 		}
@@ -151,7 +152,7 @@ func (h *clientHandler) createClientTool(ctx context.Context, call mcp.Call, inp
 	return result, nil
 }
 
-func (h *clientHandler) updateClientTool(ctx context.Context, _ mcp.Call, input updateClientInput) (any, error) {
+func (h *clientHandler) updateClientTool(ctx context.Context, call mcp.Call, input updateClientInput) (any, error) {
 	// The service replaces every field, so start from the current client and apply only the given fields
 	client, err := h.service.GetClient(ctx, input.ID)
 	if err != nil {
@@ -180,21 +181,21 @@ func (h *clientHandler) updateClientTool(ctx context.Context, _ mcp.Call, input 
 
 	// Assign the groups before the restriction takes effect, otherwise turning it on would log their members out of the client
 	if updateDto.IsGroupRestricted && input.AllowedUserGroupIDs != nil {
-		_, err = h.service.UpdateAllowedUserGroups(ctx, input.ID, dto.OidcUpdateAllowedUserGroupsDto{UserGroupIDs: *input.AllowedUserGroupIDs})
+		_, err = h.service.UpdateAllowedUserGroups(ctx, input.ID, dto.OidcUpdateAllowedUserGroupsDto{UserGroupIDs: *input.AllowedUserGroupIDs}, auditlogs.OriginFromMCP(call))
 		if err != nil {
 			return nil, err
 		}
 	}
 
-	client, err = h.service.UpdateClient(ctx, input.ID, updateDto)
+	client, err = h.service.UpdateClient(ctx, input.ID, updateDto, auditlogs.OriginFromMCP(call))
 	if err != nil {
 		return nil, err
 	}
 	return toClientResult(client)
 }
 
-func (h *clientHandler) deleteClientTool(ctx context.Context, _ mcp.Call, input clientIDInput) (any, error) {
-	if err := h.service.DeleteClient(ctx, input.ID); err != nil {
+func (h *clientHandler) deleteClientTool(ctx context.Context, call mcp.Call, input clientIDInput) (any, error) {
+	if err := h.service.DeleteClient(ctx, input.ID, auditlogs.OriginFromMCP(call)); err != nil {
 		return nil, err
 	}
 	return mcp.Deleted, nil

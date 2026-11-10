@@ -9,6 +9,7 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/pocket-id/pocket-id/backend/internal/appconfig"
+	"github.com/pocket-id/pocket-id/backend/internal/auditlogs"
 	"github.com/pocket-id/pocket-id/backend/internal/model"
 	datatype "github.com/pocket-id/pocket-id/backend/internal/model/types"
 	testutils "github.com/pocket-id/pocket-id/backend/internal/utils/testing"
@@ -76,7 +77,7 @@ func TestAPIKeyExpiryCronJobNotifiesAndMarksExpiringKeys(t *testing.T) {
 	require.NoError(t, db.Create(&expiringKey).Error)
 	require.NoError(t, db.Create(&laterKey).Error)
 
-	service, err := newService(t.Context(), db, "")
+	service, err := newService(t.Context(), db, "", nopAuditLogger{})
 	require.NoError(t, err)
 	config := expiryJobTestConfig{config: &appconfig.AppConfigModel{
 		EmailApiKeyExpirationEnabled: "true",
@@ -123,10 +124,10 @@ func TestAPIKeyExpiryCronJobNotifiesAgainAfterRenewal(t *testing.T) {
 	}
 	require.NoError(t, db.Create(&renewedKey).Error)
 
-	service, err := newService(t.Context(), db, "")
+	service, err := newService(t.Context(), db, "", nopAuditLogger{})
 	require.NoError(t, err)
 
-	renewed, _, err := service.RenewApiKey(t.Context(), user.ID, renewedKey.ID, time.Now().Add(3*24*time.Hour), 0)
+	renewed, _, err := service.RenewApiKey(t.Context(), user.ID, renewedKey.ID, time.Now().Add(3*24*time.Hour), 0, auditlogs.Origin{})
 	require.NoError(t, err)
 	require.False(t, renewed.ExpirationEmailSent)
 

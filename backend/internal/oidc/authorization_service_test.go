@@ -30,6 +30,11 @@ func (f *fakeAuditLogger) Create(_ context.Context, event auditlogs.Event, _, _,
 	return auditlogs.AuditLog{}, true
 }
 
+func (f *fakeAuditLogger) Record(_ context.Context, event auditlogs.Event, _ auditlogs.Origin, _ string, data auditlogs.Data, _ *gorm.DB) {
+	f.events = append(f.events, event)
+	f.data = append(f.data, data)
+}
+
 const defaultClaimMappingPolicyId = claimmappingpolicy.BuiltInClaimMappingPolicyID
 
 func TestAuthorizationServiceAuthorizeLogsClientAuthorization(t *testing.T) {

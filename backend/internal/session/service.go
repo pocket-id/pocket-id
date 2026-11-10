@@ -6,12 +6,14 @@ import (
 	"fmt"
 	"log/slog"
 	"slices"
+	"strconv"
 	"strings"
 	"time"
 
 	"github.com/italypaleale/francis/actor"
 
 	"github.com/pocket-id/pocket-id/backend/internal/apperror"
+	"github.com/pocket-id/pocket-id/backend/internal/auditlogs"
 	"github.com/pocket-id/pocket-id/backend/internal/iplocation"
 	"github.com/pocket-id/pocket-id/backend/internal/utils"
 )
@@ -26,10 +28,11 @@ const idleTimeout = 20 * time.Minute
 type Service struct {
 	actorService *actor.Service
 	ipLocator    iplocation.Resolver
+	auditLog     AuditLogger
 }
 
-func newService(actorService *actor.Service, ipLocator iplocation.Resolver) *Service {
-	return &Service{actorService: actorService, ipLocator: ipLocator}
+func newService(actorService *actor.Service, ipLocator iplocation.Resolver, auditLog AuditLogger) *Service {
+	return &Service{actorService: actorService, ipLocator: ipLocator, auditLog: auditLog}
 }
 
 // Create starts a session for the user and returns its token
@@ -131,29 +134,50 @@ func (s *Service) List(ctx context.Context, userID string) ([]Session, error) {
 	return sessions, nil
 }
 
-// Revoke signs the user out of one session
-func (s *Service) Revoke(ctx context.Context, userID, sessionID string) error {
+// Revoke signs the user out of one session on behalf of origin
+// Revoking the session the request itself was made with is audited as signing out
+func (s *Service) Revoke(ctx context.Context, userID, sessionID string, origin auditlogs.Origin) error {
 	envelope, err := s.actorService.Invoke(ctx, ActorType, userID, methodRevoke, sessionRequest{SessionID: sessionID})
 	if err != nil {
 		return fmt.Errorf("error revoking session: %w", err)
 	}
-	var res revokeResponse
-	err = envelope.Decode(&res)
+	var session Session
+	err = envelope.Decode(&session)
 	if err != nil {
 		return fmt.Errorf("error decoding session revocation response: %w", err)
 	}
-	if !res.Found {
+	if session.ID == "" {
 		return apperror.NotFound("session")
+	}
+
+	if origin.Principal.UserID == userID && origin.Principal.SessionID == sessionID {
+		s.auditLog.Record(ctx, auditlogs.EventSignedOut, origin, userID, nil, nil)
+	} else {
+		s.auditLog.Record(ctx, auditlogs.EventSessionRevoked, origin, userID, auditlogs.Data{"device": s.auditLog.DeviceStringFromUserAgent(session.UserAgent)}, nil)
 	}
 	return nil
 }
 
-// RevokeAll signs the user out of every session except the one with exceptSessionID, which may be empty
-func (s *Service) RevokeAll(ctx context.Context, userID, exceptSessionID string) error {
-	_, err := s.actorService.Invoke(ctx, ActorType, userID, methodRevokeAll, revokeAllRequest{ExceptSessionID: exceptSessionID})
+// RevokeAll signs the user out of every session except the one with exceptSessionID, which may be empty, on behalf of origin
+func (s *Service) RevokeAll(ctx context.Context, userID, exceptSessionID string, origin auditlogs.Origin) error {
+	envelope, err := s.actorService.Invoke(ctx, ActorType, userID, methodRevokeAll, revokeAllRequest{ExceptSessionID: exceptSessionID})
 	if err != nil {
 		return fmt.Errorf("error revoking sessions: %w", err)
 	}
+	var count int
+	err = envelope.Decode(&count)
+	if err != nil {
+		return fmt.Errorf("error decoding session revocation response: %w", err)
+	}
+	if count == 0 {
+		return nil
+	}
+
+	data := auditlogs.Data{"sessionCount": strconv.Itoa(count)}
+	if exceptSessionID != "" {
+		data["exceptCurrent"] = "true"
+	}
+	s.auditLog.Record(ctx, auditlogs.EventSessionRevoked, origin, userID, data, nil)
 	return nil
 }
 
