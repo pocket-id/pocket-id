@@ -6,6 +6,7 @@ import (
 	"net/url"
 
 	"github.com/gin-gonic/gin"
+	"github.com/gin-gonic/gin/binding"
 	"github.com/pocket-id/pocket-id/backend/internal/apperror"
 	"github.com/pocket-id/pocket-id/backend/internal/auditlogs"
 	"github.com/pocket-id/pocket-id/backend/internal/authz"
@@ -139,7 +140,8 @@ func bindEndSessionRequest(c *gin.Context) (dto.OidcLogoutDto, error) {
 	case http.MethodGet:
 		return input, c.ShouldBindQuery(&input)
 	case http.MethodPost:
-		return input, c.ShouldBind(&input)
+		// The spec only allows a form body, and picking the binder from Content-Type would hand anonymous input to the MessagePack and YAML decoders
+		return input, c.ShouldBindWith(&input, binding.FormPost)
 	default:
 		return input, nil
 	}
