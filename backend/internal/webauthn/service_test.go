@@ -1,11 +1,14 @@
 package webauthn
 
 import (
+	"bytes"
 	"errors"
 	"testing"
 	"time"
 
 	"github.com/go-webauthn/webauthn/protocol"
+	"github.com/go-webauthn/webauthn/protocol/webauthncbor"
+	"github.com/go-webauthn/webauthn/protocol/webauthncose"
 	gowebauthn "github.com/go-webauthn/webauthn/webauthn"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -411,4 +414,19 @@ func TestUpdateCredentialKeepsAAGUID(t *testing.T) {
 	require.NoError(t, db.First(&stored, "id = ?", credential.ID).Error)
 	assert.Equal(t, "New name", stored.Name)
 	assert.Equal(t, aaguid, stored.AAGUID)
+}
+
+func TestHasOversizedPublicKey(t *testing.T) {
+	rsaKey := func(bits int) []byte {
+		key, err := webauthncbor.Marshal(webauthncose.RSAPublicKeyData{
+			PublicKeyData: webauthncose.PublicKeyData{KeyType: int64(webauthncose.RSAKey), Algorithm: int64(webauthncose.AlgRS256)},
+			Modulus:       bytes.Repeat([]byte{0xff}, bits/8),
+			Exponent:      []byte{1, 0, 1},
+		})
+		require.NoError(t, err)
+		return key
+	}
+
+	assert.False(t, hasOversizedPublicKey(rsaKey(maxRSAKeyBits)))
+	assert.True(t, hasOversizedPublicKey(rsaKey(maxRSAKeyBits+8)))
 }

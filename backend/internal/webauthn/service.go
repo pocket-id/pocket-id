@@ -5,9 +5,12 @@ import (
 	"encoding/hex"
 	"errors"
 	"fmt"
+	"math/big"
+	"slices"
 	"time"
 
 	"github.com/go-webauthn/webauthn/protocol"
+	"github.com/go-webauthn/webauthn/protocol/webauthncose"
 	gowebauthn "github.com/go-webauthn/webauthn/webauthn"
 	"gorm.io/gorm"
 	"gorm.io/gorm/clause"
@@ -26,6 +29,9 @@ import (
 const authenticationMethodPhishingResistant = "phr"
 
 const defaultRPDisplayName = "Pocket ID"
+
+// maxRSAKeyBits bounds passkey RSA keys, because go-webauthn sets no upper limit and verifying with a huge modulus takes minutes
+const maxRSAKeyBits = 8192
 
 // go-webauthn exposes the missing user-verification reason only through DevInfo
 const missingUserVerificationErrorInfo = "User verification required but flag not set by authenticator"
@@ -175,6 +181,11 @@ func (s *Service) VerifyRegistration(ctx context.Context, dbConfig *appconfig.Ap
 		return model.WebauthnCredential{}, fmt.Errorf("failed to load user: %w", err)
 	}
 
+	// Self attestation is verified with the new key, so its size has to be checked before the response is verified
+	if hasOversizedPublicKey(credentialCreationData.Response.AttestationObject.AuthData.AttData.CredentialPublicKey) {
+		return model.WebauthnCredential{}, apperror.InvalidWebAuthnResponse(fmt.Errorf("RSA public key is larger than %d bits", maxRSAKeyBits))
+	}
+
 	credential, err := s.webAuthn.CreateCredential(&user, session, credentialCreationData)
 	if err != nil {
 		return model.WebauthnCredential{}, classifyPasskeyError(err, apperror.InvalidWebAuthnResponse)
@@ -299,6 +310,7 @@ func (s *Service) VerifyLogin(ctx context.Context, dbConfig *appconfig.AppConfig
 			}
 			return nil, innerErr
 		}
+		discardOversizedCredentials(user)
 		return user, nil
 	}, session, credentialAssertionData)
 
@@ -522,6 +534,7 @@ func (s *Service) CreateReauthenticationTokenWithWebauthn(ctx context.Context, s
 			}
 			return nil, innerErr
 		}
+		discardOversizedCredentials(user)
 		return user, nil
 	}, session, credentialAssertionData)
 
@@ -544,6 +557,24 @@ func (s *Service) CreateReauthenticationTokenWithWebauthn(ctx context.Context, s
 	}
 
 	return token, nil
+}
+
+func hasOversizedPublicKey(publicKey []byte) bool {
+	key, err := webauthncose.ParsePublicKey(publicKey)
+	if err != nil {
+		// go-webauthn rejects a key it can't parse before verifying anything with it
+		return false
+	}
+
+	rsaKey, ok := key.(webauthncose.RSAPublicKeyData)
+	return ok && new(big.Int).SetBytes(rsaKey.Modulus).BitLen() > maxRSAKeyBits
+}
+
+// discardOversizedCredentials drops passkeys registered before RSA keys were bounded, so a sign-in can't be pointed at one of them
+func discardOversizedCredentials(user *model.User) {
+	user.Credentials = slices.DeleteFunc(user.Credentials, func(credential model.WebauthnCredential) bool {
+		return hasOversizedPublicKey(credential.PublicKey)
+	})
 }
 
 func classifyPasskeyError(err error, fallback func(error) *apperror.Error) *apperror.Error {
