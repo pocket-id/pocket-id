@@ -259,6 +259,16 @@ func TestLdapServiceSyncAllKeepsDistinctDNMemberships(t *testing.T) {
 			memberDN:   "cn=admin+ou=staff,dc=example,dc=com",
 			attackerDN: `cn=admin\+ou=staff,dc=example,dc=com`,
 		},
+		{
+			name:       "non-ASCII letter that lowercases to ASCII",
+			memberDN:   "cn=admin,ou=staff,dc=example,dc=com",
+			attackerDN: "cn=adm\u0130n,ou=staff,dc=example,dc=com",
+		},
+		{
+			name:       "different invalid UTF-8 bytes",
+			memberDN:   `cn=admin\fe,ou=staff,dc=example,dc=com`,
+			attackerDN: `cn=admin\ff,ou=staff,dc=example,dc=com`,
+		},
 	}
 
 	for _, tt := range tests {
@@ -733,6 +743,18 @@ func TestGetDNProperty(t *testing.T) {
 			dn:             "cn=username,ou=people,dc=example,dc=com",
 			expectedResult: "",
 		},
+		{
+			name:           "non-ASCII letter that lowercases to ASCII is not the property",
+			property:       "uid",
+			dn:             "u\u0130d=username,ou=people,dc=example,dc=com",
+			expectedResult: "",
+		},
+		{
+			name:           "component that shrinks when lowercased",
+			property:       "uid",
+			dn:             "cn=user\\,\u212a\u212a,ou=people,dc=example,dc=com",
+			expectedResult: "",
+		},
 	}
 
 	for _, tt := range tests {
@@ -795,9 +817,19 @@ func TestNormalizeLDAPDN(t *testing.T) {
 			expected: `cn=admin\+ou=staff,dc=example,dc=com`,
 		},
 		{
+			name:     "non-ASCII letters keep their case",
+			input:    "CN=Adm\u0130n,DC=example,DC=com",
+			expected: `cn=adm\c4\b0n,dc=example,dc=com`,
+		},
+		{
 			name:     "invalid DN falls back to lowercase+trim",
 			input:    "  NOT A VALID DN  ",
 			expected: "not a valid dn",
+		},
+		{
+			name:     "invalid DN keeps the case of non-ASCII letters",
+			input:    "  NOT A VAL\u0130D DN  ",
+			expected: "not a val\u0130d dn",
 		},
 		{
 			name:     "empty string",

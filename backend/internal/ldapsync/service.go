@@ -790,24 +790,36 @@ func (s *Service) saveProfilePicture(parentCtx context.Context, userId string, p
 	return nil
 }
 
-// normalizeLDAPDN returns a canonical lowercase form of a DN for use as a map key
+// normalizeLDAPDN returns a canonical form of a DN with ASCII letters lowercased, for use as a map key
 // Escaping preserves the distinction between separators and literal characters inside attribute values
 func normalizeLDAPDN(dn string) string {
 	// Parse components so equivalent formatting shares a cache key
 	parsed, err := ldap.ParseDN(dn)
 	if err != nil {
-		return strings.ToLower(strings.TrimSpace(dn))
+		return lowerASCII(strings.TrimSpace(dn))
 	}
 
 	// Preserve case-insensitive lookups while letting the LDAP serializer escape values and sort multi-valued RDNs
 	for _, rdn := range parsed.RDNs {
 		for _, attr := range rdn.Attributes {
-			attr.Type = strings.ToLower(attr.Type)
-			attr.Value = strings.ToLower(attr.Value)
+			attr.Type = lowerASCII(attr.Type)
+			attr.Value = lowerASCII(attr.Value)
 		}
 	}
 
 	return parsed.String()
+}
+
+// lowerASCII lowercases only A to Z, because strings.ToLower maps some non-ASCII letters onto ASCII ones (U+0130 to "i", U+212A to "k") and can change the string's length
+func lowerASCII(s string) string {
+	b := []byte(s)
+	for i, c := range b {
+		if c >= 'A' && c <= 'Z' {
+			b[i] = c + ('a' - 'A')
+		}
+	}
+
+	return string(b)
 }
 
 // getDNProperty returns the value of a property from a LDAP identifier
@@ -815,11 +827,11 @@ func normalizeLDAPDN(dn string) string {
 func getDNProperty(property string, str string) string {
 	// Example format is "CN=username,ou=people,dc=example,dc=com"
 	// First we split at the comma
-	property = strings.ToLower(property)
+	property = lowerASCII(property)
 	l := len(property) + 1
 	for v := range strings.SplitSeq(str, ",") {
 		v = strings.TrimSpace(v)
-		if len(v) > l && strings.ToLower(v)[0:l] == property+"=" {
+		if len(v) > l && lowerASCII(v)[0:l] == property+"=" {
 			return v[l:]
 		}
 	}
