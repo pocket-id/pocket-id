@@ -132,6 +132,7 @@ func registerGlobalMiddleware(r *gin.Engine) {
 		r.Use(middleware.CloudflareLocationMiddleware())
 	}
 	r.Use(middleware.HeadMiddleware())
+	r.Use(middleware.NewBodySizeLimitMiddleware().Add(1 << 20))
 	r.Use(middleware.NewCacheControlMiddleware().Add())
 	r.Use(middleware.NewCorsMiddleware().Add())
 	r.Use(middleware.NewCspMiddleware().Add())
@@ -302,7 +303,8 @@ func initServerProtocols() (*http.Protocols, *tls.Config, *tlsCertProvider, erro
 
 func newHTTPServer(r *gin.Engine, protocols *http.Protocols) *http.Server {
 	return &http.Server{
-		MaxHeaderBytes:    1 << 20,
+		// Some request headers, such as Content-Type, cost a multiple of their size to parse
+		MaxHeaderBytes:    64 << 10,
 		ReadHeaderTimeout: 10 * time.Second,
 		Protocols:         protocols,
 		Handler: http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
