@@ -3,6 +3,7 @@
 	import { DropdownMenu as DropdownMenuPrimitive } from 'bits-ui';
 	import type { ComponentProps } from 'svelte';
 	import DropdownMenuPortal from './dropdown-menu-portal.svelte';
+	import { getCloseMenu } from './dropdown-menu.svelte';
 
 	let {
 		ref = $bindable(null),
@@ -14,6 +15,62 @@
 	}: DropdownMenuPrimitive.ContentProps & {
 		portalProps?: WithoutChildrenOrChild<ComponentProps<typeof DropdownMenuPortal>>;
 	} = $props();
+
+	const closeMenu = getCloseMenu();
+
+	// Phones show the menu as a bottom sheet, which a downward swipe from its top closes like a native one
+	// Svelte adds touchmove handlers as passive, so these listeners are added by hand to keep the page from scrolling along
+	$effect(() => {
+		const sheet = ref;
+		if (!sheet) return;
+		let swipe: { startY: number; y: number; time: number; velocity: number } | null = null;
+
+		const start = (e: TouchEvent) => {
+			const y = e.touches[0].clientY;
+			const phone = window.matchMedia('(width < 40rem)').matches;
+			swipe =
+				phone && sheet.scrollTop <= 0 ? { startY: y, y, time: e.timeStamp, velocity: 0 } : null;
+		};
+
+		const move = (e: TouchEvent) => {
+			if (!swipe) return;
+			const y = e.touches[0].clientY;
+
+			// A swipe that doesn't start downwards scrolls the menu instead
+			if (y <= swipe.startY && swipe.y === swipe.startY) {
+				swipe = null;
+				return;
+			}
+
+			e.preventDefault();
+			swipe.velocity = (y - swipe.y) / Math.max(1, e.timeStamp - swipe.time);
+			swipe.y = y;
+			swipe.time = e.timeStamp;
+			sheet.style.transition = 'none';
+			sheet.style.translate = `0 ${Math.max(0, y - swipe.startY)}px`;
+		};
+
+		// The sheet glides from where the finger left it, back up or out with the closing transition
+		const end = () => {
+			if (!swipe) return;
+			const { startY, y, velocity } = swipe;
+			swipe = null;
+			sheet.style.removeProperty('transition');
+			sheet.style.removeProperty('translate');
+			if (y - startY > sheet.offsetHeight / 4 || velocity > 0.5) closeMenu();
+		};
+
+		sheet.addEventListener('touchstart', start, { passive: true });
+		sheet.addEventListener('touchmove', move, { passive: false });
+		sheet.addEventListener('touchend', end);
+		sheet.addEventListener('touchcancel', end);
+		return () => {
+			sheet.removeEventListener('touchstart', start);
+			sheet.removeEventListener('touchmove', move);
+			sheet.removeEventListener('touchend', end);
+			sheet.removeEventListener('touchcancel', end);
+		};
+	});
 </script>
 
 <DropdownMenuPortal {...portalProps}>
