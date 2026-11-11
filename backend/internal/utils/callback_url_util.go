@@ -200,7 +200,32 @@ func matchCallbackURL(pattern string, inputCallbackURL string) (matches bool, er
 		return false, nil
 	}
 
-	return p.Test(inputCallbackURL, ""), nil
+	result := p.Exec(inputCallbackURL, "")
+	if result == nil {
+		return false, nil
+	}
+
+	// Callers redirect to net/url's reading of the input, so it must name the same host and path as the WHATWG reading urlpattern matched
+	// Otherwise spellings such as backslashes, dot segments, a missing "//" or a signed IPv4 number match one URL and send the browser to another
+	u, err := url.Parse(inputCallbackURL)
+	if err != nil {
+		//nolint:nilerr
+		return false, nil
+	}
+	matchedHost := strings.TrimSuffix(strings.TrimPrefix(result.Hostname.Input, "["), "]")
+	if !strings.EqualFold(u.Hostname(), matchedHost) {
+		return false, nil
+	}
+	usedPath := u.EscapedPath()
+	if u.Opaque != "" {
+		usedPath = u.Opaque
+	}
+	matchedPath := result.Pathname.Input
+	if usedPath != matchedPath && (usedPath != "" || matchedPath != "/") {
+		return false, nil
+	}
+
+	return true, nil
 }
 
 // normalizeToURLPatternStandard converts patterns with single asterisk wildcards and globstar wildcards

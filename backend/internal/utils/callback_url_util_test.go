@@ -543,7 +543,25 @@ func TestMatchCallbackURL(t *testing.T) {
 			"backslash instead of forward slash",
 			"https://example.com/callback",
 			"https://example.com\\callback",
-			true,
+			false,
+		},
+		{
+			"backslash dot segments leaving the registered path",
+			"https://example.com/acme/callback",
+			`https://example.com/mallory/x\..\..\acme\callback`,
+			false,
+		},
+		{
+			"no slashes after the scheme",
+			"http://notes.lan/callback",
+			`http:notes.lan\ http: @evil.example/../callback`,
+			false,
+		},
+		{
+			"signed number as IPv4 host",
+			"http://192.168.1.10:8096/callback",
+			"http://0x-3f57fef6:8096/callback",
+			false,
 		},
 		{
 			"double slash in hostname (protocol smuggling)",
