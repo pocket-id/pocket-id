@@ -5,7 +5,6 @@ import (
 	"encoding/hex"
 	"errors"
 	"fmt"
-	"net/http"
 	"time"
 
 	"github.com/go-webauthn/webauthn/protocol"
@@ -136,7 +135,7 @@ func (s *Service) BeginRegistration(ctx context.Context, dbConfig *appconfig.App
 	}, nil
 }
 
-func (s *Service) VerifyRegistration(ctx context.Context, dbConfig *appconfig.AppConfigModel, sessionID string, userID string, r *http.Request, ipAddress string) (model.WebauthnCredential, error) {
+func (s *Service) VerifyRegistration(ctx context.Context, dbConfig *appconfig.AppConfigModel, sessionID string, userID string, credentialCreationData *protocol.ParsedCredentialCreationData, ipAddress, userAgent string) (model.WebauthnCredential, error) {
 	tx := s.db.Begin()
 	defer func() {
 		tx.Rollback()
@@ -176,7 +175,7 @@ func (s *Service) VerifyRegistration(ctx context.Context, dbConfig *appconfig.Ap
 		return model.WebauthnCredential{}, fmt.Errorf("failed to load user: %w", err)
 	}
 
-	credential, err := s.webAuthn.FinishRegistration(&user, session, r)
+	credential, err := s.webAuthn.CreateCredential(&user, session, credentialCreationData)
 	if err != nil {
 		return model.WebauthnCredential{}, classifyPasskeyError(err, apperror.InvalidWebAuthnResponse)
 	}
@@ -208,7 +207,7 @@ func (s *Service) VerifyRegistration(ctx context.Context, dbConfig *appconfig.Ap
 	}
 
 	auditLogData := auditlogs.Data{"credentialID": hex.EncodeToString(credential.ID), "passkeyName": passkeyName}
-	s.auditLog.Create(ctx, auditlogs.EventPasskeyAdded, ipAddress, r.UserAgent(), userID, auditLogData, tx)
+	s.auditLog.Create(ctx, auditlogs.EventPasskeyAdded, ipAddress, userAgent, userID, auditLogData, tx)
 
 	err = tx.Commit().Error
 	if err != nil {

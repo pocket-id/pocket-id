@@ -61,8 +61,14 @@ func (h *handler) verifyRegistration(c *gin.Context) error {
 		return apperror.MissingSessionID()
 	}
 
+	// The body is read before the service opens its write transaction, so a client that withholds it can't keep the database locked
+	credentialCreationData, err := protocol.ParseCredentialCreationResponseBody(c.Request.Body)
+	if err != nil {
+		return apperror.InvalidWebAuthnResponse(err)
+	}
+
 	userID := authz.PrincipalFrom(c).UserID
-	credential, err := h.service.VerifyRegistration(c.Request.Context(), dbConfig, sessionID, userID, c.Request, c.ClientIP())
+	credential, err := h.service.VerifyRegistration(c.Request.Context(), dbConfig, sessionID, userID, credentialCreationData, c.ClientIP(), c.Request.UserAgent())
 	if err != nil {
 		return err
 	}

@@ -305,7 +305,7 @@ func TestCeremoniesRejectSessionThatDoesNotExist(t *testing.T) {
 	t.Run("registration rejects an unknown session", func(t *testing.T) {
 		service := setupService(t)
 
-		_, err := service.VerifyRegistration(t.Context(), &appconfig.AppConfigModel{}, "does-not-exist", userID, nil, "127.0.0.1")
+		_, err := service.VerifyRegistration(t.Context(), &appconfig.AppConfigModel{}, "does-not-exist", userID, nil, "127.0.0.1", "")
 
 		require.Error(t, err)
 		assert.True(t, apperror.IsCode(err, apperror.CodeInvalidWebAuthnSession))
