@@ -25,7 +25,6 @@ import (
 
 	"github.com/pocket-id/pocket-id/backend/internal/apperror"
 	"github.com/pocket-id/pocket-id/backend/internal/auditlogs"
-	"github.com/pocket-id/pocket-id/backend/internal/backchannellogout"
 	"github.com/pocket-id/pocket-id/backend/internal/claimmappingpolicy"
 	"github.com/pocket-id/pocket-id/backend/internal/dto"
 	"github.com/pocket-id/pocket-id/backend/internal/model"
@@ -43,14 +42,14 @@ type clientService struct {
 	previewBuilder    *ClientPreviewBuilder
 	cimdResolver      *cimdClientResolver
 	scimSyncScheduler ScimSyncScheduler
-	backchannelLogout *backchannellogout.Service
+	backchannelLogout BackchannelLogout
 	auditLog          AuditLogger
 
 	httpClient  *http.Client
 	fileStorage storage.FileStorage
 }
 
-func newClientService(db *gorm.DB, previewBuilder *ClientPreviewBuilder, cimdResolver *cimdClientResolver, scimSyncScheduler ScimSyncScheduler, backchannelLogout *backchannellogout.Service, auditLog AuditLogger, httpClient *http.Client, fileStorage storage.FileStorage) *clientService {
+func newClientService(db *gorm.DB, previewBuilder *ClientPreviewBuilder, cimdResolver *cimdClientResolver, scimSyncScheduler ScimSyncScheduler, backchannelLogout BackchannelLogout, auditLog AuditLogger, httpClient *http.Client, fileStorage storage.FileStorage) *clientService {
 	return &clientService{
 		db:                db,
 		previewBuilder:    previewBuilder,

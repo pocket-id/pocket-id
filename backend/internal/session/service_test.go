@@ -2,9 +2,15 @@ package session
 
 import (
 	"context"
+	"errors"
+	"path/filepath"
+	"strconv"
+	"sync/atomic"
 	"testing"
 	"time"
 
+	"github.com/italypaleale/francis/actor"
+	"github.com/italypaleale/francis/components/standalone"
 	"github.com/italypaleale/francis/host/local"
 	"github.com/stretchr/testify/require"
 	"gorm.io/gorm"
@@ -38,20 +44,69 @@ func (f *fakeAuditLogger) DeviceStringFromUserAgent(userAgent string) string {
 	return "device of " + userAgent
 }
 
-func newServiceForTest(t *testing.T) *Service {
+// endRecorder reports each call as how the sessions ended, the user ID and the session IDs
+type endRecorder chan []string
+
+func (r endRecorder) SessionsEnded(_ context.Context, userID string, sessionIDs []string) {
+	r <- append([]string{"ended", userID}, sessionIDs...)
+}
+
+func (r endRecorder) SessionsExpired(_ context.Context, userID string, sessionIDs []string) error {
+	r <- append([]string{"expired", userID}, sessionIDs...)
+	return nil
+}
+
+func (r endRecorder) SignedOutEverywhere(_ context.Context, userID string) error {
+	r <- []string{"everywhere", userID}
+	return nil
+}
+
+func (r endRecorder) next(t *testing.T) []string {
+	t.Helper()
+	select {
+	case ended := <-r:
+		return ended
+	case <-time.After(10 * time.Second):
+		t.Fatal("no sessions ended")
+		return nil
+	}
+}
+
+// failingOnceRecorder fails its first expiry call, so the expiry alarm has to retry it
+type failingOnceRecorder struct {
+	endRecorder
+	failed atomic.Bool
+}
+
+func (r *failingOnceRecorder) SessionsExpired(ctx context.Context, userID string, sessionIDs []string) error {
+	_ = r.endRecorder.SessionsExpired(ctx, userID, sessionIDs)
+	if r.failed.CompareAndSwap(false, true) {
+		return errors.New("transient failure")
+	}
+	return nil
+}
+
+func newServiceForTest(t *testing.T) (*Service, endRecorder) {
+	t.Helper()
+
+	ended := make(endRecorder, 16)
+	return newServiceWithNotifier(t, ended), ended
+}
+
+func newServiceWithNotifier(t *testing.T, notifier EndNotifier, hostOpts ...local.HostOption) *Service {
 	t.Helper()
 
 	var service *Service
 	testutils.NewActorHostForTest(t, func(t *testing.T, h *local.Host) {
-		module, err := New(Dependencies{Actors: h, IPLocator: fakeIPLocator{}, AuditLog: &fakeAuditLogger{}})
+		module, err := New(Dependencies{Actors: h, IPLocator: fakeIPLocator{}, AuditLog: &fakeAuditLogger{}, EndNotifier: notifier})
 		require.NoError(t, err)
 		service = module.service
-	})
+	}, hostOpts...)
 	return service
 }
 
 func TestValidate(t *testing.T) {
-	service := newServiceForTest(t)
+	service, _ := newServiceForTest(t)
 
 	token, err := service.Create(t.Context(), "user-1", "phr", "198.51.100.1", "test-agent", time.Hour, true)
 	require.NoError(t, err)
@@ -112,7 +167,7 @@ func TestSessionEndsAt(t *testing.T) {
 }
 
 func TestRevoke(t *testing.T) {
-	service := newServiceForTest(t)
+	service, ended := newServiceForTest(t)
 	auditLog := service.auditLog.(*fakeAuditLogger)
 
 	createSession := func(userID string) (string, Session) {
@@ -129,6 +184,7 @@ func TestRevoke(t *testing.T) {
 
 		auditLog.events = nil
 		require.NoError(t, service.Revoke(t.Context(), "revoke-one", session.ID, auditlogs.Origin{Principal: authz.Principal{UserID: "admin", SessionID: session.ID}}))
+		require.Equal(t, []string{"ended", "revoke-one", session.ID}, ended.next(t))
 
 		_, _, err := service.Validate(t.Context(), token)
 		require.True(t, apperror.IsCode(err, apperror.CodeNotSignedIn))
@@ -143,6 +199,7 @@ func TestRevoke(t *testing.T) {
 		auditLog.events = nil
 		require.NoError(t, service.Revoke(t.Context(), "sign-out", session.ID, auditlogs.Origin{Principal: authz.Principal{UserID: "sign-out", SessionID: session.ID}}))
 		require.Equal(t, []recordedEvent{{event: auditlogs.EventSignedOut}}, auditLog.events)
+		require.Equal(t, []string{"ended", "sign-out", session.ID}, ended.next(t))
 	})
 
 	t.Run("reports an unknown session", func(t *testing.T) {
@@ -154,11 +211,12 @@ func TestRevoke(t *testing.T) {
 
 	t.Run("signs out everywhere except the kept session", func(t *testing.T) {
 		keptToken, kept := createSession("revoke-all")
-		otherToken, _ := createSession("revoke-all")
+		otherToken, other := createSession("revoke-all")
 
 		auditLog.events = nil
 		require.NoError(t, service.RevokeAll(t.Context(), "revoke-all", kept.ID, auditlogs.Origin{}))
 		require.Equal(t, []recordedEvent{{event: auditlogs.EventSessionRevoked, data: auditlogs.Data{"sessionCount": "1", "exceptCurrent": "true"}}}, auditLog.events)
+		require.Equal(t, []string{"ended", "revoke-all", other.ID}, ended.next(t))
 
 		_, _, err := service.Validate(t.Context(), keptToken)
 		require.NoError(t, err)
@@ -173,7 +231,7 @@ func TestRevoke(t *testing.T) {
 }
 
 func TestRemember(t *testing.T) {
-	service := newServiceForTest(t)
+	service, _ := newServiceForTest(t)
 
 	t.Run("drops the idle timeout of the session", func(t *testing.T) {
 		token, err := service.Create(t.Context(), "remember", "phr", "", "", time.Hour, false)
@@ -194,5 +252,92 @@ func TestRemember(t *testing.T) {
 	t.Run("reports an unknown session", func(t *testing.T) {
 		_, err := service.Remember(t.Context(), "remember", "unknown")
 		require.True(t, apperror.IsCode(err, apperror.CodeNotFound))
+	})
+}
+
+func TestSignOutEverywhere(t *testing.T) {
+	service, ended := newServiceForTest(t)
+
+	token, err := service.Create(t.Context(), "everywhere", "phr", "", "", time.Hour, true)
+	require.NoError(t, err)
+	_, sessionID, _, _ := parseToken(token)
+
+	require.NoError(t, service.SignOutEverywhere(t.Context(), "everywhere", auditlogs.Origin{}))
+	require.Equal(t, []string{"ended", "everywhere", sessionID}, ended.next(t))
+	require.Equal(t, []string{"everywhere", "everywhere"}, ended.next(t))
+}
+
+func TestExpiry(t *testing.T) {
+	t.Run("reports the expired session", func(t *testing.T) {
+		service, ended := newServiceForTest(t)
+
+		token, err := service.Create(t.Context(), "expiring", "phr", "", "", -time.Minute, true)
+		require.NoError(t, err)
+		_, sessionID, _, _ := parseToken(token)
+
+		require.Equal(t, []string{"expired", "expiring", sessionID}, ended.next(t))
+	})
+
+	t.Run("retries a failed cleanup", func(t *testing.T) {
+		recorder := &failingOnceRecorder{endRecorder: make(endRecorder, 16)}
+		service := newServiceWithNotifier(t, recorder)
+
+		token, err := service.Create(t.Context(), "expiring", "phr", "", "", -time.Minute, true)
+		require.NoError(t, err)
+		_, sessionID, _, _ := parseToken(token)
+
+		require.Equal(t, []string{"expired", "expiring", sessionID}, recorder.next(t))
+		require.Equal(t, []string{"expired", "expiring", sessionID}, recorder.next(t))
+	})
+
+	t.Run("reports sessions that expire on the SQLite provider", func(t *testing.T) {
+		ended := make(endRecorder, 64)
+		// The SQLite provider keeps due times in milliseconds, unlike the in-memory one the other tests use
+		service := newServiceWithNotifier(t, ended, local.WithStandaloneSQLiteProvider(standalone.StandaloneSQLiteOptions{ConnectionString: "file:" + filepath.Join(t.TempDir(), "actors.db")}))
+
+		const count = 40
+		for i := range count {
+			_, err := service.Create(t.Context(), "expiring-"+strconv.Itoa(i), "phr", "", "", 200*time.Millisecond+time.Duration(i)*time.Millisecond, true)
+			require.NoError(t, err)
+		}
+
+		for range count {
+			require.Equal(t, "expired", ended.next(t)[0])
+		}
+	})
+
+	t.Run("waits for a session that is still in use", func(t *testing.T) {
+		service, ended := newServiceForTest(t)
+
+		token, err := service.Create(t.Context(), "in-use", "phr", "", "", time.Hour, false)
+		require.NoError(t, err)
+		_, sessionID, _, _ := parseToken(token)
+
+		// The alarm fires early when the session was used or remembered after it was set
+		require.NoError(t, service.actorService.SetAlarm(t.Context(), ActorType, "in-use", sessionID, actor.AlarmProperties{DueTime: time.Now()}))
+
+		select {
+		case event := <-ended:
+			t.Fatalf("unexpected event for a session in use: %v", event)
+		case <-time.After(2 * time.Second):
+		}
+		_, _, err = service.Validate(t.Context(), token)
+		require.NoError(t, err)
+	})
+
+	t.Run("doesn't fire for a revoked session", func(t *testing.T) {
+		service, ended := newServiceForTest(t)
+
+		token, err := service.Create(t.Context(), "revoked", "phr", "", "", time.Second, true)
+		require.NoError(t, err)
+		_, sessionID, _, _ := parseToken(token)
+		require.NoError(t, service.Revoke(t.Context(), "revoked", sessionID, auditlogs.Origin{}))
+		require.Equal(t, []string{"ended", "revoked", sessionID}, ended.next(t))
+
+		select {
+		case event := <-ended:
+			t.Fatalf("unexpected event after the session was revoked: %v", event)
+		case <-time.After(2 * time.Second):
+		}
 	})
 }

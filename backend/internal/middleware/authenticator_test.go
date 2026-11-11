@@ -55,7 +55,7 @@ func TestAuthorizationWithRealCredentials(t *testing.T) {
 
 	var sessions *session.Module
 	testutils.NewActorHostForTest(t, func(t *testing.T, h *local.Host) {
-		sessions, err = session.New(session.Dependencies{Actors: h, IPLocator: noIPLocation{}, AuditLog: nopAuditLogger{}})
+		sessions, err = session.New(session.Dependencies{Actors: h, IPLocator: noIPLocation{}, AuditLog: nopAuditLogger{}, EndNotifier: noEndNotifier{}})
 		require.NoError(t, err)
 	})
 	userSession, err := sessions.Create(t.Context(), user.ID, "", "", "", time.Hour, true)
@@ -188,6 +188,14 @@ func (nopAuditLogger) KeepUsername(context.Context, string, string, *gorm.DB) er
 func (nopAuditLogger) DeviceStringFromUserAgent(string) string {
 	return ""
 }
+
+type noEndNotifier struct{}
+
+func (noEndNotifier) SessionsEnded(context.Context, string, []string) {}
+
+func (noEndNotifier) SessionsExpired(context.Context, string, []string) error { return nil }
+
+func (noEndNotifier) SignedOutEverywhere(context.Context, string) error { return nil }
 
 type noIPLocation struct{}
 

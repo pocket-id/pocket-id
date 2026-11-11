@@ -446,7 +446,10 @@
 					<DurationInput
 						id="refresh-token-lifetime"
 						label={m.refresh_token_inactivity_timeout()}
-						description={m.refresh_token_lifetime_helper({ name: existingClient.name })}
+						description={m.refresh_token_lifetime_helper({
+							name: existingClient.name,
+							appName: $appConfigStore.appName
+						})}
 						changed={changed.refresh}
 						bind:input={$inputs.refreshTokenDurationMinutes}
 					/>

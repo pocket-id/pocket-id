@@ -131,10 +131,16 @@ func initServices(
 		return nil, fmt.Errorf("failed to create audit logs module: %w", err)
 	}
 
+	backchannelLogoutService, err := backchannellogout.NewService(db, backchannellogout.NewTokenSigner(svc.signingKey, common.EnvConfig.AppURL), outboundClients.Client(outbound.PurposeBackchannelLogout), actors)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create back-channel logout service: %w", err)
+	}
+
 	svc.sessionModule, err = session.New(session.Dependencies{
-		Actors:    actors,
-		IPLocator: svc.ipLocator,
-		AuditLog:  svc.auditLogsModule,
+		Actors:      actors,
+		IPLocator:   svc.ipLocator,
+		AuditLog:    svc.auditLogsModule,
+		EndNotifier: backchannelLogoutService,
 	})
 	if err != nil {
 		return nil, fmt.Errorf("failed to create session module: %w", err)
@@ -177,11 +183,6 @@ func initServices(
 	})
 	if err != nil {
 		return nil, fmt.Errorf("failed to create SCIM sync module: %w", err)
-	}
-
-	backchannelLogoutService, err := backchannellogout.NewService(db, backchannellogout.NewTokenSigner(svc.signingKey, common.EnvConfig.AppURL), outboundClients.Client(outbound.PurposeBackchannelLogout), actors)
-	if err != nil {
-		return nil, fmt.Errorf("failed to create back-channel logout service: %w", err)
 	}
 
 	svc.apiModule = api.New(api.Dependencies{DB: db, Issuer: common.EnvConfig.AppURL})

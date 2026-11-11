@@ -12,6 +12,7 @@ import (
 	"gorm.io/gorm"
 
 	"github.com/pocket-id/pocket-id/backend/internal/apperror"
+	"github.com/pocket-id/pocket-id/backend/internal/common"
 	"github.com/pocket-id/pocket-id/backend/internal/model"
 	testutils "github.com/pocket-id/pocket-id/backend/internal/utils/testing"
 )
@@ -240,4 +241,110 @@ func newTestRequester(requestID, clientID, subject, idTokenJTI string) fosite.Re
 		Form:         map[string][]string{},
 		Session:      session,
 	}
+}
+
+func newBrowserSessionRequester(requestID, clientID, subject, sessionID string, scopes ...string) fosite.Requester {
+	request := newTestRequester(requestID, clientID, subject, "").(*fosite.Request)
+	request.Session.(*Session).SessionID = sessionID
+	request.GrantedScope = append(request.GrantedScope, scopes...)
+	return request
+}
+
+func TestEndBrowserSession(t *testing.T) {
+	testutils.ForEachDatabase(t, testEndBrowserSession)
+}
+
+func testEndBrowserSession(t *testing.T, db *gorm.DB) {
+	store := NewStore(db, nil)
+
+	const (
+		userID    = "test-user"
+		sessionID = "ended-session"
+	)
+	for _, clientID := range []string{"client-a", "client-b", "client-c", "client-d"} {
+		require.NoError(t, db.Create(&model.OidcClient{Base: model.Base{ID: clientID}, Name: clientID}).Error)
+	}
+
+	require.NoError(t, store.CreateRefreshTokenSession(t.Context(), "a-refresh", "a-access", newBrowserSessionRequester("a", "client-a", userID, sessionID)))
+	require.NoError(t, store.CreateAccessTokenSession(t.Context(), "a-access", newBrowserSessionRequester("a", "client-a", userID, sessionID)))
+	require.NoError(t, store.CreateRefreshTokenSession(t.Context(), "b-refresh", "b-access", newBrowserSessionRequester("b", "client-b", userID, sessionID, "offline_access")))
+	require.NoError(t, store.CreateAuthorizeCodeSession(t.Context(), "c-code", newBrowserSessionRequester("c", "client-c", userID, sessionID)))
+	offlineCode := newBrowserSessionRequester("f", "client-b", userID, sessionID, "offline_access")
+	offlineCode.GetSession().(*Session).Claims.Extra[common.SessionIDClaim] = sessionID
+	require.NoError(t, store.CreateAuthorizeCodeSession(t.Context(), "f-code", offlineCode))
+	require.NoError(t, store.CreateOpenIDConnectSession(t.Context(), "f-code", offlineCode))
+	require.NoError(t, store.CreateRefreshTokenSession(t.Context(), "other-session-refresh", "", newBrowserSessionRequester("d", "client-d", userID, "other-session")))
+	require.NoError(t, store.CreateRefreshTokenSession(t.Context(), "other-user-refresh", "", newBrowserSessionRequester("e", "client-d", "other-user", sessionID)))
+
+	clientIDs, err := EndBrowserSession(t.Context(), db, userID, sessionID)
+	require.NoError(t, err)
+	assert.ElementsMatch(t, []string{"client-a", "client-b", "client-c"}, clientIDs)
+
+	var sessions []OAuth2Session
+	require.NoError(t, db.Find(&sessions).Error)
+	activeByKey := map[string]bool{}
+	for _, session := range sessions {
+		activeByKey[session.Key] = session.Active
+	}
+	assert.Equal(t, map[string]bool{
+		"a-refresh":             false,
+		"b-refresh":             true,
+		"c-code":                false,
+		"f-code":                true,
+		"other-session-refresh": true,
+		"other-user-refresh":    true,
+	}, activeByKey, "the access token of the revoked grant is deleted and the offline_access grant is kept")
+
+	kept, err := store.GetRefreshTokenSession(t.Context(), "b-refresh", nil)
+	require.NoError(t, err)
+	assert.Empty(t, kept.GetSession().(*Session).SessionID, "the kept grant no longer names the ended session")
+
+	keptOpenID, err := store.GetOpenIDConnectSession(t.Context(), "f-code", nil)
+	require.NoError(t, err)
+	assert.Empty(t, keptOpenID.GetSession().(*Session).SessionID)
+	assert.NotContains(t, keptOpenID.GetSession().(*Session).Claims.Extra, common.SessionIDClaim, "the ID token the code still mints doesn't name the ended session")
+}
+
+func TestGrantSessions(t *testing.T) {
+	testutils.ForEachDatabase(t, func(t *testing.T, db *gorm.DB) {
+		store := NewStore(db, nil)
+		for _, clientID := range []string{"client-a", "client-b"} {
+			require.NoError(t, db.Create(&model.OidcClient{Base: model.Base{ID: clientID}, Name: clientID}).Error)
+		}
+
+		require.NoError(t, store.CreateRefreshTokenSession(t.Context(), "a-1", "", newBrowserSessionRequester("a-1", "client-a", "user-1", "session-1")))
+		require.NoError(t, store.CreateRefreshTokenSession(t.Context(), "a-1-rotated", "", newBrowserSessionRequester("a-1", "client-a", "user-1", "session-1")))
+		require.NoError(t, store.CreateRefreshTokenSession(t.Context(), "a-2", "", newBrowserSessionRequester("a-2", "client-a", "user-1", "session-2")))
+		require.NoError(t, store.CreateRefreshTokenSession(t.Context(), "b-device", "", newBrowserSessionRequester("b-device", "client-b", "user-1", "")))
+		require.NoError(t, store.CreateRefreshTokenSession(t.Context(), "b-other-user", "", newBrowserSessionRequester("b-other-user", "client-b", "user-2", "session-3")))
+
+		grantSessions, err := GrantSessions(t.Context(), db, []string{"user-1"}, []string{"client-a", "client-b"})
+		require.NoError(t, err)
+		assert.ElementsMatch(t, []GrantSession{
+			{UserID: "user-1", ClientID: "client-a", SessionID: "session-1"},
+			{UserID: "user-1", ClientID: "client-a", SessionID: "session-2"},
+		}, grantSessions)
+	})
+}
+
+func TestRevokeUserGrants(t *testing.T) {
+	db := testutils.NewDatabaseForTest(t)
+	store := NewStore(db, nil)
+	for _, clientID := range []string{"client-a", "client-b"} {
+		require.NoError(t, db.Create(&model.OidcClient{Base: model.Base{ID: clientID}, Name: clientID}).Error)
+	}
+	require.NoError(t, store.CreateRefreshTokenSession(t.Context(), "a-refresh", "", newBrowserSessionRequester("a", "client-a", "user-1", "session-1")))
+	require.NoError(t, store.CreateRefreshTokenSession(t.Context(), "b-offline", "", newBrowserSessionRequester("b", "client-b", "user-1", "", "offline_access")))
+	require.NoError(t, store.CreateRefreshTokenSession(t.Context(), "other-user", "", newBrowserSessionRequester("c", "client-a", "user-2", "session-2")))
+	require.NoError(t, store.CreateAuthorizeCodeSession(t.Context(), "unexchanged-code", newBrowserSessionRequester("d", "client-b", "user-1", "", "offline_access")))
+
+	require.NoError(t, RevokeUserGrants(t.Context(), db, "user-1"))
+
+	var sessions []OAuth2Session
+	require.NoError(t, db.Find(&sessions).Error)
+	activeByKey := map[string]bool{}
+	for _, session := range sessions {
+		activeByKey[session.Key] = session.Active
+	}
+	assert.Equal(t, map[string]bool{"a-refresh": false, "b-offline": false, "other-user": true, "unexchanged-code": false}, activeByKey)
 }

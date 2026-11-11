@@ -124,10 +124,10 @@ type OidcUpdateAllowedUserGroupsDto struct {
 }
 
 type OidcLogoutDto struct {
-	IdTokenHint           string `form:"id_token_hint"`
-	ClientId              string `form:"client_id"`
-	PostLogoutRedirectUri string `form:"post_logout_redirect_uri"`
-	State                 string `form:"state"`
+	IdTokenHint           string `form:"id_token_hint" json:"idTokenHint"`
+	ClientId              string `form:"client_id" json:"clientId"`
+	PostLogoutRedirectUri string `form:"post_logout_redirect_uri" json:"postLogoutRedirectUri"`
+	State                 string `form:"state" json:"state"`
 }
 
 type OidcDeviceAuthorizationResponseDto struct {

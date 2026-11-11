@@ -1,16 +1,13 @@
 package oidc
 
 import (
-	"net/http"
-	"net/http/httptest"
+	"context"
 	"testing"
-	"time"
 
-	"github.com/italypaleale/francis/host/local"
 	"github.com/stretchr/testify/require"
+	"gorm.io/gorm"
 
 	"github.com/pocket-id/pocket-id/backend/internal/auditlogs"
-	"github.com/pocket-id/pocket-id/backend/internal/backchannellogout"
 	"github.com/pocket-id/pocket-id/backend/internal/dto"
 	"github.com/pocket-id/pocket-id/backend/internal/mcp"
 	"github.com/pocket-id/pocket-id/backend/internal/model"
@@ -65,56 +62,34 @@ func TestUpdateClientToolKeepsFieldsThatWereNotGiven(t *testing.T) {
 	require.Empty(t, output.(clientResult).AllowedUserGroups)
 }
 
-// userIDLogoutTokenSigner sends the user ID as the logout token, so the test can tell who was logged out
-type userIDLogoutTokenSigner struct{}
+// groupRecordingBackchannelLogout records the client's allowed groups whenever users who lost group access are logged out
+type groupRecordingBackchannelLogout struct {
+	BackchannelLogout
+	db            *gorm.DB
+	allowedGroups [][]string
+}
 
-func (userIDLogoutTokenSigner) GenerateLogoutToken(userID string, _ string) (string, error) {
-	return userID, nil
+func (b *groupRecordingBackchannelLogout) NotifyLostGroupAccess(ctx context.Context, _ []string, clientID string) {
+	var groupIDs []string
+	b.db.WithContext(ctx).Table("oidc_clients_allowed_user_groups").Where("oidc_client_id = ?", clientID).Pluck("user_group_id", &groupIDs)
+	b.allowedGroups = append(b.allowedGroups, groupIDs)
 }
 
 func TestUpdateClientToolKeepsMembersOfNewlyAllowedGroupsSignedIn(t *testing.T) {
 	db := testutils.NewDatabaseForTest(t)
-
-	loggedOutUserIDs := make(chan string, 4)
-	logoutServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		loggedOutUserIDs <- r.PostFormValue("logout_token")
-	}))
-	t.Cleanup(logoutServer.Close)
-
-	var backchannelLogout *backchannellogout.Service
-	testutils.NewActorHostForTest(t, func(t *testing.T, h *local.Host) {
-		var err error
-		backchannelLogout, err = backchannellogout.NewService(db, userIDLogoutTokenSigner{}, logoutServer.Client(), h)
-		require.NoError(t, err)
-	})
+	backchannelLogout := &groupRecordingBackchannelLogout{db: db}
 	h := clientHandler{service: &clientService{db: db, backchannelLogout: backchannelLogout, auditLog: &fakeAuditLogger{}}}
 
-	client := model.OidcClient{Name: "Photos", BackchannelLogoutURL: logoutServer.URL}
+	client := model.OidcClient{Name: "Photos"}
 	require.NoError(t, db.Create(&client).Error)
-	member := model.User{Username: "member"}
-	require.NoError(t, db.Create(&member).Error)
-	outsider := model.User{Username: "outsider"}
-	require.NoError(t, db.Create(&outsider).Error)
-	group := model.UserGroup{FriendlyName: "Family", Name: "family", Users: []model.User{member}}
+	group := model.UserGroup{FriendlyName: "Family", Name: "family"}
 	require.NoError(t, db.Create(&group).Error)
-	for _, user := range []model.User{member, outsider} {
-		require.NoError(t, db.Create(&model.UserAuthorizedOidcClient{UserID: user.ID, ClientID: client.ID}).Error)
-	}
 
 	_, err := h.updateClientTool(t.Context(), mcp.Call{}, updateClientInput{ID: client.ID, AllowedUserGroupIDs: &[]string{group.ID}})
 	require.NoError(t, err)
 
-	select {
-	case userID := <-loggedOutUserIDs:
-		require.Equal(t, outsider.ID, userID)
-	case <-time.After(10 * time.Second):
-		t.Fatal("the user outside the allowed group was not logged out")
-	}
-
-	// A logout of the member would be delivered right alongside the outsider's
-	select {
-	case userID := <-loggedOutUserIDs:
-		t.Fatalf("unexpected logout of user %s", userID)
-	case <-time.After(500 * time.Millisecond):
+	require.NotEmpty(t, backchannelLogout.allowedGroups)
+	for _, groupIDs := range backchannelLogout.allowedGroups {
+		require.Equal(t, []string{group.ID}, groupIDs, "users were logged out before the group's members were allowed in")
 	}
 }

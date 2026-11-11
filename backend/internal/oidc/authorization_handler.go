@@ -85,6 +85,7 @@ func (h *authorizationHandler) authorize(c *gin.Context) {
 
 	authorization, err := h.authorizationService.authorize(ctx, authorizeInput{
 		userID:                        principal.UserID,
+		sessionID:                     principal.SessionID,
 		authenticationMethod:          principal.AuthenticationMethod,
 		authenticationTime:            principal.AuthenticationTime,
 		requester:                     ar,

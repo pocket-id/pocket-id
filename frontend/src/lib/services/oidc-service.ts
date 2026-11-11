@@ -3,6 +3,7 @@ import type {
 	AccessibleOidcClient,
 	AuthorizedOidcClient,
 	CompleteInteractionResponse,
+	EndSessionParams,
 	InteractionSession,
 	InteractionStep,
 	OidcClient,
@@ -25,6 +26,26 @@ class OidcService extends APIService {
 	getAuthorizeInteraction = async (id: string) => {
 		const { data } = await this.api.get<InteractionSession>(`/oidc/interactions/${id}`);
 		return data;
+	};
+
+	getEndSessionRequest = async (params: EndSessionParams) => {
+		const { data } = await this.api.get<{ clientName: string }>('/oidc/end-session/request', {
+			params: {
+				id_token_hint: params.idTokenHint,
+				client_id: params.clientId,
+				post_logout_redirect_uri: params.postLogoutRedirectUri
+			}
+		});
+		return data;
+	};
+
+	// Returns the app's post-logout URL, which is empty when the app registered none
+	confirmEndSession = async (params: EndSessionParams) => {
+		const { data } = await this.api.post<{ redirectUrl: string }>(
+			'/oidc/end-session/confirm',
+			params
+		);
+		return data.redirectUrl;
 	};
 
 	completeAuthorizeInteractionStep = async (

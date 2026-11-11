@@ -13,13 +13,15 @@ type tokenHandler struct {
 	provider      fosite.OAuth2Provider
 	claimsService *ClaimsService
 	apiAccess     APIAccessProvider
+	sessions      Sessions
 }
 
-func newTokenHandler(provider fosite.OAuth2Provider, claimsService *ClaimsService, apiAccess APIAccessProvider) *tokenHandler {
+func newTokenHandler(provider fosite.OAuth2Provider, claimsService *ClaimsService, apiAccess APIAccessProvider, sessions Sessions) *tokenHandler {
 	return &tokenHandler{
 		provider:      provider,
 		claimsService: claimsService,
 		apiAccess:     apiAccess,
+		sessions:      sessions,
 	}
 }
 
@@ -51,6 +53,13 @@ func (h *tokenHandler) token(c *gin.Context) {
 		claimsSource, err = h.claimsService.loadGrantClaimsSource(ctx, requestSession.Subject, client)
 		if err != nil {
 			slog.WarnContext(ctx, "Rejected token request: user no longer allowed to access client", "error", err.Error())
+			h.provider.WriteAccessError(ctx, c.Writer, accessRequest, err)
+			return
+		}
+
+		err = h.validateGrantSession(ctx, requestSession, accessRequest)
+		if err != nil {
+			slog.WarnContext(ctx, "Rejected token request: the session the grant was issued in has ended", "error", err.Error())
 			h.provider.WriteAccessError(ctx, c.Writer, accessRequest, err)
 			return
 		}
@@ -116,6 +125,25 @@ func (h *tokenHandler) token(c *gin.Context) {
 	}
 
 	h.provider.WriteAccessResponse(ctx, c.Writer, accessRequest, response)
+}
+
+// validateGrantSession rejects a grant whose Pocket ID session has ended, unless it requested offline_access
+// Ending a session revokes these grants as well, but this check also covers a failed revocation and a grant stored while its session was being ended
+func (h *tokenHandler) validateGrantSession(ctx context.Context, session *Session, accessRequest fosite.AccessRequester) error {
+	// Fosite grants a code's scopes only when it builds the response, but the requested scopes already are the ones the user approved
+	offline := accessRequest.GetGrantedScopes().Has("offline_access") || accessRequest.GetRequestedScopes().Has("offline_access")
+	if session.SessionID == "" || offline {
+		return nil
+	}
+
+	active, err := h.sessions.IsActive(ctx, session.Subject, session.SessionID)
+	if err != nil {
+		return err
+	}
+	if !active {
+		return fosite.ErrInvalidGrant.WithHint("The session the grant was issued in has ended.")
+	}
+	return nil
 }
 
 func (h *tokenHandler) validateRefreshAPIGrant(ctx context.Context, client Client, accessRequest fosite.AccessRequester) error {

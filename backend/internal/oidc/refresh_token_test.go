@@ -45,7 +45,7 @@ func TestRefreshTokenRotationGrace(t *testing.T) {
 			require.NoError(t, db.Create(&model.User{Base: model.Base{ID: userID}, Username: "grace"}).Error)
 			provider, err := newProvider(store, nil, testTokenSigner{key: key}, Config{BaseURL: issuer, TokenBaseURL: issuer, Secret: []byte(secret)}, nil)
 			require.NoError(t, err)
-			handler := newTokenHandler(provider, newClaimsService(db, nil, issuer, nil, appconfig.StaticResolver{}), nil)
+			handler := newTokenHandler(provider, newClaimsService(db, nil, issuer, nil, appconfig.StaticResolver{}), nil, nil)
 
 			// Seed an old grant so the grace period must start at rotation rather than token issuance
 			request := newTestRequester(requestID, clientID, userID, "grace-jti")

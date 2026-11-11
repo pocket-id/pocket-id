@@ -1,8 +1,10 @@
-import base, { expect, type APIRequestContext } from '@playwright/test';
+import base, { expect, type APIRequestContext, type BrowserContext } from '@playwright/test';
 import { createLocalJWKSet, decodeJwt, jwtVerify } from 'jose';
 import { createServer } from 'node:http';
 import { oidcClients, userGroups, users } from '../data';
+import authUtil from '../utils/auth.util';
 import { cleanupBackend } from '../utils/cleanup.util';
+import { exchangeCode, interceptCallbackRedirect } from '../utils/oidc.util';
 import { saveUnsavedChanges } from '../utils/unsaved-changes.util';
 
 type Delivery = {
@@ -70,11 +72,62 @@ async function revoke(request: APIRequestContext, clientId: string) {
 	expect(response.ok()).toBeTruthy();
 }
 
+type App = { id: string; callbackUrl: string; secret: string };
+
+// Signs in to the app and returns its tokens, consenting on the way for scopes the user hasn't granted yet
+// Each sign-in gets its own page, because the redirect to the unreachable app host ends in a late error navigation
+async function signInToApp(context: BrowserContext, app: App, scope: string, consent = false) {
+	const page = await context.newPage();
+	const params = new URLSearchParams({
+		client_id: app.id,
+		response_type: 'code',
+		scope,
+		redirect_uri: app.callbackUrl,
+		state: 'nXx-6Qr-owc1SHBa'
+	});
+	const authorize = () => page.goto(`/authorize?${params.toString()}`);
+	const continueButton = page.getByRole('button', { name: /^Continue to / });
+	if (consent) {
+		await authorize();
+		await expect(continueButton).toBeVisible();
+	}
+	const callbackUrl = await interceptCallbackRedirect(page, '/auth/callback', () =>
+		consent ? continueButton.click() : authorize()
+	);
+	const tokens = await exchangeCode(page, {
+		grant_type: 'authorization_code',
+		code: callbackUrl.searchParams.get('code')!,
+		redirect_uri: app.callbackUrl,
+		client_id: app.id,
+		client_secret: app.secret
+	});
+	await page.close();
+	return tokens as { id_token: string; refresh_token: string };
+}
+
+async function refresh(request: APIRequestContext, app: App, refreshToken: string) {
+	return request.post('/api/oidc/token', {
+		form: {
+			grant_type: 'refresh_token',
+			client_id: app.id,
+			client_secret: app.secret,
+			refresh_token: refreshToken
+		}
+	});
+}
+
+function deliveryFor(receiver: LogoutReceiver, app: { backchannelLogoutURL: string }) {
+	return receiver.deliveries.find(
+		(delivery) => delivery.path === new URL(app.backchannelLogoutURL).pathname
+	)!;
+}
+
 async function verifyLogoutToken(
 	request: APIRequestContext,
 	delivery: Delivery,
 	clientId: string,
-	userId: string
+	userId: string,
+	sessionId?: string
 ) {
 	expect(delivery.method).toBe('POST');
 	expect(delivery.contentType).toBe('application/x-www-form-urlencoded');
@@ -83,7 +136,7 @@ async function verifyLogoutToken(
 	expect(discoveryResponse.ok()).toBeTruthy();
 	const discovery = await discoveryResponse.json();
 	expect(discovery.backchannel_logout_supported).toBe(true);
-	expect(discovery.backchannel_logout_session_supported).toBe(false);
+	expect(discovery.backchannel_logout_session_supported).toBe(true);
 	const jwksResponse = await request.get(discovery.jwks_uri);
 	expect(jwksResponse.ok()).toBeTruthy();
 	const { payload, protectedHeader } = await jwtVerify(
@@ -105,9 +158,130 @@ async function verifyLogoutToken(
 	expect(payload.exp! - payload.iat!).toBe(120);
 	expect(payload.jti).toBeTruthy();
 	expect(payload).not.toHaveProperty('nonce');
-	expect(payload).not.toHaveProperty('sid');
+	if (sessionId) expect(payload.sid).toBe(sessionId);
+	else expect(payload).not.toHaveProperty('sid');
 	return payload;
 }
+
+test('Signing out of Pocket ID logs the apps of that session out', async ({
+	browser,
+	request,
+	receiver
+}) => {
+	const other = await authUtil.signInElsewhere(browser, 'tim');
+	const nextcloud = await signInToApp(other.context, oidcClients.nextcloud, 'openid profile email');
+	const tailscale = await signInToApp(
+		other.context,
+		oidcClients.tailscale,
+		'openid profile email offline_access',
+		true
+	);
+	const sessionId = decodeJwt(nextcloud.id_token).sid as string;
+	expect(sessionId).toBeTruthy();
+	expect(decodeJwt(tailscale.id_token).sid).toBe(sessionId);
+
+	expect((await other.context.request.post('/api/webauthn/logout')).status()).toBe(204);
+
+	await expect.poll(() => receiver.deliveries.length).toBe(2);
+	for (const app of [oidcClients.nextcloud, oidcClients.tailscale]) {
+		await verifyLogoutToken(request, deliveryFor(receiver, app), app.id, users.tim.id, sessionId);
+	}
+
+	// Only the grant that requested offline_access outlives the session
+	expect((await refresh(request, oidcClients.nextcloud, nextcloud.refresh_token)).ok()).toBe(false);
+	expect((await refresh(request, oidcClients.tailscale, tailscale.refresh_token)).ok()).toBe(true);
+	await other.context.close();
+});
+
+test('An app’s logout from another browser ends the session only after the user confirms', async ({
+	browser,
+	request,
+	receiver
+}) => {
+	const other = await authUtil.signInElsewhere(browser, 'tim');
+	const { id_token } = await signInToApp(
+		other.context,
+		oidcClients.nextcloud,
+		'openid profile email'
+	);
+
+	const cookieless = await browser.newContext({ storageState: { cookies: [], origins: [] } });
+	const page = await cookieless.newPage();
+	await page.goto(`/api/oidc/end-session?id_token_hint=${id_token}`);
+	await expect(page.getByText(`${oidcClients.nextcloud.name} asked`)).toBeVisible();
+	expect((await other.context.request.get('/api/users/me')).status()).toBe(200);
+
+	await interceptCallbackRedirect(page, '/auth/logout/callback', () =>
+		page.getByRole('button', { name: 'Sign out' }).click()
+	);
+	await cookieless.close();
+
+	expect((await other.context.request.get('/api/users/me')).status()).toBe(401);
+	await expect.poll(() => receiver.deliveries.length).toBe(1);
+	await verifyLogoutToken(
+		request,
+		receiver.deliveries[0],
+		oidcClients.nextcloud.id,
+		users.tim.id,
+		decodeJwt(id_token).sid as string
+	);
+	await other.context.close();
+});
+
+test('An app’s cross-site logout POST is repeated as a GET that carries the session cookie', async ({
+	browser,
+	baseURL,
+	request,
+	receiver
+}) => {
+	const other = await authUtil.signInElsewhere(browser, 'tim');
+	const { id_token } = await signInToApp(
+		other.context,
+		oidcClients.nextcloud,
+		'openid profile email'
+	);
+
+	// The app's page lives on another site, so the browser drops the SameSite=Lax cookie from its form post
+	const page = await other.context.newPage();
+	await page.route('http://rp.test/**', (route) =>
+		route.fulfill({
+			contentType: 'text/html',
+			body: `<form method="post" action="${baseURL}/api/oidc/end-session"><input name="id_token_hint" value="${id_token}"></form><script>document.forms[0].submit()</script>`
+		})
+	);
+	await interceptCallbackRedirect(page, '/auth/logout/callback', () =>
+		page.goto('http://rp.test/logout')
+	);
+
+	expect((await other.context.request.get('/api/users/me')).status()).toBe(401);
+	await expect.poll(() => receiver.deliveries.length).toBe(1);
+	await verifyLogoutToken(
+		request,
+		receiver.deliveries[0],
+		oidcClients.nextcloud.id,
+		users.tim.id,
+		decodeJwt(id_token).sid as string
+	);
+	await other.context.close();
+});
+
+test('An admin signing a user out everywhere also ends their offline_access grants', async ({
+	browser,
+	request
+}) => {
+	const craig = await authUtil.signInElsewhere(browser, 'craig');
+	const { refresh_token } = await signInToApp(
+		craig.context,
+		oidcClients.nextcloud,
+		'openid profile email offline_access',
+		true
+	);
+	await craig.context.close();
+
+	expect((await request.delete(`/api/users/${users.craig.id}/sessions`)).status()).toBe(204);
+
+	expect((await refresh(request, oidcClients.nextcloud, refresh_token)).ok()).toBe(false);
+});
 
 test('Saving a logout URL and revoking an app sends a verifiable logout token', async ({
 	page,
@@ -168,6 +342,45 @@ test('Disabling a user delivers logout to their authorized clients', async ({
 		)
 	);
 	expect(new Set(tokens.map((token) => token.jti)).size).toBe(clients.length);
+});
+
+test('Disabling a user also names each session they are still signed in with', async ({
+	browser,
+	request,
+	receiver
+}) => {
+	const other = await authUtil.signInElsewhere(browser, 'tim');
+	const { id_token } = await signInToApp(
+		other.context,
+		oidcClients.nextcloud,
+		'openid profile email'
+	);
+	await other.context.close();
+
+	const userResponse = await request.get(`/api/users/${users.tim.id}`);
+	expect(userResponse.ok()).toBeTruthy();
+	const disabled = await request.put(`/api/users/${users.tim.id}`, {
+		data: { ...(await userResponse.json()), disabled: true }
+	});
+	expect(disabled.ok()).toBeTruthy();
+
+	// Every app gets a token that ends all of the user's sessions, and Nextcloud one more for the session it was signed in through
+	await expect.poll(() => receiver.deliveries.length).toBe(3);
+	const nextcloudPath = new URL(oidcClients.nextcloud.backchannelLogoutURL).pathname;
+	const nextcloudTokens = await Promise.all(
+		receiver.deliveries
+			.filter((delivery) => delivery.path === nextcloudPath)
+			.map((delivery) => decodeJwt(delivery.body.get('logout_token')!))
+	);
+	expect(nextcloudTokens.map((token) => token.sid ?? null).sort()).toEqual(
+		[decodeJwt(id_token).sid, null].sort()
+	);
+	await verifyLogoutToken(
+		request,
+		deliveryFor(receiver, oidcClients.tailscale),
+		oidcClients.tailscale.id,
+		users.tim.id
+	);
 });
 
 test('Deleting a client still notifies its users after authorizations are deleted', async ({

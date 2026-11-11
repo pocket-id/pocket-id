@@ -17,7 +17,6 @@ import (
 	"github.com/pocket-id/pocket-id/backend/internal/appconfig"
 	"github.com/pocket-id/pocket-id/backend/internal/auditlogs"
 	"github.com/pocket-id/pocket-id/backend/internal/authz"
-	"github.com/pocket-id/pocket-id/backend/internal/backchannellogout"
 	"github.com/pocket-id/pocket-id/backend/internal/httpserver"
 	"github.com/pocket-id/pocket-id/backend/internal/model"
 	"github.com/pocket-id/pocket-id/backend/internal/storage"
@@ -50,7 +49,9 @@ type ReauthenticationTokenConsumer interface {
 	ConsumeReauthenticationToken(ctx context.Context, tx *gorm.DB, token string, userID string) (time.Time, error)
 }
 
-type SessionRevoker interface {
+// Sessions gives access to the Pocket ID sessions grants are issued in
+type Sessions interface {
+	IsActive(ctx context.Context, userID, sessionID string) (bool, error)
 	Revoke(ctx context.Context, userID, sessionID string, origin auditlogs.Origin) error
 }
 
@@ -62,6 +63,13 @@ type AuditLogger interface {
 // ScimSyncScheduler schedules SCIM after a client change has committed
 type ScimSyncScheduler interface {
 	ScheduleSync(ctx context.Context)
+}
+
+// BackchannelLogout tells clients to end the sessions of users who lost access to them
+type BackchannelLogout interface {
+	PrepareAuthorizationNotification(ctx context.Context, tx *gorm.DB, userID string, clientID string) (func(), error)
+	PrepareClientNotifications(ctx context.Context, tx *gorm.DB, clientID string) (func(), error)
+	NotifyLostGroupAccess(ctx context.Context, userIDs []string, clientID string)
 }
 
 type Dependencies struct {
@@ -81,11 +89,11 @@ type Dependencies struct {
 	CustomClaims      CustomClaimSource
 	Reauth            ReauthenticationTokenConsumer
 	AuditLog          AuditLogger
-	Sessions          SessionRevoker
+	Sessions          Sessions
 	APIAccess         APIAccessProvider
 	AppConfig         appconfig.AppConfigResolver
 	ScimSync          ScimSyncScheduler
-	BackchannelLogout *backchannellogout.Service
+	BackchannelLogout BackchannelLogout
 
 	// CleanupDisabled skips registering the cron jobs that delete expired rows from the database, for example in tests
 	CleanupDisabled bool
@@ -163,7 +171,7 @@ func New(ctx context.Context, deps Dependencies) (*Module, error) {
 		cimdResolver: cimdResolver,
 
 		authorizationHandler: newAuthorizationHandler(provider, authorizationService),
-		tokenHandler:         newTokenHandler(provider, claimsService, deps.APIAccess),
+		tokenHandler:         newTokenHandler(provider, claimsService, deps.APIAccess, deps.Sessions),
 		userInfoHandler:      newUserInfoHandler(provider, claimsService, deps.Config.BaseURL),
 		parHandler:           newPARHandler(provider),
 		introspectionHandler: newIntrospectionHandler(provider, authenticator, claimsService, deps.Config.BaseURL),
@@ -215,6 +223,8 @@ func (m *Module) RegisterRoutes(root, api *authz.Router, logoSizeLimit gin.Handl
 
 	api.Optional().GET("/oidc/end-session", authz.AccountSession, m.endSessionHandler.endSession)
 	api.Optional().POST("/oidc/end-session", authz.AccountSession, m.endSessionHandler.endSession)
+	api.Optional().GET("/oidc/end-session/request", authz.AccountSession, m.endSessionHandler.getEndSessionRequest)
+	api.Optional().POST("/oidc/end-session/confirm", authz.AccountSession, m.endSessionHandler.confirmEndSession)
 
 	api.Public().POST("/oidc/device/authorize", m.deviceHandler.authorizeDevice)
 	api.POST("/oidc/device/verify", authz.AccountAuthorize, m.deviceHandler.verifyDeviceCode)
