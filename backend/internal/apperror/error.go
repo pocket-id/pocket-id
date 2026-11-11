@@ -41,7 +41,6 @@ const (
 	CodeSetupNotAvailable                 Code = "setup_not_available"
 	CodeSetupAlreadyCompleted             Code = "setup_already_completed"
 	CodeTokenInvalidOrExpired             Code = "token_invalid_or_expired"
-	CodeDeviceCodeInvalid                 Code = "device_code_invalid"
 	CodeOidcMissingAuthorization          Code = "oidc_missing_authorization"
 	CodeOidcInvalidCallbackURL            Code = "oidc_invalid_callback_url"
 	CodeFileTypeNotSupported              Code = "file_type_not_supported"

@@ -177,7 +177,7 @@ func TestExchangeTokenDeviceMismatch(t *testing.T) {
 	dbConfig := appconfig.NewTestConfig(nil)
 	_, _, err = svc.ExchangeToken(t.Context(), dbConfig, token, "wrong-device-token", "", "", "", true)
 
-	require.True(t, apperror.IsCode(err, apperror.CodeDeviceCodeInvalid))
+	require.True(t, apperror.IsCode(err, apperror.CodeTokenInvalidOrExpired))
 
 	// The token must not have been consumed on a device-token mismatch
 	var state TokenState

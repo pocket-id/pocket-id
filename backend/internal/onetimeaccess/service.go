@@ -177,8 +177,6 @@ func (s *Service) ExchangeToken(ctx context.Context, dbConfig *appconfig.AppConf
 	switch consumeRes.Status {
 	case tokenConsumeNotFound:
 		return model.User{}, model.LoginTokens{}, apperror.TokenInvalidOrExpired()
-	case tokenConsumeDeviceMismatch:
-		return model.User{}, model.LoginTokens{}, apperror.DeviceCodeInvalid()
 	case tokenConsumeOK:
 		// All good, continue below
 	default:

@@ -43,10 +43,6 @@ func TokenInvalidOrExpired() *Error {
 	return New(CodeTokenInvalidOrExpired, http.StatusUnauthorized, "Token is invalid or expired")
 }
 
-func DeviceCodeInvalid() *Error {
-	return New(CodeDeviceCodeInvalid, http.StatusUnauthorized, "One-time access code must be used on the device it was generated for")
-}
-
 func TokenInvalid() *Error {
 	return New(CodeInvalidToken, http.StatusUnauthorized, "Token is invalid")
 }
