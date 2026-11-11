@@ -18,6 +18,24 @@
 
 	const closeMenu = getCloseMenu();
 
+	// A mouse opens the menu on pointerdown, and on phones the sheet then covers the trigger
+	// bits-ui selects the item a press from the trigger is released on, so a release without a press inside the sheet is cancelled
+	$effect(() => {
+		const sheet = ref;
+		if (!sheet) return;
+		let pressed = false;
+		const press = () => (pressed = true);
+		const release = (e: PointerEvent) => {
+			if (!pressed && window.matchMedia('(width < 40rem)').matches) e.preventDefault();
+		};
+		sheet.addEventListener('pointerdown', press, true);
+		sheet.addEventListener('pointerup', release, true);
+		return () => {
+			sheet.removeEventListener('pointerdown', press, true);
+			sheet.removeEventListener('pointerup', release, true);
+		};
+	});
+
 	// Phones show the menu as a bottom sheet, which a downward swipe from its top closes like a native one
 	// Svelte adds touchmove handlers as passive, so these listeners are added by hand to keep the page from scrolling along
 	$effect(() => {
