@@ -52,6 +52,11 @@ func (h *authorizationHandler) authorize(c *gin.Context) {
 			return
 		}
 		c.Request.URL.RawQuery = query.Encode()
+
+		// Drop the body so the form parsing below can't merge it over the stored parameters, which the completed steps such as consent and the PAR check were given for
+		c.Request.Body = http.NoBody
+		c.Request.ContentLength = 0
+		c.Request.Header.Del("Content-Type")
 	}
 
 	// Match Fosite's form parsing so the PAR check uses the same request_uri even when query and body values conflict

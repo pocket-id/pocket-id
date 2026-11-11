@@ -339,3 +339,69 @@ func TestAuthorizationHandlerCancelsInteraction(t *testing.T) {
 		})
 	}
 }
+
+func TestAuthorizationHandlerIgnoresBodyWhenResumingInteraction(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	const (
+		baseURL          = "https://issuer.example.com"
+		callbackURL      = "https://client.example.com/callback"
+		otherCallbackURL = "https://client.example.com/other"
+		clientID         = "resume-client"
+		userID           = "test-user"
+	)
+	key, err := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
+	require.NoError(t, err)
+
+	db := testutils.NewDatabaseForTest(t)
+	require.NoError(t, claimmappingpolicy.Bootstrap(t.Context(), db))
+	require.NoError(t, db.Create(&model.User{Base: model.Base{ID: userID}}).Error)
+	require.NoError(t, db.Create(&model.OidcClient{
+		Base:         model.Base{ID: clientID},
+		Name:         "Resume client",
+		CallbackURLs: datatype.StringList{callbackURL, otherCallbackURL},
+		Credentials:  testClientCredentials("test-client-secret"),
+	}).Error)
+	interaction := InteractionSession{
+		ClientID:    clientID,
+		UserID:      new(userID),
+		Scopes:      datatype.StringList{"openid"},
+		RequestedAt: datatype.DateTime(time.Now()),
+		Parameters: InteractionSessionParameters{
+			"client_id":     clientID,
+			"response_type": "code",
+			"redirect_uri":  callbackURL,
+			"scope":         "openid",
+			"state":         "state-with-enough-entropy",
+		},
+	}
+	require.NoError(t, db.Create(&interaction).Error)
+
+	provider, err := newProvider(NewStore(db, nil), nil, testTokenSigner{key: key}, Config{
+		BaseURL: baseURL, TokenBaseURL: baseURL, Secret: []byte("test-secret"),
+	}, nil)
+	require.NoError(t, err)
+	service := newAuthorizationService(db, newInteractionSessionService(db), newClaimsService(db, nil, baseURL, nil, appconfig.StaticResolver{}), nil, nil, nil)
+	handler := newAuthorizationHandler(provider, service)
+
+	form := url.Values{"redirect_uri": {otherCallbackURL}, "state": {"state-from-the-request-body"}}
+	req := httptest.NewRequestWithContext(t.Context(), http.MethodPost, "/authorize?interaction="+interaction.ID, strings.NewReader(form.Encode()))
+	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+	rec := httptest.NewRecorder()
+	router := gin.New()
+	router.POST("/authorize", func(c *gin.Context) {
+		authz.SetPrincipal(c, &authz.Principal{
+			Kind:               authz.KindSession,
+			UserID:             userID,
+			Scopes:             authz.UserScopes(false, authz.KindSession),
+			AuthenticationTime: time.Now().UTC().Add(-time.Minute),
+		})
+		handler.authorize(c)
+	})
+	router.ServeHTTP(rec, req)
+
+	location, err := url.Parse(rec.Header().Get("Location"))
+	require.NoError(t, err)
+	require.NotEmpty(t, location.Query().Get("code"), rec.Body.String())
+	require.Equal(t, callbackURL, location.Scheme+"://"+location.Host+location.Path)
+	require.Equal(t, "state-with-enough-entropy", location.Query().Get("state"))
+}
