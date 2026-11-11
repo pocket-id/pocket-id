@@ -85,17 +85,8 @@ func (r ScimResourceData) GetSchemas() []string {
 	return r.Schemas
 }
 
-func (r ScimResourceData) GetMeta() ScimResourceMeta {
-	if r.Meta == nil {
-		return ScimResourceMeta{}
-	}
-
-	return *r.Meta
-}
-
 type ScimResource interface {
 	GetID() string
 	GetExternalID() string
 	GetSchemas() []string
-	GetMeta() ScimResourceMeta
 }

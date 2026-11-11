@@ -262,22 +262,32 @@ func TestSyncRestrictedClientDeletesDisallowedResources(t *testing.T) {
 	fixture.transport.requireCompliant(t)
 }
 
-func TestSyncSkipsResourcesNewerThanTheLocalSnapshotAndPaginates(t *testing.T) {
+func TestSyncSkipsUpToDateResourcesAndPaginates(t *testing.T) {
 	fixture := newSCIMSyncFixture(t, false)
 	alice := fixture.createUser(t, "user-alice", "alice", nil, false)
 	bob := fixture.createUser(t, "user-bob", "bob", nil, false)
+	group := fixture.createGroup(t, "group-team", "team", alice, bob)
 	remoteModified := time.Now().Add(time.Hour)
 	fixture.transport.pageSize = 1
 
 	fixture.transport.seedUser(ScimUser{
 		ScimResourceData: remoteResourceData("remote-alice", alice.ID, scimUserSchema, "User", remoteModified),
 		UserName:         alice.Username,
+		Name:             &ScimName{GivenName: alice.FirstName, FamilyName: alice.LastName},
+		Display:          alice.DisplayName,
 		Active:           true,
 	})
 	fixture.transport.seedUser(ScimUser{
 		ScimResourceData: remoteResourceData("remote-bob", bob.ID, scimUserSchema, "User", remoteModified),
 		UserName:         bob.Username,
+		Name:             &ScimName{GivenName: bob.FirstName, FamilyName: bob.LastName},
+		Display:          bob.DisplayName,
 		Active:           true,
+	})
+	fixture.transport.seedGroup(ScimGroup{
+		ScimResourceData: remoteResourceData("remote-group", group.ID, scimGroupSchema, "Group", remoteModified),
+		Display:          group.FriendlyName,
+		Members:          []ScimGroupMember{{Value: "remote-bob"}, {Value: "remote-alice"}},
 	})
 
 	require.NoError(t, fixture.service.SyncServiceProvider(t.Context(), fixture.provider.ID))
@@ -286,6 +296,43 @@ func TestSyncSkipsResourcesNewerThanTheLocalSnapshotAndPaginates(t *testing.T) {
 	assert.Equal(t, []string{"1", "2"}, queryValues(requests, http.MethodGet, "/Users", "startIndex"))
 	assert.Equal(t, []string{"1000", "1000"}, queryValues(requests, http.MethodGet, "/Users", "count"))
 	assert.Zero(t, countMutationRequests(requests))
+	fixture.requireLastSynced(t, true)
+	fixture.transport.requireCompliant(t)
+}
+
+// meta.lastModified also moves when a resource is changed at the provider, so a newer one must not keep the local state from being pushed
+func TestSyncUpdatesOutdatedResourcesNewerThanTheLocalSnapshot(t *testing.T) {
+	fixture := newSCIMSyncFixture(t, false)
+	user := fixture.createUser(t, "user-disabled", "disabled", nil, true)
+	group := fixture.createGroup(t, "group-emptied", "emptied")
+	remoteModified := time.Now().Add(time.Hour)
+
+	fixture.transport.seedUser(ScimUser{
+		ScimResourceData: remoteResourceData("remote-user", user.ID, scimUserSchema, "User", remoteModified),
+		UserName:         user.Username,
+		Name:             &ScimName{GivenName: user.FirstName, FamilyName: user.LastName},
+		Display:          user.DisplayName,
+		Active:           true,
+	})
+	fixture.transport.seedGroup(ScimGroup{
+		ScimResourceData: remoteResourceData("remote-group", group.ID, scimGroupSchema, "Group", remoteModified),
+		Display:          group.FriendlyName,
+		Members:          []ScimGroupMember{{Value: "remote-user"}},
+	})
+
+	require.NoError(t, fixture.service.SyncServiceProvider(t.Context(), fixture.provider.ID))
+
+	remoteUser := fixture.transport.user("remote-user")
+	require.NotNil(t, remoteUser)
+	assert.False(t, remoteUser.Active)
+
+	remoteGroup := fixture.transport.group("remote-group")
+	require.NotNil(t, remoteGroup)
+	assert.Empty(t, remoteGroup.Members)
+
+	requests := fixture.transport.requestsSnapshot()
+	assert.Equal(t, 1, countRequests(requests, http.MethodPut, "/Users/remote-user"))
+	assert.Equal(t, 1, countRequests(requests, http.MethodPut, "/Groups/remote-group"))
 	fixture.requireLastSynced(t, true)
 	fixture.transport.requireCompliant(t)
 }

@@ -130,7 +130,7 @@ func TestCreateUserBumpsGroupUpdatedAt(t *testing.T) {
 	// The group's UpdatedAt must now be set
 	updated := getTestGroup(t, userService.db, group.ID)
 	require.NotNil(t, updated.UpdatedAt, "creating a group member must bump the group's UpdatedAt")
-	require.False(t, updated.LastModified().Before(updated.CreatedAt.ToTime()), "group LastModified must not predate its CreatedAt after a membership change")
+	require.False(t, updated.UpdatedAt.ToTime().Before(updated.CreatedAt.ToTime()), "group UpdatedAt must not predate its CreatedAt after a membership change")
 	require.Len(t, updated.Users, 1, "the user should be a member of the group")
 }
 
@@ -186,7 +186,7 @@ func TestUpdateUserGroupsBumpsRemovedGroupUpdatedAt(t *testing.T) {
 
 	for _, groupID := range []string{oldGroup.ID, newGroup.ID} {
 		updated := getTestGroup(t, userService.db, groupID)
-		require.True(t, updated.LastModified().After(past), "group %s changed membership, so its UpdatedAt must be bumped", updated.Name)
+		require.True(t, updated.UpdatedAt.ToTime().After(past), "group %s changed membership, so its UpdatedAt must be bumped", updated.Name)
 	}
 }
 
@@ -213,7 +213,7 @@ func TestDeleteUserBumpsGroupUpdatedAt(t *testing.T) {
 
 	updated := getTestGroup(t, userService.db, group.ID)
 	require.Empty(t, updated.Users)
-	require.True(t, updated.LastModified().After(past), "deleting a member must bump the group's UpdatedAt")
+	require.True(t, updated.UpdatedAt.ToTime().After(past), "deleting a member must bump the group's UpdatedAt")
 }
 
 type recordingEmailVerificationSender struct {
