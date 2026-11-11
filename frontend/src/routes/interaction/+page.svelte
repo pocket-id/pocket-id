@@ -73,6 +73,9 @@
 		try {
 			if (!$userStore) {
 				await authenticate();
+
+				// Signing in is not consent, so an interaction that already waits at the consent step shows it first
+				if (currentStep === 'consent') return;
 			}
 
 			if (currentStep === 'reauthenticate') {
