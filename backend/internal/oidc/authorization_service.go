@@ -178,7 +178,12 @@ func (s *authorizationService) authorize(ctx context.Context, input authorizeInp
 			return authorizationResult{}, fosite.ErrLoginRequired
 		}
 
-		interactionSession, err := s.createInteractionSession(ctx, input.requester, input.requestParams, "", interactionRequirements{
+		// A resumed interaction that still waits for the sign-in is continued, because storing a fresh copy on every anonymous resume lets anyone fill the database
+		if interactionSession != nil {
+			return authorizationResult{RequiresInteraction: true, InteractionID: interactionSession.ID}, nil
+		}
+
+		created, err := s.createInteractionSession(ctx, input.requester, input.requestParams, "", interactionRequirements{
 			AuthenticationRequired:   true,
 			ReauthenticationRequired: prompt.has("login") || client.RequiresReauthentication,
 			AccountSelectionRequired: prompt.has("select_account"),
@@ -188,7 +193,7 @@ func (s *authorizationService) authorize(ctx context.Context, input authorizeInp
 			return authorizationResult{}, err
 		}
 
-		return authorizationResult{RequiresInteraction: true, InteractionID: interactionSession.ID}, nil
+		return authorizationResult{RequiresInteraction: true, InteractionID: created.ID}, nil
 	}
 
 	req := authorizeRequest{

@@ -781,6 +781,38 @@ func TestAuthorizationServiceAuthorizeSwitchesUserAndResetsRequirements(t *testi
 	require.Nil(t, interactionSession.ReauthenticatedAt)
 }
 
+func TestAuthorizationServiceAuthorizeReusesInteractionWhileNotSignedIn(t *testing.T) {
+	db := testutils.NewDatabaseForTest(t)
+	service := newAuthorizationService(db, newInteractionSessionService(db), newClaimsService(db, nil, "", nil, appconfig.StaticResolver{}), nil, nil, nil)
+
+	const clientID = "test-client"
+
+	require.NoError(t, db.Create(&model.OidcClient{
+		Base: model.Base{ID: clientID},
+		Name: "Test Client",
+	}).Error)
+
+	first, err := service.authorize(t.Context(), authorizeInput{
+		requester:     newTestAuthorizeRequester("first-request", clientID, ""),
+		requestParams: map[string]string{"client_id": clientID},
+	})
+	require.NoError(t, err)
+	require.True(t, first.RequiresInteraction)
+
+	resumed, err := service.authorize(t.Context(), authorizeInput{
+		requester:     newTestAuthorizeRequester("resumed-request", clientID, ""),
+		requestParams: map[string]string{"client_id": clientID},
+		interactionID: first.InteractionID,
+	})
+	require.NoError(t, err)
+	require.True(t, resumed.RequiresInteraction)
+	require.Equal(t, first.InteractionID, resumed.InteractionID)
+
+	var count int64
+	require.NoError(t, db.Model(&InteractionSession{}).Count(&count).Error)
+	require.Equal(t, int64(1), count)
+}
+
 func TestAuthorizationServiceAuthorizeRequiresLoginForUserBoundInteraction(t *testing.T) {
 	db := testutils.NewDatabaseForTest(t)
 	service := newAuthorizationService(db, newInteractionSessionService(db), newClaimsService(db, nil, "", nil, appconfig.StaticResolver{}), nil, nil, nil)
