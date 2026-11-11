@@ -498,6 +498,24 @@ func (s *Service) applyDefaultCustomClaims(ctx context.Context, user *model.User
 }
 
 func (s *Service) UpdateUser(ctx context.Context, cfg *appconfig.AppConfigModel, userID string, updatedUser dto.UserCreateDto, updateOwnUser bool, isLdapSync bool, origin auditlogs.Origin) (model.User, error) {
+	// The send limiter is an actor that writes to the database, so it's asked before the transaction locks it on SQLite
+	// A throttled change rejects the whole update instead of saving it without the email
+	sendAllowed := false
+	if updateOwnUser {
+		preview := updatedUser
+		change, err := s.prepareOwnEmailChange(ctx, cfg, userID, &preview, isLdapSync, s.db)
+		if err != nil {
+			return model.User{}, err
+		}
+		if change.deferred != nil {
+			err = s.emailVerification.AllowSend(ctx, userID)
+			if err != nil {
+				return model.User{}, err
+			}
+			sendAllowed = true
+		}
+	}
+
 	tx := s.db.Begin()
 	defer func() {
 		tx.Rollback()
@@ -525,6 +543,11 @@ func (s *Service) UpdateUser(ctx context.Context, cfg *appconfig.AppConfigModel,
 		change, err = s.prepareOwnEmailChange(ctx, cfg, userID, &updatedUser, isLdapSync, tx)
 		if err != nil {
 			return model.User{}, err
+		}
+
+		// The user changed between the check above and the lock, so no send was counted for this link
+		if change.deferred != nil && !sendAllowed {
+			return model.User{}, apperror.TooManyRequests()
 		}
 	}
 
@@ -613,12 +636,6 @@ func (s *Service) prepareOwnEmailChange(ctx context.Context, cfg *appconfig.AppC
 	}
 	if taken {
 		return change, apperror.AlreadyInUse("email")
-	}
-
-	// The link is only sent after the update is saved, so a throttled change rejects the whole update instead of saving it without the email
-	err = s.emailVerification.AllowSend(ctx, userID)
-	if err != nil {
-		return change, err
 	}
 
 	change.deferred = updatedUser.Email

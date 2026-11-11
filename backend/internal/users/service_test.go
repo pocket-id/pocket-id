@@ -220,10 +220,14 @@ type recordingEmailVerificationSender struct {
 	sent       []string
 	requested  []string
 	allowErr   error
+	allow      func(ctx context.Context) error
 	requestErr error
 }
 
-func (r *recordingEmailVerificationSender) AllowSend(_ context.Context, _ string) error {
+func (r *recordingEmailVerificationSender) AllowSend(ctx context.Context, _ string) error {
+	if r.allow != nil {
+		return r.allow(ctx)
+	}
 	return r.allowErr
 }
 
@@ -325,6 +329,21 @@ func TestUpdateOwnEmailWithVerification(t *testing.T) {
 		stored, err := userService.GetUser(t.Context(), user.ID)
 		require.NoError(t, err)
 		require.Equal(t, user.FirstName, stored.FirstName)
+	})
+
+	t.Run("the send limiter can write to the database", func(t *testing.T) {
+		userService, sender, config, user, update := setup(t, appconfig.EmailVerificationRequired, true)
+
+		// The limiter is an actor that persists its state, which waits for the SQLite write lock
+		sender.allow = func(ctx context.Context) error {
+			ctx, cancel := context.WithTimeout(ctx, 2*time.Second)
+			defer cancel()
+			return userService.db.WithContext(ctx).Exec("CREATE TABLE IF NOT EXISTS limiter_probe (id INTEGER)").Error
+		}
+
+		_, err := userService.UpdateUser(t.Context(), config, user.ID, update, true, false, auditlogs.Origin{})
+		require.NoError(t, err)
+		require.Equal(t, []string{"new@example.com"}, sender.requested)
 	})
 
 	t.Run("a change link that can't be sent is reported apart from the saved fields", func(t *testing.T) {
