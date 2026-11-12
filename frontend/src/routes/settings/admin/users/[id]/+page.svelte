@@ -30,7 +30,6 @@
 	import PickerDialog, { groupsConfirmLabel } from '../../user-groups/picker-dialog.svelte';
 	import LoginCodeDialog from '../login-code-dialog.svelte';
 	import { backNavigate } from '../navigate-back-util';
-	import UserAvatar from '../user-avatar.svelte';
 	import { confirmDeleteUsers, confirmDisableUsers, enableUsers } from '../user-actions';
 	import UserForm from '../user-form.svelte';
 	import UserStatus from '../user-status.svelte';
@@ -119,9 +118,6 @@
 			{ label: m.users(), href: '/settings/admin/users' }
 		]}
 	>
-		{#snippet identity()}
-			<UserAvatar {user} />
-		{/snippet}
 		{#snippet status()}
 			<UserStatus {user} />
 		{/snippet}
