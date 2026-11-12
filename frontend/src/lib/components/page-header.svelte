@@ -39,7 +39,7 @@
 {#if breadcrumbs}
 	<header>
 		<div class="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-x-4 gap-y-2">
-			<nav aria-label={m.breadcrumb()} class="min-w-0 sm:col-span-2">
+			<nav aria-label={m.breadcrumb()} class="min-w-0 sm:col-span-2 sm:-mt-2 sm:mb-2">
 				<ol class="text-caption text-fg-muted flex flex-wrap items-center gap-1 max-sm:hidden">
 					{#each breadcrumbs as crumb (crumb.label)}
 						<li class="inline-flex items-center gap-1">
@@ -77,7 +77,7 @@
 						{@render status?.()}
 					</div>
 					{#if tags}
-						<div class="text-control text-fg-muted mt-2 flex flex-wrap items-center gap-2">
+						<div class="text-control text-fg-muted mt-1 flex flex-wrap items-center gap-2">
 							{@render tags()}
 						</div>
 					{/if}
