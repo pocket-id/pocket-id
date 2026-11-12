@@ -355,6 +355,8 @@ func (o *NewActorsOpts) registerRateLimiters(host francishost.Host) (actors map[
 			ratelimit.WithRate(p.Rate),
 			ratelimit.WithPer(p.Per),
 			ratelimit.WithBurst(p.Burst),
+			// A limiter that forgets an idle client starts it over with a full burst, so it must remember the client until an empty bucket has refilled
+			ratelimit.WithIdleTimeout(max(time.Duration(p.Burst)*p.Per/time.Duration(p.Rate), time.Minute)),
 		)
 		if err != nil {
 			return nil, fmt.Errorf("error creating rate limiter %q: %w", p.Name, err)

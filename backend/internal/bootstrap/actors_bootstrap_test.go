@@ -24,6 +24,8 @@ import (
 	"gorm.io/gorm"
 
 	"github.com/pocket-id/pocket-id/backend/internal/common"
+	"github.com/pocket-id/pocket-id/backend/internal/middleware"
+	testutils "github.com/pocket-id/pocket-id/backend/internal/utils/testing"
 )
 
 func TestNewActorsOptsGetPSKUsesStableValue(t *testing.T) {
@@ -226,6 +228,18 @@ func TestNewActorsBackupProvider(t *testing.T) {
 
 	err = provider.Restore(t.Context(), bytes.NewReader(buf.Bytes()))
 	require.NoError(t, err)
+}
+
+func TestRateLimitersRememberClientsUntilTheirBurstRefills(t *testing.T) {
+	testutils.NewActorHostForTest(t, func(t *testing.T, h *local.Host) {
+		actors, err := (&NewActorsOpts{}).registerRateLimiters(h)
+		require.NoError(t, err)
+
+		for _, p := range middleware.RateLimitPolicies() {
+			refill := time.Duration(p.Burst) * p.Per / time.Duration(p.Rate)
+			require.GreaterOrEqual(t, actors[p.Name].RegisterOptions().IdleTimeout, refill, p.Name)
+		}
+	})
 }
 
 // testCAPEM returns a self-signed CA certificate in PEM form, standing in for the cluster CA an operator would pin with FRANCIS_CA
