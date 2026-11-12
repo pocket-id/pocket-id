@@ -10,6 +10,7 @@ import (
 	"github.com/stretchr/testify/require"
 	"gorm.io/gorm"
 
+	"github.com/pocket-id/pocket-id/backend/internal/appconfig"
 	"github.com/pocket-id/pocket-id/backend/internal/apperror"
 	"github.com/pocket-id/pocket-id/backend/internal/auditlogs"
 	"github.com/pocket-id/pocket-id/backend/internal/dto"
@@ -128,4 +129,32 @@ func TestMembershipAndClientChangesAreRecorded(t *testing.T) {
 		{event: auditlogs.EventGroupMemberRemoved, userID: leaver.ID, data: auditlogs.Data{"groupName": "Family"}},
 		{event: auditlogs.EventClientGroupAdded, data: auditlogs.Data{"clientID": client.ID, "clientName": "Photos", "groupName": "Family"}},
 	}, auditLog.entries)
+}
+
+func TestUpdatesGroupWithThousandsOfMembers(t *testing.T) {
+	db := testutils.NewDatabaseForTest(t)
+	groupService := newService(db, nil, nil, &fakeAuditLogger{})
+	group, err := groupService.Create(t.Context(), dto.UserGroupCreateDto{Name: "staff", FriendlyName: "Staff"}, auditlogs.Origin{})
+	require.NoError(t, err)
+
+	users := make([]model.User, 2500)
+	for i := range users {
+		users[i] = model.User{Username: "user" + strconv.Itoa(i)}
+	}
+	require.NoError(t, db.CreateInBatches(&users, 500).Error)
+	userIDs := make([]string, len(users))
+	for i, user := range users {
+		userIDs[i] = user.ID
+	}
+
+	_, err = groupService.UpdateUsers(t.Context(), group.ID, userIDs, auditlogs.Origin{})
+	require.NoError(t, err)
+	_, err = groupService.Update(t.Context(), &appconfig.AppConfigModel{}, group.ID, dto.UserGroupCreateDto{Name: "staff", FriendlyName: "All staff"})
+	require.NoError(t, err)
+	_, err = groupService.UpdateAllowedOidcClient(t.Context(), group.ID, dto.UserGroupUpdateAllowedOidcClientsDto{}, auditlogs.Origin{})
+	require.NoError(t, err)
+
+	memberIDs, err := groupService.memberIDs(t.Context(), db, group.ID)
+	require.NoError(t, err)
+	require.ElementsMatch(t, userIDs, memberIDs)
 }

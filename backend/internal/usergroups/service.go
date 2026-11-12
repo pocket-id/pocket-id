@@ -233,7 +233,7 @@ func (s *Service) updateInternal(ctx context.Context, id string, input dto.UserG
 
 	err = tx.
 		WithContext(ctx).
-		Preload("Users").
+		Omit(clause.Associations).
 		Save(&group).
 		Error
 	if errors.Is(err, gorm.ErrDuplicatedKey) {
@@ -329,9 +329,11 @@ func (s *Service) updateUsersInternal(ctx context.Context, id string, userIds []
 	}
 
 	// Replace the current users with the new set of users
+	// The inserts are batched because large groups would exceed the bind variable limit of SQLite and Postgres
 	previousUsers := group.Users
 	err = tx.
 		WithContext(ctx).
+		Session(&gorm.Session{CreateBatchSize: 500}).
 		Model(&group).
 		Association("Users").
 		Replace(users)
@@ -352,6 +354,7 @@ func (s *Service) updateUsersInternal(ctx context.Context, id string, userIds []
 
 	err = tx.
 		WithContext(ctx).
+		Omit(clause.Associations).
 		Save(&group).
 		Error
 	if err != nil {
@@ -446,6 +449,7 @@ func (s *Service) UpdateAllowedOidcClient(ctx context.Context, id string, input 
 	// Save the updated group
 	err = tx.
 		WithContext(ctx).
+		Omit(clause.Associations).
 		Save(&group).
 		Error
 	if err != nil {
