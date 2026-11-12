@@ -100,6 +100,25 @@ func TestClientService_RevokeAuthorizedClientRevokesAccessTokenWithoutRefreshTok
 	require.NoError(t, err, "another user's access token must stay valid")
 }
 
+func TestClientService_RevokeAuthorizedClientDeletesInteractionSessions(t *testing.T) {
+	db := testutils.NewDatabaseForTest(t)
+	const (
+		clientID = "revoked-client"
+		userID   = "revoking-user"
+	)
+	require.NoError(t, db.Create(&model.OidcClient{Base: model.Base{ID: clientID}, Name: "Client"}).Error)
+	require.NoError(t, db.Create(&model.User{Base: model.Base{ID: userID}, Username: userID}).Error)
+	require.NoError(t, db.Create(&model.UserAuthorizedOidcClient{UserID: userID, ClientID: clientID}).Error)
+	require.NoError(t, db.Create(&InteractionSession{ClientID: clientID, UserID: new(userID)}).Error)
+
+	service := &clientService{db: db, auditLog: &fakeAuditLogger{}}
+	require.NoError(t, service.RevokeAuthorizedClient(t.Context(), userID, clientID, auditlogs.Origin{}))
+
+	var count int64
+	require.NoError(t, db.Model(&InteractionSession{}).Count(&count).Error)
+	require.Zero(t, count, "a finished interaction must not be resumable after the user revoked the client")
+}
+
 func TestClientService_RefreshClientMetadataReturnsNotFoundForMissingClient(t *testing.T) {
 	s := newMetadataStore(t, nil)
 	service := &clientService{db: s.db, cimdResolver: s.resolver}

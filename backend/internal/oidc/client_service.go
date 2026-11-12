@@ -885,6 +885,12 @@ func (s *clientService) RevokeAuthorizedClient(ctx context.Context, userID strin
 	if err = RevokeUserClientSessions(ctx, tx, userID, clientID); err != nil {
 		return err
 	}
+
+	// A finished interaction stores that consent was given, so resuming it would grant the revoked client again
+	err = tx.WithContext(ctx).Where("user_id = ? AND client_id = ?", userID, clientID).Delete(&InteractionSession{}).Error
+	if err != nil {
+		return err
+	}
 	s.auditLog.Record(ctx, auditlogs.EventClientAuthorizationRevoked, origin, userID, auditlogs.Data{"clientID": authorizedClient.Client.ID, "clientName": authorizedClient.Client.Name}, tx)
 
 	err = tx.Commit().Error
