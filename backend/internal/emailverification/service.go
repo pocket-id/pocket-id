@@ -72,6 +72,10 @@ func (s *Service) loadUser(ctx context.Context, userID string) (model.User, erro
 
 // Send emails a verification link for the user's current email
 func (s *Service) Send(ctx context.Context, dbConfig *appconfig.AppConfigModel, userID string) error {
+	if dbConfig.EmailVerification.String() == appconfig.EmailVerificationDisabled {
+		return apperror.EmailVerificationDisabled()
+	}
+
 	user, err := s.loadUser(ctx, userID)
 	if err != nil {
 		return err

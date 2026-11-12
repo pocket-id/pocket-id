@@ -37,6 +37,7 @@ const (
 	CodeReauthenticationRequired          Code = "reauthentication_required"
 	CodeEmailVerificationTokenInvalid     Code = "invalid_email_verification_token"
 	CodeEmailVerificationRequired         Code = "email_verification_required"
+	CodeEmailVerificationDisabled         Code = "email_verification_disabled"
 	CodeEmailChangeNotStarted             Code = "email_change_not_started"
 	CodeSetupNotAvailable                 Code = "setup_not_available"
 	CodeSetupAlreadyCompleted             Code = "setup_already_completed"

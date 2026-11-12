@@ -120,6 +120,16 @@ func TestSendBindsAddressAndReplacesOutstandingToken(t *testing.T) {
 	require.Len(t, emailSender.sent, 2)
 }
 
+func TestSendIsRejectedWhenVerificationIsDisabled(t *testing.T) {
+	emailSender := &testEmailSender{}
+	service, _, db := newServiceForTest(t, emailSender)
+	user := createTestUser(t, db, "user-disabled", "user@example.test")
+
+	err := service.Send(t.Context(), &appconfig.AppConfigModel{EmailVerification: appconfig.EmailVerificationDisabled}, user.ID)
+	require.True(t, apperror.IsCode(err, apperror.CodeEmailVerificationDisabled))
+	require.Empty(t, emailSender.sent)
+}
+
 func TestVerifyConsumesTokenAndMarksBoundAddressVerified(t *testing.T) {
 	emailSender := &testEmailSender{}
 	service, host, db := newServiceForTest(t, emailSender)
