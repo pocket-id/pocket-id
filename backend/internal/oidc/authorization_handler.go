@@ -69,6 +69,14 @@ func (h *authorizationHandler) authorize(c *gin.Context) {
 	// Capture the PAR URI before Fosite merges request object parameters and validates the referenced PAR session
 	hasPushedAuthorizationRequest := strings.HasPrefix(c.Request.Form.Get("request_uri"), parRequestURIPrefix)
 
+	// Fosite merges the pushed parameters over the form, so parameters the client didn't push must be dropped to keep them from being injected through the link (RFC 9126 section 4)
+	if hasPushedAuthorizationRequest {
+		c.Request.Form = url.Values{
+			"client_id":   {c.Request.Form.Get("client_id")},
+			"request_uri": {c.Request.Form.Get("request_uri")},
+		}
+	}
+
 	ar, err := h.provider.NewAuthorizeRequest(ctx, c.Request)
 	if err != nil {
 		slog.ErrorContext(ctx, "Failed to create authorize request", "error", err.Error())

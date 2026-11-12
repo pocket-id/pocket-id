@@ -34,6 +34,7 @@ type authorizationPARTestCase struct {
 	multipart     bool
 	requestObject bool
 	malformed     bool
+	unpushed      url.Values
 }
 
 // fakeSessionAuthenticator signs every request in as a regular user, optionally one who still has to verify their email
@@ -99,6 +100,7 @@ func TestAuthorizationHandlerRequiresPAR(t *testing.T) {
 				{name: "empty body shadows PAR query", method: http.MethodPost, queryURI: fakeURI, bodyURI: []string{""}},
 				{name: "non-PAR body shadows PAR query", method: http.MethodPost, queryURI: fakeURI, bodyURI: []string{"not-a-par-uri"}},
 				{name: "valid PAR in query", method: http.MethodGet, queryURI: "stored", createPAR: true, wantCode: true},
+				{name: "unpushed parameters are ignored", method: http.MethodGet, queryURI: "stored", createPAR: true, wantCode: true, unpushed: url.Values{"max_age": {"1"}}},
 				{name: "valid PAR in body", method: http.MethodPost, bodyURI: []string{"stored"}, createPAR: true, wantCode: true},
 				{name: "valid body overrides invalid query", method: http.MethodPost, queryURI: fakeURI, bodyURI: []string{"stored"}, createPAR: true, wantCode: true},
 				{name: "empty body shadows stored PAR", method: http.MethodPost, queryURI: "stored", bodyURI: []string{""}, createPAR: true},
@@ -187,6 +189,9 @@ func testAuthorizationHandlerPAR(t *testing.T, clientType string, tt authorizati
 			uri = storedURI
 		}
 		query.Set("request_uri", uri)
+	}
+	for k, values := range tt.unpushed {
+		query[k] = values
 	}
 	for _, uri := range tt.bodyURI {
 		if uri == "stored" {
