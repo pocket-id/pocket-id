@@ -382,7 +382,7 @@ func TestService_notifyClients(t *testing.T) {
 	targets := []target{{UserID: "user-1", ClientID: "client-fail", LogoutURL: failingServer.URL}}
 	expected := make([]string, 0, clientCount)
 	for i := range clientCount {
-		clientID := "client-" + strconv.Itoa(i)
+		clientID := "api://example/client-" + strconv.Itoa(i)
 		targets = append(targets, target{UserID: "user-1", ClientID: clientID, LogoutURL: server.URL})
 		expected = append(expected, "logout-token-user-1-"+clientID+"-")
 	}

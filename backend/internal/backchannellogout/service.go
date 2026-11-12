@@ -19,6 +19,7 @@ import (
 	"github.com/pocket-id/pocket-id/backend/internal/model"
 	"github.com/pocket-id/pocket-id/backend/internal/oidc"
 	"github.com/pocket-id/pocket-id/backend/internal/session"
+	"github.com/pocket-id/pocket-id/backend/internal/utils"
 )
 
 // requestTimeout bounds each notification POST, so one unreachable client cannot stall the others
@@ -320,7 +321,8 @@ func (s *Service) SignedOutEverywhere(ctx context.Context, userID string) error 
 func (s *Service) notifyClients(ctx context.Context, targets []target) {
 	for _, t := range targets {
 		// One actor per authorization serializes its deliveries, while the capacity group limits running jobs without counting idle actors
-		actorID := t.ClientID + ":" + t.UserID
+		// The client ID is hashed because actor IDs must not contain '/', which client IDs may
+		actorID := utils.CreateSha256Hash(t.ClientID) + ":" + t.UserID
 		_, _, err := s.actors.Dispatch(ctx, ActorType, actorID, methodDeliver, t)
 		if err != nil {
 			slog.ErrorContext(ctx, "Failed to schedule back-channel logout notification",
