@@ -8,8 +8,27 @@ import (
 	"testing"
 	"testing/fstest"
 
+	"github.com/gin-gonic/gin"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
+
+func TestTrailingSlashRedirectStaysOnOrigin(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	router := gin.New()
+	require.NoError(t, RegisterFrontend(router))
+
+	for target, location := range map[string]string{
+		"/settings/?tab=1":     "/settings?tab=1",
+		"//attacker.example/":  "/attacker.example",
+		"///attacker.example/": "/attacker.example",
+	} {
+		rec := httptest.NewRecorder()
+		router.ServeHTTP(rec, httptest.NewRequestWithContext(t.Context(), http.MethodGet, target, nil))
+		require.Equal(t, http.StatusMovedPermanently, rec.Code, target)
+		assert.Equal(t, location, rec.Header().Get("Location"), target)
+	}
+}
 
 func TestIsSPARequest(t *testing.T) {
 	distFS := fstest.MapFS{
