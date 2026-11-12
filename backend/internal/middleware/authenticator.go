@@ -220,6 +220,12 @@ func (a *OAuthAuthenticator) Authenticate(c *gin.Context) (*authz.Principal, err
 		return nil, apperror.UserDisabled()
 	}
 
+	// Removing the user from the client's allowed groups doesn't revoke its tokens, so the restriction is checked like on the token endpoint
+	client, ok := accessRequest.GetClient().(oidc.Client)
+	if !ok || !oidc.IsUserGroupAllowedToAuthorize(user, client.OidcClient) {
+		return nil, apperror.NotSignedIn()
+	}
+
 	// A token never holds more than its user currently does, so demoting the user narrows their tokens right away
 	principal := &authz.Principal{
 		Kind:     authz.KindOAuthUser,

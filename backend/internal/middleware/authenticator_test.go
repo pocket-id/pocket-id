@@ -91,6 +91,13 @@ func TestAuthorizationWithRealCredentials(t *testing.T) {
 		"unverified-api-token": oauthAccessRequest(unverified.ID, fosite.Arguments{resource}, string(authz.AccountRead), string(authz.AccountApps)),
 		"machine-token":        oauthAccessRequest(oidc.ClientSubject(oauthTestClientID), fosite.Arguments{resource}, string(authz.UsersRead), string(authz.AccountRead)),
 	}
+	groupRestrictedToken := oauthAccessRequest(admin.ID, fosite.Arguments{resource}, string(authz.UsersRead)).(*fosite.AccessRequest)
+	groupRestrictedToken.Client = oidc.Client{OidcClient: model.OidcClient{
+		Base:              model.Base{ID: oauthTestClientID},
+		IsGroupRestricted: true,
+		AllowedUserGroups: []model.UserGroup{{Base: model.Base{ID: "group-without-the-admin"}}},
+	}}
+	accessTokens["group-restricted-token"] = groupRestrictedToken
 	apiRouter := NewAuthorization(apiKeyModule, accessTokens, usersModule, sessions, appconfig.StaticResolver{Config: cfg}).Router(router.Group("/api"))
 	ok := func(c *gin.Context) {
 		c.String(http.StatusOK, authz.PrincipalFrom(c).UserID)
@@ -137,6 +144,7 @@ func TestAuthorizationWithRealCredentials(t *testing.T) {
 		{name: "admin OAuth token without the route's scope", path: "/api/admin", authorization: "Bearer admin-account-token", status: http.StatusForbidden, errorCode: "forbidden"},
 		{name: "regular user OAuth token that carries an admin scope", path: "/api/admin", authorization: "Bearer user-admin-token", status: http.StatusForbidden, errorCode: "forbidden"},
 		{name: "disabled user's OAuth token", path: "/api/admin", authorization: "Bearer disabled-token", status: http.StatusForbidden, errorCode: "user_disabled"},
+		{name: "OAuth token of a client the user lost group access to", path: "/api/admin", authorization: "Bearer group-restricted-token", status: http.StatusUnauthorized, errorCode: "not_signed_in"},
 		{name: "OAuth token on session-only route", path: "/api/session-only", authorization: "Bearer session-scope-token", status: http.StatusForbidden, errorCode: "oauth_token_auth_not_allowed"},
 		{name: "custom API token with a colliding scope key", path: "/api/admin", authorization: "Bearer custom-api-token", status: http.StatusUnauthorized, errorCode: "not_signed_in"},
 		{name: "unverified user OAuth token on apps route", path: "/api/apps", authorization: "Bearer unverified-api-token", status: http.StatusForbidden, errorCode: "email_verification_required"},
@@ -218,7 +226,7 @@ const oauthTestClientID = "machine-client"
 
 func oauthAccessRequest(subject string, audience fosite.Arguments, scopes ...string) fosite.AccessRequester {
 	accessRequest := fosite.NewAccessRequest(&fosite.DefaultSession{Subject: subject})
-	accessRequest.Client = &fosite.DefaultClient{ID: oauthTestClientID}
+	accessRequest.Client = oidc.Client{OidcClient: model.OidcClient{Base: model.Base{ID: oauthTestClientID}}}
 	accessRequest.GrantedAudience = audience
 	accessRequest.GrantedScope = scopes
 	return accessRequest
