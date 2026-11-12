@@ -198,6 +198,24 @@ func TestDeviceServiceCreateRejectsResourceWithoutUserDelegatedGrant(t *testing.
 	require.Zero(t, count)
 }
 
+func TestDeviceServiceAcceptDoesNotResolveClientInsideTransaction(t *testing.T) {
+	const userID = "test-user"
+	service, store, _, userCode, _ := newTestDeviceServiceWithCode(t, "test-client", userID, false, nil)
+
+	var resolved, resolvedInTx int
+	store.clientResolver = fosite.ClientResolverFunc(func(ctx context.Context, id string, next fosite.ClientLookupFunc) (fosite.Client, error) {
+		resolved++
+		if _, inTx := ctx.Value(txContextKey{}).(*gorm.DB); inTx {
+			resolvedInTx++
+		}
+		return next(ctx, id)
+	})
+
+	require.NoError(t, service.acceptDeviceCode(t.Context(), userCode, userID, "phr", time.Now().UTC(), nil, "", requestMeta{}))
+	require.Positive(t, resolved)
+	require.Zero(t, resolvedInTx, "a metadata document client could be fetched while the database write lock is held")
+}
+
 func newTestDeviceServiceWithCode(t *testing.T, clientID, userID string, requiresReauthentication bool, reauth ReauthenticationTokenConsumer) (*deviceService, *Store, *oidcProvider, string, string) {
 	t.Helper()
 

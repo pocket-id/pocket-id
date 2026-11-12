@@ -813,11 +813,13 @@ func (s *Store) AcceptDeviceCodeSessionByUserCodeSignature(ctx context.Context, 
 		if err != nil {
 			return err
 		}
-		storedRequest, err := s.decodeDeviceRequester(ctx, userCodeSession.RequestData)
+		// Decoding the full requester would resolve the client, which for a metadata document client can be a fetch that must not hold the write lock
+		var storedRequest storedRequester
+		err = json.Unmarshal([]byte(userCodeSession.RequestData), &storedRequest)
 		if err != nil {
 			return err
 		}
-		if !userCodeSession.Active || storedRequest.GetUserCodeState() != fosite.UserCodeUnused {
+		if !userCodeSession.Active || storedRequest.UserCodeState != fosite.UserCodeUnused {
 			return fosite.ErrNotFound
 		}
 
