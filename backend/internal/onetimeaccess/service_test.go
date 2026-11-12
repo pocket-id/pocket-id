@@ -2,6 +2,7 @@ package onetimeaccess
 
 import (
 	"context"
+	"errors"
 	"testing"
 	"time"
 
@@ -77,6 +78,39 @@ func newServiceForTest(t *testing.T, db *gorm.DB) (*Service, *local.Host, *fakeA
 	return svc, host, auditLog
 }
 
+type blockingUserProvider struct {
+	release chan struct{}
+}
+
+func (p blockingUserProvider) GetUser(context.Context, string) (model.User, error) {
+	<-p.release
+	return model.User{}, errors.New("released")
+}
+
+func TestRequestOneTimeAccessEmailDoesNotWaitForRegisteredUser(t *testing.T) {
+	db := testutils.NewDatabaseForTest(t)
+	svc, _, _ := newServiceForTest(t, db)
+	release := make(chan struct{})
+	t.Cleanup(func() { close(release) })
+	svc.userProvider = blockingUserProvider{release: release}
+	require.NoError(t, db.Create(&model.User{Username: "registered", Email: new("registered@example.com")}).Error)
+
+	dbConfig := appconfig.NewTestConfig(nil)
+	dbConfig.EmailOneTimeAccessAsUnauthenticatedEnabled = "true"
+	done := make(chan error)
+	go func() {
+		_, err := svc.RequestOneTimeAccessEmailAsUnauthenticatedUser(t.Context(), dbConfig, "registered@example.com", "", auditlogs.Origin{})
+		done <- err
+	}()
+
+	select {
+	case err := <-done:
+		require.NoError(t, err)
+	case <-time.After(5 * time.Second):
+		t.Fatal("the response waited for the registered user to be loaded")
+	}
+}
+
 func TestGenerateTokenLength(t *testing.T) {
 	for _, test := range []struct {
 		name       string
@@ -87,7 +121,7 @@ func TestGenerateTokenLength(t *testing.T) {
 		{name: "long-lived", ttl: time.Hour, wantLength: longTokenLength},
 	} {
 		t.Run(test.name, func(t *testing.T) {
-			token, _, err := generateToken(test.ttl, false)
+			token, err := generateToken(test.ttl)
 
 			require.NoError(t, err)
 			require.Len(t, token, test.wantLength)
@@ -105,7 +139,7 @@ func TestExchangeTokenSuccess(t *testing.T) {
 	}
 	require.NoError(t, db.Create(&user).Error)
 
-	token, _, err := StoreToken(t.Context(), svc.actorService, user.ID, time.Minute, false)
+	token, err := StoreToken(t.Context(), svc.actorService, user.ID, time.Minute, nil)
 	require.NoError(t, err)
 
 	dbConfig := appconfig.NewTestConfig(nil)
@@ -170,9 +204,8 @@ func TestExchangeTokenDeviceMismatch(t *testing.T) {
 	require.NoError(t, db.Create(&user).Error)
 
 	// Store a token that requires a device token
-	token, deviceToken, err := StoreToken(t.Context(), svc.actorService, user.ID, time.Minute, true)
+	token, err := StoreToken(t.Context(), svc.actorService, user.ID, time.Minute, new("device-token"))
 	require.NoError(t, err)
-	require.NotNil(t, deviceToken)
 
 	dbConfig := appconfig.NewTestConfig(nil)
 	_, _, err = svc.ExchangeToken(t.Context(), dbConfig, token, "wrong-device-token", "", "", "", true)
@@ -198,7 +231,7 @@ func TestExchangeTokenRejectsDisabledUser(t *testing.T) {
 	require.NoError(t, db.Create(&user).Error)
 
 	// Store a one-time access token for the disabled user in the actor state store
-	token, _, err := StoreToken(t.Context(), svc.actorService, user.ID, time.Minute, false)
+	token, err := StoreToken(t.Context(), svc.actorService, user.ID, time.Minute, nil)
 	require.NoError(t, err)
 
 	dbConfig := appconfig.NewTestConfig(nil)
