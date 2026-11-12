@@ -218,6 +218,15 @@ func (s *Store) StoreCIMDClient(ctx context.Context, resolved fosite.Client, _ *
 			if err != nil {
 				return fmt.Errorf("failed to revoke consent after metadata change: %w", err)
 			}
+
+			// Users revoke tokens through their consent, so the tokens issued under it must go with it
+			err = s.dbFor(ctx).
+				Where("client_id = ?", client.ID).
+				Delete(&OAuth2Session{}).
+				Error
+			if err != nil {
+				return fmt.Errorf("failed to revoke tokens after metadata change: %w", err)
+			}
 		}
 
 		// Reload inside the transaction so DB-managed columns and preloads are populated consistently

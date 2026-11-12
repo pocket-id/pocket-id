@@ -554,6 +554,7 @@ func TestGetClient_MetadataDocument(t *testing.T) {
 		require.NoError(t, s.db.Exec(
 			"INSERT INTO user_authorized_oidc_clients (client_id, user_id, scope, last_used_at) VALUES (?, ?, ?, ?)",
 			id, "user-1", "openid", time.Now()).Error)
+		require.NoError(t, s.CreateRefreshTokenSession(t.Context(), "refresh", "", newTestRequester("request", id, "user-1", "")))
 
 		_, err := s.GetClient(t.Context(), id)
 		require.NoError(t, err)
@@ -562,6 +563,8 @@ func TestGetClient_MetadataDocument(t *testing.T) {
 		require.NoError(t, s.db.Table("user_authorized_oidc_clients").
 			Where("client_id = ?", id).Count(&consent).Error)
 		assert.Zero(t, consent, "consent must not survive a redirect_uris change")
+		_, err = s.GetRefreshTokenSession(t.Context(), "refresh", nil)
+		require.ErrorIs(t, err, fosite.ErrNotFound, "tokens must not survive the consent they were issued under")
 	})
 
 	t.Run("failed consent revocation rolls back refreshed metadata", func(t *testing.T) {
