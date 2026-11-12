@@ -475,7 +475,7 @@ func (s *Store) findGrantRequestIDs(ctx context.Context, userID, clientID, idTok
 	var sessions []OAuth2Session
 	query := s.dbFor(ctx).
 		Select("request_id", "request_data").
-		Where("kind = ? OR (kind IN ? AND (active = ? OR rotated_at > ?))", sessionKindAccessToken, []string{sessionKindAuthorizeCode, sessionKindRefreshToken}, true, datatype.DateTime(time.Now().UTC().Add(-refreshTokenGracePeriod)))
+		Where("kind = ? OR (kind IN ? AND (active = ? OR rotated_at > ?))", sessionKindAccessToken, []string{sessionKindAuthorizeCode, sessionKindDeviceCode, sessionKindRefreshToken}, true, datatype.DateTime(time.Now().UTC().Add(-refreshTokenGracePeriod)))
 	if clientID != "" {
 		query = query.Where("client_id = ?", clientID)
 	}
@@ -646,7 +646,7 @@ func (s *Store) revokeRequestIDs(ctx context.Context, requestIDs []string) error
 	// A code that is not exchanged yet must not mint tokens for a revoked grant
 	if err := s.dbFor(ctx).
 		Model(&OAuth2Session{}).
-		Where("kind = ? AND request_id IN ?", sessionKindAuthorizeCode, requestIDs).
+		Where("kind IN ? AND request_id IN ?", []string{sessionKindAuthorizeCode, sessionKindDeviceCode}, requestIDs).
 		Update("active", false).
 		Error; err != nil {
 		return err

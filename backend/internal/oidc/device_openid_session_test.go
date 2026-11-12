@@ -51,6 +51,20 @@ func TestDeviceCodeExchangeConsumesOpenIDConnectSession(t *testing.T) {
 	require.Zero(t, count)
 }
 
+func TestRevokeUserClientSessionsRevokesApprovedDeviceCode(t *testing.T) {
+	const (
+		userID   = "test-user"
+		clientID = "test-client"
+	)
+	service, store, provider, userCode, deviceCode := newTestDeviceServiceWithCode(t, clientID, userID, false, nil)
+	require.NoError(t, service.acceptDeviceCode(t.Context(), userCode, userID, "phr", time.Now().UTC(), nil, "", requestMeta{}))
+
+	require.NoError(t, RevokeUserClientSessions(t.Context(), store.db, userID, clientID))
+
+	_, err := exchangeDeviceCode(t, provider, clientID, deviceCode)
+	require.ErrorIs(t, err, fosite.ErrInvalidGrant)
+}
+
 func TestStoreInvalidateDeviceCodeSessionReportsLostRaceAsInvalidGrant(t *testing.T) {
 	_, store, provider, _, deviceCode := newTestDeviceServiceWithCode(t, "test-client", "test-user", false, nil)
 
