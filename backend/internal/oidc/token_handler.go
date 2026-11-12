@@ -101,7 +101,12 @@ func (h *tokenHandler) token(c *gin.Context) {
 
 	// A grant without a resource owner has no source and carries no user claims
 	if claimsSource != nil {
-		err = h.claimsService.applyTokenClaims(requestSession, accessRequest.GetGrantedScopes(), claimsSource)
+		// Fosite grants a code's scopes only when it builds the response, but the requested scopes already are the ones the user approved
+		scopes := accessRequest.GetGrantedScopes()
+		if accessRequest.GetGrantTypes().HasOneOf(string(fosite.GrantTypeAuthorizationCode), string(fosite.GrantTypeDeviceCode)) {
+			scopes = accessRequest.GetRequestedScopes()
+		}
+		err = h.claimsService.applyTokenClaims(requestSession, scopes, claimsSource)
 		if err != nil {
 			slog.ErrorContext(ctx, "Failed to apply token claims", "error", err)
 			h.provider.WriteAccessError(ctx, c.Writer, accessRequest, err)

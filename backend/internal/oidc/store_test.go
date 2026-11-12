@@ -299,7 +299,9 @@ func testEndBrowserSession(t *testing.T, db *gorm.DB) {
 	require.NoError(t, err)
 	assert.Empty(t, kept.GetSession().(*Session).SessionID, "the kept grant no longer names the ended session")
 
-	keptOpenID, err := store.GetOpenIDConnectSession(t.Context(), "f-code", nil)
+	keptCode, err := store.GetAuthorizeCodeSession(t.Context(), "", "f-code", nil)
+	require.NoError(t, err)
+	keptOpenID, err := store.GetOpenIDConnectSession(t.Context(), "f-code", keptCode)
 	require.NoError(t, err)
 	assert.Empty(t, keptOpenID.GetSession().(*Session).SessionID)
 	assert.NotContains(t, keptOpenID.GetSession().(*Session).Claims.Extra, common.SessionIDClaim, "the ID token the code still mints doesn't name the ended session")

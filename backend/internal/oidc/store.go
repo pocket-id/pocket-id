@@ -703,12 +703,20 @@ func (s *Store) CreateOpenIDConnectSession(ctx context.Context, authorizeCode st
 	return s.upsertSession(ctx, sessionKindOpenID, authorizeCode, requester, "", true, expiresAtKey)
 }
 
-func (s *Store) GetOpenIDConnectSession(ctx context.Context, authorizeCode string, _ fosite.Requester) (fosite.Requester, error) {
+func (s *Store) GetOpenIDConnectSession(ctx context.Context, authorizeCode string, requester fosite.Requester) (fosite.Requester, error) {
 	request, _, err := s.getRequesterSession(ctx, sessionKindOpenID, authorizeCode)
 	if errors.Is(err, fosite.ErrNotFound) {
 		return nil, openid.ErrNoSessionFound
 	}
-	return request, err
+	if err != nil {
+		return nil, err
+	}
+
+	// The token endpoint rebuilt the claims from the current user data, so the ID token must not carry the ones stored at approval
+	if current, ok := requester.GetSession().(*Session); ok {
+		request.GetSession().(*Session).IDTokenClaims().Extra = current.IDTokenClaims().Extra
+	}
+	return request, nil
 }
 
 func (s *Store) DeleteOpenIDConnectSession(ctx context.Context, authorizeCode string) error {
