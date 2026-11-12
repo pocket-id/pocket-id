@@ -3,8 +3,8 @@ package cmds
 import (
 	"context"
 	"fmt"
-	"io"
 	"os"
+	"path/filepath"
 
 	"github.com/spf13/cobra"
 
@@ -74,26 +74,37 @@ func runExport(ctx context.Context, flags exportFlags) error {
 
 	exportService := service.NewExportService(db, storage, actorsProvider)
 
-	var w io.Writer
 	if flags.Path == "-" {
-		w = os.Stdout
-	} else {
-		file, err := os.Create(flags.Path)
+		err = exportService.ExportToZip(ctx, os.Stdout)
 		if err != nil {
-			return fmt.Errorf("failed to create export file: %w", err)
+			return fmt.Errorf("failed to export data: %w", err)
 		}
-		defer file.Close()
-
-		w = file
+		return nil
 	}
 
-	if err := exportService.ExportToZip(ctx, w); err != nil {
+	// The archive is written to a temporary file that replaces the target only once it's complete, so a failed export keeps an earlier archive intact
+	file, err := os.CreateTemp(filepath.Dir(flags.Path), ".pocket-id-export-*")
+	if err != nil {
+		return fmt.Errorf("failed to create export file: %w", err)
+	}
+	defer func() {
+		_ = file.Close()
+		_ = os.Remove(file.Name())
+	}()
+
+	err = exportService.ExportToZip(ctx, file)
+	if err != nil {
 		return fmt.Errorf("failed to export data: %w", err)
 	}
-
-	if flags.Path != "-" {
-		fmt.Printf("Exported data to %s\n", flags.Path)
+	err = file.Close()
+	if err != nil {
+		return fmt.Errorf("failed to write export file: %w", err)
+	}
+	err = os.Rename(file.Name(), flags.Path)
+	if err != nil {
+		return fmt.Errorf("failed to move export file into place: %w", err)
 	}
 
+	fmt.Printf("Exported data to %s\n", flags.Path)
 	return nil
 }
