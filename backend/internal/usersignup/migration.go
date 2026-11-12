@@ -70,6 +70,12 @@ func (s *Service) migrateSignupTokens(ctx context.Context) error {
 		count++
 	}
 
+	// The "migrate" method can't tell a deleted token from one that was never migrated, so the frozen tokens must go to keep a restart from reviving deleted ones
+	err = s.db.WithContext(ctx).Delete(&model.KV{Key: signupTokensMigratedKey}).Error
+	if err != nil {
+		return fmt.Errorf("error deleting migrated signup tokens: %w", err)
+	}
+
 	slog.InfoContext(ctx, "Migrated signup tokens to actors", slog.Int("count", count))
 
 	return nil
