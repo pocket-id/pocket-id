@@ -267,10 +267,11 @@ test('An app’s cross-site logout POST is repeated as a GET that carries the se
 
 test('An admin signing a user out everywhere also ends their offline_access grants', async ({
 	browser,
-	request
+	request,
+	receiver
 }) => {
 	const craig = await authUtil.signInElsewhere(browser, 'craig');
-	const { refresh_token } = await signInToApp(
+	const { id_token, refresh_token } = await signInToApp(
 		craig.context,
 		oidcClients.nextcloud,
 		'openid profile email offline_access',
@@ -280,6 +281,15 @@ test('An admin signing a user out everywhere also ends their offline_access gran
 
 	expect((await request.delete(`/api/users/${users.craig.id}/sessions`)).status()).toBe(204);
 
+	// The ended session is still announced, and waiting for it keeps its retries from reaching later tests
+	await expect.poll(() => receiver.deliveries.length).toBe(1);
+	await verifyLogoutToken(
+		request,
+		receiver.deliveries[0],
+		oidcClients.nextcloud.id,
+		users.craig.id,
+		decodeJwt(id_token).sid as string
+	);
 	expect((await refresh(request, oidcClients.nextcloud, refresh_token)).ok()).toBe(false);
 });
 
