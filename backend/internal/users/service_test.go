@@ -398,6 +398,40 @@ func TestUpdateOwnEmailWithVerification(t *testing.T) {
 	})
 }
 
+type denyingLimiter struct {
+	calls int
+}
+
+func (l *denyingLimiter) Allow(context.Context, string) (bool, time.Duration, error) {
+	l.calls++
+	return false, time.Minute, nil
+}
+
+func TestOwnUsernameAndEmailChangesAreThrottled(t *testing.T) {
+	config := appconfig.NewTestConfig(nil)
+	userService := newTestUserService(t)
+	limiter := &denyingLimiter{}
+	userService.ownAccountLimiter = limiter
+
+	user, err := userService.CreateUser(t.Context(), config, dto.UserCreateDto{Username: "prober", Email: new("prober@example.com"), FirstName: "Prober"}, auditlogs.Origin{})
+	require.NoError(t, err)
+	update := dto.UserCreateDto{Username: user.Username, Email: user.Email, FirstName: "Renamed"}
+
+	_, err = userService.UpdateUser(t.Context(), config, user.ID, update, true, false, auditlogs.Origin{})
+	require.NoError(t, err, "an update that keeps the username and email must not be throttled")
+	require.Zero(t, limiter.calls)
+
+	withUsername := update
+	withUsername.Username = "admin"
+	_, err = userService.UpdateUser(t.Context(), config, user.ID, withUsername, true, false, auditlogs.Origin{})
+	require.True(t, apperror.IsCode(err, apperror.CodeRateLimited))
+
+	withEmail := update
+	withEmail.Email = new("someone@example.com")
+	_, err = userService.UpdateUser(t.Context(), config, user.ID, withEmail, true, false, auditlogs.Origin{})
+	require.True(t, apperror.IsCode(err, apperror.CodeRateLimited))
+}
+
 func TestMarkingEmailVerifiedClearsSignupDeadline(t *testing.T) {
 	config := appconfig.NewTestConfig(nil)
 	userService := newTestUserService(t)

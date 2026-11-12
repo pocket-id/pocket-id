@@ -3,6 +3,7 @@ package users
 import (
 	"context"
 	"io"
+	"time"
 
 	"github.com/gin-gonic/gin"
 	"gorm.io/gorm"
@@ -46,6 +47,11 @@ type EmailVerificationSender interface {
 	RequestEmailChange(ctx context.Context, dbConfig *appconfig.AppConfigModel, userID, newEmail string) error
 }
 
+// OwnAccountLimiter limits how often one key, the user's ID, may change their own username or email
+type OwnAccountLimiter interface {
+	Allow(ctx context.Context, key string) (allowed bool, retryAfter time.Duration, err error)
+}
+
 type AuditLogger interface {
 	Record(ctx context.Context, event auditlogs.Event, origin auditlogs.Origin, userID string, data auditlogs.Data, tx *gorm.DB)
 	KeepUsername(ctx context.Context, userID, username string, tx *gorm.DB) error
@@ -61,6 +67,7 @@ type Dependencies struct {
 	ScimSync          ScimSyncScheduler
 	BackchannelLogout *backchannellogout.Service
 	EmailVerification EmailVerificationSender
+	OwnAccountLimiter OwnAccountLimiter
 	AuditLog          AuditLogger
 }
 

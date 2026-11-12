@@ -38,6 +38,7 @@ type Service struct {
 	backchannelLogout *backchannellogout.Service
 	fileStorage       storage.FileStorage
 	emailVerification EmailVerificationSender
+	ownAccountLimiter OwnAccountLimiter
 	auditLog          AuditLogger
 }
 
@@ -58,6 +59,7 @@ func newService(deps Dependencies) *Service {
 		backchannelLogout: deps.BackchannelLogout,
 		fileStorage:       deps.FileStorage,
 		emailVerification: deps.EmailVerification,
+		ownAccountLimiter: deps.OwnAccountLimiter,
 		auditLog:          deps.AuditLog,
 	}
 }
@@ -498,6 +500,26 @@ func (s *Service) applyDefaultCustomClaims(ctx context.Context, user *model.User
 }
 
 func (s *Service) UpdateUser(ctx context.Context, cfg *appconfig.AppConfigModel, userID string, updatedUser dto.UserCreateDto, updateOwnUser bool, isLdapSync bool, origin auditlogs.Origin) (model.User, error) {
+	// Changing the own username or email reports whether another account already has it, so it's throttled to slow down probing for existing users
+	if updateOwnUser && s.ownAccountLimiter != nil {
+		var current model.User
+		err := s.db.WithContext(ctx).Where("id = ?", userID).First(&current).Error
+		if err != nil {
+			return model.User{}, err
+		}
+
+		emailChanged := updatedUser.Email != nil && (current.Email == nil || *current.Email != *updatedUser.Email)
+		if (current.Username != updatedUser.Username || emailChanged) && canEditProfile(cfg, &current, true, isLdapSync) {
+			allowed, retryAfter, err := s.ownAccountLimiter.Allow(ctx, userID)
+			if err != nil {
+				// Fail open like the rate-limit middleware, so a limiter error does not block the update
+				slog.WarnContext(ctx, "Rate limiter unavailable, allowing own account change", slog.String("userID", userID), slog.Any("error", err))
+			} else if !allowed {
+				return model.User{}, apperror.TooManyRequests().WithRetryAfter(retryAfter)
+			}
+		}
+	}
+
 	// The send limiter is an actor that writes to the database, so it's asked before the transaction locks it on SQLite
 	// A throttled change rejects the whole update instead of saving it without the email
 	sendAllowed := false

@@ -227,8 +227,10 @@ func initServices(
 	})
 	// The users module sends verification links through this module, so it's created first and never depends on the users module itself
 	var sendLimiter emailverification.SendLimiter
+	var ownAccountLimiter users.OwnAccountLimiter
 	if middleware.RateLimitingEnabled() {
 		sendLimiter = rateLimitServices[middleware.RateLimitSendEmailVerification]
+		ownAccountLimiter = rateLimitServices[middleware.RateLimitUpdateOwnAccount]
 	}
 	svc.emailVerificationModule, err = emailverification.New(emailverification.Dependencies{
 		DB:          db,
@@ -254,6 +256,7 @@ func initServices(
 		ScimSync:          svc.scimSyncModule,
 		BackchannelLogout: backchannelLogoutService,
 		EmailVerification: svc.emailVerificationModule,
+		OwnAccountLimiter: ownAccountLimiter,
 		AuditLog:          svc.auditLogsModule,
 	})
 
