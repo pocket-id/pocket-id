@@ -2,7 +2,7 @@
 	import { openConfirmDialog } from '#lib/components/confirm-dialog/index.ts';
 	import DocsLink from '#lib/components/docs-link.svelte';
 	import FormInput from '#lib/components/form/form-input.svelte';
-	import SettingsSection from '#lib/components/settings-section.svelte';
+	import SettingsCard from '#lib/components/settings-card.svelte';
 	import { Badge } from '@pocket-id/ui/badge';
 	import { Button } from '@pocket-id/ui/button';
 	import { m } from '#lib/paraglide/messages.js';
@@ -130,12 +130,12 @@
 	}
 </script>
 
-<SettingsSection title={m.scim_provisioning()}>
+<SettingsCard title={m.scim_provisioning()}>
 	{#snippet description()}
 		{m.scim_section_description({ appName: $appConfigStore.appName, name: client.name })}
 		<DocsLink href="https://pocket-id.org/docs/configuration/scim" />
 	{/snippet}
-	<form onsubmit={preventDefault(onEnable)} class="flex flex-col gap-6 pt-2">
+	<form onsubmit={preventDefault(onEnable)} class="flex flex-col gap-6 py-4">
 		{#if existingProvider}
 			<div role="status">
 				{#if lastSyncedAt}
@@ -186,4 +186,4 @@
 			{/if}
 		</div>
 	</form>
-</SettingsSection>
+</SettingsCard>

@@ -1,7 +1,8 @@
 <script lang="ts">
-	import CopyButton from '#lib/components/copy-button.svelte';
+	import CopyRows from '#lib/components/copy-rows.svelte';
 	import FormInput from '#lib/components/form/form-input.svelte';
 	import PageHeader from '#lib/components/page-header.svelte';
+	import SettingsCard from '#lib/components/settings-card.svelte';
 	import SettingsSection from '#lib/components/settings-section.svelte';
 	import { Button } from '@pocket-id/ui/button';
 	import * as DropdownMenu from '@pocket-id/ui/dropdown-menu';
@@ -144,7 +145,7 @@
 		{/snippet}
 	</PageHeader>
 
-	<HashTabs bind:value={tab} class="gap-10">
+	<HashTabs bind:value={tab} class="gap-8">
 		<div class="shadow-[inset_0_-1px_0_var(--border)]">
 			<div class="scroll-fade-x [scrollbar-width:none] overflow-x-auto">
 				<Tabs.List variant="line" class="shadow-none max-sm:gap-4" aria-label={m.api_sections()}>
@@ -162,8 +163,8 @@
 		</div>
 
 		<Tabs.Content value="general">
-			<SettingsSection title={m.name_and_identifiers()}>
-				<div class="flex flex-col gap-6 pt-4">
+			<SettingsCard title={m.name_and_identifiers()}>
+				<div class="flex flex-col gap-6 py-4">
 					<FormInput
 						class="max-w-100"
 						label={m.name()}
@@ -173,31 +174,19 @@
 					/>
 					<div class="flex flex-col gap-1">
 						<p class="text-caption text-fg-muted mb-1 font-medium">{m.identifiers()}</p>
-						<dl class="text-control flex flex-col">
-							{#each [{ label: m.api_resource_uri(), value: api.resource }, { label: m.api_id(), value: api.id }] as identifier (identifier.label)}
-								<div
-									class="flex min-h-9 items-center gap-4 max-sm:flex-col max-sm:items-stretch max-sm:gap-0"
-								>
-									<dt class="text-fg-muted w-35 shrink-0">{identifier.label}</dt>
-									<dd class="flex min-w-0 flex-1 items-center gap-2">
-										<span class="text-mono-s min-w-0 truncate font-mono" title={identifier.value}
-											>{identifier.value}</span
-										>
-										<CopyButton
-											value={identifier.value}
-											label={m.copy_name({ name: identifier.label })}
-										/>
-									</dd>
-								</div>
-							{/each}
-						</dl>
+						<CopyRows
+							rows={[
+								{ label: m.api_resource_uri(), value: api.resource },
+								{ label: m.api_id(), value: api.id }
+							].map((row) => ({ ...row, copyLabel: m.copy_name({ name: row.label }) }))}
+						/>
 						<p class="text-caption text-fg-muted flex items-start gap-1.5">
 							<InfoIcon class="mt-[3px] size-3 shrink-0" />
 							{m.resource_uris_cant_be_changed()}
 						</p>
 					</div>
 				</div>
-			</SettingsSection>
+			</SettingsCard>
 		</Tabs.Content>
 
 		<Tabs.Content value="permissions">

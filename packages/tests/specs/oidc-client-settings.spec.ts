@@ -386,6 +386,7 @@ test('Displays OIDC client endpoints from discovery configuration', async ({ pag
 		await route.fulfill({ json: oidcConfiguration });
 	});
 	await page.goto(`/settings/admin/oidc-clients/${oidcClients.nextcloud.id}`);
+	await page.getByRole('button', { name: 'Show all endpoints' }).click();
 
 	await expect(page.getByText(oidcConfiguration.token_endpoint, { exact: true })).toBeVisible();
 	await expect(page.getByText(oidcConfiguration.userinfo_endpoint, { exact: true })).toBeVisible();

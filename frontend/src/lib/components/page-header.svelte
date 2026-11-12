@@ -1,12 +1,10 @@
 <script lang="ts">
 	import { m } from '#lib/paraglide/messages.js';
-	import { cn } from '@pocket-id/ui/utils';
 	import ChevronLeftIcon from '~icons/solar/alt-arrow-left-linear';
 	import ChevronRightIcon from '~icons/solar/alt-arrow-right-linear';
 	import type { Snippet } from 'svelte';
 
 	type Crumb = { label: string; href?: string };
-	type FactBand = { label: string; items: { label: string; value: string | Snippet }[] };
 
 	let {
 		title,
@@ -15,8 +13,7 @@
 		identity,
 		status,
 		tags,
-		actions,
-		facts
+		actions
 	}: {
 		title: string;
 		description?: string | Snippet;
@@ -26,12 +23,9 @@
 		status?: Snippet;
 		tags?: Snippet;
 		actions?: Snippet;
-		// Read-only facts that turn a detail header into the sunken identity hero
-		facts?: FactBand[];
 	} = $props();
 
 	const backCrumb = $derived(breadcrumbs?.findLast((crumb) => crumb.href));
-	const hero = $derived(!!facts?.length);
 </script>
 
 {#snippet h1()}
@@ -43,9 +37,9 @@
 {/snippet}
 
 {#if breadcrumbs}
-	<header class={cn(hero && 'sm:bg-surface-sunken sm:rounded-xl sm:px-7 sm:py-6')}>
+	<header>
 		<div class="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-x-4 gap-y-2">
-			<nav aria-label={m.breadcrumb()} class={cn('min-w-0 sm:col-span-2', hero && 'sm:mb-2')}>
+			<nav aria-label={m.breadcrumb()} class="min-w-0 sm:col-span-2">
 				<ol class="text-caption text-fg-muted flex flex-wrap items-center gap-1 max-sm:hidden">
 					{#each breadcrumbs as crumb (crumb.label)}
 						<li class="inline-flex items-center gap-1">
@@ -71,14 +65,9 @@
 					</a>
 				{/if}
 			</nav>
-			<div
-				class={cn(
-					'col-span-2 flex min-w-0 items-start gap-3 sm:col-span-1',
-					hero && 'sm:items-center sm:gap-5'
-				)}
-			>
+			<div class="col-span-2 flex min-w-0 items-start gap-3 sm:col-span-1">
 				{#if identity}
-					<div class={cn('flex shrink-0 *:size-10', hero && 'sm:*:size-14')}>
+					<div class="flex shrink-0 *:size-10">
 						{@render identity()}
 					</div>
 				{/if}
@@ -99,40 +88,12 @@
 			</div>
 			{#if actions}
 				<div
-					class={cn(
-						'col-start-2 row-start-1 flex items-center gap-2 justify-self-end sm:row-start-2',
-						!hero && 'sm:self-start'
-					)}
+					class="col-start-2 row-start-1 flex items-center gap-2 justify-self-end sm:row-start-2 sm:self-start"
 				>
 					{@render actions()}
 				</div>
 			{/if}
 		</div>
-		{#if facts?.length}
-			<!-- Narrower windows put each band's label above two columns, so IDs and paths are not cut to a few characters -->
-			<div class="mt-6 flex flex-col gap-5">
-				{#each facts as band (band.label)}
-					<div
-						class="grid gap-x-6 gap-y-3 pt-5 shadow-[inset_0_1px_0_var(--border)] xl:grid-cols-[120px_minmax(0,1fr)]"
-					>
-						<p class="text-caption text-fg-muted font-semibold">{band.label}</p>
-						<dl
-							class={cn(
-								'grid gap-x-6 gap-y-3 sm:grid-cols-2',
-								band.items.length > 2 && 'xl:grid-cols-3'
-							)}
-						>
-							{#each band.items as item (item.label)}
-								<div class="min-w-0">
-									<dt class="text-caption text-fg-muted">{item.label}</dt>
-									<dd class="text-control text-fg">{@render text(item.value)}</dd>
-								</div>
-							{/each}
-						</dl>
-					</div>
-				{/each}
-			</div>
-		{/if}
 	</header>
 {:else}
 	<!-- Actions that leave the title too little room wrap under it instead of squeezing it -->

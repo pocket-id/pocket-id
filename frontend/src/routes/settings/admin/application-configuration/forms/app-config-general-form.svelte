@@ -2,7 +2,7 @@
 	import DurationInput from '#lib/components/form/duration-input.svelte';
 	import FormInput from '#lib/components/form/form-input.svelte';
 	import SettingRow from '#lib/components/setting-row.svelte';
-	import SettingsSection from '#lib/components/settings-section.svelte';
+	import SettingsCard from '#lib/components/settings-card.svelte';
 	import { Switch } from '@pocket-id/ui/switch';
 	import { m } from '#lib/paraglide/messages.js';
 	import appConfigStore from '#lib/stores/application-configuration-store.ts';
@@ -48,8 +48,8 @@
 	trackFormChanges(() => formStore, callback);
 </script>
 
-<fieldset class="flex min-w-0 flex-col gap-10" disabled={$appConfigStore.uiConfigDisabled}>
-	<SettingsSection title={m.application()}>
+<fieldset class="flex min-w-0 flex-col gap-4" disabled={$appConfigStore.uiConfigDisabled}>
+	<SettingsCard title={m.application()}>
 		<div class="flex flex-col gap-4 py-4 shadow-[inset_0_-1px_0_var(--border)]">
 			<FormInput
 				class="max-w-[400px]"
@@ -91,5 +91,5 @@
 				<Switch {...props} bind:checked={$inputs.allowOwnAccountEdit.value} />
 			{/snippet}
 		</SettingRow>
-	</SettingsSection>
+	</SettingsCard>
 </fieldset>

@@ -1,6 +1,6 @@
 <script lang="ts">
 	import { openConfirmDialog } from '#lib/components/confirm-dialog/index.ts';
-	import SettingsSection from '#lib/components/settings-section.svelte';
+	import SettingsCard from '#lib/components/settings-card.svelte';
 	import * as Field from '@pocket-id/ui/field';
 	import * as RadioGroup from '@pocket-id/ui/radio-group';
 	import UserGroupSelection from '#lib/components/user-group-selection.svelte';
@@ -89,8 +89,8 @@
 	}
 </script>
 
-<SettingsSection title={m.who_can_sign_in()}>
-	<div class="flex flex-col gap-6 pt-2">
+<SettingsCard title={m.who_can_sign_in()}>
+	<div class="flex flex-col gap-6 py-4">
 		<RadioGroup.Root
 			class="grid gap-3 sm:grid-cols-2"
 			aria-label={m.who_can_sign_in()}
@@ -119,4 +119,4 @@
 			</div>
 		{/if}
 	</div>
-</SettingsSection>
+</SettingsCard>

@@ -423,7 +423,7 @@
 	{/if}
 
 	{#if otherApps.length > 0}
-		<div class="mt-14">
+		<div class="mt-10">
 			<AdvancedDisclosure bind:open={showOtherApps} title={m.other_apps()} titleSize="heading">
 				<div>
 					<p class="text-caption text-fg-muted -mt-3 mb-3">{m.other_apps_description()}</p>

@@ -1,6 +1,6 @@
 <script lang="ts">
 	import SettingRow from '#lib/components/setting-row.svelte';
-	import SettingsSection from '#lib/components/settings-section.svelte';
+	import SettingsCard from '#lib/components/settings-card.svelte';
 	import { Switch } from '@pocket-id/ui/switch';
 	import { m } from '#lib/paraglide/messages.js';
 	import appConfigStore from '#lib/stores/application-configuration-store.ts';
@@ -66,11 +66,8 @@
 	trackFormChanges(() => formStore, callback);
 </script>
 
-<fieldset class="flex min-w-0 flex-col gap-10" disabled={$appConfigStore.uiConfigDisabled}>
-	<SettingsSection
-		title={m.config_registration()}
-		description={m.config_registration_description()}
-	>
+<fieldset class="flex min-w-0 flex-col gap-4" disabled={$appConfigStore.uiConfigDisabled}>
+	<SettingsCard title={m.config_registration()} description={m.config_registration_description()}>
 		<SettingRow
 			title={m.user_verification()}
 			description={m.config_user_verification_description()}
@@ -110,5 +107,5 @@
 				/>
 			{/snippet}
 		</SettingRow>
-	</SettingsSection>
+	</SettingsCard>
 </fieldset>

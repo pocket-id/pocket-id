@@ -160,7 +160,7 @@
 
 		<Tabs.Content value={data.category}>
 			{#key data.category}
-				<div class="mt-6 flex flex-col gap-10" in:fade={{ duration: cssMs('--dur-base') }}>
+				<div class="mt-8 flex flex-col gap-4" in:fade={{ duration: cssMs('--dur-base') }}>
 					{#if data.category === 'general'}
 						<AppConfigGeneralForm
 							{appConfig}

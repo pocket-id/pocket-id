@@ -2,7 +2,7 @@
 	import FormInput from '#lib/components/form/form-input.svelte';
 	import ProfilePictureSettings from '#lib/components/form/profile-picture-settings.svelte';
 	import SettingRow from '#lib/components/setting-row.svelte';
-	import SettingsSection from '#lib/components/settings-section.svelte';
+	import SettingsCard from '#lib/components/settings-card.svelte';
 	import { Checkbox } from '@pocket-id/ui/checkbox';
 	import { Switch } from '@pocket-id/ui/switch';
 	import { m } from '#lib/paraglide/messages.js';
@@ -84,8 +84,8 @@
 	}
 </script>
 
-<SettingsSection title={m.profile()}>
-	<div class="flex flex-col gap-6 pt-4">
+<SettingsCard title={m.profile()}>
+	<div class="flex flex-col gap-6 py-4">
 		<ProfilePictureSettings
 			userId={user.id}
 			isLdapUser={!!user.ldapId}
@@ -138,9 +138,9 @@
 			</div>
 		</div>
 	</div>
-</SettingsSection>
+</SettingsCard>
 
-<SettingsSection title={m.access()}>
+<SettingsCard title={m.access()}>
 	<SettingRow
 		title={m.admin_privileges()}
 		description={m.admins_have_full_access_to_the_admin_panel()}
@@ -151,4 +151,4 @@
 			<Switch {...props} bind:checked={$inputs.isAdmin.value} disabled={readOnly} />
 		{/snippet}
 	</SettingRow>
-</SettingsSection>
+</SettingsCard>

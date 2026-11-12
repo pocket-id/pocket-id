@@ -29,7 +29,7 @@
 
 <Collapsible.Root bind:open>
 	{#snippet child({ props })}
-		<section {...props} aria-labelledby={titleId} class="flex flex-col gap-6">
+		<section {...props} aria-labelledby={titleId} class="mt-4 flex flex-col gap-6">
 			<Collapsible.Trigger
 				class="group/advanced focus-visible:outline-ring flex w-full flex-col gap-1 rounded-xs text-start focus-visible:outline-2 focus-visible:outline-offset-2"
 			>
@@ -53,7 +53,7 @@
 				{/if}
 			</Collapsible.Trigger>
 			<Collapsible.Content
-				class="*:transition-motion flex flex-col gap-10 *:duration-(--dur-base) data-starting-style:*:-translate-y-(--rise) data-starting-style:*:opacity-0"
+				class="*:transition-motion flex flex-col gap-4 *:duration-(--dur-base) data-starting-style:*:-translate-y-(--rise) data-starting-style:*:opacity-0"
 			>
 				{@render children()}
 			</Collapsible.Content>

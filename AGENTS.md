@@ -72,6 +72,10 @@ cd ../../.. && pnpm test                         # = playwright test in packages
   The few strings they render come from `setUiLabels` in the root layout; app behavior goes in a wrapper under `frontend/src/lib/components` (e.g. `hash-tabs.svelte`).
 - **Icons are Solar**, bundled at build time by `unplugin-icons` (`import TrashIcon from '~icons/solar/trash-bin-minimalistic-bold'`), never Lucide, in `packages/ui` too, so its consumers need the plugin.
   Bold for actions (buttons, menu items and the "…" that opens them, command palette commands, confirm dialogs), Bold Duotone for icons that stand for something (nav items, features, setting rows, devices, claims, states), Linear for controls (close, chevrons, arrows, checkmarks, search, sidebar toggles).
+- **Groups of settings are cards, lists stay open.** On settings pages a group of fields or setting rows goes in `settings-card.svelte`, also when it is the only group on its tab.
+  A list that fills a tab (members, groups, passkeys, devices, clients, permissions, custom claims) goes in `settings-section.svelte`, as open rows with hairlines like the index tables and My account.
+  Never mix both on one tab, and never put a card in a dialog or sheet.
+  Inside a card every block brings its own `py-4`, like `setting-row.svelte` does, and a list inside a card has no border of its own.
 
 ## Coding Style Guidelines
 

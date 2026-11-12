@@ -3,6 +3,7 @@
 	import OidcClientAvatar from '#lib/components/oidc-client-avatar.svelte';
 	import PageHeader from '#lib/components/page-header.svelte';
 	import SettingRow from '#lib/components/setting-row.svelte';
+	import SettingsCard from '#lib/components/settings-card.svelte';
 	import SettingsSection from '#lib/components/settings-section.svelte';
 	import * as Alert from '@pocket-id/ui/alert';
 	import { Badge } from '@pocket-id/ui/badge';
@@ -331,7 +332,7 @@
 		{/snippet}
 	</PageHeader>
 
-	<HashTabs bind:value={tab} class="gap-10">
+	<HashTabs bind:value={tab} class="gap-8">
 		<div class="flex shadow-[inset_0_-1px_0_var(--border)]">
 			<div class="scroll-fade-x min-w-0 [scrollbar-width:none] overflow-x-auto">
 				<Tabs.List variant="line" class="shadow-none max-sm:gap-4" aria-label={m.policy_sections()}>
@@ -482,8 +483,8 @@
 		</Tabs.Content>
 
 		<Tabs.Content value="settings">
-			<SettingsSection title={m.policy()}>
-				<div class="flex flex-col gap-6 pt-4">
+			<SettingsCard title={m.policy()}>
+				<div class="py-4 shadow-[inset_0_-1px_0_var(--border)]">
 					<FormInput
 						class="max-w-100"
 						label={m.name()}
@@ -492,22 +493,18 @@
 						readonly={builtIn}
 						bind:input={$inputs.name}
 					/>
-					<SettingRow
-						title={m.default_policy()}
-						description={policy.isDefault
-							? m.default_policy_on_description()
-							: m.default_policy_off_description()}
-					>
-						{#snippet control(props)}
-							<Switch
-								{...props}
-								disabled={policy.isDefault}
-								bind:checked={$inputs.isDefault.value}
-							/>
-						{/snippet}
-					</SettingRow>
 				</div>
-			</SettingsSection>
+				<SettingRow
+					title={m.default_policy()}
+					description={policy.isDefault
+						? m.default_policy_on_description()
+						: m.default_policy_off_description()}
+				>
+					{#snippet control(props)}
+						<Switch {...props} disabled={policy.isDefault} bind:checked={$inputs.isDefault.value} />
+					{/snippet}
+				</SettingRow>
+			</SettingsCard>
 		</Tabs.Content>
 	</HashTabs>
 </div>

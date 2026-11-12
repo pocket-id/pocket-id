@@ -1,7 +1,7 @@
 <script lang="ts">
 	import { invalidate } from '$app/navigation';
 	import SettingRow from '#lib/components/setting-row.svelte';
-	import SettingsSection from '#lib/components/settings-section.svelte';
+	import SettingsCard from '#lib/components/settings-card.svelte';
 	import * as Alert from '@pocket-id/ui/alert';
 	import { Switch } from '@pocket-id/ui/switch';
 	import { m } from '#lib/paraglide/messages.js';
@@ -49,7 +49,7 @@
 </script>
 
 <fieldset
-	class="flex min-w-0 flex-col gap-10"
+	class="flex min-w-0 flex-col gap-4"
 	disabled={$appConfigStore.uiConfigDisabled || envOverrides.has('enabledFeatures')}
 >
 	{#if envOverrides.has('enabledFeatures')}
@@ -60,7 +60,7 @@
 		</Alert.Root>
 	{/if}
 	{#each sections as section (section.title)}
-		<SettingsSection title={section.title}>
+		<SettingsCard title={section.title}>
 			{#each section.rows as row (row.id)}
 				<SettingRow
 					title={row.title}
@@ -78,6 +78,6 @@
 					{/snippet}
 				</SettingRow>
 			{/each}
-		</SettingsSection>
+		</SettingsCard>
 	{/each}
 </fieldset>
