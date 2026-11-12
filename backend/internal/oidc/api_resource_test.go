@@ -242,6 +242,7 @@ func TestResolveResourceClientWithoutClientGrantsIsDenied(t *testing.T) {
 
 func TestValidateGrantAPIAccessFollowsCurrentClientGrant(t *testing.T) {
 	const api = "https://api.orders.example.com"
+	const issuer = "https://id.example.com"
 	provider := fakeAPIAccess{allowed: map[string]map[SubjectType][]string{
 		api: {
 			SubjectTypeUser:   {"read:orders"},
@@ -249,41 +250,41 @@ func TestValidateGrantAPIAccessFollowsCurrentClientGrant(t *testing.T) {
 		},
 	}}
 
-	token := func(subject string, audience string, scopes ...string) fosite.Requester {
+	token := func(subject string, audience fosite.Arguments, scopes ...string) fosite.Requester {
 		session := NewEmptySession()
 		session.Subject = subject
 		request := fosite.NewAccessRequest(session)
 		request.Client = Client{OidcClient: model.OidcClient{Base: model.Base{ID: "client-1"}}}
-		request.GrantedAudience = fosite.Arguments{audience}
+		request.GrantedAudience = audience
 		request.GrantedScope = scopes
 		return request
 	}
-	machineWrite := token(ClientSubject("client-1"), api, "write:orders")
-	machineRead := token(ClientSubject("client-1"), api, "read:orders")
-	user := token("user-1", api, "openid", "read:orders")
-	login := token("user-1", "client-1", "openid")
+	machineWrite := token(ClientSubject("client-1"), fosite.Arguments{api}, "write:orders")
+	machineRead := token(ClientSubject("client-1"), fosite.Arguments{api}, "read:orders")
+	user := token("user-1", fosite.Arguments{api, issuer}, "openid", "read:orders")
+	login := token("user-1", fosite.Arguments{"client-1", issuer}, "openid")
 
 	for _, requester := range []fosite.Requester{machineWrite, machineRead, user, login} {
-		_, err := validateGrantAPIAccess(t.Context(), provider, requester)
+		_, err := validateGrantAPIAccess(t.Context(), provider, issuer, requester)
 		require.NoError(t, err)
 	}
 
 	provider.allowed[api][SubjectTypeClient] = []string{"read:orders"}
-	_, err := validateGrantAPIAccess(t.Context(), provider, machineWrite)
+	_, err := validateGrantAPIAccess(t.Context(), provider, issuer, machineWrite)
 	require.ErrorIs(t, err, fosite.ErrInvalidScope)
-	_, err = validateGrantAPIAccess(t.Context(), provider, machineRead)
+	_, err = validateGrantAPIAccess(t.Context(), provider, issuer, machineRead)
 	require.NoError(t, err)
 
 	delete(provider.allowed[api], SubjectTypeClient)
-	_, err = validateGrantAPIAccess(t.Context(), provider, machineRead)
+	_, err = validateGrantAPIAccess(t.Context(), provider, issuer, machineRead)
 	require.ErrorIs(t, err, fosite.ErrAccessDenied)
-	_, err = validateGrantAPIAccess(t.Context(), provider, user)
+	_, err = validateGrantAPIAccess(t.Context(), provider, issuer, user)
 	require.NoError(t, err, "the access users delegate is a separate grant")
 
 	delete(provider.allowed[api], SubjectTypeUser)
-	_, err = validateGrantAPIAccess(t.Context(), provider, user)
+	_, err = validateGrantAPIAccess(t.Context(), provider, issuer, user)
 	require.ErrorIs(t, err, fosite.ErrAccessDenied)
-	_, err = validateGrantAPIAccess(t.Context(), provider, login)
+	_, err = validateGrantAPIAccess(t.Context(), provider, issuer, login)
 	require.NoError(t, err, "a login token targets no API")
 }
 

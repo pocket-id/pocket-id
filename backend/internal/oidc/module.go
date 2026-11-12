@@ -199,7 +199,7 @@ func (m *Module) VerifyAccessToken(ctx context.Context, token string) (fosite.Ac
 		return nil, fosite.ErrRequestUnauthorized.WithDescription("Only access tokens are accepted.")
 	}
 
-	_, err = validateGrantAPIAccess(ctx, m.apiAccess, accessRequest)
+	_, err = validateGrantAPIAccess(ctx, m.apiAccess, m.store.issuer, accessRequest)
 	if err != nil {
 		return nil, err
 	}

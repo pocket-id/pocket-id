@@ -99,7 +99,8 @@ func resolveResource(ctx context.Context, tx *gorm.DB, provider APIAccessProvide
 
 // validateGrantAPIAccess re-checks that the client of a grant or issued token may still be granted everything it carries, and returns the API resource it targets
 // Narrowing a client's access doesn't revoke what was already issued, so this runs whenever a grant is refreshed or a token is accepted or introspected
-func validateGrantAPIAccess(ctx context.Context, apiAccess APIAccessProvider, requester fosite.Requester) (string, error) {
+// An issued access token with an identity scope also lists the issuer, which isn't an API resource
+func validateGrantAPIAccess(ctx context.Context, apiAccess APIAccessProvider, issuer string, requester fosite.Requester) (string, error) {
 	client, ok := requester.GetClient().(Client)
 	if !ok {
 		return "", fosite.ErrInvalidClient
@@ -108,7 +109,7 @@ func validateGrantAPIAccess(ctx context.Context, apiAccess APIAccessProvider, re
 	// The audience is the client itself for a plain login token and the API otherwise
 	resource := ""
 	for _, audience := range requester.GetGrantedAudience() {
-		if audience == "" || audience == client.GetID() {
+		if audience == "" || audience == client.GetID() || audience == issuer {
 			continue
 		}
 		if resource != "" && resource != audience {

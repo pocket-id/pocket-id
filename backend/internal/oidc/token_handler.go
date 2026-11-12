@@ -156,7 +156,8 @@ func (h *tokenHandler) validateRefreshAPIGrant(ctx context.Context, accessReques
 		return nil
 	}
 
-	resource, err := validateGrantAPIAccess(ctx, h.apiAccess, accessRequest)
+	// Refresh grants never carry the issuer audience, which is added only to the access tokens they issue
+	resource, err := validateGrantAPIAccess(ctx, h.apiAccess, "", accessRequest)
 	if err != nil || resource == "" {
 		return err
 	}

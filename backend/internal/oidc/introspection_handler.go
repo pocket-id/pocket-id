@@ -109,7 +109,7 @@ func (h *introspectionHandler) writeCheckedResponse(ctx context.Context, c *gin.
 	client, _ := requester.GetClient().(Client)
 	_, err := h.claimsService.loadGrantClaimsSource(ctx, requester.GetSession().GetSubject(), client)
 	if err == nil {
-		_, err = validateGrantAPIAccess(ctx, h.apiAccess, requester)
+		_, err = validateGrantAPIAccess(ctx, h.apiAccess, h.baseURL, requester)
 	}
 	var rfcErr *fosite.RFC6749Error
 	if errors.As(err, &rfcErr) {
