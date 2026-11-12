@@ -97,6 +97,36 @@ func resolveResource(ctx context.Context, tx *gorm.DB, provider APIAccessProvide
 	return audience, granted, nil
 }
 
+// validateGrantAPIAccess re-checks that the client of a grant or issued token may still be granted everything it carries, and returns the API resource it targets
+// Narrowing a client's access doesn't revoke what was already issued, so this runs whenever a grant is refreshed or a token is accepted or introspected
+func validateGrantAPIAccess(ctx context.Context, apiAccess APIAccessProvider, requester fosite.Requester) (string, error) {
+	client, ok := requester.GetClient().(Client)
+	if !ok {
+		return "", fosite.ErrInvalidClient
+	}
+
+	// The audience is the client itself for a plain login token and the API otherwise
+	resource := ""
+	for _, audience := range requester.GetGrantedAudience() {
+		if audience == "" || audience == client.GetID() {
+			continue
+		}
+		if resource != "" && resource != audience {
+			return "", fosite.ErrInvalidTarget.WithHint("A grant may only target one API resource.")
+		}
+		resource = audience
+	}
+
+	// A client acting as itself holds its own grants, which are separate from the ones users delegate to it
+	subjectType := SubjectTypeUser
+	if requester.GetSession().GetSubject() == ClientSubject(client.GetID()) {
+		subjectType = SubjectTypeClient
+	}
+
+	_, _, err := resolveResource(ctx, nil, apiAccess, client.GetID(), resource, requester.GetGrantedScopes(), subjectType, client.customScopes)
+	return resource, err
+}
+
 // canonicalResource maps a resource to the audience of the API it names, which is stamped into the token
 // Trailing-slash variants name the same API, and the MCP endpoint is part of Pocket ID's own API
 func canonicalResource(resource string) string {

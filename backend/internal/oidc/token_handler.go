@@ -64,7 +64,7 @@ func (h *tokenHandler) token(c *gin.Context) {
 			return
 		}
 
-		err = h.validateRefreshAPIGrant(ctx, client, accessRequest)
+		err = h.validateRefreshAPIGrant(ctx, accessRequest)
 		if err != nil {
 			slog.WarnContext(ctx, "Rejected refresh token request: API grant is no longer allowed for the user subject", "error", err.Error())
 			h.provider.WriteAccessError(ctx, c.Writer, accessRequest, err)
@@ -146,17 +146,12 @@ func (h *tokenHandler) validateGrantSession(ctx context.Context, session *Sessio
 	return nil
 }
 
-func (h *tokenHandler) validateRefreshAPIGrant(ctx context.Context, client Client, accessRequest fosite.AccessRequester) error {
+func (h *tokenHandler) validateRefreshAPIGrant(ctx context.Context, accessRequest fosite.AccessRequester) error {
 	if !accessRequest.GetGrantTypes().Has(string(fosite.GrantTypeRefreshToken)) {
 		return nil
 	}
 
-	resource, err := refreshGrantResource(client.GetID(), accessRequest.GetGrantedAudience())
-	if err != nil {
-		return err
-	}
-
-	_, _, err = resolveResource(ctx, nil, h.apiAccess, client.GetID(), resource, accessRequest.GetGrantedScopes(), SubjectTypeUser, client.customScopes)
+	resource, err := validateGrantAPIAccess(ctx, h.apiAccess, accessRequest)
 	if err != nil || resource == "" {
 		return err
 	}
@@ -170,19 +165,4 @@ func (h *tokenHandler) validateRefreshAPIGrant(ctx context.Context, client Clien
 		accessReq.GrantedScope = held
 	}
 	return nil
-}
-
-// refreshGrantResource recovers the API resource of a refresh grant from its granted audience
-func refreshGrantResource(clientID string, grantedAudience fosite.Arguments) (string, error) {
-	resource := ""
-	for _, audience := range grantedAudience {
-		if audience == "" || audience == clientID {
-			continue
-		}
-		if resource != "" && resource != audience {
-			return "", fosite.ErrInvalidTarget.WithHint("Refresh-token grants may only target one API resource.")
-		}
-		resource = audience
-	}
-	return resource, nil
 }

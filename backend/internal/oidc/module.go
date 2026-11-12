@@ -104,6 +104,7 @@ type Module struct {
 	provider     fosite.OAuth2Provider
 	store        *Store
 	cimdResolver *cimdClientResolver
+	apiAccess    APIAccessProvider
 
 	authorizationHandler *authorizationHandler
 	tokenHandler         *tokenHandler
@@ -169,12 +170,13 @@ func New(ctx context.Context, deps Dependencies) (*Module, error) {
 		provider:     provider,
 		store:        store,
 		cimdResolver: cimdResolver,
+		apiAccess:    deps.APIAccess,
 
 		authorizationHandler: newAuthorizationHandler(provider, authorizationService),
 		tokenHandler:         newTokenHandler(provider, claimsService, deps.APIAccess, deps.Sessions),
 		userInfoHandler:      newUserInfoHandler(provider, claimsService, deps.Config.BaseURL),
 		parHandler:           newPARHandler(provider),
-		introspectionHandler: newIntrospectionHandler(provider, authenticator, claimsService, deps.Config.BaseURL),
+		introspectionHandler: newIntrospectionHandler(provider, authenticator, claimsService, deps.APIAccess, deps.Config.BaseURL),
 		endSessionHandler:    newEndSessionHandler(endSessionService, deps.Sessions, deps.Config.BaseURL),
 		deviceHandler:        newDeviceHandler(provider, deviceService),
 
@@ -187,7 +189,7 @@ func New(ctx context.Context, deps Dependencies) (*Module, error) {
 	}, nil
 }
 
-// VerifyAccessToken validates an access token Pocket ID issued, including that it hasn't been revoked, and returns the request it was granted for
+// VerifyAccessToken validates an access token Pocket ID issued, including that it hasn't been revoked and that its client is still granted what it carries, and returns the request it was granted for
 func (m *Module) VerifyAccessToken(ctx context.Context, token string) (fosite.AccessRequester, error) {
 	tokenType, accessRequest, err := m.provider.IntrospectToken(ctx, token, fosite.AccessToken, NewEmptySession())
 	if err != nil {
@@ -195,6 +197,11 @@ func (m *Module) VerifyAccessToken(ctx context.Context, token string) (fosite.Ac
 	}
 	if tokenType != fosite.AccessToken {
 		return nil, fosite.ErrRequestUnauthorized.WithDescription("Only access tokens are accepted.")
+	}
+
+	_, err = validateGrantAPIAccess(ctx, m.apiAccess, accessRequest)
+	if err != nil {
+		return nil, err
 	}
 	return accessRequest, nil
 }
