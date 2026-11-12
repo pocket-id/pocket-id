@@ -332,6 +332,8 @@ func (c *AppAssetsController) getAsset(ctx *gin.Context, name string) error {
 	defer reader.Close()
 
 	ctx.Header("Content-Type", mimeType)
+	// An uploaded SVG opened directly renders as a document, so a second policy sandboxes it to keep it from running scripts
+	ctx.Writer.Header().Add("Content-Security-Policy", "sandbox")
 	utils.SetCacheControlHeader(ctx, 15*time.Minute, 24*time.Hour)
 	ctx.DataFromReader(http.StatusOK, size, mimeType, reader, nil)
 	return nil

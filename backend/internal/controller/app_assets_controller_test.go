@@ -38,6 +38,12 @@ func TestAppAssetsControllerGetLogo(t *testing.T) {
 		assert.Contains(t, res.Body.String(), `fill="#000"`)
 	})
 
+	t.Run("sandboxes the logo so an SVG opened directly cannot run scripts", func(t *testing.T) {
+		res, err := getLogo(t, appAssetsController, "/api/application-assets/logo")
+		require.NoError(t, err)
+		assert.Equal(t, "sandbox", res.Header().Get("Content-Security-Policy"))
+	})
+
 	t.Run("returns the bundled dark mode logo if no custom logo is set", func(t *testing.T) {
 		res, err := getLogo(t, appAssetsController, "/api/application-assets/logo?light=false")
 		require.NoError(t, err)

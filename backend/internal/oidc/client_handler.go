@@ -311,6 +311,8 @@ func (h *clientHandler) getClientLogoHandler(c *gin.Context) error {
 	utils.SetCacheControlHeader(c, 15*time.Minute, 12*time.Hour)
 
 	c.Header("Content-Type", mimeType)
+	// An uploaded SVG opened directly renders as a document, so a second policy sandboxes it to keep it from running scripts
+	c.Writer.Header().Add("Content-Security-Policy", "sandbox")
 	c.DataFromReader(http.StatusOK, size, mimeType, reader, nil)
 	return nil
 }
