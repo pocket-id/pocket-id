@@ -39,6 +39,15 @@ func runExport(ctx context.Context, flags exportFlags) error {
 	if err != nil {
 		return fmt.Errorf("failed to connect to database: %w", err)
 	}
+	sqlDB, err := db.DB()
+	if err != nil {
+		return fmt.Errorf("failed to get sql.DB: %w", err)
+	}
+
+	// Close the database last, since the storage and the actor provider still use it, and Windows can't delete a SQLite file that's still open
+	defer func() {
+		_ = sqlDB.Close()
+	}()
 
 	storage, err := bootstrap.InitStorage(ctx, db)
 	if err != nil {
