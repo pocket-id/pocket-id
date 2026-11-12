@@ -101,12 +101,14 @@ func (m *RateLimitMiddleware) Add(policy string) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		// Allow is a non-blocking token-bucket check keyed by client: it consumes a slot and reports whether the call is admitted right now
 		allowed, retryAfter, err := svc.Allow(c.Request.Context(), rateLimitKey(c.ClientIP()))
+		// A client can cancel its request context by half-closing the connection, so a cancelled request is turned away instead of skipping the limit
+		if errors.Is(err, context.Canceled) {
+			c.Abort()
+			return
+		}
 		if err != nil {
 			// Fail open so a limiter error does not turn away otherwise-valid traffic
-			if !errors.Is(err, context.Canceled) {
-				// A cancelled context just means the client went away, so it is not worth logging
-				slog.WarnContext(c.Request.Context(), "Rate limiter unavailable, allowing request", slog.String("policy", policy), slog.Any("error", err))
-			}
+			slog.WarnContext(c.Request.Context(), "Rate limiter unavailable, allowing request", slog.String("policy", policy), slog.Any("error", err))
 			c.Next()
 			return
 		}

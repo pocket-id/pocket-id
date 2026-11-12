@@ -122,6 +122,15 @@ func TestRateLimitMiddleware(t *testing.T) {
 		require.Equal(t, http.StatusOK, doRateLimitRequest(t.Context(), r, "2001:db8:0:2::1").Code)
 	})
 
+	t.Run("turns away cancelled requests", func(t *testing.T) {
+		r := newRateLimitRouter(t, services, policy)
+		ctx, cancel := context.WithCancel(t.Context())
+		cancel()
+
+		w := doRateLimitRequest(ctx, r, "203.0.113.8")
+		require.NotEqual(t, "ok", w.Body.String())
+	})
+
 	t.Run("allows all requests when rate limiting is disabled", func(t *testing.T) {
 		common.EnvConfig.DisableRateLimiting = true
 		t.Cleanup(func() { common.EnvConfig.DisableRateLimiting = false })
