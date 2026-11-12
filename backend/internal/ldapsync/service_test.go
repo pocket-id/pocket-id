@@ -383,6 +383,29 @@ func TestLdapServiceSyncAllHandlesDuplicateLDAPIDsInSingleRun(t *testing.T) {
 	assert.ElementsMatch(t, []string{"alice"}, usernames(groups[0].Users))
 }
 
+func TestLdapServiceSyncAllReplacesGroupRecreatedUnderSameName(t *testing.T) {
+	service, db := newTestLdapService(t, newFakeLDAPClient(
+		ldapSearchResult(),
+		ldapSearchResult(
+			ldapEntry("cn=team,ou=groups,dc=example,dc=com", map[string][]string{
+				"entryUUID": {"g-new"},
+				"cn":        {"team"},
+			}),
+		),
+	))
+
+	oldLdapID := "g-old"
+	require.NoError(t, db.Create(&model.UserGroup{Name: "team", FriendlyName: "team", LdapID: &oldLdapID}).Error)
+
+	err := service.SyncAll(t.Context(), defaultTestLDAPAppConfig())
+	require.NoError(t, err)
+
+	var groups []model.UserGroup
+	require.NoError(t, db.Find(&groups, "name = ?", "team").Error)
+	require.Len(t, groups, 1)
+	assert.Equal(t, "g-new", *groups[0].LdapID)
+}
+
 func TestLdapServiceSyncAllBumpsUpdatedAtOfSoftDeletedUsers(t *testing.T) {
 	service, db := newTestLdapService(t, newFakeLDAPClient(ldapSearchResult(), ldapSearchResult()))
 

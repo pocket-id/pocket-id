@@ -463,6 +463,27 @@ func (s *Service) reconcileGroups(ctx context.Context, tx *gorm.DB, desiredGroup
 	}
 	removedMembers := map[string]struct{}{}
 
+	// Delete groups that are no longer present in LDAP first, so a group re-created in LDAP under the same name can take over the name
+	for _, group := range ldapGroupsInDB {
+		if group.LdapID == nil {
+			continue
+		}
+
+		if _, exists := ldapGroupIDs[*group.LdapID]; exists {
+			continue
+		}
+
+		err = s.groups.DeleteInternal(ctx, group, tx)
+		if err != nil {
+			return nil, fmt.Errorf("failed to delete group '%s': %w", group.Name, err)
+		}
+
+		slog.Info("Deleted group", slog.String("group", group.Name))
+
+		// Deleting the group removes every member from it
+		collectRemovedMembers(removedMembers, membersByGroup[group.ID], nil)
+	}
+
 	// Apply creates and updates to match the desired LDAP group state
 	for _, desiredGroup := range desiredGroups {
 		memberUserIDs := make([]string, 0, len(desiredGroup.memberUsernames))
@@ -502,27 +523,6 @@ func (s *Service) reconcileGroups(ctx context.Context, tx *gorm.DB, desiredGroup
 		}
 
 		collectRemovedMembers(removedMembers, membersByGroup[databaseGroup.ID], memberUserIDs)
-	}
-
-	// Delete groups that are no longer present in LDAP
-	for _, group := range ldapGroupsInDB {
-		if group.LdapID == nil {
-			continue
-		}
-
-		if _, exists := ldapGroupIDs[*group.LdapID]; exists {
-			continue
-		}
-
-		err = s.groups.DeleteInternal(ctx, group, tx)
-		if err != nil {
-			return nil, fmt.Errorf("failed to delete group '%s': %w", group.Name, err)
-		}
-
-		slog.Info("Deleted group", slog.String("group", group.Name))
-
-		// Deleting the group removes every member from it
-		collectRemovedMembers(removedMembers, membersByGroup[group.ID], nil)
 	}
 
 	return slices.Collect(maps.Keys(removedMembers)), nil
