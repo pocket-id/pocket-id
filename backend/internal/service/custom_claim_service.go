@@ -22,20 +22,8 @@ func NewCustomClaimService(db *gorm.DB) *CustomClaimService {
 
 // isReservedClaim checks if a claim key is reserved e.g. email, preferred_username
 func isReservedClaim(key string) bool {
-	switch key {
-	case "given_name",
-		"family_name",
-		"name",
-		"email",
-		"email_verified",
-		"preferred_username",
-		"display_name",
-		"picture",
-		"groups":
-		return true
-	default:
-		return common.IsProtocolClaim(key)
-	}
+	reserved := []string{"given_name", "family_name", "name", "email", "email_verified", "preferred_username", "display_name", "picture", "groups"}
+	return common.ContainsClaimName(reserved, key) || common.IsProtocolClaim(key)
 }
 
 // idType is the type of the id used to identify the user or user group
