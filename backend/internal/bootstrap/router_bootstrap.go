@@ -17,6 +17,7 @@ import (
 	"github.com/fsnotify/fsnotify"
 	sloggin "github.com/gin-contrib/slog"
 	"github.com/gin-gonic/gin"
+	"github.com/go-fuego/fuego/option"
 	"github.com/italypaleale/francis/builtin/ratelimit"
 	"github.com/italypaleale/go-kit/servicerunner"
 	"go.opentelemetry.io/contrib/instrumentation/github.com/gin-gonic/gin/otelgin"
@@ -26,15 +27,15 @@ import (
 	"github.com/pocket-id/pocket-id/backend/frontend"
 	"github.com/pocket-id/pocket-id/backend/internal/authz"
 	"github.com/pocket-id/pocket-id/backend/internal/common"
-	"github.com/pocket-id/pocket-id/backend/internal/controller"
+	"github.com/pocket-id/pocket-id/backend/internal/httpserver"
 	"github.com/pocket-id/pocket-id/backend/internal/mcp"
 	"github.com/pocket-id/pocket-id/backend/internal/middleware"
 	"github.com/pocket-id/pocket-id/backend/internal/tracing"
 	"github.com/pocket-id/pocket-id/backend/internal/utils/systemd"
 )
 
-// This is used to register additional controllers for tests
-var registerTestControllers []func(apiRouter *authz.Router, db *gorm.DB, svc *services)
+// This is used to register additional modules for tests
+var registerTestModules []func(apiRouter *authz.Router, db *gorm.DB, svc *services)
 
 func initRouter(db *gorm.DB, svc *services, rateLimitServices map[string]*ratelimit.RateLimitService) (servicerunner.Service, error) {
 	r, err := initEngine()
@@ -209,7 +210,11 @@ func registerRoutes(r *gin.Engine, db *gorm.DB, svc *services, auth *authz.Middl
 	registerTestRoutes(apiRouter, db, svc)
 
 	// These are not rate-limited.
-	controller.NewHealthzController(auth.Router(r.Group("/")).Public())
+	auth.Router(r.Group("/")).Public().GET("/healthz", httpserver.NoContent(func(*gin.Context) error { return nil }),
+		option.Summary("Responds to healthchecks"),
+		option.Description("Responds with a successful status code to healthcheck requests"),
+		option.Tags("Health"),
+	)
 
 	// Receives OTLP trace payloads from the browser SPA (POST /internal/telemetry/traces) and forwards them to the collector, when trace export is enabled.
 	// Outside /api, so it's unauthenticated and not traced, but it is rate-limited.
@@ -223,7 +228,7 @@ func registerTestRoutes(apiRouter *authz.Router, db *gorm.DB, svc *services) {
 		return
 	}
 
-	for _, f := range registerTestControllers {
+	for _, f := range registerTestModules {
 		f(apiRouter, db, svc)
 	}
 }

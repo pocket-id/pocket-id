@@ -14,7 +14,7 @@ import (
 
 // When building for E2E tests, add the e2etest module
 func init() {
-	registerTestControllers = []func(apiRouter *authz.Router, db *gorm.DB, svc *services){
+	registerTestModules = []func(apiRouter *authz.Router, db *gorm.DB, svc *services){
 		func(apiRouter *authz.Router, db *gorm.DB, svc *services) {
 			testModule, err := e2etest.New(e2etest.Dependencies{
 				DB:          db,

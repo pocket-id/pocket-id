@@ -108,13 +108,13 @@ func (m *Module) ConsumeReauthenticationToken(ctx context.Context, tx *gorm.DB, 
 }
 
 // ListCredentials returns the passkeys registered for the given user
-// It is consumed by the user controller for the admin "manage passkeys" view
+// It is consumed by the users module for the admin "manage passkeys" view
 func (m *Module) ListCredentials(ctx context.Context, userID string) ([]WebauthnCredential, error) {
 	return m.service.ListCredentials(ctx, userID)
 }
 
 // DeleteCredential removes a passkey, optionally on behalf of an admin or a client acting for another user
-// It is consumed by the user controller for the admin "manage passkeys" view
+// It is consumed by the users module for the admin "manage passkeys" view
 func (m *Module) DeleteCredential(ctx context.Context, userID, credentialID string, origin auditlogs.Origin) error {
 	return m.service.DeleteCredential(ctx, userID, credentialID, origin)
 }
