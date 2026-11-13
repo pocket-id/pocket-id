@@ -5,6 +5,7 @@ import (
 
 	"github.com/pocket-id/pocket-id/backend/internal/api"
 	"github.com/pocket-id/pocket-id/backend/internal/apikey"
+	"github.com/pocket-id/pocket-id/backend/internal/appassets"
 	"github.com/pocket-id/pocket-id/backend/internal/auditlogs"
 	"github.com/pocket-id/pocket-id/backend/internal/authz"
 	"github.com/pocket-id/pocket-id/backend/internal/claimmappingpolicy"
@@ -45,6 +46,7 @@ func routeTable() (*gin.Engine, *authz.Middleware, error) {
 
 	svc := &services{
 		apiKeyModule:             &apikey.Module{},
+		appAssetsModule:          &appassets.Module{},
 		auditLogsModule:          &auditlogs.Module{},
 		deviceLoginModule:        &devicelogin.Module{},
 		ldapSyncModule:           &ldapsync.Module{},

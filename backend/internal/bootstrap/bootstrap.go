@@ -15,6 +15,7 @@ import (
 	"gorm.io/gorm"
 
 	"github.com/pocket-id/pocket-id/backend/internal/api"
+	"github.com/pocket-id/pocket-id/backend/internal/appassets"
 	"github.com/pocket-id/pocket-id/backend/internal/claimmappingpolicy"
 	"github.com/pocket-id/pocket-id/backend/internal/common"
 	"github.com/pocket-id/pocket-id/backend/internal/instanceid"
@@ -77,9 +78,9 @@ func Bootstrap(ctx context.Context) error {
 	}()
 
 	// Init application assets like images and fonts
-	assetExtensions, err := initApplicationAssets(ctx, fileStorage)
+	appAssetsModule, err := appassets.New(ctx, fileStorage)
 	if err != nil {
-		return fmt.Errorf("failed to initialize application assets: %w", err)
+		return err
 	}
 
 	err = moveLegacyOidcClientImages(ctx, db, fileStorage)
@@ -120,7 +121,7 @@ func Bootstrap(ctx context.Context) error {
 	services = append(services, actorsRun)
 
 	// Create all services
-	svc, err := initServices(ctx, db, instanceID, actors, httpClient, outboundClients, assetExtensions, fileStorage, rateLimitServices)
+	svc, err := initServices(ctx, db, instanceID, actors, httpClient, outboundClients, appAssetsModule, fileStorage, rateLimitServices)
 	if err != nil {
 		return fmt.Errorf("failed to initialize services: %w", err)
 	}

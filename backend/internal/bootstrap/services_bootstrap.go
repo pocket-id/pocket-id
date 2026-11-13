@@ -13,6 +13,7 @@ import (
 
 	"github.com/pocket-id/pocket-id/backend/internal/api"
 	"github.com/pocket-id/pocket-id/backend/internal/apikey"
+	"github.com/pocket-id/pocket-id/backend/internal/appassets"
 	"github.com/pocket-id/pocket-id/backend/internal/appconfig"
 	"github.com/pocket-id/pocket-id/backend/internal/auditlogs"
 	"github.com/pocket-id/pocket-id/backend/internal/backchannellogout"
@@ -34,7 +35,6 @@ import (
 	"github.com/pocket-id/pocket-id/backend/internal/onetimeaccess"
 	"github.com/pocket-id/pocket-id/backend/internal/outbound"
 	"github.com/pocket-id/pocket-id/backend/internal/scimsync"
-	"github.com/pocket-id/pocket-id/backend/internal/service"
 	"github.com/pocket-id/pocket-id/backend/internal/session"
 	"github.com/pocket-id/pocket-id/backend/internal/signingkey"
 	"github.com/pocket-id/pocket-id/backend/internal/storage"
@@ -46,7 +46,7 @@ import (
 
 type services struct {
 	appConfigService         *appconfig.AppConfigService
-	appAssetsService         *service.AppAssetsService
+	appAssetsModule          *appassets.Module
 	emailModule              *email.Module
 	geoLiteModule            *geolite.Module
 	ipLocator                iplocation.Resolver
@@ -84,12 +84,13 @@ func initServices(
 	actors francishost.Host,
 	httpClient *http.Client,
 	outboundClients *outbound.Clients,
-	assetExtensions map[string]string,
+	appAssetsModule *appassets.Module,
 	fileStorage storage.FileStorage,
 	rateLimitServices map[string]*ratelimit.RateLimitService,
 ) (svc *services, err error) {
 	svc = &services{
-		actors: actors,
+		actors:          actors,
+		appAssetsModule: appAssetsModule,
 	}
 
 	// Init the app config service
@@ -99,7 +100,6 @@ func initServices(
 	}
 
 	svc.fileStorage = fileStorage
-	svc.appAssetsService = service.NewAppAssetsService(assetExtensions, fileStorage)
 
 	svc.emailModule, err = email.New(db)
 	if err != nil {
@@ -269,7 +269,7 @@ func initServices(
 		AppConfig:         svc.appConfigService,
 		FileStorage:       fileStorage,
 		CustomClaims:      svc.customClaimsModule,
-		AppAssets:         svc.appAssetsService,
+		AppAssets:         svc.appAssetsModule,
 		WebAuthn:          svc.webauthnModule,
 		ScimSync:          svc.scimSyncModule,
 		BackchannelLogout: backchannelLogoutService,

@@ -188,7 +188,7 @@ func registerRoutes(r *gin.Engine, db *gorm.DB, svc *services, auth *authz.Middl
 	svc.claimMappingPolicyModule.RegisterRoutes(apiRouter)
 	controller.NewAppConfigController(apiRouter, svc.appConfigService, svc.emailModule)
 	svc.ldapSyncModule.RegisterRoutes(apiRouter)
-	controller.NewAppAssetsController(apiRouter, fileSizeLimitMiddleware, svc.appAssetsService)
+	svc.appAssetsModule.RegisterRoutes(apiRouter, fileSizeLimitMiddleware.Add(10<<20))
 	svc.auditLogsModule.RegisterRoutes(apiRouter)
 	svc.userGroupsModule.RegisterRoutes(apiRouter)
 	svc.apiModule.RegisterRoutes(apiRouter)

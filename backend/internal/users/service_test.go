@@ -13,6 +13,7 @@ import (
 	"github.com/stretchr/testify/require"
 	"gorm.io/gorm"
 
+	"github.com/pocket-id/pocket-id/backend/internal/appassets"
 	"github.com/pocket-id/pocket-id/backend/internal/appconfig"
 	"github.com/pocket-id/pocket-id/backend/internal/apperror"
 	"github.com/pocket-id/pocket-id/backend/internal/auditlogs"
@@ -20,7 +21,6 @@ import (
 	"github.com/pocket-id/pocket-id/backend/internal/dto"
 	"github.com/pocket-id/pocket-id/backend/internal/model"
 	datatype "github.com/pocket-id/pocket-id/backend/internal/model/types"
-	"github.com/pocket-id/pocket-id/backend/internal/service"
 	"github.com/pocket-id/pocket-id/backend/internal/storage"
 	testutils "github.com/pocket-id/pocket-id/backend/internal/utils/testing"
 )
@@ -32,11 +32,13 @@ func newTestUserService(t *testing.T) *Service {
 
 	fileStorage, err := storage.NewDatabaseStorage(db)
 	require.NoError(t, err)
+	appAssets, err := appassets.New(t.Context(), fileStorage)
+	require.NoError(t, err)
 
 	return newService(Dependencies{
 		DB:           db,
 		CustomClaims: customclaims.New(db),
-		AppAssets:    service.NewAppAssetsService(map[string]string{}, fileStorage),
+		AppAssets:    appAssets,
 		FileStorage:  fileStorage,
 		AuditLog:     &fakeAuditLogger{},
 	})

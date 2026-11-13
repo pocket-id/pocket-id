@@ -1,4 +1,4 @@
-package service
+package appassets
 
 import (
 	"bytes"
@@ -25,7 +25,7 @@ func TestAppAssetsService_GetImage(t *testing.T) {
 	err := store.Save(t.Context(), path.Join("application-assets", "background.webp"), bytes.NewReader([]byte("data")))
 	require.NoError(t, err)
 
-	service := NewAppAssetsService(map[string]string{"background": "webp"}, store)
+	service := &Service{extensions: map[string]string{"background": "webp"}, storage: store}
 
 	reader, size, mimeType, err := service.GetAsset(t.Context(), "background")
 	require.NoError(t, err)
@@ -43,7 +43,7 @@ func TestAppAssetsService_GetImageWithDefault(t *testing.T) {
 	err := store.Save(t.Context(), path.Join("application-assets", "logoDark.png"), bytes.NewReader([]byte("custom")))
 	require.NoError(t, err)
 
-	service := NewAppAssetsService(map[string]string{"logoDark": "png"}, store)
+	service := &Service{extensions: map[string]string{"logoDark": "png"}, storage: store}
 
 	t.Run("returns the custom image if one is set", func(t *testing.T) {
 		reader, size, mimeType, err := service.GetAssetWithDefault(t.Context(), "logoDark")
@@ -86,7 +86,7 @@ func TestAppAssetsService_UpdateImage(t *testing.T) {
 	err := store.Save(t.Context(), path.Join("application-assets", "logoLight.svg"), bytes.NewReader([]byte("old")))
 	require.NoError(t, err)
 
-	service := NewAppAssetsService(map[string]string{"logoLight": "svg"}, store)
+	service := &Service{extensions: map[string]string{"logoLight": "svg"}, storage: store}
 
 	fileHeader := newFileHeader(t, "logoLight.png", []byte("new"))
 
@@ -104,7 +104,7 @@ func TestAppAssetsService_UpdateImage(t *testing.T) {
 func TestAppAssetsService_UpdateImageStripsMetadata(t *testing.T) {
 	store := newFilesystemStorageForTest(t)
 
-	service := NewAppAssetsService(map[string]string{}, store)
+	service := &Service{extensions: map[string]string{}, storage: store}
 
 	fileHeader := newFileHeader(t, "logo.webp", webpFile(
 		webpChunk("VP8 ", []byte{1, 2, 3, 4}),
@@ -127,7 +127,7 @@ func TestAppAssetsService_UpdateImageStripsMetadata(t *testing.T) {
 func TestAppAssetsService_ErrorsAndFlags(t *testing.T) {
 	store := newFilesystemStorageForTest(t)
 
-	service := NewAppAssetsService(map[string]string{}, store)
+	service := &Service{extensions: map[string]string{}, storage: store}
 
 	t.Run("get missing image returns not found", func(t *testing.T) {
 		_, _, _, err := service.GetAsset(t.Context(), "missing")

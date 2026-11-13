@@ -1,4 +1,4 @@
-package service
+package appassets
 
 import (
 	"context"
@@ -17,17 +17,13 @@ import (
 	"github.com/pocket-id/pocket-id/backend/resources"
 )
 
-type AppAssetsService struct {
+type Service struct {
 	mu         sync.RWMutex
 	extensions map[string]string
 	storage    storage.FileStorage
 }
 
-func NewAppAssetsService(extensions map[string]string, storage storage.FileStorage) *AppAssetsService {
-	return &AppAssetsService{extensions: extensions, storage: storage}
-}
-
-func (s *AppAssetsService) GetAsset(ctx context.Context, name string) (io.ReadCloser, int64, string, error) {
+func (s *Service) GetAsset(ctx context.Context, name string) (io.ReadCloser, int64, string, error) {
 	ext, err := s.getExtension(name)
 	if err != nil {
 		return nil, 0, "", err
@@ -38,7 +34,7 @@ func (s *AppAssetsService) GetAsset(ctx context.Context, name string) (io.ReadCl
 		return nil, 0, "", fmt.Errorf("unsupported image type '%s'", ext)
 	}
 
-	assetPath := path.Join("application-assets", name+"."+ext)
+	assetPath := path.Join(applicationAssetsPath, name+"."+ext)
 	reader, size, err := s.storage.Open(ctx, assetPath)
 	if err != nil {
 		if storage.IsNotExist(err) {
@@ -50,7 +46,7 @@ func (s *AppAssetsService) GetAsset(ctx context.Context, name string) (io.ReadCl
 }
 
 // GetAssetWithDefault behaves like GetAsset, but falls back to the image embedded in the binary if no custom image has been uploaded
-func (s *AppAssetsService) GetAssetWithDefault(ctx context.Context, name string) (f io.ReadCloser, size int64, mimeType string, err error) {
+func (s *Service) GetAssetWithDefault(ctx context.Context, name string) (f io.ReadCloser, size int64, mimeType string, err error) {
 	f, size, mimeType, err = s.GetAsset(ctx, name)
 	if err == nil || !apperror.IsCode(err, apperror.CodeImageNotFound) {
 		return f, size, mimeType, err
@@ -85,7 +81,7 @@ func getDefaultAsset(name string) (io.ReadCloser, int64, string, error) {
 	return file, stat.Size(), utils.GetImageMimeType(utils.GetFileExtension(assetPath)), nil
 }
 
-func (s *AppAssetsService) UpdateAsset(ctx context.Context, file *multipart.FileHeader, assetName string) error {
+func (s *Service) UpdateAsset(ctx context.Context, file *multipart.FileHeader, assetName string) error {
 	fileType := strings.ToLower(utils.GetFileExtension(file.Filename))
 	if fileMimeType(assetName, fileType) == "" {
 		return apperror.UnsupportedFileType("")
@@ -96,7 +92,7 @@ func (s *AppAssetsService) UpdateAsset(ctx context.Context, file *multipart.File
 
 	currentExt := s.extensions[assetName]
 
-	assetPath := path.Join("application-assets", assetName+"."+fileType)
+	assetPath := path.Join(applicationAssetsPath, assetName+"."+fileType)
 	fileReader, err := file.Open()
 	if err != nil {
 		return err
@@ -116,7 +112,7 @@ func (s *AppAssetsService) UpdateAsset(ctx context.Context, file *multipart.File
 	}
 
 	if currentExt != "" && currentExt != fileType {
-		oldAssetPath := path.Join("application-assets", assetName+"."+currentExt)
+		oldAssetPath := path.Join(applicationAssetsPath, assetName+"."+currentExt)
 		if err := s.storage.Delete(ctx, oldAssetPath); err != nil {
 			return err
 		}
@@ -130,7 +126,7 @@ func (s *AppAssetsService) UpdateAsset(ctx context.Context, file *multipart.File
 	return nil
 }
 
-func (s *AppAssetsService) DeleteAsset(ctx context.Context, assetName string) error {
+func (s *Service) DeleteAsset(ctx context.Context, assetName string) error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
@@ -143,7 +139,7 @@ func (s *AppAssetsService) DeleteAsset(ctx context.Context, assetName string) er
 		return err
 	}
 
-	assetPath := path.Join("application-assets", assetName+"."+ext)
+	assetPath := path.Join(applicationAssetsPath, assetName+"."+ext)
 	if err := s.storage.Delete(ctx, assetPath); err != nil {
 		return err
 	}
@@ -160,11 +156,7 @@ func fileMimeType(name, ext string) string {
 	return utils.GetImageMimeType(ext)
 }
 
-func deletedApplicationAssetPath(assetName string) string {
-	return path.Join("application-assets", ".deleted", assetName)
-}
-
-func (s *AppAssetsService) IsDefaultProfilePictureSet() bool {
+func (s *Service) IsDefaultProfilePictureSet() bool {
 	s.mu.RLock()
 	defer s.mu.RUnlock()
 
@@ -172,7 +164,7 @@ func (s *AppAssetsService) IsDefaultProfilePictureSet() bool {
 	return ok
 }
 
-func (s *AppAssetsService) getExtension(name string) (string, error) {
+func (s *Service) getExtension(name string) (string, error) {
 	s.mu.RLock()
 	defer s.mu.RUnlock()
 

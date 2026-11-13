@@ -13,13 +13,13 @@ import (
 	"github.com/stretchr/testify/require"
 	"gorm.io/gorm"
 
+	"github.com/pocket-id/pocket-id/backend/internal/appassets"
 	"github.com/pocket-id/pocket-id/backend/internal/appconfig"
 	"github.com/pocket-id/pocket-id/backend/internal/apperror"
 	"github.com/pocket-id/pocket-id/backend/internal/auditlogs"
 	"github.com/pocket-id/pocket-id/backend/internal/customclaims"
 	"github.com/pocket-id/pocket-id/backend/internal/model"
 	datatype "github.com/pocket-id/pocket-id/backend/internal/model/types"
-	"github.com/pocket-id/pocket-id/backend/internal/service"
 	"github.com/pocket-id/pocket-id/backend/internal/storage"
 	"github.com/pocket-id/pocket-id/backend/internal/usergroups"
 	"github.com/pocket-id/pocket-id/backend/internal/users"
@@ -621,6 +621,8 @@ func newTestLdapService(t *testing.T, client ldapClient) (*Service, *gorm.DB) {
 
 	fileStorage, err := storage.NewDatabaseStorage(db)
 	require.NoError(t, err)
+	appAssets, err := appassets.New(t.Context(), fileStorage)
+	require.NoError(t, err)
 
 	// The sync is exercised against the real user and group services, so the assertions below can check what actually lands in the database
 	groupsModule := usergroups.New(usergroups.Dependencies{DB: db, AuditLog: nopAuditLogger{}})
@@ -628,7 +630,7 @@ func newTestLdapService(t *testing.T, client ldapClient) (*Service, *gorm.DB) {
 		DB:           db,
 		FileStorage:  fileStorage,
 		CustomClaims: customclaims.New(db),
-		AppAssets:    service.NewAppAssetsService(map[string]string{}, fileStorage),
+		AppAssets:    appAssets,
 		AuditLog:     nopAuditLogger{},
 	})
 

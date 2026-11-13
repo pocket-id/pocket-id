@@ -1,4 +1,4 @@
-package controller
+package bootstrap
 
 import (
 	"bytes"
@@ -13,6 +13,7 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/pocket-id/pocket-id/backend/internal/apikey"
+	"github.com/pocket-id/pocket-id/backend/internal/appassets"
 	"github.com/pocket-id/pocket-id/backend/internal/appconfig"
 	"github.com/pocket-id/pocket-id/backend/internal/apperror"
 	"github.com/pocket-id/pocket-id/backend/internal/middleware"
@@ -42,7 +43,8 @@ func TestImageUploadRoutesLimitRequestSize(t *testing.T) {
 	router.Use(middleware.NewErrorHandlerMiddleware().Add())
 	apiRouter := auth.Router(router.Group("/api"))
 	usersModule.RegisterRoutes(apiRouter, fileSizeLimitMiddleware.Add(10<<20))
-	NewAppAssetsController(apiRouter, fileSizeLimitMiddleware, nil)
+	// The size limit rejects the oversized uploads before any handler runs, so the asset routes need no initialized module
+	(&appassets.Module{}).RegisterRoutes(apiRouter, fileSizeLimitMiddleware.Add(10<<20))
 
 	routes := []string{
 		"/api/users/user-id/profile-picture",
