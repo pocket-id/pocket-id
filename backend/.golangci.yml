@@ -5,6 +5,7 @@ run:
   build-tags:
     - unit
     - exclude_frontend
+    - e2etest
 linters:
   default: none
   enable:

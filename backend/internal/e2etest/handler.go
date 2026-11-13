@@ -83,7 +83,7 @@ func (tc *handler) externalIdPSignToken(c *gin.Context) error {
 		return err
 	}
 
-	c.Writer.WriteString(token)
+	c.String(http.StatusOK, token)
 	return nil
 }
 
@@ -103,7 +103,7 @@ func (tc *handler) signAccessToken(c *gin.Context) error {
 		return err
 	}
 
-	c.Writer.WriteString(token)
+	c.String(http.StatusOK, token)
 	return nil
 }
 
@@ -123,6 +123,6 @@ func (tc *handler) signRefreshToken(c *gin.Context) error {
 		return err
 	}
 
-	c.Writer.WriteString(token)
+	c.String(http.StatusOK, token)
 	return nil
 }

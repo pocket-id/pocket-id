@@ -67,6 +67,7 @@ type Service struct {
 	externalIdPKey   jwk.Key
 }
 
+//nolint:gosec // G101 false positive: fixtures the E2E tests share, not credentials
 const (
 	e2eRefreshTokenUserID              = "f4b89dc2-62fb-46bf-9f5f-c34f4eafe93e"
 	e2eRefreshTokenClientID            = "3654a746-35d4-4321-ac61-0bdcff2b4055"
@@ -695,7 +696,7 @@ func (s *Service) seedOneTimeAccessTokens(ctx context.Context) error {
 		token string
 		ttl   time.Duration
 	}{
-		{token: "HPe6k6u1DRRV", ttl: time.Hour},
+		{token: "HPe6k6u1DRRV", ttl: time.Hour}, //nolint:gosec // G101 false positive: a fixture the E2E tests share, not a credential
 		{token: "0ne-t1me-t0ken", ttl: time.Hour},
 	}
 
