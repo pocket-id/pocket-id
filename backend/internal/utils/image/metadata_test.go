@@ -3,6 +3,10 @@ package profilepicture
 import (
 	"bytes"
 	"encoding/binary"
+	"hash/crc32"
+	"image"
+	"image/jpeg"
+	"image/png"
 	"io"
 	"testing"
 
@@ -27,6 +31,35 @@ func TestStripMetadata(t *testing.T) {
 		assert.NotContains(t, string(output), "xmp")
 		assert.Contains(t, string(output), "profile")
 		assert.Equal(t, byte(0), output[20]&0x0c)
+	})
+
+	t.Run("removes JPEG EXIF and XMP segments", func(t *testing.T) {
+		var encoded bytes.Buffer
+		require.NoError(t, jpeg.Encode(&encoded, image.NewRGBA(image.Rect(0, 0, 4, 4)), nil))
+		app1 := func(payload string) []byte {
+			return append([]byte{0xFF, 0xE1, 0, byte(len(payload) + 2)}, payload...) //nolint:gosec
+		}
+		input := append([]byte{0xFF, 0xD8}, app1("Exif\x00\x00gps")...)
+		input = append(input, app1("http://ns.adobe.com/xap/1.0/\x00xmp")...)
+		input = append(input, encoded.Bytes()[2:]...)
+
+		output := stripReader(t, input, "jpg")
+
+		assert.Equal(t, encoded.Bytes(), output)
+	})
+
+	t.Run("removes PNG EXIF and text chunks", func(t *testing.T) {
+		var encoded bytes.Buffer
+		require.NoError(t, png.Encode(&encoded, image.NewRGBA(image.Rect(0, 0, 4, 4))))
+		// The IHDR chunk always ends at byte 33, right after the signature
+		input := append([]byte{}, encoded.Bytes()[:33]...)
+		input = append(input, pngChunk("eXIf", []byte("gps"))...)
+		input = append(input, pngChunk("iTXt", []byte("XML:com.adobe.xmp\x00xmp"))...)
+		input = append(input, encoded.Bytes()[33:]...)
+
+		output := stripReader(t, input, "png")
+
+		assert.Equal(t, encoded.Bytes(), output)
 	})
 
 	t.Run("leaves non photo metadata formats unchanged", func(t *testing.T) {
@@ -77,5 +110,14 @@ func webpChunk(chunkType string, data []byte) []byte {
 	if len(data)%2 == 1 {
 		out.WriteByte(0)
 	}
+	return out.Bytes()
+}
+
+func pngChunk(chunkType string, data []byte) []byte {
+	var out bytes.Buffer
+	_ = binary.Write(&out, binary.BigEndian, uint32(len(data))) //nolint:gosec
+	out.WriteString(chunkType)
+	out.Write(data)
+	_ = binary.Write(&out, binary.BigEndian, crc32.ChecksumIEEE(append([]byte(chunkType), data...)))
 	return out.Bytes()
 }

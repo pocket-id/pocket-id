@@ -7,8 +7,6 @@ import (
 	"fmt"
 	"io"
 	"strings"
-
-	"github.com/zitadel/exifremove/pkg/exifremove"
 )
 
 const maxRIFFSize = ^uint32(0)
@@ -23,15 +21,16 @@ func StripMetadata(file io.Reader, ext string) (*bytes.Reader, error) {
 	}
 
 	switch strings.ToLower(ext) {
-	case "jpg", "jpeg", "png":
+	case "jpg", "jpeg":
 		if err := rejectOversizedImage(data); err != nil {
 			return nil, err
 		}
-		stripped, err := exifremove.Remove(data)
-		if err == nil {
-			return bytes.NewReader(stripped), nil
+		return bytes.NewReader(stripJPEGMetadata(data)), nil
+	case "png":
+		if err := rejectOversizedImage(data); err != nil {
+			return nil, err
 		}
-		return bytes.NewReader(data), nil
+		return bytes.NewReader(stripPNGMetadata(data)), nil
 	case "webp":
 		return bytes.NewReader(stripWEBPMetadata(data)), nil
 	default:
@@ -45,6 +44,87 @@ func rejectOversizedImage(data []byte) error {
 		return fmt.Errorf("%w: %w", ErrInvalidImage, err)
 	}
 	return nil
+}
+
+func stripJPEGMetadata(data []byte) []byte {
+	// Check if the file starts with the SOI marker
+	if len(data) < 2 || data[0] != 0xFF || data[1] != 0xD8 {
+		return data
+	}
+
+	var out bytes.Buffer
+	out.Write(data[:2])
+
+	for pos := 2; pos < len(data); {
+		// Each segment starts with 0xFF followed by the marker type
+		if pos+2 > len(data) || data[pos] != 0xFF {
+			return data
+		}
+		marker := data[pos+1]
+
+		// Markers without a length field carry no payload
+		if marker == 0x01 || (marker >= 0xD0 && marker <= 0xD7) {
+			out.Write(data[pos : pos+2])
+			pos += 2
+			continue
+		}
+
+		// The length field counts itself but not the marker
+		if pos+4 > len(data) {
+			return data
+		}
+		segmentEnd := pos + 2 + int(binary.BigEndian.Uint16(data[pos+2:pos+4]))
+		if segmentEnd > len(data) {
+			return data
+		}
+
+		// The entropy-coded image data follows the SOS segment, so everything from here on is copied as is
+		if marker == 0xDA {
+			out.Write(data[pos:])
+			return out.Bytes()
+		}
+
+		// APP1 segments hold the EXIF and XMP data
+		if marker != 0xE1 {
+			out.Write(data[pos:segmentEnd])
+		}
+		pos = segmentEnd
+	}
+
+	return data
+}
+
+func stripPNGMetadata(data []byte) []byte {
+	// Check if the file starts with the PNG signature
+	const signature = "\x89PNG\r\n\x1a\n"
+	if len(data) < len(signature) || string(data[:len(signature)]) != signature {
+		return data
+	}
+
+	var out bytes.Buffer
+	out.WriteString(signature)
+
+	for pos := len(signature); pos < len(data); {
+		// Each chunk has a 4 byte length, a 4 byte type, the payload and a 4 byte CRC
+		if pos+8 > len(data) {
+			return data
+		}
+		chunkEnd := pos + 12 + int(binary.BigEndian.Uint32(data[pos:pos+4]))
+		if chunkEnd > len(data) || chunkEnd < pos {
+			return data
+		}
+
+		// Drop the EXIF chunk and the text chunks, which also carry XMP
+		// The chunks are copied whole, so their CRCs stay valid
+		switch string(data[pos+4 : pos+8]) {
+		case "eXIf", "tEXt", "iTXt", "zTXt":
+		default:
+			out.Write(data[pos:chunkEnd])
+		}
+		pos = chunkEnd
+	}
+
+	return out.Bytes()
 }
 
 func stripWEBPMetadata(data []byte) []byte {
