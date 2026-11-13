@@ -1,16 +1,9 @@
 package utils
 
 import (
-	"crypto/rand"
-	"encoding/hex"
-	"errors"
-	"fmt"
-	"io"
 	"mime"
-	"os"
 	"path/filepath"
 	"strings"
-	"syscall"
 )
 
 func GetFileExtension(filename string) string {
@@ -94,42 +87,4 @@ func GetImageExtensionFromMimeType(mimeType string) string {
 	default:
 		return ""
 	}
-}
-
-// IsWritableDir checks if a directory exists and is writable
-func IsWritableDir(dir string) (bool, error) {
-	// Check if directory exists and it's actually a directory
-	info, err := os.Stat(dir)
-	if os.IsNotExist(err) {
-		return false, nil
-	} else if err != nil {
-		return false, fmt.Errorf("failed to stat '%s': %w", dir, err)
-	}
-	if !info.IsDir() {
-		return false, nil
-	}
-
-	// Generate a random suffix for the test file to avoid conflicts
-	randomBytes := make([]byte, 8)
-	_, err = io.ReadFull(rand.Reader, randomBytes)
-	if err != nil {
-		return false, fmt.Errorf("failed to generate random bytes: %w", err)
-	}
-
-	// Check if directory is writable by trying to create a temporary file
-	testFile := filepath.Join(dir, ".pocketid_test_write_"+hex.EncodeToString(randomBytes))
-	defer os.Remove(testFile)
-
-	file, err := os.Create(testFile)
-	if err != nil {
-		if os.IsPermission(err) || errors.Is(err, syscall.EROFS) {
-			return false, nil
-		}
-
-		return false, fmt.Errorf("failed to create test file: %w", err)
-	}
-
-	_ = file.Close()
-
-	return true, nil
 }

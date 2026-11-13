@@ -113,12 +113,6 @@ func CamelCaseToSnakeCase(s string) string {
 	return strings.ToLower(s)
 }
 
-func CamelCaseToScreamingSnakeCase(s string) string {
-	s = reAcronymBoundary.ReplaceAllString(s, "${1}_${2}")
-	s = reLowerToUpper.ReplaceAllString(s, "${1}_${2}")
-	return strings.ToUpper(s)
-}
-
 // GetFirstCharacter returns the first non-whitespace character of the string, correctly handling Unicode
 func GetFirstCharacter(str string) string {
 	for _, c := range str {

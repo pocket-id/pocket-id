@@ -230,34 +230,6 @@ func TestCamelCaseToSnakeCase(t *testing.T) {
 	}
 }
 
-func TestCamelCaseToScreamingSnakeCase(t *testing.T) {
-	tests := []struct {
-		name     string
-		input    string
-		expected string
-	}{
-		{"empty string", "", ""},
-		{"simple camelCase", "camelCase", "CAMEL_CASE"},
-		{"PascalCase", "PascalCase", "PASCAL_CASE"},
-		{"multipleWordsInCamelCase", "multipleWordsInCamelCase", "MULTIPLE_WORDS_IN_CAMEL_CASE"},
-		{"consecutive uppercase", "HTTPRequest", "HTTP_REQUEST"},
-		{"single lowercase word", "word", "WORD"},
-		{"single uppercase word", "WORD", "WORD"},
-		{"with numbers", "camel123Case", "CAMEL123_CASE"},
-		{"with numbers in middle", "model2Name", "MODEL2_NAME"},
-		{"mixed case", "iPhone6sPlus", "I_PHONE6S_PLUS"},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			result := CamelCaseToScreamingSnakeCase(tt.input)
-			if result != tt.expected {
-				t.Errorf("CamelCaseToScreamingSnakeCase(%q) = %q, want %q", tt.input, result, tt.expected)
-			}
-		})
-	}
-}
-
 func TestGetFirstCharacter(t *testing.T) {
 	tests := []struct {
 		name     string
