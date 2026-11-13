@@ -78,8 +78,8 @@ class OidcService extends APIService {
 		(await this.api.get(`/oidc/clients/${encodeClientIdParam(id)}`))
 			.data as OidcClientWithAllowedUserGroups;
 
-	updateClient = async (id: string, client: OidcClientUpdate) =>
-		(await this.api.put(`/oidc/clients/${encodeClientIdParam(id)}`, client)).data as OidcClient;
+	updateClient = async (id: string, client: Partial<OidcClientUpdate>) =>
+		(await this.api.patch(`/oidc/clients/${encodeClientIdParam(id)}`, client)).data as OidcClient;
 
 	refreshClient = async (id: string) =>
 		(await this.api.post(`/oidc/clients/${encodeClientIdParam(id)}/refresh`))

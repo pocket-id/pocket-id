@@ -57,7 +57,7 @@ export async function setClientDisabled<T extends OidcClient>(
 	onDone: (disabled: boolean) => unknown
 ) {
 	try {
-		await oidcService.updateClient(client.id, { ...client, disabled });
+		await oidcService.updateClient(client.id, { disabled });
 		await onDone(disabled);
 		toast.success(
 			disabled ? m.name_disabled({ name: client.name }) : m.name_enabled({ name: client.name })

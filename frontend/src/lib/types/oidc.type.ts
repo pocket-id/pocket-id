@@ -89,8 +89,11 @@ export type OidcClientWithAllowedGroups = OidcClient & {
 
 export type OidcClientUpdate = Omit<
 	OidcClient,
-	'id' | 'logoURL' | 'hasLogo' | 'hasDarkLogo' | 'pkceSupported' | 'clientType'
->;
+	'id' | 'logoURL' | 'hasLogo' | 'hasDarkLogo' | 'pkceSupported' | 'clientType' | 'credentials'
+> & {
+	// Secrets are managed through their own endpoints, so requests only carry the federated identities
+	credentials?: Pick<OidcClientCredentials, 'federatedIdentities'>;
+};
 export type OidcClientCreate = OidcClientUpdate & {
 	id?: string;
 };

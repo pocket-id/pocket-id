@@ -104,6 +104,21 @@ test('Edit OIDC client', async ({ page }) => {
 		.then((res) => expect.soft(res.status()).toBe(200));
 });
 
+// A cleared optional field must reach the server as null, because a merge patch keeps every field it leaves out
+test('Clear the launch URL of an OIDC client', async ({ page }) => {
+	const oidcClient = oidcClients.nextcloud;
+	await page.request.patch(`/api/oidc/clients/${oidcClient.id}`, {
+		data: { launchURL: oidcClient.launchURL }
+	});
+	await page.goto(`/settings/admin/oidc-clients/${oidcClient.id}`);
+
+	await page.getByLabel('Launch URL').fill('');
+	await saveUnsavedChanges(page);
+
+	const client = await (await page.request.get(`/api/oidc/clients/${oidcClient.id}`)).json();
+	expect(client.launchURL).toBeNull();
+});
+
 const logoField = (page: Page) => page.getByRole('group', { name: 'Logo', exact: true });
 
 test('Upload OIDC client logo from the logo picker', async ({ page }) => {
@@ -205,7 +220,7 @@ test('Pick OIDC client logo from the icon library', async ({ page }) => {
 
 	// Answer the save with the stored client so the backend doesn't download the icons
 	await page.route(`**/api/oidc/clients/${oidcClient.id}`, async (route) => {
-		if (route.request().method() !== 'PUT') return route.fallback();
+		if (route.request().method() !== 'PATCH') return route.fallback();
 		await route.fulfill({ response: await route.fetch({ method: 'GET' }) });
 	});
 
@@ -236,7 +251,7 @@ test('Pick OIDC client logo from the icon library', async ({ page }) => {
 	await page.keyboard.press('Escape');
 
 	const updateRequest = page.waitForRequest(
-		(req) => req.method() === 'PUT' && req.url().endsWith(`/api/oidc/clients/${oidcClient.id}`)
+		(req) => req.method() === 'PATCH' && req.url().endsWith(`/api/oidc/clients/${oidcClient.id}`)
 	);
 	await saveUnsavedChanges(page);
 
@@ -264,7 +279,7 @@ test('Paste an image URL into the OIDC client logo picker', async ({ page }) => 
 
 	// Answer the save with the stored client so the backend doesn't download the image
 	await page.route(`**/api/oidc/clients/${oidcClient.id}`, async (route) => {
-		if (route.request().method() !== 'PUT') return route.fallback();
+		if (route.request().method() !== 'PATCH') return route.fallback();
 		await route.fulfill({ response: await route.fetch({ method: 'GET' }) });
 	});
 
@@ -287,7 +302,7 @@ test('Paste an image URL into the OIDC client logo picker', async ({ page }) => 
 	await page.keyboard.press('Escape');
 
 	const updateRequest = page.waitForRequest(
-		(req) => req.method() === 'PUT' && req.url().endsWith(`/api/oidc/clients/${oidcClient.id}`)
+		(req) => req.method() === 'PATCH' && req.url().endsWith(`/api/oidc/clients/${oidcClient.id}`)
 	);
 	await saveUnsavedChanges(page);
 
@@ -484,7 +499,7 @@ test('Update OIDC client federated credentials', async ({ page }) => {
 
 	const cardUpdate = page.waitForResponse(
 		(response) =>
-			response.request().method() === 'PUT' &&
+			response.request().method() === 'PATCH' &&
 			response.url().endsWith(`/api/oidc/clients/${client.id}`)
 	);
 	await saveUnsavedChanges(page);
@@ -508,7 +523,7 @@ test('Update OIDC client federated credentials', async ({ page }) => {
 	await description.fill('Updated without replacing federated credentials');
 	const formUpdate = page.waitForResponse(
 		(response) =>
-			response.request().method() === 'PUT' &&
+			response.request().method() === 'PATCH' &&
 			response.url().endsWith(`/api/oidc/clients/${client.id}`)
 	);
 	await saveUnsavedChanges(page);
@@ -548,7 +563,7 @@ test('Update OIDC client federated credentials with public keys', async ({ page 
 	const waitForClientUpdate = () =>
 		page.waitForResponse(
 			(response) =>
-				response.request().method() === 'PUT' &&
+				response.request().method() === 'PATCH' &&
 				response.url().endsWith(`/api/oidc/clients/${client.id}`)
 		);
 

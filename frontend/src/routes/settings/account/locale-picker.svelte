@@ -2,7 +2,6 @@
 	import SearchableSelect from '#lib/components/form/searchable-select.svelte';
 	import { getLocale, type Locale } from '#lib/paraglide/runtime.js';
 	import UserService from '#lib/services/user-service.ts';
-	import userStore from '#lib/stores/user-store.ts';
 	import { setLocale } from '#lib/utils/locale.util.ts';
 
 	let controlProps: { id: string; 'aria-describedby': string | undefined } = $props();
@@ -40,10 +39,7 @@
 	};
 
 	async function updateLocale(locale: Locale) {
-		await userService.updateCurrent({
-			...$userStore!,
-			locale
-		});
+		await userService.updateCurrent({ locale });
 		await setLocale(locale);
 	}
 </script>

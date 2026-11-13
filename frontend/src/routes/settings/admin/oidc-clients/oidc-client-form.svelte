@@ -39,7 +39,7 @@
 		existingClient: OidcClient;
 		// Left out while the claim mappings feature is off, which hides the Claims section
 		claimMappingPolicies?: OidcClaimMappingPolicyMetadataDto[];
-		callback: (client: OidcClientCreateWithLogo) => Promise<void>;
+		callback: (client: Partial<OidcClientCreateWithLogo>) => Promise<void>;
 	} = $props();
 
 	// What a new client starts with; anything else counts as changed and keeps Advanced open
@@ -160,13 +160,10 @@
 	async function saveClient(data: z.infer<FormSchema>) {
 		await callback({
 			...data,
-			credentials: existingClient.credentials ?? { federatedIdentities: [], secrets: [] },
 			logo: $inputs.logoUrl?.value ? undefined : logo,
 			logoUrl: $inputs.logoUrl?.value,
 			darkLogo: $inputs.darkLogoUrl?.value ? undefined : darkLogo,
-			darkLogoUrl: $inputs.darkLogoUrl?.value,
-			isGroupRestricted: existingClient.isGroupRestricted,
-			disabled: existingClient.disabled
+			darkLogoUrl: $inputs.darkLogoUrl?.value
 		});
 
 		const hasLogo = logo != null || !!$inputs.logoUrl?.value;

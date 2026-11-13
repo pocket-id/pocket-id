@@ -17,7 +17,6 @@
 	import unsavedChanges from '#lib/stores/unsaved-changes-store.svelte.ts';
 	import type {
 		OidcClientCreateWithLogo,
-		OidcClientCredentials,
 		OidcClientFederatedIdentity,
 		OidcClientSecret
 	} from '#lib/types/oidc.type.ts';
@@ -87,7 +86,6 @@
 		deleteClientAction(backNavigation.leave, m.delete_client_ellipsis())
 	]);
 
-	// The forms read the same client, so they keep sending the new state instead of undoing it on their next save
 	function setDisabled(disabled: boolean) {
 		client.disabled = disabled;
 	}
@@ -107,7 +105,7 @@
 		reloadCount++;
 	}
 
-	async function updateClient(updatedClient: OidcClientCreateWithLogo) {
+	async function updateClient(updatedClient: Partial<OidcClientCreateWithLogo>) {
 		const [savedClient] = await Promise.all([
 			oidcService.updateClient(client.id, updatedClient),
 			updatedClient.logo !== undefined
@@ -133,10 +131,7 @@
 	}
 
 	async function updateFederatedCredentials(federatedIdentities: OidcClientFederatedIdentity[]) {
-		// Secrets are read-only in this request, but they are carried over so the client object keeps matching what the server has
-		const credentials: OidcClientCredentials = { federatedIdentities, secrets: clientSecrets };
-		await updateClient({ ...client, credentials });
-		client.credentials = credentials;
+		await updateClient({ credentials: { federatedIdentities } });
 	}
 
 	async function saveScimServiceProvider(provider: ScimServiceProviderCreate | null) {

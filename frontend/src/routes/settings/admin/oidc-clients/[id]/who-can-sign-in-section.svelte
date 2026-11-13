@@ -48,7 +48,7 @@
 
 	async function restrict() {
 		try {
-			await oidcService.updateClient(client.id, { ...client, isGroupRestricted: true });
+			await oidcService.updateClient(client.id, { isGroupRestricted: true });
 			client.isGroupRestricted = true;
 			toast.success(m.who_can_sign_in_updated());
 		} catch (e) {
@@ -66,7 +66,7 @@
 				icon: LockOpenIcon,
 				action: async () => {
 					try {
-						await oidcService.updateClient(client.id, { ...client, isGroupRestricted: false });
+						await oidcService.updateClient(client.id, { isGroupRestricted: false });
 						client.allowedUserGroupIds = [];
 						allowedUserGroups.markSaved();
 						client.isGroupRestricted = false;

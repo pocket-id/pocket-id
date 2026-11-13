@@ -31,7 +31,7 @@ export default class AppConfigService extends APIService {
 		return { appConfig: parseConfigList(data), envOverrides };
 	};
 
-	update = async (appConfig: AllAppConfig) => {
+	update = async (appConfig: Partial<AllAppConfig>) => {
 		// Convert all values to string, stringifying JSON where needed
 		const appConfigConvertedToString: Record<string, string> = {};
 		for (const key in appConfig) {
@@ -39,7 +39,7 @@ export default class AppConfigService extends APIService {
 			appConfigConvertedToString[key] =
 				typeof value === 'object' && value !== null ? JSON.stringify(value) : String(value);
 		}
-		const res = await this.api.put('/application-configuration', appConfigConvertedToString);
+		const res = await this.api.patch('/application-configuration', appConfigConvertedToString);
 		return parseConfigList(res.data);
 	};
 

@@ -172,6 +172,19 @@ test('Update user', async ({ page }) => {
 	await saveUnsavedChanges(page);
 });
 
+// The form has no language field, so saving it must not reset the language the user picked
+test('Saving a user keeps their language', async ({ page }) => {
+	const user = users.craig;
+	await page.request.patch(`/api/users/${user.id}`, { data: { locale: 'en' } });
+	await page.goto(`/settings/admin/users/${user.id}`);
+
+	await page.getByLabel('First name').fill('Crack');
+	await saveUnsavedChanges(page);
+
+	const saved = await (await page.request.get(`/api/users/${user.id}`)).json();
+	expect(saved.locale).toBe('en');
+});
+
 test('Update user fails with already taken email', async ({ page }) => {
 	const user = users.craig;
 

@@ -46,13 +46,13 @@ export default class UserService extends APIService {
 		return res.data as Passkey[];
 	};
 
-	update = async (id: string, user: UserCreate) => {
-		const res = await this.api.put(`/users/${id}`, user);
+	update = async (id: string, user: Partial<UserCreate>) => {
+		const res = await this.api.patch(`/users/${id}`, user);
 		return res.data as User;
 	};
 
-	updateCurrent = async (user: AccountUpdate) => {
-		const res = await this.api.put('/users/me', user);
+	updateCurrent = async (user: Partial<AccountUpdate>) => {
+		const res = await this.api.patch('/users/me', user);
 		return res.data as User;
 	};
 

@@ -72,7 +72,7 @@
 				requiresPushedAuthorizationRequests: false,
 				skipConsent: false,
 				isGroupRestricted: true,
-				credentials: { federatedIdentities: [], secrets: [] },
+				credentials: { federatedIdentities: [] },
 				accessTokenDurationMinutes: 60,
 				refreshTokenDurationMinutes: 30 * 24 * 60,
 				disabled: false

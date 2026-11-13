@@ -101,7 +101,7 @@ test('Invalid email configuration is not saved', async ({ page }) => {
 	let updateRequests = 0;
 	page.on('request', (request) => {
 		if (
-			request.method() === 'PUT' &&
+			request.method() === 'PATCH' &&
 			new URL(request.url()).pathname === '/api/application-configuration'
 		) {
 			updateRequests++;

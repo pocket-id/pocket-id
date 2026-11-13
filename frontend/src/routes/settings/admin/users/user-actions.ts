@@ -26,7 +26,7 @@ async function forEachUser(users: User[], run: (user: User) => Promise<unknown>)
 }
 
 function setDisabled(user: User, disabled: boolean) {
-	return userService.update(user.id, { ...user, disabled });
+	return userService.update(user.id, { disabled });
 }
 
 export function confirmDisableUsers(users: User[], onDone: () => unknown) {

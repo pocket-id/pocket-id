@@ -96,8 +96,7 @@
 	async function save() {
 		isLoading = true;
 		try {
-			const config = await appConfigService.list(true);
-			await appConfigService.update({ ...config, enabledFeatures: selected });
+			await appConfigService.update({ enabledFeatures: selected });
 			await goto('/settings');
 		} catch (e) {
 			axiosErrorToast(e);

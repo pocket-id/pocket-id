@@ -58,8 +58,7 @@
 	trackFormChanges(
 		() => formStore,
 		async (data) => {
-			// Disabling is an action of its own, so the saved state is sent along unchanged
-			const saved = await userService.update(user.id, { ...data, disabled: user.disabled });
+			const saved = await userService.update(user.id, data);
 			// Groups and claims are edited elsewhere on the page and may hold unsaved edits, so only the profile is taken over
 			Object.assign(user, {
 				...saved,

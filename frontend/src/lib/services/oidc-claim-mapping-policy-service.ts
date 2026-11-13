@@ -30,8 +30,8 @@ class OidcClaimMappingPolicyService extends APIService {
 		return res.data as OidcClaimMappingPolicyInput & { id: string };
 	};
 
-	updateClaimMappingPolicy = async (id: string, policy: OidcClaimMappingPolicyInput) => {
-		const res = await this.api.put(`/oidc/claim-mapping-policies/${id}`, policy);
+	updateClaimMappingPolicy = async (id: string, policy: Partial<OidcClaimMappingPolicyInput>) => {
+		const res = await this.api.patch(`/oidc/claim-mapping-policies/${id}`, policy);
 		return res.data as OidcClaimMappingPolicyInput & { id: string };
 	};
 
