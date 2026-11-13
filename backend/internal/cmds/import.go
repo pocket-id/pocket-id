@@ -15,9 +15,9 @@ import (
 	"github.com/italypaleale/francis/components"
 	"github.com/spf13/cobra"
 
+	"github.com/pocket-id/pocket-id/backend/internal/backup"
 	"github.com/pocket-id/pocket-id/backend/internal/bootstrap"
 	"github.com/pocket-id/pocket-id/backend/internal/common"
-	"github.com/pocket-id/pocket-id/backend/internal/service"
 	"github.com/pocket-id/pocket-id/backend/internal/utils"
 )
 
@@ -142,7 +142,7 @@ func runImport(ctx context.Context, flags importFlags) error {
 
 	// The actor data lives outside of the Pocket ID schema, so it's restored through Francis
 	// Restoring requires exclusive access to the cluster, which was acquired above, and the import service skips the actor data entirely when no provider is passed
-	var actorsProvider service.ActorsBackupProvider
+	var actorsProvider backup.ActorsBackupProvider
 	if embeddedRuntime {
 		provider, err := bootstrap.NewActorsBackupProvider(importCtx, providerOpts)
 		if err != nil {
@@ -156,7 +156,7 @@ func runImport(ctx context.Context, flags importFlags) error {
 	}
 
 	// Create the import service
-	importService := service.NewImportService(db, storage, actorsProvider)
+	importService := backup.NewImportService(db, storage, actorsProvider)
 
 	// Load from ZIP
 	err = importService.ImportFromZip(importCtx, &zipReader.Reader)

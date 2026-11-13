@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"os"
 
-	"github.com/pocket-id/pocket-id/backend/internal/service"
+	"github.com/pocket-id/pocket-id/backend/internal/backup"
 )
 
 // printRemoteActorDataNotice warns that the command does not cover the actor data, which a standalone Francis runtime owns rather than Pocket ID
@@ -22,8 +22,8 @@ func printRemoteActorDataNotice(consequence string, remedy string) {
 // Such an archive comes from a deployment with an embedded runtime, and restoring only its Pocket ID half would leave the runtime holding actor state belonging to a different deployment
 func ensureNoActorsBackup(zipReader *zip.Reader) error {
 	for _, f := range zipReader.File {
-		if f.Name == service.ActorsBackupFileName {
-			return fmt.Errorf("this archive contains the actor data (%s) but FRANCIS_HOST points to a standalone Francis runtime, which owns that data instead: restore it into a deployment with an embedded runtime, or load the actor data into the runtime with 'francis runtime restore'", service.ActorsBackupFileName)
+		if f.Name == backup.ActorsBackupFileName {
+			return fmt.Errorf("this archive contains the actor data (%s) but FRANCIS_HOST points to a standalone Francis runtime, which owns that data instead: restore it into a deployment with an embedded runtime, or load the actor data into the runtime with 'francis runtime restore'", backup.ActorsBackupFileName)
 		}
 	}
 
