@@ -13,5 +13,3 @@ catalog:
 peerDependencyRules:
   allowAny:
     - vite
-  allowedVersions:
-    vite: '*'
