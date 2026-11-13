@@ -135,11 +135,7 @@ func initOtelLogging(ctx context.Context, resource *resource.Resource) (shutdown
 		}
 	}
 
-	// Set the default slog to send logs to OTel and add the app name
-	log := slog.New(handler).
-		With(slog.String("app", common.Name)).
-		With(slog.String("version", common.Version))
-	slog.SetDefault(log)
+	slog.SetDefault(slog.New(handler))
 
 	return shutdownFn, nil
 }
@@ -153,6 +149,11 @@ func initOtelTracing(ctx context.Context, resource *resource.Resource, httpClien
 	tr, err := autoexport.NewSpanExporter(ctx)
 	if err != nil {
 		return nil, fmt.Errorf("failed to initialize OpenTelemetry span exporter: %w", err)
+	}
+
+	// Without an exporter the spans would go nowhere, so keep the no-op global provider, which also keeps trace IDs out of the logs
+	if autoexport.IsNoneSpanExporter(tr) {
+		return nil, nil
 	}
 	tp := sdktrace.NewTracerProvider(
 		sdktrace.WithResource(resource),

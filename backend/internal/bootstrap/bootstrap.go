@@ -36,7 +36,7 @@ func Bootstrap(ctx context.Context) error {
 	}
 	shutdowns.Add(shutdownFns...)
 
-	slog.InfoContext(ctx, "Pocket ID is starting")
+	slog.InfoContext(ctx, "Pocket ID is starting", slog.String("version", common.Version))
 
 	outboundClients, err := outbound.New(&common.EnvConfig)
 	if err != nil {

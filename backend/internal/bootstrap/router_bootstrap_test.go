@@ -116,12 +116,43 @@ func TestRequestLoggerUsesStructuredErrorMetadata(t *testing.T) {
 
 	logLine := output.String()
 	require.Contains(t, logLine, "level=INFO")
-	require.Contains(t, logLine, `msg="HTTP request completed"`)
+	require.Contains(t, logLine, `msg="GET /api/users/me 401 `)
 	require.Contains(t, logLine, "request_id="+body.RequestID)
 	require.Contains(t, logLine, "error_code=not_signed_in")
-	require.Contains(t, logLine, "status=401")
+	require.Contains(t, logLine, `error="You are not signed in"`)
+	require.NotContains(t, logLine, "user_agent=")
 	require.NotContains(t, logLine, "Request with errors")
 	require.NotContains(t, logLine, "Error #01")
+}
+
+func TestRequestLoggerKeepsAllFieldsAtDebugLevel(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+
+	previousConfig := common.EnvConfig
+	common.EnvConfig.LogLevel = "debug"
+	var output bytes.Buffer
+	previousLogger := slog.Default()
+	slog.SetDefault(slog.New(slog.NewTextHandler(&output, nil)))
+	t.Cleanup(func() {
+		common.EnvConfig = previousConfig
+		slog.SetDefault(previousLogger)
+	})
+
+	router := gin.New()
+	initLogger(router)
+	router.GET("/api/status", func(c *gin.Context) {
+		c.Status(http.StatusNoContent)
+	})
+
+	request := httptest.NewRequestWithContext(t.Context(), http.MethodGet, "/api/status", nil)
+	request.Header.Set("User-Agent", "test-agent")
+	router.ServeHTTP(httptest.NewRecorder(), request)
+
+	logLine := output.String()
+	require.Contains(t, logLine, `msg="GET /api/status 204 `)
+	require.Contains(t, logLine, "status=204")
+	require.Contains(t, logLine, "path=/api/status")
+	require.Contains(t, logLine, "user_agent=test-agent")
 }
 
 func TestRequestLoggerKeepsRateLimitsAtWarningLevel(t *testing.T) {
@@ -223,9 +254,9 @@ func TestRequestLoggerOmitsTokens(t *testing.T) {
 	})
 
 	requests := map[string]string{ //nolint:gosec // G101 false positive: placeholder tokens, not credentials
-		"GET /api/users/user-id?search=secret": "path=/api/users/user-id",
-		"GET /st/secret?redirect=/settings":    "path=/st/:token",
-		"GET /lc/secret":                       "path=/lc/:token",
+		"GET /api/users/user-id?search=secret": "/api/users/user-id",
+		"GET /st/secret?redirect=/settings":    "/st/:token",
+		"GET /lc/secret":                       "/lc/:token",
 	}
 	for request, wantPath := range requests {
 		t.Run(request, func(t *testing.T) {
@@ -235,7 +266,7 @@ func TestRequestLoggerOmitsTokens(t *testing.T) {
 			req.Header.Set("Referer", "https://pocket-id.example/lc/secret")
 			router.ServeHTTP(httptest.NewRecorder(), req)
 
-			require.Contains(t, output.String(), wantPath+" ")
+			require.Contains(t, output.String(), " "+wantPath+" ")
 			require.NotContains(t, output.String(), "secret")
 		})
 	}

@@ -452,47 +452,63 @@ func initLogger(r *gin.Engine) {
 	))
 }
 
-// enrichRequestLog enriches the slog.Record with additional attributes from the request context, such as request ID, error code, and trace/span IDs.
+// enrichRequestLog rebuilds the request log record with the request ID, the handled error and the trace, leaving out secrets
+// Text logs lead with an access log summary and, unless the log level is debug, keep only the client IP of the request fields
 func enrichRequestLog(c *gin.Context, record *slog.Record) *slog.Record {
-	enriched := slog.NewRecord(record.Time, record.Level, "HTTP request completed", record.PC)
-	// Add request ID if present in the context
-	if requestID := middleware.RequestID(c); requestID != "" {
-		enriched.AddAttrs(slog.String("request_id", requestID))
+	compact := !common.EnvConfig.LogJSON && common.EnvConfig.LogLevel != "debug"
+
+	// The signup and login code pages are the only paths that carry a token
+	path := c.Request.URL.Path
+	for _, prefix := range []string{"/st/", "/lc/"} {
+		if strings.HasPrefix(path, prefix) {
+			path = prefix + ":token"
+		}
 	}
-	// Add error code if present in the context
-	if errorCode := middleware.RequestErrorCode(c); errorCode != "" {
-		enriched.AddAttrs(slog.String("error_code", string(errorCode)))
+
+	// Collect the request fields, dropping the query string and the referer because they carry secrets such as ID token hints and email verification tokens
+	var latency time.Duration
+	requestAttrs := make([]slog.Attr, 0, record.NumAttrs())
+	record.Attrs(func(attr slog.Attr) bool {
+		switch attr.Key {
+		case "query", "referer":
+			return true
+		case "path":
+			attr = slog.String("path", path)
+		case "latency":
+			latency = attr.Value.Duration()
+		}
+		if !compact || attr.Key == "ip" {
+			requestAttrs = append(requestAttrs, attr)
+		}
+		return true
+	})
+
+	// Log processors filter on a fixed message, while people scan text logs by method, path and status
+	message := "HTTP request completed"
+	if !common.EnvConfig.LogJSON {
+		message = fmt.Sprintf("%s %s %d %s", c.Request.Method, path, c.Writer.Status(), latency.Round(time.Microsecond))
 	}
+	enriched := slog.NewRecord(record.Time, record.Level, message, record.PC)
+
 	// This line is the only log of a failed request, so it carries the error itself
 	if err := middleware.RequestError(c); err != nil {
 		enriched.AddAttrs(slog.Any("error", err))
 	}
-
-	// Add trace and span IDs if present in the context
-	if spanContext := trace.SpanFromContext(c.Request.Context()).SpanContext(); spanContext.IsValid() {
-		enriched.AddAttrs(
-			slog.String("trace_id", spanContext.TraceID().String()),
-			slog.String("span_id", spanContext.SpanID().String()),
-		)
+	if errorCode := middleware.RequestErrorCode(c); errorCode != "" {
+		enriched.AddAttrs(slog.String("error_code", string(errorCode)))
 	}
-	// Query strings carry secrets such as ID token hints and email verification tokens, and the referer repeats them
-	// The signup and login code pages are the only paths that carry a token
-	record.Attrs(func(attr slog.Attr) bool {
-		switch attr.Key {
-		case "path":
-			path := attr.Value.String()
-			for _, prefix := range []string{"/st/", "/lc/"} {
-				if strings.HasPrefix(path, prefix) {
-					path = prefix + ":token"
-				}
-			}
-			enriched.AddAttrs(slog.String("path", path))
-		case "query", "referer":
-		default:
-			enriched.AddAttrs(attr)
+	enriched.AddAttrs(requestAttrs...)
+	if requestID := middleware.RequestID(c); requestID != "" {
+		enriched.AddAttrs(slog.String("request_id", requestID))
+	}
+
+	// The span context is only valid when traces are exported, so the trace ID always leads somewhere
+	if spanContext := trace.SpanFromContext(c.Request.Context()).SpanContext(); spanContext.IsValid() {
+		enriched.AddAttrs(slog.String("trace_id", spanContext.TraceID().String()))
+		if !compact {
+			enriched.AddAttrs(slog.String("span_id", spanContext.SpanID().String()))
 		}
-		return true
-	})
+	}
 
 	return &enriched
 }
