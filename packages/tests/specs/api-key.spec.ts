@@ -68,8 +68,8 @@ test.describe('API Key Management', () => {
 			storageState: { cookies: [], origins: [] },
 			extraHTTPHeaders: { 'X-API-Key': token }
 		});
-		expect((await api.get('/api/users')).status()).toBe(200);
-		expect((await api.get('/api/oidc/clients')).status()).toBe(403);
+		expect((await api.get('/api/admin/users')).status()).toBe(200);
+		expect((await api.get('/api/admin/oidc/clients')).status()).toBe(403);
 		await api.dispose();
 	});
 

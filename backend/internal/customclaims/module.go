@@ -28,7 +28,7 @@ func New(db *gorm.DB) *Module {
 
 // RegisterRoutes mounts the custom claim endpoints
 func (m *Module) RegisterRoutes(r *authz.Router) {
-	customClaimsGroup := r.Group("/custom-claims")
+	customClaimsGroup := r.Group("/admin/custom-claims")
 	customClaimsGroup.GET("/suggestions", authz.UsersRead, httpserver.JSON(http.StatusOK, m.handler.getSuggestions),
 		option.Summary("Get custom claim suggestions"),
 		option.Description("Get a list of suggested custom claim names"),

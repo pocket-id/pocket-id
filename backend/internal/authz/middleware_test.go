@@ -70,7 +70,12 @@ func serve(t *testing.T, m *Middleware, scope Scope, optional bool, headers map[
 		}
 	})
 
-	r := m.Router(router.Group("/api"))
+	// Routes with an admin scope must live below the admin prefix
+	base := "/api"
+	if definitions[scope].category == CategoryAdmin {
+		base = "/api/admin"
+	}
+	r := m.Router(router.Group(base))
 	if optional {
 		r = r.Optional()
 	}
@@ -79,7 +84,7 @@ func serve(t *testing.T, m *Middleware, scope Scope, optional bool, headers map[
 		c.Status(http.StatusNoContent)
 	}})
 
-	req := httptest.NewRequestWithContext(t.Context(), http.MethodGet, "/api/route", nil)
+	req := httptest.NewRequestWithContext(t.Context(), http.MethodGet, base+"/route", nil)
 	for key, value := range headers {
 		req.Header.Set(key, value)
 	}
@@ -240,10 +245,11 @@ func TestMiddlewarePassesThroughUnexpectedErrors(t *testing.T) {
 	require.ErrorIs(t, result.err, failure)
 }
 
-func TestDispatchRouteAuthenticatesWithoutScope(t *testing.T) {
-	session := &fakeAuthenticator{kind: KindSession, header: "X-Session", user: "session-user"}
+func TestDispatchRouteRequiresAnAdminScope(t *testing.T) {
+	session := &fakeAuthenticator{kind: KindSession, header: "X-Session", user: "session-user", admin: true}
 	apiKey := &fakeAuthenticator{kind: KindAPIKey, header: "X-Key", user: "key-user"}
-	m := NewMiddleware(session, apiKey)
+	adminAPIKey := &fakeAuthenticator{kind: KindAPIKey, header: "X-Admin-Key", user: "admin-key-user", admin: true}
+	m := NewMiddleware(session, apiKey, adminAPIKey)
 
 	serveDispatch := func(t *testing.T, headers map[string]string) middlewareResult {
 		t.Helper()
@@ -257,12 +263,12 @@ func TestDispatchRouteAuthenticatesWithoutScope(t *testing.T) {
 				result.err = c.Errors.Last().Err
 			}
 		})
-		m.Router(router.Group("/api")).Dispatch(http.MethodPost, "", func(c *gin.Context) {
+		m.Router(router.Group("/api/admin")).Dispatch(http.MethodPost, "/mcp", func(c *gin.Context) {
 			result.principal = PrincipalFrom(c)
 			c.Status(http.StatusNoContent)
 		})
 
-		req := httptest.NewRequestWithContext(t.Context(), http.MethodPost, "/api", nil)
+		req := httptest.NewRequestWithContext(t.Context(), http.MethodPost, "/api/admin/mcp", nil)
 		for key, value := range headers {
 			req.Header.Set(key, value)
 		}
@@ -272,11 +278,17 @@ func TestDispatchRouteAuthenticatesWithoutScope(t *testing.T) {
 		return result
 	}
 
-	t.Run("accepts an API key that holds only account scopes", func(t *testing.T) {
-		result := serveDispatch(t, map[string]string{"X-Key": "1"})
+	t.Run("accepts an API key that holds admin scopes", func(t *testing.T) {
+		result := serveDispatch(t, map[string]string{"X-Admin-Key": "1"})
 
 		require.Equal(t, http.StatusNoContent, result.status)
-		require.Equal(t, "key-user", result.principal.UserID)
+		require.Equal(t, "admin-key-user", result.principal.UserID)
+	})
+
+	t.Run("rejects an API key that holds only account scopes", func(t *testing.T) {
+		result := serveDispatch(t, map[string]string{"X-Key": "1"})
+
+		require.True(t, apperror.IsCode(result.err, apperror.CodeForbidden))
 	})
 
 	t.Run("rejects a browser session", func(t *testing.T) {

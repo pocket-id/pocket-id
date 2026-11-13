@@ -175,13 +175,13 @@ test('Update user', async ({ page }) => {
 // The form has no language field, so saving it must not reset the language the user picked
 test('Saving a user keeps their language', async ({ page }) => {
 	const user = users.craig;
-	await page.request.patch(`/api/users/${user.id}`, { data: { locale: 'en' } });
+	await page.request.patch(`/api/admin/users/${user.id}`, { data: { locale: 'en' } });
 	await page.goto(`/settings/admin/users/${user.id}`);
 
 	await page.getByLabel('First name').fill('Crack');
 	await saveUnsavedChanges(page);
 
-	const saved = await (await page.request.get(`/api/users/${user.id}`)).json();
+	const saved = await (await page.request.get(`/api/admin/users/${user.id}`)).json();
 	expect(saved.locale).toBe('en');
 });
 
@@ -329,7 +329,7 @@ test('Admin can delete another user passkey and audit log is created', async ({ 
 	await expect(page.locator('[data-type="success"]')).toHaveText('Passkey deleted successfully');
 	await expect(page.getByText('Passkey 2', { exact: true })).not.toBeVisible();
 
-	const auditLogResponse = await page.request.get('/api/audit-logs/all');
+	const auditLogResponse = await page.request.get('/api/admin/audit-logs');
 	expect(auditLogResponse.ok()).toBeTruthy();
 
 	const auditLogs = await auditLogResponse.json();
@@ -346,11 +346,13 @@ test('Admin can delete another user passkey and audit log is created', async ({ 
 test('Non-admin cannot use admin passkey endpoints', async ({ page }) => {
 	await authUtil.changeUser(page, 'craig');
 
-	const listResponse = await page.request.get(`/api/users/${users.tim.id}/webauthn-credentials`);
+	const listResponse = await page.request.get(
+		`/api/admin/users/${users.tim.id}/webauthn-credentials`
+	);
 	expect(listResponse.status()).toBe(403);
 
 	const deleteResponse = await page.request.delete(
-		`/api/users/${users.tim.id}/webauthn-credentials/test-passkey-id`
+		`/api/admin/users/${users.tim.id}/webauthn-credentials/test-passkey-id`
 	);
 	expect(deleteResponse.status()).toBe(403);
 });

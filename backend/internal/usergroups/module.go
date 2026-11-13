@@ -48,7 +48,7 @@ func New(deps Dependencies) *Module {
 }
 
 func (m *Module) RegisterRoutes(r *authz.Router) {
-	group := r.Group("/user-groups")
+	group := r.Group("/admin/user-groups")
 	group.GET("", authz.GroupsRead, httpserver.JSON(http.StatusOK, m.handler.list),
 		option.Summary("List user groups"),
 		option.Description("Get a paginated list of user groups with optional search and sorting"),

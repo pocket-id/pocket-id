@@ -118,7 +118,7 @@ test.describe('Initial User Signup', () => {
 		expect(rejectedResponses).toHaveLength(requestCount - 1);
 		await expect(successfulResponses[0].json()).resolves.toMatchObject({ isAdmin: true });
 
-		const usersResponse = await request.get('/api/users');
+		const usersResponse = await request.get('/api/admin/users');
 		expect(usersResponse.status()).toBe(200);
 		const users = await usersResponse.json();
 		expect(users.data).toHaveLength(1);

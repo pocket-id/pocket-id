@@ -268,26 +268,28 @@ func (m *Module) RegisterRoutes(root, api *authz.Router, logoSizeLimit gin.Handl
 	api.POST("/oidc/device/verify", authz.AccountAuthorize, httpserver.Endpoint{Handler: m.deviceHandler.verifyDeviceCode})
 	api.GET("/oidc/device/info", authz.AccountAuthorize, httpserver.Endpoint{Handler: m.deviceHandler.deviceCodeInfo})
 
+	admin := api.Group("/admin")
+
 	// The preview renders a user's claims, so it is guarded by the user scope like the client preview
-	api.POST("/oidc/claim-mapping-policies/preview", authz.UsersRead, httpserver.BodyJSON(http.StatusOK, m.claimMappingsPreviewHandler.previewClaimMappings),
+	admin.POST("/oidc/claim-mapping-policies/preview", authz.UsersRead, httpserver.BodyJSON(http.StatusOK, m.claimMappingsPreviewHandler.previewClaimMappings),
 		option.Summary("Preview claim mappings"),
 		option.Description("Get the claims that claim mappings, saved or not, release for a user and set of scopes"),
 		option.Tags("OIDC Claim Mapping Policies"),
 	)
 
-	api.GET("/oidc/clients", authz.OidcClientsRead, httpserver.JSON(http.StatusOK, m.clientHandler.listClientsHandler),
+	admin.GET("/oidc/clients", authz.OidcClientsRead, httpserver.JSON(http.StatusOK, m.clientHandler.listClientsHandler),
 		option.Summary("List OIDC clients"),
 		option.Description("Get a paginated list of OIDC clients with optional search and sorting"),
 		option.Tags("OIDC"),
 		option.Query("search", "Search term to filter clients by name"),
 		openapi.List[model.OidcClient]("allowedUserGroups"),
 	)
-	api.POST("/oidc/clients", authz.OidcClientsWrite, httpserver.BodyJSON(http.StatusCreated, m.clientHandler.createClientHandler),
+	admin.POST("/oidc/clients", authz.OidcClientsWrite, httpserver.BodyJSON(http.StatusCreated, m.clientHandler.createClientHandler),
 		option.Summary("Create OIDC client"),
 		option.Description("Create a new OIDC client"),
 		option.Tags("OIDC"),
 	)
-	api.GET("/oidc/clients/:id", authz.OidcClientsRead, httpserver.JSON(http.StatusOK, m.clientHandler.getClientHandler),
+	admin.GET("/oidc/clients/:id", authz.OidcClientsRead, httpserver.JSON(http.StatusOK, m.clientHandler.getClientHandler),
 		option.Summary("Get OIDC client"),
 		option.Description("Get detailed information about an OIDC client"),
 		option.Tags("OIDC"),
@@ -299,34 +301,34 @@ func (m *Module) RegisterRoutes(root, api *authz.Router, logoSizeLimit gin.Handl
 		option.Tags("OIDC"),
 		option.Path("id", "Client ID"),
 	)
-	api.PUT("/oidc/clients/:id", authz.OidcClientsWrite, httpserver.UpdateJSON(m.clientHandler.updateClientHandler), updateClientDocs)
-	api.PATCH("/oidc/clients/:id", authz.OidcClientsWrite, httpserver.UpdateJSON(m.clientHandler.updateClientHandler), updateClientDocs)
-	api.POST("/oidc/clients/:id/refresh", authz.OidcClientsWrite, httpserver.JSON(http.StatusOK, m.clientHandler.refreshClientMetadataHandler),
+	admin.PUT("/oidc/clients/:id", authz.OidcClientsWrite, httpserver.UpdateJSON(m.clientHandler.updateClientHandler), updateClientDocs)
+	admin.PATCH("/oidc/clients/:id", authz.OidcClientsWrite, httpserver.UpdateJSON(m.clientHandler.updateClientHandler), updateClientDocs)
+	admin.POST("/oidc/clients/:id/refresh", authz.OidcClientsWrite, httpserver.JSON(http.StatusOK, m.clientHandler.refreshClientMetadataHandler),
 		option.Summary("Refresh client metadata document"),
 		option.Description("Force a re-fetch of the OAuth Client ID Metadata Document for a CIMD client"),
 		option.Tags("OIDC"),
 		option.Path("id", "Client ID"),
 	)
-	api.DELETE("/oidc/clients/:id", authz.OidcClientsWrite, httpserver.NoContent(m.clientHandler.deleteClientHandler),
+	admin.DELETE("/oidc/clients/:id", authz.OidcClientsWrite, httpserver.NoContent(m.clientHandler.deleteClientHandler),
 		option.Summary("Delete OIDC client"),
 		option.Description("Delete an OIDC client by ID"),
 		option.Tags("OIDC"),
 		option.Path("id", "Client ID"),
 	)
 
-	api.PUT("/oidc/clients/:id/allowed-user-groups", authz.OidcClientsWrite, httpserver.BodyJSON(http.StatusOK, m.clientHandler.updateAllowedUserGroupsHandler),
+	admin.PUT("/oidc/clients/:id/allowed-user-groups", authz.OidcClientsWrite, httpserver.BodyJSON(http.StatusOK, m.clientHandler.updateAllowedUserGroupsHandler),
 		option.Summary("Update allowed user groups"),
 		option.Description("Update the user groups allowed to access an OIDC client"),
 		option.Tags("OIDC"),
 		option.Path("id", "Client ID"),
 	)
-	api.GET("/oidc/clients/:id/secrets", authz.OidcClientsRead, httpserver.JSON(http.StatusOK, m.clientHandler.listClientSecretsHandler),
+	admin.GET("/oidc/clients/:id/secrets", authz.OidcClientsRead, httpserver.JSON(http.StatusOK, m.clientHandler.listClientSecretsHandler),
 		option.Summary("List client secrets"),
 		option.Description("List the secrets of an OIDC client, without disclosing their values"),
 		option.Tags("OIDC"),
 		option.Path("id", "Client ID"),
 	)
-	api.POST("/oidc/clients/:id/secrets", authz.OidcClientsWrite, httpserver.JSON(http.StatusCreated, m.clientHandler.createClientSecretHandler),
+	admin.POST("/oidc/clients/:id/secrets", authz.OidcClientsWrite, httpserver.JSON(http.StatusCreated, m.clientHandler.createClientSecretHandler),
 		option.Summary("Create client secret"),
 		option.Description("Add a new secret to an OIDC client, leaving the existing ones usable. The value is only returned by this endpoint and cannot be retrieved later."),
 		option.Tags("OIDC"),
@@ -335,7 +337,7 @@ func (m *Module) RegisterRoutes(root, api *authz.Router, logoSizeLimit gin.Handl
 		// Without a body the secret gets the default expiration
 		func(r *fuego.BaseRoute) { r.Operation.RequestBody.Value.Required = false },
 	)
-	api.DELETE("/oidc/clients/:id/secrets/:secretId", authz.OidcClientsWrite, httpserver.NoContent(m.clientHandler.deleteClientSecretHandler),
+	admin.DELETE("/oidc/clients/:id/secrets/:secretId", authz.OidcClientsWrite, httpserver.NoContent(m.clientHandler.deleteClientSecretHandler),
 		option.Summary("Delete client secret"),
 		option.Description("Delete a single secret of an OIDC client, making it immediately unusable"),
 		option.Tags("OIDC"),
@@ -351,14 +353,14 @@ func (m *Module) RegisterRoutes(root, api *authz.Router, logoSizeLimit gin.Handl
 		option.QueryBool("light", "Light mode logo (true) or dark mode logo (false)", param.Default(true)),
 		openapi.File("Logo image", "image/png", "image/jpeg", "image/svg+xml"),
 	)
-	api.DELETE("/oidc/clients/:id/logo", authz.OidcClientsWrite, httpserver.NoContent(m.clientHandler.deleteClientLogoHandler),
+	admin.DELETE("/oidc/clients/:id/logo", authz.OidcClientsWrite, httpserver.NoContent(m.clientHandler.deleteClientLogoHandler),
 		option.Summary("Delete client logo"),
 		option.Description("Delete the logo for an OIDC client"),
 		option.Tags("OIDC"),
 		option.Path("id", "Client ID"),
 		option.QueryBool("light", "Light mode logo (true) or dark mode logo (false)", param.Default(true)),
 	)
-	api.With(logoSizeLimit).POST("/oidc/clients/:id/logo", authz.OidcClientsWrite, httpserver.NoContent(m.clientHandler.updateClientLogoHandler),
+	admin.With(logoSizeLimit).POST("/oidc/clients/:id/logo", authz.OidcClientsWrite, httpserver.NoContent(m.clientHandler.updateClientLogoHandler),
 		option.Summary("Update client logo"),
 		option.Description("Upload or update the logo for an OIDC client"),
 		option.Tags("OIDC"),
@@ -368,7 +370,7 @@ func (m *Module) RegisterRoutes(root, api *authz.Router, logoSizeLimit gin.Handl
 	)
 
 	// The preview renders a user's claims, so it is guarded by the user scope rather than the client scope
-	api.GET("/oidc/clients/:id/preview/:userId", authz.UsersRead, httpserver.JSON(http.StatusOK, m.clientHandler.getClientPreviewHandler),
+	admin.GET("/oidc/clients/:id/preview/:userId", authz.UsersRead, httpserver.JSON(http.StatusOK, m.clientHandler.getClientPreviewHandler),
 		option.Summary("Preview OIDC client data for user"),
 		option.Description("Get a preview of the OIDC data (ID token, access token, userinfo) that would be sent to the client for a specific user"),
 		option.Tags("OIDC"),
@@ -385,7 +387,7 @@ func (m *Module) RegisterRoutes(root, api *authz.Router, logoSizeLimit gin.Handl
 		openapi.List[model.UserAuthorizedOidcClient]("name"),
 		option.QueryBool("filters[hasLaunchURL]", "Filter clients by whether a launch URL is configured"),
 	)
-	api.GET("/oidc/users/:id/authorized-clients", authz.UsersRead, httpserver.JSON(http.StatusOK, m.clientHandler.listAuthorizedClientsHandler),
+	admin.GET("/oidc/users/:id/authorized-clients", authz.UsersRead, httpserver.JSON(http.StatusOK, m.clientHandler.listAuthorizedClientsHandler),
 		option.Summary("List authorized clients for a user"),
 		option.Description("Get a paginated list of OIDC clients that a specific user has authorized"),
 		option.Tags("OIDC"),

@@ -61,6 +61,7 @@ cd ../../.. && pnpm test                         # = playwright test in packages
 - **Handlers and API docs:** register JSON handlers through the typed endpoints in `internal/httpserver` (`JSON`, `BodyJSON`, `UpdateJSON`, `NoContent`, `BodyNoContent`), which bind the body, write the response and document both from the handler's types.
   Summaries, tags and parameters are fuego options at the registration on `authz.Router`, where a list route passes `openapi.List[Model]()` to document the pagination, sort columns and filters from the model's `sortable`/`filterable` tags, and only handlers that write files or several kinds of response use `httpserver.Handle` with `openapi` helpers; a route without docs stays out of the spec.
   `go run -tags exclude_frontend ./cmd/openapi` prints the spec the docs site renders, and a new tag must be added to `tags` in `internal/openapi`.
+  A route that requires an admin scope is registered on `r.Group("/admin")` so it lives below `/api/admin/`, which lets a proxy block the admin API with one rule; `authz.Router` panics on an admin route outside that prefix or any other route inside it.
 - Fosite comes from Pocket ID's **fork** `github.com/pocket-id/fosite`, not `github.com/ory/fosite`. It ports upstream fixes from `ory/hydra`.
 
 ## Frontend (SvelteKit)

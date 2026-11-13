@@ -319,10 +319,10 @@ func TestErrorHandlerMiddlewareChallengesUnauthenticatedMCPRequests(t *testing.T
 	router := gin.New()
 	router.Use(NewErrorHandlerMiddleware().Add())
 	notSignedIn := httpserver.Handle(func(c *gin.Context) error { return apperror.NotSignedIn() }).Handler
-	router.GET("/mcp", notSignedIn)
+	router.GET("/api/admin/mcp", notSignedIn)
 	router.GET("/api/users", notSignedIn)
 
-	for path, challenged := range map[string]bool{"/mcp": true, "/api/users": false} {
+	for path, challenged := range map[string]bool{"/api/admin/mcp": true, "/api/users": false} {
 		recorder := httptest.NewRecorder()
 		router.ServeHTTP(recorder, httptest.NewRequestWithContext(t.Context(), http.MethodGet, path, nil))
 

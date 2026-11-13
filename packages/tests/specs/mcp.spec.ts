@@ -44,7 +44,7 @@ test.describe('MCP server', () => {
 		const challenge = response.headers()['www-authenticate'];
 		const metadataURL = challenge.match(/resource_metadata="([^"]+)"/)![1];
 
-		// MCP clients refuse metadata whose resource isn't the endpoint URL
+		// MCP clients refuse metadata whose resource isn't the URL they connect to, even though /mcp redirects below the admin prefix
 		const metadata = await (await api.get(metadataURL)).json();
 		expect(metadata.resource).toBe(`${baseURL}/mcp`);
 		expect(metadata.authorization_servers).toEqual([baseURL]);

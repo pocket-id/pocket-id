@@ -107,7 +107,7 @@ func (m *Middleware) require(scope Scope, optional bool) gin.HandlerFunc {
 	}
 }
 
-// requireDispatch returns the handler of a dispatch route, which authenticates every credential except a browser session and checks no scope
+// requireDispatch returns the handler of a dispatch route, which authenticates every credential except a browser session and requires some admin scope
 func (m *Middleware) requireDispatch() gin.HandlerFunc {
 	return func(c *gin.Context) {
 		principal, rejectedKind, err := m.authenticate(c, func(kind PrincipalKind) bool { return kind != KindSession })
@@ -119,6 +119,13 @@ func (m *Middleware) requireDispatch() gin.HandlerFunc {
 		if principal == nil {
 			c.Abort()
 			_ = c.Error(rejectionError(rejectedKind))
+			return
+		}
+
+		// Dispatch routes only serve admin operations, so a caller without any admin scope is turned away before the handler
+		if !principal.Scopes.hasAdmin() {
+			c.Abort()
+			_ = c.Error(apperror.MissingPermission())
 			return
 		}
 

@@ -13,6 +13,9 @@ import (
 	"github.com/pocket-id/pocket-id/backend/internal/httpserver"
 )
 
+// AdminPathPrefix is the path below which every route requiring an admin scope lives, and nothing else, so a reverse proxy can keep the admin API private with a single rule
+const AdminPathPrefix = "/api/admin/"
+
 // Router registers routes together with the scope each one requires and their OpenAPI documentation
 // Every route under /api must be registered through a Router or PublicRouter, which a test over the complete route table checks with IsDeclared
 type Router struct {
@@ -71,17 +74,30 @@ func (r *Router) DELETE(relativePath string, scope Scope, handler httpserver.End
 // Handle registers a route that requires the scope, running authorization before every other handler of the route
 // The docs follow the documentation that the handler's types imply, so they can override it
 func (r *Router) Handle(method, relativePath string, scope Scope, handler httpserver.Endpoint, docs ...fuego.RouteOption) {
+	fullPath := joinPaths(r.group.BasePath(), relativePath)
+
 	// An unknown scope can never be granted, so it is a programming error just like a duplicate route in gin
 	if !scope.Known() {
-		panic(fmt.Sprintf("route %s %s requires unknown scope %q", method, joinPaths(r.group.BasePath(), relativePath), scope))
+		panic(fmt.Sprintf("route %s %s requires unknown scope %q", method, fullPath, scope))
+	}
+
+	// A route outside the admin prefix that needs an admin scope, or the other way round, would slip past a proxy that blocks the prefix or be blocked by it
+	isAdmin := definitions[scope].category == CategoryAdmin
+	if isAdmin != strings.HasPrefix(fullPath, AdminPathPrefix) {
+		panic(fmt.Sprintf("route %s %s requires scope %q, so it must be registered below %s if and only if that scope is an admin scope", method, fullPath, scope, AdminPathPrefix))
 	}
 
 	r.auth.register(r.group, method, relativePath, r.chain(r.auth.require(scope, r.optional), handler.Handler), slices.Concat(handler.Docs, docs))
 }
 
-// Dispatch registers a route that serves several operations needing different scopes, such as the MCP endpoint
-// It accepts every credential except a browser session and leaves the scope check to the handler, which must check the principal's scopes before each operation
+// Dispatch registers a route that serves several admin operations needing different scopes, such as the MCP endpoint
+// It accepts every credential holding some admin scope except a browser session, and leaves the rest of the scope check to the handler, which must check the principal's scopes before each operation
 func (r *Router) Dispatch(method, relativePath string, handler gin.HandlerFunc) {
+	fullPath := joinPaths(r.group.BasePath(), relativePath)
+	if !strings.HasPrefix(fullPath, AdminPathPrefix) {
+		panic(fmt.Sprintf("dispatch route %s %s must be registered below %s", method, fullPath, AdminPathPrefix))
+	}
+
 	r.auth.register(r.group, method, relativePath, r.chain(r.auth.requireDispatch(), handler), nil)
 }
 
@@ -111,6 +127,11 @@ func (r *PublicRouter) POST(relativePath string, handler httpserver.Endpoint, do
 
 // Handle registers a public route
 func (r *PublicRouter) Handle(method, relativePath string, handler httpserver.Endpoint, docs ...fuego.RouteOption) {
+	fullPath := joinPaths(r.group.BasePath(), relativePath)
+	if strings.HasPrefix(fullPath, AdminPathPrefix) {
+		panic(fmt.Sprintf("public route %s %s must not be registered below %s", method, fullPath, AdminPathPrefix))
+	}
+
 	r.auth.register(r.group, method, relativePath, slices.Concat(r.handlers, []gin.HandlerFunc{handler.Handler}), slices.Concat(handler.Docs, docs))
 }
 

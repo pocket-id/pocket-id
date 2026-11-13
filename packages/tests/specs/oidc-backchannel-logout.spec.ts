@@ -279,7 +279,7 @@ test('An admin signing a user out everywhere also ends their offline_access gran
 	);
 	await craig.context.close();
 
-	expect((await request.delete(`/api/users/${users.craig.id}/sessions`)).status()).toBe(204);
+	expect((await request.delete(`/api/admin/users/${users.craig.id}/sessions`)).status()).toBe(204);
 
 	// The ended session is still announced, and waiting for it keeps its retries from reaching later tests
 	await expect.poll(() => receiver.deliveries.length).toBe(1);
@@ -329,9 +329,9 @@ test('Disabling a user delivers logout to their authorized clients', async ({
 	receiver
 }) => {
 	const clients = [oidcClients.nextcloud, oidcClients.tailscale];
-	const userResponse = await request.get(`/api/users/${users.tim.id}`);
+	const userResponse = await request.get(`/api/admin/users/${users.tim.id}`);
 	expect(userResponse.ok()).toBeTruthy();
-	const disabled = await request.put(`/api/users/${users.tim.id}`, {
+	const disabled = await request.put(`/api/admin/users/${users.tim.id}`, {
 		data: { ...(await userResponse.json()), disabled: true }
 	});
 	expect(disabled.ok()).toBeTruthy();
@@ -367,9 +367,9 @@ test('Disabling a user also names each session they are still signed in with', a
 	);
 	await other.context.close();
 
-	const userResponse = await request.get(`/api/users/${users.tim.id}`);
+	const userResponse = await request.get(`/api/admin/users/${users.tim.id}`);
 	expect(userResponse.ok()).toBeTruthy();
-	const disabled = await request.put(`/api/users/${users.tim.id}`, {
+	const disabled = await request.put(`/api/admin/users/${users.tim.id}`, {
 		data: { ...(await userResponse.json()), disabled: true }
 	});
 	expect(disabled.ok()).toBeTruthy();
@@ -398,17 +398,17 @@ test('Deleting a client still notifies its users after authorizations are delete
 	receiver
 }) => {
 	const client = oidcClients.nextcloud;
-	expect((await request.delete(`/api/oidc/clients/${client.id}`)).ok()).toBeTruthy();
-	expect((await request.get(`/api/oidc/clients/${client.id}`)).status()).toBe(404);
+	expect((await request.delete(`/api/admin/oidc/clients/${client.id}`)).ok()).toBeTruthy();
+	expect((await request.get(`/api/admin/oidc/clients/${client.id}`)).status()).toBe(404);
 	await expect.poll(() => receiver.deliveries.length).toBe(1);
 	await verifyLogoutToken(request, receiver.deliveries[0], client.id, users.tim.id);
 });
 
 test('Disabling a client delivers logout to its users', async ({ request, receiver }) => {
 	const client = oidcClients.nextcloud;
-	const clientResponse = await request.get(`/api/oidc/clients/${client.id}`);
+	const clientResponse = await request.get(`/api/admin/oidc/clients/${client.id}`);
 	expect(clientResponse.ok()).toBeTruthy();
-	const disabled = await request.put(`/api/oidc/clients/${client.id}`, {
+	const disabled = await request.put(`/api/admin/oidc/clients/${client.id}`, {
 		data: { ...(await clientResponse.json()), disabled: true }
 	});
 	expect(disabled.ok()).toBeTruthy();
@@ -423,14 +423,14 @@ test('Group access is retained through another allowed group and revoked after t
 	const client = oidcClients.tailscale;
 	expect(
 		(
-			await request.put(`/api/oidc/clients/${client.id}/allowed-user-groups`, {
+			await request.put(`/api/admin/oidc/clients/${client.id}/allowed-user-groups`, {
 				data: { userGroupIds: [userGroups.developers.id, userGroups.designers.id] }
 			})
 		).ok()
 	).toBeTruthy();
 	expect(
 		(
-			await request.put(`/api/users/${users.tim.id}/user-groups`, {
+			await request.put(`/api/admin/users/${users.tim.id}/user-groups`, {
 				data: { userGroupIds: [userGroups.designers.id] }
 			})
 		).ok()
@@ -441,7 +441,7 @@ test('Group access is retained through another allowed group and revoked after t
 	expect(receiver.deliveries).toHaveLength(0);
 	expect(
 		(
-			await request.put(`/api/users/${users.tim.id}/user-groups`, {
+			await request.put(`/api/admin/users/${users.tim.id}/user-groups`, {
 				data: { userGroupIds: [] }
 			})
 		).ok()
@@ -454,7 +454,7 @@ test('Deleting a user still notifies their clients after authorizations are dele
 	request,
 	receiver
 }) => {
-	const response = await request.delete(`/api/users/${users.tim.id}`);
+	const response = await request.delete(`/api/admin/users/${users.tim.id}`);
 	expect(response.status()).toBe(204);
 	await expect.poll(() => receiver.deliveries.length).toBe(2);
 	for (const client of [oidcClients.nextcloud, oidcClients.tailscale]) {
@@ -471,7 +471,7 @@ test('Changing a client’s allowed groups logs out users only after their last 
 	receiver
 }) => {
 	const client = oidcClients.tailscale;
-	const endpoint = `/api/oidc/clients/${client.id}/allowed-user-groups`;
+	const endpoint = `/api/admin/oidc/clients/${client.id}/allowed-user-groups`;
 	expect(
 		(
 			await request.put(endpoint, {

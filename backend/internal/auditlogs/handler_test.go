@@ -48,7 +48,7 @@ func TestAuditLogRoutesPreservePermissionsAndResponses(t *testing.T) {
 	})
 	module.RegisterRoutes(authz.NewMiddleware(auditLogTestAuthenticator{}).Router(router.Group("/api")))
 
-	for _, path := range []string{"/audit-logs", "/audit-logs/all", "/audit-logs/filters/client-names", "/audit-logs/filters/users"} {
+	for _, path := range []string{"/audit-logs", "/admin/audit-logs", "/admin/audit-logs/filters/client-names", "/admin/audit-logs/filters/users"} {
 		for _, role := range []string{"", "user", "admin"} {
 			t.Run(path+"/"+role, func(t *testing.T) {
 				request := httptest.NewRequestWithContext(t.Context(), http.MethodGet, "/api"+path, nil)
@@ -95,7 +95,7 @@ func (auditLogTestAuthenticator) Authenticate(c *gin.Context) (*authz.Principal,
 func assertAuditLogRouteResponse(t *testing.T, path string, response *httptest.ResponseRecorder) {
 	t.Helper()
 	switch path {
-	case "/audit-logs", "/audit-logs/all":
+	case "/audit-logs", "/admin/audit-logs":
 		var body struct {
 			Data       []map[string]any `json:"data"`
 			Pagination map[string]any   `json:"pagination"`
@@ -103,7 +103,7 @@ func assertAuditLogRouteResponse(t *testing.T, path string, response *httptest.R
 		require.NoError(t, json.Unmarshal(response.Body.Bytes(), &body))
 		require.NotEmpty(t, body.Pagination)
 		count := 1
-		if path == "/audit-logs/all" {
+		if path == "/admin/audit-logs" {
 			count = 3
 		}
 		require.Len(t, body.Data, count)
@@ -120,11 +120,11 @@ func assertAuditLogRouteResponse(t *testing.T, path string, response *httptest.R
 				require.Equal(t, "alice", entry["userID"])
 			}
 		}
-	case "/audit-logs/filters/client-names":
+	case "/admin/audit-logs/filters/client-names":
 		var names []string
 		require.NoError(t, json.Unmarshal(response.Body.Bytes(), &names))
 		require.ElementsMatch(t, []string{"alice-client", "bob-client", "carol-client"}, names)
-	case "/audit-logs/filters/users":
+	case "/admin/audit-logs/filters/users":
 		var users map[string]string
 		require.NoError(t, json.Unmarshal(response.Body.Bytes(), &users))
 		require.Equal(t, map[string]string{"alice": "alice", "bob": "bob", "carol": "carol"}, users)

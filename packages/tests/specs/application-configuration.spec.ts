@@ -42,7 +42,7 @@ test('Disable automatic client secret creation', async ({ page }) => {
 	await page.reload();
 	await expect(autoCreateSecret).not.toBeChecked();
 
-	const response = await page.request.post('/api/oidc/clients', {
+	const response = await page.request.post('/api/admin/oidc/clients', {
 		data: { name: 'No Automatic Secret' }
 	});
 	expect(response.status()).toBe(201);
@@ -102,7 +102,7 @@ test('Invalid email configuration is not saved', async ({ page }) => {
 	page.on('request', (request) => {
 		if (
 			request.method() === 'PATCH' &&
-			new URL(request.url()).pathname === '/api/application-configuration'
+			new URL(request.url()).pathname === '/api/admin/application-configuration'
 		) {
 			updateRequests++;
 		}
@@ -404,7 +404,7 @@ test.describe('Update application images', () => {
 				const url = new URL(response.url());
 				return (
 					response.request().method() === 'DELETE' &&
-					url.pathname === '/api/application-assets/logo' &&
+					url.pathname === '/api/admin/application-assets/logo' &&
 					url.searchParams.get('light') === String(light)
 				);
 			})

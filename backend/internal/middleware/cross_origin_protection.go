@@ -57,7 +57,8 @@ func isCrossOriginAllowedPath(path string) bool {
 		"/api/oidc/par",
 		"/api/oidc/device/authorize",
 		// The MCP endpoint never accepts the session cookie, so there is nothing to forge, and browser MCP clients have to reach it anonymously to get its 401 challenge
-		authz.MCPPath:
+		authz.MCPPath,
+		authz.MCPEndpointPath:
 		return true
 	default:
 		return false

@@ -79,7 +79,10 @@ func (m *Module) RegisterRoutes(r *authz.Router, uploadLimit gin.HandlerFunc) {
 		fallback,
 		openapi.File("Font file", "font/woff2", "font/woff", "font/ttf", "font/otf"),
 	)
-	r.GET("/application-assets/default-profile-picture", authz.ConfigRead, httpserver.Handle(m.handler.getDefaultProfilePicture),
+
+	// Everything below changes the assets or reads the one only the admin UI shows
+	admin := r.Group("/admin")
+	admin.GET("/application-assets/default-profile-picture", authz.ConfigRead, httpserver.Handle(m.handler.getDefaultProfilePicture),
 		option.Summary("Get default profile picture image"),
 		option.Description("Get the default profile picture image for the application"),
 		option.Tags("Application Assets"),
@@ -87,7 +90,7 @@ func (m *Module) RegisterRoutes(r *authz.Router, uploadLimit gin.HandlerFunc) {
 		openapi.File("Default profile picture image", imageTypes...),
 	)
 
-	uploads := r.With(uploadLimit)
+	uploads := admin.With(uploadLimit)
 	uploads.PUT("/application-assets/logo", authz.ConfigWrite, httpserver.NoContent(m.handler.updateLogoHandler),
 		option.Summary("Update logo"),
 		option.Description("Update the application logo"),
@@ -126,23 +129,23 @@ func (m *Module) RegisterRoutes(r *authz.Router, uploadLimit gin.HandlerFunc) {
 		openapi.Upload("Font file (.woff2/.woff/.ttf/.otf)"),
 	)
 
-	r.DELETE("/application-assets/logo", authz.ConfigWrite, httpserver.NoContent(m.handler.deleteLogoHandler),
+	admin.DELETE("/application-assets/logo", authz.ConfigWrite, httpserver.NoContent(m.handler.deleteLogoHandler),
 		option.Summary("Delete logo image"),
 		option.Description("Delete the custom application logo and restore the default logo"),
 		option.Tags("Application Assets"),
 		option.QueryBool("light", "Light mode logo (true) or dark mode logo (false)", param.Default(true)),
 	)
-	r.DELETE("/application-assets/background", authz.ConfigWrite, httpserver.NoContent(m.handler.deleteBackgroundImageHandler),
+	admin.DELETE("/application-assets/background", authz.ConfigWrite, httpserver.NoContent(m.handler.deleteBackgroundImageHandler),
 		option.Summary("Delete background image"),
 		option.Description("Delete the application background image"),
 		option.Tags("Application Assets"),
 	)
-	r.DELETE("/application-assets/default-profile-picture", authz.ConfigWrite, httpserver.NoContent(m.handler.deleteDefaultProfilePicture),
+	admin.DELETE("/application-assets/default-profile-picture", authz.ConfigWrite, httpserver.NoContent(m.handler.deleteDefaultProfilePicture),
 		option.Summary("Delete default profile picture image"),
 		option.Description("Delete the default profile picture image"),
 		option.Tags("Application Assets"),
 	)
-	r.DELETE("/application-assets/font", authz.ConfigWrite, httpserver.NoContent(m.handler.deleteFontHandler),
+	admin.DELETE("/application-assets/font", authz.ConfigWrite, httpserver.NoContent(m.handler.deleteFontHandler),
 		option.Summary("Delete title font"),
 		option.Description("Delete the custom font of page and dialog titles"),
 		option.Tags("Application Assets"),

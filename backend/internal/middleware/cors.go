@@ -28,10 +28,10 @@ func (m *CorsMiddleware) Add() gin.HandlerFunc {
 			c.Writer.Header().Set("Access-Control-Allow-Origin", "*")
 			c.Writer.Header().Set("Access-Control-Allow-Headers", "Authorization")
 			c.Writer.Header().Set("Access-Control-Allow-Methods", "GET, POST")
-		case path == authz.MCPPath || (strings.HasPrefix(path, "/api/") && (c.Request.Method == http.MethodOptions || c.GetHeader("Authorization") != "")):
+		case path == authz.MCPPath || path == authz.MCPEndpointPath || (strings.HasPrefix(path, "/api/") && (c.Request.Method == http.MethodOptions || c.GetHeader("Authorization") != "")):
 			// Browser apps on other origins call the API with OAuth access tokens
 			// Credentials are never allowed, so the browser refuses to send or expose a cross-origin request that relies on the session cookie
-			// The MCP endpoint also answers anonymous requests, so browser MCP clients can read the 401 challenge that starts their OAuth flow
+			// The MCP endpoint and the URL that redirects to it also answer anonymous requests, so browser MCP clients can read the 401 challenge that starts their OAuth flow
 			c.Writer.Header().Set("Access-Control-Allow-Origin", "*")
 			c.Writer.Header().Set("Access-Control-Allow-Headers", "Authorization, Content-Type, Mcp-Protocol-Version")
 			c.Writer.Header().Set("Access-Control-Allow-Methods", "GET, POST, PUT, PATCH, DELETE")

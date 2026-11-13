@@ -522,10 +522,10 @@ test('A client calls Pocket ID with an access token for the built-in API', async
 		storageState: { cookies: [], origins: [] },
 		extraHTTPHeaders: { Authorization: `Bearer ${res.access_token}` }
 	});
-	expect((await apiClient.get('/api/users')).status()).toBe(200);
-	expect((await apiClient.post('/api/users', { data: { username: 'not-allowed' } })).status()).toBe(
-		403
-	);
+	expect((await apiClient.get('/api/admin/users')).status()).toBe(200);
+	expect(
+		(await apiClient.post('/api/admin/users', { data: { username: 'not-allowed' } })).status()
+	).toBe(403);
 	await apiClient.dispose();
 });
 
@@ -565,7 +565,7 @@ test('A client calls Pocket ID as itself with the client credentials grant', asy
 		storageState: { cookies: [], origins: [] },
 		extraHTTPHeaders: { Authorization: `Bearer ${res.access_token}` }
 	});
-	expect((await apiClient.get('/api/users')).status()).toBe(200);
+	expect((await apiClient.get('/api/admin/users')).status()).toBe(200);
 	// The client has no account of its own
 	const me = await apiClient.get('/api/users/me');
 	expect(me.status()).toBe(403);
@@ -578,11 +578,11 @@ test('Consent screen warns before an app gets scopes that amount to admin access
 	baseURL
 }) => {
 	const client = oidcClients.immich;
-	const api = await (await page.request.get(`/api/apis/${pocketIdApi.id}`)).json();
+	const api = await (await page.request.get(`/api/admin/apis/${pocketIdApi.id}`)).json();
 	const permissionIds = api.permissions
 		.filter((p: { key: string }) => ['users:read', 'users:write'].includes(p.key))
 		.map((p: { id: string }) => p.id);
-	await page.request.put(`/api/apis/${pocketIdApi.id}/clients/${client.id}`, {
+	await page.request.put(`/api/admin/apis/${pocketIdApi.id}/clients/${client.id}`, {
 		data: {
 			userDelegatedAccess: true,
 			clientAccess: false,

@@ -28,7 +28,7 @@ func New(deps Dependencies) *Module {
 
 // RegisterRoutes mounts the admin CRUD endpoints and the client assignment endpoints
 func (m *Module) RegisterRoutes(r *authz.Router) {
-	policies := r.Group("/oidc/claim-mapping-policies")
+	policies := r.Group("/admin/oidc/claim-mapping-policies")
 	policies.GET("", authz.OidcClaimMappingPoliciesRead, httpserver.JSON(http.StatusOK, m.handler.list),
 		option.Summary("List OIDC claim mapping policies"),
 		option.Description("Get a paginated list of OIDC claim mapping policies with optional search and sorting"),
@@ -94,7 +94,7 @@ func (m *Module) RegisterRoutes(r *authz.Router) {
 		option.Path("clientId", "OIDC Client ID"),
 	)
 
-	scopes := r.Group("/oidc/custom-scopes")
+	scopes := r.Group("/admin/oidc/custom-scopes")
 	scopes.GET("", authz.OidcClaimMappingPoliciesRead, httpserver.JSON(http.StatusOK, m.handler.listCustomScopes),
 		option.Summary("List custom OIDC scopes"),
 		option.Description("Get a paginated list of the custom OIDC scopes with optional search and sorting"),

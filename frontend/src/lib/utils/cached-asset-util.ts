@@ -30,11 +30,11 @@ export const cachedEmailLogo: CachedAsset = {
 export const cachedDefaultProfilePicture: CachedAsset = {
 	getUrl: () =>
 		getCachedAssetUrl(
-			new URL('/api/application-assets/default-profile-picture', window.location.origin)
+			new URL('/api/admin/application-assets/default-profile-picture', window.location.origin)
 		),
 	bustCache: () =>
 		bustAssetCache(
-			new URL('/api/application-assets/default-profile-picture', window.location.origin)
+			new URL('/api/admin/application-assets/default-profile-picture', window.location.origin)
 		)
 };
 

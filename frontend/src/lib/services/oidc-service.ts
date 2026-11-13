@@ -61,28 +61,29 @@ class OidcService extends APIService {
 	};
 
 	listClients = async (options?: ListRequestOptions) => {
-		const res = await this.api.get('/oidc/clients', {
+		const res = await this.api.get('/admin/oidc/clients', {
 			params: options
 		});
 		return res.data as Paginated<OidcClientWithAllowedGroups>;
 	};
 
 	createClient = async (client: OidcClientCreate) =>
-		(await this.api.post('/oidc/clients', client)).data as OidcClientCreated;
+		(await this.api.post('/admin/oidc/clients', client)).data as OidcClientCreated;
 
 	removeClient = async (id: string) => {
-		await this.api.delete(`/oidc/clients/${encodeClientIdParam(id)}`);
+		await this.api.delete(`/admin/oidc/clients/${encodeClientIdParam(id)}`);
 	};
 
 	getClient = async (id: string) =>
-		(await this.api.get(`/oidc/clients/${encodeClientIdParam(id)}`))
+		(await this.api.get(`/admin/oidc/clients/${encodeClientIdParam(id)}`))
 			.data as OidcClientWithAllowedUserGroups;
 
 	updateClient = async (id: string, client: Partial<OidcClientUpdate>) =>
-		(await this.api.patch(`/oidc/clients/${encodeClientIdParam(id)}`, client)).data as OidcClient;
+		(await this.api.patch(`/admin/oidc/clients/${encodeClientIdParam(id)}`, client))
+			.data as OidcClient;
 
 	refreshClient = async (id: string) =>
-		(await this.api.post(`/oidc/clients/${encodeClientIdParam(id)}/refresh`))
+		(await this.api.post(`/admin/oidc/clients/${encodeClientIdParam(id)}/refresh`))
 			.data as OidcClientWithAllowedUserGroups;
 
 	updateClientLogo = async (client: OidcClient, image: File | null, light: boolean = true) => {
@@ -99,45 +100,48 @@ class OidcService extends APIService {
 		const formData = new FormData();
 		formData.append('file', image!);
 
-		await this.api.post(`/oidc/clients/${encodeClientIdParam(client.id)}/logo`, formData, {
+		await this.api.post(`/admin/oidc/clients/${encodeClientIdParam(client.id)}/logo`, formData, {
 			params: { light }
 		});
 		cachedOidcClientLogo.bustCache(client.id);
 	};
 
 	removeClientLogo = async (id: string, light: boolean = true) => {
-		await this.api.delete(`/oidc/clients/${encodeClientIdParam(id)}/logo`, {
+		await this.api.delete(`/admin/oidc/clients/${encodeClientIdParam(id)}/logo`, {
 			params: { light }
 		});
 		cachedOidcClientLogo.bustCache(id);
 	};
 
 	searchLogoPresets = async (search: string) => {
-		const { data } = await this.api.get<OidcClientLogoPreset[]>('/oidc/logo-presets', {
+		const { data } = await this.api.get<OidcClientLogoPreset[]>('/admin/oidc/logo-presets', {
 			params: { search }
 		});
 		return data;
 	};
 
 	listClientSecrets = async (id: string) =>
-		(await this.api.get(`/oidc/clients/${encodeClientIdParam(id)}/secrets`))
+		(await this.api.get(`/admin/oidc/clients/${encodeClientIdParam(id)}/secrets`))
 			.data as OidcClientSecret[];
 
 	createClientSecret = async (id: string, expiresAt: Date | null) =>
 		(
-			await this.api.post(`/oidc/clients/${encodeClientIdParam(id)}/secrets`, {
+			await this.api.post(`/admin/oidc/clients/${encodeClientIdParam(id)}/secrets`, {
 				expiresAt: expiresAt?.toISOString() ?? null
 			})
 		).data as OidcClientSecretCreated;
 
 	deleteClientSecret = async (id: string, secretId: string) => {
-		await this.api.delete(`/oidc/clients/${encodeClientIdParam(id)}/secrets/${secretId}`);
+		await this.api.delete(`/admin/oidc/clients/${encodeClientIdParam(id)}/secrets/${secretId}`);
 	};
 
 	updateAllowedUserGroups = async (id: string, userGroupIds: string[]) => {
-		const res = await this.api.put(`/oidc/clients/${encodeClientIdParam(id)}/allowed-user-groups`, {
-			userGroupIds
-		});
+		const res = await this.api.put(
+			`/admin/oidc/clients/${encodeClientIdParam(id)}/allowed-user-groups`,
+			{
+				userGroupIds
+			}
+		);
 		return res.data as OidcClientWithAllowedUserGroups;
 	};
 
@@ -152,7 +156,7 @@ class OidcService extends APIService {
 
 	getClientPreview = async (id: string, userId: string, scopes: string) => {
 		const response = await this.api.get(
-			`/oidc/clients/${encodeClientIdParam(id)}/preview/${userId}`,
+			`/admin/oidc/clients/${encodeClientIdParam(id)}/preview/${userId}`,
 			{
 				params: { scopes }
 			}
@@ -176,7 +180,7 @@ class OidcService extends APIService {
 
 	getScimResourceProvider = async (clientId: string) => {
 		const res = await this.api.get(
-			`/oidc/clients/${encodeClientIdParam(clientId)}/scim-service-provider`
+			`/admin/oidc/clients/${encodeClientIdParam(clientId)}/scim-service-provider`
 		);
 		return res.data as ScimServiceProvider;
 	};

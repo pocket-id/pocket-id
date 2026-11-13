@@ -73,13 +73,14 @@ func New(deps Dependencies) (*Module, error) {
 // RegisterRoutes mounts the one-time access token endpoints
 // The rate limiters throttle the public exchange and email endpoints
 func (m *Module) RegisterRoutes(r *authz.Router, exchangeRateLimit, emailRateLimit gin.HandlerFunc) {
-	r.POST("/users/:id/one-time-access-token", authz.UsersWrite, httpserver.BodyJSON(http.StatusCreated, m.handler.createTokenForUser),
+	admin := r.Group("/admin")
+	admin.POST("/users/:id/one-time-access-token", authz.UsersWrite, httpserver.BodyJSON(http.StatusCreated, m.handler.createTokenForUser),
 		option.Summary("Create one-time access token for user (admin)"),
 		option.Description("Generate a one-time access token for a specific user (admin only)"),
 		option.Tags("Users"),
 		option.Path("id", "User ID"),
 	)
-	r.POST("/users/:id/one-time-access-email", authz.UsersWrite, httpserver.BodyNoContent(m.handler.requestEmailAsAdmin),
+	admin.POST("/users/:id/one-time-access-email", authz.UsersWrite, httpserver.BodyNoContent(m.handler.requestEmailAsAdmin),
 		option.Summary("Request one-time access email (admin)"),
 		option.Description("Request a one-time access email for a specific user (admin only)"),
 		option.Tags("Users"),

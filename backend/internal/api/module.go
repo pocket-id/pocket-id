@@ -70,7 +70,7 @@ func (m *Module) DescribePermissions(ctx context.Context, audience string, keys 
 
 // RegisterRoutes mounts the admin CRUD endpoints
 func (m *Module) RegisterRoutes(r *authz.Router) {
-	apis := r.Group("/apis")
+	apis := r.Group("/admin/apis")
 	apis.GET("", authz.APIsRead, httpserver.JSON(http.StatusOK, m.handler.list),
 		option.Summary("List APIs"),
 		option.Description("Get a paginated list of APIs with optional search and sorting"),
@@ -148,7 +148,7 @@ func (m *Module) RegisterRoutes(r *authz.Router) {
 		option.Path("clientId", "OIDC Client ID"),
 	)
 
-	access := r.Group("/api-access")
+	access := r.Group("/admin/api-access")
 	access.GET("/:clientId/apis", authz.APIsRead, httpserver.JSON(http.StatusOK, m.handler.listClientApis),
 		option.Summary("List APIs a client may access"),
 		option.Description("Get every API the OIDC client may request tokens for, with its access and permissions split into user-delegated and client (machine-to-machine) access"),

@@ -52,18 +52,19 @@ func New(deps Dependencies) (*Module, error) {
 
 // RegisterRoutes mounts the SCIM service provider endpoints, which belong to an OIDC client
 func (m *Module) RegisterRoutes(r *authz.Router) {
-	r.GET("/oidc/clients/:id/scim-service-provider", authz.OidcClientsRead, httpserver.JSON(http.StatusOK, m.handler.getServiceProviderByClient),
+	admin := r.Group("/admin")
+	admin.GET("/oidc/clients/:id/scim-service-provider", authz.OidcClientsRead, httpserver.JSON(http.StatusOK, m.handler.getServiceProviderByClient),
 		option.Summary("Get SCIM service provider"),
 		option.Description("Get the SCIM service provider configuration for an OIDC client"),
 		option.Tags("OIDC"),
 		option.Path("id", "Client ID"),
 	)
-	r.POST("/scim/service-provider", authz.OidcClientsWrite, httpserver.BodyJSON(http.StatusCreated, m.handler.createServiceProvider),
+	admin.POST("/scim/service-provider", authz.OidcClientsWrite, httpserver.BodyJSON(http.StatusCreated, m.handler.createServiceProvider),
 		option.Summary("Create SCIM service provider"),
 		option.Description("Create a new SCIM service provider"),
 		option.Tags("SCIM"),
 	)
-	r.POST("/scim/service-provider/:id/sync", authz.OidcClientsWrite, httpserver.Handle(m.handler.syncServiceProvider),
+	admin.POST("/scim/service-provider/:id/sync", authz.OidcClientsWrite, httpserver.Handle(m.handler.syncServiceProvider),
 		option.Summary("Sync SCIM service provider"),
 		option.Description("Trigger synchronization for a SCIM service provider"),
 		option.Tags("SCIM"),
@@ -76,9 +77,9 @@ func (m *Module) RegisterRoutes(r *authz.Router) {
 		option.Tags("SCIM"),
 		option.Path("id", "Service Provider ID"),
 	)
-	r.PUT("/scim/service-provider/:id", authz.OidcClientsWrite, httpserver.UpdateJSON(m.handler.updateServiceProvider), updateServiceProviderDocs)
-	r.PATCH("/scim/service-provider/:id", authz.OidcClientsWrite, httpserver.UpdateJSON(m.handler.updateServiceProvider), updateServiceProviderDocs)
-	r.DELETE("/scim/service-provider/:id", authz.OidcClientsWrite, httpserver.NoContent(m.handler.deleteServiceProvider),
+	admin.PUT("/scim/service-provider/:id", authz.OidcClientsWrite, httpserver.UpdateJSON(m.handler.updateServiceProvider), updateServiceProviderDocs)
+	admin.PATCH("/scim/service-provider/:id", authz.OidcClientsWrite, httpserver.UpdateJSON(m.handler.updateServiceProvider), updateServiceProviderDocs)
+	admin.DELETE("/scim/service-provider/:id", authz.OidcClientsWrite, httpserver.NoContent(m.handler.deleteServiceProvider),
 		option.Summary("Delete SCIM service provider"),
 		option.Description("Delete a SCIM service provider by ID"),
 		option.Tags("SCIM"),

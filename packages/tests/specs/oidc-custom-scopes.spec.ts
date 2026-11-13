@@ -8,7 +8,7 @@ import * as oidcUtil from '../utils/oidc.util';
 test.beforeEach(async ({ page }) => {
 	await cleanupBackend();
 	await setAppConfigValues(page.request, { enabledFeatures: '["claimMappings"]' });
-	await page.request.put(`/api/custom-claims/user/${users.tim.id}`, {
+	await page.request.put(`/api/admin/custom-claims/user/${users.tim.id}`, {
 		data: [
 			{ key: 'k8s_role', value: 'admin' },
 			{ key: 'caddyfile', value: 'tim.caddy' }
@@ -55,7 +55,7 @@ async function assignKubernetesPolicy(page: Page) {
 		accessToken: false,
 		userInfo: true
 	});
-	const res = await page.request.post('/api/oidc/claim-mapping-policies', {
+	const res = await page.request.post('/api/admin/oidc/claim-mapping-policies', {
 		data: {
 			name: 'Kubernetes',
 			isDefault: false,
@@ -64,7 +64,7 @@ async function assignKubernetesPolicy(page: Page) {
 	});
 	const policy = await res.json();
 	await page.request.post(
-		`/api/oidc/claim-mapping-policies/${policy.id}/clients/${oidcClients.immich.id}`
+		`/api/admin/oidc/claim-mapping-policies/${policy.id}/clients/${oidcClients.immich.id}`
 	);
 }
 
@@ -100,7 +100,7 @@ test('Create a custom scope that shows on the consent screen', async ({ page }) 
 test('A claim released with a custom scope reaches only clients whose policy uses the scope', async ({
 	page
 }) => {
-	await page.request.post('/api/oidc/custom-scopes', {
+	await page.request.post('/api/admin/oidc/custom-scopes', {
 		data: {
 			key: 'kuber',
 			name: 'Kubernetes role',

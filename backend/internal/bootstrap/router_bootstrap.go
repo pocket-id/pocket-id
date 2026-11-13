@@ -125,8 +125,7 @@ func shouldTraceRequest(r *http.Request) bool {
 	switch {
 	case strings.HasPrefix(p, "/api/"),
 		strings.HasPrefix(p, "/.well-known/"),
-		p == "/authorize",
-		p == authz.MCPPath:
+		p == "/authorize":
 		return true
 	default:
 		return false

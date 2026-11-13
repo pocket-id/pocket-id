@@ -154,6 +154,16 @@ func (s ScopeSet) Intersect(other ScopeSet) ScopeSet {
 	return set
 }
 
+// hasAdmin reports whether the set contains any admin scope
+func (s ScopeSet) hasAdmin() bool {
+	for scope := range s {
+		if definitions[scope].category == CategoryAdmin {
+			return true
+		}
+	}
+	return false
+}
+
 // unverifiedScopes are the scopes a user keeps while their email still has to be verified
 var unverifiedScopes = NewScopeSet(AccountRead, AccountWrite, AccountPasskeys, AccountPasskeysEnroll, AccountSession)
 
@@ -164,7 +174,10 @@ func ResourceURI(appURL string) string {
 }
 
 const (
-	MCPPath = "/mcp"
+	// MCPPath is the URL MCP clients connect to and the resource their tokens are issued for
+	// It redirects to MCPEndpointPath, so a proxy that blocks the admin prefix blocks the MCP endpoint too
+	MCPPath         = "/mcp"
+	MCPEndpointPath = AdminPathPrefix + "mcp"
 	// MCPResourceMetadataPath is where the RFC 9728 protected resource metadata of the MCP endpoint is served, which RFC 9728 derives by inserting the well-known prefix before the endpoint's path
 	MCPResourceMetadataPath = "/.well-known/oauth-protected-resource" + MCPPath
 )

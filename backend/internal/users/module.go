@@ -114,7 +114,8 @@ func New(deps Dependencies) (*Module, error) {
 }
 
 func (m *Module) RegisterRoutes(r *authz.Router, profilePictureSizeLimit gin.HandlerFunc) {
-	r.GET("/users", authz.UsersRead, httpserver.JSON(http.StatusOK, m.handler.listUsersHandler),
+	admin := r.Group("/admin")
+	admin.GET("/users", authz.UsersRead, httpserver.JSON(http.StatusOK, m.handler.listUsersHandler),
 		option.Summary("List users"),
 		option.Description("Get a paginated list of users with optional search and sorting"),
 		option.Tags("Users"),
@@ -126,13 +127,13 @@ func (m *Module) RegisterRoutes(r *authz.Router, profilePictureSizeLimit gin.Han
 		option.Description("Retrieve information about the currently authenticated user"),
 		option.Tags("Users"),
 	)
-	r.GET("/users/:id", authz.UsersRead, httpserver.JSON(http.StatusOK, m.handler.getUserHandler),
+	admin.GET("/users/:id", authz.UsersRead, httpserver.JSON(http.StatusOK, m.handler.getUserHandler),
 		option.Summary("Get user by ID"),
 		option.Description("Retrieve detailed information about a specific user"),
 		option.Tags("Users"),
 		option.Path("id", "User ID"),
 	)
-	r.POST("/users", authz.UsersWrite, httpserver.BodyJSON(http.StatusCreated, m.handler.createUserHandler),
+	admin.POST("/users", authz.UsersWrite, httpserver.BodyJSON(http.StatusCreated, m.handler.createUserHandler),
 		option.Summary("Create user"),
 		option.Description("Create a new user"),
 		option.Tags("Users"),
@@ -143,15 +144,15 @@ func (m *Module) RegisterRoutes(r *authz.Router, profilePictureSizeLimit gin.Han
 		option.Tags("Users"),
 		option.Path("id", "User ID"),
 	)
-	r.PUT("/users/:id", authz.UsersWrite, httpserver.UpdateJSON(m.handler.updateUserHandler), updateUserDocs)
-	r.PATCH("/users/:id", authz.UsersWrite, httpserver.UpdateJSON(m.handler.updateUserHandler), updateUserDocs)
-	r.GET("/users/:id/groups", authz.UsersRead, httpserver.JSON(http.StatusOK, m.handler.getUserGroupsHandler),
+	admin.PUT("/users/:id", authz.UsersWrite, httpserver.UpdateJSON(m.handler.updateUserHandler), updateUserDocs)
+	admin.PATCH("/users/:id", authz.UsersWrite, httpserver.UpdateJSON(m.handler.updateUserHandler), updateUserDocs)
+	admin.GET("/users/:id/groups", authz.UsersRead, httpserver.JSON(http.StatusOK, m.handler.getUserGroupsHandler),
 		option.Summary("Get user groups"),
 		option.Description("Retrieve all groups a specific user belongs to"),
 		option.Tags("Users", "User Groups"),
 		option.Path("id", "User ID"),
 	)
-	r.GET("/users/:id/webauthn-credentials", authz.UsersRead, httpserver.JSON(http.StatusOK, m.handler.listUserWebauthnCredentialsHandler),
+	admin.GET("/users/:id/webauthn-credentials", authz.UsersRead, httpserver.JSON(http.StatusOK, m.handler.listUserWebauthnCredentialsHandler),
 		option.Summary("List user passkeys"),
 		option.Description("Retrieve all WebAuthn credentials for a specific user"),
 		option.Tags("Users"),
@@ -164,13 +165,13 @@ func (m *Module) RegisterRoutes(r *authz.Router, profilePictureSizeLimit gin.Han
 	)
 	r.PUT("/users/me", authz.AccountWrite, httpserver.UpdateJSON(m.handler.updateCurrentUserHandler), updateCurrentUserDocs)
 	r.PATCH("/users/me", authz.AccountWrite, httpserver.UpdateJSON(m.handler.updateCurrentUserHandler), updateCurrentUserDocs)
-	r.DELETE("/users/:id", authz.UsersWrite, httpserver.NoContent(m.handler.deleteUserHandler),
+	admin.DELETE("/users/:id", authz.UsersWrite, httpserver.NoContent(m.handler.deleteUserHandler),
 		option.Summary("Delete user"),
 		option.Description("Delete a specific user by ID"),
 		option.Tags("Users"),
 		option.Path("id", "User ID"),
 	)
-	r.DELETE("/users/:id/webauthn-credentials/:credentialId", authz.UsersWrite, httpserver.NoContent(m.handler.deleteUserWebauthnCredentialHandler),
+	admin.DELETE("/users/:id/webauthn-credentials/:credentialId", authz.UsersWrite, httpserver.NoContent(m.handler.deleteUserWebauthnCredentialHandler),
 		option.Summary("Delete user passkey"),
 		option.Description("Delete a specific WebAuthn credential for a user"),
 		option.Tags("Users"),
@@ -178,7 +179,7 @@ func (m *Module) RegisterRoutes(r *authz.Router, profilePictureSizeLimit gin.Han
 		option.Path("credentialId", "Credential ID"),
 	)
 
-	r.PUT("/users/:id/user-groups", authz.UsersWrite, httpserver.BodyJSON(http.StatusOK, m.handler.updateUserGroups),
+	admin.PUT("/users/:id/user-groups", authz.UsersWrite, httpserver.BodyJSON(http.StatusOK, m.handler.updateUserGroups),
 		option.Summary("Update user groups"),
 		option.Description("Update the groups a specific user belongs to"),
 		option.Tags("Users"),
@@ -193,7 +194,7 @@ func (m *Module) RegisterRoutes(r *authz.Router, profilePictureSizeLimit gin.Han
 		openapi.File("PNG image", "image/png"),
 	)
 
-	r.With(profilePictureSizeLimit).PUT("/users/:id/profile-picture", authz.UsersWrite, httpserver.NoContent(m.handler.updateUserProfilePictureHandler),
+	admin.With(profilePictureSizeLimit).PUT("/users/:id/profile-picture", authz.UsersWrite, httpserver.NoContent(m.handler.updateUserProfilePictureHandler),
 		option.Summary("Update user profile picture"),
 		option.Description("Update a specific user's profile picture"),
 		option.Tags("Users"),
@@ -207,7 +208,7 @@ func (m *Module) RegisterRoutes(r *authz.Router, profilePictureSizeLimit gin.Han
 		openapi.Upload("Profile picture image file (PNG, JPG, or JPEG)"),
 	)
 
-	r.DELETE("/users/:id/profile-picture", authz.UsersWrite, httpserver.NoContent(m.handler.resetUserProfilePictureHandler),
+	admin.DELETE("/users/:id/profile-picture", authz.UsersWrite, httpserver.NoContent(m.handler.resetUserProfilePictureHandler),
 		option.Summary("Reset user profile picture"),
 		option.Description("Reset a specific user's profile picture to the default"),
 		option.Tags("Users"),

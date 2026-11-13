@@ -78,19 +78,20 @@ func (m *Module) RegisterRoutes(r *authz.Router) {
 		option.Tags("Sessions"),
 	)
 
-	r.GET("/users/:id/sessions", authz.UsersRead, httpserver.JSON(http.StatusOK, m.handler.listForUser),
+	admin := r.Group("/admin")
+	admin.GET("/users/:id/sessions", authz.UsersRead, httpserver.JSON(http.StatusOK, m.handler.listForUser),
 		option.Summary("List sessions of a user"),
 		option.Description("Get the browsers in which a user is signed in, most recently active first"),
 		option.Tags("Sessions"),
 		option.Path("id", "User ID"),
 	)
-	r.DELETE("/users/:id/sessions", authz.UsersWrite, httpserver.NoContent(m.handler.revokeAllForUser),
+	admin.DELETE("/users/:id/sessions", authz.UsersWrite, httpserver.NoContent(m.handler.revokeAllForUser),
 		option.Summary("Revoke all sessions of a user"),
 		option.Description("Sign a user out of every session and revoke every grant their apps hold, offline_access ones included"),
 		option.Tags("Sessions"),
 		option.Path("id", "User ID"),
 	)
-	r.DELETE("/users/:id/sessions/:sessionId", authz.UsersWrite, httpserver.NoContent(m.handler.revokeForUser),
+	admin.DELETE("/users/:id/sessions/:sessionId", authz.UsersWrite, httpserver.NoContent(m.handler.revokeForUser),
 		option.Summary("Revoke a session of a user"),
 		option.Description("Sign a user out of one of their sessions"),
 		option.Tags("Sessions"),

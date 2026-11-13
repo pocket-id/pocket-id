@@ -31,7 +31,8 @@ func (s *AppConfigService) RegisterRoutes(r *authz.Router, base *gin.RouterGroup
 		option.Description("Get all public application configurations"),
 		option.Tags("Application Configuration"),
 	)
-	r.GET("/application-configuration/all", authz.ConfigRead, httpserver.JSON(http.StatusOK, acc.listAllAppConfigHandler),
+	admin := r.Group("/admin")
+	admin.GET("/application-configuration", authz.ConfigRead, httpserver.JSON(http.StatusOK, acc.listAllAppConfigHandler),
 		option.Summary("List all application configurations"),
 		option.Description("Get all application configurations including private ones"),
 		option.Tags("Application Configuration"),
@@ -41,10 +42,10 @@ func (s *AppConfigService) RegisterRoutes(r *authz.Router, base *gin.RouterGroup
 		option.Description("Update application configuration settings, where PATCH changes only the fields in the body"),
 		option.Tags("Application Configuration"),
 	)
-	r.PUT("/application-configuration", authz.ConfigWrite, httpserver.UpdateJSON(acc.updateAppConfigHandler), updateAppConfigDocs)
-	r.PATCH("/application-configuration", authz.ConfigWrite, httpserver.UpdateJSON(acc.updateAppConfigHandler), updateAppConfigDocs)
+	admin.PUT("/application-configuration", authz.ConfigWrite, httpserver.UpdateJSON(acc.updateAppConfigHandler), updateAppConfigDocs)
+	admin.PATCH("/application-configuration", authz.ConfigWrite, httpserver.UpdateJSON(acc.updateAppConfigHandler), updateAppConfigDocs)
 
-	r.POST("/application-configuration/test-email", authz.ConfigWrite, httpserver.NoContent(acc.testEmailHandler),
+	admin.POST("/application-configuration/test-email", authz.ConfigWrite, httpserver.NoContent(acc.testEmailHandler),
 		option.Summary("Send test email"),
 		option.Description("Send a test email to verify email configuration"),
 		option.Tags("Application Configuration"),

@@ -6,7 +6,7 @@ export async function setAppConfigValues(
 	request: APIRequestContext,
 	values: Record<string, string>
 ) {
-	const configResponse = await request.get('/api/application-configuration/all');
+	const configResponse = await request.get('/api/admin/application-configuration');
 	expect(configResponse.ok()).toBe(true);
 
 	const config = Object.fromEntries(
@@ -15,7 +15,7 @@ export async function setAppConfigValues(
 		)
 	);
 
-	const updateResponse = await request.put('/api/application-configuration', {
+	const updateResponse = await request.put('/api/admin/application-configuration', {
 		data: { ...config, ...values }
 	});
 	expect(updateResponse.ok()).toBe(true);

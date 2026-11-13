@@ -59,8 +59,11 @@ func New(deps Dependencies) *Module {
 }
 
 func (m *Module) RegisterRoutes(r *authz.Router) {
+	// A 308 keeps the method, the body and the same-origin Authorization header, so clients reach the endpoint through the URL they were given
+	// The resource stays MCPPath, because clients refuse protected resource metadata that names another URL than the one they connect to
 	for _, method := range []string{http.MethodPost, http.MethodGet, http.MethodDelete} {
-		r.Dispatch(method, authz.MCPPath, m.serve)
+		r.Dispatch(method, authz.MCPEndpointPath, m.serve)
+		r.Public().Handle(method, authz.MCPPath, httpserver.Endpoint{Handler: redirectToEndpoint})
 	}
 	r.Public().GET(authz.MCPResourceMetadataPath, httpserver.Endpoint{Handler: protectedResourceMetadata},
 		option.Summary("Get OAuth 2.0 protected resource metadata of the MCP endpoint"),
@@ -68,6 +71,10 @@ func (m *Module) RegisterRoutes(r *authz.Router) {
 		option.Tags("Well Known"),
 		openapi.Response[map[string]any](http.StatusOK, "OAuth 2.0 protected resource metadata"),
 	)
+}
+
+func redirectToEndpoint(c *gin.Context) {
+	c.Redirect(http.StatusPermanentRedirect, authz.MCPEndpointPath)
 }
 
 func (m *Module) serve(c *gin.Context) {

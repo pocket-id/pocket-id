@@ -17,14 +17,14 @@ class SessionService extends APIService {
 	};
 
 	listForUser = async (userId: string) =>
-		(await this.api.get(`/users/${userId}/sessions`)).data as Session[];
+		(await this.api.get(`/admin/users/${userId}/sessions`)).data as Session[];
 
 	revokeForUser = async (userId: string, id: string) => {
-		await this.api.delete(`/users/${userId}/sessions/${id}`);
+		await this.api.delete(`/admin/users/${userId}/sessions/${id}`);
 	};
 
 	revokeAllForUser = async (userId: string) => {
-		await this.api.delete(`/users/${userId}/sessions`);
+		await this.api.delete(`/admin/users/${userId}/sessions`);
 	};
 }
 

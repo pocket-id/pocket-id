@@ -48,13 +48,13 @@ func TestImageUploadRoutesLimitRequestSize(t *testing.T) {
 	(&appassets.Module{}).RegisterRoutes(apiRouter, fileSizeLimitMiddleware.Add(10<<20))
 
 	routes := []string{
-		"/api/users/user-id/profile-picture",
+		"/api/admin/users/user-id/profile-picture",
 		"/api/users/me/profile-picture",
-		"/api/application-assets/logo",
-		"/api/application-assets/email",
-		"/api/application-assets/background",
-		"/api/application-assets/favicon",
-		"/api/application-assets/default-profile-picture",
+		"/api/admin/application-assets/logo",
+		"/api/admin/application-assets/email",
+		"/api/admin/application-assets/background",
+		"/api/admin/application-assets/favicon",
+		"/api/admin/application-assets/default-profile-picture",
 	}
 
 	for _, route := range routes {
