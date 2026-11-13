@@ -17,6 +17,7 @@
 	import { createForm, pickSchemaValues } from '#lib/utils/form-util.ts';
 	import { trackFormChanges } from '#lib/utils/unsaved-changes-util.svelte.ts';
 	import BanIcon from '~icons/solar/forbidden-circle-bold';
+	import ImageIcon from '~icons/solar/gallery-bold-duotone';
 	import RefreshCwIcon from '~icons/solar/refresh-bold';
 	import ShieldOffIcon from '~icons/solar/shield-cross-bold-duotone';
 	import UserXIcon from '~icons/solar/user-block-rounded-bold-duotone';
@@ -60,14 +61,18 @@
 		ldapAttributeGroupUniqueIdentifier: z.string().min(1),
 		ldapAttributeGroupName: z.string().min(1),
 		ldapAdminGroupName: z.string().optional(),
-		ldapSoftDeleteUsers: z.boolean()
+		ldapSoftDeleteUsers: z.boolean(),
+		ldapAllowProfilePictureOverride: z.boolean()
 	});
 
 	const formStore = createForm(formSchema, pickSchemaValues(formSchema, appConfig));
 	const inputs = formStore.inputs;
 
 	const mapping: {
-		key: Exclude<keyof z.infer<typeof formSchema>, 'ldapSkipCertVerify' | 'ldapSoftDeleteUsers'>;
+		key: Exclude<
+			keyof z.infer<typeof formSchema>,
+			'ldapSkipCertVerify' | 'ldapSoftDeleteUsers' | 'ldapAllowProfilePictureOverride'
+		>;
 		label: string;
 		placeholder: string;
 		note?: string;
@@ -317,6 +322,15 @@
 			>
 				{#snippet control(props)}
 					<Switch {...props} bind:checked={$inputs.ldapSoftDeleteUsers.value} />
+				{/snippet}
+			</SettingRow>
+			<SettingRow
+				title={m.ldap_allow_profile_picture_override()}
+				description={m.ldap_allow_profile_picture_override_description()}
+				icon={ImageIcon}
+			>
+				{#snippet control(props)}
+					<Switch {...props} bind:checked={$inputs.ldapAllowProfilePictureOverride.value} />
 				{/snippet}
 			</SettingRow>
 		</SettingsCard>

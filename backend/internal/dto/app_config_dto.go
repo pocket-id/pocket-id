@@ -52,6 +52,7 @@ type AppConfigUpdateDto struct {
 	LdapAttributeGroupName                     string `json:"ldapAttributeGroupName"`
 	LdapAdminGroupName                         string `json:"ldapAdminGroupName"`
 	LdapSoftDeleteUsers                        string `json:"ldapSoftDeleteUsers" binding:"required,boolean_string"`
+	LdapAllowProfilePictureOverride            string `json:"ldapAllowProfilePictureOverride" binding:"required,boolean_string"`
 	WebauthnUserVerification                   string `json:"webauthnUserVerification" binding:"required,oneof=required preferred"`
 	WebauthnAllowSyncedPasskeys                string `json:"webauthnAllowSyncedPasskeys" binding:"required,boolean_string"`
 	WebauthnAuthenticatorAttachment            string `json:"webauthnAuthenticatorAttachment" binding:"required,oneof=any platform cross-platform"`
