@@ -1,4 +1,4 @@
-package dto
+package appconfig
 
 import "github.com/gin-gonic/gin/binding"
 

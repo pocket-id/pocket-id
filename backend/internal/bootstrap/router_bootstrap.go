@@ -186,7 +186,7 @@ func registerRoutes(r *gin.Engine, db *gorm.DB, svc *services, auth *authz.Middl
 	)
 	svc.usersModule.RegisterRoutes(apiRouter, fileSizeLimitMiddleware.Add(10<<20))
 	svc.claimMappingPolicyModule.RegisterRoutes(apiRouter)
-	controller.NewAppConfigController(apiRouter, svc.appConfigService, svc.emailModule)
+	svc.appConfigService.RegisterRoutes(apiRouter, baseGroup, svc.emailModule)
 	svc.ldapSyncModule.RegisterRoutes(apiRouter)
 	svc.appAssetsModule.RegisterRoutes(apiRouter, fileSizeLimitMiddleware.Add(10<<20))
 	svc.auditLogsModule.RegisterRoutes(apiRouter)
@@ -207,8 +207,6 @@ func registerRoutes(r *gin.Engine, db *gorm.DB, svc *services, auth *authz.Middl
 	svc.mcpModule.RegisterRoutes(baseRouter)
 
 	registerTestRoutes(apiRouter, db, svc)
-
-	controller.NewWebManifestController(baseGroup, svc.appConfigService)
 
 	// These are not rate-limited.
 	controller.NewHealthzController(auth.Router(r.Group("/")).Public())

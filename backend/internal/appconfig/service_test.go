@@ -260,7 +260,7 @@ func TestService_UpdateAppConfig(t *testing.T) {
 		db := testutils.NewDatabaseForTest(t)
 		svc := newActorBackedService(t, db)
 
-		input := dto.AppConfigUpdateDto{
+		input := AppConfigUpdateDto{
 			AppName:         "Replaced App",
 			SessionDuration: "120",
 			LdapEnabled:     "true",
@@ -291,7 +291,7 @@ func TestService_UpdateAppConfig(t *testing.T) {
 		svc := newActorBackedService(t, db)
 
 		// First set some non-default values
-		_, err := svc.UpdateAppConfig(t.Context(), dto.Replace(dto.AppConfigUpdateDto{
+		_, err := svc.UpdateAppConfig(t.Context(), dto.Replace(AppConfigUpdateDto{
 			AppName:     "First",
 			LdapEnabled: "true",
 			SmtpTls:     "tls",
@@ -299,7 +299,7 @@ func TestService_UpdateAppConfig(t *testing.T) {
 		require.NoError(t, err)
 
 		// Replace again with only AppName set: the rest must reset to their defaults
-		_, err = svc.UpdateAppConfig(t.Context(), dto.Replace(dto.AppConfigUpdateDto{AppName: "Second"}))
+		_, err = svc.UpdateAppConfig(t.Context(), dto.Replace(AppConfigUpdateDto{AppName: "Second"}))
 		require.NoError(t, err)
 
 		cfg, err := svc.GetConfig(t.Context())
@@ -313,7 +313,7 @@ func TestService_UpdateAppConfig(t *testing.T) {
 		setUIConfigDisabled(t, true)
 		svc := NewTestAppConfigService(nil)
 
-		_, err := svc.UpdateAppConfig(t.Context(), dto.Replace(dto.AppConfigUpdateDto{AppName: "X"}))
+		_, err := svc.UpdateAppConfig(t.Context(), dto.Replace(AppConfigUpdateDto{AppName: "X"}))
 		require.Error(t, err)
 		assert.True(t, apperror.IsCode(err, apperror.CodeUIConfigDisabled))
 	})
@@ -323,7 +323,7 @@ func TestService_UpdateAppConfig(t *testing.T) {
 		db := testutils.NewDatabaseForTest(t)
 		svc := newActorBackedService(t, db)
 
-		res, err := svc.UpdateAppConfig(t.Context(), dto.Replace(dto.AppConfigUpdateDto{SmtpPassword: "smtp-secret"}))
+		res, err := svc.UpdateAppConfig(t.Context(), dto.Replace(AppConfigUpdateDto{SmtpPassword: "smtp-secret"}))
 		require.NoError(t, err)
 		vars, err := svc.ListAppConfig(t.Context(), true)
 		require.NoError(t, err)
@@ -346,16 +346,16 @@ func TestService_UpdateAppConfig(t *testing.T) {
 		db := testutils.NewDatabaseForTest(t)
 		svc := newActorBackedService(t, db)
 
-		_, err := svc.UpdateAppConfig(t.Context(), dto.Replace(dto.AppConfigUpdateDto{SmtpPassword: "smtp-secret"}))
+		_, err := svc.UpdateAppConfig(t.Context(), dto.Replace(AppConfigUpdateDto{SmtpPassword: "smtp-secret"}))
 		require.NoError(t, err)
 
-		_, err = svc.UpdateAppConfig(t.Context(), dto.Replace(dto.AppConfigUpdateDto{SmtpPassword: redactedValue}))
+		_, err = svc.UpdateAppConfig(t.Context(), dto.Replace(AppConfigUpdateDto{SmtpPassword: redactedValue}))
 		require.NoError(t, err)
 		cfg, err := svc.GetConfig(t.Context())
 		require.NoError(t, err)
 		assert.Equal(t, AppConfigValue("smtp-secret"), cfg.SmtpPassword)
 
-		_, err = svc.UpdateAppConfig(t.Context(), dto.Replace(dto.AppConfigUpdateDto{SmtpPassword: "new-secret"}))
+		_, err = svc.UpdateAppConfig(t.Context(), dto.Replace(AppConfigUpdateDto{SmtpPassword: "new-secret"}))
 		require.NoError(t, err)
 		cfg, err = svc.GetConfig(t.Context())
 		require.NoError(t, err)
@@ -503,7 +503,7 @@ func TestService_EnvOverrides(t *testing.T) {
 		db := testutils.NewDatabaseForTest(t)
 		svc := newActorBackedService(t, db)
 
-		res, err := svc.UpdateAppConfig(t.Context(), dto.Replace(dto.AppConfigUpdateDto{
+		res, err := svc.UpdateAppConfig(t.Context(), dto.Replace(AppConfigUpdateDto{
 			AppName:         "UI App",
 			SessionDuration: "120",
 			SmtpPassword:    "XXXXXXXXXX",
@@ -558,7 +558,7 @@ func TestService_SecretEncryption(t *testing.T) {
 		db := testutils.NewDatabaseForTest(t)
 		svc, h := newActorBackedServiceWithState(t, db, nil)
 
-		_, err := svc.UpdateAppConfig(t.Context(), dto.Replace(dto.AppConfigUpdateDto{
+		_, err := svc.UpdateAppConfig(t.Context(), dto.Replace(AppConfigUpdateDto{
 			SmtpPassword:     "smtp-secret",
 			LdapBindPassword: "ldap-secret",
 			SmtpUser:         "smtp-user",
@@ -607,7 +607,7 @@ func TestService_CIMDURLAllowlist(t *testing.T) {
 		db := testutils.NewDatabaseForTest(t)
 		svc := newActorBackedService(t, db)
 
-		_, err := svc.UpdateAppConfig(t.Context(), dto.Replace(dto.AppConfigUpdateDto{
+		_, err := svc.UpdateAppConfig(t.Context(), dto.Replace(AppConfigUpdateDto{
 			AppName:          "App",
 			SessionDuration:  "60",
 			CIMDURLAllowlist: `["https://app.example.com/**","https://*.trusted.com/oauth"]`,
@@ -625,7 +625,7 @@ func TestService_CIMDURLAllowlist(t *testing.T) {
 		db := testutils.NewDatabaseForTest(t)
 		svc := newActorBackedService(t, db)
 
-		_, err := svc.UpdateAppConfig(t.Context(), dto.Replace(dto.AppConfigUpdateDto{
+		_, err := svc.UpdateAppConfig(t.Context(), dto.Replace(AppConfigUpdateDto{
 			AppName:          "App",
 			SessionDuration:  "60",
 			CIMDURLAllowlist: `["javascript:alert(1)"]`,

@@ -26,7 +26,7 @@ func TestUpdateDTOsAreFilledFromTheirResource(t *testing.T) {
 		{name: "user group", resource: model.UserGroup{}, update: dto.UserGroupCreateDto{}},
 		// A nil logo URL keeps the current logo
 		{name: "OIDC client", resource: model.OidcClient{}, update: dto.OidcClientUpdateDto{}, unmapped: []string{"LogoURL", "DarkLogoURL"}},
-		{name: "app config", resource: appconfig.AppConfigModel{}, update: dto.AppConfigUpdateDto{}},
+		{name: "app config", resource: appconfig.AppConfigModel{}, update: appconfig.AppConfigUpdateDto{}},
 		// The counts are only set in responses
 		{name: "claim mapping policy", resource: claimmappingpolicy.OidcClaimMappingPolicy{}, update: claimmappingpolicy.OidcClaimMappingPolicyDto{}, unmapped: []string{"ClaimCount", "ClientCount"}},
 		{name: "custom scope", resource: claimmappingpolicy.CustomScope{}, update: claimmappingpolicy.CustomScopeDto{}},

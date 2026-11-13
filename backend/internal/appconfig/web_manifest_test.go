@@ -1,4 +1,4 @@
-package controller
+package appconfig
 
 import (
 	"encoding/json"
@@ -10,8 +10,8 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"github.com/pocket-id/pocket-id/backend/internal/appconfig"
 	"github.com/pocket-id/pocket-id/backend/internal/common"
+	"github.com/pocket-id/pocket-id/backend/internal/httpserver"
 )
 
 func TestWebManifestUsesConfiguredAppName(t *testing.T) {
@@ -21,11 +21,12 @@ func TestWebManifestUsesConfiguredAppName(t *testing.T) {
 	t.Cleanup(func() { common.EnvConfig = originalEnvConfig })
 	common.EnvConfig.UiConfigDisabled = true
 
-	cfg := appconfig.NewTestConfig(nil)
+	cfg := NewTestConfig(nil)
 	cfg.AppName = "Acme Login"
 
 	router := gin.New()
-	NewWebManifestController(&router.RouterGroup, appconfig.NewTestAppConfigService(cfg))
+	h := &handler{service: NewTestAppConfigService(cfg)}
+	router.GET("/app.webmanifest", httpserver.Handle(h.webManifestHandler).Handler)
 
 	res := httptest.NewRecorder()
 	router.ServeHTTP(res, httptest.NewRequestWithContext(t.Context(), http.MethodGet, "/app.webmanifest", nil))

@@ -1,13 +1,14 @@
-package controller
+package appconfig
 
 import (
 	"context"
+	"encoding/json"
 	"net/http"
 	"strconv"
 
 	"github.com/gin-gonic/gin"
 	"github.com/go-fuego/fuego/option"
-	"github.com/pocket-id/pocket-id/backend/internal/appconfig"
+
 	"github.com/pocket-id/pocket-id/backend/internal/apperror"
 	"github.com/pocket-id/pocket-id/backend/internal/authz"
 	"github.com/pocket-id/pocket-id/backend/internal/common"
@@ -16,21 +17,15 @@ import (
 	"github.com/pocket-id/pocket-id/backend/internal/tracing"
 )
 
+// TestEmailSender sends the test email that checks the SMTP settings
 type TestEmailSender interface {
-	SendTestEmail(ctx context.Context, dbConfig *appconfig.AppConfigModel, recipientUserID string) error
+	SendTestEmail(ctx context.Context, dbConfig *AppConfigModel, recipientUserID string) error
 }
 
-// NewAppConfigController creates a new controller for application configuration endpoints
-func NewAppConfigController(
-	r *authz.Router,
-	appConfigService *appconfig.AppConfigService,
-	emailSender TestEmailSender,
-) {
+// RegisterRoutes mounts the application configuration endpoints and, on base, the web app manifest
+func (s *AppConfigService) RegisterRoutes(r *authz.Router, base *gin.RouterGroup, emailSender TestEmailSender) {
+	acc := &handler{service: s, emailSender: emailSender}
 
-	acc := &AppConfigController{
-		appConfigService: appConfigService,
-		emailSender:      emailSender,
-	}
 	r.Public().GET("/application-configuration", httpserver.JSON(http.StatusOK, acc.listAppConfigHandler),
 		option.Summary("List public application configurations"),
 		option.Description("Get all public application configurations"),
@@ -54,39 +49,42 @@ func NewAppConfigController(
 		option.Description("Send a test email to verify email configuration"),
 		option.Tags("Application Configuration"),
 	)
+
+	// The manifest carries the configured application name when the app is added to a home screen
+	base.GET("/app.webmanifest", httpserver.Handle(acc.webManifestHandler).Handler)
 }
 
-type AppConfigController struct {
-	appConfigService *appconfig.AppConfigService
-	emailSender      TestEmailSender
+type handler struct {
+	service     *AppConfigService
+	emailSender TestEmailSender
 }
 
-func (acc *AppConfigController) listAppConfigHandler(c *gin.Context) ([]dto.PublicAppConfigVariableDto, error) {
-	configuration, err := acc.appConfigService.ListAppConfig(c.Request.Context(), false)
+func (acc *handler) listAppConfigHandler(c *gin.Context) ([]PublicAppConfigVariableDto, error) {
+	configuration, err := acc.service.ListAppConfig(c.Request.Context(), false)
 	if err != nil {
 		return nil, err
 	}
 
-	var configVariablesDto []dto.PublicAppConfigVariableDto
+	var configVariablesDto []PublicAppConfigVariableDto
 	if err := dto.MapStructList(configuration, &configVariablesDto); err != nil {
 		return nil, err
 	}
 
 	// Manually add uiConfigDisabled which isn't in the database but defined with an environment variable
-	configVariablesDto = append(configVariablesDto, dto.PublicAppConfigVariableDto{
+	configVariablesDto = append(configVariablesDto, PublicAppConfigVariableDto{
 		Key:   "uiConfigDisabled",
 		Value: strconv.FormatBool(common.EnvConfig.UiConfigDisabled),
 		Type:  "boolean",
 	})
 
 	// Manually add tracingEnabled, derived from the OTel environment, so the frontend only exports traces when the backend can forward them to a collector
-	configVariablesDto = append(configVariablesDto, dto.PublicAppConfigVariableDto{
+	configVariablesDto = append(configVariablesDto, PublicAppConfigVariableDto{
 		Key:   "tracingEnabled",
 		Value: strconv.FormatBool(tracing.FrontendTracingEnabled()),
 	})
 
 	// Manually add iconLibrary, derived from ICON_LIBRARY_URL, so the frontend can hide the icon picker and only credits selfh.st when its collection is used
-	configVariablesDto = append(configVariablesDto, dto.PublicAppConfigVariableDto{
+	configVariablesDto = append(configVariablesDto, PublicAppConfigVariableDto{
 		Key:   "iconLibrary",
 		Value: iconLibraryStatus(),
 	})
@@ -106,13 +104,13 @@ func iconLibraryStatus() string {
 	}
 }
 
-func (acc *AppConfigController) listAllAppConfigHandler(c *gin.Context) ([]dto.AppConfigVariableDto, error) {
-	configuration, err := acc.appConfigService.ListAppConfig(c.Request.Context(), true)
+func (acc *handler) listAllAppConfigHandler(c *gin.Context) ([]AppConfigVariableDto, error) {
+	configuration, err := acc.service.ListAppConfig(c.Request.Context(), true)
 	if err != nil {
 		return nil, err
 	}
 
-	var configVariablesDto []dto.AppConfigVariableDto
+	var configVariablesDto []AppConfigVariableDto
 	if err := dto.MapStructList(configuration, &configVariablesDto); err != nil {
 		return nil, err
 	}
@@ -120,13 +118,13 @@ func (acc *AppConfigController) listAllAppConfigHandler(c *gin.Context) ([]dto.A
 	return configVariablesDto, nil
 }
 
-func (acc *AppConfigController) updateAppConfigHandler(c *gin.Context, update dto.Update[dto.AppConfigUpdateDto]) ([]dto.AppConfigVariableDto, error) {
-	savedConfigVariables, err := acc.appConfigService.UpdateAppConfig(c.Request.Context(), update)
+func (acc *handler) updateAppConfigHandler(c *gin.Context, update dto.Update[AppConfigUpdateDto]) ([]AppConfigVariableDto, error) {
+	savedConfigVariables, err := acc.service.UpdateAppConfig(c.Request.Context(), update)
 	if err != nil {
 		return nil, err
 	}
 
-	var configVariablesDto []dto.AppConfigVariableDto
+	var configVariablesDto []AppConfigVariableDto
 	if err := dto.MapStructList(savedConfigVariables, &configVariablesDto); err != nil {
 		return nil, err
 	}
@@ -134,8 +132,8 @@ func (acc *AppConfigController) updateAppConfigHandler(c *gin.Context, update dt
 	return configVariablesDto, nil
 }
 
-func (acc *AppConfigController) testEmailHandler(c *gin.Context) error {
-	dbConfig, err := acc.appConfigService.GetConfig(c.Request.Context())
+func (acc *handler) testEmailHandler(c *gin.Context) error {
+	dbConfig, err := acc.service.GetConfig(c.Request.Context())
 	if err != nil {
 		return err
 	}
@@ -147,4 +145,30 @@ func (acc *AppConfigController) testEmailHandler(c *gin.Context) error {
 	}
 
 	return acc.emailSender.SendTestEmail(c.Request.Context(), dbConfig, userID)
+}
+
+func (acc *handler) webManifestHandler(c *gin.Context) error {
+	cfg, err := acc.service.GetConfig(c.Request.Context())
+	if err != nil {
+		return err
+	}
+
+	manifest, err := json.Marshal(map[string]any{
+		"name":        cfg.AppName.String(),
+		"orientation": "any",
+		"display":     "minimal-ui",
+		"dir":         "auto",
+		"start_url":   "/",
+		"icons": []map[string]string{
+			{"src": "img/static-logo-rounded-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any"},
+			{"src": "img/static-logo-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable"},
+			{"src": "img/static-logo.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "maskable monochrome"},
+		},
+	})
+	if err != nil {
+		return err
+	}
+
+	c.Data(http.StatusOK, "application/manifest+json", manifest)
+	return nil
 }

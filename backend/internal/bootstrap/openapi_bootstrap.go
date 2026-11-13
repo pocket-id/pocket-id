@@ -44,6 +44,7 @@ func routeTable() (*gin.Engine, *authz.Middleware, error) {
 	// Gin's debug mode prints every route to stdout, where cmd/openapi writes the spec
 	gin.SetMode(gin.TestMode)
 
+	// appConfigService stays nil, which works because its RegisterRoutes never dereferences its receiver
 	svc := &services{
 		apiKeyModule:             &apikey.Module{},
 		appAssetsModule:          &appassets.Module{},

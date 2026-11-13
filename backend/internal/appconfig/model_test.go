@@ -9,8 +9,6 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/vmihailenco/msgpack/v5"
-
-	"github.com/pocket-id/pocket-id/backend/internal/dto"
 )
 
 func TestAppConfigModel_FieldTags(t *testing.T) {
@@ -43,7 +41,7 @@ func TestAppConfigModel_TypeTagsHaveDTOValidation(t *testing.T) {
 		"int":  "integer_string",
 	}
 
-	dtoType := reflect.TypeFor[dto.AppConfigUpdateDto]()
+	dtoType := reflect.TypeFor[AppConfigUpdateDto]()
 	dtoBindings := make(map[string][]string, dtoType.NumField())
 	for i := range dtoType.NumField() {
 		field := dtoType.Field(i)

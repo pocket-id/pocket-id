@@ -23,9 +23,10 @@ import (
 	"github.com/pocket-id/fosite"
 	"github.com/pocket-id/fosite/compose"
 	fositejwt "github.com/pocket-id/fosite/token/jwt"
+	"gorm.io/gorm"
+
 	"github.com/pocket-id/pocket-id/backend/internal/apikey"
 	"github.com/pocket-id/pocket-id/backend/internal/appconfig"
-	"gorm.io/gorm"
 
 	"github.com/pocket-id/pocket-id/backend/internal/api"
 	"github.com/pocket-id/pocket-id/backend/internal/claimmappingpolicy"
@@ -818,7 +819,7 @@ func (s *TestService) ResetApplicationAssets(ctx context.Context) error {
 
 func (s *TestService) ResetAppConfig(ctx context.Context) error {
 	// Reset all application configuration values through the singleton actor
-	_, err := s.appConfigService.UpdateAppConfig(ctx, dto.Replace(dto.AppConfigUpdateDto{}))
+	_, err := s.appConfigService.UpdateAppConfig(ctx, dto.Replace(appconfig.AppConfigUpdateDto{}))
 	if err != nil {
 		return err
 	}

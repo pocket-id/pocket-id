@@ -140,7 +140,7 @@ func (s *AppConfigService) GetCIMDURLAllowlist() []string {
 
 // UpdateAppConfig applies an update to the saved configuration and returns the configuration in effect
 // Only the properties whose value changes are sent to the actor, which applies them atomically, so concurrent updates of different properties never undo each other
-func (s *AppConfigService) UpdateAppConfig(ctx context.Context, update dto.Update[dto.AppConfigUpdateDto]) ([]AppConfigVariable, error) {
+func (s *AppConfigService) UpdateAppConfig(ctx context.Context, update dto.Update[AppConfigUpdateDto]) ([]AppConfigVariable, error) {
 	// If the UI config is disabled, we cannot continue
 	if common.EnvConfig.UiConfigDisabled {
 		return nil, apperror.UIConfigDisabled()
@@ -336,7 +336,7 @@ func newEnvConfig(overrides map[string]string) (*AppConfigModel, error) {
 // validateEnvConfig applies the HTTP configuration rules and reports failures using environment variable names
 func validateEnvConfig(config *AppConfigModel) error {
 	// Map the resolved model to the canonical update DTO so both configuration paths share validation rules
-	var input dto.AppConfigUpdateDto
+	var input AppConfigUpdateDto
 	err := dto.MapStruct(config, &input)
 	if err != nil {
 		return fmt.Errorf("failed to prepare environment app configuration for validation: %w", err)

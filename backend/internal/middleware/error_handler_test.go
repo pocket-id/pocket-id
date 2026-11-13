@@ -10,12 +10,13 @@ import (
 	"time"
 
 	"github.com/gin-gonic/gin"
+	"github.com/stretchr/testify/require"
+
 	"github.com/pocket-id/pocket-id/backend/internal/appconfig"
 	"github.com/pocket-id/pocket-id/backend/internal/apperror"
 	"github.com/pocket-id/pocket-id/backend/internal/common"
 	"github.com/pocket-id/pocket-id/backend/internal/dto"
 	"github.com/pocket-id/pocket-id/backend/internal/httpserver"
-	"github.com/stretchr/testify/require"
 )
 
 func TestErrorHandlerMiddlewareStructuredError(t *testing.T) {
@@ -203,11 +204,11 @@ func TestValidationResponseUsesAppConfigTypeMessages(t *testing.T) {
 	router := gin.New()
 	router.Use(NewErrorHandlerMiddleware().Add())
 	router.POST("/config", httpserver.Handle(func(c *gin.Context) error {
-		var input dto.AppConfigUpdateDto
+		var input appconfig.AppConfigUpdateDto
 		return httpserver.BindJSON(c, &input)
 	}).Handler)
 
-	input := dto.AppConfigUpdateDto{
+	input := appconfig.AppConfigUpdateDto{
 		AppName:                          "Pocket ID",
 		SessionDuration:                  "60",
 		HomePageURL:                      "/settings/account",
@@ -260,7 +261,7 @@ func TestAppConfigBindingValidatesRequiredEmailVerification(t *testing.T) {
 	router := gin.New()
 	router.Use(NewErrorHandlerMiddleware().Add())
 	router.PUT("/config", httpserver.Handle(func(c *gin.Context) error {
-		var input dto.AppConfigUpdateDto
+		var input appconfig.AppConfigUpdateDto
 		return httpserver.BindJSON(c, &input)
 	}).Handler)
 
@@ -281,7 +282,7 @@ func TestAppConfigBindingValidatesRequiredEmailVerification(t *testing.T) {
 		{"disabled with trusted emails", "disabled", "false", "true", "", "", http.StatusOK},
 	} {
 		t.Run(tt.name, func(t *testing.T) {
-			var input dto.AppConfigUpdateDto
+			var input appconfig.AppConfigUpdateDto
 			require.NoError(t, dto.MapStruct(appconfig.NewTestConfig(nil), &input))
 			input.EmailVerification = tt.mode
 			input.RequireUserEmail = tt.required
