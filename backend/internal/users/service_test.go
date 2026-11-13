@@ -273,7 +273,7 @@ func TestUpdateOwnEmailWithVerification(t *testing.T) {
 	t.Run("a verified email stays in effect until the new address is confirmed", func(t *testing.T) {
 		userService, sender, config, user, update := setup(t, appconfig.EmailVerificationRequired, true)
 
-		updated, err := userService.UpdateUser(t.Context(), config, user.ID, update, true, false, auditlogs.Origin{})
+		updated, err := userService.UpdateUser(t.Context(), config, user.ID, dto.Replace(update), true, false, auditlogs.Origin{})
 		require.NoError(t, err)
 
 		require.Equal(t, "old@example.com", *updated.Email)
@@ -288,7 +288,7 @@ func TestUpdateOwnEmailWithVerification(t *testing.T) {
 		_, err := userService.CreateUser(t.Context(), config, dto.UserCreateDto{Username: "other", Email: new("new@example.com"), FirstName: "Other"}, auditlogs.Origin{})
 		require.NoError(t, err)
 
-		_, err = userService.UpdateUser(t.Context(), config, user.ID, update, true, false, auditlogs.Origin{})
+		_, err = userService.UpdateUser(t.Context(), config, user.ID, dto.Replace(update), true, false, auditlogs.Origin{})
 		require.True(t, apperror.IsCode(err, apperror.CodeAlreadyInUse))
 		require.Empty(t, sender.requested)
 	})
@@ -296,7 +296,7 @@ func TestUpdateOwnEmailWithVerification(t *testing.T) {
 	t.Run("an unverified email is replaced right away and the new one has to be verified", func(t *testing.T) {
 		userService, sender, config, user, update := setup(t, appconfig.EmailVerificationRequired, false)
 
-		updated, err := userService.UpdateUser(t.Context(), config, user.ID, update, true, false, auditlogs.Origin{})
+		updated, err := userService.UpdateUser(t.Context(), config, user.ID, dto.Replace(update), true, false, auditlogs.Origin{})
 		require.NoError(t, err)
 
 		require.Equal(t, "new@example.com", *updated.Email)
@@ -310,7 +310,7 @@ func TestUpdateOwnEmailWithVerification(t *testing.T) {
 		userService, _, config, user, update := setup(t, appconfig.EmailVerificationRequired, true)
 		update.FirstName = "Renamed"
 
-		updated, err := userService.UpdateUser(t.Context(), config, user.ID, update, true, false, auditlogs.Origin{})
+		updated, err := userService.UpdateUser(t.Context(), config, user.ID, dto.Replace(update), true, false, auditlogs.Origin{})
 		require.NoError(t, err)
 
 		require.Equal(t, "Renamed", updated.FirstName)
@@ -322,7 +322,7 @@ func TestUpdateOwnEmailWithVerification(t *testing.T) {
 		sender.allowErr = apperror.TooManyRequests()
 		update.FirstName = "Renamed"
 
-		_, err := userService.UpdateUser(t.Context(), config, user.ID, update, true, false, auditlogs.Origin{})
+		_, err := userService.UpdateUser(t.Context(), config, user.ID, dto.Replace(update), true, false, auditlogs.Origin{})
 		require.True(t, apperror.IsCode(err, apperror.CodeRateLimited))
 		require.Empty(t, sender.requested)
 
@@ -341,7 +341,7 @@ func TestUpdateOwnEmailWithVerification(t *testing.T) {
 			return userService.db.WithContext(ctx).Exec("CREATE TABLE IF NOT EXISTS limiter_probe (id INTEGER)").Error
 		}
 
-		_, err := userService.UpdateUser(t.Context(), config, user.ID, update, true, false, auditlogs.Origin{})
+		_, err := userService.UpdateUser(t.Context(), config, user.ID, dto.Replace(update), true, false, auditlogs.Origin{})
 		require.NoError(t, err)
 		require.Equal(t, []string{"new@example.com"}, sender.requested)
 	})
@@ -351,7 +351,7 @@ func TestUpdateOwnEmailWithVerification(t *testing.T) {
 		sender.requestErr = errors.New("smtp unavailable")
 		update.FirstName = "Renamed"
 
-		updated, err := userService.UpdateUser(t.Context(), config, user.ID, update, true, false, auditlogs.Origin{})
+		updated, err := userService.UpdateUser(t.Context(), config, user.ID, dto.Replace(update), true, false, auditlogs.Origin{})
 		require.True(t, apperror.IsCode(err, apperror.CodeEmailChangeNotStarted))
 		require.Equal(t, "Renamed", updated.FirstName)
 
@@ -365,7 +365,7 @@ func TestUpdateOwnEmailWithVerification(t *testing.T) {
 		userService, sender, config, user, update := setup(t, appconfig.EmailVerificationRequired, true)
 		config.AllowOwnAccountEdit = "false"
 
-		updated, err := userService.UpdateUser(t.Context(), config, user.ID, update, true, false, auditlogs.Origin{})
+		updated, err := userService.UpdateUser(t.Context(), config, user.ID, dto.Replace(update), true, false, auditlogs.Origin{})
 		require.NoError(t, err)
 
 		require.Equal(t, "old@example.com", *updated.Email)
@@ -377,7 +377,7 @@ func TestUpdateOwnEmailWithVerification(t *testing.T) {
 		userService, sender, config, user, update := setup(t, appconfig.EmailVerificationRequired, true)
 		update.EmailVerified = true
 
-		updated, err := userService.UpdateUser(t.Context(), config, user.ID, update, false, false, auditlogs.Origin{})
+		updated, err := userService.UpdateUser(t.Context(), config, user.ID, dto.Replace(update), false, false, auditlogs.Origin{})
 		require.NoError(t, err)
 
 		require.Equal(t, "new@example.com", *updated.Email)
@@ -388,7 +388,7 @@ func TestUpdateOwnEmailWithVerification(t *testing.T) {
 	t.Run("the email is replaced right away when verification is optional", func(t *testing.T) {
 		userService, sender, config, user, update := setup(t, appconfig.EmailVerificationOptional, true)
 
-		updated, err := userService.UpdateUser(t.Context(), config, user.ID, update, true, false, auditlogs.Origin{})
+		updated, err := userService.UpdateUser(t.Context(), config, user.ID, dto.Replace(update), true, false, auditlogs.Origin{})
 		require.NoError(t, err)
 
 		require.Equal(t, "new@example.com", *updated.Email)
@@ -417,18 +417,18 @@ func TestOwnUsernameAndEmailChangesAreThrottled(t *testing.T) {
 	require.NoError(t, err)
 	update := dto.UserCreateDto{Username: user.Username, Email: user.Email, FirstName: "Renamed"}
 
-	_, err = userService.UpdateUser(t.Context(), config, user.ID, update, true, false, auditlogs.Origin{})
+	_, err = userService.UpdateUser(t.Context(), config, user.ID, dto.Replace(update), true, false, auditlogs.Origin{})
 	require.NoError(t, err, "an update that keeps the username and email must not be throttled")
 	require.Zero(t, limiter.calls)
 
 	withUsername := update
 	withUsername.Username = "admin"
-	_, err = userService.UpdateUser(t.Context(), config, user.ID, withUsername, true, false, auditlogs.Origin{})
+	_, err = userService.UpdateUser(t.Context(), config, user.ID, dto.Replace(withUsername), true, false, auditlogs.Origin{})
 	require.True(t, apperror.IsCode(err, apperror.CodeRateLimited))
 
 	withEmail := update
 	withEmail.Email = new("someone@example.com")
-	_, err = userService.UpdateUser(t.Context(), config, user.ID, withEmail, true, false, auditlogs.Origin{})
+	_, err = userService.UpdateUser(t.Context(), config, user.ID, dto.Replace(withEmail), true, false, auditlogs.Origin{})
 	require.True(t, apperror.IsCode(err, apperror.CodeRateLimited))
 }
 
@@ -446,13 +446,13 @@ func TestMarkingEmailVerifiedClearsSignupDeadline(t *testing.T) {
 	deadline := datatype.DateTime(time.Now().Add(time.Hour))
 	require.NoError(t, userService.db.Model(&model.User{}).Where("id = ?", user.ID).Update("email_verification_deadline", deadline).Error)
 
-	updated, err := userService.UpdateUser(t.Context(), config, user.ID, dto.UserCreateDto{
+	updated, err := userService.UpdateUser(t.Context(), config, user.ID, dto.Replace(dto.UserCreateDto{
 		Username:      user.Username,
 		Email:         user.Email,
 		EmailVerified: true,
 		FirstName:     user.FirstName,
 		LastName:      user.LastName,
-	}, false, false, auditlogs.Origin{})
+	}), false, false, auditlogs.Origin{})
 	require.NoError(t, err)
 	require.True(t, updated.EmailVerified)
 
@@ -471,7 +471,7 @@ func TestUpdateUserReturnsGroupsAndCustomClaims(t *testing.T) {
 	}
 	require.NoError(t, userService.db.Create(&user).Error)
 
-	updated, err := userService.UpdateUser(t.Context(), &appconfig.AppConfigModel{RequireUserEmail: "false"}, user.ID, dto.UserCreateDto{Username: "member", FirstName: "Updated"}, false, false, auditlogs.Origin{})
+	updated, err := userService.UpdateUser(t.Context(), &appconfig.AppConfigModel{RequireUserEmail: "false"}, user.ID, dto.Replace(dto.UserCreateDto{Username: "member", FirstName: "Updated"}), false, false, auditlogs.Origin{})
 	require.NoError(t, err)
 
 	require.Equal(t, "Updated", updated.FirstName)
@@ -501,7 +501,7 @@ func TestAccessChangesAreRecorded(t *testing.T) {
 	user := model.User{Username: "member", UserGroups: []model.UserGroup{oldGroup}}
 	require.NoError(t, userService.db.Create(&user).Error)
 
-	_, err := userService.UpdateUser(t.Context(), config, user.ID, dto.UserCreateDto{Username: "member", IsAdmin: true, Disabled: true}, false, false, auditlogs.Origin{})
+	_, err := userService.UpdateUser(t.Context(), config, user.ID, dto.Replace(dto.UserCreateDto{Username: "member", IsAdmin: true, Disabled: true}), false, false, auditlogs.Origin{})
 	require.NoError(t, err)
 	_, err = userService.UpdateUserGroups(t.Context(), user.ID, []string{newGroup.ID}, auditlogs.Origin{})
 	require.NoError(t, err)

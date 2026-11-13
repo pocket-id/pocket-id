@@ -2,7 +2,6 @@ package httpserver
 
 import (
 	"bytes"
-	"errors"
 	"mime/multipart"
 	"net/http"
 	"net/http/httptest"
@@ -10,10 +9,10 @@ import (
 	"testing"
 
 	"github.com/gin-gonic/gin"
-	"github.com/go-playground/validator/v10"
-	"github.com/pocket-id/pocket-id/backend/internal/apperror"
 	"github.com/stretchr/testify/require"
 	"golang.org/x/text/unicode/norm"
+
+	"github.com/pocket-id/pocket-id/backend/internal/apperror"
 )
 
 func TestBindJSONClassifiesMalformedBody(t *testing.T) {
@@ -99,90 +98,7 @@ func TestBindJSONAcceptsStructuredJSONContentType(t *testing.T) {
 	require.Equal(t, "admin", input.Name)
 }
 
-func TestBindUpdateJSONAppliesMergePatchToCurrentResource(t *testing.T) {
-	type mapping struct {
-		Claim   string `json:"claim"`
-		IDToken bool   `json:"idToken"`
-	}
-	type credentials struct {
-		Issuer   string `json:"issuer"`
-		Audience string `json:"audience"`
-	}
-	type input struct {
-		Name        string      `json:"name" binding:"required"`
-		Description string      `json:"description"`
-		Email       *string     `json:"email"`
-		Mappings    []mapping   `json:"mappings"`
-		Credentials credentials `json:"credentials"`
-	}
-	email := "current@example.com"
-	current := input{
-		Name:        "current",
-		Description: "current",
-		Email:       &email,
-		Mappings:    []mapping{{Claim: "a", IDToken: true}},
-		Credentials: credentials{Issuer: "current", Audience: "current"},
-	}
-
-	for _, test := range []struct {
-		name   string
-		method string
-		body   string
-		want   input
-	}{
-		{
-			name:   "missing members keep their value",
-			method: http.MethodPatch,
-			body:   `{"name":"changed"}`,
-			want:   input{Name: "changed", Description: "current", Email: &email, Mappings: current.Mappings, Credentials: current.Credentials},
-		},
-		{
-			name:   "null clears pointer and plain fields",
-			method: http.MethodPatch,
-			body:   `{"email":null,"description":null}`,
-			want:   input{Name: "current", Mappings: current.Mappings, Credentials: current.Credentials},
-		},
-		{
-			name:   "nested objects merge",
-			method: http.MethodPatch,
-			body:   `{"credentials":{"issuer":"changed"}}`,
-			want:   input{Name: "current", Description: "current", Email: &email, Mappings: current.Mappings, Credentials: credentials{Issuer: "changed", Audience: "current"}},
-		},
-		{
-			name:   "arrays replace their elements without keeping old fields",
-			method: http.MethodPatch,
-			body:   `{"mappings":[{"claim":"b"}]}`,
-			want:   input{Name: "current", Description: "current", Email: &email, Mappings: []mapping{{Claim: "b"}}, Credentials: current.Credentials},
-		},
-		{
-			name:   "members match regardless of case",
-			method: http.MethodPatch,
-			body:   `{"Name":"changed","Email":null,"Credentials":{"Issuer":"changed"}}`,
-			want:   input{Name: "changed", Description: "current", Mappings: current.Mappings, Credentials: credentials{Issuer: "changed", Audience: "current"}},
-		},
-		{
-			name:   "PUT ignores the current resource",
-			method: http.MethodPut,
-			body:   `{"name":"changed"}`,
-			want:   input{Name: "changed"},
-		},
-	} {
-		t.Run(test.name, func(t *testing.T) {
-			gin.SetMode(gin.TestMode)
-			c, _ := gin.CreateTestContext(httptest.NewRecorder())
-			c.Request = httptest.NewRequestWithContext(t.Context(), test.method, "/", strings.NewReader(test.body))
-			c.Request.Header.Set("Content-Type", "application/json")
-
-			var got input
-			err := BindUpdateJSON(c, &got, func() (any, error) { return current, nil })
-
-			require.NoError(t, err)
-			require.Equal(t, test.want, got)
-		})
-	}
-}
-
-func TestBindUpdateJSONAcceptsOnlyMergePatchTypes(t *testing.T) {
+func TestBindUpdateAcceptsOnlyMergePatchTypes(t *testing.T) {
 	for _, test := range []struct {
 		contentType string
 		accepted    bool
@@ -198,10 +114,9 @@ func TestBindUpdateJSONAcceptsOnlyMergePatchTypes(t *testing.T) {
 			c.Request = httptest.NewRequestWithContext(t.Context(), http.MethodPatch, "/", strings.NewReader(`{"name":"changed"}`))
 			c.Request.Header.Set("Content-Type", test.contentType)
 
-			var input struct {
+			_, err := BindUpdate[struct {
 				Name string `json:"name"`
-			}
-			err := BindUpdateJSON(c, &input, func() (any, error) { return input, nil })
+			}](c)
 
 			require.Equal(t, "application/merge-patch+json, application/json", c.Writer.Header().Get("Accept-Patch"))
 			if test.accepted {
@@ -211,21 +126,6 @@ func TestBindUpdateJSONAcceptsOnlyMergePatchTypes(t *testing.T) {
 			}
 		})
 	}
-}
-
-func TestBindUpdateJSONValidatesMergedResult(t *testing.T) {
-	gin.SetMode(gin.TestMode)
-	c, _ := gin.CreateTestContext(httptest.NewRecorder())
-	c.Request = httptest.NewRequestWithContext(t.Context(), http.MethodPatch, "/", strings.NewReader(`{"name":null}`))
-	c.Request.Header.Set("Content-Type", "application/json")
-
-	var input struct {
-		Name string `json:"name" binding:"required"`
-	}
-	err := BindUpdateJSON(c, &input, func() (any, error) { return struct{ Name string }{Name: "current"}, nil })
-
-	_, ok := errors.AsType[validator.ValidationErrors](err)
-	require.True(t, ok, "expected a validation error, got %v", err)
 }
 
 func TestBindOptionalJSONDoesNotRelyOnContentLength(t *testing.T) {

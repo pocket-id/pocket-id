@@ -10,15 +10,17 @@ import (
 	"time"
 
 	"github.com/pocket-id/fosite"
+	"gorm.io/gorm"
+	"gorm.io/gorm/clause"
+
 	"github.com/pocket-id/pocket-id/backend/internal/apperror"
 	"github.com/pocket-id/pocket-id/backend/internal/authz"
 	"github.com/pocket-id/pocket-id/backend/internal/claimmappingpolicy"
+	"github.com/pocket-id/pocket-id/backend/internal/dto"
 	"github.com/pocket-id/pocket-id/backend/internal/model"
 	datatype "github.com/pocket-id/pocket-id/backend/internal/model/types"
 	"github.com/pocket-id/pocket-id/backend/internal/oidc"
 	"github.com/pocket-id/pocket-id/backend/internal/utils"
-	"gorm.io/gorm"
-	"gorm.io/gorm/clause"
 )
 
 // isPermissionKeyReserved reports whether the key is a scope or claim name owned by Pocket ID's built-in identity layer
@@ -132,7 +134,7 @@ func (s *Service) Create(ctx context.Context, input apiCreateDto) (api API, err 
 	return api, nil
 }
 
-func (s *Service) Update(ctx context.Context, id string, input apiUpdateDto) (api API, err error) {
+func (s *Service) Update(ctx context.Context, id string, update dto.Update[apiUpdateDto]) (api API, err error) {
 	tx := s.db.Begin()
 	defer func() {
 		tx.Rollback()
@@ -144,6 +146,12 @@ func (s *Service) Update(ctx context.Context, id string, input apiUpdateDto) (ap
 	}
 	if api.ID == BuiltInAPIID {
 		return API{}, apperror.BuiltInAPIReadOnly("The built-in Pocket ID API can't be renamed")
+	}
+
+	// Compute the update from the locked API, so a PATCH merges onto the state it saves over
+	input, err := update(api)
+	if err != nil {
+		return API{}, err
 	}
 
 	api.Name = input.Name

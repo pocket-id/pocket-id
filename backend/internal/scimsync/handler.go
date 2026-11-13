@@ -92,17 +92,12 @@ func (h *handler) createServiceProvider(c *gin.Context) error {
 // @Router /api/scim/service-provider/{id} [put]
 // @Router /api/scim/service-provider/{id} [patch]
 func (h *handler) updateServiceProvider(c *gin.Context) error {
-	// The current token is left out, so a PATCH that changes the endpoint has to send the token again like a PUT
-	var input ScimServiceProviderCreateDTO
-	err := httpserver.BindUpdateJSON(c, &input, func() (any, error) {
-		provider, err := h.service.GetServiceProvider(c.Request.Context(), c.Param("id"))
-		return ScimServiceProviderCreateDTO{Endpoint: provider.Endpoint, OidcClientID: provider.OidcClientID}, err
-	})
+	update, err := httpserver.BindUpdate[ScimServiceProviderCreateDTO](c)
 	if err != nil {
 		return err
 	}
 
-	provider, err := h.service.UpdateServiceProvider(c.Request.Context(), c.Param("id"), &input)
+	provider, err := h.service.UpdateServiceProvider(c.Request.Context(), c.Param("id"), update)
 	if err != nil {
 		return err
 	}

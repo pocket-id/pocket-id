@@ -191,7 +191,7 @@ func (s *clientService) CreateClient(ctx context.Context, input dto.OidcClientCr
 	return client, createdSecret, nil
 }
 
-func (s *clientService) UpdateClient(ctx context.Context, clientID string, input dto.OidcClientUpdateDto, origin auditlogs.Origin) (model.OidcClient, error) {
+func (s *clientService) UpdateClient(ctx context.Context, clientID string, update dto.Update[dto.OidcClientUpdateDto], origin auditlogs.Origin) (model.OidcClient, error) {
 	tx := s.db.Begin()
 	defer func() {
 		tx.Rollback()
@@ -202,6 +202,12 @@ func (s *clientService) UpdateClient(ctx context.Context, clientID string, input
 		return model.OidcClient{}, err
 	}
 	before := client
+
+	// Compute the update from the locked client, so a PATCH merges onto the state it saves over
+	input, err := update(client)
+	if err != nil {
+		return model.OidcClient{}, err
+	}
 
 	err = updateOIDCClientModelFromDto(&client, &input)
 	if err != nil {

@@ -11,6 +11,7 @@ import (
 	"github.com/pocket-id/pocket-id/backend/internal/apperror"
 	"github.com/pocket-id/pocket-id/backend/internal/auditlogs"
 	"github.com/pocket-id/pocket-id/backend/internal/authz"
+	"github.com/pocket-id/pocket-id/backend/internal/dto"
 	"github.com/pocket-id/pocket-id/backend/internal/model"
 	datatype "github.com/pocket-id/pocket-id/backend/internal/model/types"
 	testutils "github.com/pocket-id/pocket-id/backend/internal/utils/testing"
@@ -30,7 +31,7 @@ func TestMissingManagedAPIKeyReturnsNotFound(t *testing.T) {
 	_, _, err = service.RenewApiKey(t.Context(), "user-id", "missing-key", time.Now().Add(time.Hour), 0, auditlogs.Origin{})
 	require.True(t, apperror.IsCode(err, apperror.CodeAPIKeyNotFound))
 
-	_, err = service.UpdateApiKey(t.Context(), "user-id", "missing-key", authz.NewScopeSet(authz.AccountRead), apiKeyUpdateDto{Name: "key", Scopes: datatype.StringList{"account:read"}})
+	_, err = service.UpdateApiKey(t.Context(), "user-id", "missing-key", authz.NewScopeSet(authz.AccountRead), dto.Replace(apiKeyUpdateDto{Name: "key", Scopes: datatype.StringList{"account:read"}}))
 	require.True(t, apperror.IsCode(err, apperror.CodeAPIKeyNotFound))
 }
 
@@ -62,10 +63,10 @@ func TestAPIKeyScopes(t *testing.T) {
 		require.NoError(t, err)
 		require.Equal(t, datatype.StringList{"account:read", "account:write"}, created.Scopes)
 
-		_, err = service.UpdateApiKey(t.Context(), user.ID, created.ID, grantable, apiKeyUpdateDto{Name: "scoped", Scopes: datatype.StringList{string(authz.UsersWrite)}})
+		_, err = service.UpdateApiKey(t.Context(), user.ID, created.ID, grantable, dto.Replace(apiKeyUpdateDto{Name: "scoped", Scopes: datatype.StringList{string(authz.UsersWrite)}}))
 		require.True(t, apperror.IsCode(err, apperror.CodeInvalidAPIKeyScope))
 
-		updated, err := service.UpdateApiKey(t.Context(), user.ID, created.ID, grantable, apiKeyUpdateDto{Name: "renamed", Scopes: datatype.StringList{string(authz.AccountRead)}})
+		updated, err := service.UpdateApiKey(t.Context(), user.ID, created.ID, grantable, dto.Replace(apiKeyUpdateDto{Name: "renamed", Scopes: datatype.StringList{string(authz.AccountRead)}}))
 		require.NoError(t, err)
 
 		var stored ApiKey

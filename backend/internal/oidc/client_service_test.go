@@ -6,6 +6,7 @@ import (
 	"net/http/httptest"
 	"strconv"
 	"strings"
+	"sync"
 	"testing"
 	"time"
 
@@ -767,7 +768,7 @@ func TestClientService_UpdateClient_tokenLifetimes(t *testing.T) {
 		Name:         "Test Client",
 		CallbackURLs: []string{"https://example.com/callback"},
 	}
-	_, err := s.UpdateClient(t.Context(), client.ID, input, auditlogs.Origin{})
+	_, err := s.UpdateClient(t.Context(), client.ID, dto.Replace(input), auditlogs.Origin{})
 	require.NoError(t, err)
 
 	var fetched model.OidcClient
@@ -777,12 +778,52 @@ func TestClientService_UpdateClient_tokenLifetimes(t *testing.T) {
 
 	// Providing only one of them leaves the other at its default
 	input.AccessTokenDurationMinutes = 3 * 60
-	_, err = s.UpdateClient(t.Context(), client.ID, input, auditlogs.Origin{})
+	_, err = s.UpdateClient(t.Context(), client.ID, dto.Replace(input), auditlogs.Origin{})
 	require.NoError(t, err)
 
 	require.NoError(t, db.First(&fetched, "id = ?", client.ID).Error)
 	assert.Equal(t, int64(3*60), fetched.AccessTokenDurationMinutes)
 	assert.Equal(t, model.DefaultRefreshTokenDurationMinutes, fetched.RefreshTokenDurationMinutes)
+}
+
+// Every PATCH merges onto the client it locked, so concurrent PATCHes of different fields keep each other's changes
+func TestClientService_UpdateClient_concurrentPatches(t *testing.T) {
+	forEachTestDatabase(t, func(t *testing.T, db *gorm.DB) {
+		s := &clientService{db: db, auditLog: &fakeAuditLogger{}}
+		client := model.OidcClient{Name: "Test Client", CallbackURLs: datatype.StringList{"https://example.com/callback"}}
+		require.NoError(t, db.Create(&client).Error)
+
+		patches := []string{
+			`{"description":"changed"}`,
+			`{"skipConsent":true}`,
+			`{"launchURL":"https://example.com"}`,
+			`{"pkceEnabled":true}`,
+			`{"requiresReauthentication":true}`,
+		}
+		var wg sync.WaitGroup
+		for _, body := range patches {
+			wg.Go(func() {
+				var patch any
+				err := dto.DecodeJSON(strings.NewReader(body), &patch)
+				if err == nil {
+					_, err = s.UpdateClient(t.Context(), client.ID, dto.MergePatch[dto.OidcClientUpdateDto](patch), auditlogs.Origin{})
+				}
+				if err != nil {
+					t.Error(err)
+				}
+			})
+		}
+		wg.Wait()
+
+		var fetched model.OidcClient
+		require.NoError(t, db.First(&fetched, "id = ?", client.ID).Error)
+		assert.Equal(t, "changed", fetched.Description)
+		assert.True(t, fetched.SkipConsent)
+		require.NotNil(t, fetched.LaunchURL)
+		assert.Equal(t, "https://example.com", *fetched.LaunchURL)
+		assert.True(t, fetched.PkceEnabled)
+		assert.True(t, fetched.RequiresReauthentication)
+	})
 }
 
 func TestClientService_CreateClientSecret_withCustomSecret(t *testing.T) {
@@ -901,13 +942,13 @@ func TestClientService_CreateClientSecret_preservesFederatedIdentities(t *testin
 	require.NoError(t, err)
 
 	// Updating the client must not drop the secrets managed by the dedicated endpoints
-	_, err = s.UpdateClient(t.Context(), client.ID, dto.OidcClientUpdateDto{
+	_, err = s.UpdateClient(t.Context(), client.ID, dto.Replace(dto.OidcClientUpdateDto{
 		Name:         "Test Client",
 		CallbackURLs: []string{"https://example.com/callback"},
 		Credentials: dto.OidcClientCredentialsDto{
 			FederatedIdentities: []dto.OidcClientFederatedIdentityDto{{Issuer: "https://other.example.com"}},
 		},
-	}, auditlogs.Origin{})
+	}), auditlogs.Origin{})
 
 	require.NoError(t, err)
 
@@ -939,7 +980,7 @@ func TestClientService_UpdateClient_description(t *testing.T) {
 		CallbackURLs: []string{"https://example.com/callback"},
 	}
 
-	_, err = s.UpdateClient(t.Context(), client.ID, input, auditlogs.Origin{})
+	_, err = s.UpdateClient(t.Context(), client.ID, dto.Replace(input), auditlogs.Origin{})
 	require.NoError(t, err)
 
 	var fetched model.OidcClient
@@ -950,7 +991,7 @@ func TestClientService_UpdateClient_description(t *testing.T) {
 
 	// Update to clear the description
 	input.Description = ""
-	_, err = s.UpdateClient(t.Context(), client.ID, input, auditlogs.Origin{})
+	_, err = s.UpdateClient(t.Context(), client.ID, dto.Replace(input), auditlogs.Origin{})
 	require.NoError(t, err)
 
 	err = db.First(&fetched, "id = ?", client.ID).Error
@@ -1008,7 +1049,7 @@ func TestClientService_UpdateClient_CIMDPreservesMetadataFields(t *testing.T) {
 		},
 	}
 
-	_, err := s.UpdateClient(t.Context(), client.ID, input, auditlogs.Origin{})
+	_, err := s.UpdateClient(t.Context(), client.ID, dto.Replace(input), auditlogs.Origin{})
 	require.NoError(t, err)
 
 	var fetched model.OidcClient
@@ -1055,7 +1096,7 @@ func TestClientService_UpdateClient_CIMDDoesNotOverwriteConcurrentMetadataRefres
 	input := dto.OidcClientUpdateDto{
 		Description: "Locally managed description",
 	}
-	_, err := s.UpdateClient(t.Context(), client.ID, input, auditlogs.Origin{})
+	_, err := s.UpdateClient(t.Context(), client.ID, dto.Replace(input), auditlogs.Origin{})
 	require.NoError(t, err)
 
 	var fetched model.OidcClient
@@ -1364,11 +1405,11 @@ func TestClientService_UpdateClient_unknownClaimMappingPolicy(t *testing.T) {
 	client := model.OidcClient{Name: "Test Client", CallbackURLs: datatype.StringList{"https://example.com/callback"}}
 	require.NoError(t, db.Create(&client).Error)
 
-	_, err := s.UpdateClient(t.Context(), client.ID, dto.OidcClientUpdateDto{
+	_, err := s.UpdateClient(t.Context(), client.ID, dto.Replace(dto.OidcClientUpdateDto{
 		Name:                 "Test Client",
 		CallbackURLs:         []string{"https://example.com/callback"},
 		ClaimMappingPolicyId: "00000000-0000-0000-0000-000000000099",
-	}, auditlogs.Origin{})
+	}), auditlogs.Origin{})
 
 	var appErr *apperror.Error
 	require.ErrorAs(t, err, &appErr)
@@ -1382,11 +1423,11 @@ func TestClientService_UpdateClient_recordsChangedSettings(t *testing.T) {
 	client := model.OidcClient{Name: "Photos", CallbackURLs: datatype.StringList{"https://photos.example.com/callback"}}
 	require.NoError(t, db.Create(&client).Error)
 
-	_, err := s.UpdateClient(t.Context(), client.ID, dto.OidcClientUpdateDto{
+	_, err := s.UpdateClient(t.Context(), client.ID, dto.Replace(dto.OidcClientUpdateDto{
 		Name:         "Photos",
 		CallbackURLs: []string{"https://attacker.example.com/callback"},
 		PkceEnabled:  true,
-	}, auditlogs.Origin{})
+	}), auditlogs.Origin{})
 	require.NoError(t, err)
 
 	assert.Equal(t, []auditlogs.Event{auditlogs.EventClientUpdated}, auditLog.events)

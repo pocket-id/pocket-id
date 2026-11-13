@@ -149,7 +149,7 @@ func TestUpdatesGroupWithThousandsOfMembers(t *testing.T) {
 
 	_, err = groupService.UpdateUsers(t.Context(), group.ID, userIDs, auditlogs.Origin{})
 	require.NoError(t, err)
-	_, err = groupService.Update(t.Context(), &appconfig.AppConfigModel{}, group.ID, dto.UserGroupCreateDto{Name: "staff", FriendlyName: "All staff"})
+	_, err = groupService.Update(t.Context(), &appconfig.AppConfigModel{}, group.ID, dto.Replace(dto.UserGroupCreateDto{Name: "staff", FriendlyName: "All staff"}))
 	require.NoError(t, err)
 	_, err = groupService.UpdateAllowedOidcClient(t.Context(), group.ID, dto.UserGroupUpdateAllowedOidcClientsDto{}, auditlogs.Origin{})
 	require.NoError(t, err)

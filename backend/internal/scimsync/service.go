@@ -19,8 +19,10 @@ import (
 	"time"
 
 	"gorm.io/gorm"
+	"gorm.io/gorm/clause"
 
 	"github.com/pocket-id/pocket-id/backend/internal/apperror"
+	"github.com/pocket-id/pocket-id/backend/internal/dto"
 	"github.com/pocket-id/pocket-id/backend/internal/model"
 	datatype "github.com/pocket-id/pocket-id/backend/internal/model/types"
 	"github.com/pocket-id/pocket-id/backend/internal/oidc"
@@ -149,7 +151,7 @@ func (s *Service) CreateServiceProvider(ctx context.Context, input *ScimServiceP
 	return provider, nil
 }
 
-func (s *Service) UpdateServiceProvider(ctx context.Context, serviceProviderID string, input *ScimServiceProviderCreateDTO) (ServiceProvider, error) {
+func (s *Service) UpdateServiceProvider(ctx context.Context, serviceProviderID string, update dto.Update[ScimServiceProviderCreateDTO]) (ServiceProvider, error) {
 	tx := s.db.Begin()
 	defer func() {
 		tx.Rollback()
@@ -157,12 +159,19 @@ func (s *Service) UpdateServiceProvider(ctx context.Context, serviceProviderID s
 
 	var provider ServiceProvider
 	err := tx.WithContext(ctx).
+		Clauses(clause.Locking{Strength: "UPDATE"}).
 		First(&provider, "id = ?", serviceProviderID).
 		Error
 	if errors.Is(err, gorm.ErrRecordNotFound) {
 		return ServiceProvider{}, apperror.NotFound("SCIM service provider")
 	} else if err != nil {
 		return ServiceProvider{}, fmt.Errorf("error loading SCIM service provider: %w", err)
+	}
+
+	// Compute the update from the locked provider without its stored token, so a PATCH that changes the endpoint has to send the token again like a PUT
+	input, err := update(ScimServiceProviderCreateDTO{Endpoint: provider.Endpoint, OidcClientID: provider.OidcClientID})
+	if err != nil {
+		return ServiceProvider{}, err
 	}
 
 	err = ensureScimOIDCClientExists(ctx, tx, input.OidcClientID)

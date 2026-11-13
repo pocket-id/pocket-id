@@ -8,9 +8,11 @@ import (
 
 	"github.com/pocket-id/fosite"
 	"gorm.io/gorm"
+	"gorm.io/gorm/clause"
 
 	"github.com/pocket-id/pocket-id/backend/internal/apperror"
 	"github.com/pocket-id/pocket-id/backend/internal/authz"
+	"github.com/pocket-id/pocket-id/backend/internal/dto"
 	"github.com/pocket-id/pocket-id/backend/internal/model"
 	"github.com/pocket-id/pocket-id/backend/internal/utils"
 )
@@ -95,8 +97,21 @@ func (s *Service) CreateCustomScope(ctx context.Context, input CustomScopeDto) (
 
 // UpdateCustomScope changes the scope's name and description
 // The key can't change, because claim mappings and the apps that request the scope refer to it
-func (s *Service) UpdateCustomScope(ctx context.Context, id string, input CustomScopeDto) (CustomScope, error) {
-	scope, err := s.getCustomScope(ctx, id)
+func (s *Service) UpdateCustomScope(ctx context.Context, id string, update dto.Update[CustomScopeDto]) (CustomScope, error) {
+	tx := s.db.Begin()
+	defer func() {
+		tx.Rollback()
+	}()
+
+	// Lock the scope and compute the update from it, so a PATCH merges onto the state it saves over
+	var scope CustomScope
+	err := tx.WithContext(ctx).Clauses(clause.Locking{Strength: "UPDATE"}).First(&scope, "id = ?", id).Error
+	if errors.Is(err, gorm.ErrRecordNotFound) {
+		return CustomScope{}, apperror.NotFound("Custom scope")
+	} else if err != nil {
+		return CustomScope{}, err
+	}
+	input, err := update(scope)
 	if err != nil {
 		return CustomScope{}, err
 	}
@@ -106,8 +121,11 @@ func (s *Service) UpdateCustomScope(ctx context.Context, id string, input Custom
 
 	scope.Name = input.Name
 	scope.Description = input.Description
-	err = s.db.WithContext(ctx).Save(&scope).Error
-	return scope, err
+	err = tx.WithContext(ctx).Save(&scope).Error
+	if err != nil {
+		return CustomScope{}, err
+	}
+	return scope, tx.Commit().Error
 }
 
 // validateCustomScopeKey rejects keys that would be ambiguous as a scope

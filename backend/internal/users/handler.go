@@ -392,13 +392,12 @@ func (h *handler) updateUser(c *gin.Context, updateOwnUser bool) error {
 		userID = c.Param("id")
 	}
 
-	var input dto.UserCreateDto
-	err = httpserver.BindUpdateJSON(c, &input, func() (any, error) { return h.service.GetUser(c.Request.Context(), userID) })
+	update, err := httpserver.BindUpdate[dto.UserCreateDto](c)
 	if err != nil {
 		return err
 	}
 
-	user, err := h.service.UpdateUser(c.Request.Context(), dbConfig, userID, input, updateOwnUser, false, auditlogs.OriginFrom(c))
+	user, err := h.service.UpdateUser(c.Request.Context(), dbConfig, userID, update, updateOwnUser, false, auditlogs.OriginFrom(c))
 	if err != nil {
 		return err
 	}

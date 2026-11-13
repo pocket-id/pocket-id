@@ -9,11 +9,13 @@ import (
 	"testing"
 	"time"
 
+	"github.com/stretchr/testify/require"
+
 	"github.com/pocket-id/pocket-id/backend/internal/apperror"
+	"github.com/pocket-id/pocket-id/backend/internal/dto"
 	"github.com/pocket-id/pocket-id/backend/internal/model"
 	datatype "github.com/pocket-id/pocket-id/backend/internal/model/types"
 	testutils "github.com/pocket-id/pocket-id/backend/internal/utils/testing"
-	"github.com/stretchr/testify/require"
 )
 
 func TestServiceProviderOperationsReturnSpecificNotFoundErrors(t *testing.T) {
@@ -51,10 +53,10 @@ func TestServiceProviderCreateAndUpdate(t *testing.T) {
 	require.NotEmpty(t, provider.ID)
 
 	// Move the provider to the second client in one transaction
-	provider, err = service.UpdateServiceProvider(t.Context(), provider.ID, &ScimServiceProviderCreateDTO{
+	provider, err = service.UpdateServiceProvider(t.Context(), provider.ID, dto.Replace(ScimServiceProviderCreateDTO{
 		Endpoint:     "https://scim.example.com/v2",
 		OidcClientID: "client-2",
-	})
+	}))
 	require.NoError(t, err)
 	require.Equal(t, "https://scim.example.com/v2", provider.Endpoint)
 	require.Equal(t, "client-2", provider.OidcClientID)
@@ -84,11 +86,11 @@ func TestUpdateServiceProviderToken(t *testing.T) {
 	require.NoError(t, err)
 
 	update := func(endpoint string, token *string) error {
-		_, err := service.UpdateServiceProvider(t.Context(), provider.ID, &ScimServiceProviderCreateDTO{
+		_, err := service.UpdateServiceProvider(t.Context(), provider.ID, dto.Replace(ScimServiceProviderCreateDTO{
 			Endpoint:     endpoint,
 			Token:        token,
 			OidcClientID: "client",
-		})
+		}))
 		return err
 	}
 	requireToken := func(expected string) {

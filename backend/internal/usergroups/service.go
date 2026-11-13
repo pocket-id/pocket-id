@@ -192,11 +192,23 @@ func (s *Service) createInternal(ctx context.Context, input dto.UserGroupCreateD
 	return group, nil
 }
 
-func (s *Service) Update(ctx context.Context, cfg *appconfig.AppConfigModel, id string, input dto.UserGroupCreateDto) (group model.UserGroup, err error) {
+func (s *Service) Update(ctx context.Context, cfg *appconfig.AppConfigModel, id string, update dto.Update[dto.UserGroupCreateDto]) (group model.UserGroup, err error) {
 	tx := s.db.Begin()
 	defer func() {
 		tx.Rollback()
 	}()
+
+	// Lock the group and compute the update from it, so a PATCH merges onto the state it saves over
+	err = tx.WithContext(ctx).Clauses(clause.Locking{Strength: "UPDATE"}).Where("id = ?", id).First(&group).Error
+	if errors.Is(err, gorm.ErrRecordNotFound) {
+		return model.UserGroup{}, apperror.NotFound("User group")
+	} else if err != nil {
+		return model.UserGroup{}, err
+	}
+	input, err := update(group)
+	if err != nil {
+		return model.UserGroup{}, err
+	}
 
 	group, err = s.updateInternal(ctx, id, input, false, tx, cfg)
 	if err != nil {

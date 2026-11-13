@@ -164,13 +164,12 @@ func (h *handler) delete(c *gin.Context) error {
 // @Router /api/oidc/claim-mapping-policies/{id} [put]
 // @Router /api/oidc/claim-mapping-policies/{id} [patch]
 func (h *handler) update(c *gin.Context) error {
-	var input OidcClaimMappingPolicyDto
-	err := httpserver.BindUpdateJSON(c, &input, func() (any, error) { return h.service.GetClaimMappingPolicy(c.Request.Context(), c.Param("id")) })
+	update, err := httpserver.BindUpdate[OidcClaimMappingPolicyDto](c)
 	if err != nil {
 		return err
 	}
 
-	claimMappingPolicy, err := h.service.UpdateClaimMappingPolicy(c.Request.Context(), c.Param("id"), input)
+	claimMappingPolicy, err := h.service.UpdateClaimMappingPolicy(c.Request.Context(), c.Param("id"), update)
 	if err != nil {
 		return err
 	}

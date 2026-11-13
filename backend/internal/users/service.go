@@ -499,17 +499,24 @@ func (s *Service) applyDefaultCustomClaims(ctx context.Context, user *model.User
 	return nil
 }
 
-func (s *Service) UpdateUser(ctx context.Context, cfg *appconfig.AppConfigModel, userID string, updatedUser dto.UserCreateDto, updateOwnUser bool, isLdapSync bool, origin auditlogs.Origin) (model.User, error) {
+func (s *Service) UpdateUser(ctx context.Context, cfg *appconfig.AppConfigModel, userID string, update dto.Update[dto.UserCreateDto], updateOwnUser bool, isLdapSync bool, origin auditlogs.Origin) (model.User, error) {
+	// The limiters below are actors that write to the database, so they run before the transaction locks it on SQLite, on a preview of the update computed from an unlocked read
+	var current model.User
+	err := s.db.WithContext(ctx).Where("id = ?", userID).First(&current).Error
+	if errors.Is(err, gorm.ErrRecordNotFound) {
+		return model.User{}, apperror.UserNotFound()
+	} else if err != nil {
+		return model.User{}, err
+	}
+	preview, err := update(current)
+	if err != nil {
+		return model.User{}, err
+	}
+
 	// Changing the own username or email reports whether another account already has it, so it's throttled to slow down probing for existing users
 	if updateOwnUser && s.ownAccountLimiter != nil {
-		var current model.User
-		err := s.db.WithContext(ctx).Where("id = ?", userID).First(&current).Error
-		if err != nil {
-			return model.User{}, err
-		}
-
-		emailChanged := updatedUser.Email != nil && (current.Email == nil || *current.Email != *updatedUser.Email)
-		if (current.Username != updatedUser.Username || emailChanged) && canEditProfile(cfg, &current, true, isLdapSync) {
+		emailChanged := preview.Email != nil && (current.Email == nil || *current.Email != *preview.Email)
+		if (current.Username != preview.Username || emailChanged) && canEditProfile(cfg, &current, true, isLdapSync) {
 			allowed, retryAfter, err := s.ownAccountLimiter.Allow(ctx, userID)
 			if err != nil {
 				// Fail open like the rate-limit middleware, so a limiter error does not block the update
@@ -520,11 +527,9 @@ func (s *Service) UpdateUser(ctx context.Context, cfg *appconfig.AppConfigModel,
 		}
 	}
 
-	// The send limiter is an actor that writes to the database, so it's asked before the transaction locks it on SQLite
 	// A throttled change rejects the whole update instead of saving it without the email
 	sendAllowed := false
 	if updateOwnUser {
-		preview := updatedUser
 		change, err := s.prepareOwnEmailChange(ctx, cfg, userID, &preview, isLdapSync, s.db)
 		if err != nil {
 			return model.User{}, err
@@ -543,25 +548,26 @@ func (s *Service) UpdateUser(ctx context.Context, cfg *appconfig.AppConfigModel,
 		tx.Rollback()
 	}()
 
+	// Lock the user and compute the update from it, so a PATCH merges onto the state it saves over
+	var locked model.User
+	err = tx.WithContext(ctx).Clauses(clause.Locking{Strength: "UPDATE"}).Where("id = ?", userID).First(&locked).Error
+	if errors.Is(err, gorm.ErrRecordNotFound) {
+		return model.User{}, apperror.UserNotFound()
+	} else if err != nil {
+		return model.User{}, err
+	}
+	updatedUser, err := update(locked)
+	if err != nil {
+		return model.User{}, err
+	}
+
 	// Only an admin setting the flag can disable a user, so the previous state is only needed to detect that transition
 	canDisable := s.backchannelLogout != nil && !updateOwnUser && updatedUser.Disabled
-	var wasDisabled bool
-	if canDisable {
-		err := tx.
-			WithContext(ctx).
-			Model(&model.User{}).
-			Where("id = ?", userID).
-			Pluck("disabled", &wasDisabled).
-			Error
-		if err != nil {
-			return model.User{}, err
-		}
-	}
+	wasDisabled := locked.Disabled
 
 	// A user's own email change may have to be confirmed first, so that's decided before the update is applied
 	var change ownEmailChange
 	if updateOwnUser {
-		var err error
 		change, err = s.prepareOwnEmailChange(ctx, cfg, userID, &updatedUser, isLdapSync, tx)
 		if err != nil {
 			return model.User{}, err
@@ -573,7 +579,7 @@ func (s *Service) UpdateUser(ctx context.Context, cfg *appconfig.AppConfigModel,
 		}
 	}
 
-	_, err := s.updateUserInternal(ctx, cfg, userID, updatedUser, updateOwnUser, isLdapSync, origin, tx)
+	_, err = s.updateUserInternal(ctx, cfg, userID, updatedUser, updateOwnUser, isLdapSync, origin, tx)
 	if err != nil {
 		return model.User{}, err
 	}

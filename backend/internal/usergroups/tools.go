@@ -109,18 +109,16 @@ func (h *handler) updateGroupTool(ctx context.Context, _ mcp.Call, input updateG
 		return nil, fmt.Errorf("error loading app configuration: %w", err)
 	}
 
-	group, err := h.service.Get(ctx, input.ID)
-	if err != nil {
-		return nil, err
-	}
-	updateDto := dto.UserGroupCreateDto{FriendlyName: group.FriendlyName, Name: group.Name}
-	mcp.SetIfPresent(&updateDto.FriendlyName, input.FriendlyName)
-	mcp.SetIfPresent(&updateDto.Name, input.Name)
-	if err := httpserver.Validate(&updateDto); err != nil {
-		return nil, err
-	}
-
-	group, err = h.service.Update(ctx, dbConfig, input.ID, updateDto)
+	// The service replaces every field, so start from the locked group and apply only the given fields
+	group, err := h.service.Update(ctx, dbConfig, input.ID, func(current any) (dto.UserGroupCreateDto, error) {
+		var updateDto dto.UserGroupCreateDto
+		if err := dto.MapStruct(current, &updateDto); err != nil {
+			return updateDto, err
+		}
+		mcp.SetIfPresent(&updateDto.FriendlyName, input.FriendlyName)
+		mcp.SetIfPresent(&updateDto.Name, input.Name)
+		return updateDto, httpserver.Validate(&updateDto)
+	})
 	if err != nil {
 		return nil, err
 	}

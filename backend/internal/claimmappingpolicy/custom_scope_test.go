@@ -8,6 +8,7 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/pocket-id/pocket-id/backend/internal/apperror"
+	"github.com/pocket-id/pocket-id/backend/internal/dto"
 	"github.com/pocket-id/pocket-id/backend/internal/model"
 	"github.com/pocket-id/pocket-id/backend/internal/utils"
 )
@@ -18,7 +19,7 @@ func TestSaveCustomScope(t *testing.T) {
 	require.NoError(t, err)
 
 	t.Run("the key can't change", func(t *testing.T) {
-		_, err := service.UpdateCustomScope(t.Context(), kuber.ID, CustomScopeDto{Key: "kube", Name: "Kubernetes role", Description: "Your Kubernetes role"})
+		_, err := service.UpdateCustomScope(t.Context(), kuber.ID, dto.Replace(CustomScopeDto{Key: "kube", Name: "Kubernetes role", Description: "Your Kubernetes role"}))
 		require.True(t, apperror.IsCode(err, apperror.CodeValidationFailed), "got %v", err)
 	})
 

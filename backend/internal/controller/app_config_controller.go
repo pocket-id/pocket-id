@@ -137,13 +137,12 @@ func (acc *AppConfigController) listAllAppConfigHandler(c *gin.Context) error {
 // @Router /api/application-configuration [put]
 // @Router /api/application-configuration [patch]
 func (acc *AppConfigController) updateAppConfigHandler(c *gin.Context) error {
-	var input dto.AppConfigUpdateDto
-	err := httpserver.BindUpdateJSON(c, &input, func() (any, error) { return acc.appConfigService.GetConfig(c.Request.Context()) })
+	update, err := httpserver.BindUpdate[dto.AppConfigUpdateDto](c)
 	if err != nil {
 		return err
 	}
 
-	savedConfigVariables, err := acc.appConfigService.UpdateAppConfig(c.Request.Context(), input)
+	savedConfigVariables, err := acc.appConfigService.UpdateAppConfig(c.Request.Context(), update)
 	if err != nil {
 		return err
 	}

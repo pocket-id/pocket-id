@@ -14,6 +14,7 @@ import (
 	"github.com/pocket-id/pocket-id/backend/internal/apperror"
 	"github.com/pocket-id/pocket-id/backend/internal/auditlogs"
 	"github.com/pocket-id/pocket-id/backend/internal/authz"
+	"github.com/pocket-id/pocket-id/backend/internal/dto"
 	datatype "github.com/pocket-id/pocket-id/backend/internal/model/types"
 	"github.com/pocket-id/pocket-id/backend/internal/utils"
 )
@@ -88,11 +89,17 @@ func (s *Service) CreateApiKey(ctx context.Context, userID string, grantable aut
 }
 
 // UpdateApiKey changes a key's name, description and scopes without changing its token
-// GetApiKey loads an API key of the user
-func (s *Service) GetApiKey(ctx context.Context, userID, apiKeyID string) (ApiKey, error) {
+func (s *Service) UpdateApiKey(ctx context.Context, userID, apiKeyID string, grantable authz.ScopeSet, update dto.Update[apiKeyUpdateDto]) (ApiKey, error) {
+	tx := s.db.Begin()
+	defer func() {
+		tx.Rollback()
+	}()
+
+	// Lock the key and compute the update from it, so a PATCH merges onto the state it saves over
 	var apiKey ApiKey
-	err := s.db.
+	err := tx.
 		WithContext(ctx).
+		Clauses(clause.Locking{Strength: "UPDATE"}).
 		Where("id = ? AND user_id = ?", apiKeyID, userID).
 		First(&apiKey).
 		Error
@@ -101,16 +108,11 @@ func (s *Service) GetApiKey(ctx context.Context, userID, apiKeyID string) (ApiKe
 	} else if err != nil {
 		return ApiKey{}, fmt.Errorf("error loading API key: %w", err)
 	}
-	return apiKey, nil
-}
-
-func (s *Service) UpdateApiKey(ctx context.Context, userID, apiKeyID string, grantable authz.ScopeSet, input apiKeyUpdateDto) (ApiKey, error) {
-	scopes, err := grantedScopes(input.Scopes, grantable)
+	input, err := update(apiKey)
 	if err != nil {
 		return ApiKey{}, err
 	}
-
-	apiKey, err := s.GetApiKey(ctx, userID, apiKeyID)
+	scopes, err := grantedScopes(input.Scopes, grantable)
 	if err != nil {
 		return ApiKey{}, err
 	}
@@ -119,7 +121,7 @@ func (s *Service) UpdateApiKey(ctx context.Context, userID, apiKeyID string, gra
 	apiKey.Description = input.Description
 	apiKey.Scopes = scopes
 
-	err = s.db.WithContext(ctx).Save(&apiKey).Error
+	err = tx.WithContext(ctx).Save(&apiKey).Error
 	if err != nil {
 		if errors.Is(err, gorm.ErrDuplicatedKey) {
 			return ApiKey{}, apperror.AlreadyInUse("API key name")
@@ -127,7 +129,7 @@ func (s *Service) UpdateApiKey(ctx context.Context, userID, apiKeyID string, gra
 		return ApiKey{}, fmt.Errorf("error saving API key: %w", err)
 	}
 
-	return apiKey, nil
+	return apiKey, tx.Commit().Error
 }
 
 // grantedScopes returns the requested scopes sorted and without duplicates, or an error if any of them is not in grantable

@@ -818,7 +818,7 @@ func (s *TestService) ResetApplicationAssets(ctx context.Context) error {
 
 func (s *TestService) ResetAppConfig(ctx context.Context) error {
 	// Reset all application configuration values through the singleton actor
-	_, err := s.appConfigService.UpdateAppConfig(ctx, dto.AppConfigUpdateDto{})
+	_, err := s.appConfigService.UpdateAppConfig(ctx, dto.Replace(dto.AppConfigUpdateDto{}))
 	if err != nil {
 		return err
 	}

@@ -115,13 +115,12 @@ func (h *handler) create(c *gin.Context) error {
 // @Router /api/apis/{id} [put]
 // @Router /api/apis/{id} [patch]
 func (h *handler) update(c *gin.Context) error {
-	var input apiUpdateDto
-	err := httpserver.BindUpdateJSON(c, &input, func() (any, error) { return h.service.Get(c.Request.Context(), nil, c.Param("id")) })
+	update, err := httpserver.BindUpdate[apiUpdateDto](c)
 	if err != nil {
 		return err
 	}
 
-	api, err := h.service.Update(c.Request.Context(), c.Param("id"), input)
+	api, err := h.service.Update(c.Request.Context(), c.Param("id"), update)
 	if err != nil {
 		return err
 	}

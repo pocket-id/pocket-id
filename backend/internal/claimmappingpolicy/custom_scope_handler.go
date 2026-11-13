@@ -78,13 +78,12 @@ func (h *handler) createCustomScope(c *gin.Context) error {
 // @Router /api/oidc/custom-scopes/{id} [put]
 // @Router /api/oidc/custom-scopes/{id} [patch]
 func (h *handler) updateCustomScope(c *gin.Context) error {
-	var input CustomScopeDto
-	err := httpserver.BindUpdateJSON(c, &input, func() (any, error) { return h.service.getCustomScope(c.Request.Context(), c.Param("id")) })
+	update, err := httpserver.BindUpdate[CustomScopeDto](c)
 	if err != nil {
 		return err
 	}
 
-	scope, err := h.service.UpdateCustomScope(c.Request.Context(), c.Param("id"), input)
+	scope, err := h.service.UpdateCustomScope(c.Request.Context(), c.Param("id"), update)
 	if err != nil {
 		return err
 	}

@@ -138,11 +138,22 @@ func (s *AppConfigService) GetCIMDURLAllowlist() []string {
 	return patterns
 }
 
-// UpdateAppConfig replaces the entire application configuration with the values from the input DTO.
-func (s *AppConfigService) UpdateAppConfig(ctx context.Context, input dto.AppConfigUpdateDto) ([]AppConfigVariable, error) {
+// UpdateAppConfig applies an update to the saved configuration and returns the configuration in effect
+// Only the properties whose value changes are sent to the actor, which applies them atomically, so concurrent updates of different properties never undo each other
+func (s *AppConfigService) UpdateAppConfig(ctx context.Context, update dto.Update[dto.AppConfigUpdateDto]) ([]AppConfigVariable, error) {
 	// If the UI config is disabled, we cannot continue
 	if common.EnvConfig.UiConfigDisabled {
 		return nil, apperror.UIConfigDisabled()
+	}
+
+	// Compute the update from the saved configuration, which holds the secrets but not the values set in the environment
+	saved, err := s.getSavedConfig(ctx)
+	if err != nil {
+		return nil, err
+	}
+	input, err := update(saved)
+	if err != nil {
+		return nil, err
 	}
 
 	// Validate the CIMD URL allowlist patterns, if provided
@@ -158,25 +169,25 @@ func (s *AppConfigService) UpdateAppConfig(ctx context.Context, input dto.AppCon
 		}
 	}
 
-	// Keep the saved values of the properties set in the environment, so environment values such as secrets never end up in the database
-	if len(s.envOverrides) > 0 {
-		saved, err := s.getSavedConfig(ctx)
-		if err != nil {
-			return nil, err
+	// Collect the properties that change, leaving out the ones set in the environment and secrets sent back redacted, so neither ends up in the database
+	changes := make(map[string]string)
+	inputValue := reflect.ValueOf(input)
+	savedValue := reflect.ValueOf(saved).Elem()
+	for i := range inputValue.NumField() {
+		field := inputValue.Type().Field(i)
+		key, _, _ := strings.Cut(field.Tag.Get("json"), ",")
+		value := inputValue.Field(i).String()
+		modelField, _ := savedValue.Type().FieldByName(field.Name)
+		_, overridden := s.envOverrides[key]
+		redacted := value == redactedValue && modelField.Tag.Get("sensitive") == "true"
+		if overridden || redacted || value == savedValue.FieldByName(field.Name).String() {
+			continue
 		}
-		inputValue := reflect.ValueOf(&input).Elem()
-		savedValue := reflect.ValueOf(saved).Elem()
-		for i := range inputValue.NumField() {
-			field := inputValue.Type().Field(i)
-			key, _, _ := strings.Cut(field.Tag.Get("json"), ",")
-			if _, ok := s.envOverrides[key]; ok {
-				inputValue.Field(i).SetString(savedValue.FieldByName(field.Name).String())
-			}
-		}
+		changes[key] = value
 	}
 
-	// Replace the entire config by invoking the actor
-	cfg, err := s.invokeConfigActor(ctx, "replace", input)
+	// Apply the changes by invoking the actor
+	cfg, err := s.invokeConfigActor(ctx, "update", changes)
 	if err != nil {
 		return nil, err
 	}

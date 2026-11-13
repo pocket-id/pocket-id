@@ -153,41 +153,35 @@ func (h *clientHandler) createClientTool(ctx context.Context, call mcp.Call, inp
 }
 
 func (h *clientHandler) updateClientTool(ctx context.Context, call mcp.Call, input updateClientInput) (any, error) {
-	// The service replaces every field, so start from the current client and apply only the given fields
-	client, err := h.service.GetClient(ctx, input.ID)
-	if err != nil {
-		return nil, err
-	}
-	var updateDto dto.OidcClientUpdateDto
-	if err := dto.MapStruct(client, &updateDto); err != nil {
-		return nil, err
-	}
-	mcp.SetIfPresent(&updateDto.Name, input.Name)
-	mcp.SetIfPresent(&updateDto.Description, input.Description)
-	mcp.SetIfPresent(&updateDto.CallbackURLs, input.CallbackURLs)
-	mcp.SetIfPresent(&updateDto.LogoutCallbackURLs, input.LogoutCallbackURLs)
-	mcp.SetIfPresent(&updateDto.IsPublic, input.IsPublic)
-	mcp.SetIfPresent(&updateDto.PkceEnabled, input.PkceEnabled)
-	mcp.SetIfPresent(&updateDto.SkipConsent, input.SkipConsent)
-	if input.LaunchURL != nil {
-		updateDto.LaunchURL = input.LaunchURL
-	}
-	if input.AllowedUserGroupIDs != nil {
-		updateDto.IsGroupRestricted = len(*input.AllowedUserGroupIDs) > 0
-	}
-	if err := httpserver.Validate(&updateDto); err != nil {
-		return nil, err
-	}
-
 	// Assign the groups before the restriction takes effect, otherwise turning it on would log their members out of the client
-	if updateDto.IsGroupRestricted && input.AllowedUserGroupIDs != nil {
-		_, err = h.service.UpdateAllowedUserGroups(ctx, input.ID, dto.OidcUpdateAllowedUserGroupsDto{UserGroupIDs: *input.AllowedUserGroupIDs}, auditlogs.OriginFromMCP(call))
+	if input.AllowedUserGroupIDs != nil && len(*input.AllowedUserGroupIDs) > 0 {
+		_, err := h.service.UpdateAllowedUserGroups(ctx, input.ID, dto.OidcUpdateAllowedUserGroupsDto{UserGroupIDs: *input.AllowedUserGroupIDs}, auditlogs.OriginFromMCP(call))
 		if err != nil {
 			return nil, err
 		}
 	}
 
-	client, err = h.service.UpdateClient(ctx, input.ID, updateDto, auditlogs.OriginFromMCP(call))
+	// The service replaces every field, so start from the locked client and apply only the given fields
+	client, err := h.service.UpdateClient(ctx, input.ID, func(current any) (dto.OidcClientUpdateDto, error) {
+		var updateDto dto.OidcClientUpdateDto
+		if err := dto.MapStruct(current, &updateDto); err != nil {
+			return updateDto, err
+		}
+		mcp.SetIfPresent(&updateDto.Name, input.Name)
+		mcp.SetIfPresent(&updateDto.Description, input.Description)
+		mcp.SetIfPresent(&updateDto.CallbackURLs, input.CallbackURLs)
+		mcp.SetIfPresent(&updateDto.LogoutCallbackURLs, input.LogoutCallbackURLs)
+		mcp.SetIfPresent(&updateDto.IsPublic, input.IsPublic)
+		mcp.SetIfPresent(&updateDto.PkceEnabled, input.PkceEnabled)
+		mcp.SetIfPresent(&updateDto.SkipConsent, input.SkipConsent)
+		if input.LaunchURL != nil {
+			updateDto.LaunchURL = input.LaunchURL
+		}
+		if input.AllowedUserGroupIDs != nil {
+			updateDto.IsGroupRestricted = len(*input.AllowedUserGroupIDs) > 0
+		}
+		return updateDto, httpserver.Validate(&updateDto)
+	}, auditlogs.OriginFromMCP(call))
 	if err != nil {
 		return nil, err
 	}

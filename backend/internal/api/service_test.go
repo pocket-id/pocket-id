@@ -8,6 +8,7 @@ import (
 
 	"github.com/pocket-id/pocket-id/backend/internal/apperror"
 	"github.com/pocket-id/pocket-id/backend/internal/claimmappingpolicy"
+	"github.com/pocket-id/pocket-id/backend/internal/dto"
 	"github.com/pocket-id/pocket-id/backend/internal/model"
 	"github.com/pocket-id/pocket-id/backend/internal/oidc"
 	"github.com/pocket-id/pocket-id/backend/internal/utils"
@@ -57,7 +58,7 @@ func TestAPICrudAndPermissionDiff(t *testing.T) {
 	require.NoError(t, db.Model(&OidcClientAllowedAPIPermission{}).Where("api_permission_id = ?", readPerm.ID).Count(&grantCount).Error)
 	assert.Equal(t, int64(0), grantCount)
 
-	renamed, err := svc.Update(t.Context(), created.ID, apiUpdateDto{Name: "Orders"})
+	renamed, err := svc.Update(t.Context(), created.ID, dto.Replace(apiUpdateDto{Name: "Orders"}))
 	require.NoError(t, err)
 	assert.Equal(t, "Orders", renamed.Name)
 	require.NotNil(t, renamed.UpdatedAt)

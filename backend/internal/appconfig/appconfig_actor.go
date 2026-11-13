@@ -11,7 +11,6 @@ import (
 	"gorm.io/gorm"
 
 	"github.com/pocket-id/pocket-id/backend/internal/common"
-	"github.com/pocket-id/pocket-id/backend/internal/dto"
 )
 
 // The AppConfig singleton actor maintains the dynamic configuration for the Pocket ID cluster
@@ -141,7 +140,7 @@ func (a *appConfigActor) Peek(parentCtx context.Context, method string, data act
 func (a *appConfigActor) Invoke(parentCtx context.Context, method string, data actor.Envelope) (any, error) {
 	// Check the method first
 	switch method {
-	case "get", "update", "replace":
+	case "get", "update":
 		// All good
 		// Note: we support "get" also via Invoke and not just Peek
 	default:
@@ -160,31 +159,6 @@ func (a *appConfigActor) Invoke(parentCtx context.Context, method string, data a
 	case "get":
 		// If the method is "get", just return the actor state, we're done
 		// This switch case is a no-op
-
-	case "replace":
-		// Replace the entire config
-		// The input data must be a dto.AppConfigUpdateDto
-		if data == nil {
-			return nil, errors.New("request body is empty for method 'replace'")
-		}
-		payload := dto.AppConfigUpdateDto{}
-		err = data.Decode(&payload)
-		if err != nil {
-			return nil, fmt.Errorf("request body is not valid for method 'replace': %w", err)
-		}
-
-		// Update the in-memory data, which is a decrypted copy of the cached object
-		state.Replace(payload)
-
-		// Save the updated state, which also updates the cached object
-		ctx, cancel = context.WithTimeout(parentCtx, 10*time.Second)
-		defer cancel()
-		err = a.setState(ctx, state)
-		if err != nil {
-			return nil, err
-		}
-
-		return state, nil
 
 	case "update":
 		// Update the config

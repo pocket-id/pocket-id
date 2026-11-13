@@ -163,13 +163,12 @@ func (h *clientHandler) deleteClientHandler(c *gin.Context) error {
 // @Router /api/oidc/clients/{id} [put]
 // @Router /api/oidc/clients/{id} [patch]
 func (h *clientHandler) updateClientHandler(c *gin.Context) error {
-	var input dto.OidcClientUpdateDto
-	err := httpserver.BindUpdateJSON(c, &input, func() (any, error) { return h.service.GetClient(c.Request.Context(), c.Param("id")) })
+	update, err := httpserver.BindUpdate[dto.OidcClientUpdateDto](c)
 	if err != nil {
 		return err
 	}
 
-	client, err := h.service.UpdateClient(c.Request.Context(), c.Param("id"), input, auditlogs.OriginFrom(c))
+	client, err := h.service.UpdateClient(c.Request.Context(), c.Param("id"), update, auditlogs.OriginFrom(c))
 	if err != nil {
 		return err
 	}

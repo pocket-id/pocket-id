@@ -13,18 +13,6 @@ import (
 	"github.com/pocket-id/pocket-id/backend/internal/dto"
 )
 
-// dtoWithMarkerValues returns a DTO where every field is set to a unique, non-empty marker derived from its "json" key, so we can assert each value lands in the right place.
-func dtoWithMarkerValues() dto.AppConfigUpdateDto {
-	var input dto.AppConfigUpdateDto
-	rv := reflect.ValueOf(&input).Elem()
-	rt := rv.Type()
-	for i := range rt.NumField() {
-		key, _, _ := strings.Cut(rt.Field(i).Tag.Get("json"), ",")
-		rv.Field(i).SetString("marker-" + key)
-	}
-	return input
-}
-
 func TestAppConfigModel_FieldTags(t *testing.T) {
 	modelType := reflect.TypeFor[AppConfigModel]()
 	jsonNames := make(map[string]string, modelType.NumField())
@@ -81,88 +69,6 @@ func TestAppConfigModel_TypeTagsHaveDTOValidation(t *testing.T) {
 			require.Contains(t, bindings, expectedValidator)
 		})
 	}
-}
-
-func TestAppConfigModel_Replace(t *testing.T) {
-	t.Run("populates every property from the DTO", func(t *testing.T) {
-		input := dtoWithMarkerValues()
-
-		var m AppConfigModel
-		m.Replace(input)
-
-		// Each model property must hold the marker built from its own "json" key.
-		// This also asserts that the model and the DTO share the same set of keys.
-		rv := reflect.ValueOf(&m).Elem()
-		rt := rv.Type()
-		for i := range rt.NumField() {
-			key, _, _ := strings.Cut(rt.Field(i).Tag.Get("json"), ",")
-			assert.Equalf(t, "marker-"+key, rv.Field(i).String(), "property %s (key %q)", rt.Field(i).Name, key)
-		}
-	})
-
-	t.Run("empty values fall back to their default", func(t *testing.T) {
-		defaults := getDefaultConfig()
-
-		// Start from all-markers, then blank out a few properties whose default is non-empty
-		input := dtoWithMarkerValues()
-		input.AppName = ""
-		input.SessionDuration = ""
-		input.SmtpTls = ""
-		input.LdapUserSearchFilter = ""
-
-		var m AppConfigModel
-		m.Replace(input)
-
-		// Blanked properties are reset to their default
-		assert.Equal(t, defaults.AppName, m.AppName)
-		assert.Equal(t, defaults.SessionDuration, m.SessionDuration)
-		assert.Equal(t, defaults.SmtpTls, m.SmtpTls)
-		assert.Equal(t, defaults.LdapUserSearchFilter, m.LdapUserSearchFilter)
-
-		// A property that was provided keeps the provided value
-		assert.Equal(t, AppConfigValue("marker-homePageUrl"), m.HomePageURL)
-	})
-
-	t.Run("an empty DTO resets every property to its default", func(t *testing.T) {
-		// Pre-populate with junk to prove Replace overwrites existing state
-		m := AppConfigModel{
-			AppName:     "Custom Name",
-			LdapEnabled: "true",
-			SmtpHost:    "smtp.example.com",
-		}
-
-		m.Replace(dto.AppConfigUpdateDto{})
-
-		assert.Equal(t, *getDefaultConfig(), m)
-	})
-
-	t.Run("provided values overwrite existing non-default values", func(t *testing.T) {
-		m := getDefaultConfig()
-		m.AppName = "Old Name"
-		m.LdapEnabled = "true"
-
-		input := dto.AppConfigUpdateDto{}
-		input.AppName = "New Name"
-
-		m.Replace(input)
-
-		// Explicitly provided value wins
-		assert.Equal(t, AppConfigValue("New Name"), m.AppName)
-		// Everything else in the DTO was empty, so it is reset to the default
-		assert.Equal(t, getDefaultConfig().LdapEnabled, m.LdapEnabled)
-	})
-
-	t.Run("stores raw string values without type coercion", func(t *testing.T) {
-		input := dto.AppConfigUpdateDto{}
-		input.SessionDuration = "120" // int-tagged property
-		input.LdapEnabled = "true"    // bool-tagged property
-
-		var m AppConfigModel
-		m.Replace(input)
-
-		assert.Equal(t, AppConfigValue("120"), m.SessionDuration)
-		assert.Equal(t, AppConfigValue("true"), m.LdapEnabled)
-	})
 }
 
 func TestAppConfigModel_ApplyDefaults(t *testing.T) {

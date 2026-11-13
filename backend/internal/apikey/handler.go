@@ -100,13 +100,12 @@ func (h *handler) create(c *gin.Context) error {
 func (h *handler) update(c *gin.Context) error {
 	principal := authz.PrincipalFrom(c)
 
-	var input apiKeyUpdateDto
-	err := httpserver.BindUpdateJSON(c, &input, func() (any, error) { return h.service.GetApiKey(c.Request.Context(), principal.UserID, c.Param("id")) })
+	update, err := httpserver.BindUpdate[apiKeyUpdateDto](c)
 	if err != nil {
 		return err
 	}
 
-	apiKey, err := h.service.UpdateApiKey(c.Request.Context(), principal.UserID, c.Param("id"), grantableScopes(principal.Scopes), input)
+	apiKey, err := h.service.UpdateApiKey(c.Request.Context(), principal.UserID, c.Param("id"), grantableScopes(principal.Scopes), update)
 	if err != nil {
 		return err
 	}

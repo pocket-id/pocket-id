@@ -166,30 +166,24 @@ func (h *handler) updateUserTool(ctx context.Context, call mcp.Call, input updat
 		return nil, fmt.Errorf("error loading app configuration: %w", err)
 	}
 
-	// The service replaces every field, so start from the current user and apply only the given fields
-	user, err := h.service.GetUser(ctx, input.ID)
-	if err != nil {
-		return nil, err
-	}
-	var updateDto dto.UserCreateDto
-	if err := dto.MapStruct(user, &updateDto); err != nil {
-		return nil, err
-	}
-	mcp.SetIfPresent(&updateDto.Username, input.Username)
-	mcp.SetIfPresent(&updateDto.EmailVerified, input.EmailVerified)
-	mcp.SetIfPresent(&updateDto.FirstName, input.FirstName)
-	mcp.SetIfPresent(&updateDto.LastName, input.LastName)
-	mcp.SetIfPresent(&updateDto.DisplayName, input.DisplayName)
-	mcp.SetIfPresent(&updateDto.IsAdmin, input.IsAdmin)
-	mcp.SetIfPresent(&updateDto.Disabled, input.Disabled)
-	if input.Email != nil {
-		updateDto.Email = input.Email
-	}
-	if err := httpserver.Validate(&updateDto); err != nil {
-		return nil, err
-	}
-
-	user, err = h.service.UpdateUser(ctx, dbConfig, input.ID, updateDto, false, false, auditlogs.OriginFromMCP(call))
+	// The service replaces every field, so start from the locked user and apply only the given fields
+	user, err := h.service.UpdateUser(ctx, dbConfig, input.ID, func(current any) (dto.UserCreateDto, error) {
+		var updateDto dto.UserCreateDto
+		if err := dto.MapStruct(current, &updateDto); err != nil {
+			return updateDto, err
+		}
+		mcp.SetIfPresent(&updateDto.Username, input.Username)
+		mcp.SetIfPresent(&updateDto.EmailVerified, input.EmailVerified)
+		mcp.SetIfPresent(&updateDto.FirstName, input.FirstName)
+		mcp.SetIfPresent(&updateDto.LastName, input.LastName)
+		mcp.SetIfPresent(&updateDto.DisplayName, input.DisplayName)
+		mcp.SetIfPresent(&updateDto.IsAdmin, input.IsAdmin)
+		mcp.SetIfPresent(&updateDto.Disabled, input.Disabled)
+		if input.Email != nil {
+			updateDto.Email = input.Email
+		}
+		return updateDto, httpserver.Validate(&updateDto)
+	}, false, false, auditlogs.OriginFromMCP(call))
 	if err != nil {
 		return nil, err
 	}

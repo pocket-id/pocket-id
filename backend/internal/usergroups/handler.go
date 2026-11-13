@@ -141,13 +141,12 @@ func (h *handler) update(c *gin.Context) error {
 		return fmt.Errorf("error loading app configuration: %w", err)
 	}
 
-	var input dto.UserGroupCreateDto
-	err = httpserver.BindUpdateJSON(c, &input, func() (any, error) { return h.service.Get(c.Request.Context(), c.Param("id")) })
+	update, err := httpserver.BindUpdate[dto.UserGroupCreateDto](c)
 	if err != nil {
 		return err
 	}
 
-	group, err := h.service.Update(c.Request.Context(), dbConfig, c.Param("id"), input)
+	group, err := h.service.Update(c.Request.Context(), dbConfig, c.Param("id"), update)
 	if err != nil {
 		return err
 	}
