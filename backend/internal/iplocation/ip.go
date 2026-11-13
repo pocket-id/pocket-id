@@ -1,4 +1,4 @@
-package utils
+package iplocation
 
 import (
 	"net"
@@ -25,7 +25,7 @@ var tailscaleIPNets = []*net.IPNet{
 	{IP: net.IPv4(100, 64, 0, 0), Mask: net.CIDRMask(10, 32)}, // 100.64.0.0/10
 }
 
-func IsLocalIPv6(ip net.IP) bool {
+func isLocalIPv6(ip net.IP) bool {
 	if ip.To4() != nil {
 		return false
 	}
@@ -33,11 +33,11 @@ func IsLocalIPv6(ip net.IP) bool {
 	return listContainsIP(localIPv6Ranges, ip)
 }
 
-func IsLocalhostIP(ip net.IP) bool {
+func isLocalhostIP(ip net.IP) bool {
 	return listContainsIP(localhostIPNets, ip)
 }
 
-func IsPrivateLanIP(ip net.IP) bool {
+func isPrivateLanIP(ip net.IP) bool {
 	if ip.To4() == nil {
 		return false
 	}
@@ -45,7 +45,7 @@ func IsPrivateLanIP(ip net.IP) bool {
 	return listContainsIP(privateLanIPNets, ip)
 }
 
-func IsTailscaleIP(ip net.IP) bool {
+func isTailscaleIP(ip net.IP) bool {
 	if ip.To4() == nil {
 		return false
 	}
@@ -53,8 +53,8 @@ func IsTailscaleIP(ip net.IP) bool {
 	return listContainsIP(tailscaleIPNets, ip)
 }
 
-func IsPrivateIP(ip net.IP) bool {
-	if IsLocalhostIP(ip) || IsPrivateLanIP(ip) || IsTailscaleIP(ip) || IsLocalIPv6(ip) {
+func isPrivateIP(ip net.IP) bool {
+	if isLocalhostIP(ip) || isPrivateLanIP(ip) || isTailscaleIP(ip) || isLocalIPv6(ip) {
 		return true
 	}
 

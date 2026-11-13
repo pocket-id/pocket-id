@@ -1,4 +1,4 @@
-package utils
+package iplocation
 
 import (
 	"net"
@@ -22,7 +22,7 @@ func TestIsLocalhostIP(t *testing.T) {
 
 	for _, tt := range tests {
 		ip := net.ParseIP(tt.ip)
-		got := IsLocalhostIP(ip)
+		got := isLocalhostIP(ip)
 		assert.Equal(t, tt.expected, got)
 	}
 }
@@ -41,7 +41,7 @@ func TestIsPrivateLanIP(t *testing.T) {
 
 	for _, tt := range tests {
 		ip := net.ParseIP(tt.ip)
-		got := IsPrivateLanIP(ip)
+		got := isPrivateLanIP(ip)
 		assert.Equal(t, tt.expected, got)
 	}
 }
@@ -60,7 +60,7 @@ func TestIsTailscaleIP(t *testing.T) {
 	for _, tt := range tests {
 		ip := net.ParseIP(tt.ip)
 
-		got := IsTailscaleIP(ip)
+		got := isTailscaleIP(ip)
 		assert.Equal(t, tt.expected, got)
 	}
 }
@@ -86,7 +86,7 @@ func TestIsLocalIPv6(t *testing.T) {
 
 	for _, tt := range tests {
 		ip := net.ParseIP(tt.ip)
-		got := IsLocalIPv6(ip)
+		got := isLocalIPv6(ip)
 		assert.Equal(t, tt.expected, got)
 	}
 }
@@ -123,7 +123,7 @@ func TestIsPrivateIP(t *testing.T) {
 
 	for _, tt := range tests {
 		ip := net.ParseIP(tt.ip)
-		got := IsPrivateIP(ip)
+		got := isPrivateIP(ip)
 		assert.Equal(t, tt.expected, got)
 	}
 }
