@@ -34,16 +34,21 @@ import (
 	"github.com/pocket-id/pocket-id/backend/internal/utils/systemd"
 )
 
-// This is used to register additional modules for tests
-var registerTestModules []func(apiRouter *authz.Router, db *gorm.DB, svc *services)
+// testModule is a module that only builds for the end-to-end tests contain
+type testModule interface {
+	RegisterRoutes(r *authz.PublicRouter)
+}
 
-func initRouter(db *gorm.DB, svc *services, rateLimitServices map[string]*ratelimit.RateLimitService) (servicerunner.Service, error) {
+// newTestModule is set by builds for the end-to-end tests
+var newTestModule func(db *gorm.DB, svc *services) (testModule, error)
+
+func initRouter(svc *services, rateLimitServices map[string]*ratelimit.RateLimitService) (servicerunner.Service, error) {
 	r, err := initEngine()
 	if err != nil {
 		return nil, err
 	}
 	auth := middleware.NewAuthorization(svc.apiKeyModule, svc.oidcModule, svc.usersModule, svc.sessionModule, svc.appConfigService)
-	err = registerRoutes(r, db, svc, auth, rateLimitServices)
+	err = registerRoutes(r, svc, auth, rateLimitServices)
 	if err != nil {
 		return nil, err
 	}
@@ -151,7 +156,7 @@ func registerTools(t *mcp.Tools, svc *services) {
 	svc.auditLogsModule.RegisterTools(t)
 }
 
-func registerRoutes(r *gin.Engine, db *gorm.DB, svc *services, auth *authz.Middleware, rateLimitServices map[string]*ratelimit.RateLimitService) error {
+func registerRoutes(r *gin.Engine, svc *services, auth *authz.Middleware, rateLimitServices map[string]*ratelimit.RateLimitService) error {
 
 	err := frontend.RegisterFrontend(r)
 	if errors.Is(err, frontend.ErrFrontendNotIncluded) {
@@ -207,7 +212,9 @@ func registerRoutes(r *gin.Engine, db *gorm.DB, svc *services, auth *authz.Middl
 	svc.oidcModule.RegisterRoutes(baseRouter, apiRouter, fileSizeLimitMiddleware.Add(2<<20))
 	svc.mcpModule.RegisterRoutes(baseRouter)
 
-	registerTestRoutes(apiRouter, db, svc)
+	if svc.testModule != nil {
+		svc.testModule.RegisterRoutes(apiRouter.Public())
+	}
 
 	// These are not rate-limited.
 	auth.Router(r.Group("/")).Public().GET("/healthz", httpserver.NoContent(func(*gin.Context) error { return nil }),
@@ -221,16 +228,6 @@ func registerRoutes(r *gin.Engine, db *gorm.DB, svc *services, auth *authz.Middl
 	tracing.NewTelemetryController(r, rateLimitMiddleware.Add(middleware.RateLimitInternal))
 
 	return nil
-}
-
-func registerTestRoutes(apiRouter *authz.Router, db *gorm.DB, svc *services) {
-	if common.EnvConfig.AppEnv.IsProduction() {
-		return
-	}
-
-	for _, f := range registerTestModules {
-		f(apiRouter, db, svc)
-	}
 }
 
 func initServer(r *gin.Engine) (*serverConfig, error) {

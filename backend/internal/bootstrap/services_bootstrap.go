@@ -74,6 +74,7 @@ type services struct {
 	userGroupsModule        *usergroups.Module
 	mcpModule               *mcp.Module
 	actors                  francishost.Host
+	testModule              testModule
 }
 
 // Initializes all services
@@ -364,6 +365,14 @@ func initServices(
 	tools := &mcp.Tools{}
 	registerTools(tools, svc)
 	svc.mcpModule = mcp.New(mcp.Dependencies{Tools: tools, HTTPClient: httpClient})
+
+	// Builds for the end-to-end tests add their module, which never runs in production
+	if newTestModule != nil && !common.EnvConfig.AppEnv.IsProduction() {
+		svc.testModule, err = newTestModule(db, svc)
+		if err != nil {
+			return nil, fmt.Errorf("failed to create test module: %w", err)
+		}
+	}
 
 	return svc, nil
 }

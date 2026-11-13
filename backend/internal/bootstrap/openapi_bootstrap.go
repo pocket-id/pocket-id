@@ -71,7 +71,7 @@ func routeTable() (*gin.Engine, *authz.Middleware, error) {
 
 	engine := gin.New()
 	auth := middleware.NewAuthorization(nil, nil, nil, nil, nil)
-	if err := registerRoutes(engine, nil, svc, auth, nil); err != nil {
+	if err := registerRoutes(engine, svc, auth, nil); err != nil {
 		return nil, nil, err
 	}
 	return engine, auth, nil
