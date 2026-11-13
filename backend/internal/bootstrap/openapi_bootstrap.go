@@ -8,6 +8,7 @@ import (
 	"github.com/pocket-id/pocket-id/backend/internal/auditlogs"
 	"github.com/pocket-id/pocket-id/backend/internal/authz"
 	"github.com/pocket-id/pocket-id/backend/internal/claimmappingpolicy"
+	"github.com/pocket-id/pocket-id/backend/internal/customclaims"
 	"github.com/pocket-id/pocket-id/backend/internal/devicelogin"
 	"github.com/pocket-id/pocket-id/backend/internal/emailverification"
 	"github.com/pocket-id/pocket-id/backend/internal/environment"
@@ -56,6 +57,7 @@ func routeTable() (*gin.Engine, *authz.Middleware, error) {
 		emailVerificationModule:  &emailverification.Module{},
 		apiModule:                &api.Module{},
 		claimMappingPolicyModule: &claimmappingpolicy.Module{},
+		customClaimsModule:       &customclaims.Module{},
 		environmentModule:        &environment.Module{},
 		logoPresetModule:         &logopreset.Module{},
 		featureModule:            &feature.Module{},

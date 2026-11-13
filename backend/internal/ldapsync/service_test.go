@@ -16,6 +16,7 @@ import (
 	"github.com/pocket-id/pocket-id/backend/internal/appconfig"
 	"github.com/pocket-id/pocket-id/backend/internal/apperror"
 	"github.com/pocket-id/pocket-id/backend/internal/auditlogs"
+	"github.com/pocket-id/pocket-id/backend/internal/customclaims"
 	"github.com/pocket-id/pocket-id/backend/internal/model"
 	datatype "github.com/pocket-id/pocket-id/backend/internal/model/types"
 	"github.com/pocket-id/pocket-id/backend/internal/service"
@@ -626,7 +627,7 @@ func newTestLdapService(t *testing.T, client ldapClient) (*Service, *gorm.DB) {
 	usersModule := users.New(users.Dependencies{
 		DB:           db,
 		FileStorage:  fileStorage,
-		CustomClaims: service.NewCustomClaimService(db),
+		CustomClaims: customclaims.New(db),
 		AppAssets:    service.NewAppAssetsService(map[string]string{}, fileStorage),
 		AuditLog:     nopAuditLogger{},
 	})

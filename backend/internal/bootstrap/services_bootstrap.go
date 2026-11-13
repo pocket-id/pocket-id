@@ -18,6 +18,7 @@ import (
 	"github.com/pocket-id/pocket-id/backend/internal/backchannellogout"
 	"github.com/pocket-id/pocket-id/backend/internal/claimmappingpolicy"
 	"github.com/pocket-id/pocket-id/backend/internal/common"
+	"github.com/pocket-id/pocket-id/backend/internal/customclaims"
 	"github.com/pocket-id/pocket-id/backend/internal/devicelogin"
 	"github.com/pocket-id/pocket-id/backend/internal/email"
 	"github.com/pocket-id/pocket-id/backend/internal/emailverification"
@@ -50,7 +51,7 @@ type services struct {
 	geoLiteModule            *geolite.Module
 	ipLocator                iplocation.Resolver
 	signingKey               *signingkey.Key
-	customClaimService       *service.CustomClaimService
+	customClaimsModule       *customclaims.Module
 	claimMappingPolicyModule *claimmappingpolicy.Module
 	fileStorage              storage.FileStorage
 
@@ -148,7 +149,7 @@ func initServices(
 		return nil, fmt.Errorf("failed to create session module: %w", err)
 	}
 
-	svc.customClaimService = service.NewCustomClaimService(db)
+	svc.customClaimsModule = customclaims.New(db)
 
 	// Registrations wait for the FIDO metadata download and the revocation checks of its signing certificates, so both get a timeout the shared client doesn't have
 	// The timeout covers the whole 11 MB blob, and a download that times out isn't retried for an hour
@@ -219,7 +220,7 @@ func initServices(
 			AllowInsecureCallbackURLs: common.EnvConfig.AllowInsecureCallbackURLs,
 		},
 		Signer:            svc.signingKey,
-		CustomClaims:      svc.customClaimService,
+		CustomClaims:      svc.customClaimsModule,
 		Reauth:            svc.webauthnModule,
 		AuditLog:          svc.auditLogsModule,
 		Sessions:          svc.sessionModule,
@@ -267,7 +268,7 @@ func initServices(
 		DB:                db,
 		AppConfig:         svc.appConfigService,
 		FileStorage:       fileStorage,
-		CustomClaims:      svc.customClaimService,
+		CustomClaims:      svc.customClaimsModule,
 		AppAssets:         svc.appAssetsService,
 		WebAuthn:          svc.webauthnModule,
 		ScimSync:          svc.scimSyncModule,

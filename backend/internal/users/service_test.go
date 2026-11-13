@@ -16,6 +16,7 @@ import (
 	"github.com/pocket-id/pocket-id/backend/internal/appconfig"
 	"github.com/pocket-id/pocket-id/backend/internal/apperror"
 	"github.com/pocket-id/pocket-id/backend/internal/auditlogs"
+	"github.com/pocket-id/pocket-id/backend/internal/customclaims"
 	"github.com/pocket-id/pocket-id/backend/internal/dto"
 	"github.com/pocket-id/pocket-id/backend/internal/model"
 	datatype "github.com/pocket-id/pocket-id/backend/internal/model/types"
@@ -34,7 +35,7 @@ func newTestUserService(t *testing.T) *Service {
 
 	return newService(Dependencies{
 		DB:           db,
-		CustomClaims: service.NewCustomClaimService(db),
+		CustomClaims: customclaims.New(db),
 		AppAssets:    service.NewAppAssetsService(map[string]string{}, fileStorage),
 		FileStorage:  fileStorage,
 		AuditLog:     &fakeAuditLogger{},

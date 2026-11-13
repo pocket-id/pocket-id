@@ -14,6 +14,7 @@ import (
 	"github.com/pocket-id/pocket-id/backend/internal/auditlogs"
 	"github.com/pocket-id/pocket-id/backend/internal/authz"
 	"github.com/pocket-id/pocket-id/backend/internal/backchannellogout"
+	"github.com/pocket-id/pocket-id/backend/internal/customclaims"
 	"github.com/pocket-id/pocket-id/backend/internal/dto"
 	"github.com/pocket-id/pocket-id/backend/internal/httpserver"
 	"github.com/pocket-id/pocket-id/backend/internal/model"
@@ -24,7 +25,7 @@ import (
 
 // CustomClaimUpdater applies the default custom claims to new users
 type CustomClaimUpdater interface {
-	UpdateCustomClaimsForUserInternal(ctx context.Context, userID string, claims []dto.CustomClaimCreateDto, tx *gorm.DB) ([]model.CustomClaim, error)
+	UpdateCustomClaimsForUserInternal(ctx context.Context, userID string, claims []customclaims.CustomClaimCreateDto, tx *gorm.DB) ([]model.CustomClaim, error)
 }
 
 // AppAssetProvider serves the default profile picture an admin may have uploaded

@@ -192,7 +192,7 @@ func registerRoutes(r *gin.Engine, db *gorm.DB, svc *services, auth *authz.Middl
 	svc.auditLogsModule.RegisterRoutes(apiRouter)
 	svc.userGroupsModule.RegisterRoutes(apiRouter)
 	svc.apiModule.RegisterRoutes(apiRouter)
-	controller.NewCustomClaimController(apiRouter, svc.customClaimService)
+	svc.customClaimsModule.RegisterRoutes(apiRouter)
 	svc.environmentModule.RegisterRoutes(apiRouter)
 	svc.logoPresetModule.RegisterRoutes(apiRouter)
 	svc.featureModule.RegisterRoutes(apiRouter)

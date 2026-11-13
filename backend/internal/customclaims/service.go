@@ -1,23 +1,19 @@
-package service
+package customclaims
 
 import (
 	"context"
 	"errors"
 	"fmt"
 
+	"gorm.io/gorm"
+
 	"github.com/pocket-id/pocket-id/backend/internal/apperror"
 	"github.com/pocket-id/pocket-id/backend/internal/common"
-	"github.com/pocket-id/pocket-id/backend/internal/dto"
 	"github.com/pocket-id/pocket-id/backend/internal/model"
-	"gorm.io/gorm"
 )
 
-type CustomClaimService struct {
+type Service struct {
 	db *gorm.DB
-}
-
-func NewCustomClaimService(db *gorm.DB) *CustomClaimService {
-	return &CustomClaimService{db: db}
 }
 
 // isReservedClaim checks if a claim key is reserved e.g. email, preferred_username
@@ -30,23 +26,23 @@ func isReservedClaim(key string) bool {
 type idType string
 
 const (
-	UserID      idType = "user_id"
-	UserGroupID idType = "user_group_id"
+	ownerUser      idType = "user_id"
+	ownerUserGroup idType = "user_group_id"
 )
 
 // UpdateCustomClaimsForUser updates the custom claims for a user
-func (s *CustomClaimService) UpdateCustomClaimsForUser(ctx context.Context, userID string, claims []dto.CustomClaimCreateDto) ([]model.CustomClaim, error) {
+func (s *Service) UpdateCustomClaimsForUser(ctx context.Context, userID string, claims []CustomClaimCreateDto) ([]model.CustomClaim, error) {
 	tx := s.db.Begin()
 	defer func() {
 		tx.Rollback()
 	}()
 
 	// Reject missing owners before replacing claims so invalid IDs cannot appear successful
-	if err := ensureCustomClaimOwnerExists(ctx, tx, UserID, userID); err != nil {
+	if err := ensureCustomClaimOwnerExists(ctx, tx, ownerUser, userID); err != nil {
 		return nil, err
 	}
 
-	updatedClaims, err := s.updateCustomClaimsInternal(ctx, UserID, userID, claims, tx)
+	updatedClaims, err := s.updateCustomClaimsInternal(ctx, ownerUser, userID, claims, tx)
 	if err != nil {
 		return nil, err
 	}
@@ -59,25 +55,19 @@ func (s *CustomClaimService) UpdateCustomClaimsForUser(ctx context.Context, user
 	return updatedClaims, nil
 }
 
-// UpdateCustomClaimsForUserInternal replaces a user's custom claims within an existing transaction
-// It's exported for the users module, which applies the default custom claims to new users
-func (s *CustomClaimService) UpdateCustomClaimsForUserInternal(ctx context.Context, userID string, claims []dto.CustomClaimCreateDto, tx *gorm.DB) ([]model.CustomClaim, error) {
-	return s.updateCustomClaimsInternal(ctx, UserID, userID, claims, tx)
-}
-
 // UpdateCustomClaimsForUserGroup updates the custom claims for a user group
-func (s *CustomClaimService) UpdateCustomClaimsForUserGroup(ctx context.Context, userGroupID string, claims []dto.CustomClaimCreateDto) ([]model.CustomClaim, error) {
+func (s *Service) UpdateCustomClaimsForUserGroup(ctx context.Context, userGroupID string, claims []CustomClaimCreateDto) ([]model.CustomClaim, error) {
 	tx := s.db.Begin()
 	defer func() {
 		tx.Rollback()
 	}()
 
 	// Reject missing owners before replacing claims so invalid IDs cannot appear successful
-	if err := ensureCustomClaimOwnerExists(ctx, tx, UserGroupID, userGroupID); err != nil {
+	if err := ensureCustomClaimOwnerExists(ctx, tx, ownerUserGroup, userGroupID); err != nil {
 		return nil, err
 	}
 
-	updatedClaims, err := s.updateCustomClaimsInternal(ctx, UserGroupID, userGroupID, claims, tx)
+	updatedClaims, err := s.updateCustomClaimsInternal(ctx, ownerUserGroup, userGroupID, claims, tx)
 	if err != nil {
 		return nil, err
 	}
@@ -97,10 +87,10 @@ func ensureCustomClaimOwnerExists(ctx context.Context, tx *gorm.DB, ownerType id
 		notFound error
 	)
 	switch ownerType {
-	case UserID:
+	case ownerUser:
 		target = &model.User{}
 		notFound = apperror.UserNotFound()
-	case UserGroupID:
+	case ownerUserGroup:
 		target = &model.UserGroup{}
 		notFound = apperror.NotFound("User group")
 	default:
@@ -120,7 +110,7 @@ func ensureCustomClaimOwnerExists(ctx context.Context, tx *gorm.DB, ownerType id
 }
 
 // updateCustomClaimsInternal keeps claim replacements within the caller's transaction
-func (s *CustomClaimService) updateCustomClaimsInternal(ctx context.Context, idType idType, value string, claims []dto.CustomClaimCreateDto, tx *gorm.DB) ([]model.CustomClaim, error) {
+func (s *Service) updateCustomClaimsInternal(ctx context.Context, idType idType, value string, claims []CustomClaimCreateDto, tx *gorm.DB) ([]model.CustomClaim, error) {
 	// Reject duplicate keys before changing persisted claims
 	seenKeys := make(map[string]struct{})
 	for _, claim := range claims {
@@ -172,9 +162,9 @@ func (s *CustomClaimService) updateCustomClaimsInternal(ctx context.Context, idT
 		}
 
 		switch idType {
-		case UserID:
+		case ownerUser:
 			customClaim.UserID = &value
-		case UserGroupID:
+		case ownerUserGroup:
 			customClaim.UserGroupID = &value
 		}
 
@@ -204,31 +194,15 @@ func (s *CustomClaimService) updateCustomClaimsInternal(ctx context.Context, idT
 	return updatedClaims, nil
 }
 
-func (s *CustomClaimService) GetCustomClaimsForUser(ctx context.Context, userID string, tx *gorm.DB) ([]model.CustomClaim, error) {
+// GetCustomClaimsForUserWithUserGroups returns the custom claims of a user and all user groups the user is a member of, prioritizing the user's claims over user group claims with the same key
+func (s *Service) GetCustomClaimsForUserWithUserGroups(ctx context.Context, userID string, tx *gorm.DB) ([]model.CustomClaim, error) {
+	// Get the custom claims of the user
 	var customClaims []model.CustomClaim
 	err := tx.
 		WithContext(ctx).
 		Where("user_id = ?", userID).
 		Find(&customClaims).
 		Error
-	return customClaims, err
-}
-
-func (s *CustomClaimService) GetCustomClaimsForUserGroup(ctx context.Context, userGroupID string, tx *gorm.DB) ([]model.CustomClaim, error) {
-	var customClaims []model.CustomClaim
-	err := tx.
-		WithContext(ctx).
-		Where("user_group_id = ?", userGroupID).
-		Find(&customClaims).
-		Error
-	return customClaims, err
-}
-
-// GetCustomClaimsForUserWithUserGroups returns the custom claims of a user and all user groups the user is a member of,
-// prioritizing the user's claims over user group claims with the same key.
-func (s *CustomClaimService) GetCustomClaimsForUserWithUserGroups(ctx context.Context, userID string, tx *gorm.DB) ([]model.CustomClaim, error) {
-	// Get the custom claims of the user
-	customClaims, err := s.GetCustomClaimsForUser(ctx, userID, tx)
 	if err != nil {
 		return nil, err
 	}
@@ -271,7 +245,7 @@ func (s *CustomClaimService) GetCustomClaimsForUserWithUserGroups(ctx context.Co
 }
 
 // GetSuggestions returns a list of custom claim keys that have been used before
-func (s *CustomClaimService) GetSuggestions(ctx context.Context) ([]string, error) {
+func (s *Service) GetSuggestions(ctx context.Context) ([]string, error) {
 	var customClaimsKeys []string
 
 	err := s.db.

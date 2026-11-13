@@ -21,6 +21,7 @@ import (
 	"github.com/pocket-id/pocket-id/backend/internal/apperror"
 	"github.com/pocket-id/pocket-id/backend/internal/auditlogs"
 	"github.com/pocket-id/pocket-id/backend/internal/backchannellogout"
+	"github.com/pocket-id/pocket-id/backend/internal/customclaims"
 	"github.com/pocket-id/pocket-id/backend/internal/dto"
 	"github.com/pocket-id/pocket-id/backend/internal/emailverification"
 	"github.com/pocket-id/pocket-id/backend/internal/model"
@@ -481,7 +482,7 @@ func (s *Service) touchUserGroups(ctx context.Context, tx *gorm.DB, ids []string
 }
 
 func (s *Service) applyDefaultCustomClaims(ctx context.Context, user *model.User, tx *gorm.DB, cfg *appconfig.AppConfigModel) error {
-	var claims []dto.CustomClaimCreateDto
+	var claims []customclaims.CustomClaimCreateDto
 	v := cfg.SignupDefaultCustomClaims
 	if v != "" && v != "[]" {
 		err := json.Unmarshal([]byte(v), &claims)
