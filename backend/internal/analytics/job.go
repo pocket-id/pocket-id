@@ -1,4 +1,4 @@
-package job
+package analytics
 
 import (
 	"bytes"
@@ -17,14 +17,9 @@ import (
 
 const heartbeatUrl = "https://analytics.pocket-id.org/heartbeat"
 
-// GetAnalyticsJob returns the CronJob actor
-func GetAnalyticsJob(httpClient *http.Client, instanceID string) (*cronjob.CronJob, error) {
-	// Skip if analytics are disabled or not in production environment
-	if common.EnvConfig.AnalyticsDisabled || !common.EnvConfig.AppEnv.IsProduction() {
-		return nil, nil
-	}
-
-	job := &AnalyticsJob{
+// NewJob returns the cron job actor that sends the daily heartbeat
+func NewJob(httpClient *http.Client, instanceID string) (*cronjob.CronJob, error) {
+	job := &heartbeatJob{
 		httpClient: httpClient,
 	}
 	err := job.createBody(instanceID)
@@ -49,13 +44,13 @@ func GetAnalyticsJob(httpClient *http.Client, instanceID string) (*cronjob.CronJ
 	return cj, nil
 }
 
-type AnalyticsJob struct {
+type heartbeatJob struct {
 	httpClient *http.Client
 	body       []byte
 }
 
 // createBody pre-computes the body for all requests
-func (j *AnalyticsJob) createBody(instanceID string) error {
+func (j *heartbeatJob) createBody(instanceID string) error {
 	body, err := json.Marshal(struct {
 		Version    string `json:"version"`
 		InstanceID string `json:"instance_id"`
@@ -74,7 +69,7 @@ func (j *AnalyticsJob) createBody(instanceID string) error {
 }
 
 // sendHeartbeat sends a heartbeat to the analytics service
-func (j *AnalyticsJob) sendHeartbeat(parentCtx context.Context) error {
+func (j *heartbeatJob) sendHeartbeat(parentCtx context.Context) error {
 	// Skip if analytics are disabled or not in production environment
 	if common.EnvConfig.AnalyticsDisabled || !common.EnvConfig.AppEnv.IsProduction() {
 		return nil

@@ -1,11 +1,10 @@
-package job
+package users
 
 import (
 	"context"
 	"fmt"
 	"log/slog"
 	"path"
-	"strings"
 	"time"
 
 	"github.com/italypaleale/francis/builtin/cronjob"
@@ -16,14 +15,13 @@ import (
 	profilepicture "github.com/pocket-id/pocket-id/backend/internal/utils/image"
 )
 
-// GetFileCleanupJobs returns the CronJob actors
-func GetFileCleanupJobs(db *gorm.DB, fileStorage storage.FileStorage) (cjs []*cronjob.CronJob, err error) {
-	job := &FileCleanupJobs{
+// newCleanupJob returns the cron job actor that deletes the generated default profile pictures no user needs anymore
+func newCleanupJob(db *gorm.DB, fileStorage storage.FileStorage) (*cronjob.CronJob, error) {
+	job := &cleanupJob{
 		db:          db,
 		fileStorage: fileStorage,
 	}
 
-	// Create the built-in actor for the ClearUnusedDefaultProfilePictures job
 	cj, err := cronjob.New(
 		"ClearUnusedDefaultProfilePictures",
 		cronjob.WithJob(job.clearUnusedDefaultProfilePictures),
@@ -35,35 +33,16 @@ func GetFileCleanupJobs(db *gorm.DB, fileStorage storage.FileStorage) (cjs []*cr
 	if err != nil {
 		return nil, fmt.Errorf("error creating ClearUnusedDefaultProfilePictures job: %w", err)
 	}
-	cjs = append(cjs, cj)
-
-	// Create the built-in actor for the ClearOrphanedTempFiles job
-	// Only necessary for file system storage
-	if fileStorage.Type() == storage.TypeFileSystem {
-		cj, err := cronjob.New(
-			"ClearOrphanedTempFiles",
-			cronjob.WithJob(job.clearOrphanedTempFiles),
-			// Run every 12 hours
-			cronjob.WithInterval(12*time.Hour),
-			cronjob.WithLogger(slog.Default()),
-			cronjob.WithJitter(5*time.Minute),
-		)
-		if err != nil {
-			return nil, fmt.Errorf("error creating ClearOrphanedTempFiles job: %w", err)
-		}
-		cjs = append(cjs, cj)
-	}
-
-	return cjs, nil
+	return cj, nil
 }
 
-type FileCleanupJobs struct {
+type cleanupJob struct {
 	db          *gorm.DB
 	fileStorage storage.FileStorage
 }
 
 // ClearUnusedDefaultProfilePictures deletes default profile pictures that don't match any user's initials or were rendered by an earlier version
-func (j *FileCleanupJobs) clearUnusedDefaultProfilePictures(ctx context.Context) error {
+func (j *cleanupJob) clearUnusedDefaultProfilePictures(ctx context.Context) error {
 	var users []model.User
 	err := j.db.
 		WithContext(ctx).
@@ -104,36 +83,5 @@ func (j *FileCleanupJobs) clearUnusedDefaultProfilePictures(ctx context.Context)
 	}
 
 	slog.Info("Done deleting unused default profile pictures", slog.Int("count", filesDeleted))
-	return nil
-}
-
-// clearOrphanedTempFiles deletes temporary files that are produced by failed atomic writes
-func (j *FileCleanupJobs) clearOrphanedTempFiles(ctx context.Context) error {
-	const minAge = 10 * time.Minute
-
-	deleted := 0
-	err := j.fileStorage.Walk(ctx, "/", func(p storage.ObjectInfo) error {
-		// Only temp files
-		if !strings.HasSuffix(p.Path, "-tmp") {
-			return nil
-		}
-
-		if time.Since(p.ModTime) < minAge {
-			return nil
-		}
-
-		rErr := j.fileStorage.Delete(ctx, p.Path)
-		if rErr != nil {
-			slog.ErrorContext(ctx, "Failed to delete temp file", slog.String("path", p.Path), slog.Any("error", rErr))
-			return nil
-		}
-		deleted++
-		return nil
-	})
-	if err != nil {
-		return fmt.Errorf("failed to scan storage: %w", err)
-	}
-
-	slog.Info("Done cleaning orphaned temp files", slog.Int("count", deleted))
 	return nil
 }

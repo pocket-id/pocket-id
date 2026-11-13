@@ -264,7 +264,7 @@ func initServices(
 		return nil, fmt.Errorf("failed to create email verification module: %w", err)
 	}
 
-	svc.usersModule = users.New(users.Dependencies{
+	svc.usersModule, err = users.New(users.Dependencies{
 		DB:                db,
 		AppConfig:         svc.appConfigService,
 		FileStorage:       fileStorage,
@@ -276,7 +276,13 @@ func initServices(
 		EmailVerification: svc.emailVerificationModule,
 		OwnAccountLimiter: ownAccountLimiter,
 		AuditLog:          svc.auditLogsModule,
+		Actors:            actors,
+		// Disable in test environment
+		CleanupDisabled: common.EnvConfig.AppEnv.IsTest(),
 	})
+	if err != nil {
+		return nil, fmt.Errorf("failed to create users module: %w", err)
+	}
 
 	svc.ldapSyncModule, err = ldapsync.New(ldapsync.Dependencies{
 		DB:                db,
