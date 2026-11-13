@@ -31,7 +31,7 @@
 					? m.delete_last_user_passkey_consequence({ name: firstName })
 					: m.delete_user_passkey_consequence({ name: firstName }),
 			confirm: {
-				label: m.delete_name_action({ name: passkey.name }),
+				label: m.delete_passkey(),
 				destructive: true,
 				action: async () => {
 					try {

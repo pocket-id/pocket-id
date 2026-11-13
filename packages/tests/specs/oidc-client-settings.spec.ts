@@ -729,10 +729,7 @@ test('Delete OIDC client', async ({ page }) => {
 
 	await page.getByRole('menuitem', { name: 'Delete…' }).click();
 
-	await page
-		.getByRole('alertdialog')
-		.getByRole('button', { name: `Delete ${oidcClient.name}` })
-		.click();
+	await page.getByRole('alertdialog').getByRole('button', { name: 'Delete client' }).click();
 
 	await expect(page.locator('[data-type="success"]')).toHaveText(`${oidcClient.name} deleted`);
 	await expect(page.getByRole('row', { name: oidcClient.name })).not.toBeVisible();
@@ -744,10 +741,7 @@ test('Delete OIDC client from the details page', async ({ page }) => {
 
 	await page.getByRole('button', { name: 'More actions' }).click();
 	await page.getByRole('menuitem', { name: 'Delete client…' }).click();
-	await page
-		.getByRole('alertdialog')
-		.getByRole('button', { name: `Delete ${oidcClient.name}` })
-		.click();
+	await page.getByRole('alertdialog').getByRole('button', { name: 'Delete client' }).click();
 
 	await expect(page.locator('[data-type="success"]')).toHaveText(`${oidcClient.name} deleted`);
 	await page.waitForURL((url) => url.pathname === '/settings/admin/oidc-clients');
@@ -767,10 +761,7 @@ test('Disable and enable OIDC client', async ({ page }) => {
 
 	await page.getByRole('button', { name: 'More actions' }).click();
 	await page.getByRole('menuitem', { name: 'Disable client…' }).click();
-	await page
-		.getByRole('alertdialog')
-		.getByRole('button', { name: `Disable ${oidcClient.name}` })
-		.click();
+	await page.getByRole('alertdialog').getByRole('button', { name: 'Disable client' }).click();
 	await expect(page.locator('[data-type="success"]')).toHaveText(`${oidcClient.name} disabled`);
 	await expect(page.getByText('Disabled', { exact: true })).toBeVisible();
 

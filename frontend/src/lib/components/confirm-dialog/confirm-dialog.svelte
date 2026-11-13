@@ -47,15 +47,13 @@
 		</AlertDialog.Header>
 		<AlertDialog.Footer>
 			<AlertDialog.Cancel bind:ref={cancelButton} disabled={busy}>{m.cancel()}</AlertDialog.Cancel>
-			<!-- The label repeats the name, so it truncates and leaves room for Cancel while the title shows the name in full -->
 			<Button
 				variant={confirm.destructive ? 'destructive' : 'default'}
-				class="min-w-0 shrink"
 				isLoading={busy}
 				onclick={onConfirm}
 			>
 				{#if confirm.destructive}<Icon class="size-3.5" />{/if}
-				<span class="truncate">{confirm.label}</span>
+				{confirm.label}
 			</Button>
 		</AlertDialog.Footer>
 	</AlertDialog.Content>

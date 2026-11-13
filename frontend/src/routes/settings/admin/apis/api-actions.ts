@@ -36,7 +36,7 @@ export async function confirmDeleteApi(api: Api, onDeleted: () => unknown) {
 		title: m.delete_name_question({ name: api.name }),
 		message,
 		confirm: {
-			label: m.delete_name_action({ name: api.name }),
+			label: m.delete_api(),
 			destructive: true,
 			action: async () => {
 				try {
