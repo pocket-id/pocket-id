@@ -14,7 +14,6 @@ import (
 	"github.com/pocket-id/pocket-id/backend/internal/bootstrap"
 	"github.com/pocket-id/pocket-id/backend/internal/common"
 	"github.com/pocket-id/pocket-id/backend/internal/instanceid"
-	"github.com/pocket-id/pocket-id/backend/internal/utils"
 	jwkutils "github.com/pocket-id/pocket-id/backend/internal/utils/jwk"
 )
 
@@ -90,7 +89,7 @@ func keyRotate(ctx context.Context, flags keyRotateFlags, db *gorm.DB, instanceI
 
 	if !flags.Yes {
 		fmt.Println("WARNING: Rotating the private key will invalidate all existing tokens. Both pocket-id and all client applications will likely need to be restarted.")
-		ok, err := utils.PromptForConfirmation("Confirm")
+		ok, err := promptForConfirmation("Confirm")
 		if err != nil {
 			return err
 		}
@@ -127,7 +126,7 @@ func keyRotate(ctx context.Context, flags keyRotateFlags, db *gorm.DB, instanceI
 func sessionKeyRotate(ctx context.Context, flags keyRotateFlags, db *gorm.DB, instanceID string, envConfig *common.EnvConfigSchema) error {
 	if !flags.Yes {
 		fmt.Println("WARNING: Rotating the session key makes every browser unknown again, so users get a new sign-in notification the next time they sign in. Sessions and tokens issued to client applications are not affected.")
-		ok, err := utils.PromptForConfirmation("Confirm")
+		ok, err := promptForConfirmation("Confirm")
 		if err != nil {
 			return err
 		}

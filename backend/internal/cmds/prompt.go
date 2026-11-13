@@ -1,4 +1,4 @@
-package utils
+package cmds
 
 import (
 	"bufio"
@@ -7,8 +7,7 @@ import (
 	"strings"
 )
 
-// PromptForConfirmation prompts the user to answer "y" in the terminal
-func PromptForConfirmation(prompt string) (bool, error) {
+func promptForConfirmation(prompt string) (bool, error) {
 	fmt.Print(prompt + " [y/N]: ")
 
 	reader := bufio.NewReader(os.Stdin)

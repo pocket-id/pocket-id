@@ -17,7 +17,6 @@ import (
 	"github.com/pocket-id/pocket-id/backend/internal/instanceid"
 	datatype "github.com/pocket-id/pocket-id/backend/internal/model/types"
 	"github.com/pocket-id/pocket-id/backend/internal/scimsync"
-	"github.com/pocket-id/pocket-id/backend/internal/utils"
 	jwkutils "github.com/pocket-id/pocket-id/backend/internal/utils/jwk"
 )
 
@@ -81,7 +80,7 @@ func encryptionKeyRotate(ctx context.Context, flags encryptionKeyRotateFlags, db
 
 	if !flags.Yes {
 		fmt.Println("WARNING: Rotating the encryption key will re-encrypt secrets in the database. Pocket-ID must be restarted with the new ENCRYPTION_KEY after rotation is complete.")
-		ok, err := utils.PromptForConfirmation("Continue")
+		ok, err := promptForConfirmation("Continue")
 		if err != nil {
 			return err
 		}

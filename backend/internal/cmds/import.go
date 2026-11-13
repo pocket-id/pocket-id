@@ -18,7 +18,6 @@ import (
 	"github.com/pocket-id/pocket-id/backend/internal/backup"
 	"github.com/pocket-id/pocket-id/backend/internal/bootstrap"
 	"github.com/pocket-id/pocket-id/backend/internal/common"
-	"github.com/pocket-id/pocket-id/backend/internal/utils"
 )
 
 type importFlags struct {
@@ -217,7 +216,7 @@ func askForConfirmation() (bool, error) {
 	fmt.Printf("Database:      %s\n", absolutePathOrOriginal(common.EnvConfig.DbConnectionString))
 	fmt.Printf("Uploads Path:  %s\n", absolutePathOrOriginal(common.EnvConfig.UploadPath))
 
-	ok, err := utils.PromptForConfirmation("Do you want to continue?")
+	ok, err := promptForConfirmation("Do you want to continue?")
 	if err != nil {
 		return false, err
 	}
