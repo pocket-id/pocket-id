@@ -437,7 +437,11 @@ func initLogger(r *gin.Engine) {
 		}),
 		sloggin.WithContext(enrichRequestLog),
 		// Skip logging for certain paths to reduce noise in the logs
+		// Server errors are always logged because the request log is their only record
 		sloggin.WithSkipper(func(c *gin.Context) bool {
+			if c.Writer.Status() >= http.StatusInternalServerError {
+				return false
+			}
 			for _, prefix := range loggerSkipPathsPrefix {
 				if strings.HasPrefix(c.Request.Method+" "+c.Request.URL.String(), prefix) {
 					return true
@@ -458,6 +462,10 @@ func enrichRequestLog(c *gin.Context, record *slog.Record) *slog.Record {
 	// Add error code if present in the context
 	if errorCode := middleware.RequestErrorCode(c); errorCode != "" {
 		enriched.AddAttrs(slog.String("error_code", string(errorCode)))
+	}
+	// This line is the only log of a failed request, so it carries the error itself
+	if err := middleware.RequestError(c); err != nil {
+		enriched.AddAttrs(slog.Any("error", err))
 	}
 
 	// Add trace and span IDs if present in the context

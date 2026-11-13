@@ -1,16 +1,12 @@
 package middleware
 
 import (
-	"errors"
-	"log/slog"
 	"net/http"
-	"reflect"
 	"strconv"
 	"time"
 	"uuid"
 
 	"github.com/gin-gonic/gin"
-	"go.opentelemetry.io/otel/trace"
 
 	"github.com/pocket-id/pocket-id/backend/internal/apperror"
 	"github.com/pocket-id/pocket-id/backend/internal/authz"
@@ -23,6 +19,7 @@ const requestIDHeader = "X-Request-ID"
 
 type requestIDContextKey struct{}
 type requestErrorCodeContextKey struct{}
+type requestErrorContextKey struct{}
 
 // RequestID returns the identifier assigned to the current request
 func RequestID(c *gin.Context) string {
@@ -62,6 +59,21 @@ func RequestErrorCode(c *gin.Context) apperror.Code {
 	return value
 }
 
+// RequestError returns the error handled for the current request, so the request log can record it
+func RequestError(c *gin.Context) error {
+	if c == nil {
+		return nil
+	}
+
+	value, exists := c.Get(requestErrorContextKey{})
+	if !exists {
+		return nil
+	}
+
+	err, _ := value.(error)
+	return err
+}
+
 type ErrorHandlerMiddleware struct{}
 
 func NewErrorHandlerMiddleware() *ErrorHandlerMiddleware {
@@ -83,7 +95,7 @@ func (m *ErrorHandlerMiddleware) Add() gin.HandlerFunc {
 		err := c.Errors[0].Err
 		classified := httpserver.ClassifyError(err)
 		c.Set(requestErrorCodeContextKey{}, classified.Code)
-		logRequestError(c, err, classified, requestID)
+		c.Set(requestErrorContextKey{}, err)
 
 		if c.Writer.Written() {
 			return
@@ -120,51 +132,6 @@ func writeErrorResponse(c *gin.Context, classified httpserver.ClassifiedError, r
 	}
 
 	c.JSON(classified.Status, response)
-}
-
-func logRequestError(c *gin.Context, err error, classified httpserver.ClassifiedError, requestID string) {
-	if classified.Status < http.StatusInternalServerError {
-		cause := errors.Unwrap(err)
-		if cause == nil {
-			return
-		}
-
-		slog.DebugContext(c.Request.Context(), "Request rejected",
-			slog.String("error_code", string(classified.Code)),
-			slog.String("error_type", errorTypeName(err)),
-			slog.String("cause_type", errorTypeName(cause)),
-			slog.Int("http_status", classified.Status),
-			slog.String("request_id", requestID),
-			slog.String("http_method", c.Request.Method),
-			slog.String("http_path", c.Request.URL.Path),
-			slog.Any("error", err),
-			slog.Any("cause", cause),
-		)
-		return
-	}
-
-	attrs := []any{
-		slog.String("error_code", string(classified.Code)),
-		slog.String("error_type", errorTypeName(err)),
-		slog.Int("http_status", classified.Status),
-		slog.String("request_id", requestID),
-		slog.String("http_method", c.Request.Method),
-		slog.String("http_path", c.Request.URL.Path),
-		slog.Any("error", err),
-	}
-	if spanContext := trace.SpanFromContext(c.Request.Context()).SpanContext(); spanContext.IsValid() {
-		attrs = append(attrs, slog.String("trace_id", spanContext.TraceID().String()))
-	}
-
-	slog.ErrorContext(c.Request.Context(), "Request failed", attrs...)
-}
-
-func errorTypeName(err error) string {
-	if err == nil {
-		return "<nil>"
-	}
-
-	return reflect.TypeOf(err).String()
 }
 
 func formatRetryAfter(retryAfter time.Duration) string {
