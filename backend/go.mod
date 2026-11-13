@@ -41,7 +41,7 @@ require (
 	github.com/oschwald/maxminddb-golang/v2 v2.9.0
 	github.com/pires/go-proxyproto v0.16.0
 	github.com/pocket-id/fosite v1.5.0
-	github.com/quic-go/quic-go v0.65.0
+	github.com/quic-go/quic-go v0.64.1
 	github.com/spf13/cobra v1.10.2
 	github.com/stretchr/testify v1.12.1
 	github.com/vmihailenco/msgpack/v5 v5.4.1
