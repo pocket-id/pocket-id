@@ -2,6 +2,7 @@ package oidc
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"net/http"
@@ -124,10 +125,8 @@ func (p cimdPolicy) AllowCIMDClient(_ context.Context, id string) error {
 // ValidateCIMDClient restricts generic CIMD features to those supported by Pocket ID's client model
 func (cimdPolicy) ValidateCIMDClient(_ context.Context, doc *fosite.ClientMetadataDocument) error {
 	// Require public-client authentication because Pocket ID does not persist CIMD key material
-	switch doc.TokenEndpointAuthMethod {
-	case "none":
-	default:
-		return fmt.Errorf("client metadata documents only support token_endpoint_auth_method %q, got %q", "none", doc.TokenEndpointAuthMethod)
+	if !metadataAllowsPublicClient(doc) {
+		return fmt.Errorf("client metadata documents must support token_endpoint_auth_method %q, got %q", "none", doc.TokenEndpointAuthMethod)
 	}
 
 	// Require a flow that can initiate authorization (ignoring the grant types Pocket ID does not implement)
@@ -147,6 +146,19 @@ func (cimdPolicy) ValidateCIMDClient(_ context.Context, doc *fosite.ClientMetada
 	}
 
 	return nil
+}
+
+// metadataAllowsPublicClient reports whether the document lets the client use the token endpoint without a credential
+// Clients like ChatGPT name their preferred method in token_endpoint_auth_method and list every method they can use in token_endpoint_auth_methods_supported
+func metadataAllowsPublicClient(doc *fosite.ClientMetadataDocument) bool {
+	if doc.TokenEndpointAuthMethod == "none" {
+		return true
+	}
+
+	// A missing or malformed list leaves the slice empty, so the document is judged by the singular field alone
+	var supported []string
+	_ = json.Unmarshal(doc.AdditionalMetadata["token_endpoint_auth_methods_supported"], &supported)
+	return slices.Contains(supported, "none")
 }
 
 var errInitiatingGrantRequired = errors.New("client metadata document must enable authorization_code or device_code")
@@ -216,17 +228,11 @@ func buildClientFromMetadata(doc *fosite.ClientMetadataDocument, rawURL string) 
 		CallbackURLs:                datatype.StringList(doc.RedirectURIs),
 		LogoutCallbackURLs:          datatype.StringList(doc.PostLogoutRedirectURIs),
 		ClientType:                  model.OidcClientTypeCIMD,
+		IsPublic:                    true,
+		PkceEnabled:                 true,
 		MetadataGrantTypes:          datatype.StringList(grantTypes),
 		AccessTokenDurationMinutes:  model.DefaultAccessTokenDurationMinutes,
 		RefreshTokenDurationMinutes: model.DefaultRefreshTokenDurationMinutes,
-	}
-
-	switch doc.TokenEndpointAuthMethod {
-	case "none":
-		client.IsPublic = true
-		client.PkceEnabled = true
-	default:
-		return model.OidcClient{}, fmt.Errorf("client metadata documents only support token_endpoint_auth_method %q, got %q", "none", doc.TokenEndpointAuthMethod)
 	}
 
 	if client.Name == "" {

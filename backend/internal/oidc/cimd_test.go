@@ -2,6 +2,7 @@ package oidc
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"net/http"
 	"net/http/httptest"
@@ -92,14 +93,6 @@ func TestBuildClientFromMetadata(t *testing.T) {
 		assert.Equal(t, model.DefaultRefreshTokenDurationMinutes, c.RefreshTokenDurationMinutes)
 	})
 
-	t.Run("authenticated clients are rejected", func(t *testing.T) {
-		for _, m := range []string{"private_key_jwt", "client_secret_basic", "client_secret_post", "client_secret_jwt"} { //nolint:gosec // G101 false positive: authentication method names, not credentials
-			doc := &fosite.ClientMetadataDocument{ClientID: id, TokenEndpointAuthMethod: m}
-			_, err := buildClientFromMetadata(doc, id)
-			require.Errorf(t, err, "method %q", m)
-		}
-	})
-
 	t.Run("unsupported grant types are dropped", func(t *testing.T) {
 		doc := &fosite.ClientMetadataDocument{
 			ClientID:                id,
@@ -165,6 +158,30 @@ func TestCIMDPolicyValidate(t *testing.T) {
 		err := policy.ValidateCIMDClient(t.Context(), &fosite.ClientMetadataDocument{})
 		require.ErrorContains(t, err, "token_endpoint_auth_method")
 	})
+
+	for _, test := range []struct {
+		name      string
+		supported string
+		wantError bool
+	}{
+		{name: "preferred private_key_jwt without a supported list is rejected", wantError: true},
+		{name: "preferred private_key_jwt with none in the supported list is accepted", supported: `["none","private_key_jwt"]`},
+		{name: "supported list without none is rejected", supported: `["private_key_jwt"]`, wantError: true},
+		{name: "malformed supported list is rejected", supported: `"none"`, wantError: true},
+	} {
+		t.Run(test.name, func(t *testing.T) {
+			doc := &fosite.ClientMetadataDocument{TokenEndpointAuthMethod: "private_key_jwt"} //nolint:gosec // G101 false positive: authentication method name, not a credential
+			if test.supported != "" {
+				doc.AdditionalMetadata = map[string]json.RawMessage{"token_endpoint_auth_methods_supported": json.RawMessage(test.supported)}
+			}
+			err := policy.ValidateCIMDClient(t.Context(), doc)
+			if test.wantError {
+				require.ErrorContains(t, err, "token_endpoint_auth_method")
+				return
+			}
+			require.NoError(t, err)
+		})
+	}
 }
 
 func TestMetadataClientChanges(t *testing.T) {
@@ -419,6 +436,23 @@ func TestGetClient_MetadataDocument(t *testing.T) {
 		var count int64
 		require.NoError(t, s.db.Model(&model.OidcClient{}).Where("id = ?", id).Count(&count).Error)
 		assert.Zero(t, count)
+	})
+
+	t.Run("ChatGPT's metadata resolves to a public client", func(t *testing.T) {
+		const chatGPTID = "https://chatgpt.com/oauth/client.json"
+		chatGPTBody := `{"client_id":"https://chatgpt.com/oauth/client.json","client_uri":"https://chatgpt.com/","redirect_uris":["https://chatgpt.com/connector_platform_oauth_redirect"],"token_endpoint_auth_method":"private_key_jwt","token_endpoint_auth_methods_supported":["none","private_key_jwt"],"grant_types":["authorization_code","refresh_token","urn:ietf:params:oauth:grant-type:jwt-bearer"],"response_types":["code"],"client_name":"ChatGPT","logo_uri":"https://persistent.oaistatic.com/sonic/misc/openai-logo.png","token_endpoint_auth_signing_alg":"RS256","jwks_uri":"https://chatgpt.com/oauth/jwks.json"}` //nolint:gosec // G101 false positive: authentication method names, not credentials
+		resp := testutils.NewMockResponse(http.StatusOK, chatGPTBody)                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                   //nolint:bodyclose // mock response, no real body
+		s := newMetadataStore(t, map[string]*http.Response{chatGPTID: resp})
+
+		_, err := s.GetClient(t.Context(), chatGPTID)
+		require.NoError(t, err)
+
+		stored, err := s.firstClientByID(t.Context(), chatGPTID)
+		require.NoError(t, err)
+		assert.Equal(t, "ChatGPT", stored.Name)
+		assert.True(t, stored.IsPublic)
+		assert.True(t, stored.PkceEnabled)
+		assert.Equal(t, []string{"authorization_code", "refresh_token"}, []string(stored.MetadataGrantTypes))
 	})
 
 	t.Run("disabled metadata client is refused without fetching but can be refreshed", func(t *testing.T) {
