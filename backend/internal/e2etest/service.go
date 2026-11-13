@@ -1,6 +1,6 @@
 //go:build e2etest
 
-package service
+package e2etest
 
 import (
 	"context"
@@ -25,10 +25,9 @@ import (
 	fositejwt "github.com/pocket-id/fosite/token/jwt"
 	"gorm.io/gorm"
 
+	"github.com/pocket-id/pocket-id/backend/internal/api"
 	"github.com/pocket-id/pocket-id/backend/internal/apikey"
 	"github.com/pocket-id/pocket-id/backend/internal/appconfig"
-
-	"github.com/pocket-id/pocket-id/backend/internal/api"
 	"github.com/pocket-id/pocket-id/backend/internal/claimmappingpolicy"
 	"github.com/pocket-id/pocket-id/backend/internal/common"
 	"github.com/pocket-id/pocket-id/backend/internal/dto"
@@ -48,7 +47,6 @@ import (
 )
 
 // LdapSyncer runs a full LDAP synchronization
-// It's an interface so this package doesn't import the ldapsync package, which imports this one in its tests
 type LdapSyncer interface {
 	SyncAll(ctx context.Context, dbConfig *appconfig.AppConfigModel) error
 }
@@ -58,7 +56,7 @@ type BrowserKeyReloader interface {
 	ReloadBrowserKey(ctx context.Context, instanceID string) error
 }
 
-type TestService struct {
+type Service struct {
 	db               *gorm.DB
 	actors           francishost.Host
 	signingKey       *signingkey.Key
@@ -89,27 +87,10 @@ const (
 	refreshTokenDuration = time.Duration(model.DefaultRefreshTokenDurationMinutes) * time.Minute
 )
 
-func NewTestService(db *gorm.DB, actors francishost.Host, appConfigService *appconfig.AppConfigService, signingKey *signingkey.Key, browserKey BrowserKeyReloader, ldapSyncer LdapSyncer, fileStorage storage.FileStorage) (*TestService, error) {
-	s := &TestService{
-		db:               db,
-		actors:           actors,
-		appConfigService: appConfigService,
-		signingKey:       signingKey,
-		browserKey:       browserKey,
-		ldapSyncer:       ldapSyncer,
-		fileStorage:      fileStorage,
-	}
-	err := s.initExternalIdP()
-	if err != nil {
-		return nil, fmt.Errorf("failed to initialize external IdP: %w", err)
-	}
-	return s, nil
-}
-
 // Initializes the "external IdP"
 // This creates a new "issuing authority" containing a public JWKS
 // It also stores the private key internally that will be used to issue JWTs
-func (s *TestService) initExternalIdP() error {
+func (s *Service) initExternalIdP() error {
 	// Generate a new ECDSA key
 	rawKey, err := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
 	if err != nil {
@@ -145,7 +126,7 @@ func seededClientSecrets(secretID string, value string) []model.OidcClientSecret
 }
 
 //nolint:gocognit
-func (s *TestService) SeedDatabase(baseURL string) error {
+func (s *Service) SeedDatabase(baseURL string) error {
 	err := s.db.Transaction(func(tx *gorm.DB) error {
 		users := []model.User{
 			{
@@ -612,7 +593,7 @@ func (s *TestService) SeedDatabase(baseURL string) error {
 }
 
 // seedSession restores the browser session the E2E tests share, since a test that signs out revokes it for every later test
-func (s *TestService) seedSession(ctx context.Context) error {
+func (s *Service) seedSession(ctx context.Context) error {
 	now := time.Now()
 	_, err := s.actors.Service().Invoke(ctx, session.ActorType, e2eRefreshTokenUserID, session.MethodCreate, session.Session{
 		ID:                   e2eSessionID,
@@ -626,7 +607,7 @@ func (s *TestService) seedSession(ctx context.Context) error {
 }
 
 // seedEmailVerificationToken replaces the outstanding verification state so every E2E reset starts from the same valid token
-func (s *TestService) seedEmailVerificationToken(ctx context.Context) error {
+func (s *Service) seedEmailVerificationToken(ctx context.Context) error {
 	state := emailverification.State{
 		TokenHash: utils.CreateSha256Hash(e2eEmailVerificationToken),
 		Email:     e2eEmailVerificationUserEmail,
@@ -639,7 +620,7 @@ func (s *TestService) seedEmailVerificationToken(ctx context.Context) error {
 
 // seedSignupTokens seeds the signup tokens used by E2E tests into the signup token singleton actor.
 // The already-expired fixture token is intentionally not seeded, since the actor would purge it right away via its cleanup alarm.
-func (s *TestService) seedSignupTokens(ctx context.Context) error {
+func (s *Service) seedSignupTokens(ctx context.Context) error {
 	now := time.Now().Round(time.Second)
 	tokens := map[string]usersignup.SignupTokenState{
 		"VALID1234567890A": {
@@ -684,7 +665,7 @@ func (s *TestService) seedSignupTokens(ctx context.Context) error {
 }
 
 // deleteAllSignupTokens removes every signup token currently stored in the actor state store
-func (s *TestService) deleteAllSignupTokens(ctx context.Context) error {
+func (s *Service) deleteAllSignupTokens(ctx context.Context) error {
 	var after string
 	for {
 		res, err := s.actors.Service().ListStates(ctx, usersignup.SignupTokenActorType, &actor.ListStatesOpts{After: after})
@@ -709,7 +690,7 @@ func (s *TestService) deleteAllSignupTokens(ctx context.Context) error {
 
 // seedOneTimeAccessTokens seeds the one-time access tokens used by E2E tests into the actor state store.
 // Expired tokens are intentionally not seeded: with actor-backed storage an expired token is simply one that has no state, which the exchange flow already reports as invalid/expired.
-func (s *TestService) seedOneTimeAccessTokens(ctx context.Context) error {
+func (s *Service) seedOneTimeAccessTokens(ctx context.Context) error {
 	tokens := []struct {
 		token string
 		ttl   time.Duration
@@ -723,10 +704,8 @@ func (s *TestService) seedOneTimeAccessTokens(ctx context.Context) error {
 			UserID:    e2eRefreshTokenUserID,
 			ExpiresAt: time.Now().Add(t.ttl).Round(time.Second),
 		}
-		// Seed through the actor's "restore" method (which sets the state) rather than writing the
-		// state directly: if an actor for this token is still active from a previous test (for
-		// example, one whose token was already consumed), invoking it refreshes its in-memory cache
-		// too, whereas a direct state write would leave that cache stale.
+		// Seed through the actor's "restore" method, which sets the state, rather than writing the state directly
+		// If an actor for this token is still active from a previous test, for example one whose token was already consumed, invoking it refreshes its in-memory cache too, whereas a direct state write would leave that cache stale
 		_, err := s.actors.Service().Invoke(ctx, onetimeaccess.TokenActorType, t.token, onetimeaccess.TokenMethodRestore, state)
 		if err != nil {
 			return fmt.Errorf("failed to seed one-time access token %q: %w", t.token, err)
@@ -736,7 +715,7 @@ func (s *TestService) seedOneTimeAccessTokens(ctx context.Context) error {
 	return nil
 }
 
-func (s *TestService) ResetDatabase() error {
+func (s *Service) ResetDatabase() error {
 	return s.db.Transaction(func(tx *gorm.DB) (err error) {
 		var tables []string
 
@@ -785,7 +764,7 @@ func (s *TestService) ResetDatabase() error {
 	})
 }
 
-func (s *TestService) ResetApplicationAssets(ctx context.Context) error {
+func (s *Service) ResetApplicationAssets(ctx context.Context) error {
 	err := s.fileStorage.DeleteAll(ctx, "/")
 	if err != nil {
 		slog.ErrorContext(ctx, "Error removing uploads", slog.Any("error", err))
@@ -817,7 +796,7 @@ func (s *TestService) ResetApplicationAssets(ctx context.Context) error {
 	return nil
 }
 
-func (s *TestService) ResetAppConfig(ctx context.Context) error {
+func (s *Service) ResetAppConfig(ctx context.Context) error {
 	// Reset all application configuration values through the singleton actor
 	_, err := s.appConfigService.UpdateAppConfig(ctx, dto.Replace(appconfig.AppConfigUpdateDto{}))
 	if err != nil {
@@ -846,7 +825,7 @@ func (s *TestService) ResetAppConfig(ctx context.Context) error {
 }
 
 // SyncLdap triggers an LDAP synchronization
-func (s *TestService) SyncLdap(ctx context.Context) error {
+func (s *Service) SyncLdap(ctx context.Context) error {
 	dbConfig, err := s.appConfigService.GetConfig(ctx)
 	if err != nil {
 		return fmt.Errorf("error loading app configuration: %w", err)
@@ -855,7 +834,7 @@ func (s *TestService) SyncLdap(ctx context.Context) error {
 }
 
 // SetLdapTestConfig updates the LDAP configuration used by the end-to-end test server
-func (s *TestService) SetLdapTestConfig(ctx context.Context) error {
+func (s *Service) SetLdapTestConfig(ctx context.Context) error {
 	err := s.appConfigService.UpdateAppConfigValues(ctx,
 		"ldapUrl", "ldap://lldap:3890",
 		"ldapBindDn", "uid=admin,ou=people,dc=pocket-id,dc=org",
@@ -883,7 +862,7 @@ func (s *TestService) SetLdapTestConfig(ctx context.Context) error {
 	return nil
 }
 
-func (s *TestService) SignRefreshToken(ctx context.Context, userID, clientID, fixtureRefreshToken string) (string, error) {
+func (s *Service) SignRefreshToken(ctx context.Context, userID, clientID, fixtureRefreshToken string) (string, error) {
 	globalSecret, err := oidc.DeriveGlobalSecret(common.EnvConfig.EncryptionKey)
 	if err != nil {
 		return "", err
@@ -898,8 +877,8 @@ func (s *TestService) SignRefreshToken(ctx context.Context, userID, clientID, fi
 		return "", err
 	}
 
-	// The e2e API always returns a newly generated fosite token. The legacy fixture
-	// token only selects whether to seed the matching stored session as valid/expired.
+	// The e2e API always returns a newly generated fosite token
+	// The legacy fixture token only selects whether to seed the matching stored session as valid or expired
 	session, ok := seededRefreshTokenSession(userID, clientID, fixtureRefreshToken)
 	if !ok {
 		return token, nil
@@ -951,7 +930,7 @@ func seededRefreshTokenFixture(userID string, clientID string, fixtureRefreshTok
 	}
 }
 
-func (s *TestService) SignAccessToken(ctx context.Context, userID, clientID string, expired bool) (string, error) {
+func (s *Service) SignAccessToken(ctx context.Context, userID, clientID string, expired bool) (string, error) {
 	fositeConfig := &fosite.Config{
 		AccessTokenLifespan: accessTokenDuration,
 		AccessTokenIssuer:   common.EnvConfig.AppURL,
@@ -1004,7 +983,7 @@ type fositeTokenSession struct {
 	ExpiresAt            time.Time
 }
 
-func (s *TestService) seedFositeTokenSession(ctx context.Context, session fositeTokenSession) error {
+func (s *Service) seedFositeTokenSession(ctx context.Context, session fositeTokenSession) error {
 	request := s.newFositeTokenRequest(session)
 
 	store := oidc.
@@ -1020,7 +999,7 @@ func (s *TestService) seedFositeTokenSession(ctx context.Context, session fosite
 	}
 }
 
-func (s *TestService) newFositeTokenRequest(session fositeTokenSession) *fosite.Request {
+func (s *Service) newFositeTokenRequest(session fositeTokenSession) *fosite.Request {
 	requestedAt := time.Now().UTC()
 
 	oidcSession := &oidc.Session{
@@ -1048,8 +1027,8 @@ func (s *TestService) newFositeTokenRequest(session fositeTokenSession) *fosite.
 	return request
 }
 
-// GetExternalIdPJWKS returns the JWKS for the "external IdP".
-func (s *TestService) GetExternalIdPJWKS() (jwk.Set, error) {
+// GetExternalIdPJWKS returns the JWKS for the "external IdP"
+func (s *Service) GetExternalIdPJWKS() (jwk.Set, error) {
 	pubKey, err := s.externalIdPKey.PublicKey()
 	if err != nil {
 		return nil, fmt.Errorf("failed to get public key: %w", err)
@@ -1064,7 +1043,7 @@ func (s *TestService) GetExternalIdPJWKS() (jwk.Set, error) {
 	return set, nil
 }
 
-func (s *TestService) SignExternalIdPToken(iss, sub, aud string) (string, error) {
+func (s *Service) SignExternalIdPToken(iss, sub, aud string) (string, error) {
 	now := time.Now()
 	token, err := jwt.NewBuilder().
 		Subject(sub).
