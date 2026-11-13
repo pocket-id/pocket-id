@@ -11,7 +11,6 @@ import (
 
 	"github.com/pocket-id/pocket-id/backend/internal/claimmappingpolicy"
 	"github.com/pocket-id/pocket-id/backend/internal/model"
-	"github.com/pocket-id/pocket-id/backend/internal/utils"
 )
 
 type ClientPreview struct {
@@ -134,5 +133,15 @@ func claimsFromJWTString(tokenString string) (map[string]any, error) {
 		return nil, err
 	}
 
-	return utils.GetClaimsFromToken(token)
+	// Collect every claim of the token for the preview response
+	keys := token.Keys()
+	claims := make(map[string]any, len(keys))
+	for _, key := range keys {
+		value, err := jwxjwt.Get[any](token, key)
+		if err != nil {
+			return nil, fmt.Errorf("failed to get claim %s: %w", key, err)
+		}
+		claims[key] = value
+	}
+	return claims, nil
 }
