@@ -296,6 +296,7 @@
 	"verify_email_address": "Verify email address",
 	"email_verification_required_error": "You must verify your email address before you can sign in to applications",
 	"email_change_not_started": "Your other changes were saved, but the email to confirm your new email address couldn't be sent. Please try again.",
+	"not_allowed_to_access_service": "You are not allowed to access this service.",
 	"cancel_email_change": "Cancel change",
 	"email_change_canceled": "Email change canceled.",
 	"email_verification_sent": "Verification email sent successfully.",

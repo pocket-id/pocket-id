@@ -107,7 +107,7 @@ func (s *deviceService) acceptDeviceCode(ctx context.Context, userCode, userID, 
 		return err
 	}
 	if !IsUserGroupAllowedToAuthorize(claimsSource.user, client.OidcClient) {
-		return fosite.ErrAccessDenied.WithHint("You are not allowed to access this service.")
+		return errUserGroupNotAllowed()
 	}
 
 	// Narrow the request to the scopes the user approved before resolving the grant, so deselected scopes are neither consented to nor granted

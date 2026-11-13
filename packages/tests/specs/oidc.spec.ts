@@ -977,7 +977,7 @@ test('Authorize new client with device authorization with user group not allowed
 	await page.getByRole('button', { name: 'Approve' }).click();
 
 	await expect(
-		page.getByRole('paragraph').filter({ hasText: "You're not allowed to access this service." })
+		page.getByRole('paragraph').filter({ hasText: 'You are not allowed to access this service.' })
 	).toBeVisible();
 });
 
