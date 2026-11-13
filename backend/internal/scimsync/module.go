@@ -54,6 +54,7 @@ func (m *Module) RegisterRoutes(r *authz.Router) {
 	r.POST("/scim/service-provider", authz.OidcClientsWrite, httpserver.Handle(m.handler.createServiceProvider))
 	r.POST("/scim/service-provider/:id/sync", authz.OidcClientsWrite, httpserver.Handle(m.handler.syncServiceProvider))
 	r.PUT("/scim/service-provider/:id", authz.OidcClientsWrite, httpserver.Handle(m.handler.updateServiceProvider))
+	r.PATCH("/scim/service-provider/:id", authz.OidcClientsWrite, httpserver.Handle(m.handler.updateServiceProvider))
 	r.DELETE("/scim/service-provider/:id", authz.OidcClientsWrite, httpserver.Handle(m.handler.deleteServiceProvider))
 }
 

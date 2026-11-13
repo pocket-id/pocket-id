@@ -67,7 +67,7 @@ func (h *handler) createCustomScope(c *gin.Context) error {
 
 // updateCustomScope godoc
 // @Summary Update a custom OIDC scope
-// @Description Update the name and description of a custom OIDC scope, whose key can't change
+// @Description Update the name and description of a custom OIDC scope, whose key can't change, where PATCH changes only the fields in the body
 // @Tags OIDC Custom Scopes
 // @Accept json
 // @Produce json
@@ -76,9 +76,10 @@ func (h *handler) createCustomScope(c *gin.Context) error {
 // @Success 200 {object} CustomScopeDto "Updated custom scope"
 // @Failure default {object} dto.ErrorDto "Error"
 // @Router /api/oidc/custom-scopes/{id} [put]
+// @Router /api/oidc/custom-scopes/{id} [patch]
 func (h *handler) updateCustomScope(c *gin.Context) error {
 	var input CustomScopeDto
-	err := httpserver.BindJSON(c, &input)
+	err := httpserver.BindUpdateJSON(c, &input, func() (any, error) { return h.service.getCustomScope(c.Request.Context(), c.Param("id")) })
 	if err != nil {
 		return err
 	}

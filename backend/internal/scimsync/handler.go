@@ -81,7 +81,7 @@ func (h *handler) createServiceProvider(c *gin.Context) error {
 
 // updateServiceProvider godoc
 // @Summary Update SCIM service provider
-// @Description Update an existing SCIM service provider, where an omitted token keeps the stored one, an empty token removes it and a changed endpoint requires the token
+// @Description Update an existing SCIM service provider, where PATCH changes only the fields in the body, an omitted token keeps the stored one, an empty token removes it and a changed endpoint requires the token
 // @Tags SCIM
 // @Accept json
 // @Produce json
@@ -90,9 +90,14 @@ func (h *handler) createServiceProvider(c *gin.Context) error {
 // @Success 200 {object} ScimServiceProviderDTO "Updated SCIM service provider"
 // @Failure default {object} dto.ErrorDto "Error"
 // @Router /api/scim/service-provider/{id} [put]
+// @Router /api/scim/service-provider/{id} [patch]
 func (h *handler) updateServiceProvider(c *gin.Context) error {
+	// The current token is left out, so a PATCH that changes the endpoint has to send the token again like a PUT
 	var input ScimServiceProviderCreateDTO
-	err := httpserver.BindJSON(c, &input)
+	err := httpserver.BindUpdateJSON(c, &input, func() (any, error) {
+		provider, err := h.service.GetServiceProvider(c.Request.Context(), c.Param("id"))
+		return ScimServiceProviderCreateDTO{Endpoint: provider.Endpoint, OidcClientID: provider.OidcClientID}, err
+	})
 	if err != nil {
 		return err
 	}

@@ -244,6 +244,7 @@ func (m *Module) RegisterRoutes(root, api *authz.Router, logoSizeLimit gin.Handl
 	api.POST("/oidc/clients", authz.OidcClientsWrite, httpserver.Handle(m.clientHandler.createClientHandler))
 	api.GET("/oidc/clients/:id", authz.OidcClientsRead, httpserver.Handle(m.clientHandler.getClientHandler))
 	api.PUT("/oidc/clients/:id", authz.OidcClientsWrite, httpserver.Handle(m.clientHandler.updateClientHandler))
+	api.PATCH("/oidc/clients/:id", authz.OidcClientsWrite, httpserver.Handle(m.clientHandler.updateClientHandler))
 	api.POST("/oidc/clients/:id/refresh", authz.OidcClientsWrite, httpserver.Handle(m.clientHandler.refreshClientMetadataHandler))
 	api.DELETE("/oidc/clients/:id", authz.OidcClientsWrite, httpserver.Handle(m.clientHandler.deleteClientHandler))
 

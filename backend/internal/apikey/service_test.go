@@ -156,3 +156,8 @@ func TestRenewApiKeyRotation(t *testing.T) {
 		requireValid(t, newToken, true)
 	})
 }
+
+// A PATCH fills the update DTO from the current key, so every field must be fillable or the omitted ones would be reset
+func TestUpdateDTOIsFilledFromApiKey(t *testing.T) {
+	require.Empty(t, testutils.UnmappedFields(ApiKey{}, apiKeyUpdateDto{}))
+}

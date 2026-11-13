@@ -153,7 +153,7 @@ func (h *handler) delete(c *gin.Context) error {
 
 // update godoc
 // @Summary Update an OIDC claim mapping policy
-// @Description Update an existing OIDC claim mapping policy
+// @Description Update an existing OIDC claim mapping policy, where PATCH changes only the fields in the body
 // @Tags OIDC Claim OidcClaimMapping OidcClaimMappingPolicy
 // @Accept json
 // @Produce json
@@ -162,9 +162,10 @@ func (h *handler) delete(c *gin.Context) error {
 // @Success 200 {object} OidcClaimMappingPolicyDto "Updated claim mapping policy"
 // @Failure default {object} dto.ErrorDto "Error"
 // @Router /api/oidc/claim-mapping-policies/{id} [put]
+// @Router /api/oidc/claim-mapping-policies/{id} [patch]
 func (h *handler) update(c *gin.Context) error {
 	var input OidcClaimMappingPolicyDto
-	err := httpserver.BindJSON(c, &input)
+	err := httpserver.BindUpdateJSON(c, &input, func() (any, error) { return h.service.GetClaimMappingPolicy(c.Request.Context(), c.Param("id")) })
 	if err != nil {
 		return err
 	}

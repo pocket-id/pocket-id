@@ -90,9 +90,11 @@ func (m *Module) RegisterRoutes(r *authz.Router, profilePictureSizeLimit gin.Han
 	r.GET("/users/:id", authz.UsersRead, httpserver.Handle(m.handler.getUserHandler))
 	r.POST("/users", authz.UsersWrite, httpserver.Handle(m.handler.createUserHandler))
 	r.PUT("/users/:id", authz.UsersWrite, httpserver.Handle(m.handler.updateUserHandler))
+	r.PATCH("/users/:id", authz.UsersWrite, httpserver.Handle(m.handler.updateUserHandler))
 	r.GET("/users/:id/groups", authz.UsersRead, httpserver.Handle(m.handler.getUserGroupsHandler))
 	r.GET("/users/:id/webauthn-credentials", authz.UsersRead, httpserver.Handle(m.handler.listUserWebauthnCredentialsHandler))
 	r.PUT("/users/me", authz.AccountWrite, httpserver.Handle(m.handler.updateCurrentUserHandler))
+	r.PATCH("/users/me", authz.AccountWrite, httpserver.Handle(m.handler.updateCurrentUserHandler))
 	r.DELETE("/users/:id", authz.UsersWrite, httpserver.Handle(m.handler.deleteUserHandler))
 	r.DELETE("/users/:id/webauthn-credentials/:credentialId", authz.UsersWrite, httpserver.Handle(m.handler.deleteUserWebauthnCredentialHandler))
 

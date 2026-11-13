@@ -125,7 +125,7 @@ func (h *handler) create(c *gin.Context) error {
 
 // update godoc
 // @Summary Update user group
-// @Description Update an existing user group by ID
+// @Description Update an existing user group by ID, where PATCH changes only the fields in the body
 // @Tags User Groups
 // @Accept json
 // @Produce json
@@ -134,6 +134,7 @@ func (h *handler) create(c *gin.Context) error {
 // @Success 200 {object} dto.UserGroupDto "Updated user group"
 // @Failure default {object} dto.ErrorDto "Error"
 // @Router /api/user-groups/{id} [put]
+// @Router /api/user-groups/{id} [patch]
 func (h *handler) update(c *gin.Context) error {
 	dbConfig, err := h.appConfig.GetConfig(c.Request.Context())
 	if err != nil {
@@ -141,7 +142,8 @@ func (h *handler) update(c *gin.Context) error {
 	}
 
 	var input dto.UserGroupCreateDto
-	if err := httpserver.BindJSON(c, &input); err != nil {
+	err = httpserver.BindUpdateJSON(c, &input, func() (any, error) { return h.service.Get(c.Request.Context(), c.Param("id")) })
+	if err != nil {
 		return err
 	}
 

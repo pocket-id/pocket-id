@@ -685,3 +685,8 @@ func findPermission(api API, key string) *Permission {
 	}
 	return nil
 }
+
+// A PATCH fills the update DTO from the current API, so every field must be fillable or the omitted ones would be reset
+func TestUpdateDTOIsFilledFromAPI(t *testing.T) {
+	require.Empty(t, testutils.UnmappedFields(API{}, apiUpdateDto{}))
+}

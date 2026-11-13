@@ -36,6 +36,7 @@ func NewAppConfigController(
 	r.Public().GET("/application-configuration", httpserver.Handle(acc.listAppConfigHandler))
 	r.GET("/application-configuration/all", authz.ConfigRead, httpserver.Handle(acc.listAllAppConfigHandler))
 	r.PUT("/application-configuration", authz.ConfigWrite, httpserver.Handle(acc.updateAppConfigHandler))
+	r.PATCH("/application-configuration", authz.ConfigWrite, httpserver.Handle(acc.updateAppConfigHandler))
 
 	r.POST("/application-configuration/test-email", authz.ConfigWrite, httpserver.Handle(acc.testEmailHandler))
 }
@@ -126,7 +127,7 @@ func (acc *AppConfigController) listAllAppConfigHandler(c *gin.Context) error {
 
 // updateAppConfigHandler godoc
 // @Summary Update application configurations
-// @Description Update application configuration settings
+// @Description Update application configuration settings, where PATCH changes only the fields in the body
 // @Tags Application Configuration
 // @Accept json
 // @Produce json
@@ -134,9 +135,11 @@ func (acc *AppConfigController) listAllAppConfigHandler(c *gin.Context) error {
 // @Success 200 {array} dto.AppConfigVariableDto
 // @Failure default {object} dto.ErrorDto "Error"
 // @Router /api/application-configuration [put]
+// @Router /api/application-configuration [patch]
 func (acc *AppConfigController) updateAppConfigHandler(c *gin.Context) error {
 	var input dto.AppConfigUpdateDto
-	if err := httpserver.BindJSON(c, &input); err != nil {
+	err := httpserver.BindUpdateJSON(c, &input, func() (any, error) { return acc.appConfigService.GetConfig(c.Request.Context()) })
+	if err != nil {
 		return err
 	}
 

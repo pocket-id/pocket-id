@@ -74,6 +74,11 @@ func UnsupportedFileType(expected string) *Error {
 		WithDetail("expected_file_type", expected)
 }
 
+func UnsupportedPatchType(accepted string) *Error {
+	return New(CodePatchTypeNotSupported, http.StatusUnsupportedMediaType, "PATCH body must be of type "+accepted).
+		WithDetail("accepted_patch_types", accepted)
+}
+
 func FileTooLarge(maxSize string) *Error {
 	return New(CodeFileTooLarge, http.StatusRequestEntityTooLarge, "File must not exceed "+maxSize).WithDetail("max_size", maxSize)
 }

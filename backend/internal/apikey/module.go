@@ -70,6 +70,7 @@ func (m *Module) RegisterRoutes(r *authz.Router) {
 	group.GET("", authz.AccountAPIKeys, httpserver.Handle(m.handler.list))
 	group.POST("", authz.AccountAPIKeysCreate, httpserver.Handle(m.handler.create))
 	group.PUT("/:id", authz.AccountAPIKeysCreate, httpserver.Handle(m.handler.update))
+	group.PATCH("/:id", authz.AccountAPIKeysCreate, httpserver.Handle(m.handler.update))
 	group.POST("/:id/renew", authz.AccountAPIKeysCreate, httpserver.Handle(m.handler.renew))
 	group.DELETE("/:id", authz.AccountAPIKeys, httpserver.Handle(m.handler.revoke))
 }

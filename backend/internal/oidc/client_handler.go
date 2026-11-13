@@ -152,7 +152,7 @@ func (h *clientHandler) deleteClientHandler(c *gin.Context) error {
 
 // updateClientHandler godoc
 // @Summary Update OIDC client
-// @Description Update an existing OIDC client
+// @Description Update an existing OIDC client, where PATCH changes only the fields in the body
 // @Tags OIDC
 // @Accept json
 // @Produce json
@@ -161,9 +161,10 @@ func (h *clientHandler) deleteClientHandler(c *gin.Context) error {
 // @Success 200 {object} dto.OidcClientWithAllowedUserGroupsDto "Updated client"
 // @Failure default {object} dto.ErrorDto "Error"
 // @Router /api/oidc/clients/{id} [put]
+// @Router /api/oidc/clients/{id} [patch]
 func (h *clientHandler) updateClientHandler(c *gin.Context) error {
 	var input dto.OidcClientUpdateDto
-	err := httpserver.BindJSON(c, &input)
+	err := httpserver.BindUpdateJSON(c, &input, func() (any, error) { return h.service.GetClient(c.Request.Context(), c.Param("id")) })
 	if err != nil {
 		return err
 	}

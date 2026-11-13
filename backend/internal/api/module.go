@@ -71,6 +71,7 @@ func (m *Module) RegisterRoutes(r *authz.Router) {
 	apis.POST("", authz.APIsWrite, httpserver.Handle(m.handler.create))
 	apis.GET("/:id", authz.APIsRead, httpserver.Handle(m.handler.get))
 	apis.PUT("/:id", authz.APIsWrite, httpserver.Handle(m.handler.update))
+	apis.PATCH("/:id", authz.APIsWrite, httpserver.Handle(m.handler.update))
 	apis.DELETE("/:id", authz.APIsWrite, httpserver.Handle(m.handler.delete))
 	apis.PUT("/:id/permissions", authz.APIsWrite, httpserver.Handle(m.handler.updatePermissions))
 	apis.PUT("/:id/cimd-access", authz.APIsWrite, httpserver.Handle(m.handler.updateCimdAccess))

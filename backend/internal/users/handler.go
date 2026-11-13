@@ -237,25 +237,27 @@ func (h *handler) createUserHandler(c *gin.Context) error {
 
 // updateUserHandler godoc
 // @Summary Update user
-// @Description Update an existing user by ID
+// @Description Update an existing user by ID, where PATCH changes only the fields in the body
 // @Tags Users
 // @Param id path string true "User ID"
 // @Param user body dto.UserCreateDto true "User information"
 // @Success 200 {object} dto.UserDto
 // @Failure default {object} dto.ErrorDto "Error"
 // @Router /api/users/{id} [put]
+// @Router /api/users/{id} [patch]
 func (h *handler) updateUserHandler(c *gin.Context) error {
 	return h.updateUser(c, false)
 }
 
 // updateCurrentUserHandler godoc
 // @Summary Update current user
-// @Description Update the currently authenticated user's information
+// @Description Update the currently authenticated user's information, where PATCH changes only the fields in the body
 // @Tags Users
 // @Param user body dto.UserCreateDto true "User information"
 // @Success 200 {object} dto.UserDto
 // @Failure default {object} dto.ErrorDto "Error"
 // @Router /api/users/me [put]
+// @Router /api/users/me [patch]
 func (h *handler) updateCurrentUserHandler(c *gin.Context) error {
 	return h.updateUser(c, true)
 }
@@ -383,16 +385,17 @@ func (h *handler) updateUser(c *gin.Context, updateOwnUser bool) error {
 		return fmt.Errorf("error loading app configuration: %w", err)
 	}
 
-	var input dto.UserCreateDto
-	if err := httpserver.BindJSON(c, &input); err != nil {
-		return err
-	}
-
 	var userID string
 	if updateOwnUser {
 		userID = authz.PrincipalFrom(c).UserID
 	} else {
 		userID = c.Param("id")
+	}
+
+	var input dto.UserCreateDto
+	err = httpserver.BindUpdateJSON(c, &input, func() (any, error) { return h.service.GetUser(c.Request.Context(), userID) })
+	if err != nil {
+		return err
 	}
 
 	user, err := h.service.UpdateUser(c.Request.Context(), dbConfig, userID, input, updateOwnUser, false, auditlogs.OriginFrom(c))

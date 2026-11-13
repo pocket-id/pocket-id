@@ -88,14 +88,10 @@ func (s *Service) CreateApiKey(ctx context.Context, userID string, grantable aut
 }
 
 // UpdateApiKey changes a key's name, description and scopes without changing its token
-func (s *Service) UpdateApiKey(ctx context.Context, userID, apiKeyID string, grantable authz.ScopeSet, input apiKeyUpdateDto) (ApiKey, error) {
-	scopes, err := grantedScopes(input.Scopes, grantable)
-	if err != nil {
-		return ApiKey{}, err
-	}
-
+// GetApiKey loads an API key of the user
+func (s *Service) GetApiKey(ctx context.Context, userID, apiKeyID string) (ApiKey, error) {
 	var apiKey ApiKey
-	err = s.db.
+	err := s.db.
 		WithContext(ctx).
 		Where("id = ? AND user_id = ?", apiKeyID, userID).
 		First(&apiKey).
@@ -104,6 +100,19 @@ func (s *Service) UpdateApiKey(ctx context.Context, userID, apiKeyID string, gra
 		return ApiKey{}, apperror.APIKeyNotFound()
 	} else if err != nil {
 		return ApiKey{}, fmt.Errorf("error loading API key: %w", err)
+	}
+	return apiKey, nil
+}
+
+func (s *Service) UpdateApiKey(ctx context.Context, userID, apiKeyID string, grantable authz.ScopeSet, input apiKeyUpdateDto) (ApiKey, error) {
+	scopes, err := grantedScopes(input.Scopes, grantable)
+	if err != nil {
+		return ApiKey{}, err
+	}
+
+	apiKey, err := s.GetApiKey(ctx, userID, apiKeyID)
+	if err != nil {
+		return ApiKey{}, err
 	}
 
 	apiKey.Name = input.Name

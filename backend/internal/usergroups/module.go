@@ -50,6 +50,7 @@ func (m *Module) RegisterRoutes(r *authz.Router) {
 	group.GET("/:id", authz.GroupsRead, httpserver.Handle(m.handler.get))
 	group.POST("", authz.GroupsWrite, httpserver.Handle(m.handler.create))
 	group.PUT("/:id", authz.GroupsWrite, httpserver.Handle(m.handler.update))
+	group.PATCH("/:id", authz.GroupsWrite, httpserver.Handle(m.handler.update))
 	group.DELETE("/:id", authz.GroupsWrite, httpserver.Handle(m.handler.delete))
 	group.PUT("/:id/users", authz.GroupsWrite, httpserver.Handle(m.handler.updateUsers))
 	group.PUT("/:id/allowed-oidc-clients", authz.GroupsWrite, httpserver.Handle(m.handler.updateAllowedOidcClients))

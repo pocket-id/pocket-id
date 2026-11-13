@@ -90,17 +90,18 @@ func (h *handler) create(c *gin.Context) error {
 
 // update godoc
 // @Summary Update API key
-// @Description Change the name, description and scopes of an existing API key; its token stays the same
+// @Description Change the name, description and scopes of an existing API key, where PATCH changes only the fields in the body; its token stays the same
 // @Tags API Keys
 // @Param id path string true "API Key ID"
 // @Param api_key body apiKeyUpdateDto true "API key information"
 // @Success 200 {object} apiKeyDto
 // @Router /api/api-keys/{id} [put]
+// @Router /api/api-keys/{id} [patch]
 func (h *handler) update(c *gin.Context) error {
 	principal := authz.PrincipalFrom(c)
 
 	var input apiKeyUpdateDto
-	err := httpserver.BindJSON(c, &input)
+	err := httpserver.BindUpdateJSON(c, &input, func() (any, error) { return h.service.GetApiKey(c.Request.Context(), principal.UserID, c.Param("id")) })
 	if err != nil {
 		return err
 	}

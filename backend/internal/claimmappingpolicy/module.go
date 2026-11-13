@@ -28,6 +28,7 @@ func (m *Module) RegisterRoutes(r *authz.Router) {
 	policies.POST("", authz.OidcClaimMappingPoliciesWrite, httpserver.Handle(m.handler.create))
 	policies.GET("/:id", authz.OidcClaimMappingPoliciesRead, httpserver.Handle(m.handler.get))
 	policies.PUT("/:id", authz.OidcClaimMappingPoliciesWrite, httpserver.Handle(m.handler.update))
+	policies.PATCH("/:id", authz.OidcClaimMappingPoliciesWrite, httpserver.Handle(m.handler.update))
 	policies.DELETE("/:id", authz.OidcClaimMappingPoliciesWrite, httpserver.Handle(m.handler.delete))
 
 	// Clients are attached from the policy side, a client without a policy falls back to the default one
@@ -41,5 +42,6 @@ func (m *Module) RegisterRoutes(r *authz.Router) {
 	scopes.GET("/keys", authz.OidcClaimMappingPoliciesRead, httpserver.Handle(m.handler.listCustomScopeKeys))
 	scopes.POST("", authz.OidcClaimMappingPoliciesWrite, httpserver.Handle(m.handler.createCustomScope))
 	scopes.PUT("/:id", authz.OidcClaimMappingPoliciesWrite, httpserver.Handle(m.handler.updateCustomScope))
+	scopes.PATCH("/:id", authz.OidcClaimMappingPoliciesWrite, httpserver.Handle(m.handler.updateCustomScope))
 	scopes.DELETE("/:id", authz.OidcClaimMappingPoliciesWrite, httpserver.Handle(m.handler.deleteCustomScope))
 }
