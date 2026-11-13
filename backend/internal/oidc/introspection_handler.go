@@ -29,14 +29,14 @@ func newIntrospectionHandler(provider fosite.OAuth2Provider, authenticator *fede
 	}
 }
 
-// introspectToken godoc
-// @Summary Introspect OIDC tokens
-// @Description Pass a token to verify if it is considered valid.
-// @Tags OIDC
-// @Produce json
-// @Param token formData string true "The token to be introspected."
-// @Success 200 {object} object "Response with the introspection result."
-// @Router /api/oidc/introspect [post]
+// introspectionForm documents the form body of the introspection endpoint, which fosite parses itself
+type introspectionForm struct {
+	Token         string `json:"token" binding:"required" description:"The token to be introspected"`
+	TokenTypeHint string `json:"token_type_hint,omitempty" description:"The type of the token, access_token or refresh_token"`
+	Scope         string `json:"scope,omitempty" description:"Space-separated scopes the token must have"`
+	ClientID      string `json:"client_id,omitempty" description:"The client whose federated client assertion is sent as the bearer token"`
+}
+
 func (h *introspectionHandler) introspectToken(c *gin.Context) {
 	ctx := c.Request.Context()
 

@@ -72,8 +72,8 @@ func TestOAuthAuthorizationServerMetadata(t *testing.T) {
 
 	h := &discoveryHandler{db: db, keys: testKeyPublisher{}}
 	router := gin.New()
-	router.GET("/.well-known/oauth-authorization-server", httpserver.Handle(h.oauthAuthorizationServerHandler))
-	router.GET("/.well-known/openid-configuration", httpserver.Handle(h.openIDConfigurationHandler))
+	router.GET("/.well-known/oauth-authorization-server", httpserver.Handle(h.oauthAuthorizationServerHandler).Handler)
+	router.GET("/.well-known/openid-configuration", httpserver.Handle(h.openIDConfigurationHandler).Handler)
 
 	get := func(t *testing.T, path string) *httptest.ResponseRecorder {
 		t.Helper()

@@ -1,9 +1,14 @@
 package authz
 
 import (
+	"maps"
+	"slices"
+
 	"github.com/gin-gonic/gin"
+	"github.com/go-fuego/fuego"
 
 	"github.com/pocket-id/pocket-id/backend/internal/apperror"
+	"github.com/pocket-id/pocket-id/backend/internal/openapi"
 )
 
 // Authenticator resolves a principal from one kind of credential
@@ -23,7 +28,7 @@ type Authenticator interface {
 // Middleware authenticates requests and enforces the scope each route declares
 type Middleware struct {
 	authenticators []Authenticator
-	declared       map[string]struct{}
+	declared       map[string]openapi.Route
 }
 
 // NewMiddleware creates the authorization middleware
@@ -31,7 +36,7 @@ type Middleware struct {
 func NewMiddleware(authenticators ...Authenticator) *Middleware {
 	return &Middleware{
 		authenticators: authenticators,
-		declared:       make(map[string]struct{}),
+		declared:       make(map[string]openapi.Route),
 	}
 }
 
@@ -46,8 +51,16 @@ func (m *Middleware) IsDeclared(method, path string) bool {
 	return ok
 }
 
-func (m *Middleware) declare(method, path string) {
-	m.declared[routeKey(method, path)] = struct{}{}
+// Routes returns every declared route
+func (m *Middleware) Routes() []openapi.Route {
+	return slices.Collect(maps.Values(m.declared))
+}
+
+// register adds the route to gin and declares it with its documentation
+func (m *Middleware) register(group *gin.RouterGroup, method, relativePath string, chain []gin.HandlerFunc, docs []fuego.RouteOption) {
+	group.Handle(method, relativePath, chain...)
+	path := joinPaths(group.BasePath(), relativePath)
+	m.declared[routeKey(method, path)] = openapi.Route{Method: method, Path: path, Docs: docs}
 }
 
 func routeKey(method, path string) string {

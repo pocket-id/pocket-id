@@ -3,8 +3,10 @@ package emailverification
 import (
 	"context"
 	"fmt"
+	"net/http"
 
 	"github.com/gin-gonic/gin"
+	"github.com/go-fuego/fuego/option"
 	francishost "github.com/italypaleale/francis/host"
 	"gorm.io/gorm"
 
@@ -12,6 +14,7 @@ import (
 	"github.com/pocket-id/pocket-id/backend/internal/auditlogs"
 	"github.com/pocket-id/pocket-id/backend/internal/authz"
 	"github.com/pocket-id/pocket-id/backend/internal/httpserver"
+	"github.com/pocket-id/pocket-id/backend/internal/openapi"
 )
 
 type AuditLogger interface {
@@ -66,8 +69,26 @@ func (m *Module) RequestEmailChange(ctx context.Context, dbConfig *appconfig.App
 
 // RegisterRoutes mounts the email verification endpoints
 func (m *Module) RegisterRoutes(r *authz.Router, verifyRateLimit gin.HandlerFunc) {
-	r.POST("/users/me/send-email-verification", authz.AccountWrite, httpserver.Handle(m.handler.send))
-	r.POST("/users/me/verify-email", authz.AccountWrite, verifyRateLimit, httpserver.Handle(m.handler.verify))
-	r.GET("/users/me/email-change", authz.AccountRead, httpserver.Handle(m.handler.pendingEmailChange))
-	r.DELETE("/users/me/email-change", authz.AccountWrite, httpserver.Handle(m.handler.cancelEmailChange))
+	r.POST("/users/me/send-email-verification", authz.AccountWrite, httpserver.NoContent(m.handler.send),
+		option.Summary("Send email verification"),
+		option.Description("Send an email verification to the currently authenticated user"),
+		option.Tags("Users"),
+	)
+	r.With(verifyRateLimit).POST("/users/me/verify-email", authz.AccountWrite, httpserver.BodyNoContent(m.handler.verify),
+		option.Summary("Verify email"),
+		option.Description("Verify the currently authenticated user's email using a verification token"),
+		option.Tags("Users"),
+	)
+	r.GET("/users/me/email-change", authz.AccountRead, httpserver.Handle(m.handler.pendingEmailChange),
+		option.Summary("Get pending email change"),
+		option.Description("Get the email change of the currently authenticated user that still has to be confirmed through the emailed link"),
+		option.Tags("Users"),
+		openapi.Response[emailChangeDto](http.StatusOK, ""),
+		openapi.Status(http.StatusNoContent, "No pending email change"),
+	)
+	r.DELETE("/users/me/email-change", authz.AccountWrite, httpserver.NoContent(m.handler.cancelEmailChange),
+		option.Summary("Cancel pending email change"),
+		option.Description("Cancel the pending email change of the currently authenticated user, so its verification link stops working"),
+		option.Tags("Users"),
+	)
 }

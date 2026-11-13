@@ -11,6 +11,7 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/pocket-id/pocket-id/backend/internal/apperror"
+	"github.com/pocket-id/pocket-id/backend/internal/httpserver"
 )
 
 // fakeAuthenticator accepts any request carrying its header and resolves to the configured outcome
@@ -73,10 +74,10 @@ func serve(t *testing.T, m *Middleware, scope Scope, optional bool, headers map[
 	if optional {
 		r = r.Optional()
 	}
-	r.GET("/route", scope, func(c *gin.Context) {
+	r.GET("/route", scope, httpserver.Endpoint{Handler: func(c *gin.Context) {
 		result.principal = PrincipalFrom(c)
 		c.Status(http.StatusNoContent)
-	})
+	}})
 
 	req := httptest.NewRequestWithContext(t.Context(), http.MethodGet, "/api/route", nil)
 	for key, value := range headers {

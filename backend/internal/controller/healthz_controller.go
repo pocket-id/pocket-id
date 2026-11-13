@@ -1,32 +1,26 @@
 package controller
 
 import (
-	"net/http"
-
 	"github.com/gin-gonic/gin"
+	"github.com/go-fuego/fuego/option"
 
-	_ "github.com/pocket-id/pocket-id/backend/internal/dto"
+	"github.com/pocket-id/pocket-id/backend/internal/authz"
+	"github.com/pocket-id/pocket-id/backend/internal/httpserver"
 )
 
 // NewHealthzController creates a new controller for the healthcheck endpoints
-// @Summary Healthcheck controller
-// @Description Initializes healthcheck endpoints
-// @Tags Health
-func NewHealthzController(r *gin.Engine) {
+func NewHealthzController(r *authz.PublicRouter) {
 	hc := &HealthzController{}
 
-	r.GET("/healthz", hc.healthzHandler)
+	r.GET("/healthz", httpserver.NoContent(hc.healthzHandler),
+		option.Summary("Responds to healthchecks"),
+		option.Description("Responds with a successful status code to healthcheck requests"),
+		option.Tags("Health"),
+	)
 }
 
 type HealthzController struct{}
 
-// healthzHandler godoc
-// @Summary Responds to healthchecks
-// @Description Responds with a successful status code to healthcheck requests
-// @Tags Health
-// @Success 204 ""
-// @Failure default {object} dto.ErrorDto "Error"
-// @Router /healthz [get]
-func (hc *HealthzController) healthzHandler(c *gin.Context) {
-	c.Status(http.StatusNoContent)
+func (hc *HealthzController) healthzHandler(*gin.Context) error {
+	return nil
 }

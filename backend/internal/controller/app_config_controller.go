@@ -6,6 +6,7 @@ import (
 	"strconv"
 
 	"github.com/gin-gonic/gin"
+	"github.com/go-fuego/fuego/option"
 	"github.com/pocket-id/pocket-id/backend/internal/appconfig"
 	"github.com/pocket-id/pocket-id/backend/internal/apperror"
 	"github.com/pocket-id/pocket-id/backend/internal/authz"
@@ -20,9 +21,6 @@ type TestEmailSender interface {
 }
 
 // NewAppConfigController creates a new controller for application configuration endpoints
-// @Summary Create a new application configuration controller
-// @Description Initialize routes for application configuration
-// @Tags Application Configuration
 func NewAppConfigController(
 	r *authz.Router,
 	appConfigService *appconfig.AppConfigService,
@@ -33,12 +31,29 @@ func NewAppConfigController(
 		appConfigService: appConfigService,
 		emailSender:      emailSender,
 	}
-	r.Public().GET("/application-configuration", httpserver.Handle(acc.listAppConfigHandler))
-	r.GET("/application-configuration/all", authz.ConfigRead, httpserver.Handle(acc.listAllAppConfigHandler))
-	r.PUT("/application-configuration", authz.ConfigWrite, httpserver.Handle(acc.updateAppConfigHandler))
-	r.PATCH("/application-configuration", authz.ConfigWrite, httpserver.Handle(acc.updateAppConfigHandler))
+	r.Public().GET("/application-configuration", httpserver.JSON(http.StatusOK, acc.listAppConfigHandler),
+		option.Summary("List public application configurations"),
+		option.Description("Get all public application configurations"),
+		option.Tags("Application Configuration"),
+	)
+	r.GET("/application-configuration/all", authz.ConfigRead, httpserver.JSON(http.StatusOK, acc.listAllAppConfigHandler),
+		option.Summary("List all application configurations"),
+		option.Description("Get all application configurations including private ones"),
+		option.Tags("Application Configuration"),
+	)
+	updateAppConfigDocs := option.Group(
+		option.Summary("Update application configurations"),
+		option.Description("Update application configuration settings, where PATCH changes only the fields in the body"),
+		option.Tags("Application Configuration"),
+	)
+	r.PUT("/application-configuration", authz.ConfigWrite, httpserver.UpdateJSON(acc.updateAppConfigHandler), updateAppConfigDocs)
+	r.PATCH("/application-configuration", authz.ConfigWrite, httpserver.UpdateJSON(acc.updateAppConfigHandler), updateAppConfigDocs)
 
-	r.POST("/application-configuration/test-email", authz.ConfigWrite, httpserver.Handle(acc.testEmailHandler))
+	r.POST("/application-configuration/test-email", authz.ConfigWrite, httpserver.NoContent(acc.testEmailHandler),
+		option.Summary("Send test email"),
+		option.Description("Send a test email to verify email configuration"),
+		option.Tags("Application Configuration"),
+	)
 }
 
 type AppConfigController struct {
@@ -46,24 +61,15 @@ type AppConfigController struct {
 	emailSender      TestEmailSender
 }
 
-// listAppConfigHandler godoc
-// @Summary List public application configurations
-// @Description Get all public application configurations
-// @Tags Application Configuration
-// @Accept json
-// @Produce json
-// @Success 200 {array} dto.PublicAppConfigVariableDto
-// @Failure default {object} dto.ErrorDto "Error"
-// @Router /api/application-configuration [get]
-func (acc *AppConfigController) listAppConfigHandler(c *gin.Context) error {
+func (acc *AppConfigController) listAppConfigHandler(c *gin.Context) ([]dto.PublicAppConfigVariableDto, error) {
 	configuration, err := acc.appConfigService.ListAppConfig(c.Request.Context(), false)
 	if err != nil {
-		return err
+		return nil, err
 	}
 
 	var configVariablesDto []dto.PublicAppConfigVariableDto
 	if err := dto.MapStructList(configuration, &configVariablesDto); err != nil {
-		return err
+		return nil, err
 	}
 
 	// Manually add uiConfigDisabled which isn't in the database but defined with an environment variable
@@ -85,8 +91,7 @@ func (acc *AppConfigController) listAppConfigHandler(c *gin.Context) error {
 		Value: iconLibraryStatus(),
 	})
 
-	c.JSON(http.StatusOK, configVariablesDto)
-	return nil
+	return configVariablesDto, nil
 }
 
 // iconLibraryStatus reports whether the icon library is disabled, uses the default selfh.st collection, or points to a custom source
@@ -101,68 +106,34 @@ func iconLibraryStatus() string {
 	}
 }
 
-// listAllAppConfigHandler godoc
-// @Summary List all application configurations
-// @Description Get all application configurations including private ones
-// @Tags Application Configuration
-// @Accept json
-// @Produce json
-// @Success 200 {array} dto.AppConfigVariableDto
-// @Failure default {object} dto.ErrorDto "Error"
-// @Router /api/application-configuration/all [get]
-func (acc *AppConfigController) listAllAppConfigHandler(c *gin.Context) error {
+func (acc *AppConfigController) listAllAppConfigHandler(c *gin.Context) ([]dto.AppConfigVariableDto, error) {
 	configuration, err := acc.appConfigService.ListAppConfig(c.Request.Context(), true)
 	if err != nil {
-		return err
+		return nil, err
 	}
 
 	var configVariablesDto []dto.AppConfigVariableDto
 	if err := dto.MapStructList(configuration, &configVariablesDto); err != nil {
-		return err
+		return nil, err
 	}
 
-	c.JSON(http.StatusOK, configVariablesDto)
-	return nil
+	return configVariablesDto, nil
 }
 
-// updateAppConfigHandler godoc
-// @Summary Update application configurations
-// @Description Update application configuration settings, where PATCH changes only the fields in the body
-// @Tags Application Configuration
-// @Accept json
-// @Produce json
-// @Param body body dto.AppConfigUpdateDto true "Application Configuration"
-// @Success 200 {array} dto.AppConfigVariableDto
-// @Failure default {object} dto.ErrorDto "Error"
-// @Router /api/application-configuration [put]
-// @Router /api/application-configuration [patch]
-func (acc *AppConfigController) updateAppConfigHandler(c *gin.Context) error {
-	update, err := httpserver.BindUpdate[dto.AppConfigUpdateDto](c)
-	if err != nil {
-		return err
-	}
-
+func (acc *AppConfigController) updateAppConfigHandler(c *gin.Context, update dto.Update[dto.AppConfigUpdateDto]) ([]dto.AppConfigVariableDto, error) {
 	savedConfigVariables, err := acc.appConfigService.UpdateAppConfig(c.Request.Context(), update)
 	if err != nil {
-		return err
+		return nil, err
 	}
 
 	var configVariablesDto []dto.AppConfigVariableDto
 	if err := dto.MapStructList(savedConfigVariables, &configVariablesDto); err != nil {
-		return err
+		return nil, err
 	}
 
-	c.JSON(http.StatusOK, configVariablesDto)
-	return nil
+	return configVariablesDto, nil
 }
 
-// testEmailHandler godoc
-// @Summary Send test email
-// @Description Send a test email to verify email configuration
-// @Tags Application Configuration
-// @Success 204 "No Content"
-// @Failure default {object} dto.ErrorDto "Error"
-// @Router /api/application-configuration/test-email [post]
 func (acc *AppConfigController) testEmailHandler(c *gin.Context) error {
 	dbConfig, err := acc.appConfigService.GetConfig(c.Request.Context())
 	if err != nil {
@@ -175,11 +146,5 @@ func (acc *AppConfigController) testEmailHandler(c *gin.Context) error {
 		return apperror.ClientTokenAuthNotAllowed()
 	}
 
-	err = acc.emailSender.SendTestEmail(c.Request.Context(), dbConfig, userID)
-	if err != nil {
-		return err
-	}
-
-	c.Status(http.StatusNoContent)
-	return nil
+	return acc.emailSender.SendTestEmail(c.Request.Context(), dbConfig, userID)
 }

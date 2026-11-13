@@ -28,7 +28,7 @@ func TestErrorHandlerMiddlewareStructuredError(t *testing.T) {
 		handlerRequestID = RequestID(c)
 		cause := errors.New("database connection details")
 		return apperror.Wrap(cause, apperror.CodeUserNotFound, http.StatusNotFound, "User not found")
-	}))
+	}).Handler)
 
 	recorder := httptest.NewRecorder()
 	request := httptest.NewRequestWithContext(t.Context(), http.MethodGet, "/users/1", nil)
@@ -81,7 +81,7 @@ func TestErrorHandlerMiddlewareHidesRecoveredPanic(t *testing.T) {
 	router.Use(NewErrorHandlerMiddleware().Add())
 	router.GET("/panic", httpserver.Handle(func(*gin.Context) error {
 		panic("private panic details")
-	}))
+	}).Handler)
 
 	recorder := httptest.NewRecorder()
 	request := httptest.NewRequestWithContext(t.Context(), http.MethodGet, "/panic", nil)
@@ -143,7 +143,7 @@ func TestValidationResponseUsesJSONFieldNames(t *testing.T) {
 	router.POST("/users", httpserver.Handle(func(c *gin.Context) error {
 		var input dto.UserCreateDto
 		return httpserver.BindJSON(c, &input)
-	}))
+	}).Handler)
 
 	recorder := httptest.NewRecorder()
 	request := httptest.NewRequestWithContext(t.Context(), http.MethodPost, "/users", strings.NewReader(`{}`))
@@ -174,7 +174,7 @@ func TestValidationResponseUsesSpecificCustomMessages(t *testing.T) {
 			SignupDefaultCustomClaims string `json:"signupDefaultCustomClaims" binding:"json_custom_claims"`
 		}
 		return httpserver.BindJSON(c, &input)
-	}))
+	}).Handler)
 
 	recorder := httptest.NewRecorder()
 	request := httptest.NewRequestWithContext(t.Context(), http.MethodPost, "/config", strings.NewReader(`{"signupDefaultCustomClaims":"[\"immich_role\": \"user\"]"}`))
@@ -205,7 +205,7 @@ func TestValidationResponseUsesAppConfigTypeMessages(t *testing.T) {
 	router.POST("/config", httpserver.Handle(func(c *gin.Context) error {
 		var input dto.AppConfigUpdateDto
 		return httpserver.BindJSON(c, &input)
-	}))
+	}).Handler)
 
 	input := dto.AppConfigUpdateDto{
 		AppName:                          "Pocket ID",
@@ -261,7 +261,7 @@ func TestAppConfigBindingValidatesRequiredEmailVerification(t *testing.T) {
 	router.PUT("/config", httpserver.Handle(func(c *gin.Context) error {
 		var input dto.AppConfigUpdateDto
 		return httpserver.BindJSON(c, &input)
-	}))
+	}).Handler)
 
 	const (
 		smtpHost = "smtp.example.com"
@@ -316,7 +316,7 @@ func TestErrorHandlerMiddlewareChallengesUnauthenticatedMCPRequests(t *testing.T
 
 	router := gin.New()
 	router.Use(NewErrorHandlerMiddleware().Add())
-	notSignedIn := httpserver.Handle(func(c *gin.Context) error { return apperror.NotSignedIn() })
+	notSignedIn := httpserver.Handle(func(c *gin.Context) error { return apperror.NotSignedIn() }).Handler
 	router.GET("/mcp", notSignedIn)
 	router.GET("/api/users", notSignedIn)
 

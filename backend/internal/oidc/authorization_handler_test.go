@@ -18,6 +18,7 @@ import (
 	"github.com/pocket-id/pocket-id/backend/internal/appconfig"
 	"github.com/pocket-id/pocket-id/backend/internal/authz"
 	"github.com/pocket-id/pocket-id/backend/internal/claimmappingpolicy"
+	"github.com/pocket-id/pocket-id/backend/internal/httpserver"
 	"github.com/pocket-id/pocket-id/backend/internal/model"
 	datatype "github.com/pocket-id/pocket-id/backend/internal/model/types"
 	testutils "github.com/pocket-id/pocket-id/backend/internal/utils/testing"
@@ -64,7 +65,7 @@ func TestAuthorizationHandlerRedirectsAuthorizationErrors(t *testing.T) {
 
 		router := gin.New()
 		authz.NewMiddleware(authenticator).Router(router.Group("/")).Use(handler.redirectAuthorizationErrors).Optional().
-			GET("/authorize", authz.AccountAuthorize, func(c *gin.Context) { c.Status(http.StatusNoContent) })
+			GET("/authorize", authz.AccountAuthorize, httpserver.Endpoint{Handler: func(c *gin.Context) { c.Status(http.StatusNoContent) }})
 
 		recorder := httptest.NewRecorder()
 		router.ServeHTTP(recorder, httptest.NewRequestWithContext(t.Context(), http.MethodGet, "/authorize", nil))

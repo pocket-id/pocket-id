@@ -13,7 +13,6 @@ import (
 
 	"github.com/pocket-id/pocket-id/backend/internal/claimmappingpolicy"
 	"github.com/pocket-id/pocket-id/backend/internal/common"
-	_ "github.com/pocket-id/pocket-id/backend/internal/dto"
 )
 
 // KeyPublisher publishes the public half of the signing key, so clients can verify the tokens Pocket ID signs
@@ -28,37 +27,15 @@ type discoveryHandler struct {
 	getCIMDURLAllowlist func() []string
 }
 
-// jwksHandler godoc
-// @Summary Get JSON Web Key Set (JWKS)
-// @Description Returns the JSON Web Key Set used for token verification
-// @Tags Well Known
-// @Produce json
-// @Success 200 {object} object "{ \"keys\": []interface{} }"
-// @Failure default {object} dto.ErrorDto "Error"
-// @Router /.well-known/jwks.json [get]
 func (h *discoveryHandler) jwksHandler(c *gin.Context) error {
 	c.Data(http.StatusOK, "application/json; charset=utf-8", h.keys.PublicJWKS())
 	return nil
 }
 
-// openIDConfigurationHandler godoc
-// @Summary Get OpenID Connect discovery configuration
-// @Description Returns the OpenID Connect discovery document with endpoints and capabilities
-// @Tags Well Known
-// @Success 200 {object} object "OpenID Connect configuration"
-// @Failure default {object} dto.ErrorDto "Error"
-// @Router /.well-known/openid-configuration [get]
 func (h *discoveryHandler) openIDConfigurationHandler(c *gin.Context) error {
 	return h.writeServerMetadata(c)
 }
 
-// oauthAuthorizationServerHandler godoc
-// @Summary Get OAuth 2.0 authorization server metadata
-// @Description Returns the RFC 8414 OAuth 2.0 authorization server metadata document with endpoints and capabilities
-// @Tags Well Known
-// @Success 200 {object} object "OAuth 2.0 authorization server metadata"
-// @Failure default {object} dto.ErrorDto "Error"
-// @Router /.well-known/oauth-authorization-server [get]
 func (h *discoveryHandler) oauthAuthorizationServerHandler(c *gin.Context) error {
 	return h.writeServerMetadata(c)
 }

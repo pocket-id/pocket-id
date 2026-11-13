@@ -211,7 +211,7 @@ func registerRoutes(r *gin.Engine, db *gorm.DB, svc *services, auth *authz.Middl
 	controller.NewWebManifestController(baseGroup, svc.appConfigService)
 
 	// These are not rate-limited.
-	controller.NewHealthzController(r)
+	controller.NewHealthzController(auth.Router(r.Group("/")).Public())
 
 	// Receives OTLP trace payloads from the browser SPA (POST /internal/telemetry/traces) and forwards them to the collector, when trace export is enabled.
 	// Outside /api, so it's unauthenticated and not traced, but it is rate-limited.

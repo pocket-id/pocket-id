@@ -1,20 +1,18 @@
 package scimsync
 
 import (
-	"net/http"
-	"net/http/httptest"
+	"encoding/json"
 	"testing"
 
-	"github.com/gin-gonic/gin"
 	"github.com/stretchr/testify/require"
 )
 
 func TestServiceProviderResponseOmitsToken(t *testing.T) {
-	recorder := httptest.NewRecorder()
-	c, _ := gin.CreateTestContext(recorder)
-
-	err := respondWithServiceProvider(c, http.StatusOK, ServiceProvider{Endpoint: "https://scim.example.com", Token: "stored-token"})
+	output, err := serviceProviderDto(ServiceProvider{Endpoint: "https://scim.example.com", Token: "stored-token"})
 	require.NoError(t, err)
-	require.NotContains(t, recorder.Body.String(), "stored-token")
-	require.Contains(t, recorder.Body.String(), `"hasToken":true`)
+
+	body, err := json.Marshal(output)
+	require.NoError(t, err)
+	require.NotContains(t, string(body), "stored-token")
+	require.Contains(t, string(body), `"hasToken":true`)
 }

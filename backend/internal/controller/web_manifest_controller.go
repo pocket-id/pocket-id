@@ -14,7 +14,7 @@ import (
 func NewWebManifestController(group *gin.RouterGroup, appConfigService *appconfig.AppConfigService) {
 	wmc := &WebManifestController{appConfigService: appConfigService}
 
-	group.GET("/app.webmanifest", httpserver.Handle(wmc.webManifestHandler))
+	group.GET("/app.webmanifest", httpserver.Handle(wmc.webManifestHandler).Handler)
 }
 
 type WebManifestController struct {

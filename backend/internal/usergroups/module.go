@@ -2,9 +2,11 @@ package usergroups
 
 import (
 	"context"
+	"net/http"
 
 	"gorm.io/gorm"
 
+	"github.com/go-fuego/fuego/option"
 	"github.com/pocket-id/pocket-id/backend/internal/appconfig"
 	"github.com/pocket-id/pocket-id/backend/internal/auditlogs"
 	"github.com/pocket-id/pocket-id/backend/internal/authz"
@@ -12,6 +14,7 @@ import (
 	"github.com/pocket-id/pocket-id/backend/internal/dto"
 	"github.com/pocket-id/pocket-id/backend/internal/httpserver"
 	"github.com/pocket-id/pocket-id/backend/internal/model"
+	"github.com/pocket-id/pocket-id/backend/internal/openapi"
 )
 
 type AuditLogger interface {
@@ -46,14 +49,50 @@ func New(deps Dependencies) *Module {
 
 func (m *Module) RegisterRoutes(r *authz.Router) {
 	group := r.Group("/user-groups")
-	group.GET("", authz.GroupsRead, httpserver.Handle(m.handler.list))
-	group.GET("/:id", authz.GroupsRead, httpserver.Handle(m.handler.get))
-	group.POST("", authz.GroupsWrite, httpserver.Handle(m.handler.create))
-	group.PUT("/:id", authz.GroupsWrite, httpserver.Handle(m.handler.update))
-	group.PATCH("/:id", authz.GroupsWrite, httpserver.Handle(m.handler.update))
-	group.DELETE("/:id", authz.GroupsWrite, httpserver.Handle(m.handler.delete))
-	group.PUT("/:id/users", authz.GroupsWrite, httpserver.Handle(m.handler.updateUsers))
-	group.PUT("/:id/allowed-oidc-clients", authz.GroupsWrite, httpserver.Handle(m.handler.updateAllowedOidcClients))
+	group.GET("", authz.GroupsRead, httpserver.JSON(http.StatusOK, m.handler.list),
+		option.Summary("List user groups"),
+		option.Description("Get a paginated list of user groups with optional search and sorting"),
+		option.Tags("User Groups"),
+		option.Query("search", "Search term to filter user groups by name"),
+		openapi.List[model.UserGroup]("userCount"),
+	)
+	group.GET("/:id", authz.GroupsRead, httpserver.JSON(http.StatusOK, m.handler.get),
+		option.Summary("Get user group by ID"),
+		option.Description("Retrieve detailed information about a specific user group including its users"),
+		option.Tags("User Groups"),
+		option.Path("id", "User Group ID"),
+	)
+	group.POST("", authz.GroupsWrite, httpserver.BodyJSON(http.StatusCreated, m.handler.create),
+		option.Summary("Create user group"),
+		option.Description("Create a new user group"),
+		option.Tags("User Groups"),
+	)
+	updateDocs := option.Group(
+		option.Summary("Update user group"),
+		option.Description("Update an existing user group by ID, where PATCH changes only the fields in the body"),
+		option.Tags("User Groups"),
+		option.Path("id", "User Group ID"),
+	)
+	group.PUT("/:id", authz.GroupsWrite, httpserver.UpdateJSON(m.handler.update), updateDocs)
+	group.PATCH("/:id", authz.GroupsWrite, httpserver.UpdateJSON(m.handler.update), updateDocs)
+	group.DELETE("/:id", authz.GroupsWrite, httpserver.NoContent(m.handler.delete),
+		option.Summary("Delete user group"),
+		option.Description("Delete a specific user group by ID"),
+		option.Tags("User Groups"),
+		option.Path("id", "User Group ID"),
+	)
+	group.PUT("/:id/users", authz.GroupsWrite, httpserver.BodyJSON(http.StatusOK, m.handler.updateUsers),
+		option.Summary("Update users in a group"),
+		option.Description("Update the list of users belonging to a specific user group"),
+		option.Tags("User Groups"),
+		option.Path("id", "User Group ID"),
+	)
+	group.PUT("/:id/allowed-oidc-clients", authz.GroupsWrite, httpserver.BodyJSON(http.StatusOK, m.handler.updateAllowedOidcClients),
+		option.Summary("Update allowed OIDC clients"),
+		option.Description("Update the OIDC clients allowed for a specific user group"),
+		option.Tags("OIDC"),
+		option.Path("id", "User Group ID"),
+	)
 }
 
 // CreateInternal creates a user group within an existing transaction

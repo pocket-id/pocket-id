@@ -46,7 +46,7 @@ func TestExtractModelMetadataRequiresCaseInsensitiveSortMode(t *testing.T) {
 		Event string `sortable:"true"`
 	}
 
-	meta := extractModelMetadata(&[]record{})
+	meta := ModelMetadata(&[]record{})
 	require.True(t, meta["Name"].IsCaseInsensitive)
 	require.False(t, meta["Event"].IsCaseInsensitive)
 }

@@ -115,7 +115,7 @@ type OidcClientFederatedIdentityDto struct {
 	Subject          string            `json:"subject,omitempty"`
 	Audience         string            `json:"audience,omitempty"`
 	JWKS             string            `json:"jwks,omitempty"`
-	PublicKeys       []json.RawMessage `json:"publicKeys,omitempty" swaggertype:"array,object"`
+	PublicKeys       []json.RawMessage `json:"publicKeys,omitempty"`
 	ReplayProtection bool              `json:"replayProtection"`
 }
 

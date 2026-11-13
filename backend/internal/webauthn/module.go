@@ -84,11 +84,11 @@ func (m *Module) RegisterRoutes(r *authz.Router, loginRateLimit, reauthRateLimit
 	r.POST("/webauthn/register/finish", authz.AccountPasskeysEnroll, httpserver.Handle(m.handler.verifyRegistration))
 
 	r.Public().GET("/webauthn/login/start", httpserver.Handle(m.handler.beginLogin))
-	r.Public().POST("/webauthn/login/finish", loginRateLimit, httpserver.Handle(m.handler.verifyLogin))
+	r.With(loginRateLimit).Public().POST("/webauthn/login/finish", httpserver.Handle(m.handler.verifyLogin))
 
 	r.POST("/webauthn/logout", authz.AccountSession, httpserver.Handle(m.handler.logout))
 
-	r.POST("/webauthn/reauthenticate", authz.AccountSession, reauthRateLimit, httpserver.Handle(m.handler.reauthenticate))
+	r.With(reauthRateLimit).POST("/webauthn/reauthenticate", authz.AccountSession, httpserver.Handle(m.handler.reauthenticate))
 
 	r.GET("/webauthn/credentials", authz.AccountPasskeys, httpserver.Handle(m.handler.listCredentials))
 	r.PATCH("/webauthn/credentials/:id", authz.AccountPasskeys, httpserver.Handle(m.handler.updateCredential))

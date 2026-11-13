@@ -4,8 +4,10 @@ package session
 import (
 	"context"
 	"fmt"
+	"net/http"
 	"time"
 
+	"github.com/go-fuego/fuego/option"
 	francishost "github.com/italypaleale/francis/host"
 	"gorm.io/gorm"
 
@@ -54,14 +56,47 @@ func New(deps Dependencies) (*Module, error) {
 
 // RegisterRoutes mounts the endpoints to review, remember and revoke the caller's own sessions and those of any user
 func (m *Module) RegisterRoutes(r *authz.Router) {
-	r.GET("/sessions", authz.AccountSession, httpserver.Handle(m.handler.listOwn))
-	r.DELETE("/sessions", authz.AccountSession, httpserver.Handle(m.handler.revokeOtherOwn))
-	r.DELETE("/sessions/:id", authz.AccountSession, httpserver.Handle(m.handler.revokeOwn))
-	r.POST("/sessions/current/remember", authz.AccountSession, httpserver.Handle(m.handler.rememberCurrent))
+	r.GET("/sessions", authz.AccountSession, httpserver.JSON(http.StatusOK, m.handler.listOwn),
+		option.Summary("List own sessions"),
+		option.Description("Get the browsers in which the current user is signed in, most recently active first"),
+		option.Tags("Sessions"),
+	)
+	r.DELETE("/sessions", authz.AccountSession, httpserver.NoContent(m.handler.revokeOtherOwn),
+		option.Summary("Revoke other own sessions"),
+		option.Description("Sign the current user out of every session except the current one"),
+		option.Tags("Sessions"),
+	)
+	r.DELETE("/sessions/:id", authz.AccountSession, httpserver.NoContent(m.handler.revokeOwn),
+		option.Summary("Revoke own session"),
+		option.Description("Sign the current user out of one of their sessions"),
+		option.Tags("Sessions"),
+		option.Path("id", "Session ID"),
+	)
+	r.POST("/sessions/current/remember", authz.AccountSession, httpserver.NoContent(m.handler.rememberCurrent),
+		option.Summary("Remember current session"),
+		option.Description("Keep the current session signed in after the browser closes and while it goes unused, for a sign-in that was not remembered"),
+		option.Tags("Sessions"),
+	)
 
-	r.GET("/users/:id/sessions", authz.UsersRead, httpserver.Handle(m.handler.listForUser))
-	r.DELETE("/users/:id/sessions", authz.UsersWrite, httpserver.Handle(m.handler.revokeAllForUser))
-	r.DELETE("/users/:id/sessions/:sessionId", authz.UsersWrite, httpserver.Handle(m.handler.revokeForUser))
+	r.GET("/users/:id/sessions", authz.UsersRead, httpserver.JSON(http.StatusOK, m.handler.listForUser),
+		option.Summary("List sessions of a user"),
+		option.Description("Get the browsers in which a user is signed in, most recently active first"),
+		option.Tags("Sessions"),
+		option.Path("id", "User ID"),
+	)
+	r.DELETE("/users/:id/sessions", authz.UsersWrite, httpserver.NoContent(m.handler.revokeAllForUser),
+		option.Summary("Revoke all sessions of a user"),
+		option.Description("Sign a user out of every session and revoke every grant their apps hold, offline_access ones included"),
+		option.Tags("Sessions"),
+		option.Path("id", "User ID"),
+	)
+	r.DELETE("/users/:id/sessions/:sessionId", authz.UsersWrite, httpserver.NoContent(m.handler.revokeForUser),
+		option.Summary("Revoke a session of a user"),
+		option.Description("Sign a user out of one of their sessions"),
+		option.Tags("Sessions"),
+		option.Path("id", "User ID"),
+		option.Path("sessionId", "Session ID"),
+	)
 }
 
 // Create starts a session for the user and returns its token

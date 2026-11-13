@@ -19,6 +19,7 @@ import (
 	"github.com/pocket-id/pocket-id/backend/internal/auditlogs"
 	"github.com/pocket-id/pocket-id/backend/internal/authz"
 	"github.com/pocket-id/pocket-id/backend/internal/common"
+	"github.com/pocket-id/pocket-id/backend/internal/httpserver"
 	"github.com/pocket-id/pocket-id/backend/internal/model"
 	datatype "github.com/pocket-id/pocket-id/backend/internal/model/types"
 	"github.com/pocket-id/pocket-id/backend/internal/oidc"
@@ -102,9 +103,9 @@ func TestAuthorizationWithRealCredentials(t *testing.T) {
 	}}
 	accessTokens["group-restricted-token"] = groupRestrictedToken
 	apiRouter := NewAuthorization(apiKeyModule, accessTokens, usersModule, sessions, appconfig.StaticResolver{Config: cfg}).Router(router.Group("/api"))
-	ok := func(c *gin.Context) {
+	ok := httpserver.Endpoint{Handler: func(c *gin.Context) {
 		c.String(http.StatusOK, authz.PrincipalFrom(c).UserID)
-	}
+	}}
 	apiRouter.GET("/session-only", authz.AccountSession, ok)
 	apiRouter.GET("/account", authz.AccountRead, ok)
 	apiRouter.GET("/apps", authz.AccountApps, ok)

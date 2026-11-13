@@ -29,6 +29,7 @@ type ListRequestOptions struct {
 }
 
 type FieldMeta struct {
+	Type              reflect.Type
 	ColumnName        string
 	IsSortable        bool
 	IsFilterable      bool
@@ -45,7 +46,7 @@ func ParseListRequestOptions(ctx *gin.Context) (listRequestOptions ListRequestOp
 }
 
 func PaginateFilterAndSort(params ListRequestOptions, query *gorm.DB, result any) (PaginationResponse, error) {
-	meta := extractModelMetadata(result)
+	meta := ModelMetadata(result)
 
 	query = applyFilters(params.Filters, query, meta)
 	query = applySorting(params.Sort.Column, params.Sort.Direction, query, meta)
@@ -177,8 +178,8 @@ func applySorting(sortColumn string, sortDirection string, query *gorm.DB, meta 
 	return query
 }
 
-// extractModelMetadata extracts FieldMeta from the model struct using reflection
-func extractModelMetadata(model any) map[string]FieldMeta {
+// ModelMetadata extracts FieldMeta from the model struct using reflection, keyed by the Go field name
+func ModelMetadata(model any) map[string]FieldMeta {
 	meta := make(map[string]FieldMeta)
 
 	// Unwrap pointers and slices to get the element struct type
@@ -206,6 +207,7 @@ func extractModelMetadata(model any) map[string]FieldMeta {
 			name := field.Name
 			sortMode := field.Tag.Get("sortable")
 			meta[name] = FieldMeta{
+				Type:              ft,
 				ColumnName:        CamelCaseToSnakeCase(name),
 				IsSortable:        sortMode == "true" || sortMode == "case-insensitive",
 				IsFilterable:      field.Tag.Get("filterable") == "true",

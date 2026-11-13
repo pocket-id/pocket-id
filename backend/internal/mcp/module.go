@@ -7,10 +7,13 @@ import (
 	"slices"
 
 	"github.com/gin-gonic/gin"
+	"github.com/go-fuego/fuego/option"
 	sdk "github.com/modelcontextprotocol/go-sdk/mcp"
 
 	"github.com/pocket-id/pocket-id/backend/internal/authz"
 	"github.com/pocket-id/pocket-id/backend/internal/common"
+	"github.com/pocket-id/pocket-id/backend/internal/httpserver"
+	"github.com/pocket-id/pocket-id/backend/internal/openapi"
 )
 
 const instructions = "Pocket ID is a user-friendly, passwordless-only OpenID Connect provider and OAuth 2.0 authorization server. " +
@@ -59,7 +62,12 @@ func (m *Module) RegisterRoutes(r *authz.Router) {
 	for _, method := range []string{http.MethodPost, http.MethodGet, http.MethodDelete} {
 		r.Dispatch(method, authz.MCPPath, m.serve)
 	}
-	r.Public().GET(authz.MCPResourceMetadataPath, protectedResourceMetadata)
+	r.Public().GET(authz.MCPResourceMetadataPath, httpserver.Endpoint{Handler: protectedResourceMetadata},
+		option.Summary("Get OAuth 2.0 protected resource metadata of the MCP endpoint"),
+		option.Description("Returns the RFC 9728 protected resource metadata of Pocket ID's MCP endpoint, which MCP clients use to find the authorization server and the scopes they can request"),
+		option.Tags("Well Known"),
+		openapi.Response[map[string]any](http.StatusOK, "OAuth 2.0 protected resource metadata"),
+	)
 }
 
 func (m *Module) serve(c *gin.Context) {
@@ -72,12 +80,6 @@ func (m *Module) serve(c *gin.Context) {
 	m.handler.ServeHTTP(c.Writer, c.Request.WithContext(ctx))
 }
 
-// protectedResourceMetadata godoc
-// @Summary Get OAuth 2.0 protected resource metadata of the MCP endpoint
-// @Description Returns the RFC 9728 protected resource metadata of Pocket ID's MCP endpoint, which MCP clients use to find the authorization server and the scopes they can request
-// @Tags Well Known
-// @Success 200 {object} object "OAuth 2.0 protected resource metadata"
-// @Router /.well-known/oauth-protected-resource/mcp [get]
 func protectedResourceMetadata(c *gin.Context) {
 	heldScopes := authz.UserScopes(true, authz.KindOAuthUser)
 	scopes := make([]string, 0, len(heldScopes)+1)
