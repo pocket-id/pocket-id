@@ -76,6 +76,7 @@ type AppConfigModel struct {
 	WebauthnUserVerification        AppConfigValue `json:"webauthnUserVerification" env:"WEBAUTHN_USER_VERIFICATION"`
 	WebauthnAllowSyncedPasskeys     AppConfigValue `json:"webauthnAllowSyncedPasskeys" env:"WEBAUTHN_ALLOW_SYNCED_PASSKEYS" type:"bool"`
 	WebauthnAuthenticatorAttachment AppConfigValue `json:"webauthnAuthenticatorAttachment" env:"WEBAUTHN_AUTHENTICATOR_ATTACHMENT"`
+	WebauthnAttestation             AppConfigValue `json:"webauthnAttestation" env:"WEBAUTHN_ATTESTATION"`
 	// OIDC
 	CIMDURLAllowlist           AppConfigValue `json:"cimdUrlAllowlist" env:"CIMD_URL_ALLOWLIST"` // JSON-encoded array of strings
 	AutoCreateOIDCClientSecret AppConfigValue `json:"autoCreateOidcClientSecret" env:"AUTO_CREATE_OIDC_CLIENT_SECRET" type:"bool"`
@@ -183,6 +184,7 @@ func getDefaultConfig() *AppConfigModel {
 		WebauthnUserVerification:        "required",
 		WebauthnAllowSyncedPasskeys:     "true",
 		WebauthnAuthenticatorAttachment: "any",
+		WebauthnAttestation:             "none",
 		// OIDC
 		CIMDURLAllowlist:           "[]",
 		AutoCreateOIDCClientSecret: "true",

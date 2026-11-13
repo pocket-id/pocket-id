@@ -33,6 +33,22 @@ func TestWebauthnCredentialDto_iconFields(t *testing.T) {
 	require.False(t, dtos[2].HasIcon)
 }
 
+func TestWebauthnCredentialDto_verifiedAuthenticatorName(t *testing.T) {
+	aaguid := anyAAGUIDWithIcon(t)
+
+	credentials := []model.WebauthnCredential{
+		{Name: "Verified", AAGUID: aaguid, AttestationVerified: true},
+		{Name: "Claimed only", AAGUID: aaguid},
+	}
+
+	var dtos []WebauthnCredentialDto
+	require.NoError(t, MapStructList(credentials, &dtos))
+
+	require.Equal(t, utils.GetAuthenticatorName(aaguid), dtos[0].VerifiedAuthenticatorName)
+	require.NotEmpty(t, dtos[0].VerifiedAuthenticatorName)
+	require.Empty(t, dtos[1].VerifiedAuthenticatorName)
+}
+
 func anyAAGUIDWithIcon(t *testing.T) string {
 	t.Helper()
 

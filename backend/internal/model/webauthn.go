@@ -22,6 +22,9 @@ type WebauthnCredential struct {
 
 	AAGUID string `gorm:"column:aaguid;default:00000000-0000-0000-0000-000000000000"`
 
+	// AttestationVerified is set when the authenticator's make and model were proven through the FIDO Metadata Service at registration
+	AttestationVerified bool
+
 	UserID string
 }
 
@@ -29,6 +32,14 @@ type WebauthnCredential struct {
 // It is mapped onto the DTO so the frontend knows upfront whether an icon is worth requesting
 func (c WebauthnCredential) HasIcon() bool {
 	return utils.HasAuthenticatorIcon(c.AAGUID)
+}
+
+// VerifiedAuthenticatorName is the authenticator's model name if its attestation was verified, because the AAGUID of an unverified passkey is only a claim
+func (c WebauthnCredential) VerifiedAuthenticatorName() string {
+	if !c.AttestationVerified {
+		return ""
+	}
+	return utils.GetAuthenticatorName(c.AAGUID)
 }
 
 type AuthenticatorTransportList []protocol.AuthenticatorTransport //nolint:recvcheck

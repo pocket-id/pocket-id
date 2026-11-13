@@ -9,9 +9,11 @@ import (
 	"slices"
 	"time"
 
+	"github.com/go-webauthn/webauthn/metadata"
 	"github.com/go-webauthn/webauthn/protocol"
 	"github.com/go-webauthn/webauthn/protocol/webauthncose"
 	gowebauthn "github.com/go-webauthn/webauthn/webauthn"
+	"github.com/google/uuid"
 	"gorm.io/gorm"
 	"gorm.io/gorm/clause"
 
@@ -37,10 +39,11 @@ const maxRSAKeyBits = 8192
 const missingUserVerificationErrorInfo = "User verification required but flag not set by authenticator"
 
 type Service struct {
-	db       *gorm.DB
-	webAuthn *gowebauthn.WebAuthn
-	sessions SessionStore
-	auditLog AuditLogger
+	db           *gorm.DB
+	webAuthn     *gowebauthn.WebAuthn
+	sessions     SessionStore
+	auditLog     AuditLogger
+	fidoMetadata *fidoMetadata
 }
 
 func newService(deps Dependencies) (*Service, error) {
@@ -74,6 +77,11 @@ func newService(deps Dependencies) (*Service, error) {
 		webAuthn: wa,
 		sessions: deps.Sessions,
 		auditLog: deps.AuditLog,
+		fidoMetadata: &fidoMetadata{
+			httpClient: deps.HTTPClient,
+			url:        deps.FidoMetadataURL,
+			path:       fidoMetadataPath,
+		},
 	}, nil
 }
 
@@ -98,6 +106,16 @@ func (s *Service) BeginRegistration(ctx context.Context, dbConfig *appconfig.App
 		return nil, fmt.Errorf("failed to load user: %w", err)
 	}
 
+	// Ask for an attestation only when it will be verified, because browsers prompt before sending one
+	// The FIDO metadata loads while the user completes the ceremony, so a download doesn't delay finishing the registration
+	var conveyance protocol.ConveyancePreference
+	if _, required := requiredAttestation(dbConfig); required {
+		conveyance = protocol.PreferDirectAttestation
+		go func() {
+			_, _ = s.fidoMetadata.get()
+		}()
+	}
+
 	options, session, err := s.webAuthn.BeginRegistration(
 		&user,
 		gowebauthn.WithAuthenticatorSelection(protocol.AuthenticatorSelection{
@@ -108,6 +126,7 @@ func (s *Service) BeginRegistration(ctx context.Context, dbConfig *appconfig.App
 		gowebauthn.WithCredentialParameters(gowebauthn.CredentialParametersPQCRecommendedL3()),
 		gowebauthn.WithExclusions(user.WebAuthnCredentialDescriptors()),
 		gowebauthn.WithExtensions(gowebauthn.WithExtensionCredProps()), // Required for Firefox Android to properly save the key in Google password manager
+		gowebauthn.WithConveyancePreference(conveyance),
 	)
 	if err != nil {
 		return nil, fmt.Errorf("failed to begin WebAuthn registration: %w", err)
@@ -142,6 +161,17 @@ func (s *Service) BeginRegistration(ctx context.Context, dbConfig *appconfig.App
 }
 
 func (s *Service) VerifyRegistration(ctx context.Context, dbConfig *appconfig.AppConfigModel, sessionID string, userID string, credentialCreationData *protocol.ParsedCredentialCreationData, ipAddress, userAgent string) (model.WebauthnCredential, error) {
+	// Load the FIDO metadata before the transaction starts, because the first load downloads it
+	minCertification, attestationRequired := requiredAttestation(dbConfig)
+	var metadataProvider metadata.Provider
+	if attestationRequired {
+		var err error
+		metadataProvider, err = s.fidoMetadata.get()
+		if err != nil {
+			return model.WebauthnCredential{}, apperror.AttestationUnavailable(err)
+		}
+	}
+
 	tx := s.db.Begin()
 	defer func() {
 		tx.Rollback()
@@ -193,6 +223,12 @@ func (s *Service) VerifyRegistration(ctx context.Context, dbConfig *appconfig.Ap
 	if err := validateCredentialPolicy(dbConfig, credential); err != nil {
 		return model.WebauthnCredential{}, err
 	}
+	if attestationRequired {
+		err = s.verifyAttestation(ctx, metadataProvider, credential, minCertification)
+		if err != nil {
+			return model.WebauthnCredential{}, err
+		}
+	}
 
 	// Determine passkey name using AAGUID and User-Agent
 	passkeyName := s.determinePasskeyName(credential.Authenticator.AAGUID)
@@ -208,6 +244,8 @@ func (s *Service) VerifyRegistration(ctx context.Context, dbConfig *appconfig.Ap
 		BackupEligible:  credential.Flags.BackupEligible,
 		BackupState:     credential.Flags.BackupState,
 		AAGUID:          aaguid,
+		// The attestation was verified above whenever it is required
+		AttestationVerified: attestationRequired,
 	}
 	err = tx.
 		WithContext(ctx).
@@ -230,9 +268,9 @@ func (s *Service) VerifyRegistration(ctx context.Context, dbConfig *appconfig.Ap
 
 func (s *Service) determinePasskeyName(aaguid []byte) string {
 	// First try to identify by AAGUID using a combination of builtin + MDS
-	authenticatorName := utils.GetAuthenticatorName(aaguid)
+	authenticatorName := utils.GetAuthenticatorName(utils.FormatAAGUID(aaguid))
 	if authenticatorName != "" {
-		return authenticatorName
+		return authenticatorName + " Passkey"
 	}
 
 	return "New Passkey" // Default fallback
@@ -451,6 +489,75 @@ func authenticatorAttachment(dbConfig *appconfig.AppConfigModel) protocol.Authen
 
 func allowsSyncedPasskeys(dbConfig *appconfig.AppConfigModel) bool {
 	return dbConfig.WebauthnAllowSyncedPasskeys.IsTrue()
+}
+
+// minCertifications maps the attestation setting to the minimum FIDO certification, where an empty status accepts any verified authenticator
+var minCertifications = map[string]metadata.AuthenticatorStatus{
+	"verified": "",
+	"l1":       metadata.FidoCertifiedL1,
+	"l2":       metadata.FidoCertifiedL2,
+	"l3":       metadata.FidoCertifiedL3,
+}
+
+// certificationRanks orders the FIDO certification levels, where the phased-out FIDO_CERTIFIED counts as level 1
+var certificationRanks = map[metadata.AuthenticatorStatus]int{
+	metadata.FidoCertified:       1,
+	metadata.FidoCertifiedL1:     1,
+	metadata.FidoCertifiedL1plus: 2,
+	metadata.FidoCertifiedL2:     3,
+	metadata.FidoCertifiedL2plus: 4,
+	metadata.FidoCertifiedL3:     5,
+	metadata.FidoCertifiedL3plus: 6,
+}
+
+// trustedAttestationTypes are the attestation types whose certificate proves the authenticator model, unlike self attestation which any key can produce
+var trustedAttestationTypes = []string{
+	string(metadata.BasicFull),
+	string(metadata.AttCA),
+	string(metadata.AnonCA),
+}
+
+func requiredAttestation(dbConfig *appconfig.AppConfigModel) (minCertification metadata.AuthenticatorStatus, required bool) {
+	minCertification, required = minCertifications[dbConfig.WebauthnAttestation.String()]
+	return minCertification, required
+}
+
+// verifyAttestation proves the authenticator's make and model through the FIDO Metadata Service and checks its certification level
+func (s *Service) verifyAttestation(ctx context.Context, provider metadata.Provider, credential *gowebauthn.Credential, minCertification metadata.AuthenticatorStatus) error {
+	// Synced passkeys send no attestation at all, so they end up here too
+	if !slices.Contains(trustedAttestationTypes, credential.AttestationType) {
+		return apperror.PasskeyAttestationRequired()
+	}
+
+	// Verify the attestation certificate against the roots FIDO publishes for this AAGUID, which also rejects models with a revoked or compromised status
+	err := credential.Verify(provider, s.webAuthn.Config.Attestation, s.webAuthn.Config.Signature)
+	if err != nil {
+		// go-webauthn leaves the message empty for some metadata failures, such as an untrusted chain, and keeps the reason in DevInfo
+		var protocolError *protocol.Error
+		if errors.As(err, &protocolError) {
+			err = fmt.Errorf("%w: %s", err, protocolError.DevInfo)
+		}
+		return apperror.AuthenticatorNotCertified(err)
+	}
+	if minCertification == "" {
+		return nil
+	}
+
+	// Compare the highest certification in effect today with the required one, because FIDO lists earlier levels and announces upcoming ones in the same history
+	aaguid, err := uuid.FromBytes(credential.Authenticator.AAGUID)
+	if err != nil {
+		return apperror.AuthenticatorNotCertified(err)
+	}
+	entry, err := provider.GetEntry(ctx, aaguid)
+	if err != nil || entry == nil {
+		return apperror.AuthenticatorNotCertified(err)
+	}
+	for _, report := range metadata.EffectiveStatusReports(entry.StatusReports, time.Now()) {
+		if certificationRanks[report.Status] >= certificationRanks[minCertification] {
+			return nil
+		}
+	}
+	return apperror.AuthenticatorNotCertified(nil)
 }
 
 func validateCredentialPolicy(dbConfig *appconfig.AppConfigModel, credential *gowebauthn.Credential) error {

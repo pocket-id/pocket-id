@@ -6,10 +6,13 @@ import (
 	"testing"
 	"time"
 
+	"github.com/go-webauthn/webauthn/metadata"
+	"github.com/go-webauthn/webauthn/metadata/providers/memory"
 	"github.com/go-webauthn/webauthn/protocol"
 	"github.com/go-webauthn/webauthn/protocol/webauthncbor"
 	"github.com/go-webauthn/webauthn/protocol/webauthncose"
 	gowebauthn "github.com/go-webauthn/webauthn/webauthn"
+	"github.com/google/uuid"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
@@ -79,22 +82,28 @@ func TestBeginCeremoniesUseRequestConfig(t *testing.T) {
 		name                 string
 		userVerification     appconfig.AppConfigValue
 		authenticator        appconfig.AppConfigValue
+		attestation          appconfig.AppConfigValue
 		wantUserVerification protocol.UserVerificationRequirement
 		wantAuthenticator    protocol.AuthenticatorAttachment
+		wantAttestation      protocol.ConveyancePreference
 	}{
 		{
 			name:                 "required verification with any authenticator",
 			userVerification:     "required",
 			authenticator:        "any",
+			attestation:          "none",
 			wantUserVerification: protocol.VerificationRequired,
 			wantAuthenticator:    "",
+			wantAttestation:      "",
 		},
 		{
-			name:                 "required verification with a platform authenticator",
+			name:                 "required verification with a verified platform authenticator",
 			userVerification:     "required",
 			authenticator:        "platform",
+			attestation:          "verified",
 			wantUserVerification: protocol.VerificationRequired,
 			wantAuthenticator:    protocol.Platform,
+			wantAttestation:      protocol.PreferDirectAttestation,
 		},
 		{
 			name:                 "preferred verification with a cross-platform authenticator",
@@ -120,14 +129,21 @@ func TestBeginCeremoniesUseRequestConfig(t *testing.T) {
 			})
 			require.NoError(t, err)
 
+			// Loaded metadata keeps the preload from downloading the real blob
+			provider, err := memory.New(memory.WithMetadata(map[uuid.UUID]*metadata.Entry{}))
+			require.NoError(t, err)
+			service.fidoMetadata = &fidoMetadata{provider: provider, refreshAt: time.Now().Add(time.Hour)}
+
 			dbConfig := &appconfig.AppConfigModel{
 				AppName:                         "Configured App",
 				WebauthnUserVerification:        tc.userVerification,
 				WebauthnAuthenticatorAttachment: tc.authenticator,
+				WebauthnAttestation:             tc.attestation,
 			}
 
 			registration, err := service.BeginRegistration(t.Context(), dbConfig, user.ID)
 			require.NoError(t, err)
+			assert.Equal(t, tc.wantAttestation, registration.Response.Attestation)
 			assert.Equal(t, tc.wantUserVerification, registration.Response.AuthenticatorSelection.UserVerification)
 			assert.Equal(t, tc.wantAuthenticator, registration.Response.AuthenticatorSelection.AuthenticatorAttachment)
 			assert.Equal(t, protocol.ResidentKeyRequirementRequired, registration.Response.AuthenticatorSelection.ResidentKey)

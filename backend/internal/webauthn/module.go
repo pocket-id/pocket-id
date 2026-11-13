@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"net/http"
 	"time"
 
 	"github.com/gin-gonic/gin"
@@ -33,6 +34,11 @@ type Dependencies struct {
 	DB     *gorm.DB
 	Actors francishost.Host
 	AppURL string
+
+	// HTTPClient downloads the FIDO metadata that attestations are verified against
+	HTTPClient *http.Client
+	// FidoMetadataURL is where the FIDO metadata is downloaded from, and empty never downloads it
+	FidoMetadataURL string
 
 	Sessions  SessionStore
 	AuditLog  AuditLogger

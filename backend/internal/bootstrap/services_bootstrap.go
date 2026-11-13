@@ -4,7 +4,9 @@ import (
 	"context"
 	"fmt"
 	"net/http"
+	"time"
 
+	"github.com/go-webauthn/x/revoke"
 	"github.com/italypaleale/francis/builtin/ratelimit"
 	francishost "github.com/italypaleale/francis/host"
 	"gorm.io/gorm"
@@ -147,13 +149,28 @@ func initServices(
 	}
 
 	svc.customClaimService = service.NewCustomClaimService(db)
+
+	// Registrations wait for the FIDO metadata download and the revocation checks of its signing certificates, so both get a timeout the shared client doesn't have
+	// The timeout covers the whole 11 MB blob, and a download that times out isn't retried for an hour
+	fidoMetadataClient := &http.Client{Transport: httpClient.Transport, Timeout: 30 * time.Second}
+	// go-webauthn makes the revocation checks through a package-level client, and an unreachable revocation server counts as not revoked, so they may give up early
+	revoke.HTTPClient = &http.Client{Transport: httpClient.Transport, Timeout: 10 * time.Second}
+
+	// An empty URL keeps the FIDO metadata from ever being downloaded
+	var fidoMetadataURL string
+	if common.EnvConfig.FidoMetadataURL != common.URLDisabled {
+		fidoMetadataURL = common.EnvConfig.FidoMetadataURL
+	}
+
 	svc.webauthnModule, err = webauthn.New(webauthn.Dependencies{
-		DB:        db,
-		Actors:    actors,
-		AppURL:    common.EnvConfig.AppURL,
-		Sessions:  svc.sessionModule,
-		AuditLog:  svc.auditLogsModule,
-		AppConfig: svc.appConfigService,
+		DB:              db,
+		Actors:          actors,
+		AppURL:          common.EnvConfig.AppURL,
+		HTTPClient:      fidoMetadataClient,
+		FidoMetadataURL: fidoMetadataURL,
+		Sessions:        svc.sessionModule,
+		AuditLog:        svc.auditLogsModule,
+		AppConfig:       svc.appConfigService,
 		// Disable in test environment
 		CleanupDisabled: common.EnvConfig.AppEnv.IsTest(),
 	})

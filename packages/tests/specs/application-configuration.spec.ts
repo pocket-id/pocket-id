@@ -195,6 +195,7 @@ test('Update passkey configuration', async ({ page }) => {
 	const userVerification = page.getByLabel('User verification');
 	const authenticatorType = page.getByLabel('Allowed authenticator type');
 	const allowSyncedPasskeys = page.getByRole('switch', { name: 'Allow synced passkeys' });
+	const authenticatorVerification = page.getByLabel('Authenticator verification');
 
 	await expect(userVerification).toContainText('Required');
 	await userVerification.click();
@@ -205,7 +206,12 @@ test('Update passkey configuration', async ({ page }) => {
 	await page.getByRole('option', { name: /^Security keys only/ }).click();
 
 	await expect(allowSyncedPasskeys).toBeChecked();
-	await allowSyncedPasskeys.click();
+
+	await expect(authenticatorVerification).toContainText('Not required');
+	await authenticatorVerification.click();
+	await page.getByRole('option', { name: /^FIDO Certified Level 2\+/ }).click();
+	await expect(allowSyncedPasskeys).not.toBeChecked();
+	await expect(allowSyncedPasskeys).toBeDisabled();
 
 	await saveUnsavedChanges(page);
 
@@ -215,7 +221,8 @@ test('Update passkey configuration', async ({ page }) => {
 		authenticatorSelection: {
 			authenticatorAttachment: 'cross-platform',
 			userVerification: 'preferred'
-		}
+		},
+		attestation: 'direct'
 	});
 
 	const loginResponse = await page.request.get('/api/webauthn/login/start');
@@ -229,6 +236,9 @@ test('Update passkey configuration', async ({ page }) => {
 	await expect(page.getByLabel('User verification')).toContainText('Preferred');
 	await expect(page.getByLabel('Allowed authenticator type')).toContainText('Security keys only');
 	await expect(page.getByRole('switch', { name: 'Allow synced passkeys' })).not.toBeChecked();
+	await expect(page.getByLabel('Authenticator verification')).toContainText(
+		'FIDO Certified Level 2+'
+	);
 });
 
 test('Update email configuration', async ({ page }) => {

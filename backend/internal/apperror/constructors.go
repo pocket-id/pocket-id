@@ -140,6 +140,18 @@ func AuthenticatorAttachmentNotAllowed() *Error {
 	return New(CodeAuthenticatorAttachmentNotAllowed, http.StatusBadRequest, "This type of passkey is not allowed")
 }
 
+func PasskeyAttestationRequired() *Error {
+	return New(CodePasskeyAttestationRequired, http.StatusBadRequest, "Only passkeys on a verified authenticator are allowed")
+}
+
+func AuthenticatorNotCertified(cause error) *Error {
+	return Wrap(cause, CodeAuthenticatorNotCertified, http.StatusBadRequest, "This authenticator is not allowed")
+}
+
+func AttestationUnavailable(cause error) *Error {
+	return Wrap(cause, CodeAttestationUnavailable, http.StatusServiceUnavailable, "Passkeys can't be verified right now")
+}
+
 func ReservedClaim(key string) *Error {
 	return New(CodeReservedClaim, http.StatusBadRequest, fmt.Sprintf("Claim %s is reserved and can't be used", key)).
 		WithDetail("key", key).

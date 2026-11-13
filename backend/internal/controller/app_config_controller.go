@@ -97,7 +97,7 @@ func (acc *AppConfigController) listAppConfigHandler(c *gin.Context) ([]dto.Publ
 // iconLibraryStatus reports whether the icon library is disabled, uses the default selfh.st collection, or points to a custom source
 func iconLibraryStatus() string {
 	switch common.EnvConfig.IconLibraryURL {
-	case common.IconLibraryDisabled:
+	case common.URLDisabled:
 		return "disabled"
 	case common.DefaultIconLibraryURL:
 		return "default"

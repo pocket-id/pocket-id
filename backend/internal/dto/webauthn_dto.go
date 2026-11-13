@@ -15,8 +15,11 @@ type WebauthnCredentialDto struct {
 	BackupEligible bool `json:"backupEligible"`
 	BackupState    bool `json:"backupState"`
 
-	AAGUID  string `json:"aaguid"`
-	HasIcon bool   `json:"hasIcon"`
+	AAGUID              string `json:"aaguid"`
+	HasIcon             bool   `json:"hasIcon"`
+	AttestationVerified bool   `json:"attestationVerified"`
+	// VerifiedAuthenticatorName is empty unless the attestation was verified and the AAGUID is known
+	VerifiedAuthenticatorName string `json:"verifiedAuthenticatorName,omitempty"`
 
 	CreatedAt datatype.DateTime `json:"createdAt"`
 }

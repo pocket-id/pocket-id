@@ -58,6 +58,7 @@ export type AllAppConfig = AppConfig & {
 	webauthnUserVerification: 'required' | 'preferred';
 	webauthnAllowSyncedPasskeys: boolean;
 	webauthnAuthenticatorAttachment: 'any' | 'platform' | 'cross-platform';
+	webauthnAttestation: 'none' | 'verified' | 'l1' | 'l2' | 'l3';
 	// OIDC
 	cimdUrlAllowlist: string[];
 	autoCreateOidcClientSecret: boolean;

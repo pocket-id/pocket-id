@@ -21,6 +21,9 @@ const codeMessages: Record<string, () => string> = {
 	passkey_user_verification_required: () => m.passkey_user_verification_required(),
 	synced_passkey_not_allowed: () => m.synced_passkeys_not_allowed(),
 	authenticator_attachment_not_allowed: () => m.passkey_type_not_allowed(),
+	passkey_attestation_required: () => m.passkey_attestation_required(),
+	authenticator_not_certified: () => m.authenticator_not_certified(),
+	attestation_unavailable: () => m.passkey_verification_unavailable(),
 	device_login_expired: () => m.device_login_request_expired(),
 	email_verification_required: () => m.email_verification_required_error(),
 	email_change_not_started: () => m.email_change_not_started()

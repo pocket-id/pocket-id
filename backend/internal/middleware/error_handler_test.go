@@ -223,6 +223,7 @@ func TestValidationResponseUsesAppConfigTypeMessages(t *testing.T) {
 		WebauthnUserVerification:         "preferred",
 		WebauthnAllowSyncedPasskeys:      "true",
 		WebauthnAuthenticatorAttachment:  "any",
+		WebauthnAttestation:              "none",
 		EmailOneTimeAccessAsAdminEnabled: "false",
 		EmailOneTimeAccessAsUnauthenticatedEnabled: "false",
 		EmailLoginNotificationMode:                 "disabled",
