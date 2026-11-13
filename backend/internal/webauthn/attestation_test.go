@@ -24,6 +24,7 @@ import (
 	"github.com/go-webauthn/webauthn/protocol"
 	"github.com/go-webauthn/webauthn/protocol/webauthncbor"
 	"github.com/go-webauthn/webauthn/protocol/webauthncose"
+	gowebauthn "github.com/go-webauthn/webauthn/webauthn"
 	"github.com/google/uuid"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -175,6 +176,25 @@ func TestVerifyRegistrationAttestation(t *testing.T) {
 			assert.Equal(t, tc.wantVerified, stored.AttestationVerified)
 		})
 	}
+}
+
+func TestVerifyAttestationAcceptsUnlistedHardwareRootedFormats(t *testing.T) {
+	service, err := newService(Dependencies{AppURL: "https://example.com"})
+	require.NoError(t, err)
+	provider, err := memory.New(memory.WithMetadata(map[uuid.UUID]*metadata.Entry{}))
+	require.NoError(t, err)
+
+	// go-webauthn has already chained this attestation to Google's hardware roots, which a test can't sign for
+	credential := &gowebauthn.Credential{
+		AttestationType:   string(metadata.BasicFull),
+		AttestationFormat: string(protocol.AttestationFormatAndroidKey),
+		Authenticator:     gowebauthn.Authenticator{AAGUID: slices.Repeat([]byte{0xab}, 16)},
+	}
+
+	require.NoError(t, service.verifyAttestation(t.Context(), provider, credential, ""))
+
+	err = service.verifyAttestation(t.Context(), provider, credential, metadata.FidoCertifiedL1)
+	assert.True(t, apperror.IsCode(err, apperror.CodeAuthenticatorNotCertified), "a certification level needs a metadata entry: %v", err)
 }
 
 func TestFidoMetadataWaitsBeforeRetryingAFailedDownload(t *testing.T) {

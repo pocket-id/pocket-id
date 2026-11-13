@@ -515,20 +515,43 @@ var trustedAttestationTypes = []string{
 	string(metadata.AnonCA),
 }
 
+// hardwareRootedFormats are the attestation formats that go-webauthn always chains to the vendor's hardware roots, Google's for Android and Apple's for Apple devices
+var hardwareRootedFormats = []string{
+	string(protocol.AttestationFormatAndroidKey),
+	string(protocol.AttestationFormatApple),
+}
+
 func requiredAttestation(dbConfig *appconfig.AppConfigModel) (minCertification metadata.AuthenticatorStatus, required bool) {
 	minCertification, required = minCertifications[dbConfig.WebauthnAttestation.String()]
 	return minCertification, required
 }
 
 // verifyAttestation proves the authenticator's make and model through the FIDO Metadata Service and checks its certification level
+// Android and Apple devices that the Metadata Service doesn't list are accepted on their hardware attestation alone while no certification level is required
 func (s *Service) verifyAttestation(ctx context.Context, provider metadata.Provider, credential *gowebauthn.Credential, minCertification metadata.AuthenticatorStatus) error {
 	// Synced passkeys send no attestation at all, so they end up here too
 	if !slices.Contains(trustedAttestationTypes, credential.AttestationType) {
 		return apperror.PasskeyAttestationRequired()
 	}
 
+	// Look up the authenticator model, which the Metadata Service lists with its trusted roots and certification history
+	aaguid, err := uuid.FromBytes(credential.Authenticator.AAGUID)
+	if err != nil {
+		return apperror.AuthenticatorNotCertified(err)
+	}
+	entry, err := provider.GetEntry(ctx, aaguid)
+	if err != nil {
+		return apperror.AuthenticatorNotCertified(err)
+	}
+
+	// The attestation of an unlisted Android or Apple device was already chained to its vendor's hardware roots when the credential was created
+	// That proves a genuine device but no certified model, so it can't meet a certification level
+	if entry == nil && minCertification == "" && slices.Contains(hardwareRootedFormats, credential.AttestationFormat) {
+		return nil
+	}
+
 	// Verify the attestation certificate against the roots FIDO publishes for this AAGUID, which also rejects models with a revoked or compromised status
-	err := credential.Verify(provider, s.webAuthn.Config.Attestation, s.webAuthn.Config.Signature)
+	err = credential.Verify(provider, s.webAuthn.Config.Attestation, s.webAuthn.Config.Signature)
 	if err != nil {
 		// go-webauthn leaves the message empty for some metadata failures, such as an untrusted chain, and keeps the reason in DevInfo
 		var protocolError *protocol.Error
@@ -542,14 +565,6 @@ func (s *Service) verifyAttestation(ctx context.Context, provider metadata.Provi
 	}
 
 	// Compare the highest certification in effect today with the required one, because FIDO lists earlier levels and announces upcoming ones in the same history
-	aaguid, err := uuid.FromBytes(credential.Authenticator.AAGUID)
-	if err != nil {
-		return apperror.AuthenticatorNotCertified(err)
-	}
-	entry, err := provider.GetEntry(ctx, aaguid)
-	if err != nil || entry == nil {
-		return apperror.AuthenticatorNotCertified(err)
-	}
 	for _, report := range metadata.EffectiveStatusReports(entry.StatusReports, time.Now()) {
 		if certificationRanks[report.Status] >= certificationRanks[minCertification] {
 			return nil
