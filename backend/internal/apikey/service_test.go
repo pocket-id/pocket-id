@@ -22,10 +22,9 @@ func (nopAuditLogger) Record(context.Context, auditlogs.Event, auditlogs.Origin,
 }
 
 func TestMissingManagedAPIKeyReturnsNotFound(t *testing.T) {
-	service, err := newService(t.Context(), testutils.NewDatabaseForTest(t), "", nopAuditLogger{})
-	require.NoError(t, err)
+	service := newService(testutils.NewDatabaseForTest(t), "", nopAuditLogger{})
 
-	err = service.RevokeApiKey(t.Context(), "user-id", "missing-key", auditlogs.Origin{})
+	err := service.RevokeApiKey(t.Context(), "user-id", "missing-key", auditlogs.Origin{})
 	require.True(t, apperror.IsCode(err, apperror.CodeAPIKeyNotFound))
 
 	_, _, err = service.RenewApiKey(t.Context(), "user-id", "missing-key", time.Now().Add(time.Hour), 0, auditlogs.Origin{})
@@ -37,8 +36,7 @@ func TestMissingManagedAPIKeyReturnsNotFound(t *testing.T) {
 
 func TestAPIKeyScopes(t *testing.T) {
 	db := testutils.NewDatabaseForTest(t)
-	service, err := newService(t.Context(), db, "", nopAuditLogger{})
-	require.NoError(t, err)
+	service := newService(db, "", nopAuditLogger{})
 
 	user := model.User{Username: "scoped-key-owner", FirstName: "Scoped", DisplayName: "Scoped"}
 	require.NoError(t, db.Create(&user).Error)
@@ -81,8 +79,7 @@ func TestAPIKeyScopes(t *testing.T) {
 
 func TestRenewApiKeyRotation(t *testing.T) {
 	db := testutils.NewDatabaseForTest(t)
-	service, err := newService(t.Context(), db, "", nopAuditLogger{})
-	require.NoError(t, err)
+	service := newService(db, "", nopAuditLogger{})
 
 	user := model.User{Username: "rotating-key-owner", FirstName: "Rotating", DisplayName: "Rotating"}
 	require.NoError(t, db.Create(&user).Error)

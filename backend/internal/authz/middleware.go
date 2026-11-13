@@ -116,7 +116,7 @@ func (m *Middleware) requireDispatch() gin.HandlerFunc {
 
 // rejectionError tells the caller which credential a route needs when the one it sent was rejected by kind
 func rejectionError(rejectedKind PrincipalKind) error {
-	if rejectedKind == KindAPIKey {
+	if rejectedKind&(KindAPIKey|KindStaticAPIKey) != 0 {
 		return apperror.APIKeyAuthNotAllowed()
 	}
 	if rejectedKind == KindOAuthClient {

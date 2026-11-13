@@ -2,6 +2,7 @@ package apikey
 
 import (
 	"context"
+	"crypto/subtle"
 	"errors"
 	"fmt"
 	"slices"
@@ -13,8 +14,6 @@ import (
 	"github.com/pocket-id/pocket-id/backend/internal/apperror"
 	"github.com/pocket-id/pocket-id/backend/internal/auditlogs"
 	"github.com/pocket-id/pocket-id/backend/internal/authz"
-	"github.com/pocket-id/pocket-id/backend/internal/common"
-	"github.com/pocket-id/pocket-id/backend/internal/model"
 	datatype "github.com/pocket-id/pocket-id/backend/internal/model/types"
 	"github.com/pocket-id/pocket-id/backend/internal/utils"
 )
@@ -26,21 +25,8 @@ type Service struct {
 	auditLog     AuditLogger
 }
 
-func newService(ctx context.Context, db *gorm.DB, staticApiKey string, auditLog AuditLogger) (*Service, error) {
-	s := &Service{
-		db:           db,
-		staticApiKey: staticApiKey,
-		auditLog:     auditLog,
-	}
-
-	if staticApiKey == "" {
-		err := s.deleteStaticApiKeyUser(ctx)
-		if err != nil {
-			return nil, err
-		}
-	}
-
-	return s, nil
+func newService(db *gorm.DB, staticApiKey string, auditLog AuditLogger) *Service {
+	return &Service{db: db, staticApiKey: staticApiKey, auditLog: auditLog}
 }
 
 func (s *Service) ListApiKeys(ctx context.Context, userID string, listRequestOptions utils.ListRequestOptions) ([]ApiKey, utils.PaginationResponse, error) {
@@ -231,17 +217,14 @@ func (s *Service) RevokeApiKey(ctx context.Context, userID, apiKeyID string, ori
 }
 
 // ValidateApiKey resolves a raw API key to the stored key with its owner preloaded
+// The static API key belongs to no user, so it resolves to a key without a UserID, which no stored key can have
 func (s *Service) ValidateApiKey(ctx context.Context, apiKey string) (ApiKey, error) {
 	if apiKey == "" {
 		return ApiKey{}, apperror.NoAPIKeyProvided()
 	}
 
-	if s.staticApiKey != "" && apiKey == s.staticApiKey {
-		user, err := s.initStaticApiKeyUser(ctx)
-		if err != nil {
-			return ApiKey{}, err
-		}
-		return ApiKey{User: user, Scopes: AllScopes()}, nil
+	if s.staticApiKey != "" && subtle.ConstantTimeCompare([]byte(apiKey), []byte(s.staticApiKey)) == 1 {
+		return ApiKey{}, nil
 	}
 
 	now := time.Now()
@@ -268,7 +251,7 @@ func (s *Service) ValidateApiKey(ctx context.Context, apiKey string) (ApiKey, er
 	return key, nil
 }
 
-// AllScopes returns every scope an API key can hold, which is what the static API key is granted
+// AllScopes returns every scope an API key can hold
 func AllScopes() datatype.StringList {
 	scopes := make(datatype.StringList, 0)
 	for scope := range authz.UserScopes(true, authz.KindAPIKey) {
@@ -304,58 +287,6 @@ func (s *Service) MarkExpirationEmailSent(ctx context.Context, apiKeyID string) 
 		Error
 	if err != nil {
 		return fmt.Errorf("error marking API key expiration email sent: %w", err)
-	}
-
-	return nil
-}
-
-func (s *Service) initStaticApiKeyUser(ctx context.Context) (user model.User, err error) {
-	err = s.db.
-		WithContext(ctx).
-		First(&user, "id = ?", common.StaticApiKeyUserID).
-		Error
-
-	if err == nil {
-		return user, nil
-	}
-
-	if !errors.Is(err, gorm.ErrRecordNotFound) {
-		return model.User{}, fmt.Errorf("error loading static API key user: %w", err)
-	}
-
-	usernameSuffix, err := utils.GenerateRandomAlphanumericString(6)
-	if err != nil {
-		return model.User{}, fmt.Errorf("error generating static API key username suffix: %w", err)
-	}
-
-	user = model.User{
-		Base: model.Base{
-			ID: common.StaticApiKeyUserID,
-		},
-		FirstName:   "Static API User",
-		Username:    "static-api-user-" + usernameSuffix,
-		DisplayName: "Static API User",
-		IsAdmin:     true,
-	}
-
-	err = s.db.
-		WithContext(ctx).
-		Create(&user).
-		Error
-	if err != nil {
-		return model.User{}, fmt.Errorf("error creating static API key user: %w", err)
-	}
-
-	return user, nil
-}
-
-func (s *Service) deleteStaticApiKeyUser(ctx context.Context) error {
-	err := s.db.
-		WithContext(ctx).
-		Delete(&model.User{}, "id = ?", common.StaticApiKeyUserID).
-		Error
-	if err != nil {
-		return fmt.Errorf("error deleting static API key user: %w", err)
 	}
 
 	return nil

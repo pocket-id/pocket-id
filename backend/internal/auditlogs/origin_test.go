@@ -52,6 +52,12 @@ func TestRecordDescribesTheOrigin(t *testing.T) {
 		assert.Equal(t, Data{"via": "oauth"}, entry.Data)
 	})
 
+	t.Run("static API key", func(t *testing.T) {
+		entry := record(t, Origin{Principal: authz.Principal{Kind: authz.KindStaticAPIKey}}, "owner")
+		assert.Equal(t, [3]string{"static_api_key", "", ""}, actor(entry))
+		assert.Equal(t, Data{"via": "api_key"}, entry.Data)
+	})
+
 	t.Run("LDAP sync", func(t *testing.T) {
 		entry := record(t, LDAPSync, "owner")
 		assert.Equal(t, [3]string{"ldap", "", ""}, actor(entry))

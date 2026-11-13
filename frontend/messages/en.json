@@ -396,6 +396,7 @@
 	"audit_via_app": "via {name}",
 	"audit_via_mcp": "via {name} (MCP)",
 	"audit_changed_settings": "Changed settings",
+	"audit_actor_static_api_key": "Static API key",
 	"audit_actor_ldap": "LDAP sync",
 	"audit_actor_cli": "Command line",
 	"performed_by": "Performed by",

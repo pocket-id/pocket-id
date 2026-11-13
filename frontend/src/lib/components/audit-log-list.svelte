@@ -18,6 +18,7 @@
 	import { cn } from '@pocket-id/ui/utils';
 	import ChevronDownIcon from '~icons/solar/alt-arrow-down-linear';
 	import CodeSquareIcon from '~icons/solar/code-square-bold-duotone';
+	import KeyIcon from '~icons/solar/key-bold-duotone';
 	import NotebookIcon from '~icons/solar/notebook-bold-duotone';
 	import SettingsIcon from '~icons/solar/settings-bold-duotone';
 	import { PersistedState } from 'runed';
@@ -125,6 +126,7 @@
 	}
 
 	const actorIcons: Partial<Record<AuditLog['actorType'], Component>> = {
+		static_api_key: KeyIcon,
 		ldap: NotebookIcon,
 		cli: CodeSquareIcon,
 		system: SettingsIcon
@@ -151,6 +153,8 @@
 			case 'user':
 			case 'client':
 				return log.actorName || m.unknown();
+			case 'static_api_key':
+				return m.audit_actor_static_api_key();
 			case 'ldap':
 				return m.audit_actor_ldap();
 			case 'cli':

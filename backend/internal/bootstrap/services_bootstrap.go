@@ -277,7 +277,7 @@ func initServices(
 		return nil, fmt.Errorf("failed to create LDAP sync module: %w", err)
 	}
 
-	svc.apiKeyModule, err = apikey.New(ctx, apikey.Dependencies{
+	svc.apiKeyModule, err = apikey.New(apikey.Dependencies{
 		DB:              db,
 		Actors:          actors,
 		StaticApiKey:    common.EnvConfig.StaticApiKey,

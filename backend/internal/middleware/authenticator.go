@@ -111,7 +111,7 @@ func (a *SessionAuthenticator) Authenticate(c *gin.Context) (*authz.Principal, e
 	return principal, nil
 }
 
-// APIKeyAuthenticator authenticates a personal API key sent in the X-API-Key header
+// APIKeyAuthenticator authenticates a personal API key or the static API key sent in the X-API-Key header
 type APIKeyAuthenticator struct {
 	apiKeyModule *apikey.Module
 	appConfig    appconfig.AppConfigResolver
@@ -122,7 +122,7 @@ func NewAPIKeyAuthenticator(apiKeyModule *apikey.Module, appConfig appconfig.App
 }
 
 func (a *APIKeyAuthenticator) Kinds() authz.PrincipalKind {
-	return authz.KindAPIKey
+	return authz.KindAPIKey | authz.KindStaticAPIKey
 }
 
 func (a *APIKeyAuthenticator) Present(c *gin.Context) bool {
@@ -134,6 +134,15 @@ func (a *APIKeyAuthenticator) Authenticate(c *gin.Context) (*authz.Principal, er
 	if err != nil {
 		return nil, apperror.NotSignedIn()
 	}
+
+	// The static API key belongs to no user, so it holds every admin scope and none that act on an account
+	if key.UserID == "" {
+		return &authz.Principal{
+			Kind:   authz.KindStaticAPIKey,
+			Scopes: authz.UserScopes(true, authz.KindStaticAPIKey),
+		}, nil
+	}
+
 	user := key.User
 	if user.Disabled {
 		return nil, apperror.UserDisabled()

@@ -29,6 +29,9 @@ import (
 	testutils "github.com/pocket-id/pocket-id/backend/internal/utils/testing"
 )
 
+// #nosec G101
+const staticAPIKey = "static-raw-api-key"
+
 func TestAuthorizationWithRealCredentials(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 
@@ -42,7 +45,7 @@ func TestAuthorizationWithRealCredentials(t *testing.T) {
 	db := testutils.NewDatabaseForTest(t)
 
 	usersModule := users.New(users.Dependencies{DB: db})
-	apiKeyModule, err := apikey.New(t.Context(), apikey.Dependencies{DB: db, CleanupDisabled: true})
+	apiKeyModule, err := apikey.New(apikey.Dependencies{DB: db, StaticApiKey: staticAPIKey, CleanupDisabled: true})
 	require.NoError(t, err)
 
 	// Create one credential of each kind for a regular user, an admin and a disabled user
@@ -126,6 +129,8 @@ func TestAuthorizationWithRealCredentials(t *testing.T) {
 		{name: "admin API key on admin route", path: "/api/admin", apiKey: adminAPIKey, status: http.StatusOK, userID: admin.ID},
 		{name: "admin API key without the route's scope", path: "/api/admin", apiKey: adminAccountOnlyAPIKey, status: http.StatusForbidden, errorCode: "forbidden"},
 		{name: "admin API key with the route's scope", path: "/api/account", apiKey: adminAccountOnlyAPIKey, status: http.StatusOK, userID: admin.ID},
+		{name: "static API key on admin route", path: "/api/admin", apiKey: staticAPIKey, status: http.StatusOK},
+		{name: "static API key on account route", path: "/api/account", apiKey: staticAPIKey, status: http.StatusForbidden, errorCode: "api_key_auth_not_allowed"},
 		{name: "revoked session", path: "/api/account", sessionCookie: revokedSession, status: http.StatusUnauthorized, errorCode: "not_signed_in"},
 		{name: "session token in the Authorization header", path: "/api/account", authorization: "Bearer " + userSession, status: http.StatusUnauthorized, errorCode: "not_signed_in"},
 		{name: "invalid session cookie falls back to API key", path: "/api/admin", sessionCookie: "not-a-jwt", apiKey: adminAPIKey, status: http.StatusOK, userID: admin.ID},

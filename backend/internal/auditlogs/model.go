@@ -34,11 +34,12 @@ type AuditLog struct {
 type ActorType string
 
 const (
-	ActorUser   ActorType = "user"
-	ActorClient ActorType = "client"
-	ActorLDAP   ActorType = "ldap"
-	ActorCLI    ActorType = "cli"
-	ActorSystem ActorType = "system"
+	ActorUser         ActorType = "user"
+	ActorClient       ActorType = "client"
+	ActorStaticAPIKey ActorType = "static_api_key"
+	ActorLDAP         ActorType = "ldap"
+	ActorCLI          ActorType = "cli"
+	ActorSystem       ActorType = "system"
 )
 
 type Data map[string]string //nolint:recvcheck

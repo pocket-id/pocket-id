@@ -33,12 +33,8 @@ type Module struct {
 	handler *handler
 }
 
-func New(ctx context.Context, deps Dependencies) (*Module, error) {
-	service, err := newService(ctx, deps.DB, deps.StaticApiKey, deps.AuditLog)
-	if err != nil {
-		return nil, err
-	}
-
+func New(deps Dependencies) (*Module, error) {
+	service := newService(deps.DB, deps.StaticApiKey, deps.AuditLog)
 	module := &Module{
 		service: service,
 		handler: newHandler(service),

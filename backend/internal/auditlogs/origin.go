@@ -48,10 +48,11 @@ func OriginFromMCP(call mcp.Call) Origin {
 }
 
 var credentialKinds = map[authz.PrincipalKind]string{
-	authz.KindSession:     "session",
-	authz.KindAPIKey:      "api_key",
-	authz.KindOAuthUser:   "oauth",
-	authz.KindOAuthClient: "oauth",
+	authz.KindSession:      "session",
+	authz.KindAPIKey:       "api_key",
+	authz.KindOAuthUser:    "oauth",
+	authz.KindOAuthClient:  "oauth",
+	authz.KindStaticAPIKey: "api_key",
 }
 
 // Record creates an entry about userID for an action that origin performed
@@ -90,6 +91,8 @@ func setActor(ctx context.Context, tx *gorm.DB, origin Origin, entry *AuditLog) 
 	case principal.Kind == authz.KindOAuthClient:
 		entry.ActorType, entry.ActorID = ActorClient, principal.ClientID
 		entry.ActorName = lookupName(ctx, tx, "oidc_clients", "name", principal.ClientID)
+	case principal.Kind == authz.KindStaticAPIKey:
+		entry.ActorType = ActorStaticAPIKey
 	case principal.UserID != "":
 		entry.ActorType, entry.ActorID = ActorUser, principal.UserID
 		entry.ActorName = lookupName(ctx, tx, "users", "username", principal.UserID)
@@ -97,7 +100,7 @@ func setActor(ctx context.Context, tx *gorm.DB, origin Origin, entry *AuditLog) 
 }
 
 // addCredential records what the actor authenticated with, naming the API key or the app that holds the OAuth token
-// A client acting as itself is already the actor, so its name isn't repeated
+// A client acting as itself and the static API key are already the actor, so their names aren't repeated
 func addCredential(ctx context.Context, tx *gorm.DB, origin Origin, data Data) {
 	principal := origin.Principal
 	via := credentialKinds[principal.Kind]
@@ -113,7 +116,7 @@ func addCredential(ctx context.Context, tx *gorm.DB, origin Origin, data Data) {
 		data["viaName"] = lookupName(ctx, tx, "api_keys", "name", principal.APIKeyID)
 	case authz.KindOAuthUser:
 		data["viaName"] = lookupName(ctx, tx, "oidc_clients", "name", principal.ClientID)
-	case authz.KindSession, authz.KindOAuthClient:
+	case authz.KindSession, authz.KindOAuthClient, authz.KindStaticAPIKey:
 	}
 }
 

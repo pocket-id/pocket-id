@@ -15,7 +15,6 @@ import (
 	"github.com/pocket-id/pocket-id/backend/internal/appconfig"
 	"github.com/pocket-id/pocket-id/backend/internal/apperror"
 	"github.com/pocket-id/pocket-id/backend/internal/auditlogs"
-	"github.com/pocket-id/pocket-id/backend/internal/common"
 	"github.com/pocket-id/pocket-id/backend/internal/dto"
 	"github.com/pocket-id/pocket-id/backend/internal/emailverification"
 	"github.com/pocket-id/pocket-id/backend/internal/model"
@@ -247,9 +246,7 @@ func (s *Service) IsInitialAdminSetupCompleted(ctx context.Context) (bool, error
 
 func (s *Service) isInitialAdminSetupCompleted(ctx context.Context, db *gorm.DB) (bool, error) {
 	var userCount int64
-	if err := db.WithContext(ctx).Model(&model.User{}).
-		Where("id != ?", common.StaticApiKeyUserID).
-		Count(&userCount).Error; err != nil {
+	if err := db.WithContext(ctx).Model(&model.User{}).Count(&userCount).Error; err != nil {
 		return false, err
 	}
 
