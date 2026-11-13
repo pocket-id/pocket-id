@@ -47,7 +47,7 @@ type WebauthnCredential struct {
 // HasIcon reports whether an icon is embedded for this credential's authenticator
 // It is mapped onto the DTO so the frontend knows upfront whether an icon is worth requesting
 func (c WebauthnCredential) HasIcon() bool {
-	return utils.HasAuthenticatorIcon(c.AAGUID)
+	return hasAuthenticatorIcon(c.AAGUID)
 }
 
 // VerifiedAuthenticatorName is the authenticator's model name if its attestation was verified, because the AAGUID of an unverified passkey is only a claim
@@ -55,7 +55,7 @@ func (c WebauthnCredential) VerifiedAuthenticatorName() string {
 	if !c.AttestationVerified {
 		return ""
 	}
-	return utils.GetAuthenticatorName(c.AAGUID)
+	return getAuthenticatorName(c.AAGUID)
 }
 
 type AuthenticatorTransportList []protocol.AuthenticatorTransport //nolint:recvcheck

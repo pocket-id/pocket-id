@@ -5,7 +5,6 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	"net/url"
 	"regexp"
 	"strings"
 	"unicode"
@@ -75,14 +74,6 @@ func GenerateRandomString(length int, charset string) (string, error) {
 	}
 
 	return result.String(), nil
-}
-
-func GetHostnameFromURL(rawURL string) string {
-	parsedURL, err := url.Parse(rawURL)
-	if err != nil {
-		return ""
-	}
-	return parsedURL.Hostname()
 }
 
 func CapitalizeFirstLetter(str string) string {

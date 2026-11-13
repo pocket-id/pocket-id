@@ -231,7 +231,7 @@ func (h *handler) getThemedAuthenticatorIcon(c *gin.Context) error {
 	// An unparsable light parameter falls back to the light icon, which every authenticator with an icon has
 	light, _ := strconv.ParseBool(c.DefaultQuery("light", "true"))
 
-	file, size, err := utils.OpenAuthenticatorIcon(c.Param("aaguid"), light)
+	file, size, err := openAuthenticatorIcon(c.Param("aaguid"), light)
 	if errors.Is(err, os.ErrNotExist) {
 		return apperror.ImageNotFound()
 	}

@@ -1,4 +1,4 @@
-package utils
+package webauthn
 
 import (
 	"encoding/hex"
@@ -19,12 +19,12 @@ const (
 	authenticatorIconHashBytes = 8
 )
 
-// ZeroAAGUID is the AAGUID reported by authenticators that do not want to identify themselves, and it is also the column default for credentials that were registered before AAGUIDs were tracked
-var ZeroAAGUID = uuid.Nil().String()
+// zeroAAGUID is the AAGUID reported by authenticators that do not want to identify themselves, and it is also the column default for credentials that were registered before AAGUIDs were tracked
+var zeroAAGUID = uuid.Nil().String()
 
 var (
 	aaguidMetadata     map[string]authenticatorMetadata
-	aaguidMetadataOnce *sync.Once
+	aaguidMetadataOnce = &sync.Once{}
 )
 
 // authenticatorMetadata records the display name and content-addressed icon files for an AAGUID
@@ -35,12 +35,8 @@ type authenticatorMetadata struct {
 	IconDark  string `json:"icon_dark"`
 }
 
-func init() {
-	aaguidMetadataOnce = &sync.Once{}
-}
-
-// FormatAAGUID converts an AAGUID byte slice to UUID string format
-func FormatAAGUID(aaguid []byte) string {
+// formatAAGUID converts an AAGUID byte slice to UUID string format
+func formatAAGUID(aaguid []byte) string {
 	if len(aaguid) == 0 {
 		return ""
 	}
@@ -55,8 +51,8 @@ func FormatAAGUID(aaguid []byte) string {
 	return hex.EncodeToString(aaguid)
 }
 
-// GetAuthenticatorName returns the name of the authenticator for the given AAGUID, or an empty string if it is unknown
-func GetAuthenticatorName(aaguid string) string {
+// getAuthenticatorName returns the name of the authenticator for the given AAGUID, or an empty string if it is unknown
+func getAuthenticatorName(aaguid string) string {
 	aaguidMetadataOnce.Do(loadAAGUIDMetadataFromFile)
 	return aaguidMetadata[aaguid].Name
 }
@@ -77,18 +73,18 @@ func loadAAGUIDMetadataFromFile() {
 	}
 }
 
-// HasAuthenticatorIcon reports whether an icon is embedded for the given AAGUID
+// hasAuthenticatorIcon reports whether an icon is embedded for the given AAGUID
 // Callers use this to avoid pointing clients at an icon endpoint that would only answer with a 404
-func HasAuthenticatorIcon(aaguid string) bool {
+func hasAuthenticatorIcon(aaguid string) bool {
 	aaguidMetadataOnce.Do(loadAAGUIDMetadataFromFile)
 
 	metadata, ok := aaguidMetadata[aaguid]
 	return ok && validAuthenticatorIconName(metadata.IconLight)
 }
 
-// OpenAuthenticatorIcon opens the embedded icon for the given AAGUID and returns it together with its size
+// openAuthenticatorIcon opens the embedded icon for the given AAGUID and returns it together with its size
 // It returns os.ErrNotExist for every AAGUID without an icon, which is also what keeps caller-controlled input from ever reaching the embedded file system
-func OpenAuthenticatorIcon(aaguid string, light bool) (fs.File, int64, error) {
+func openAuthenticatorIcon(aaguid string, light bool) (fs.File, int64, error) {
 	aaguidMetadataOnce.Do(loadAAGUIDMetadataFromFile)
 
 	// Only AAGUIDs with a valid generated light reference are served, so caller input never becomes an embedded file path

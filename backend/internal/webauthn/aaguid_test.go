@@ -1,4 +1,4 @@
-package utils
+package webauthn
 
 import (
 	"crypto/sha256"
@@ -45,9 +45,9 @@ func TestFormatAAGUID(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got := FormatAAGUID(tt.aaguid)
+			got := formatAAGUID(tt.aaguid)
 			if got != tt.want {
-				t.Errorf("FormatAAGUID() = %v, want %v", got, tt.want)
+				t.Errorf("formatAAGUID() = %v, want %v", got, tt.want)
 			}
 		})
 	}
@@ -88,9 +88,9 @@ func TestGetAuthenticatorName(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got := GetAuthenticatorName(tt.aaguid)
+			got := getAuthenticatorName(tt.aaguid)
 			if got != tt.want {
-				t.Errorf("GetAuthenticatorName() = %v, want %v", got, tt.want)
+				t.Errorf("getAuthenticatorName() = %v, want %v", got, tt.want)
 			}
 		})
 	}
@@ -102,7 +102,7 @@ func TestLoadAAGUIDMetadataFromFile(t *testing.T) {
 	aaguidMetadataOnce = &sync.Once{}
 
 	// Trigger loading by resolving an arbitrary AAGUID
-	GetAuthenticatorName("")
+	getAuthenticatorName("")
 
 	if len(aaguidMetadata) == 0 {
 		t.Error("loadAAGUIDMetadataFromFile() failed to populate aaguidMetadata")
@@ -154,7 +154,7 @@ func TestAuthenticatorIcons(t *testing.T) {
 	readIcon := func(t *testing.T, aaguid string, light bool) []byte {
 		t.Helper()
 
-		file, size, err := OpenAuthenticatorIcon(aaguid, light)
+		file, size, err := openAuthenticatorIcon(aaguid, light)
 		require.NoError(t, err)
 		defer file.Close()
 
@@ -167,7 +167,7 @@ func TestAuthenticatorIcons(t *testing.T) {
 	}
 
 	t.Run("known AAGUID", func(t *testing.T) {
-		require.True(t, HasAuthenticatorIcon(withDark))
+		require.True(t, hasAuthenticatorIcon(withDark))
 		require.NotEqual(t, readIcon(t, withDark, true), readIcon(t, withDark, false))
 	})
 
@@ -187,9 +187,9 @@ func TestAuthenticatorIcons(t *testing.T) {
 
 		for _, aaguid := range tests {
 			t.Run(aaguid, func(t *testing.T) {
-				require.False(t, HasAuthenticatorIcon(aaguid))
+				require.False(t, hasAuthenticatorIcon(aaguid))
 
-				_, _, err := OpenAuthenticatorIcon(aaguid, true)
+				_, _, err := openAuthenticatorIcon(aaguid, true)
 				require.ErrorIs(t, err, os.ErrNotExist)
 			})
 		}

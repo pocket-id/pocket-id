@@ -2,6 +2,7 @@ package webauthn
 
 import (
 	"github.com/go-webauthn/webauthn/protocol"
+
 	datatype "github.com/pocket-id/pocket-id/backend/internal/model/types"
 )
 

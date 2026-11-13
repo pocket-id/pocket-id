@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"math/big"
+	"net/url"
 	"slices"
 	"time"
 
@@ -47,10 +48,15 @@ type Service struct {
 }
 
 func newService(deps Dependencies) (*Service, error) {
+	appURL, err := url.Parse(deps.AppURL)
+	if err != nil {
+		return nil, fmt.Errorf("failed to parse app URL: %w", err)
+	}
+
 	wa, err := gowebauthn.New(&gowebauthn.Config{
 		// Set a default value, it will be set again later
 		RPDisplayName: defaultRPDisplayName,
-		RPID:          utils.GetHostnameFromURL(deps.AppURL),
+		RPID:          appURL.Hostname(),
 		RPOrigins:     []string{deps.AppURL},
 		AuthenticatorSelection: protocol.AuthenticatorSelection{
 			UserVerification: protocol.VerificationRequired,
@@ -227,7 +233,7 @@ func (s *Service) VerifyRegistration(ctx context.Context, dbConfig *appconfig.Ap
 
 	// Determine passkey name using AAGUID and User-Agent
 	passkeyName := s.determinePasskeyName(credential.Authenticator.AAGUID)
-	aaguid := utils.FormatAAGUID(credential.Authenticator.AAGUID)
+	aaguid := formatAAGUID(credential.Authenticator.AAGUID)
 
 	credentialToStore := WebauthnCredential{
 		Name:            passkeyName,
@@ -263,7 +269,7 @@ func (s *Service) VerifyRegistration(ctx context.Context, dbConfig *appconfig.Ap
 
 func (s *Service) determinePasskeyName(aaguid []byte) string {
 	// First try to identify by AAGUID using a combination of builtin + MDS
-	authenticatorName := utils.GetAuthenticatorName(utils.FormatAAGUID(aaguid))
+	authenticatorName := getAuthenticatorName(formatAAGUID(aaguid))
 	if authenticatorName != "" {
 		return authenticatorName + " Passkey"
 	}
