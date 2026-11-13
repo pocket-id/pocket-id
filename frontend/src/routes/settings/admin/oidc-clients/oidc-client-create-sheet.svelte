@@ -35,7 +35,7 @@
 				.string()
 				.min(2)
 				.max(128)
-				.regex(/^[a-zA-Z0-9_-]+$/, { message: m.invalid_client_id() })
+				.regex(/^(?!~|https:\/\/)[!-~]+$/i, { message: m.invalid_client_id() })
 		)
 	});
 
@@ -72,9 +72,10 @@
 				requiresPushedAuthorizationRequests: false,
 				skipConsent: false,
 				isGroupRestricted: true,
-				credentials: { federatedIdentities: [], secrets: [] },
+				credentials: { federatedIdentities: [] },
 				accessTokenDurationMinutes: 60,
-				refreshTokenDurationMinutes: 30 * 24 * 60
+				refreshTokenDurationMinutes: 30 * 24 * 60,
+				disabled: false
 			});
 			if (client.createdSecret) {
 				clientSecretStore.setAutoCreated(client.createdSecret.id, client.createdSecret.secret);

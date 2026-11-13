@@ -10,7 +10,8 @@ type PublicAppConfigVariableDto struct {
 
 type AppConfigVariableDto struct {
 	PublicAppConfigVariableDto
-	IsPublic bool `json:"isPublic"`
+	IsPublic    bool `json:"isPublic"`
+	EnvOverride bool `json:"envOverride"`
 }
 
 type AppConfigUpdateDto struct {
@@ -55,6 +56,7 @@ type AppConfigUpdateDto struct {
 	WebauthnUserVerification                   string `json:"webauthnUserVerification" binding:"required,oneof=required preferred"`
 	WebauthnAllowSyncedPasskeys                string `json:"webauthnAllowSyncedPasskeys" binding:"required,boolean_string"`
 	WebauthnAuthenticatorAttachment            string `json:"webauthnAuthenticatorAttachment" binding:"required,oneof=any platform cross-platform"`
+	WebauthnAttestation                        string `json:"webauthnAttestation" binding:"required,oneof=none verified l1 l2 l3"`
 	EmailOneTimeAccessAsAdminEnabled           string `json:"emailOneTimeAccessAsAdminEnabled" binding:"required,boolean_string"`
 	EmailOneTimeAccessAsUnauthenticatedEnabled string `json:"emailOneTimeAccessAsUnauthenticatedEnabled" binding:"required,boolean_string"`
 	EmailLoginNotificationMode                 string `json:"emailLoginNotificationMode" binding:"required,oneof=disabled always ipAndUserAgent browserRecognition"`

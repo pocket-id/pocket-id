@@ -2,9 +2,9 @@
 	import { invalidateAll } from '$app/navigation';
 	import ActionsMenu from '#lib/components/actions-menu.svelte';
 	import AdvancedDisclosure from '#lib/components/advanced-disclosure.svelte';
-	import CopyButton from '#lib/components/copy-button.svelte';
 	import OidcClientAvatar from '#lib/components/oidc-client-avatar.svelte';
 	import PageHeader from '#lib/components/page-header.svelte';
+	import SettingsCard from '#lib/components/settings-card.svelte';
 	import * as Alert from '@pocket-id/ui/alert';
 	import { Badge } from '@pocket-id/ui/badge';
 	import { Button } from '@pocket-id/ui/button';
@@ -17,20 +17,27 @@
 	import unsavedChanges from '#lib/stores/unsaved-changes-store.svelte.ts';
 	import type {
 		OidcClientCreateWithLogo,
-		OidcClientCredentials,
 		OidcClientFederatedIdentity,
 		OidcClientSecret
 	} from '#lib/types/oidc.type.ts';
 	import type { ScimServiceProviderCreate } from '#lib/types/scim.type.ts';
 	import { cachedOidcClientLogo } from '#lib/utils/cached-asset-util.ts';
+	import EnableIcon from '~icons/solar/check-circle-bold';
 	import EyeIcon from '~icons/solar/eye-bold';
 	import InfoIcon from '~icons/solar/info-circle-bold-duotone';
 	import { onDestroy } from 'svelte';
 	import { backNavigate } from '../../users/navigate-back-util';
-	import { deleteClientAction, refreshClientAction, typeLabel } from '../oidc-client-actions';
+	import {
+		deleteClientAction,
+		refreshClientAction,
+		setClientDisabled,
+		toggleClientDisabledAction,
+		typeLabel
+	} from '../oidc-client-actions';
 	import OidcForm from '../oidc-client-form.svelte';
 	import OidcClientPreviewSheet from '../oidc-client-preview-sheet.svelte';
 	import ApiAccessSection from './api-access-section.svelte';
+	import ConnectionDetails from './connection-details.svelte';
 	import FederatedCredentialsSection from './federated-credentials-section.svelte';
 	import ScimSection from './scim-section.svelte';
 	import SecretReveal from './secret-reveal.svelte';
@@ -69,32 +76,19 @@
 			: undefined
 	);
 
-	const issuer = $derived(data.oidcConfiguration.issuer);
-	const facts = $derived([
-		{
-			label: m.details(),
-			items: [
-				{ label: m.client_id(), value: clientIdFact },
-				{ label: m.discovery_url(), value: discoveryFact }
-			]
-		},
-		{
-			label: m.endpoints(),
-			items: [
-				{ label: m.issuer(), value: issuerFact },
-				{ label: m.authorization(), value: authorizationFact },
-				{ label: m.token(), value: tokenFact },
-				{ label: m.userinfo(), value: userinfoFact },
-				{ label: m.end_session(), value: endSessionFact },
-				{ label: m.jwks(), value: jwksFact }
-			]
-		}
-	]);
-
 	const menuActions = $derived([
 		refreshClientAction(client, reloadClient),
+		// A disabled client is enabled with the header button instead
+		{
+			...toggleClientDisabledAction(client, setDisabled, m.disable_client_ellipsis()),
+			hidden: client.disabled
+		},
 		deleteClientAction(backNavigation.leave, m.delete_client_ellipsis())
 	]);
+
+	function setDisabled(disabled: boolean) {
+		client.disabled = disabled;
+	}
 
 	async function reloadClient() {
 		// The refreshed metadata replaces the fields it manages, so pending edits to them would be stale
@@ -111,7 +105,7 @@
 		reloadCount++;
 	}
 
-	async function updateClient(updatedClient: OidcClientCreateWithLogo) {
+	async function updateClient(updatedClient: Partial<OidcClientCreateWithLogo>) {
 		const [savedClient] = await Promise.all([
 			oidcService.updateClient(client.id, updatedClient),
 			updatedClient.logo !== undefined
@@ -137,10 +131,7 @@
 	}
 
 	async function updateFederatedCredentials(federatedIdentities: OidcClientFederatedIdentity[]) {
-		// Secrets are read-only in this request, but they are carried over so the client object keeps matching what the server has
-		const credentials: OidcClientCredentials = { federatedIdentities, secrets: clientSecrets };
-		await updateClient({ ...client, credentials });
-		client.credentials = credentials;
+		await updateClient({ credentials: { federatedIdentities } });
 	}
 
 	async function saveScimServiceProvider(provider: ScimServiceProviderCreate | null) {
@@ -161,53 +152,25 @@
 	<title>{m.oidc_client_name({ name: client.name })}</title>
 </svelte:head>
 
-<!-- Endpoints under the issuer show only their path so each one reads whole in its column, while the tooltip and the copy button carry the full URL -->
-{#snippet fact(value: string, copyLabel: string, testId?: string)}
-	<span class="flex min-w-0 items-center gap-1">
-		<span class="text-mono-s truncate font-mono" title={value} data-testid={testId}>
-			{value !== issuer && value.startsWith(issuer) ? value.slice(issuer.length) : value}
-		</span>
-		<CopyButton {value} label={copyLabel} />
-	</span>
-{/snippet}
-{#snippet clientIdFact()}{@render fact(client.id, m.copy_client_id(), 'client-id')}{/snippet}
-{#snippet discoveryFact()}
-	{@render fact(`${issuer}/.well-known/openid-configuration`, m.copy_discovery_url())}
-{/snippet}
-{#snippet issuerFact()}{@render fact(issuer, m.copy_issuer_url())}{/snippet}
-{#snippet authorizationFact()}
-	{@render fact(data.oidcConfiguration.authorization_endpoint, m.copy_authorization_url())}
-{/snippet}
-{#snippet tokenFact()}{@render fact(
-		data.oidcConfiguration.token_endpoint,
-		m.copy_token_url()
-	)}{/snippet}
-{#snippet userinfoFact()}
-	{@render fact(data.oidcConfiguration.userinfo_endpoint, m.copy_userinfo_url())}
-{/snippet}
-{#snippet endSessionFact()}
-	{@render fact(data.oidcConfiguration.end_session_endpoint, m.copy_end_session_url())}
-{/snippet}
-{#snippet jwksFact()}{@render fact(data.oidcConfiguration.jwks_uri, m.copy_jwks_url())}{/snippet}
-
 <PageHeader
 	title={client.name}
 	breadcrumbs={[
 		{ label: m.administration() },
 		{ label: m.oidc_clients(), href: '/settings/admin/oidc-clients' }
 	]}
-	{facts}
 >
 	{#snippet identity()}
 		<OidcClientAvatar
 			id={client.id}
 			name={client.name}
 			hasLogo={client.hasLogo || client.hasDarkLogo}
-			size={56}
+			size={40}
 		/>
 	{/snippet}
 	{#snippet status()}
-		{#if noOneCanSignIn}
+		{#if client.disabled}
+			<Badge variant="destructive">{m.disabled()}</Badge>
+		{:else if noOneCanSignIn}
 			<Badge variant="warning">{m.no_one_can_sign_in()}</Badge>
 		{:else if client.isGroupRestricted}
 			<Badge variant="muted">
@@ -224,6 +187,16 @@
 		{/if}
 	{/snippet}
 	{#snippet actions()}
+		{#if client.disabled}
+			<Button
+				variant="secondary"
+				usePromiseLoading
+				onclick={() => setClientDisabled(client, false, setDisabled)}
+			>
+				<EnableIcon />
+				{m.enable_client()}
+			</Button>
+		{/if}
 		<Button variant="secondary" onclick={() => (showPreview = true)}>
 			<EyeIcon />
 			<span class="max-sm:sr-only">{m.data_preview()}</span>
@@ -233,7 +206,7 @@
 </PageHeader>
 
 {#key reloadCount}
-	<HashTabs bind:value={tab} class="mt-4 gap-8">
+	<HashTabs bind:value={tab} class="mt-8 gap-8">
 		<div class="flex shadow-[inset_0_-1px_0_var(--border)]">
 			<div class="scroll-fade-x min-w-0 [scrollbar-width:none] overflow-x-auto">
 				<Tabs.List
@@ -260,7 +233,7 @@
 			</div>
 		</div>
 
-		<Tabs.Content value="general" class="flex flex-col gap-10">
+		<Tabs.Content value="general" class="flex flex-col gap-4">
 			{#if client.clientType === 'cimd'}
 				<Alert.Root variant="info">
 					<InfoIcon />
@@ -277,6 +250,9 @@
 					testId="created-client-secret"
 				/>
 			{/if}
+			<SettingsCard title={m.connection_details()}>
+				<ConnectionDetails clientId={client.id} configuration={data.oidcConfiguration} />
+			</SettingsCard>
 			<OidcForm
 				existingClient={client}
 				claimMappingPolicies={data.features?.claimMappings.enabled
@@ -286,7 +262,7 @@
 			/>
 		</Tabs.Content>
 
-		<Tabs.Content value="access" class="flex flex-col gap-10">
+		<Tabs.Content value="access" class="flex flex-col gap-4">
 			<WhoCanSignInSection bind:client />
 			{#if data.features?.apis.enabled}
 				<AdvancedDisclosure
@@ -298,7 +274,7 @@
 			{/if}
 		</Tabs.Content>
 
-		<Tabs.Content value="credentials" class="flex flex-col gap-10">
+		<Tabs.Content value="credentials" class="flex flex-col gap-4">
 			<SecretsSection {client} bind:secrets={clientSecrets} />
 			{#if data.features?.federatedCredentials.enabled}
 				<AdvancedDisclosure

@@ -2,7 +2,7 @@
 	import DurationInput from '#lib/components/form/duration-input.svelte';
 	import FormInput from '#lib/components/form/form-input.svelte';
 	import SettingRow from '#lib/components/setting-row.svelte';
-	import SettingsSection from '#lib/components/settings-section.svelte';
+	import SettingsCard from '#lib/components/settings-card.svelte';
 	import { Switch } from '@pocket-id/ui/switch';
 	import { m } from '#lib/paraglide/messages.js';
 	import appConfigStore from '#lib/stores/application-configuration-store.ts';
@@ -16,9 +16,11 @@
 
 	let {
 		callback,
-		appConfig
+		appConfig,
+		envOverrides
 	}: {
 		appConfig: AllAppConfig;
+		envOverrides: Set<keyof AllAppConfig>;
 		callback: (appConfig: Partial<AllAppConfig>) => Promise<void>;
 	} = $props();
 
@@ -46,14 +48,20 @@
 	trackFormChanges(() => formStore, callback);
 </script>
 
-<fieldset class="flex min-w-0 flex-col gap-10" disabled={$appConfigStore.uiConfigDisabled}>
-	<SettingsSection title={m.application()}>
+<fieldset class="flex min-w-0 flex-col gap-4" disabled={$appConfigStore.uiConfigDisabled}>
+	<SettingsCard title={m.application()}>
 		<div class="flex flex-col gap-4 py-4 shadow-[inset_0_-1px_0_var(--border)]">
-			<FormInput class="max-w-[400px]" label={m.application_name()} bind:input={$inputs.appName} />
+			<FormInput
+				class="max-w-[400px]"
+				label={m.application_name()}
+				envOverride={envOverrides.has('appName')}
+				bind:input={$inputs.appName}
+			/>
 			<div class="max-w-[400px]">
 				<DurationInput
 					id="session-duration"
 					label={m.session_duration()}
+					envOverride={envOverrides.has('sessionDuration')}
 					bind:input={$inputs.sessionDuration}
 				/>
 			</div>
@@ -62,6 +70,7 @@
 			title={m.app_config_home_page()}
 			description={m.config_home_page_description()}
 			icon={HouseIcon}
+			envOverride={envOverrides.has('homePageUrl')}
 		>
 			{#snippet control(props)}
 				<OptionSelect
@@ -76,10 +85,11 @@
 			title={m.config_self_account_editing()}
 			description={m.config_self_account_editing_description()}
 			icon={UserPenIcon}
+			envOverride={envOverrides.has('allowOwnAccountEdit')}
 		>
 			{#snippet control(props)}
 				<Switch {...props} bind:checked={$inputs.allowOwnAccountEdit.value} />
 			{/snippet}
 		</SettingRow>
-	</SettingsSection>
+	</SettingsCard>
 </fieldset>

@@ -58,13 +58,15 @@ const (
 	KindOAuthUser
 	// KindOAuthClient is an OAuth access token issued to a client acting as itself through the client credentials grant
 	KindOAuthClient
+	// KindStaticAPIKey is the instance-wide key from the STATIC_API_KEY environment variable, which belongs to no user
+	KindStaticAPIKey
 )
 
-// delegated lists the kinds that act for a user, which is every kind except a client acting as itself
+// delegated lists the kinds that act for a user
 const delegated = KindSession | KindAPIKey | KindOAuthUser
 
-// delegatedOrClient also admits a client acting as itself, which can hold admin scopes but none that act on an account, since it has none
-const delegatedOrClient = delegated | KindOAuthClient
+// delegatedOrUserless also admits the kinds without a user, which can hold admin scopes but none that act on an account, since they have none
+const delegatedOrUserless = delegated | KindOAuthClient | KindStaticAPIKey
 
 type definition struct {
 	scope       Scope
@@ -87,19 +89,19 @@ var catalog = []definition{
 	{AccountPasskeysEnroll, CategoryAccount, KindSession},
 	{AccountAPIKeysCreate, CategoryAccount, KindSession},
 
-	{UsersRead, CategoryAdmin, delegatedOrClient},
-	{UsersWrite, CategoryAdmin, delegatedOrClient},
-	{GroupsRead, CategoryAdmin, delegatedOrClient},
-	{GroupsWrite, CategoryAdmin, delegatedOrClient},
-	{OidcClientsRead, CategoryAdmin, delegatedOrClient},
-	{OidcClientsWrite, CategoryAdmin, delegatedOrClient},
-	{OidcClaimMappingPoliciesRead, CategoryAdmin, delegatedOrClient},
-	{OidcClaimMappingPoliciesWrite, CategoryAdmin, delegatedOrClient},
-	{APIsRead, CategoryAdmin, delegatedOrClient},
-	{APIsWrite, CategoryAdmin, delegatedOrClient},
-	{ConfigRead, CategoryAdmin, delegatedOrClient},
-	{ConfigWrite, CategoryAdmin, delegatedOrClient},
-	{AuditLogsRead, CategoryAdmin, delegatedOrClient},
+	{UsersRead, CategoryAdmin, delegatedOrUserless},
+	{UsersWrite, CategoryAdmin, delegatedOrUserless},
+	{GroupsRead, CategoryAdmin, delegatedOrUserless},
+	{GroupsWrite, CategoryAdmin, delegatedOrUserless},
+	{OidcClientsRead, CategoryAdmin, delegatedOrUserless},
+	{OidcClientsWrite, CategoryAdmin, delegatedOrUserless},
+	{OidcClaimMappingPoliciesRead, CategoryAdmin, delegatedOrUserless},
+	{OidcClaimMappingPoliciesWrite, CategoryAdmin, delegatedOrUserless},
+	{APIsRead, CategoryAdmin, delegatedOrUserless},
+	{APIsWrite, CategoryAdmin, delegatedOrUserless},
+	{ConfigRead, CategoryAdmin, delegatedOrUserless},
+	{ConfigWrite, CategoryAdmin, delegatedOrUserless},
+	{AuditLogsRead, CategoryAdmin, delegatedOrUserless},
 }
 
 var definitions = indexCatalog(catalog)
@@ -159,6 +161,18 @@ var unverifiedScopes = NewScopeSet(AccountRead, AccountWrite, AccountPasskeys, A
 // It deliberately differs from the issuer, which every token with an identity scope carries in its audience so it can call the userinfo endpoint
 func ResourceURI(appURL string) string {
 	return appURL + "/api"
+}
+
+const (
+	MCPPath = "/mcp"
+	// MCPResourceMetadataPath is where the RFC 9728 protected resource metadata of the MCP endpoint is served, which RFC 9728 derives by inserting the well-known prefix before the endpoint's path
+	MCPResourceMetadataPath = "/.well-known/oauth-protected-resource" + MCPPath
+)
+
+// MCPResourceURI returns the RFC 8707 resource identifier of Pocket ID's MCP endpoint, which MCP clients request access tokens for
+// The endpoint is part of Pocket ID's own API, so a token requested for it is issued for ResourceURI
+func MCPResourceURI(appURL string) string {
+	return appURL + MCPPath
 }
 
 // UserScopes returns the scopes a user holds when authenticated with a credential of the given kind

@@ -177,9 +177,19 @@ func (m *Module) getEmailer(ctx context.Context, dbConfig *appconfig.AppConfigMo
 		return nil, err
 	}
 
-	return emailer.NewEmailer(ctx, emailer.NewEmailerOpts{
+	e, err := emailer.NewEmailer(ctx, emailer.NewEmailerOpts{
 		ConnString: connString,
 	})
+	if err != nil {
+		// The *url.Error of a malformed host or port quotes the connection string, which carries the SMTP password, so only its cause is kept
+		var urlErr *url.Error
+		if errors.As(err, &urlErr) {
+			return nil, fmt.Errorf("invalid SMTP host or port: %w", urlErr.Err)
+		}
+		return nil, err
+	}
+
+	return e, nil
 }
 
 func smtpConnString(dbConfig *appconfig.AppConfigModel) (string, error) {

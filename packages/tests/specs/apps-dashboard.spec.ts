@@ -33,6 +33,21 @@ test.describe('Dashboard shows only clients where user has access', () => {
 		await expect(app(page, oidcClients.immich.name)).toHaveCount(0);
 	});
 
+	test("User can't see a disabled launchable client", async ({ page }) => {
+		const client = await (
+			await page.request.get(`/api/oidc/clients/${oidcClients.immich.id}`)
+		).json();
+		const disabled = await page.request.put(`/api/oidc/clients/${client.id}`, {
+			data: { ...client, disabled: true }
+		});
+		expect(disabled.ok()).toBeTruthy();
+
+		await page.goto('/settings/apps');
+
+		await expect(apps(page)).toHaveCount(1);
+		await expect(app(page, oidcClients.immich.name)).toHaveCount(0);
+	});
+
 	test('User can see every accessible launchable client', async ({ page }) => {
 		await page.goto('/settings/apps');
 

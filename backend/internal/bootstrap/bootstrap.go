@@ -36,7 +36,7 @@ func Bootstrap(ctx context.Context) error {
 	}
 	shutdowns.Add(shutdownFns...)
 
-	slog.InfoContext(ctx, "Pocket ID is starting")
+	slog.InfoContext(ctx, "Pocket ID is starting", slog.String("version", common.Version))
 
 	outboundClients, err := outbound.New(&common.EnvConfig)
 	if err != nil {
@@ -80,6 +80,11 @@ func Bootstrap(ctx context.Context) error {
 	assetExtensions, err := initApplicationAssets(ctx, fileStorage)
 	if err != nil {
 		return fmt.Errorf("failed to initialize application assets: %w", err)
+	}
+
+	err = moveLegacyOidcClientImages(ctx, db, fileStorage)
+	if err != nil {
+		return fmt.Errorf("failed to move OIDC client logos: %w", err)
 	}
 
 	// Init built-in claim policy mapping

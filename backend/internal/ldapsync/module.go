@@ -6,6 +6,7 @@ import (
 	"io"
 	"net/http"
 
+	"github.com/go-fuego/fuego/option"
 	francishost "github.com/italypaleale/francis/host"
 	"gorm.io/gorm"
 
@@ -34,6 +35,7 @@ type GroupSyncer interface {
 	CreateInternal(ctx context.Context, input dto.UserGroupCreateDto, tx *gorm.DB) (model.UserGroup, error)
 	UpdateInternal(ctx context.Context, dbConfig *appconfig.AppConfigModel, id string, input dto.UserGroupCreateDto, isLdapSync bool, tx *gorm.DB) (model.UserGroup, error)
 	UpdateUsersInternal(ctx context.Context, id string, userIDs []string, tx *gorm.DB) (model.UserGroup, error)
+	DeleteInternal(ctx context.Context, group model.UserGroup, tx *gorm.DB) error
 }
 
 // ScimSyncScheduler schedules SCIM after the LDAP transaction has committed
@@ -91,7 +93,11 @@ func New(deps Dependencies) (*Module, error) {
 
 // RegisterRoutes mounts the manual LDAP synchronization endpoint
 func (m *Module) RegisterRoutes(r *authz.Router) {
-	r.POST("/application-configuration/sync-ldap", authz.ConfigWrite, httpserver.Handle(m.handler.syncLdap))
+	r.POST("/application-configuration/sync-ldap", authz.ConfigWrite, httpserver.NoContent(m.handler.syncLdap),
+		option.Summary("Synchronize LDAP"),
+		option.Description("Manually trigger LDAP synchronization"),
+		option.Tags("Application Configuration"),
+	)
 }
 
 // SyncAll runs a full LDAP synchronization with the provided application configuration

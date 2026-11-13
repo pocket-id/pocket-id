@@ -1,10 +1,11 @@
 <script lang="ts">
-	import CopyButton from '#lib/components/copy-button.svelte';
+	import CopyRows from '#lib/components/copy-rows.svelte';
 	import DocsLink from '#lib/components/docs-link.svelte';
+	import EnvOverrideLock from '#lib/components/env-override-lock.svelte';
 	import UrlListInput from '#lib/components/form/url-list-input.svelte';
 	import FormattedMessage from '#lib/components/formatted-message.svelte';
 	import SettingRow from '#lib/components/setting-row.svelte';
-	import SettingsSection from '#lib/components/settings-section.svelte';
+	import SettingsCard from '#lib/components/settings-card.svelte';
 	import * as Field from '@pocket-id/ui/field';
 	import { Switch } from '@pocket-id/ui/switch';
 	import { m } from '#lib/paraglide/messages.js';
@@ -18,11 +19,13 @@
 
 	let {
 		appConfig,
+		envOverrides,
 		oidcConfiguration,
 		showCimd,
 		callback
 	}: {
 		appConfig: AllAppConfig;
+		envOverrides: Set<keyof AllAppConfig>;
 		oidcConfiguration: OidcDiscoveryConfiguration;
 		showCimd: boolean;
 		callback: (appConfig: Partial<AllAppConfig>) => Promise<void>;
@@ -35,7 +38,10 @@
 			value: `${oidcConfiguration.issuer}/.well-known/openid-configuration`
 		},
 		{ label: m.config_jwks(), value: oidcConfiguration.jwks_uri }
-	];
+	].map((endpoint) => ({
+		...endpoint,
+		copyLabel: m.config_copy_endpoint({ name: endpoint.label })
+	}));
 
 	const formStore = createForm(z.object({ autoCreateOidcClientSecret: z.boolean() }), {
 		autoCreateOidcClientSecret: appConfig.autoCreateOidcClientSecret
@@ -56,58 +62,53 @@
 	);
 </script>
 
-<div class="flex min-w-0 flex-col gap-10">
-	<SettingsSection title={m.config_endpoints()}>
-		<dl class="flex flex-col py-2">
-			{#each endpoints as endpoint (endpoint.label)}
-				<div
-					class="grid min-h-11 items-center gap-x-4 gap-y-0.5 py-1.5 sm:grid-cols-[140px_minmax(0,1fr)]"
-				>
-					<dt class="text-caption text-fg-muted">{endpoint.label}</dt>
-					<dd class="flex min-w-0 items-center gap-1">
-						<span class="text-mono-s font-mono break-all">{endpoint.value}</span>
-						<CopyButton
-							value={endpoint.value}
-							label={m.config_copy_endpoint({ name: endpoint.label })}
-						/>
-					</dd>
-				</div>
-			{/each}
-		</dl>
-	</SettingsSection>
+<div class="flex min-w-0 flex-col gap-4">
+	<SettingsCard title={m.config_endpoints()}>
+		<div class="py-2">
+			<CopyRows rows={endpoints} />
+		</div>
+	</SettingsCard>
 
 	<fieldset class="contents" disabled={$appConfigStore.uiConfigDisabled}>
-		<SettingsSection title={m.config_new_clients()}>
+		<SettingsCard title={m.config_new_clients()}>
 			<SettingRow
 				title={m.config_auto_secret()}
 				description={m.config_auto_secret_description()}
 				icon={KeyIcon}
+				envOverride={envOverrides.has('autoCreateOidcClientSecret')}
 			>
 				{#snippet control(props)}
 					<Switch {...props} bind:checked={$inputs.autoCreateOidcClientSecret.value} />
 				{/snippet}
 			</SettingRow>
-		</SettingsSection>
+		</SettingsCard>
 
 		{#if showCimd}
-			<SettingsSection title={m.client_id_metadata_documents()}>
+			<SettingsCard title={m.client_id_metadata_documents()}>
 				{#snippet description()}
 					{m.config_cimd_description()}
 					<DocsLink href="https://pocket-id.org/docs/guides/client-id-metadata-documents" />
 				{/snippet}
-				<Field.Field class="pt-4">
-					<Field.Label id="cimd-url-allowlist-label">{m.cimd_url_allowlist()}</Field.Label>
-					<UrlListInput
-						bind:urls={cimdUrlAllowlist}
-						labelId="cimd-url-allowlist-label"
-						testIdPrefix="cimd-url-allowlist"
-						keepAtLeastOne
-					/>
-					<Field.Description>
-						<FormattedMessage message={m.config_cimd_allowlist_description} />
-					</Field.Description>
-				</Field.Field>
-			</SettingsSection>
+				<fieldset class="contents" disabled={envOverrides.has('cimdUrlAllowlist')}>
+					<Field.Field class="py-4">
+						<div class="flex items-center gap-2">
+							<Field.Label id="cimd-url-allowlist-label">{m.cimd_url_allowlist()}</Field.Label>
+							{#if envOverrides.has('cimdUrlAllowlist')}
+								<EnvOverrideLock />
+							{/if}
+						</div>
+						<UrlListInput
+							bind:urls={cimdUrlAllowlist}
+							labelId="cimd-url-allowlist-label"
+							testIdPrefix="cimd-url-allowlist"
+							keepAtLeastOne
+						/>
+						<Field.Description>
+							<FormattedMessage message={m.config_cimd_allowlist_description} />
+						</Field.Description>
+					</Field.Field>
+				</fieldset>
+			</SettingsCard>
 		{/if}
 	</fieldset>
 </div>

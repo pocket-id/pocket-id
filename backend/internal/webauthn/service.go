@@ -5,11 +5,15 @@ import (
 	"encoding/hex"
 	"errors"
 	"fmt"
-	"net/http"
+	"math/big"
+	"slices"
 	"time"
 
+	"github.com/go-webauthn/webauthn/metadata"
 	"github.com/go-webauthn/webauthn/protocol"
+	"github.com/go-webauthn/webauthn/protocol/webauthncose"
 	gowebauthn "github.com/go-webauthn/webauthn/webauthn"
+	"github.com/google/uuid"
 	"gorm.io/gorm"
 	"gorm.io/gorm/clause"
 
@@ -28,14 +32,18 @@ const authenticationMethodPhishingResistant = "phr"
 
 const defaultRPDisplayName = "Pocket ID"
 
+// maxRSAKeyBits bounds passkey RSA keys, because go-webauthn sets no upper limit and verifying with a huge modulus takes minutes
+const maxRSAKeyBits = 8192
+
 // go-webauthn exposes the missing user-verification reason only through DevInfo
 const missingUserVerificationErrorInfo = "User verification required but flag not set by authenticator"
 
 type Service struct {
-	db       *gorm.DB
-	webAuthn *gowebauthn.WebAuthn
-	sessions SessionStore
-	auditLog AuditLogger
+	db           *gorm.DB
+	webAuthn     *gowebauthn.WebAuthn
+	sessions     SessionStore
+	auditLog     AuditLogger
+	fidoMetadata *fidoMetadata
 }
 
 func newService(deps Dependencies) (*Service, error) {
@@ -69,6 +77,11 @@ func newService(deps Dependencies) (*Service, error) {
 		webAuthn: wa,
 		sessions: deps.Sessions,
 		auditLog: deps.AuditLog,
+		fidoMetadata: &fidoMetadata{
+			httpClient: deps.HTTPClient,
+			url:        deps.FidoMetadataURL,
+			path:       fidoMetadataPath,
+		},
 	}, nil
 }
 
@@ -93,6 +106,16 @@ func (s *Service) BeginRegistration(ctx context.Context, dbConfig *appconfig.App
 		return nil, fmt.Errorf("failed to load user: %w", err)
 	}
 
+	// Ask for an attestation only when it will be verified, because browsers prompt before sending one
+	// The FIDO metadata loads while the user completes the ceremony, so a download doesn't delay finishing the registration
+	var conveyance protocol.ConveyancePreference
+	if _, required := requiredAttestation(dbConfig); required {
+		conveyance = protocol.PreferDirectAttestation
+		go func() {
+			_, _ = s.fidoMetadata.get()
+		}()
+	}
+
 	options, session, err := s.webAuthn.BeginRegistration(
 		&user,
 		gowebauthn.WithAuthenticatorSelection(protocol.AuthenticatorSelection{
@@ -103,6 +126,7 @@ func (s *Service) BeginRegistration(ctx context.Context, dbConfig *appconfig.App
 		gowebauthn.WithCredentialParameters(gowebauthn.CredentialParametersPQCRecommendedL3()),
 		gowebauthn.WithExclusions(user.WebAuthnCredentialDescriptors()),
 		gowebauthn.WithExtensions(gowebauthn.WithExtensionCredProps()), // Required for Firefox Android to properly save the key in Google password manager
+		gowebauthn.WithConveyancePreference(conveyance),
 	)
 	if err != nil {
 		return nil, fmt.Errorf("failed to begin WebAuthn registration: %w", err)
@@ -136,7 +160,18 @@ func (s *Service) BeginRegistration(ctx context.Context, dbConfig *appconfig.App
 	}, nil
 }
 
-func (s *Service) VerifyRegistration(ctx context.Context, dbConfig *appconfig.AppConfigModel, sessionID string, userID string, r *http.Request, ipAddress string) (model.WebauthnCredential, error) {
+func (s *Service) VerifyRegistration(ctx context.Context, dbConfig *appconfig.AppConfigModel, sessionID string, userID string, credentialCreationData *protocol.ParsedCredentialCreationData, ipAddress, userAgent string) (model.WebauthnCredential, error) {
+	// Load the FIDO metadata before the transaction starts, because the first load downloads it
+	minCertification, attestationRequired := requiredAttestation(dbConfig)
+	var metadataProvider metadata.Provider
+	if attestationRequired {
+		var err error
+		metadataProvider, err = s.fidoMetadata.get()
+		if err != nil {
+			return model.WebauthnCredential{}, apperror.AttestationUnavailable(err)
+		}
+	}
+
 	tx := s.db.Begin()
 	defer func() {
 		tx.Rollback()
@@ -176,12 +211,23 @@ func (s *Service) VerifyRegistration(ctx context.Context, dbConfig *appconfig.Ap
 		return model.WebauthnCredential{}, fmt.Errorf("failed to load user: %w", err)
 	}
 
-	credential, err := s.webAuthn.FinishRegistration(&user, session, r)
+	// Self attestation is verified with the new key, so its size has to be checked before the response is verified
+	if hasOversizedPublicKey(credentialCreationData.Response.AttestationObject.AuthData.AttData.CredentialPublicKey) {
+		return model.WebauthnCredential{}, apperror.InvalidWebAuthnResponse(fmt.Errorf("RSA public key is larger than %d bits", maxRSAKeyBits))
+	}
+
+	credential, err := s.webAuthn.CreateCredential(&user, session, credentialCreationData)
 	if err != nil {
 		return model.WebauthnCredential{}, classifyPasskeyError(err, apperror.InvalidWebAuthnResponse)
 	}
 	if err := validateCredentialPolicy(dbConfig, credential); err != nil {
 		return model.WebauthnCredential{}, err
+	}
+	if attestationRequired {
+		err = s.verifyAttestation(ctx, metadataProvider, credential, minCertification)
+		if err != nil {
+			return model.WebauthnCredential{}, err
+		}
 	}
 
 	// Determine passkey name using AAGUID and User-Agent
@@ -198,6 +244,8 @@ func (s *Service) VerifyRegistration(ctx context.Context, dbConfig *appconfig.Ap
 		BackupEligible:  credential.Flags.BackupEligible,
 		BackupState:     credential.Flags.BackupState,
 		AAGUID:          aaguid,
+		// The attestation was verified above whenever it is required
+		AttestationVerified: attestationRequired,
 	}
 	err = tx.
 		WithContext(ctx).
@@ -208,7 +256,7 @@ func (s *Service) VerifyRegistration(ctx context.Context, dbConfig *appconfig.Ap
 	}
 
 	auditLogData := auditlogs.Data{"credentialID": hex.EncodeToString(credential.ID), "passkeyName": passkeyName}
-	s.auditLog.Create(ctx, auditlogs.EventPasskeyAdded, ipAddress, r.UserAgent(), userID, auditLogData, tx)
+	s.auditLog.Create(ctx, auditlogs.EventPasskeyAdded, ipAddress, userAgent, userID, auditLogData, tx)
 
 	err = tx.Commit().Error
 	if err != nil {
@@ -220,9 +268,9 @@ func (s *Service) VerifyRegistration(ctx context.Context, dbConfig *appconfig.Ap
 
 func (s *Service) determinePasskeyName(aaguid []byte) string {
 	// First try to identify by AAGUID using a combination of builtin + MDS
-	authenticatorName := utils.GetAuthenticatorName(aaguid)
+	authenticatorName := utils.GetAuthenticatorName(utils.FormatAAGUID(aaguid))
 	if authenticatorName != "" {
-		return authenticatorName
+		return authenticatorName + " Passkey"
 	}
 
 	return "New Passkey" // Default fallback
@@ -258,7 +306,7 @@ func (s *Service) BeginLogin(ctx context.Context, dbConfig *appconfig.AppConfigM
 	}, nil
 }
 
-func (s *Service) VerifyLogin(ctx context.Context, dbConfig *appconfig.AppConfigModel, sessionID string, credentialAssertionData *protocol.ParsedCredentialAssertionData, ipAddress, userAgent, browserToken string) (model.User, model.LoginTokens, error) {
+func (s *Service) VerifyLogin(ctx context.Context, dbConfig *appconfig.AppConfigModel, sessionID string, credentialAssertionData *protocol.ParsedCredentialAssertionData, ipAddress, userAgent, browserToken string, remember bool) (model.User, model.LoginTokens, error) {
 	tx := s.db.Begin()
 	defer func() {
 		tx.Rollback()
@@ -300,6 +348,7 @@ func (s *Service) VerifyLogin(ctx context.Context, dbConfig *appconfig.AppConfig
 			}
 			return nil, innerErr
 		}
+		discardOversizedCredentials(user)
 		return user, nil
 	}, session, credentialAssertionData)
 
@@ -326,7 +375,7 @@ func (s *Service) VerifyLogin(ctx context.Context, dbConfig *appconfig.AppConfig
 	}
 
 	// Start the session only after the login transaction has committed, since it invokes an actor
-	token, err := s.sessions.Create(ctx, user.ID, authenticationMethodPhishingResistant, ipAddress, userAgent, dbConfig.SessionDuration.AsDurationMinutes())
+	token, err := s.sessions.Create(ctx, user.ID, authenticationMethodPhishingResistant, ipAddress, userAgent, dbConfig.SessionDuration.AsDurationMinutes(), remember)
 	if err != nil {
 		return model.User{}, model.LoginTokens{}, err
 	}
@@ -348,8 +397,8 @@ func (s *Service) ListCredentials(ctx context.Context, userID string) ([]model.W
 	return credentials, nil
 }
 
-// DeleteCredential removes a passkey of userID on behalf of actor, who is named in the audit log when it isn't the passkey's owner
-func (s *Service) DeleteCredential(ctx context.Context, userID string, credentialID string, ipAddress string, userAgent string, actor authz.Principal) error {
+// DeleteCredential removes a passkey of userID on behalf of origin, which is named in the audit log when it isn't the passkey's owner
+func (s *Service) DeleteCredential(ctx context.Context, userID string, credentialID string, origin auditlogs.Origin) error {
 	tx := s.db.Begin()
 	defer func() {
 		tx.Rollback()
@@ -367,35 +416,7 @@ func (s *Service) DeleteCredential(ctx context.Context, userID string, credentia
 		return apperror.NotFound("Passkey")
 	}
 
-	auditLogData := auditlogs.Data{"credentialID": hex.EncodeToString(credential.CredentialID), "passkeyName": credential.Name}
-	if actor.Kind == authz.KindOAuthClient {
-		var client model.OidcClient
-		err := tx.
-			WithContext(ctx).
-			Select("name").
-			First(&client, "id = ?", actor.ClientID).
-			Error
-		if err != nil {
-			return fmt.Errorf("failed to load actor client: %w", err)
-		}
-		auditLogData["actorClientID"] = actor.ClientID
-		auditLogData["actorClientName"] = client.Name
-	} else if actor.UserID != "" && actor.UserID != userID {
-		var actorUser model.User
-		err := tx.
-			WithContext(ctx).
-			First(&actorUser, "id = ?", actor.UserID).
-			Error
-		if errors.Is(err, gorm.ErrRecordNotFound) {
-			return apperror.UserNotFound()
-		}
-		if err != nil {
-			return fmt.Errorf("failed to load actor user: %w", err)
-		}
-		auditLogData["actorUserID"] = actor.UserID
-		auditLogData["actorUsername"] = actorUser.Username
-	}
-	s.auditLog.Create(ctx, auditlogs.EventPasskeyRemoved, ipAddress, userAgent, userID, auditLogData, tx)
+	s.auditLog.Record(ctx, auditlogs.EventPasskeyRemoved, origin, userID, auditlogs.Data{"credentialID": hex.EncodeToString(credential.CredentialID), "passkeyName": credential.Name}, tx)
 
 	err := tx.Commit().Error
 	if err != nil {
@@ -468,6 +489,75 @@ func authenticatorAttachment(dbConfig *appconfig.AppConfigModel) protocol.Authen
 
 func allowsSyncedPasskeys(dbConfig *appconfig.AppConfigModel) bool {
 	return dbConfig.WebauthnAllowSyncedPasskeys.IsTrue()
+}
+
+// minCertifications maps the attestation setting to the minimum FIDO certification, where an empty status accepts any verified authenticator
+var minCertifications = map[string]metadata.AuthenticatorStatus{
+	"verified": "",
+	"l1":       metadata.FidoCertifiedL1,
+	"l2":       metadata.FidoCertifiedL2,
+	"l3":       metadata.FidoCertifiedL3,
+}
+
+// certificationRanks orders the FIDO certification levels, where the phased-out FIDO_CERTIFIED counts as level 1
+var certificationRanks = map[metadata.AuthenticatorStatus]int{
+	metadata.FidoCertified:       1,
+	metadata.FidoCertifiedL1:     1,
+	metadata.FidoCertifiedL1plus: 2,
+	metadata.FidoCertifiedL2:     3,
+	metadata.FidoCertifiedL2plus: 4,
+	metadata.FidoCertifiedL3:     5,
+	metadata.FidoCertifiedL3plus: 6,
+}
+
+// trustedAttestationTypes are the attestation types whose certificate proves the authenticator model, unlike self attestation which any key can produce
+var trustedAttestationTypes = []string{
+	string(metadata.BasicFull),
+	string(metadata.AttCA),
+	string(metadata.AnonCA),
+}
+
+func requiredAttestation(dbConfig *appconfig.AppConfigModel) (minCertification metadata.AuthenticatorStatus, required bool) {
+	minCertification, required = minCertifications[dbConfig.WebauthnAttestation.String()]
+	return minCertification, required
+}
+
+// verifyAttestation proves the authenticator's make and model through the FIDO Metadata Service and checks its certification level
+func (s *Service) verifyAttestation(ctx context.Context, provider metadata.Provider, credential *gowebauthn.Credential, minCertification metadata.AuthenticatorStatus) error {
+	// Synced passkeys send no attestation at all, so they end up here too
+	if !slices.Contains(trustedAttestationTypes, credential.AttestationType) {
+		return apperror.PasskeyAttestationRequired()
+	}
+
+	// Verify the attestation certificate against the roots FIDO publishes for this AAGUID, which also rejects models with a revoked or compromised status
+	err := credential.Verify(provider, s.webAuthn.Config.Attestation, s.webAuthn.Config.Signature)
+	if err != nil {
+		// go-webauthn leaves the message empty for some metadata failures, such as an untrusted chain, and keeps the reason in DevInfo
+		var protocolError *protocol.Error
+		if errors.As(err, &protocolError) {
+			err = fmt.Errorf("%w: %s", err, protocolError.DevInfo)
+		}
+		return apperror.AuthenticatorNotCertified(err)
+	}
+	if minCertification == "" {
+		return nil
+	}
+
+	// Compare the highest certification in effect today with the required one, because FIDO lists earlier levels and announces upcoming ones in the same history
+	aaguid, err := uuid.FromBytes(credential.Authenticator.AAGUID)
+	if err != nil {
+		return apperror.AuthenticatorNotCertified(err)
+	}
+	entry, err := provider.GetEntry(ctx, aaguid)
+	if err != nil || entry == nil {
+		return apperror.AuthenticatorNotCertified(err)
+	}
+	for _, report := range metadata.EffectiveStatusReports(entry.StatusReports, time.Now()) {
+		if certificationRanks[report.Status] >= certificationRanks[minCertification] {
+			return nil
+		}
+	}
+	return apperror.AuthenticatorNotCertified(nil)
 }
 
 func validateCredentialPolicy(dbConfig *appconfig.AppConfigModel, credential *gowebauthn.Credential) error {
@@ -551,6 +641,7 @@ func (s *Service) CreateReauthenticationTokenWithWebauthn(ctx context.Context, s
 			}
 			return nil, innerErr
 		}
+		discardOversizedCredentials(user)
 		return user, nil
 	}, session, credentialAssertionData)
 
@@ -573,6 +664,24 @@ func (s *Service) CreateReauthenticationTokenWithWebauthn(ctx context.Context, s
 	}
 
 	return token, nil
+}
+
+func hasOversizedPublicKey(publicKey []byte) bool {
+	key, err := webauthncose.ParsePublicKey(publicKey)
+	if err != nil {
+		// go-webauthn rejects a key it can't parse before verifying anything with it
+		return false
+	}
+
+	rsaKey, ok := key.(webauthncose.RSAPublicKeyData)
+	return ok && new(big.Int).SetBytes(rsaKey.Modulus).BitLen() > maxRSAKeyBits
+}
+
+// discardOversizedCredentials drops passkeys registered before RSA keys were bounded, so a sign-in can't be pointed at one of them
+func discardOversizedCredentials(user *model.User) {
+	user.Credentials = slices.DeleteFunc(user.Credentials, func(credential model.WebauthnCredential) bool {
+		return hasOversizedPublicKey(credential.PublicKey)
+	})
 }
 
 func classifyPasskeyError(err error, fallback func(error) *apperror.Error) *apperror.Error {

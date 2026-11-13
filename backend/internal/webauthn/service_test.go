@@ -1,16 +1,20 @@
 package webauthn
 
 import (
-	"context"
+	"bytes"
 	"errors"
 	"testing"
 	"time"
 
+	"github.com/go-webauthn/webauthn/metadata"
+	"github.com/go-webauthn/webauthn/metadata/providers/memory"
 	"github.com/go-webauthn/webauthn/protocol"
+	"github.com/go-webauthn/webauthn/protocol/webauthncbor"
+	"github.com/go-webauthn/webauthn/protocol/webauthncose"
 	gowebauthn "github.com/go-webauthn/webauthn/webauthn"
+	"github.com/google/uuid"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-	"gorm.io/gorm"
 
 	"github.com/pocket-id/pocket-id/backend/internal/appconfig"
 	"github.com/pocket-id/pocket-id/backend/internal/apperror"
@@ -78,22 +82,28 @@ func TestBeginCeremoniesUseRequestConfig(t *testing.T) {
 		name                 string
 		userVerification     appconfig.AppConfigValue
 		authenticator        appconfig.AppConfigValue
+		attestation          appconfig.AppConfigValue
 		wantUserVerification protocol.UserVerificationRequirement
 		wantAuthenticator    protocol.AuthenticatorAttachment
+		wantAttestation      protocol.ConveyancePreference
 	}{
 		{
 			name:                 "required verification with any authenticator",
 			userVerification:     "required",
 			authenticator:        "any",
+			attestation:          "none",
 			wantUserVerification: protocol.VerificationRequired,
 			wantAuthenticator:    "",
+			wantAttestation:      "",
 		},
 		{
-			name:                 "required verification with a platform authenticator",
+			name:                 "required verification with a verified platform authenticator",
 			userVerification:     "required",
 			authenticator:        "platform",
+			attestation:          "verified",
 			wantUserVerification: protocol.VerificationRequired,
 			wantAuthenticator:    protocol.Platform,
+			wantAttestation:      protocol.PreferDirectAttestation,
 		},
 		{
 			name:                 "preferred verification with a cross-platform authenticator",
@@ -119,14 +129,21 @@ func TestBeginCeremoniesUseRequestConfig(t *testing.T) {
 			})
 			require.NoError(t, err)
 
+			// Loaded metadata keeps the preload from downloading the real blob
+			provider, err := memory.New(memory.WithMetadata(map[uuid.UUID]*metadata.Entry{}))
+			require.NoError(t, err)
+			service.fidoMetadata = &fidoMetadata{provider: provider, refreshAt: time.Now().Add(time.Hour)}
+
 			dbConfig := &appconfig.AppConfigModel{
 				AppName:                         "Configured App",
 				WebauthnUserVerification:        tc.userVerification,
 				WebauthnAuthenticatorAttachment: tc.authenticator,
+				WebauthnAttestation:             tc.attestation,
 			}
 
 			registration, err := service.BeginRegistration(t.Context(), dbConfig, user.ID)
 			require.NoError(t, err)
+			assert.Equal(t, tc.wantAttestation, registration.Response.Attestation)
 			assert.Equal(t, tc.wantUserVerification, registration.Response.AuthenticatorSelection.UserVerification)
 			assert.Equal(t, tc.wantAuthenticator, registration.Response.AuthenticatorSelection.AuthenticatorAttachment)
 			assert.Equal(t, protocol.ResidentKeyRequirementRequired, registration.Response.AuthenticatorSelection.ResidentKey)
@@ -281,7 +298,7 @@ func TestWebAuthnManagementOperationsReturnSpecificNotFoundErrors(t *testing.T) 
 	_, err = service.UpdateCredential(t.Context(), "missing-user", "missing-passkey", "New name")
 	require.True(t, apperror.IsCode(err, apperror.CodeNotFound))
 
-	err = service.DeleteCredential(t.Context(), "missing-user", "missing-passkey", "", "", authz.Principal{})
+	err = service.DeleteCredential(t.Context(), "missing-user", "missing-passkey", auditlogs.Origin{})
 	require.True(t, apperror.IsCode(err, apperror.CodeNotFound))
 }
 
@@ -307,7 +324,7 @@ func TestCeremoniesRejectSessionThatDoesNotExist(t *testing.T) {
 	t.Run("registration rejects an unknown session", func(t *testing.T) {
 		service := setupService(t)
 
-		_, err := service.VerifyRegistration(t.Context(), &appconfig.AppConfigModel{}, "does-not-exist", userID, nil, "127.0.0.1")
+		_, err := service.VerifyRegistration(t.Context(), &appconfig.AppConfigModel{}, "does-not-exist", userID, nil, "127.0.0.1", "")
 
 		require.Error(t, err)
 		assert.True(t, apperror.IsCode(err, apperror.CodeInvalidWebAuthnSession))
@@ -316,7 +333,7 @@ func TestCeremoniesRejectSessionThatDoesNotExist(t *testing.T) {
 	t.Run("login rejects an unknown session", func(t *testing.T) {
 		service := setupService(t)
 
-		_, token, err := service.VerifyLogin(t.Context(), &appconfig.AppConfigModel{}, "does-not-exist", nil, "127.0.0.1", "test-agent", "")
+		_, token, err := service.VerifyLogin(t.Context(), &appconfig.AppConfigModel{}, "does-not-exist", nil, "127.0.0.1", "test-agent", "", true)
 
 		assert.Empty(t, token)
 		require.Error(t, err)
@@ -415,30 +432,17 @@ func TestUpdateCredentialKeepsAAGUID(t *testing.T) {
 	assert.Equal(t, aaguid, stored.AAGUID)
 }
 
-// recordingAuditLogger keeps the data of the last audit event and leaves the sign-in methods unimplemented
-type recordingAuditLogger struct {
-	AuditLogger
-	data auditlogs.Data
-}
+func TestHasOversizedPublicKey(t *testing.T) {
+	rsaKey := func(bits int) []byte {
+		key, err := webauthncbor.Marshal(webauthncose.RSAPublicKeyData{
+			PublicKeyData: webauthncose.PublicKeyData{KeyType: int64(webauthncose.RSAKey), Algorithm: int64(webauthncose.AlgRS256)},
+			Modulus:       bytes.Repeat([]byte{0xff}, bits/8),
+			Exponent:      []byte{1, 0, 1},
+		})
+		require.NoError(t, err)
+		return key
+	}
 
-func (r *recordingAuditLogger) Create(_ context.Context, _ auditlogs.Event, _, _, _ string, data auditlogs.Data, _ *gorm.DB) (auditlogs.AuditLog, bool) {
-	r.data = data
-	return auditlogs.AuditLog{}, true
-}
-
-func TestDeleteCredentialNamesTheClientActingForItself(t *testing.T) {
-	db := testutils.NewDatabaseForTest(t)
-	require.NoError(t, db.Create(&model.User{Base: model.Base{ID: "passkey-owner"}, Username: "owner"}).Error)
-	require.NoError(t, db.Create(&model.OidcClient{Base: model.Base{ID: "provisioner"}, Name: "Provisioner"}).Error)
-	credential := model.WebauthnCredential{Name: "Laptop", CredentialID: []byte("credential"), PublicKey: []byte("key"), UserID: "passkey-owner"}
-	require.NoError(t, db.Create(&credential).Error)
-
-	auditLog := &recordingAuditLogger{}
-	service := &Service{db: db, auditLog: auditLog}
-
-	err := service.DeleteCredential(t.Context(), "passkey-owner", credential.ID, "", "", authz.Principal{Kind: authz.KindOAuthClient, ClientID: "provisioner"})
-	require.NoError(t, err)
-	assert.Equal(t, "provisioner", auditLog.data["actorClientID"])
-	assert.Equal(t, "Provisioner", auditLog.data["actorClientName"])
-	assert.NotContains(t, auditLog.data, "actorUserID")
+	assert.False(t, hasOversizedPublicKey(rsaKey(maxRSAKeyBits)))
+	assert.True(t, hasOversizedPublicKey(rsaKey(maxRSAKeyBits+8)))
 }

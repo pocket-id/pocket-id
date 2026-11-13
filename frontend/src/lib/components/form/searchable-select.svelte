@@ -4,70 +4,60 @@
 	import * as Popover from '@pocket-id/ui/popover';
 	import { Spinner } from '@pocket-id/ui/spinner';
 	import { m } from '#lib/paraglide/messages.js';
+	import { searchThreshold } from '#lib/utils/select-util.ts';
 	import { cn } from '@pocket-id/ui/utils';
-	import CheckIcon from '~icons/solar/check-linear';
 	import ChevronDownIcon from '~icons/solar/alt-arrow-down-linear';
-	import type { FormEventHandler, HTMLAttributes } from 'svelte/elements';
+	import type { FormEventHandler, HTMLButtonAttributes } from 'svelte/elements';
 
 	let {
-		id,
 		items,
 		value = $bindable(),
 		onSelect,
 		oninput,
 		isLoading,
-		disableSearch = false,
 		selectText = m.select_an_option(),
+		class: className,
 		...restProps
-	}: HTMLAttributes<HTMLButtonElement> & {
+	}: Omit<HTMLButtonAttributes, 'value' | 'oninput'> & {
 		items: {
 			value: string;
 			label: string;
 			description?: string;
 		}[];
 		value: string;
+		// Searching on the server, so the items are only a page of the results and the search field always shows
 		oninput?: FormEventHandler<HTMLInputElement>;
 		onSelect?: (value: string) => void;
 		isLoading?: boolean;
-		disableSearch?: boolean;
 		selectText?: string;
 	} = $props();
 
 	let open = $state(false);
-	let filteredItems = $state(items);
+	let commandRef = $state<HTMLElement | null>(null);
+	let inputRef = $state<HTMLElement | null>(null);
+	let search = $state('');
+	const searchable = $derived(!!oninput || items.length > searchThreshold);
+	const visibleItems = $derived(
+		oninput
+			? items
+			: items.filter((item) => item.label.toLowerCase().includes(search.toLowerCase()))
+	);
 	const selectedLabel = $derived(items.find((item) => item.value === value)?.label);
-
-	function filterItems(searchString: string) {
-		if (!searchString) {
-			filteredItems = items;
-		} else {
-			filteredItems = items.filter((item) =>
-				item.label.toLowerCase().includes(searchString.toLowerCase())
-			);
-		}
-	}
-
-	// Reset items when opening again
-	$effect(() => {
-		if (open) {
-			filteredItems = items;
-		}
-	});
 </script>
 
-<Popover.Root bind:open {...restProps}>
+<Popover.Root bind:open onOpenChange={(isOpen) => isOpen && (search = '')}>
 	<Popover.Trigger>
 		{#snippet child({ props })}
 			<button
 				{...props}
-				{id}
+				{...restProps}
 				type="button"
 				role="combobox"
 				aria-expanded={open}
 				class={cn(
 					filledFieldClass,
 					'text-control aria-expanded:bg-fill-selected dark:aria-expanded:bg-fill-selected flex h-(--h-md) w-full items-center justify-between gap-1.5 rounded-sm pr-2.5 pl-3.5 text-left',
-					restProps.class
+					className
 				)}
 			>
 				<span class={cn('truncate', !selectedLabel && 'text-fg-muted')}>
@@ -77,37 +67,41 @@
 			</button>
 		{/snippet}
 	</Popover.Trigger>
-	<Popover.Content class="p-0" sameWidth>
-		<Command.Root shouldFilter={false}>
-			{#if !disableSearch}
-				<Command.Input
-					placeholder={m.search()}
-					oninput={(e) => {
-						filterItems(e.currentTarget.value);
-						oninput?.(e);
-					}}
-				/>
+	<!-- The content is focused before it is positioned, so a scrolling focus would make the page jump -->
+	<!-- Without a search field nothing in the list is tabbable, so the command root takes focus to keep arrow keys and Enter working -->
+	<Popover.Content
+		class="min-w-56 p-0"
+		sameWidth
+		align="end"
+		onOpenAutoFocus={(e) => {
+			e.preventDefault();
+			(inputRef ?? commandRef)?.focus({ preventScroll: true });
+		}}
+	>
+		<Command.Root bind:ref={commandRef} shouldFilter={false} class="outline-hidden">
+			{#if searchable}
+				<Command.Input bind:ref={inputRef} bind:value={search} placeholder={m.search()} {oninput} />
+				<Command.Empty>
+					{#if isLoading}
+						<div class="flex w-full justify-center">
+							<Spinner />
+						</div>
+					{:else}
+						{m.no_items_found()}
+					{/if}
+				</Command.Empty>
 			{/if}
-			<Command.Empty>
-				{#if isLoading}
-					<div class="flex w-full justify-center">
-						<Spinner />
-					</div>
-				{:else}
-					{m.no_items_found()}
-				{/if}
-			</Command.Empty>
-			<Command.Group>
-				{#each filteredItems as item (item.value)}
+			<Command.Group class="scroll-fade-y max-h-60 overflow-y-auto">
+				{#each visibleItems as item (item.value)}
 					<Command.Item
 						value={item.value}
+						data-checked={value === item.value}
 						onSelect={() => {
 							value = item.value;
 							onSelect?.(item.value);
 							open = false;
 						}}
 					>
-						<CheckIcon class={cn('size-4 shrink-0', value !== item.value && 'text-transparent')} />
 						{#if item.description === undefined}
 							{item.label}
 						{:else}

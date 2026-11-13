@@ -4,7 +4,9 @@ import (
 	"context"
 	"fmt"
 	"net/http"
+	"time"
 
+	"github.com/go-webauthn/x/revoke"
 	"github.com/italypaleale/francis/builtin/ratelimit"
 	francishost "github.com/italypaleale/francis/host"
 	"gorm.io/gorm"
@@ -25,6 +27,7 @@ import (
 	"github.com/pocket-id/pocket-id/backend/internal/iplocation"
 	"github.com/pocket-id/pocket-id/backend/internal/ldapsync"
 	"github.com/pocket-id/pocket-id/backend/internal/logopreset"
+	"github.com/pocket-id/pocket-id/backend/internal/mcp"
 	"github.com/pocket-id/pocket-id/backend/internal/middleware"
 	"github.com/pocket-id/pocket-id/backend/internal/oidc"
 	"github.com/pocket-id/pocket-id/backend/internal/onetimeaccess"
@@ -34,6 +37,8 @@ import (
 	"github.com/pocket-id/pocket-id/backend/internal/session"
 	"github.com/pocket-id/pocket-id/backend/internal/signingkey"
 	"github.com/pocket-id/pocket-id/backend/internal/storage"
+	"github.com/pocket-id/pocket-id/backend/internal/usergroups"
+	"github.com/pocket-id/pocket-id/backend/internal/users"
 	"github.com/pocket-id/pocket-id/backend/internal/usersignup"
 	"github.com/pocket-id/pocket-id/backend/internal/webauthn"
 )
@@ -45,11 +50,8 @@ type services struct {
 	geoLiteModule            *geolite.Module
 	ipLocator                iplocation.Resolver
 	signingKey               *signingkey.Key
-	userService              *service.UserService
 	customClaimService       *service.CustomClaimService
 	claimMappingPolicyModule *claimmappingpolicy.Module
-	oidcService              *service.OidcService
-	userGroupService         *service.UserGroupService
 	fileStorage              storage.FileStorage
 
 	apiKeyModule            *apikey.Module
@@ -67,6 +69,9 @@ type services struct {
 	environmentModule       *environment.Module
 	logoPresetModule        *logopreset.Module
 	featureModule           *feature.Module
+	usersModule             *users.Module
+	userGroupsModule        *usergroups.Module
+	mcpModule               *mcp.Module
 	actors                  francishost.Host
 }
 
@@ -101,7 +106,7 @@ func initServices(
 	}
 
 	// Select the location provider once so all consumers use the configured implementation
-	svc.ipLocator, svc.geoLiteModule, err = initIPLocationResolver(ctx, httpClient, &common.EnvConfig)
+	svc.ipLocator, svc.geoLiteModule, err = initIPLocationResolver(ctx, &common.EnvConfig)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create IP location resolver: %w", err)
 	}
@@ -128,22 +133,44 @@ func initServices(
 		return nil, fmt.Errorf("failed to create audit logs module: %w", err)
 	}
 
+	backchannelLogoutService, err := backchannellogout.NewService(db, backchannellogout.NewTokenSigner(svc.signingKey, common.EnvConfig.AppURL), outboundClients.Client(outbound.PurposeBackchannelLogout), actors)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create back-channel logout service: %w", err)
+	}
+
 	svc.sessionModule, err = session.New(session.Dependencies{
-		Actors:    actors,
-		IPLocator: svc.ipLocator,
+		Actors:      actors,
+		IPLocator:   svc.ipLocator,
+		AuditLog:    svc.auditLogsModule,
+		EndNotifier: backchannelLogoutService,
 	})
 	if err != nil {
 		return nil, fmt.Errorf("failed to create session module: %w", err)
 	}
 
 	svc.customClaimService = service.NewCustomClaimService(db)
+
+	// Registrations wait for the FIDO metadata download and the revocation checks of its signing certificates, so both get a timeout the shared client doesn't have
+	// The timeout covers the whole 11 MB blob, and a download that times out isn't retried for an hour
+	fidoMetadataClient := &http.Client{Transport: httpClient.Transport, Timeout: 30 * time.Second}
+	// go-webauthn makes the revocation checks through a package-level client, and an unreachable revocation server counts as not revoked, so they may give up early
+	revoke.HTTPClient = &http.Client{Transport: httpClient.Transport, Timeout: 10 * time.Second}
+
+	// An empty URL keeps the FIDO metadata from ever being downloaded
+	var fidoMetadataURL string
+	if common.EnvConfig.FidoMetadataURL != common.URLDisabled {
+		fidoMetadataURL = common.EnvConfig.FidoMetadataURL
+	}
+
 	svc.webauthnModule, err = webauthn.New(webauthn.Dependencies{
-		DB:        db,
-		Actors:    actors,
-		AppURL:    common.EnvConfig.AppURL,
-		Sessions:  svc.sessionModule,
-		AuditLog:  svc.auditLogsModule,
-		AppConfig: svc.appConfigService,
+		DB:              db,
+		Actors:          actors,
+		AppURL:          common.EnvConfig.AppURL,
+		HTTPClient:      fidoMetadataClient,
+		FidoMetadataURL: fidoMetadataURL,
+		Sessions:        svc.sessionModule,
+		AuditLog:        svc.auditLogsModule,
+		AppConfig:       svc.appConfigService,
 		// Disable in test environment
 		CleanupDisabled: common.EnvConfig.AppEnv.IsTest(),
 	})
@@ -183,19 +210,23 @@ func initServices(
 		FederatedJWKSClient: outboundClients.Client(outbound.PurposeFederatedJWKS),
 		CIMDTransport:       outboundClients.Transport(outbound.PurposeClientMetadata),
 		GetCIMDURLAllowlist: svc.appConfigService.GetCIMDURLAllowlist,
+		LogoHTTPClient:      outboundClients.Client(outbound.PurposeClientLogo),
+		FileStorage:         fileStorage,
 		Config: oidc.Config{
 			BaseURL:                   common.EnvConfig.AppURL,
 			TokenBaseURL:              common.EnvConfig.AppURL,
 			Secret:                    common.EnvConfig.EncryptionKey,
 			AllowInsecureCallbackURLs: common.EnvConfig.AllowInsecureCallbackURLs,
 		},
-		Signer:       svc.signingKey,
-		CustomClaims: svc.customClaimService,
-		Reauth:       svc.webauthnModule,
-		AuditLog:     svc.auditLogsModule,
-		Sessions:     svc.sessionModule,
-		APIAccess:    svc.apiModule,
-		AppConfig:    svc.appConfigService,
+		Signer:            svc.signingKey,
+		CustomClaims:      svc.customClaimService,
+		Reauth:            svc.webauthnModule,
+		AuditLog:          svc.auditLogsModule,
+		Sessions:          svc.sessionModule,
+		APIAccess:         svc.apiModule,
+		AppConfig:         svc.appConfigService,
+		ScimSync:          svc.scimSyncModule,
+		BackchannelLogout: backchannelLogoutService,
 		// Disable in test environment
 		CleanupDisabled: common.EnvConfig.AppEnv.IsTest(),
 	})
@@ -203,22 +234,20 @@ func initServices(
 		return nil, fmt.Errorf("failed to create OIDC module: %w", err)
 	}
 
-	backchannelLogoutService, err := backchannellogout.NewService(db, backchannellogout.NewTokenSigner(svc.signingKey, common.EnvConfig.AppURL), outboundClients.Client(outbound.PurposeBackchannelLogout), actors)
-	if err != nil {
-		return nil, fmt.Errorf("failed to create back-channel logout service: %w", err)
-	}
-
-	svc.oidcService, err = service.NewOidcService(db, svc.oidcModule.Preview, svc.oidcModule, svc.scimSyncModule, backchannelLogoutService, outboundClients.Client(outbound.PurposeClientLogo), fileStorage)
-	if err != nil {
-		return nil, fmt.Errorf("failed to create OIDC service: %w", err)
-	}
-
 	svc.claimMappingPolicyModule = claimmappingpolicy.New(claimmappingpolicy.Dependencies{DB: db})
-	svc.userGroupService = service.NewUserGroupService(db, svc.scimSyncModule, backchannelLogoutService)
-	// The user service sends verification links through this module, so it's created first and never depends on the user service itself
+	svc.userGroupsModule = usergroups.New(usergroups.Dependencies{
+		DB:                db,
+		AppConfig:         svc.appConfigService,
+		ScimSync:          svc.scimSyncModule,
+		BackchannelLogout: backchannelLogoutService,
+		AuditLog:          svc.auditLogsModule,
+	})
+	// The users module sends verification links through this module, so it's created first and never depends on the users module itself
 	var sendLimiter emailverification.SendLimiter
+	var ownAccountLimiter users.OwnAccountLimiter
 	if middleware.RateLimitingEnabled() {
 		sendLimiter = rateLimitServices[middleware.RateLimitSendEmailVerification]
+		ownAccountLimiter = rateLimitServices[middleware.RateLimitUpdateOwnAccount]
 	}
 	svc.emailVerificationModule, err = emailverification.New(emailverification.Dependencies{
 		DB:          db,
@@ -227,21 +256,34 @@ func initServices(
 		ScimSync:    svc.scimSyncModule,
 		SendLimiter: sendLimiter,
 		AppConfig:   svc.appConfigService,
+		AuditLog:    svc.auditLogsModule,
 		AppURL:      common.EnvConfig.AppURL,
 	})
 	if err != nil {
 		return nil, fmt.Errorf("failed to create email verification module: %w", err)
 	}
 
-	svc.userService = service.NewUserService(db, svc.customClaimService, svc.appAssetsService, svc.scimSyncModule, backchannelLogoutService, fileStorage, svc.emailVerificationModule)
+	svc.usersModule = users.New(users.Dependencies{
+		DB:                db,
+		AppConfig:         svc.appConfigService,
+		FileStorage:       fileStorage,
+		CustomClaims:      svc.customClaimService,
+		AppAssets:         svc.appAssetsService,
+		WebAuthn:          svc.webauthnModule,
+		ScimSync:          svc.scimSyncModule,
+		BackchannelLogout: backchannelLogoutService,
+		EmailVerification: svc.emailVerificationModule,
+		OwnAccountLimiter: ownAccountLimiter,
+		AuditLog:          svc.auditLogsModule,
+	})
 
 	svc.ldapSyncModule, err = ldapsync.New(ldapsync.Dependencies{
 		DB:                db,
 		Actors:            actors,
 		HTTPClient:        outboundClients.Client(outbound.PurposeLDAPPicture),
 		FileStorage:       fileStorage,
-		Users:             svc.userService,
-		Groups:            svc.userGroupService,
+		Users:             svc.usersModule,
+		Groups:            svc.userGroupsModule,
 		AppConfig:         svc.appConfigService,
 		ScimSync:          svc.scimSyncModule,
 		BackchannelLogout: backchannelLogoutService,
@@ -252,12 +294,13 @@ func initServices(
 		return nil, fmt.Errorf("failed to create LDAP sync module: %w", err)
 	}
 
-	svc.apiKeyModule, err = apikey.New(ctx, apikey.Dependencies{
+	svc.apiKeyModule, err = apikey.New(apikey.Dependencies{
 		DB:              db,
 		Actors:          actors,
 		StaticApiKey:    common.EnvConfig.StaticApiKey,
 		AppConfig:       svc.appConfigService,
 		EmailSender:     svc.emailModule,
+		AuditLog:        svc.auditLogsModule,
 		CleanupDisabled: common.EnvConfig.AppEnv.IsTest(),
 	})
 	if err != nil {
@@ -269,10 +312,10 @@ func initServices(
 		Actors:            actors,
 		Sessions:          svc.sessionModule,
 		AuditLog:          svc.auditLogsModule,
-		UserCreator:       svc.userService,
+		UserCreator:       svc.usersModule,
 		AppConfig:         svc.appConfigService,
 		ScimSync:          svc.scimSyncModule,
-		UserDeleter:       svc.userService,
+		UserDeleter:       svc.usersModule,
 		EmailVerification: svc.emailVerificationModule,
 		// Disable in test environment
 		CleanupDisabled: common.EnvConfig.AppEnv.IsTest(),
@@ -286,7 +329,7 @@ func initServices(
 		Actors:       actors,
 		Sessions:     svc.sessionModule,
 		AuditLog:     svc.auditLogsModule,
-		UserProvider: svc.userService,
+		UserProvider: svc.usersModule,
 		EmailSender:  svc.emailModule,
 		AppConfig:    svc.appConfigService,
 	})
@@ -311,17 +354,22 @@ func initServices(
 
 	svc.featureModule = feature.New(feature.Dependencies{DB: db, AppConfig: svc.appConfigService})
 
+	tools := &mcp.Tools{}
+	registerTools(tools, svc)
+	svc.mcpModule = mcp.New(mcp.Dependencies{Tools: tools, HTTPClient: httpClient})
+
 	return svc, nil
 }
 
-func initIPLocationResolver(ctx context.Context, httpClient *http.Client, config *common.EnvConfigSchema) (iplocation.Resolver, *geolite.Module, error) {
+func initIPLocationResolver(ctx context.Context, config *common.EnvConfigSchema) (iplocation.Resolver, *geolite.Module, error) {
 	// Cloudflare locations need no database initialization or background refresh
 	if config.CloudflareLocationHeaders {
 		return iplocation.NewCloudflareResolver(), nil, nil
 	}
 
 	module, err := geolite.New(ctx, geolite.Dependencies{
-		HTTPClient:  httpClient,
+		// The shared client is instrumented with OpenTelemetry, which would record the license key in the url.full span attribute
+		HTTPClient:  &http.Client{},
 		DBPath:      config.GeoLiteDBPath,
 		DownloadURL: config.GeoLiteDBUrl,
 		LicenseKey:  config.MaxMindLicenseKey,

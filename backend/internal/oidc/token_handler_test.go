@@ -1,6 +1,7 @@
 package oidc
 
 import (
+	"context"
 	"crypto/ecdsa"
 	"crypto/elliptic"
 	"crypto/rand"
@@ -23,6 +24,7 @@ import (
 	"gorm.io/gorm"
 
 	"github.com/pocket-id/pocket-id/backend/internal/appconfig"
+	"github.com/pocket-id/pocket-id/backend/internal/auditlogs"
 	"github.com/pocket-id/pocket-id/backend/internal/claimmappingpolicy"
 	"github.com/pocket-id/pocket-id/backend/internal/model"
 	datatype "github.com/pocket-id/pocket-id/backend/internal/model/types"
@@ -65,7 +67,7 @@ func TestTokenHandlerClientCredentialsGrant(t *testing.T) {
 		Secret:       []byte(secret),
 	}, nil)
 	require.NoError(t, err)
-	handler := newTokenHandler(provider, newClaimsService(db, nil, baseURL, nil, appconfig.StaticResolver{}), nil)
+	handler := newTokenHandler(provider, newClaimsService(db, nil, baseURL, nil, appconfig.StaticResolver{}), nil, nil)
 
 	form := url.Values{"grant_type": {"client_credentials"}}
 	req := httptest.NewRequestWithContext(t.Context(), http.MethodPost, "/api/oidc/token", strings.NewReader(form.Encode()))
@@ -124,7 +126,7 @@ func TestTokenHandlerClientCredentialsDropsIdentityScopes(t *testing.T) {
 		Secret:       []byte(secret),
 	}, nil)
 	require.NoError(t, err)
-	handler := newTokenHandler(provider, newClaimsService(db, nil, baseURL, nil, appconfig.StaticResolver{}), nil)
+	handler := newTokenHandler(provider, newClaimsService(db, nil, baseURL, nil, appconfig.StaticResolver{}), nil, nil)
 
 	form := url.Values{"grant_type": {"client_credentials"}, "scope": {"openid"}}
 	req := httptest.NewRequestWithContext(t.Context(), http.MethodPost, "/api/oidc/token", strings.NewReader(form.Encode()))
@@ -184,7 +186,7 @@ func TestTokenHandlerClientCredentialsUsesClientSubjectGrants(t *testing.T) {
 		Secret:       []byte(secret),
 	}, nil)
 	require.NoError(t, err)
-	handler := newTokenHandler(provider, newClaimsService(db, nil, baseURL, nil, appconfig.StaticResolver{}), apiAccess)
+	handler := newTokenHandler(provider, newClaimsService(db, nil, baseURL, nil, appconfig.StaticResolver{}), apiAccess, nil)
 
 	requestToken := func(t *testing.T, scope string) map[string]any {
 		t.Helper()
@@ -255,7 +257,7 @@ func TestTokenHandlerClientCredentialsDefaultsResourceScopes(t *testing.T) {
 		Secret:       []byte(secret),
 	}, nil)
 	require.NoError(t, err)
-	handler := newTokenHandler(provider, newClaimsService(db, nil, baseURL, nil, appconfig.StaticResolver{}), apiAccess)
+	handler := newTokenHandler(provider, newClaimsService(db, nil, baseURL, nil, appconfig.StaticResolver{}), apiAccess, nil)
 
 	requestToken := func(t *testing.T, target string, form url.Values) map[string]any {
 		t.Helper()
@@ -365,7 +367,7 @@ func TestTokenHandlerRefreshGrantRevalidatesUser(t *testing.T) {
 	// returns the opaque token. It mirrors how the e2e test service seeds refresh tokens:
 	// the HMAC signature is derived from the same global secret the provider uses, so the
 	// real refresh grant resolves it.
-	mintRefreshToken := func(t *testing.T, db *gorm.DB, clientID, userID string) string {
+	mintRefreshToken := func(t *testing.T, db *gorm.DB, clientID, userID string, configure ...func(*fosite.Request)) string {
 		t.Helper()
 		globalSecret, err := DeriveGlobalSecret([]byte(secret))
 		require.NoError(t, err)
@@ -397,12 +399,15 @@ func TestTokenHandlerRefreshGrantRevalidatesUser(t *testing.T) {
 		request.RequestedAudience = fosite.Arguments{clientID}
 		request.GrantedAudience = fosite.Arguments{clientID}
 		request.Session = session
+		for _, fn := range configure {
+			fn(request)
+		}
 
 		require.NoError(t, NewStore(db, nil).CreateRefreshTokenSession(t.Context(), signature, "", request))
 		return token
 	}
 
-	doRefresh := func(t *testing.T, db *gorm.DB, clientID, refreshToken string) map[string]any {
+	doRefresh := func(t *testing.T, db *gorm.DB, clientID, refreshToken string, sessions ...Sessions) map[string]any {
 		t.Helper()
 		provider, err := newProvider(NewStore(db, nil), nil, signer, Config{
 			BaseURL:      baseURL,
@@ -410,7 +415,10 @@ func TestTokenHandlerRefreshGrantRevalidatesUser(t *testing.T) {
 			Secret:       []byte(secret),
 		}, nil)
 		require.NoError(t, err)
-		handler := newTokenHandler(provider, newClaimsService(db, nil, baseURL, nil, appconfig.StaticResolver{}), nil)
+		handler := newTokenHandler(provider, newClaimsService(db, nil, baseURL, nil, appconfig.StaticResolver{}), nil, nil)
+		if len(sessions) > 0 {
+			handler.sessions = sessions[0]
+		}
 
 		form := url.Values{
 			"grant_type":    {"refresh_token"},
@@ -527,6 +535,40 @@ func TestTokenHandlerRefreshGrantRevalidatesUser(t *testing.T) {
 		require.Empty(t, body["access_token"])
 		require.Equal(t, "access_denied", body["error"])
 	})
+
+	t.Run("grants of an ended session are refused unless they requested offline_access", func(t *testing.T) {
+		db := testutils.NewDatabaseForTest(t)
+		require.NoError(t, claimmappingpolicy.Bootstrap(t.Context(), db))
+		const clientID = "client-session"
+		createClient(t, db, model.OidcClient{Base: model.Base{ID: clientID}, Name: "Client", IsPublic: true})
+		sessions := fakeSessions{"live-session": true}
+
+		for name, test := range map[string]struct {
+			sessionID string
+			scopes    fosite.Arguments
+			refreshed bool
+		}{
+			"live session":                 {sessionID: "live-session", refreshed: true},
+			"ended session":                {sessionID: "ended-session", refreshed: false},
+			"ended session, offline grant": {sessionID: "ended-session", scopes: fosite.Arguments{"offline_access"}, refreshed: true},
+		} {
+			t.Run(name, func(t *testing.T) {
+				userID := "user-" + strings.ReplaceAll(name, " ", "-")
+				require.NoError(t, db.Create(&model.User{Base: model.Base{ID: userID}, Username: strings.ReplaceAll(name, " ", "")}).Error)
+				token := mintRefreshToken(t, db, clientID, userID, func(request *fosite.Request) {
+					request.Session.(*Session).SessionID = test.sessionID
+					request.GrantedScope = append(request.GrantedScope, test.scopes...)
+				})
+
+				body := doRefresh(t, db, clientID, token, sessions)
+				if test.refreshed {
+					require.NotEmpty(t, body["access_token"], "expected tokens, got error: %v", body["error"])
+				} else {
+					require.Equal(t, "invalid_grant", body["error"])
+				}
+			})
+		}
+	})
 }
 
 func TestTokenHandlerRefreshGrantPreservesAudienceAndScope(t *testing.T) {
@@ -598,7 +640,7 @@ func TestTokenHandlerRefreshGrantPreservesAudienceAndScope(t *testing.T) {
 			Secret:       []byte(secret),
 		}, nil)
 		require.NoError(t, err)
-		handler := newTokenHandler(provider, newClaimsService(db, nil, baseURL, nil, appconfig.StaticResolver{}), apiAccess)
+		handler := newTokenHandler(provider, newClaimsService(db, nil, baseURL, nil, appconfig.StaticResolver{}), apiAccess, nil)
 
 		form := url.Values{
 			"grant_type":    {"refresh_token"},
@@ -692,6 +734,20 @@ func TestTokenHandlerRefreshGrantPreservesAudienceAndScope(t *testing.T) {
 		require.Equal(t, []string{"openid", "read:orders"}, jwtScopes(claims))
 	})
 
+	t.Run("refresh drops a custom scope the client's policy no longer releases claims with", func(t *testing.T) {
+		db := testutils.NewDatabaseForTest(t)
+		require.NoError(t, claimmappingpolicy.Bootstrap(t.Context(), db))
+		const clientID, userID = "client-custom-scope", "user-custom-scope"
+		seedUserAndClient(t, db, clientID, userID)
+
+		token := mintRefreshToken(t, db, clientID, userID, fosite.Arguments{"openid", "kuber"}, nil)
+		body := doRefresh(t, db, grantedAPI, clientID, token, nil)
+		require.NotEmpty(t, body["access_token"], "expected a new access token, got error: %v", body["error"])
+
+		claims := decodeJWTPart(t, body["access_token"].(string), 1)
+		require.Equal(t, []string{"openid"}, jwtScopes(claims))
+	})
+
 	t.Run("revoking the client API grant makes the next refresh fail", func(t *testing.T) {
 		db := testutils.NewDatabaseForTest(t)
 		require.NoError(t, claimmappingpolicy.Bootstrap(t.Context(), db))
@@ -702,11 +758,11 @@ func TestTokenHandlerRefreshGrantPreservesAudienceAndScope(t *testing.T) {
 			fosite.Arguments{"openid", "read:orders"},
 			fosite.Arguments{apiResource},
 		)
-		// With the grant revoked the client no longer advertises read:orders, so the refresh handler rejects replaying that stored scope
+		// The refresh handler drops the lost read:orders scope, but the client no longer has the API audience either, so the refresh fails
 		// Revocation is therefore enforced on the very next refresh rather than lingering until the refresh token expires
 		body := doRefresh(t, db, revokedAPI, clientID, token, nil)
 		require.Empty(t, body["access_token"])
-		require.Equal(t, "invalid_scope", body["error"])
+		require.Equal(t, "invalid_request", body["error"])
 	})
 
 	t.Run("revoking only the user-delegated API grant makes the next refresh fail", func(t *testing.T) {
@@ -790,7 +846,7 @@ func TestTokenHandlerClientSecretRotation(t *testing.T) {
 		Secret:       []byte(secret),
 	}, nil)
 	require.NoError(t, err)
-	handler := newTokenHandler(provider, newClaimsService(db, nil, baseURL, nil, appconfig.StaticResolver{}), nil)
+	handler := newTokenHandler(provider, newClaimsService(db, nil, baseURL, nil, appconfig.StaticResolver{}), nil, nil)
 
 	requestToken := func(t *testing.T, clientSecret string) map[string]any {
 		t.Helper()
@@ -858,7 +914,7 @@ func TestTokenHandlerClientWithoutSecrets(t *testing.T) {
 		Secret:       []byte(secret),
 	}, nil)
 	require.NoError(t, err)
-	handler := newTokenHandler(provider, newClaimsService(db, nil, baseURL, nil, appconfig.StaticResolver{}), nil)
+	handler := newTokenHandler(provider, newClaimsService(db, nil, baseURL, nil, appconfig.StaticResolver{}), nil, nil)
 
 	form := url.Values{"grant_type": {"client_credentials"}}
 	req := httptest.NewRequestWithContext(t.Context(), http.MethodPost, "/api/oidc/token", strings.NewReader(form.Encode()))
@@ -874,4 +930,31 @@ func TestTokenHandlerClientWithoutSecrets(t *testing.T) {
 	require.NoError(t, json.Unmarshal(rec.Body.Bytes(), &body))
 	require.Empty(t, body["access_token"])
 	require.Equal(t, "invalid_client", body["error"])
+}
+
+func TestTokenHandlerValidateGrantSessionForAuthorizationCode(t *testing.T) {
+	handler := &tokenHandler{sessions: fakeSessions{}}
+	session := NewEmptySession()
+	session.SessionID = "ended-session"
+
+	// The code grant reaches the check with its requested scopes set and nothing granted yet
+	codeRequest := func(scopes ...string) *fosite.AccessRequest {
+		request := fosite.NewAccessRequest(session)
+		request.RequestedScope = append(fosite.Arguments{"openid"}, scopes...)
+		return request
+	}
+
+	require.ErrorIs(t, handler.validateGrantSession(t.Context(), session, codeRequest()), fosite.ErrInvalidGrant)
+	require.NoError(t, handler.validateGrantSession(t.Context(), session, codeRequest("offline_access")))
+}
+
+// fakeSessions reports the session IDs mapped to true as active
+type fakeSessions map[string]bool
+
+func (f fakeSessions) IsActive(_ context.Context, _ string, sessionID string) (bool, error) {
+	return f[sessionID], nil
+}
+
+func (fakeSessions) Revoke(context.Context, string, string, auditlogs.Origin) error {
+	return nil
 }

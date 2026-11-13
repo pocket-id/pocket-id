@@ -140,6 +140,14 @@ func TestMigrateSignupTokens(t *testing.T) {
 	err = svc.migrateSignupTokens(t.Context())
 	require.NoError(t, err)
 	require.Equal(t, signupTokenConsumeLimitReached, consumeSignupTokenForTest(t, svc.actorService, "TOKENNOGROUP0002").Status)
+
+	// Re-running it doesn't revive a token that has been deleted since
+	require.NoError(t, svc.DeleteSignupToken(t.Context(), "tok-1"))
+	err = svc.migrateSignupTokens(t.Context())
+	require.NoError(t, err)
+	entries, err = svc.listSignupTokenStates(t.Context())
+	require.NoError(t, err)
+	require.Len(t, entries, 1)
 }
 
 // TestLoadMigratedSignupTokensEmpty verifies that when there were no signup tokens, nothing is frozen and nothing is loaded.

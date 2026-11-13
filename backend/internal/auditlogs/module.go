@@ -5,8 +5,11 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"net/http"
+	"reflect"
 	"time"
 
+	"github.com/go-fuego/fuego/option"
 	francishost "github.com/italypaleale/francis/host"
 	"gorm.io/gorm"
 
@@ -15,6 +18,7 @@ import (
 	"github.com/pocket-id/pocket-id/backend/internal/common"
 	"github.com/pocket-id/pocket-id/backend/internal/httpserver"
 	"github.com/pocket-id/pocket-id/backend/internal/iplocation"
+	"github.com/pocket-id/pocket-id/backend/internal/openapi"
 )
 
 type NewLoginEmailSender interface {
@@ -81,15 +85,50 @@ func (m *Module) ReloadBrowserKey(ctx context.Context, instanceID string) error 
 
 // RegisterRoutes mounts the audit-log queries for the caller's own events and for all events
 func (m *Module) RegisterRoutes(r *authz.Router) {
-	r.GET("/audit-logs/all", authz.AuditLogsRead, httpserver.Handle(m.handler.listAllAuditLogsHandler))
-	r.GET("/audit-logs", authz.AccountAuditLogs, httpserver.Handle(m.handler.listAuditLogsForUserHandler))
-	r.GET("/audit-logs/filters/client-names", authz.AuditLogsRead, httpserver.Handle(m.handler.listClientNamesHandler))
-	r.GET("/audit-logs/filters/users", authz.AuditLogsRead, httpserver.Handle(m.handler.listUserNamesWithIdsHandler))
+	r.GET("/audit-logs/all", authz.AuditLogsRead, httpserver.JSON(http.StatusOK, m.handler.listAllAuditLogsHandler),
+		option.Summary("List all audit logs"),
+		option.Description("Get a paginated list of all audit logs (admin only)"),
+		option.Tags("Audit Logs"),
+		openapi.List[AuditLog](),
+		option.Query("from", "Only entries created at or after this RFC 3339 time"),
+		option.Query("to", "Only entries created before this RFC 3339 time"),
+		option.Query("filters[userID]", "Only entries of this user, including the actions they took"),
+		option.QueryArray("filters[clientName]", "Only entries of the OIDC clients with these names", reflect.String),
+		option.QueryArray("filters[location]", "Only entries from the internal or external network", reflect.String),
+	)
+	r.GET("/audit-logs", authz.AccountAuditLogs, httpserver.JSON(http.StatusOK, m.handler.listAuditLogsForUserHandler),
+		option.Summary("List audit logs"),
+		option.Description("Get a paginated list of the audit logs about the current user"),
+		option.Tags("Audit Logs"),
+		openapi.List[AuditLog](),
+		option.Query("from", "Only entries created at or after this RFC 3339 time"),
+		option.Query("to", "Only entries created before this RFC 3339 time"),
+	)
+	r.GET("/audit-logs/filters/client-names", authz.AuditLogsRead, httpserver.JSON(http.StatusOK, m.handler.listClientNamesHandler),
+		option.Summary("List client names"),
+		option.Description("Get a list of all client names for audit log filtering"),
+		option.Tags("Audit Logs"),
+	)
+	r.GET("/audit-logs/filters/users", authz.AuditLogsRead, httpserver.JSON(http.StatusOK, m.handler.listUserNamesWithIdsHandler),
+		option.Summary("List users with IDs"),
+		option.Description("Get a list of all usernames with their IDs for audit log filtering"),
+		option.Tags("Audit Logs"),
+	)
 }
 
 // Create records an event within the caller's transaction
 func (m *Module) Create(ctx context.Context, event Event, ipAddress, userAgent, userID string, data Data, tx *gorm.DB) (AuditLog, bool) {
 	return m.service.Create(ctx, event, ipAddress, userAgent, userID, data, tx)
+}
+
+// Record creates an entry about userID for an action that origin performed
+func (m *Module) Record(ctx context.Context, event Event, origin Origin, userID string, data Data, tx *gorm.DB) {
+	m.service.Record(ctx, event, origin, userID, data, tx)
+}
+
+// KeepUsername must be called within the transaction that deletes the user, before the delete
+func (m *Module) KeepUsername(ctx context.Context, userID, username string, tx *gorm.DB) error {
+	return m.service.KeepUsername(ctx, userID, username, tx)
 }
 
 // CreateSignIn prepares browser recognition and notification delivery within the caller's transaction

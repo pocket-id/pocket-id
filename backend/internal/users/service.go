@@ -1,0 +1,943 @@
+package users
+
+import (
+	"bytes"
+	"context"
+	"encoding/json"
+	"errors"
+	"fmt"
+	"io"
+	"io/fs"
+	"log/slog"
+	"path"
+	"slices"
+	"time"
+	"uuid"
+
+	"gorm.io/gorm"
+	"gorm.io/gorm/clause"
+
+	"github.com/pocket-id/pocket-id/backend/internal/appconfig"
+	"github.com/pocket-id/pocket-id/backend/internal/apperror"
+	"github.com/pocket-id/pocket-id/backend/internal/auditlogs"
+	"github.com/pocket-id/pocket-id/backend/internal/backchannellogout"
+	"github.com/pocket-id/pocket-id/backend/internal/dto"
+	"github.com/pocket-id/pocket-id/backend/internal/emailverification"
+	"github.com/pocket-id/pocket-id/backend/internal/model"
+	datatype "github.com/pocket-id/pocket-id/backend/internal/model/types"
+	"github.com/pocket-id/pocket-id/backend/internal/storage"
+	"github.com/pocket-id/pocket-id/backend/internal/utils"
+	profilepicture "github.com/pocket-id/pocket-id/backend/internal/utils/image"
+)
+
+type Service struct {
+	db                *gorm.DB
+	customClaims      CustomClaimUpdater
+	appAssets         AppAssetProvider
+	scimSyncScheduler ScimSyncScheduler
+	backchannelLogout *backchannellogout.Service
+	fileStorage       storage.FileStorage
+	emailVerification EmailVerificationSender
+	ownAccountLimiter OwnAccountLimiter
+	auditLog          AuditLogger
+}
+
+// ownEmailChange records how a user's change of their own email is handled once the update is committed
+type ownEmailChange struct {
+	// applied is set when the new email replaced the current one right away
+	applied bool
+	// deferred holds the new email when it only replaces the current one after the user confirms it
+	deferred *string
+}
+
+func newService(deps Dependencies) *Service {
+	return &Service{
+		db:                deps.DB,
+		customClaims:      deps.CustomClaims,
+		appAssets:         deps.AppAssets,
+		scimSyncScheduler: deps.ScimSync,
+		backchannelLogout: deps.BackchannelLogout,
+		fileStorage:       deps.FileStorage,
+		emailVerification: deps.EmailVerification,
+		ownAccountLimiter: deps.OwnAccountLimiter,
+		auditLog:          deps.AuditLog,
+	}
+}
+
+func (s *Service) ListUsers(ctx context.Context, searchTerm string, listRequestOptions utils.ListRequestOptions) ([]model.User, utils.PaginationResponse, error) {
+	var users []model.User
+	query := s.db.WithContext(ctx).
+		Model(&model.User{}).
+		Preload("UserGroups").
+		Preload("CustomClaims")
+
+	if searchTerm != "" {
+		searchPattern := "%" + searchTerm + "%"
+		query = query.Where(
+			"email LIKE ? OR first_name LIKE ? OR last_name LIKE ? OR username LIKE ?",
+			searchPattern, searchPattern, searchPattern, searchPattern)
+	}
+
+	pagination, err := utils.PaginateFilterAndSort(listRequestOptions, query, &users)
+
+	return users, pagination, err
+}
+
+func (s *Service) GetUser(ctx context.Context, userID string) (model.User, error) {
+	return s.getUserInternal(ctx, userID, s.db)
+}
+
+func (s *Service) getUserInternal(ctx context.Context, userID string, tx *gorm.DB) (model.User, error) {
+	var user model.User
+	err := tx.
+		WithContext(ctx).
+		Preload("UserGroups").
+		Preload("CustomClaims").
+		Where("id = ?", userID).
+		First(&user).
+		Error
+	if errors.Is(err, gorm.ErrRecordNotFound) {
+		return model.User{}, apperror.UserNotFound()
+	}
+	return user, err
+}
+
+func (s *Service) GetProfilePicture(ctx context.Context, userID string) (io.ReadCloser, int64, error) {
+	// Validate the user ID to prevent directory traversal
+	_, err := uuid.Parse(userID)
+	if err != nil {
+		return nil, 0, apperror.InvalidUserID()
+	}
+
+	user, err := s.GetUser(ctx, userID)
+	if err != nil {
+		return nil, 0, err
+	}
+
+	profilePicturePath := path.Join("profile-pictures", userID+".png")
+
+	// Try custom profile picture
+	file, size, err := s.fileStorage.Open(ctx, profilePicturePath)
+	if err == nil {
+		return file, size, nil
+	} else if !errors.Is(err, fs.ErrNotExist) {
+		return nil, 0, err
+	}
+
+	// Try default global profile picture
+	if s.appAssets.IsDefaultProfilePictureSet() {
+		reader, size, _, err := s.appAssets.GetAsset(ctx, "default-profile-picture")
+		if err == nil {
+			return reader, size, nil
+		}
+		if !apperror.IsCode(err, apperror.CodeImageNotFound) {
+			return nil, 0, err
+		}
+	}
+
+	// Try cached default for initials
+	initials := profilepicture.Initials(user.FirstName, user.LastName, user.Username)
+	defaultPicturePath := path.Join("profile-pictures", "defaults", profilepicture.DefaultPictureFile(initials))
+	file, size, err = s.fileStorage.Open(ctx, defaultPicturePath)
+	if err == nil {
+		return file, size, nil
+	} else if !errors.Is(err, fs.ErrNotExist) {
+		return nil, 0, err
+	}
+
+	// Create and return generated default with initials
+	defaultPicture, err := profilepicture.CreateDefaultProfilePicture(initials)
+	if err != nil {
+		return nil, 0, err
+	}
+
+	// Save the default picture for future use (in a goroutine to avoid blocking)
+	defaultPictureBytes := defaultPicture.Bytes()
+	//#nosec G118 - We use a background context as this is running in background
+	// nolint:contextcheck
+	go func() {
+		// Use bytes.NewReader because we need an io.ReadSeeker
+		rErr := s.fileStorage.Save(context.Background(), defaultPicturePath, bytes.NewReader(defaultPictureBytes))
+		if rErr != nil {
+			slog.Error("Failed to cache default profile picture", slog.String("initials", initials), slog.Any("error", rErr))
+		}
+	}()
+
+	return io.NopCloser(bytes.NewReader(defaultPictureBytes)), int64(len(defaultPictureBytes)), nil
+}
+
+func (s *Service) GetUserGroups(ctx context.Context, userID string) ([]model.UserGroup, error) {
+	var user model.User
+	err := s.db.
+		WithContext(ctx).
+		Preload("UserGroups").
+		Where("id = ?", userID).
+		First(&user).
+		Error
+	if errors.Is(err, gorm.ErrRecordNotFound) {
+		return nil, apperror.UserNotFound()
+	}
+	if err != nil {
+		return nil, err
+	}
+	return user.UserGroups, nil
+}
+
+func (s *Service) UpdateProfilePicture(ctx context.Context, userID string, file io.ReadSeeker) error {
+	// Validate the user ID to prevent directory traversal
+	_, err := uuid.Parse(userID)
+	if err != nil {
+		return apperror.InvalidUserID()
+	}
+
+	if _, err := s.GetUser(ctx, userID); err != nil {
+		return err
+	}
+
+	// Convert the image to a smaller square image
+	profilePicture, err := profilepicture.CreateProfilePicture(file)
+	if errors.Is(err, profilepicture.ErrInvalidImage) {
+		return apperror.InvalidImage(err)
+	}
+	if err != nil {
+		return err
+	}
+
+	profilePicturePath := path.Join("profile-pictures", userID+".png")
+	err = s.fileStorage.Save(ctx, profilePicturePath, profilePicture)
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func (s *Service) DeleteUser(ctx context.Context, dbConfig *appconfig.AppConfigModel, userID string, allowLdapDelete bool, origin auditlogs.Origin) error {
+	// The user's authorizations are gone after the delete, so the clients to notify must be resolved inside the transaction
+	notifyLogout := func() {}
+	err := s.db.Transaction(func(tx *gorm.DB) error {
+		if s.backchannelLogout != nil {
+			var prepareErr error
+			notifyLogout, prepareErr = s.backchannelLogout.PrepareUserNotifications(ctx, tx, []string{userID})
+			if prepareErr != nil {
+				// Notifications are best effort and must never block the deletion itself
+				slog.ErrorContext(ctx, "Failed to prepare back-channel logout notifications for user", slog.String("userId", userID), slog.Any("error", prepareErr))
+			}
+		}
+
+		return s.deleteUserInternal(ctx, dbConfig, tx, userID, allowLdapDelete, origin)
+	})
+	if err != nil {
+		return fmt.Errorf("failed to delete user '%s': %w", userID, err)
+	}
+	if s.scimSyncScheduler != nil {
+		s.scimSyncScheduler.ScheduleSync(ctx)
+	}
+	notifyLogout()
+
+	// Storage operations must be executed outside of a transaction
+	profilePicturePath := path.Join("profile-pictures", userID+".png")
+	err = s.fileStorage.Delete(ctx, profilePicturePath)
+	if err != nil && !storage.IsNotExist(err) {
+		return fmt.Errorf("failed to delete profile picture for user '%s': %w", userID, err)
+	}
+
+	return nil
+}
+
+// deleteUserInternal deletes a user within an existing transaction
+// Note that the caller is responsible for removing the user's profile picture from the storage layer, which must happen outside of the transaction
+func (s *Service) deleteUserInternal(ctx context.Context, cfg *appconfig.AppConfigModel, tx *gorm.DB, userID string, allowLdapDelete bool, origin auditlogs.Origin) error {
+	var user model.User
+	err := tx.
+		WithContext(ctx).
+		Where("id = ?", userID).
+		Clauses(clause.Locking{Strength: "UPDATE"}).
+		First(&user).
+		Error
+	if errors.Is(err, gorm.ErrRecordNotFound) {
+		return apperror.UserNotFound()
+	}
+	if err != nil {
+		return fmt.Errorf("failed to load user to delete: %w", err)
+	}
+
+	// Disallow deleting the user if it is an LDAP user, LDAP is enabled, and the user is not disabled
+	if !allowLdapDelete && !user.Disabled && user.LdapID != nil {
+		if cfg.LdapEnabled.IsTrue() {
+			return apperror.LdapUserUpdate()
+		}
+	}
+
+	// Remember the user's groups before the delete cascades their memberships away
+	var groupIDs []string
+	err = tx.
+		WithContext(ctx).
+		Table("user_groups_users").
+		Where("user_id = ?", userID).
+		Pluck("user_group_id", &groupIDs).
+		Error
+	if err != nil {
+		return fmt.Errorf("failed to load user groups of user to delete: %w", err)
+	}
+
+	// Record the deletion first, so the username is kept on this entry as well
+	s.auditLog.Record(ctx, auditlogs.EventAccountDeleted, origin, userID, nil, tx)
+	err = s.auditLog.KeepUsername(ctx, userID, user.Username, tx)
+	if err != nil {
+		return fmt.Errorf("failed to keep the username in the audit log: %w", err)
+	}
+
+	err = tx.WithContext(ctx).Delete(&user).Error
+	if err != nil {
+		return fmt.Errorf("failed to delete user: %w", err)
+	}
+
+	// Bump the UpdatedAt of the groups the user was in, so the SCIM sync pushes the groups without the deleted member
+	err = s.touchUserGroups(ctx, tx, groupIDs)
+	if err != nil {
+		return fmt.Errorf("failed to update user groups timestamp: %w", err)
+	}
+
+	return nil
+}
+
+func (s *Service) CreateUser(ctx context.Context, dbConfig *appconfig.AppConfigModel, input dto.UserCreateDto, origin auditlogs.Origin) (model.User, error) {
+	tx := s.db.Begin()
+	defer func() {
+		tx.Rollback()
+	}()
+
+	user, err := s.createUserInternal(ctx, input, false, tx, dbConfig)
+	if err != nil {
+		return model.User{}, err
+	}
+	s.auditLog.Record(ctx, auditlogs.EventAccountCreated, origin, user.ID, nil, tx)
+
+	err = tx.Commit().Error
+	if err != nil {
+		return model.User{}, err
+	}
+	if s.scimSyncScheduler != nil {
+		s.scimSyncScheduler.ScheduleSync(ctx)
+	}
+
+	return user, nil
+}
+
+func (s *Service) createUserInternal(ctx context.Context, input dto.UserCreateDto, isLdapSync bool, tx *gorm.DB, cfg *appconfig.AppConfigModel) (model.User, error) {
+	if cfg.RequireUserEmail.IsTrue() && input.Email == nil {
+		return model.User{}, apperror.MissingField("email")
+	}
+
+	var userGroups []model.UserGroup
+	if len(input.UserGroupIds) > 0 {
+		err := tx.
+			WithContext(ctx).
+			Where("id IN ?", input.UserGroupIds).
+			Find(&userGroups).
+			Error
+		if err != nil {
+			return model.User{}, err
+		}
+	}
+
+	user := model.User{
+		FirstName:     input.FirstName,
+		LastName:      input.LastName,
+		DisplayName:   input.DisplayName,
+		Email:         input.Email,
+		EmailVerified: input.EmailVerified,
+		Username:      input.Username,
+		IsAdmin:       input.IsAdmin,
+		Locale:        input.Locale,
+		Disabled:      input.Disabled,
+		UserGroups:    userGroups,
+	}
+	if input.ID != "" {
+		user.ID = input.ID
+	}
+	if input.LdapID != "" {
+		user.LdapID = &input.LdapID
+	}
+
+	err := tx.WithContext(ctx).Create(&user).Error
+	if errors.Is(err, gorm.ErrDuplicatedKey) {
+		// Do not follow this path if we're using LDAP, as we don't want to roll-back the transaction here
+		if !isLdapSync {
+			tx.Rollback()
+			// If we are here, the transaction is already aborted due to an error, so we pass s.db
+			err = s.checkDuplicatedFields(ctx, user, s.db)
+		} else {
+			err = s.checkDuplicatedFields(ctx, user, tx)
+		}
+
+		return model.User{}, err
+	} else if err != nil {
+		return model.User{}, err
+	}
+
+	// Bump the UpdatedAt timestamp of the groups the new user was added to
+	// This is necessary for SCIM to work with the newly-created user, or groups may not be synced via SCIM
+	if len(userGroups) > 0 {
+		err = s.touchUserGroups(ctx, tx, userGroupIDs(userGroups))
+		if err != nil {
+			return model.User{}, err
+		}
+	}
+
+	// The signup and admins record the accounts they create themselves, but the LDAP sync has no request to record it with
+	if isLdapSync {
+		s.auditLog.Record(ctx, auditlogs.EventAccountCreated, auditlogs.LDAPSync, user.ID, nil, tx)
+	}
+
+	// Apply default groups and claims for new non-LDAP users
+	if !isLdapSync {
+		if len(input.UserGroupIds) == 0 {
+			err = s.applyDefaultGroups(ctx, &user, tx, cfg)
+			if err != nil {
+				return model.User{}, err
+			}
+		}
+
+		err = s.applyDefaultCustomClaims(ctx, &user, tx, cfg)
+		if err != nil {
+			return model.User{}, err
+		}
+	}
+
+	return user, nil
+}
+
+func userGroupIDs(groups []model.UserGroup) []string {
+	ids := make([]string, len(groups))
+	for i, group := range groups {
+		ids[i] = group.ID
+	}
+
+	return ids
+}
+
+func (s *Service) applyDefaultGroups(ctx context.Context, user *model.User, tx *gorm.DB, cfg *appconfig.AppConfigModel) error {
+	var groupIDs []string
+	v := cfg.SignupDefaultUserGroupIDs
+	if v != "" && v != "[]" {
+		err := json.Unmarshal([]byte(v), &groupIDs)
+		if err != nil {
+			return fmt.Errorf("invalid SignupDefaultUserGroupIDs JSON: %w", err)
+		}
+		if len(groupIDs) > 0 {
+			var groups []model.UserGroup
+			err = tx.WithContext(ctx).
+				Where("id IN ?", groupIDs).
+				Find(&groups).
+				Error
+			if err != nil {
+				return fmt.Errorf("failed to find default user groups: %w", err)
+			}
+
+			err = tx.WithContext(ctx).
+				Model(user).
+				Association("UserGroups").
+				Replace(groups)
+			if err != nil {
+				return fmt.Errorf("failed to associate default user groups: %w", err)
+			}
+
+			// Bump the groups' UpdatedAt so the SCIM sync picks up the new
+			// membership (see touchUserGroups for details).
+			touchIDs := make([]string, len(groups))
+			for i := range groups {
+				touchIDs[i] = groups[i].ID
+			}
+			if err := s.touchUserGroups(ctx, tx, touchIDs); err != nil {
+				return fmt.Errorf("failed to update default user groups timestamp: %w", err)
+			}
+		}
+	}
+	return nil
+}
+
+// touchUserGroups updates the UpdatedAt timestamp of the given user groups.
+//
+// Group membership is stored in the user_groups_users join table, so adding or
+// removing a member does not modify the group row itself. The SCIM sync only
+// re-pushes a group to the provider when its UpdatedAt is not older than the
+// remote resource's last-modified time, so any code path that changes a group's
+// membership must bump this timestamp explicitly. Otherwise the membership
+// change is never synced to the SCIM provider.
+func (s *Service) touchUserGroups(ctx context.Context, tx *gorm.DB, ids []string) error {
+	if len(ids) == 0 {
+		return nil
+	}
+
+	now := datatype.DateTime(time.Now())
+	return tx.
+		WithContext(ctx).
+		Model(&model.UserGroup{}).
+		Where("id IN ?", ids).
+		Update("updated_at", now).
+		Error
+}
+
+func (s *Service) applyDefaultCustomClaims(ctx context.Context, user *model.User, tx *gorm.DB, cfg *appconfig.AppConfigModel) error {
+	var claims []dto.CustomClaimCreateDto
+	v := cfg.SignupDefaultCustomClaims
+	if v != "" && v != "[]" {
+		err := json.Unmarshal([]byte(v), &claims)
+		if err != nil {
+			return fmt.Errorf("invalid SignupDefaultCustomClaims JSON: %w", err)
+		}
+		if len(claims) > 0 {
+			user.CustomClaims, err = s.customClaims.UpdateCustomClaimsForUserInternal(ctx, user.ID, claims, tx)
+			if err != nil {
+				return fmt.Errorf("failed to apply default custom claims: %w", err)
+			}
+		}
+	}
+
+	return nil
+}
+
+func (s *Service) UpdateUser(ctx context.Context, cfg *appconfig.AppConfigModel, userID string, update dto.Update[dto.UserCreateDto], updateOwnUser bool, isLdapSync bool, origin auditlogs.Origin) (model.User, error) {
+	// The limiters below are actors that write to the database, so they run before the transaction locks it on SQLite, on a preview of the update computed from an unlocked read
+	var current model.User
+	err := s.db.WithContext(ctx).Where("id = ?", userID).First(&current).Error
+	if errors.Is(err, gorm.ErrRecordNotFound) {
+		return model.User{}, apperror.UserNotFound()
+	} else if err != nil {
+		return model.User{}, err
+	}
+	preview, err := update(current)
+	if err != nil {
+		return model.User{}, err
+	}
+
+	// Changing the own username or email reports whether another account already has it, so it's throttled to slow down probing for existing users
+	if updateOwnUser && s.ownAccountLimiter != nil {
+		emailChanged := preview.Email != nil && (current.Email == nil || *current.Email != *preview.Email)
+		if (current.Username != preview.Username || emailChanged) && canEditProfile(cfg, &current, true, isLdapSync) {
+			allowed, retryAfter, err := s.ownAccountLimiter.Allow(ctx, userID)
+			if err != nil {
+				// Fail open like the rate-limit middleware, so a limiter error does not block the update
+				slog.WarnContext(ctx, "Rate limiter unavailable, allowing own account change", slog.String("userID", userID), slog.Any("error", err))
+			} else if !allowed {
+				return model.User{}, apperror.TooManyRequests().WithRetryAfter(retryAfter)
+			}
+		}
+	}
+
+	// A throttled change rejects the whole update instead of saving it without the email
+	sendAllowed := false
+	if updateOwnUser {
+		change, err := s.prepareOwnEmailChange(ctx, cfg, userID, &preview, isLdapSync, s.db)
+		if err != nil {
+			return model.User{}, err
+		}
+		if change.deferred != nil {
+			err = s.emailVerification.AllowSend(ctx, userID)
+			if err != nil {
+				return model.User{}, err
+			}
+			sendAllowed = true
+		}
+	}
+
+	tx := s.db.Begin()
+	defer func() {
+		tx.Rollback()
+	}()
+
+	// Lock the user and compute the update from it, so a PATCH merges onto the state it saves over
+	var locked model.User
+	err = tx.WithContext(ctx).Clauses(clause.Locking{Strength: "UPDATE"}).Where("id = ?", userID).First(&locked).Error
+	if errors.Is(err, gorm.ErrRecordNotFound) {
+		return model.User{}, apperror.UserNotFound()
+	} else if err != nil {
+		return model.User{}, err
+	}
+	updatedUser, err := update(locked)
+	if err != nil {
+		return model.User{}, err
+	}
+
+	// Only an admin setting the flag can disable a user, so the previous state is only needed to detect that transition
+	canDisable := s.backchannelLogout != nil && !updateOwnUser && updatedUser.Disabled
+	wasDisabled := locked.Disabled
+
+	// A user's own email change may have to be confirmed first, so that's decided before the update is applied
+	var change ownEmailChange
+	if updateOwnUser {
+		change, err = s.prepareOwnEmailChange(ctx, cfg, userID, &updatedUser, isLdapSync, tx)
+		if err != nil {
+			return model.User{}, err
+		}
+
+		// The user changed between the check above and the lock, so no send was counted for this link
+		if change.deferred != nil && !sendAllowed {
+			return model.User{}, apperror.TooManyRequests()
+		}
+	}
+
+	_, err = s.updateUserInternal(ctx, cfg, userID, updatedUser, updateOwnUser, isLdapSync, origin, tx)
+	if err != nil {
+		return model.User{}, err
+	}
+
+	// The update doesn't load the user's groups and claims, which callers return along with the changed fields
+	user, err := s.getUserInternal(ctx, userID, tx)
+	if err != nil {
+		return model.User{}, err
+	}
+
+	err = tx.Commit().Error
+	if err != nil {
+		return model.User{}, err
+	}
+	if s.scimSyncScheduler != nil {
+		s.scimSyncScheduler.ScheduleSync(ctx)
+	}
+
+	// A disabled user cannot sign in again, so tell their clients to end the sessions as well
+	if canDisable && !wasDisabled && user.Disabled {
+		s.backchannelLogout.NotifyUser(ctx, userID)
+	}
+
+	// The verified email stays in effect until the user confirms the new address through the emailed link
+	// The other changes are already saved, so the error tells the user that only the email change could not be started
+	if change.deferred != nil {
+		err = s.emailVerification.RequestEmailChange(ctx, cfg, userID, *change.deferred)
+		if err != nil {
+			return user, apperror.EmailChangeNotStarted(err)
+		}
+	}
+
+	// A user whose new email still restricts the account needs the verification link right away
+	if change.applied && emailverification.IsPending(cfg, &user) {
+		err = s.emailVerification.Send(ctx, cfg, userID)
+		if err != nil {
+			slog.WarnContext(ctx, "Failed to send the email verification message after an email change", slog.String("userID", userID), slog.Any("error", err))
+		}
+	}
+
+	return user, nil
+}
+
+// prepareOwnEmailChange decides how a user's change of their own email is handled
+// A deferred change keeps the current email in the update, so the new address only takes effect once the user confirms it
+func (s *Service) prepareOwnEmailChange(ctx context.Context, cfg *appconfig.AppConfigModel, userID string, updatedUser *dto.UserCreateDto, isLdapSync bool, tx *gorm.DB) (ownEmailChange, error) {
+	var change ownEmailChange
+	if s.emailVerification == nil || updatedUser.Email == nil {
+		return change, nil
+	}
+
+	// Lock the user, so the decision below still holds when the update is applied
+	var user model.User
+	err := tx.
+		WithContext(ctx).
+		Where("id = ?", userID).
+		Clauses(clause.Locking{Strength: "UPDATE"}).
+		First(&user).
+		Error
+	if errors.Is(err, gorm.ErrRecordNotFound) {
+		return change, apperror.UserNotFound()
+	}
+	if err != nil {
+		return change, err
+	}
+
+	// The update ignores an email the user may not edit, so there's nothing to verify then
+	emailChanged := user.Email == nil || *user.Email != *updatedUser.Email
+	if !emailChanged || !canEditProfile(cfg, &user, true, isLdapSync) {
+		return change, nil
+	}
+
+	if !emailverification.DefersEmailChange(cfg, &user) {
+		change.applied = true
+		return change, nil
+	}
+
+	// The address is checked now, so the user doesn't wait for a link to find out it's taken
+	taken, err := isEmailTaken(ctx, tx, user.ID, *updatedUser.Email)
+	if err != nil {
+		return change, err
+	}
+	if taken {
+		return change, apperror.AlreadyInUse("email")
+	}
+
+	change.deferred = updatedUser.Email
+	updatedUser.Email = user.Email
+	return change, nil
+}
+
+// canEditProfile reports whether an update may change the user's personal fields, such as their name and email
+// LDAP users are managed by the directory and users may be barred from editing their own account, while the LDAP sync itself can always update them
+func canEditProfile(cfg *appconfig.AppConfigModel, user *model.User, updateOwnUser bool, isLdapSync bool) bool {
+	if isLdapSync {
+		return true
+	}
+
+	isLdapUser := user.LdapID != nil && cfg.LdapEnabled.IsTrue()
+	return !isLdapUser && (!updateOwnUser || cfg.AllowOwnAccountEdit.IsTrue())
+}
+
+// updateUserInternal updates a user within an existing transaction
+func (s *Service) updateUserInternal(ctx context.Context, cfg *appconfig.AppConfigModel, userID string, updatedUser dto.UserCreateDto, updateOwnUser bool, isLdapSync bool, origin auditlogs.Origin, tx *gorm.DB) (model.User, error) {
+	if cfg.RequireUserEmail.IsTrue() && updatedUser.Email == nil {
+		return model.User{}, apperror.MissingField("email")
+	}
+
+	var user model.User
+	err := tx.
+		WithContext(ctx).
+		Where("id = ?", userID).
+		Clauses(clause.Locking{Strength: "UPDATE"}).
+		First(&user).
+		Error
+	if errors.Is(err, gorm.ErrRecordNotFound) {
+		return model.User{}, apperror.UserNotFound()
+	}
+	if err != nil {
+		return model.User{}, err
+	}
+
+	wasAdmin, wasDisabled := user.IsAdmin, user.Disabled
+	var emailChange auditlogs.Data
+	if !canEditProfile(cfg, &user, updateOwnUser, isLdapSync) {
+		// Restricted update: Only locale can be changed when:
+		// - User is from LDAP, OR
+		// - User is editing their own account but global setting disallows self-editing
+		user.Locale = updatedUser.Locale
+	} else {
+		// Full update: Allow updating all personal fields
+		user.FirstName = updatedUser.FirstName
+		user.LastName = updatedUser.LastName
+		user.DisplayName = updatedUser.DisplayName
+		user.Username = updatedUser.Username
+		user.Locale = updatedUser.Locale
+
+		if (user.Email == nil && updatedUser.Email != nil) || (user.Email != nil && updatedUser.Email != nil && *user.Email != *updatedUser.Email) {
+			// Email has changed, reset email verification status
+			user.EmailVerified = cfg.EmailsVerified.IsTrue()
+
+			emailChange = auditlogs.Data{"email": *updatedUser.Email}
+			if user.Email != nil {
+				emailChange["previousEmail"] = *user.Email
+			}
+		}
+
+		user.Email = updatedUser.Email
+
+		// Admin-only fields: Only allow updates when not updating own account
+		if !updateOwnUser {
+			user.IsAdmin = updatedUser.IsAdmin
+			user.EmailVerified = updatedUser.EmailVerified
+			user.Disabled = updatedUser.Disabled
+		}
+	}
+
+	// A verified account is no longer deleted for missing the signup verification deadline
+	if user.EmailVerified {
+		user.EmailVerificationDeadline = nil
+	}
+
+	user.UpdatedAt = new(datatype.DateTime(time.Now()))
+
+	err = tx.
+		WithContext(ctx).
+		Save(&user).
+		Error
+	if errors.Is(err, gorm.ErrDuplicatedKey) {
+		// Do not follow this path if we're using LDAP, as we don't want to roll-back the transaction here
+		if !isLdapSync {
+			tx.Rollback()
+			// If we are here, the transaction is already aborted due to an error, so we pass s.db
+			err = s.checkDuplicatedFields(ctx, user, s.db)
+		} else {
+			err = s.checkDuplicatedFields(ctx, user, tx)
+		}
+
+		return user, err
+	} else if err != nil {
+		return user, err
+	}
+
+	if emailChange != nil {
+		s.auditLog.Record(ctx, auditlogs.EventEmailChanged, origin, userID, emailChange, tx)
+	}
+	if user.IsAdmin != wasAdmin {
+		event := auditlogs.EventAdminRevoked
+		if user.IsAdmin {
+			event = auditlogs.EventAdminGranted
+		}
+		s.auditLog.Record(ctx, event, origin, userID, nil, tx)
+	}
+	if user.Disabled != wasDisabled {
+		event := auditlogs.EventAccountEnabled
+		if user.Disabled {
+			event = auditlogs.EventAccountDisabled
+		}
+		s.auditLog.Record(ctx, event, origin, userID, nil, tx)
+	}
+
+	return user, nil
+}
+
+func (s *Service) UpdateUserGroups(ctx context.Context, id string, userGroupIds []string, origin auditlogs.Origin) (user model.User, err error) {
+	tx := s.db.Begin()
+	defer func() {
+		tx.Rollback()
+	}()
+
+	user, err = s.getUserInternal(ctx, id, tx)
+	if err != nil {
+		return model.User{}, err
+	}
+
+	// Remember the current groups, because the groups the user leaves change their membership too
+	previousGroups := slices.Clone(user.UserGroups)
+
+	// Fetch the groups based on userGroupIds
+	var groups []model.UserGroup
+	if len(userGroupIds) > 0 {
+		err := tx.
+			WithContext(ctx).
+			Where("id IN (?)", userGroupIds).
+			Find(&groups).
+			Error
+		if err != nil {
+			return model.User{}, err
+		}
+	}
+
+	// Replace the current groups with the new set of groups
+	err = tx.
+		WithContext(ctx).
+		Model(&user).
+		Association("UserGroups").
+		Replace(groups)
+	if err != nil {
+		return model.User{}, err
+	}
+
+	// Save the updated user
+	err = tx.WithContext(ctx).Save(&user).Error
+	if err != nil {
+		return model.User{}, err
+	}
+
+	// Bump the UpdatedAt of every group the user joined or left, so the SCIM sync pushes the new membership
+	err = s.touchUserGroups(ctx, tx, append(userGroupIDs(previousGroups), userGroupIDs(groups)...))
+	if err != nil {
+		return model.User{}, err
+	}
+
+	joined, left := utils.Changes(previousGroups, groups, func(group model.UserGroup) string { return group.ID })
+	for _, group := range joined {
+		s.auditLog.Record(ctx, auditlogs.EventGroupMemberAdded, origin, id, auditlogs.Data{"groupName": group.FriendlyName}, tx)
+	}
+	for _, group := range left {
+		s.auditLog.Record(ctx, auditlogs.EventGroupMemberRemoved, origin, id, auditlogs.Data{"groupName": group.FriendlyName}, tx)
+	}
+
+	err = tx.Commit().Error
+	if err != nil {
+		return model.User{}, err
+	}
+
+	if s.scimSyncScheduler != nil {
+		s.scimSyncScheduler.ScheduleSync(ctx)
+	}
+
+	// Losing a group can revoke access to group-restricted clients, so tell those clients to end the user's sessions
+	if s.backchannelLogout != nil && len(left) > 0 {
+		s.backchannelLogout.NotifyLostGroupAccess(ctx, []string{id}, "")
+	}
+
+	return user, nil
+}
+
+func (s *Service) checkDuplicatedFields(ctx context.Context, user model.User, tx *gorm.DB) error {
+	if user.Email != nil {
+		taken, err := isEmailTaken(ctx, tx, user.ID, *user.Email)
+		if err != nil {
+			return err
+		}
+		if taken {
+			return apperror.AlreadyInUse("email")
+		}
+	}
+
+	var result struct {
+		Found bool
+	}
+	err := tx.
+		WithContext(ctx).
+		Raw(`SELECT EXISTS(SELECT 1 FROM users WHERE id != ? AND username = ?) AS found`, user.ID, user.Username).
+		First(&result).
+		Error
+	if err != nil {
+		return err
+	}
+	if result.Found {
+		return apperror.AlreadyInUse("username")
+	}
+
+	return nil
+}
+
+// ResetProfilePicture deletes a user's custom profile picture
+func (s *Service) ResetProfilePicture(ctx context.Context, userID string) error {
+	// Validate the user ID to prevent directory traversal
+	_, err := uuid.Parse(userID)
+	if err != nil {
+		return apperror.InvalidUserID()
+	}
+
+	_, err = s.GetUser(ctx, userID)
+	if err != nil {
+		return err
+	}
+
+	profilePicturePath := path.Join("profile-pictures", userID+".png")
+	err = s.fileStorage.Delete(ctx, profilePicturePath)
+	if err != nil {
+		return fmt.Errorf("failed to delete profile picture: %w", err)
+	}
+	return nil
+}
+
+// disableUserInternal disables a user within an existing transaction
+func (s *Service) disableUserInternal(ctx context.Context, tx *gorm.DB, userID string, origin auditlogs.Origin) error {
+	// Bump UpdatedAt so the SCIM sync pushes the disabled state, but only when the user was still enabled
+	result := tx.
+		WithContext(ctx).
+		Model(&model.User{}).
+		Where("id = ? AND disabled = ?", userID, false).
+		Updates(map[string]any{
+			"disabled":   true,
+			"updated_at": datatype.DateTime(time.Now()),
+		})
+	if result.Error != nil {
+		return result.Error
+	}
+	if result.RowsAffected > 0 {
+		s.auditLog.Record(ctx, auditlogs.EventAccountDisabled, origin, userID, nil, tx)
+	}
+
+	return nil
+}
+
+// isEmailTaken reports whether a user other than the given one already uses the email
+func isEmailTaken(ctx context.Context, tx *gorm.DB, userID, email string) (bool, error) {
+	var result struct {
+		Found bool
+	}
+	err := tx.
+		WithContext(ctx).
+		Raw(`SELECT EXISTS(SELECT 1 FROM users WHERE id != ? AND email = ?) AS found`, userID, email).
+		First(&result).
+		Error
+	return result.Found, err
+}

@@ -1,13 +1,14 @@
 import test, { expect, type Browser } from '@playwright/test';
 import { oneTimeAccessTokens } from '../data';
 import { cleanupBackend } from '../utils/cleanup.util';
+import { signedOutState } from '../utils/auth.util';
 import { authFile } from '../utils/fs.util';
 import passkeyUtil from '../utils/passkey.util';
 
 test.beforeEach(async () => await cleanupBackend());
 
 // Disable authentication for these tests
-test.use({ storageState: { cookies: [], origins: [] } });
+test.use({ storageState: signedOutState });
 
 test('Sign in with login code', async ({ page }) => {
 	const token = oneTimeAccessTokens.filter((t) => !t.expired)[0];
@@ -81,7 +82,6 @@ test('Sign in with login code entered manually when email login is enabled', asy
 	const token = oneTimeAccessTokens.find((t) => !t.expired)!;
 	await page.goto('/lc');
 
-	await page.getByText('I have a 12-character code').click();
 	await page.getByLabel('Login code').fill(token.token);
 	await page.getByRole('button', { name: 'Sign in', exact: true }).click();
 

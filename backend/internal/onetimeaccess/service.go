@@ -55,54 +55,57 @@ func newService(deps Dependencies, actorService *actor.Service) *Service {
 	}
 }
 
-func (s *Service) RequestOneTimeAccessEmailAsAdmin(ctx context.Context, dbConfig *appconfig.AppConfigModel, userID string, ttl time.Duration) error {
+func (s *Service) RequestOneTimeAccessEmailAsAdmin(ctx context.Context, dbConfig *appconfig.AppConfigModel, userID string, ttl time.Duration, origin auditlogs.Origin) error {
 	if !dbConfig.EmailOneTimeAccessAsAdminEnabled.IsTrue() {
 		return apperror.OneTimeAccessDisabled()
 	}
 
-	_, err := s.requestOneTimeAccessEmailInternal(ctx, userID, "", ttl, false, dbConfig)
-	return err
+	return s.requestOneTimeAccessEmailInternal(ctx, userID, "", ttl, nil, dbConfig, origin)
 }
 
-func (s *Service) RequestOneTimeAccessEmailAsUnauthenticatedUser(ctx context.Context, dbConfig *appconfig.AppConfigModel, email, redirectPath string) (string, error) {
+func (s *Service) RequestOneTimeAccessEmailAsUnauthenticatedUser(ctx context.Context, dbConfig *appconfig.AppConfigModel, email, redirectPath string, origin auditlogs.Origin) (string, error) {
 	if !dbConfig.EmailOneTimeAccessAsUnauthenticatedEnabled.IsTrue() {
 		return "", apperror.OneTimeAccessDisabled()
 	}
 
-	var userId string
-	err := s.db.Model(&model.User{}).Select("id").Where("email = ?", email).First(&userId).Error
-	if errors.Is(err, gorm.ErrRecordNotFound) {
-		// Return a dummy device token that looks like a real one so the response does not reveal whether the email is registered
-		return utils.GenerateRandomAlphanumericString(deviceTokenLength)
-	} else if err != nil {
-		return "", err
-	}
-
-	deviceToken, err := s.requestOneTimeAccessEmailInternal(ctx, userId, redirectPath, 15*time.Minute, true, dbConfig)
+	deviceToken, err := utils.GenerateRandomAlphanumericString(deviceTokenLength)
 	if err != nil {
 		return "", err
-	} else if deviceToken == nil {
-		return "", errors.New("device token expected but not returned")
 	}
 
-	return *deviceToken, nil
+	// The work for a registered email runs in the background, so neither the response time nor its outcome reveals whether the email is registered
+	go func() {
+		innerCtx := context.WithoutCancel(ctx)
+
+		var userID string
+		innerErr := s.db.WithContext(innerCtx).Model(&model.User{}).Select("id").Where("email = ?", email).First(&userID).Error
+		if innerErr == nil {
+			innerErr = s.requestOneTimeAccessEmailInternal(innerCtx, userID, redirectPath, 15*time.Minute, &deviceToken, dbConfig, origin)
+		}
+		if innerErr != nil && !errors.Is(innerErr, gorm.ErrRecordNotFound) {
+			slog.ErrorContext(innerCtx, "Failed to create the requested one-time access token", slog.Any("error", innerErr))
+		}
+	}()
+
+	return deviceToken, nil
 }
 
-func (s *Service) requestOneTimeAccessEmailInternal(ctx context.Context, userID, redirectPath string, ttl time.Duration, withDeviceToken bool, dbConfig *appconfig.AppConfigModel) (*string, error) {
+func (s *Service) requestOneTimeAccessEmailInternal(ctx context.Context, userID, redirectPath string, ttl time.Duration, deviceToken *string, dbConfig *appconfig.AppConfigModel, origin auditlogs.Origin) error {
 	// Load the user to ensure it exists and has an email address
 	user, err := s.userProvider.GetUser(ctx, userID)
 	if err != nil {
-		return nil, err
+		return err
 	}
 
 	if user.Email == nil {
-		return nil, apperror.UserEmailNotSet()
+		return apperror.UserEmailNotSet()
 	}
 
-	oneTimeAccessToken, deviceToken, err := StoreToken(ctx, s.actorService, user.ID, ttl, withDeviceToken)
+	oneTimeAccessToken, err := StoreToken(ctx, s.actorService, user.ID, ttl, deviceToken)
 	if err != nil {
-		return nil, err
+		return err
 	}
+	s.auditLog.Record(ctx, auditlogs.EventLoginCodeCreated, origin, user.ID, auditlogs.Data{"delivery": "email"}, nil)
 
 	go func() {
 		// This runs in background, so use a context without cancellation (or it would be stopped when the request ends)
@@ -134,10 +137,10 @@ func (s *Service) requestOneTimeAccessEmailInternal(ctx context.Context, userID,
 		}
 	}()
 
-	return deviceToken, nil
+	return nil
 }
 
-func (s *Service) CreateToken(ctx context.Context, userID string, ttl time.Duration) (token string, err error) {
+func (s *Service) CreateToken(ctx context.Context, userID string, ttl time.Duration, origin auditlogs.Origin) (token string, err error) {
 	// Load the user to ensure it exists
 	_, err = s.userProvider.GetUser(ctx, userID)
 	if errors.Is(err, gorm.ErrRecordNotFound) {
@@ -146,15 +149,16 @@ func (s *Service) CreateToken(ctx context.Context, userID string, ttl time.Durat
 		return "", err
 	}
 
-	token, _, err = StoreToken(ctx, s.actorService, userID, ttl, false)
+	token, err = StoreToken(ctx, s.actorService, userID, ttl, nil)
 	if err != nil {
 		return "", err
 	}
+	s.auditLog.Record(ctx, auditlogs.EventLoginCodeCreated, origin, userID, auditlogs.Data{"delivery": "link"}, nil)
 
 	return token, nil
 }
 
-func (s *Service) ExchangeToken(ctx context.Context, dbConfig *appconfig.AppConfigModel, token, deviceToken, ipAddress, userAgent, browserToken string) (model.User, model.LoginTokens, error) {
+func (s *Service) ExchangeToken(ctx context.Context, dbConfig *appconfig.AppConfigModel, token, deviceToken, ipAddress, userAgent, browserToken string, remember bool) (model.User, model.LoginTokens, error) {
 	token = utils.NormalizeUnambiguousString(token)
 
 	// Consume the token by invoking its actor: this atomically validates it and, if valid, deletes it.
@@ -175,8 +179,6 @@ func (s *Service) ExchangeToken(ctx context.Context, dbConfig *appconfig.AppConf
 	switch consumeRes.Status {
 	case tokenConsumeNotFound:
 		return model.User{}, model.LoginTokens{}, apperror.TokenInvalidOrExpired()
-	case tokenConsumeDeviceMismatch:
-		return model.User{}, model.LoginTokens{}, apperror.DeviceCodeInvalid()
 	case tokenConsumeOK:
 		// All good, continue below
 	default:
@@ -184,7 +186,7 @@ func (s *Service) ExchangeToken(ctx context.Context, dbConfig *appconfig.AppConf
 	}
 
 	// The token has now been consumed. From this point on, if we hit an error we compensate by restoring the token (this is best-effort).
-	user, tokens, err := s.completeTokenExchange(ctx, dbConfig, consumeRes.State, ipAddress, userAgent, browserToken)
+	user, tokens, err := s.completeTokenExchange(ctx, dbConfig, consumeRes.State, ipAddress, userAgent, browserToken, remember)
 	if err != nil {
 		s.restoreToken(ctx, token, consumeRes.State)
 		return model.User{}, model.LoginTokens{}, err
@@ -194,7 +196,7 @@ func (s *Service) ExchangeToken(ctx context.Context, dbConfig *appconfig.AppConf
 }
 
 // completeTokenExchange performs the work that follows consuming a token: loading the user, validating it, and starting a session.
-func (s *Service) completeTokenExchange(ctx context.Context, dbConfig *appconfig.AppConfigModel, state TokenState, ipAddress, userAgent, browserToken string) (model.User, model.LoginTokens, error) {
+func (s *Service) completeTokenExchange(ctx context.Context, dbConfig *appconfig.AppConfigModel, state TokenState, ipAddress, userAgent, browserToken string, remember bool) (model.User, model.LoginTokens, error) {
 	var user model.User
 	err := s.db.
 		WithContext(ctx).
@@ -211,7 +213,7 @@ func (s *Service) completeTokenExchange(ctx context.Context, dbConfig *appconfig
 		return model.User{}, model.LoginTokens{}, apperror.UserDisabled()
 	}
 
-	sessionToken, err := s.sessions.Create(ctx, user.ID, authenticationMethodOneTimePassword, ipAddress, userAgent, dbConfig.SessionDuration.AsDurationMinutes())
+	sessionToken, err := s.sessions.Create(ctx, user.ID, authenticationMethodOneTimePassword, ipAddress, userAgent, dbConfig.SessionDuration.AsDurationMinutes(), remember)
 	if err != nil {
 		return model.User{}, model.LoginTokens{}, err
 	}
@@ -237,11 +239,11 @@ func (s *Service) restoreToken(parentCtx context.Context, token string, state To
 }
 
 // StoreToken generates a new one-time access token and persists it in the actor state store, with a TTL matching its lifetime.
-// It returns the token value and, when requested, the associated device token.
-func StoreToken(ctx context.Context, store TokenStore, userID string, ttl time.Duration, withDeviceToken bool) (token string, deviceToken *string, err error) {
-	token, deviceToken, err = generateToken(ttl, withDeviceToken)
+// A non-nil device token binds the token to the device that requested it.
+func StoreToken(ctx context.Context, store TokenStore, userID string, ttl time.Duration, deviceToken *string) (token string, err error) {
+	token, err = generateToken(ttl)
 	if err != nil {
-		return "", nil, err
+		return "", err
 	}
 
 	now := time.Now().Round(time.Second)
@@ -253,32 +255,19 @@ func StoreToken(ctx context.Context, store TokenStore, userID string, ttl time.D
 
 	err = store.SetState(ctx, TokenActorType, token, state, &actor.SetStateOpts{TTL: ttl})
 	if err != nil {
-		return "", nil, fmt.Errorf("error saving one-time access token state: %w", err)
+		return "", fmt.Errorf("error saving one-time access token state: %w", err)
 	}
 
-	return token, deviceToken, nil
+	return token, nil
 }
 
-// generateToken generates the random token value (and optional device token) for a one-time access token.
-func generateToken(ttl time.Duration, withDeviceToken bool) (token string, deviceToken *string, err error) {
+// generateToken generates the random token value for a one-time access token.
+func generateToken(ttl time.Duration) (string, error) {
 	// Use the shorter format only for codes that expire within 15 minutes
 	tokenLength := longTokenLength
 	if ttl <= 15*time.Minute {
 		tokenLength = shortTokenLength
 	}
 
-	token, err = utils.GenerateRandomUnambiguousString(tokenLength)
-	if err != nil {
-		return "", nil, err
-	}
-
-	if withDeviceToken {
-		dt, err := utils.GenerateRandomAlphanumericString(deviceTokenLength)
-		if err != nil {
-			return "", nil, err
-		}
-		deviceToken = &dt
-	}
-
-	return token, deviceToken, nil
+	return utils.GenerateRandomUnambiguousString(tokenLength)
 }

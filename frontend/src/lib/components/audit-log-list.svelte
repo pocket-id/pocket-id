@@ -1,8 +1,8 @@
 <script lang="ts">
 	import CopyButton from '#lib/components/copy-button.svelte';
-	import FormattedMessage from '#lib/components/formatted-message.svelte';
-	import type { AnyFormattedMessage, AnyMessage } from '#lib/components/formatted-message.ts';
 	import ListPagination from '#lib/components/list-pagination.svelte';
+	import OidcClientAvatar from '#lib/components/oidc-client-avatar.svelte';
+	import AdvancedTableColumnSelection from '#lib/components/table/advanced-table-column-selection.svelte';
 	import * as Avatar from '@pocket-id/ui/avatar';
 	import { Badge } from '@pocket-id/ui/badge';
 	import { Button } from '@pocket-id/ui/button';
@@ -10,16 +10,19 @@
 	import { m } from '#lib/paraglide/messages.js';
 	import { getLocale } from '#lib/paraglide/runtime.js';
 	import AuditLogService from '#lib/services/audit-log-service.ts';
-	import appConfigStore from '#lib/stores/application-configuration-store.ts';
+	import type { AdvancedTableColumn } from '#lib/types/advanced-table.type.ts';
 	import type { AuditLog, AuditLogDateRange, AuditLogFilter } from '#lib/types/audit-log.type.ts';
 	import type { ListRequestOptions, Paginated } from '#lib/types/list-request.type.ts';
 	import { translateAuditLogEvent } from '#lib/utils/audit-log-translator.ts';
 	import { cachedProfilePicture } from '#lib/utils/cached-asset-util.ts';
 	import { cn } from '@pocket-id/ui/utils';
 	import ChevronDownIcon from '~icons/solar/alt-arrow-down-linear';
-	import MonitorIcon from '~icons/solar/monitor-bold-duotone';
-	import SmartphoneIcon from '~icons/solar/smartphone-bold-duotone';
-	import { untrack } from 'svelte';
+	import CodeSquareIcon from '~icons/solar/code-square-bold-duotone';
+	import KeyIcon from '~icons/solar/key-bold-duotone';
+	import NotebookIcon from '~icons/solar/notebook-bold-duotone';
+	import SettingsIcon from '~icons/solar/settings-bold-duotone';
+	import { PersistedState } from 'runed';
+	import { untrack, type Component } from 'svelte';
 	import { SvelteSet } from 'svelte/reactivity';
 
 	let {
@@ -110,42 +113,61 @@
 		});
 	}
 
-	// Events about an app or a passkey name it in the sentence
-	const objectSentences: Record<string, AnyMessage | undefined> = {
-		CLIENT_AUTHORIZATION: m.audit_sentence_signed_in_to,
-		NEW_CLIENT_AUTHORIZATION: m.audit_sentence_allowed_app,
-		DEVICE_CODE_AUTHORIZATION: m.audit_sentence_signed_in_on_device,
-		NEW_DEVICE_CODE_AUTHORIZATION: m.audit_sentence_allowed_on_device,
-		PASSKEY_ADDED: m.audit_sentence_added_passkey,
-		PASSKEY_REMOVED: m.audit_sentence_removed_passkey
+	const signInMethods: Record<string, (() => string) | undefined> = {
+		SIGN_IN: m.audit_via_passkey,
+		TOKEN_SIGN_IN: m.audit_via_login_code,
+		REMOTE_SIGN_IN: m.audit_via_another_device
 	};
 
-	function describe(log: AuditLog): { sentence: AnyFormattedMessage | string; via?: string } {
-		const signedIn = {
-			message: m.audit_sentence_signed_in_to,
-			inputs: { name: $appConfigStore.appName }
-		};
-		switch (log.event) {
-			case 'SIGN_IN':
-				return { sentence: signedIn, via: m.audit_via_passkey() };
-			case 'TOKEN_SIGN_IN':
-				return { sentence: signedIn, via: m.audit_via_login_code() };
-			case 'REMOTE_SIGN_IN':
-				return { sentence: signedIn, via: m.audit_via_another_device() };
-			case 'ACCOUNT_CREATED':
-				return { sentence: m.audit_sentence_account_created() };
+	// Revoking every session at once names no single device
+	function signedOutDevice(log: AuditLog) {
+		if (!log.data?.sessionCount) return log.data?.device;
+		return log.data.exceptCurrent === 'true' ? m.audit_all_other_devices() : m.audit_all_devices();
+	}
+
+	const actorIcons: Partial<Record<AuditLog['actorType'], Component>> = {
+		static_api_key: KeyIcon,
+		ldap: NotebookIcon,
+		cli: CodeSquareIcon,
+		system: SettingsIcon
+	};
+
+	// A sign-in names its method, and a change made with an API key or through an app names it, while a session or a client acting as itself needs no mention
+	function credentialVia(log: AuditLog) {
+		const method = signInMethods[log.event];
+		if (method) return method();
+		const name = log.data?.viaName;
+		if (!name) return undefined;
+		switch (log.data?.via) {
+			case 'api_key':
+				return m.audit_via_api_key({ name });
+			case 'mcp':
+				return m.audit_via_mcp({ name });
+			case 'oauth':
+				return m.audit_via_app({ name });
 		}
-		const message = objectSentences[log.event];
-		const name = log.data?.clientName || log.data?.passkeyName;
-		if (message && name) return { sentence: { message, inputs: { name } } };
-		return { sentence: translateAuditLogEvent(log.event) };
+	}
+
+	function actorName(log: AuditLog) {
+		switch (log.actorType) {
+			case 'user':
+			case 'client':
+				return log.actorName || m.unknown();
+			case 'static_api_key':
+				return m.audit_actor_static_api_key();
+			case 'ldap':
+				return m.audit_actor_ldap();
+			case 'cli':
+				return m.audit_actor_cli();
+			case 'system':
+				return m.system();
+		}
 	}
 
 	function formatLocation(log: AuditLog) {
+		if (!log.ipAddress) return '';
 		return [log.city, log.country].filter(Boolean).join(', ') || m.unknown();
 	}
-
-	const isPhone = (device: string) => /android|iphone|ipad|ios|mobile/i.test(device);
 
 	const formatTime = (log: AuditLog) =>
 		new Date(log.createdAt).toLocaleTimeString(getLocale(), { timeStyle: 'short' });
@@ -161,20 +183,55 @@
 		else expanded.add(id);
 	}
 
-	const columnsClass = $derived(
-		isAdmin
-			? 'sm:grid-cols-[minmax(0,1fr)_minmax(0,150px)_64px_16px] lg:grid-cols-[minmax(0,180px)_minmax(0,1fr)_minmax(0,160px)_64px_16px] xl:grid-cols-[minmax(0,180px)_minmax(0,1fr)_minmax(0,200px)_minmax(0,170px)_64px_16px]'
-			: 'sm:grid-cols-[minmax(0,1fr)_minmax(0,180px)_64px_16px] xl:grid-cols-[minmax(0,1fr)_minmax(0,200px)_minmax(0,170px)_64px_16px]'
-	);
-</script>
+	type Column = AdvancedTableColumn<AuditLog> & { key: string; width: string };
 
-{#snippet sentenceText(sentence: AnyFormattedMessage | string)}
-	{#if typeof sentence === 'string'}
-		{sentence}
-	{:else}
-		<FormattedMessage message={sentence.message} inputs={sentence.inputs} />
-	{/if}
-{/snippet}
+	// The event names the row, so it always shows first
+	const adminColumns: Column[] = [
+		{ key: 'event', label: m.event(), width: 'minmax(0,1fr)' },
+		{ key: 'actor', label: m.performed_by(), width: 'minmax(0,1fr)' },
+		{ key: 'resource', label: m.audit_resource(), width: 'minmax(0,1fr)' },
+		{ key: 'time', label: m.time(), width: '72px' },
+		{ key: 'location', label: m.location_and_device(), width: 'minmax(0,1fr)', hidden: true },
+		{ key: 'ipAddress', label: m.ip_address(), width: 'minmax(0,140px)', hidden: true }
+	];
+
+	// Users get a fixed set that shows whether each entry was really them, so who acted moves under the event when it wasn't them
+	const userColumns = ['event', 'resource', 'location', 'time'].map((key) =>
+		adminColumns.find((c) => c.key === key)!
+	);
+
+	const preferences = new PersistedState<{ visibleColumns: string[]; columnOrder?: string[] }>(
+		'audit-log-columns',
+		{ visibleColumns: adminColumns.filter((c) => !c.hidden).map((c) => c.key) }
+	);
+
+	// Columns the saved order doesn't know yet, such as ones added in an update, keep their place after the ordered ones
+	const orderedColumns = $derived.by(() => {
+		const order = preferences.current.columnOrder ?? [];
+		const rank = (column: Column, index: number) => {
+			const position = order.indexOf(column.key);
+			return position === -1 ? order.length + index : position;
+		};
+		const [event, ...rest] = adminColumns;
+		return [
+			event,
+			...rest
+				.map((column, index) => ({ column, rank: rank(column, index) }))
+				.sort((a, b) => a.rank - b.rank)
+				.map(({ column }) => column)
+		];
+	});
+
+	const visibleColumns = $derived(
+		isAdmin
+			? orderedColumns.filter(
+					(c, i) => i === 0 || preferences.current.visibleColumns.includes(c.key)
+				)
+			: userColumns
+	);
+
+	const gridColumns = $derived([...visibleColumns.map((c) => c.width), '16px'].join(' '));
+</script>
 
 <div>
 	<div
@@ -185,17 +242,21 @@
 		aria-busy={isRefreshing}
 	>
 		<div
-			class={cn(
-				'bg-surface-sunken text-caption text-fg-muted mb-1 hidden h-10 items-center gap-4 rounded-sm px-4 font-medium sm:grid',
-				columnsClass
-			)}
+			class="bg-surface-sunken text-caption text-fg-muted mb-1 hidden h-10 grid-cols-(--columns) items-center gap-4 rounded-sm px-4 font-medium sm:grid"
+			style:--columns={gridColumns}
 		>
-			{#if isAdmin}<span class="hidden lg:block">{m.username()}</span>{/if}
-			<span>{m.event()}</span>
-			<span class="hidden xl:block">{m.device()}</span>
-			<span>{m.ip_address()}</span>
-			<span class="text-right">{m.time()}</span>
-			<span></span>
+			{#each visibleColumns as column (column.key)}
+				<span class="truncate">{column.label}</span>
+			{/each}
+			<span class="flex justify-center">
+				{#if isAdmin}
+					<AdvancedTableColumnSelection
+						columns={orderedColumns}
+						bind:selectedColumns={preferences.current.visibleColumns}
+						bind:columnOrder={preferences.current.columnOrder}
+					/>
+				{/if}
+			</span>
 		</div>
 
 		{#if !logs}
@@ -218,16 +279,35 @@
 			</h2>
 			<ul>
 				{#each day.logs as log (log.id)}
-					{@const { sentence, via } = describe(log)}
-					{@const by = !isAdmin
-						? undefined
-						: log.data?.actorClientName
-							? m.audit_by_client({ name: log.data.actorClientName })
-							: log.actorUsername && log.actorUsername !== log.username
-								? m.audit_by_actor({ name: log.actorUsername })
-								: undefined}
+					<!-- Deleted users keep their username but lose their ID -->
+					{@const selfAction =
+						log.actorType === 'user' &&
+						(log.userID ? log.actorID === log.userID : log.actorName === log.username)}
+					<!-- The user is the resource only when someone else acted on them, while users acting on themselves show what they changed -->
+					<!-- Users' own activity is all about them, so it never names them -->
+					{@const subject =
+						isAdmin && !selfAction && (log.userID || log.username)
+							? log.username || m.unknown()
+							: undefined}
+					{@const actor = actorName(log)}
+					{@const via = credentialVia(log)}
+					{@const performedBy = [actor, via].filter(Boolean).join(' ')}
+					{@const actedBy = selfAction
+						? via
+						: actor && [m.audit_by({ name: actor }), via].filter(Boolean).join(' ')}
+					{@const objectName =
+						log.data?.groupName ||
+						log.data?.apiKeyName ||
+						(subject
+							? undefined
+							: log.data?.passkeyName || log.data?.email || signedOutDevice(log))}
+					<!-- A client acting on itself, such as rotating its own secret, is already named as the actor -->
+					{@const client =
+						log.actorType === 'client' && log.actorID === log.data?.clientID
+							? undefined
+							: log.data?.clientName}
+					{@const resources = [subject, client, objectName].filter(Boolean)}
 					{@const open = expanded.has(log.id)}
-					{@const DeviceIcon = isPhone(log.device) ? SmartphoneIcon : MonitorIcon}
 					<!-- Like table rows, a filled row hides the dividers around it, but an open row keeps the one below its details -->
 					<li
 						class="border-b transition-colors duration-(--dur-fast) has-[+li>button:is(:hover,:focus-visible)]:border-transparent has-[>button[aria-expanded=false]:is(:hover,:focus-visible)]:border-transparent"
@@ -236,68 +316,93 @@
 							type="button"
 							aria-expanded={open}
 							aria-controls={`audit-detail-${log.id}`}
-							class={cn(
-								'hover:bg-fill-row-hover focus-visible:bg-fill-row-hover focus-visible:outline-ring grid min-h-(--row-2line) w-full grid-cols-[minmax(0,1fr)_16px] items-center gap-x-4 rounded-sm px-4 py-2 text-start transition-colors duration-(--dur-fast) focus-visible:outline-2 focus-visible:-outline-offset-2',
-								columnsClass
-							)}
+							class="hover:bg-fill-row-hover focus-visible:bg-fill-row-hover focus-visible:outline-ring text-control grid min-h-(--row-2line) w-full grid-cols-[minmax(0,1fr)_16px] items-center gap-x-4 rounded-sm px-4 py-2 text-start transition-colors duration-(--dur-fast) focus-visible:outline-2 focus-visible:-outline-offset-2 sm:grid-cols-(--columns)"
+							style:--columns={gridColumns}
 							onclick={() => toggle(log.id)}
 						>
-							{#if isAdmin}
-								<span class="hidden min-w-0 items-center gap-2 lg:flex">
-									<Avatar.Root class="size-6">
-										<Avatar.Image src={cachedProfilePicture.getUrl(log.userID)} alt="" />
-										<Avatar.Fallback>{log.username?.[0]?.toUpperCase()}</Avatar.Fallback>
-									</Avatar.Root>
-									<span class="text-control truncate font-medium"
-										>{log.username || m.unknown()}</span
-									>
-								</span>
-							{/if}
-							<span class="flex min-w-0 flex-col gap-0.5">
-								<span class="text-body [&_b]:font-medium">
-									{#if isAdmin}
-										<span class="text-control font-medium lg:hidden"
-											>{log.username || m.unknown()} ·</span
-										>
-									{/if}
-									{@render sentenceText(sentence)}
-									{#if by}
-										<span class="text-control text-fg-muted">· {by}</span>
-									{/if}
-								</span>
-								<span class="text-caption text-fg-muted flex min-w-0 items-center gap-x-1.5">
-									{#if isAdmin}
-										<Badge variant="mono" class="max-sm:hidden">{log.event}</Badge>
-									{/if}
-									{#if log.data?.newBrowser === 'true'}
-										<Badge variant="warning" title={m.new_browser_hint()}>{m.new_browser()}</Badge>
-									{/if}
-									{#if via}<span class="shrink-0 max-sm:hidden">{via}</span>{/if}
-									<!-- Below xl the Device column folds into this line so the sentence keeps its width -->
-									{#if via || isAdmin}
-										<span aria-hidden="true" class="hidden sm:inline xl:hidden">·</span>
-									{/if}
-									<span class="hidden min-w-0 truncate sm:inline xl:hidden">{log.device}</span>
-									<span class="truncate tabular-nums sm:hidden">
-										{formatTime(log)} · {log.device} · {formatLocation(log)}
+							{#each visibleColumns as column (column.key)}
+								{#if column.key === 'event'}
+									<span class="flex min-w-0 flex-col gap-0.5">
+										<span class="flex min-w-0 items-center gap-2">
+											<span class="truncate font-medium">{translateAuditLogEvent(log.event)}</span>
+											{#if log.data?.newBrowser === 'true'}
+												<Badge variant="warning" class="shrink-0" title={m.new_browser_hint()}>
+													{m.new_browser()}
+												</Badge>
+											{/if}
+										</span>
+										{#if !isAdmin && actedBy}
+											<span class="text-caption text-fg-muted truncate max-sm:hidden"
+												>{actedBy}</span
+											>
+										{/if}
+										<span class="text-caption text-fg-muted truncate tabular-nums sm:hidden">
+											{[formatTime(log), isAdmin ? performedBy : actedBy, resources.join(', ')]
+												.filter(Boolean)
+												.join(' · ')}
+										</span>
 									</span>
-								</span>
-							</span>
-							<span class="text-control hidden min-w-0 items-center gap-1.5 xl:flex">
-								<DeviceIcon class="text-fg-muted size-4 shrink-0" />
-								<span class="truncate">{log.device}</span>
-							</span>
-							<span class="hidden min-w-0 flex-col sm:flex">
-								<span class="text-control truncate">{log.ipAddress}</span>
-								<span class="text-caption text-fg-muted truncate">{formatLocation(log)}</span>
-							</span>
-							<time
-								class="text-control hidden text-right tabular-nums sm:block"
-								datetime={log.createdAt}
-								title={formatStamp(log)}
-							>
-								{formatTime(log)}
-							</time>
+								{:else if column.key === 'actor'}
+									{@const ActorIcon = actorIcons[log.actorType]}
+									<span class="hidden min-w-0 items-center gap-2 sm:flex">
+										{#if log.actorType === 'user'}
+											{@render userAvatar(log.actorID, log.actorName)}
+										{:else if log.actorType === 'client'}
+											<OidcClientAvatar id={log.actorID} name={log.actorName} hasLogo size={20} />
+										{:else if ActorIcon}
+											<span
+												class="bg-fill-muted text-fg-muted inset-ring-border inline-grid size-5 shrink-0 place-items-center rounded-[5px] inset-ring"
+											>
+												<ActorIcon class="size-3.5" />
+											</span>
+										{/if}
+										<span class="flex min-w-0 flex-col">
+											<span class="truncate">{actor}</span>
+											{#if via}<span class="text-caption text-fg-muted truncate">{via}</span>{/if}
+										</span>
+									</span>
+								{:else if column.key === 'resource'}
+									<!-- Entries recorded before the client ID was stored show the monogram -->
+									<span class="hidden min-w-0 items-center gap-2 sm:flex">
+										{#if subject}
+											{@render userAvatar(log.userID, log.username ?? subject)}
+										{:else if client}
+											<OidcClientAvatar
+												id={log.data.clientID ?? ''}
+												name={client}
+												hasLogo={Boolean(log.data.clientID)}
+												size={20}
+											/>
+										{/if}
+										<span class="flex min-w-0 flex-col">
+											<span class="truncate">{resources[0]}</span>
+											{#if resources.length > 1}
+												<span class="text-caption text-fg-muted truncate">
+													{resources.slice(1).join(', ')}
+												</span>
+											{/if}
+										</span>
+									</span>
+								{:else if column.key === 'time'}
+									<time
+										class="hidden whitespace-nowrap tabular-nums sm:block"
+										datetime={log.createdAt}
+										title={formatStamp(log)}
+									>
+										{formatTime(log)}
+									</time>
+								{:else if column.key === 'location'}
+									<!-- Entries without an IP address show the device alone -->
+									{@const [place, device] = [formatLocation(log), log.device].filter(Boolean)}
+									<span class="hidden min-w-0 flex-col sm:flex">
+										<span class="truncate">{place}</span>
+										{#if device}<span class="text-caption text-fg-muted truncate">{device}</span
+											>{/if}
+									</span>
+								{:else}
+									<span class="hidden truncate tabular-nums sm:block">{log.ipAddress}</span>
+								{/if}
+							{/each}
 							<ChevronDownIcon
 								class={cn(
 									'text-fg-muted size-3 justify-self-center transition-transform duration-(--dur-base)',
@@ -313,26 +418,51 @@
 								<dl class="grid gap-x-6 gap-y-4 sm:grid-cols-2">
 									<div class="flex min-w-0 flex-col gap-0.5">
 										<dt class="text-caption text-fg-muted">{m.event()}</dt>
-										<dd class="text-control flex flex-wrap items-center gap-1.5 [&_b]:font-medium">
-											<span>{@render sentenceText(sentence)}</span>
+										<dd class="text-control flex flex-wrap items-center gap-1.5">
+											<span>{translateAuditLogEvent(log.event)}</span>
 											<Badge variant="mono">{log.event}</Badge>
 										</dd>
 									</div>
 									{@render detailItem(m.time(), formatStamp(log))}
+									{#if performedBy}
+										{@render detailItem(m.performed_by(), performedBy)}
+									{/if}
 									{#if log.data?.clientName}
 										{@render detailItem(m.client(), log.data.clientName)}
+									{/if}
+									{#if log.data?.groupName}
+										{@render detailItem(m.group(), log.data.groupName)}
 									{/if}
 									{#if log.data?.passkeyName}
 										{@render detailItem(m.passkey(), log.data.passkeyName)}
 									{/if}
-									{@render detailItem(m.ip_address(), log.ipAddress, m.copy_ip_address())}
-									{@render detailItem(m.approximate_location(), formatLocation(log))}
-									{@render detailItem(
-										m.device(),
-										log.data?.newBrowser === 'true'
-											? `${log.device} · ${m.new_browser_hint()}`
-											: log.device
-									)}
+									{#if log.data?.email}
+										{@render detailItem(m.email(), log.data.email)}
+									{/if}
+									{#if log.data?.previousEmail}
+										{@render detailItem(m.audit_previous_email(), log.data.previousEmail)}
+									{/if}
+									{#if log.event === 'SESSION_REVOKED'}
+										{@render detailItem(
+											m.audit_signed_out_device(),
+											signedOutDevice(log) ?? m.unknown()
+										)}
+									{/if}
+									{#if log.data?.changes}
+										{@render detailItem(m.audit_changed_settings(), log.data.changes)}
+									{/if}
+									{#if log.ipAddress}
+										{@render detailItem(m.ip_address(), log.ipAddress, m.copy_ip_address())}
+										{@render detailItem(m.approximate_location(), formatLocation(log))}
+									{/if}
+									{#if log.device}
+										{@render detailItem(
+											m.device(),
+											log.data?.newBrowser === 'true'
+												? `${log.device} · ${m.new_browser_hint()}`
+												: log.device
+										)}
+									{/if}
 									{@render detailItem(m.event_id(), log.id, m.copy_event_id())}
 								</dl>
 								<details class="group/raw mt-4">
@@ -390,6 +520,13 @@
 		}}
 	/>
 </div>
+
+{#snippet userAvatar(id: string, name: string)}
+	<Avatar.Root class="size-5 shrink-0">
+		<Avatar.Image src={cachedProfilePicture.getUrl(id)} alt="" />
+		<Avatar.Fallback>{name[0]?.toUpperCase()}</Avatar.Fallback>
+	</Avatar.Root>
+{/snippet}
 
 {#snippet detailItem(label: string, value: string, copyLabel?: string)}
 	<div class="flex min-w-0 flex-col gap-0.5">

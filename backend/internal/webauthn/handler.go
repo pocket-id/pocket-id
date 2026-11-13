@@ -61,8 +61,14 @@ func (h *handler) verifyRegistration(c *gin.Context) error {
 		return apperror.MissingSessionID()
 	}
 
+	// The body is read before the service opens its write transaction, so a client that withholds it can't keep the database locked
+	credentialCreationData, err := protocol.ParseCredentialCreationResponseBody(c.Request.Body)
+	if err != nil {
+		return apperror.InvalidWebAuthnResponse(err)
+	}
+
 	userID := authz.PrincipalFrom(c).UserID
-	credential, err := h.service.VerifyRegistration(c.Request.Context(), dbConfig, sessionID, userID, c.Request, c.ClientIP())
+	credential, err := h.service.VerifyRegistration(c.Request.Context(), dbConfig, sessionID, userID, credentialCreationData, c.ClientIP(), c.Request.UserAgent())
 	if err != nil {
 		return err
 	}
@@ -109,7 +115,8 @@ func (h *handler) verifyLogin(c *gin.Context) error {
 	}
 
 	browserToken, _ := c.Cookie(cookie.KnownBrowserCookieName)
-	user, tokens, err := h.service.VerifyLogin(c.Request.Context(), dbConfig, sessionID, credentialAssertionData, c.ClientIP(), c.Request.UserAgent(), browserToken)
+	remember := cookie.RememberSignIn(c)
+	user, tokens, err := h.service.VerifyLogin(c.Request.Context(), dbConfig, sessionID, credentialAssertionData, c.ClientIP(), c.Request.UserAgent(), browserToken, remember)
 	if err != nil {
 		return err
 	}
@@ -119,8 +126,7 @@ func (h *handler) verifyLogin(c *gin.Context) error {
 		return err
 	}
 
-	maxAge := int(dbConfig.SessionDuration.AsDurationMinutes().Seconds())
-	cookie.AddSessionTokenCookie(c, maxAge, tokens.SessionToken)
+	cookie.AddSignInSessionTokenCookie(c, dbConfig.SessionDuration.AsDurationMinutes(), remember, tokens.SessionToken)
 	if tokens.KnownBrowserToken != "" {
 		cookie.AddKnownBrowserCookie(c, tokens.KnownBrowserToken, int(auditlogs.KnownBrowserLifetime.Seconds()))
 	}
@@ -146,12 +152,8 @@ func (h *handler) listCredentials(c *gin.Context) error {
 }
 
 func (h *handler) deleteCredential(c *gin.Context) error {
-	principal := authz.PrincipalFrom(c)
-	credentialID := c.Param("id")
-	clientIP := c.ClientIP()
-	userAgent := c.Request.UserAgent()
-
-	err := h.service.DeleteCredential(c.Request.Context(), principal.UserID, credentialID, clientIP, userAgent, principal)
+	origin := auditlogs.OriginFrom(c)
+	err := h.service.DeleteCredential(c.Request.Context(), origin.Principal.UserID, c.Param("id"), origin)
 	if err != nil {
 		return err
 	}
@@ -184,8 +186,8 @@ func (h *handler) updateCredential(c *gin.Context) error {
 }
 
 func (h *handler) logout(c *gin.Context) error {
-	principal := authz.PrincipalFrom(c)
-	err := h.service.sessions.Revoke(c.Request.Context(), principal.UserID, principal.SessionID)
+	origin := auditlogs.OriginFrom(c)
+	err := h.service.sessions.Revoke(c.Request.Context(), origin.Principal.UserID, origin.Principal.SessionID, origin)
 	if err != nil {
 		return err
 	}

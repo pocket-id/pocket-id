@@ -23,13 +23,13 @@
 
 	let { data } = $props();
 
-	// Each save replaces it with the server's response, so the next save of the same tab merges into current values
+	// Each save replaces it with the server's response, so the forms show the saved values
 	let appConfig = $derived(data.appConfig);
 
 	const appConfigService = new AppConfigService();
 
 	async function updateAppConfig(updatedAppConfig: Partial<AllAppConfig>) {
-		appConfig = await appConfigService.update({ ...appConfig, ...updatedAppConfig });
+		appConfig = await appConfigService.update(updatedAppConfig);
 		appConfigStore.set({ ...$appConfigStore, ...appConfig });
 	}
 
@@ -160,32 +160,54 @@
 
 		<Tabs.Content value={data.category}>
 			{#key data.category}
-				<div class="mt-6 flex flex-col gap-10" in:fade={{ duration: cssMs('--dur-base') }}>
+				<div class="mt-8 flex flex-col gap-4" in:fade={{ duration: cssMs('--dur-base') }}>
 					{#if data.category === 'general'}
-						<AppConfigGeneralForm {appConfig} callback={updateAppConfig} />
+						<AppConfigGeneralForm
+							{appConfig}
+							envOverrides={data.envOverrides}
+							callback={updateAppConfig}
+						/>
 					{:else if data.category === 'features'}
-						<AppConfigFeaturesForm features={data.features!} callback={updateAppConfig} />
+						<AppConfigFeaturesForm
+							features={data.features!}
+							envOverrides={data.envOverrides}
+							callback={updateAppConfig}
+						/>
 					{:else if data.category === 'signup'}
 						<AppConfigSignupForm
 							{appConfig}
+							envOverrides={data.envOverrides}
 							showCustomClaims={!!data.features?.customClaims.enabled}
 							callback={updateAppConfig}
 						/>
 					{:else if data.category === 'passkeys'}
-						<AppConfigPasskeysForm {appConfig} callback={updateAppConfig} />
+						<AppConfigPasskeysForm
+							{appConfig}
+							envOverrides={data.envOverrides}
+							callback={updateAppConfig}
+						/>
 					{:else if data.category === 'email'}
-						<AppConfigEmailForm {appConfig} callback={updateAppConfig} />
+						<AppConfigEmailForm
+							{appConfig}
+							envOverrides={data.envOverrides}
+							callback={updateAppConfig}
+						/>
 					{:else if data.category === 'ldap'}
-						<AppConfigLdapForm {appConfig} callback={updateAppConfig} />
+						<AppConfigLdapForm
+							{appConfig}
+							envOverrides={data.envOverrides}
+							callback={updateAppConfig}
+						/>
 					{:else if data.category === 'oidc'}
 						<AppConfigOidcForm
 							{appConfig}
+							envOverrides={data.envOverrides}
 							oidcConfiguration={data.oidcConfiguration!}
 							showCimd={!!data.features?.cimd.enabled}
 							callback={updateAppConfig}
 						/>
 					{:else}
-						<AppConfigAppearanceForm callback={updateAppConfig} />
+						<AppConfigAppearanceForm envOverrides={data.envOverrides} callback={updateAppConfig} />
 					{/if}
 				</div>
 			{/key}

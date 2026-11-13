@@ -16,7 +16,7 @@
 
 	type Swatch = { value: string; color: string; label: string };
 
-	let { class: className }: { class?: string } = $props();
+	let { class: className, disabled = false }: { class?: string; disabled?: boolean } = $props();
 
 	const uid = $props.id();
 
@@ -90,12 +90,12 @@
 	</div>
 {/snippet}
 
-<PreviewSection title="Colors" class={className}>
+<PreviewSection title="Colors" class={className} {disabled}>
 	<div class="roles flex flex-col gap-6">
 		{#each surfaceRoles as role (role.value)}
 			{@render colorRow(
 				role.value,
-				role.label,
+				role.value === 'sidebar' && appearance.value.layout === 'top-bar' ? 'Top Bar' : role.label,
 				undefined,
 				surfaces[role.value],
 				greys(role.value),

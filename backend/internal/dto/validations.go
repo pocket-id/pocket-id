@@ -24,7 +24,8 @@ import (
 // (...)?           : This allows single-character usernames (just one alphanumeric character)
 var validateUsernameRegex = regexp.MustCompile("^[a-zA-Z0-9]([a-zA-Z0-9_.@-]*[a-zA-Z0-9])?$")
 
-var validateClientIDRegex = regexp.MustCompile("^[a-zA-Z0-9._-]+$")
+// RFC 6749 allows any visible ASCII character in a client ID
+var validateClientIDRegex = regexp.MustCompile(`^[\x21-\x7E]+$`)
 
 func init() {
 	engine := binding.Validator.Engine().(*validator.Validate)
@@ -204,8 +205,9 @@ func ValidateUsername(username string) bool {
 }
 
 // ValidateClientID validates client ID inputs
+// A leading "~" would be mistaken for an encoded path parameter, and an https URL would shadow the metadata document client of that URL
 func ValidateClientID(clientID string) bool {
-	return validateClientIDRegex.MatchString(clientID)
+	return validateClientIDRegex.MatchString(clientID) && !strings.HasPrefix(clientID, "~") && !fosite.LooksLikeCIMDURL(clientID)
 }
 
 // isActiveContentScheme reports whether the URL scheme can carry executable content, so it must never be accepted where a URL might later be rendered as a link

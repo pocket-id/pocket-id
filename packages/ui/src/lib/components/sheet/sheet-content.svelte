@@ -66,7 +66,7 @@
 				{/snippet}
 			</DialogPrimitive.Close>
 		</div>
-		<div class="flex min-h-0 flex-1 flex-col gap-6 overflow-y-auto px-6 pt-2 pb-6">
+		<div class="scroll-fade-y flex min-h-0 flex-1 flex-col gap-6 overflow-y-auto px-6 pt-2 pb-6">
 			{@render children()}
 		</div>
 		{#if notice}

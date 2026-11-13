@@ -22,20 +22,8 @@ func NewCustomClaimService(db *gorm.DB) *CustomClaimService {
 
 // isReservedClaim checks if a claim key is reserved e.g. email, preferred_username
 func isReservedClaim(key string) bool {
-	switch key {
-	case "given_name",
-		"family_name",
-		"name",
-		"email",
-		"email_verified",
-		"preferred_username",
-		"display_name",
-		"picture",
-		"groups":
-		return true
-	default:
-		return common.IsProtocolClaim(key)
-	}
+	reserved := []string{"given_name", "family_name", "name", "email", "email_verified", "preferred_username", "display_name", "picture", "groups"}
+	return common.ContainsClaimName(reserved, key) || common.IsProtocolClaim(key)
 }
 
 // idType is the type of the id used to identify the user or user group
@@ -69,6 +57,12 @@ func (s *CustomClaimService) UpdateCustomClaimsForUser(ctx context.Context, user
 	}
 
 	return updatedClaims, nil
+}
+
+// UpdateCustomClaimsForUserInternal replaces a user's custom claims within an existing transaction
+// It's exported for the users module, which applies the default custom claims to new users
+func (s *CustomClaimService) UpdateCustomClaimsForUserInternal(ctx context.Context, userID string, claims []dto.CustomClaimCreateDto, tx *gorm.DB) ([]model.CustomClaim, error) {
+	return s.updateCustomClaimsInternal(ctx, UserID, userID, claims, tx)
 }
 
 // UpdateCustomClaimsForUserGroup updates the custom claims for a user group

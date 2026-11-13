@@ -1,4 +1,5 @@
 <script lang="ts">
+	import EnvOverrideLock from '#lib/components/env-override-lock.svelte';
 	import { Button } from '@pocket-id/ui/button';
 	import * as Tooltip from '@pocket-id/ui/tooltip';
 	import { m } from '#lib/paraglide/messages.js';
@@ -17,6 +18,7 @@
 		disabledReason,
 		consequence,
 		changed = false,
+		envOverride = false,
 		onReset,
 		control
 	}: {
@@ -28,6 +30,8 @@
 		disabledReason?: string;
 		consequence?: string;
 		changed?: boolean;
+		// Makes the control read-only and marks it as set by an environment variable
+		envOverride?: boolean;
 		onReset?: () => void;
 		// Spread the props on the control so the title labels it; leave `id` off for action buttons, whose own text is their name
 		control: Snippet<[ControlProps]>;
@@ -73,13 +77,18 @@
 	{/if}
 	<div class="flex min-w-0 flex-1 flex-wrap items-center gap-x-4 gap-y-3 max-sm:items-start">
 		<div class="flex min-w-0 flex-1 flex-col gap-0.5">
-			<label for={controlId} class="text-heading text-fg">
-				{title}
-				{#if changed}
-					<span class="bg-fg ms-1.5 inline-block size-1.5 rounded-full align-middle"></span>
-					<span id="{uid}-changed" class="sr-only">{m.changed_from_the_default()}</span>
+			<div class="flex items-center gap-1">
+				<label for={controlId} class="text-heading text-fg">
+					{title}
+					{#if changed}
+						<span class="bg-fg ms-1.5 inline-block size-1.5 rounded-full align-middle"></span>
+						<span id="{uid}-changed" class="sr-only">{m.changed_from_the_default()}</span>
+					{/if}
+				</label>
+				{#if envOverride}
+					<EnvOverrideLock />
 				{/if}
-			</label>
+			</div>
 			{#if description}
 				<p id="{uid}-desc" class="text-caption text-fg-muted max-w-[68ch]">
 					{#if typeof description === 'string'}{description}{:else}{@render description()}{/if}
@@ -96,7 +105,7 @@
 			{/if}
 		</div>
 		<!-- Outside the control's box, so a control that wraps under the text leaves the reset on the title line -->
-		{#if changed && onReset}
+		{#if changed && onReset && !envOverride}
 			<Tooltip.Root>
 				<Tooltip.Trigger>
 					{#snippet child({ props })}
@@ -115,16 +124,18 @@
 				<Tooltip.Content>{m.reset_to_default()}</Tooltip.Content>
 			</Tooltip.Root>
 		{/if}
-		<div
-			bind:this={controlContainer}
-			class={cn(
-				'flex items-center gap-2',
-				stacked
-					? 'basis-full'
-					: 'shrink-0 justify-end max-sm:not-has-[>[data-slot=switch]:only-child]:basis-full max-sm:not-has-[>[data-slot=switch]:only-child]:justify-start'
-			)}
-		>
-			{@render control({ id: controlId, 'aria-describedby': describedBy })}
-		</div>
+		<fieldset class="contents" disabled={envOverride}>
+			<div
+				bind:this={controlContainer}
+				class={cn(
+					'flex items-center gap-2',
+					stacked
+						? 'basis-full'
+						: 'shrink-0 justify-end max-sm:not-has-[>[data-slot=switch]:only-child]:basis-full max-sm:not-has-[>[data-slot=switch]:only-child]:justify-start'
+				)}
+			>
+				{@render control({ id: controlId, 'aria-describedby': describedBy })}
+			</div>
+		</fieldset>
 	</div>
 </div>

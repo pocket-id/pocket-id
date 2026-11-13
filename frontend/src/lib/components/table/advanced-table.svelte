@@ -13,6 +13,7 @@
 	} from '#lib/types/advanced-table.type.ts';
 	import type { ListRequestOptions, Paginated, SortRequest } from '#lib/types/list-request.type.ts';
 	import { cn } from '@pocket-id/ui/utils';
+	import { createRangeSelect } from '#lib/utils/range-select-util.ts';
 	import { cssMs } from '#lib/utils/style.ts';
 	import ArrowDownIcon from '~icons/solar/arrow-down-linear';
 	import ArrowUpIcon from '~icons/solar/arrow-up-linear';
@@ -63,6 +64,7 @@
 
 	type TablePreferences = {
 		visibleColumns: string[];
+		columnOrder?: string[];
 		paginationLimit: number;
 		sort?: SortRequest;
 		filters?: Record<string, (string | boolean)[]>;
@@ -75,21 +77,41 @@
 		filters: initializeFilters()
 	});
 
-	const requestOptions = $state<ListRequestOptions>({
-		sort: tablePreferences.current.sort ?? defaultSort,
-		pagination: { limit: tablePreferences.current.paginationLimit, page: 1 },
-		filters: tablePreferences.current.filters
+	const columnKey = (column: AdvancedTableColumn<T>) => column.column ?? column.key!;
+
+	// The identity column stays first because it names the row and is the only one phones show
+	// Columns the saved order doesn't know yet, such as ones added in an update, keep their place after the ordered ones
+	const orderedColumns = $derived.by(() => {
+		const order = tablePreferences.current.columnOrder ?? [];
+		const rank = (column: AdvancedTableColumn<T>, index: number) => {
+			const position = order.indexOf(columnKey(column));
+			return position === -1 ? order.length + index : position;
+		};
+		const [identity, ...rest] = columns;
+		return [
+			identity,
+			...rest
+				.map((column, index) => ({ column, rank: rank(column, index) }))
+				.sort((a, b) => a.rank - b.rank)
+				.map(({ column }) => column)
+		];
 	});
 
 	// The identity column always shows, and so does every column of a table without a Display popover, even when an older saved preference hid them
 	let visibleColumns = $derived(
-		columns.filter(
+		orderedColumns.filter(
 			(c, i) =>
 				i === 0 ||
 				!hasOptionalColumns ||
 				(tablePreferences.current.visibleColumns?.includes(c.column ?? c.key!) ?? true)
 		)
 	);
+
+	const requestOptions = $state<ListRequestOptions>({
+		sort: tablePreferences.current.sort ?? defaultSort,
+		pagination: { limit: tablePreferences.current.paginationLimit, page: 1 },
+		filters: visibleFilters(tablePreferences.current.filters)
+	});
 
 	const narrowed = $derived(
 		!!query ||
@@ -127,6 +149,8 @@
 		}
 	}
 
+	const selectRange = createRangeSelect();
+
 	async function onCheck(checked: boolean, id: string) {
 		const current = selectedIds ?? [];
 		if (checked) {
@@ -152,6 +176,24 @@
 			...requestOptions.filters,
 			[column]: value === undefined ? [] : [value]
 		};
+		tablePreferences.current.filters = requestOptions.filters;
+		await refresh();
+	}
+
+	// Filters only show for visible columns, so a hidden column's filter would narrow the list without saying why
+	function visibleFilters(filters: ListRequestOptions['filters']) {
+		return Object.fromEntries(
+			Object.entries(filters ?? {}).filter(([column]) => isColumnVisible(column))
+		);
+	}
+
+	async function onVisibleColumnsChange(keys: string[]) {
+		tablePreferences.current.visibleColumns = keys;
+		const dropsFilter = Object.entries(requestOptions.filters ?? {}).some(
+			([column, values]) => values.length > 0 && !isColumnVisible(column)
+		);
+		if (!dropsFilter) return;
+		requestOptions.filters = visibleFilters(requestOptions.filters);
 		tablePreferences.current.filters = requestOptions.filters;
 		await refresh();
 	}
@@ -265,10 +307,14 @@
 		await changePageState(items.pagination.currentPage);
 		updateListLength(items.pagination.totalItems);
 	}
+
+	export function isColumnVisible(column: string) {
+		return visibleColumns.some((c) => (c.column ?? c.key) === column);
+	}
 </script>
 
 <AdvancedTableToolbar
-	{columns}
+	columns={visibleColumns}
 	{requestOptions}
 	{searchValue}
 	bind:searchInput
@@ -358,8 +404,11 @@
 						<Table.Head class={stickyCellClass}>
 							{#if hasOptionalColumns}
 								<AdvancedTableColumnSelection
-									{columns}
-									bind:selectedColumns={tablePreferences.current.visibleColumns}
+									columns={orderedColumns}
+									bind:selectedColumns={
+										() => tablePreferences.current.visibleColumns, onVisibleColumnsChange
+									}
+									bind:columnOrder={tablePreferences.current.columnOrder}
 								/>
 							{/if}
 						</Table.Head>
@@ -381,6 +430,15 @@
 								<Checkbox
 									checked={selected}
 									aria-labelledby={nameId}
+									onclick={(e: MouseEvent) => {
+										const range = selectRange(
+											e,
+											items!.data.map((i) => i.id),
+											selectedIds!,
+											item.id
+										);
+										if (range) selectedIds = range;
+									}}
 									onCheckedChange={(c: boolean) => onCheck(c, item.id)}
 								/>
 							</Table.Cell>

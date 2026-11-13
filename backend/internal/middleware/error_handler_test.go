@@ -1,7 +1,6 @@
 package middleware
 
 import (
-	"context"
 	"encoding/json"
 	"errors"
 	"net/http"
@@ -13,10 +12,10 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/pocket-id/pocket-id/backend/internal/appconfig"
 	"github.com/pocket-id/pocket-id/backend/internal/apperror"
+	"github.com/pocket-id/pocket-id/backend/internal/common"
 	"github.com/pocket-id/pocket-id/backend/internal/dto"
 	"github.com/pocket-id/pocket-id/backend/internal/httpserver"
 	"github.com/stretchr/testify/require"
-	"gorm.io/gorm"
 )
 
 func TestErrorHandlerMiddlewareStructuredError(t *testing.T) {
@@ -29,7 +28,7 @@ func TestErrorHandlerMiddlewareStructuredError(t *testing.T) {
 		handlerRequestID = RequestID(c)
 		cause := errors.New("database connection details")
 		return apperror.Wrap(cause, apperror.CodeUserNotFound, http.StatusNotFound, "User not found")
-	}))
+	}).Handler)
 
 	recorder := httptest.NewRecorder()
 	request := httptest.NewRequestWithContext(t.Context(), http.MethodGet, "/users/1", nil)
@@ -82,7 +81,7 @@ func TestErrorHandlerMiddlewareHidesRecoveredPanic(t *testing.T) {
 	router.Use(NewErrorHandlerMiddleware().Add())
 	router.GET("/panic", httpserver.Handle(func(*gin.Context) error {
 		panic("private panic details")
-	}))
+	}).Handler)
 
 	recorder := httptest.NewRecorder()
 	request := httptest.NewRequestWithContext(t.Context(), http.MethodGet, "/panic", nil)
@@ -144,7 +143,7 @@ func TestValidationResponseUsesJSONFieldNames(t *testing.T) {
 	router.POST("/users", httpserver.Handle(func(c *gin.Context) error {
 		var input dto.UserCreateDto
 		return httpserver.BindJSON(c, &input)
-	}))
+	}).Handler)
 
 	recorder := httptest.NewRecorder()
 	request := httptest.NewRequestWithContext(t.Context(), http.MethodPost, "/users", strings.NewReader(`{}`))
@@ -175,7 +174,7 @@ func TestValidationResponseUsesSpecificCustomMessages(t *testing.T) {
 			SignupDefaultCustomClaims string `json:"signupDefaultCustomClaims" binding:"json_custom_claims"`
 		}
 		return httpserver.BindJSON(c, &input)
-	}))
+	}).Handler)
 
 	recorder := httptest.NewRecorder()
 	request := httptest.NewRequestWithContext(t.Context(), http.MethodPost, "/config", strings.NewReader(`{"signupDefaultCustomClaims":"[\"immich_role\": \"user\"]"}`))
@@ -206,26 +205,27 @@ func TestValidationResponseUsesAppConfigTypeMessages(t *testing.T) {
 	router.POST("/config", httpserver.Handle(func(c *gin.Context) error {
 		var input dto.AppConfigUpdateDto
 		return httpserver.BindJSON(c, &input)
-	}))
+	}).Handler)
 
 	input := dto.AppConfigUpdateDto{
-		AppName:                          "Pocket ID",
-		SessionDuration:                  "60",
-		HomePageURL:                      "/settings/account",
-		EmailsVerified:                   "false",
-		AllowOwnAccountEdit:              "true",
-		AllowUserSignups:                 "disabled",
-		RequireUserEmail:                 "hello",
-		SmtpTls:                          "none",
-		SmtpSkipCertVerify:               "false",
-		LdapEnabled:                      "false",
-		LdapSkipCertVerify:               "false",
-		LdapSoftDeleteUsers:              "true",
-		LdapAllowProfilePictureOverride:  "false",
-		WebauthnUserVerification:         "preferred",
-		WebauthnAllowSyncedPasskeys:      "true",
-		WebauthnAuthenticatorAttachment:  "any",
-		EmailOneTimeAccessAsAdminEnabled: "false",
+		AppName:                                    "Pocket ID",
+		SessionDuration:                            "60",
+		HomePageURL:                                "/settings/account",
+		EmailsVerified:                             "false",
+		AllowOwnAccountEdit:                        "true",
+		AllowUserSignups:                           "disabled",
+		RequireUserEmail:                           "hello",
+		SmtpTls:                                    "none",
+		SmtpSkipCertVerify:                         "false",
+		LdapEnabled:                                "false",
+		LdapSkipCertVerify:                         "false",
+		LdapSoftDeleteUsers:                        "true",
+		LdapAllowProfilePictureOverride:            "false",
+		WebauthnUserVerification:                   "preferred",
+		WebauthnAllowSyncedPasskeys:                "true",
+		WebauthnAuthenticatorAttachment:            "any",
+		WebauthnAttestation:                        "none",
+		EmailOneTimeAccessAsAdminEnabled:           "false",
 		EmailOneTimeAccessAsUnauthenticatedEnabled: "false",
 		EmailLoginNotificationMode:                 "disabled",
 		EmailApiKeyExpirationEnabled:               "false",
@@ -256,21 +256,6 @@ func TestValidationResponseUsesAppConfigTypeMessages(t *testing.T) {
 	}}, body.Details.Fields)
 }
 
-func TestClassifyUnmappedPersistenceErrorAsInternal(t *testing.T) {
-	classified := classifyError(gorm.ErrRecordNotFound)
-
-	require.Equal(t, apperror.CodeInternal, classified.code)
-	require.Equal(t, http.StatusInternalServerError, classified.status)
-}
-
-func TestClassifyDeadlineAsRequestTimeout(t *testing.T) {
-	classified := classifyError(context.DeadlineExceeded)
-
-	require.Equal(t, apperror.CodeRequestTimeout, classified.code)
-	require.Equal(t, http.StatusGatewayTimeout, classified.status)
-	require.Equal(t, "Request timed out", classified.message)
-}
-
 func TestAppConfigBindingValidatesRequiredEmailVerification(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 	router := gin.New()
@@ -278,7 +263,7 @@ func TestAppConfigBindingValidatesRequiredEmailVerification(t *testing.T) {
 	router.PUT("/config", httpserver.Handle(func(c *gin.Context) error {
 		var input dto.AppConfigUpdateDto
 		return httpserver.BindJSON(c, &input)
-	}))
+	}).Handler)
 
 	const (
 		smtpHost = "smtp.example.com"
@@ -322,5 +307,30 @@ func TestAppConfigBindingValidatesRequiredEmailVerification(t *testing.T) {
 				require.Equal(t, []apperror.FieldError{{Field: "emailVerification", Code: "invalid_configuration", Message: "requires user emails, an SMTP host and sender address, and forbids emails verified by default"}}, body.Details.Fields)
 			}
 		})
+	}
+}
+
+func TestErrorHandlerMiddlewareChallengesUnauthenticatedMCPRequests(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	origAppURL := common.EnvConfig.AppURL
+	t.Cleanup(func() { common.EnvConfig.AppURL = origAppURL })
+	common.EnvConfig.AppURL = "https://id.example.com"
+
+	router := gin.New()
+	router.Use(NewErrorHandlerMiddleware().Add())
+	notSignedIn := httpserver.Handle(func(c *gin.Context) error { return apperror.NotSignedIn() }).Handler
+	router.GET("/mcp", notSignedIn)
+	router.GET("/api/users", notSignedIn)
+
+	for path, challenged := range map[string]bool{"/mcp": true, "/api/users": false} {
+		recorder := httptest.NewRecorder()
+		router.ServeHTTP(recorder, httptest.NewRequestWithContext(t.Context(), http.MethodGet, path, nil))
+
+		require.Equal(t, http.StatusUnauthorized, recorder.Code)
+		if challenged {
+			require.Equal(t, `Bearer resource_metadata="https://id.example.com/.well-known/oauth-protected-resource/mcp"`, recorder.Header().Get("WWW-Authenticate"), path)
+		} else {
+			require.Empty(t, recorder.Header().Get("WWW-Authenticate"), path)
+		}
 	}
 }

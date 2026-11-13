@@ -18,6 +18,7 @@ import (
 	"github.com/pocket-id/pocket-id/backend/internal/appconfig"
 	"github.com/pocket-id/pocket-id/backend/internal/authz"
 	"github.com/pocket-id/pocket-id/backend/internal/claimmappingpolicy"
+	"github.com/pocket-id/pocket-id/backend/internal/httpserver"
 	"github.com/pocket-id/pocket-id/backend/internal/model"
 	datatype "github.com/pocket-id/pocket-id/backend/internal/model/types"
 	testutils "github.com/pocket-id/pocket-id/backend/internal/utils/testing"
@@ -34,6 +35,7 @@ type authorizationPARTestCase struct {
 	multipart     bool
 	requestObject bool
 	malformed     bool
+	unpushed      url.Values
 }
 
 // fakeSessionAuthenticator signs every request in as a regular user, optionally one who still has to verify their email
@@ -63,7 +65,7 @@ func TestAuthorizationHandlerRedirectsAuthorizationErrors(t *testing.T) {
 
 		router := gin.New()
 		authz.NewMiddleware(authenticator).Router(router.Group("/")).Use(handler.redirectAuthorizationErrors).Optional().
-			GET("/authorize", authz.AccountAuthorize, func(c *gin.Context) { c.Status(http.StatusNoContent) })
+			GET("/authorize", authz.AccountAuthorize, httpserver.Endpoint{Handler: func(c *gin.Context) { c.Status(http.StatusNoContent) }})
 
 		recorder := httptest.NewRecorder()
 		router.ServeHTTP(recorder, httptest.NewRequestWithContext(t.Context(), http.MethodGet, "/authorize", nil))
@@ -99,6 +101,7 @@ func TestAuthorizationHandlerRequiresPAR(t *testing.T) {
 				{name: "empty body shadows PAR query", method: http.MethodPost, queryURI: fakeURI, bodyURI: []string{""}},
 				{name: "non-PAR body shadows PAR query", method: http.MethodPost, queryURI: fakeURI, bodyURI: []string{"not-a-par-uri"}},
 				{name: "valid PAR in query", method: http.MethodGet, queryURI: "stored", createPAR: true, wantCode: true},
+				{name: "unpushed parameters are ignored", method: http.MethodGet, queryURI: "stored", createPAR: true, wantCode: true, unpushed: url.Values{"max_age": {"1"}}},
 				{name: "valid PAR in body", method: http.MethodPost, bodyURI: []string{"stored"}, createPAR: true, wantCode: true},
 				{name: "valid body overrides invalid query", method: http.MethodPost, queryURI: fakeURI, bodyURI: []string{"stored"}, createPAR: true, wantCode: true},
 				{name: "empty body shadows stored PAR", method: http.MethodPost, queryURI: "stored", bodyURI: []string{""}, createPAR: true},
@@ -187,6 +190,9 @@ func testAuthorizationHandlerPAR(t *testing.T, clientType string, tt authorizati
 			uri = storedURI
 		}
 		query.Set("request_uri", uri)
+	}
+	for k, values := range tt.unpushed {
+		query[k] = values
 	}
 	for _, uri := range tt.bodyURI {
 		if uri == "stored" {
@@ -338,4 +344,70 @@ func TestAuthorizationHandlerCancelsInteraction(t *testing.T) {
 			}
 		})
 	}
+}
+
+func TestAuthorizationHandlerIgnoresBodyWhenResumingInteraction(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	const (
+		baseURL          = "https://issuer.example.com"
+		callbackURL      = "https://client.example.com/callback"
+		otherCallbackURL = "https://client.example.com/other"
+		clientID         = "resume-client"
+		userID           = "test-user"
+	)
+	key, err := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
+	require.NoError(t, err)
+
+	db := testutils.NewDatabaseForTest(t)
+	require.NoError(t, claimmappingpolicy.Bootstrap(t.Context(), db))
+	require.NoError(t, db.Create(&model.User{Base: model.Base{ID: userID}}).Error)
+	require.NoError(t, db.Create(&model.OidcClient{
+		Base:         model.Base{ID: clientID},
+		Name:         "Resume client",
+		CallbackURLs: datatype.StringList{callbackURL, otherCallbackURL},
+		Credentials:  testClientCredentials("test-client-secret"),
+	}).Error)
+	interaction := InteractionSession{
+		ClientID:    clientID,
+		UserID:      new(userID),
+		Scopes:      datatype.StringList{"openid"},
+		RequestedAt: datatype.DateTime(time.Now()),
+		Parameters: InteractionSessionParameters{
+			"client_id":     clientID,
+			"response_type": "code",
+			"redirect_uri":  callbackURL,
+			"scope":         "openid",
+			"state":         "state-with-enough-entropy",
+		},
+	}
+	require.NoError(t, db.Create(&interaction).Error)
+
+	provider, err := newProvider(NewStore(db, nil), nil, testTokenSigner{key: key}, Config{
+		BaseURL: baseURL, TokenBaseURL: baseURL, Secret: []byte("test-secret"),
+	}, nil)
+	require.NoError(t, err)
+	service := newAuthorizationService(db, newInteractionSessionService(db), newClaimsService(db, nil, baseURL, nil, appconfig.StaticResolver{}), nil, nil, nil)
+	handler := newAuthorizationHandler(provider, service)
+
+	form := url.Values{"redirect_uri": {otherCallbackURL}, "state": {"state-from-the-request-body"}}
+	req := httptest.NewRequestWithContext(t.Context(), http.MethodPost, "/authorize?interaction="+interaction.ID, strings.NewReader(form.Encode()))
+	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+	rec := httptest.NewRecorder()
+	router := gin.New()
+	router.POST("/authorize", func(c *gin.Context) {
+		authz.SetPrincipal(c, &authz.Principal{
+			Kind:               authz.KindSession,
+			UserID:             userID,
+			Scopes:             authz.UserScopes(false, authz.KindSession),
+			AuthenticationTime: time.Now().UTC().Add(-time.Minute),
+		})
+		handler.authorize(c)
+	})
+	router.ServeHTTP(rec, req)
+
+	location, err := url.Parse(rec.Header().Get("Location"))
+	require.NoError(t, err)
+	require.NotEmpty(t, location.Query().Get("code"), rec.Body.String())
+	require.Equal(t, callbackURL, location.Scheme+"://"+location.Host+location.Path)
+	require.Equal(t, "state-with-enough-entropy", location.Query().Get("state"))
 }

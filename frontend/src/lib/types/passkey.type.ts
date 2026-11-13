@@ -4,4 +4,6 @@ export type Passkey = {
 	createdAt: string;
 	aaguid: string;
 	hasIcon: boolean;
+	attestationVerified: boolean;
+	verifiedAuthenticatorName?: string;
 };

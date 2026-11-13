@@ -9,6 +9,8 @@
 	--sidebar-w: 256px;
 	--rail-w: 60px;
 	--clear-end-phone: 148px;
+	/* The height of a shell bar that sticks to the top of the window, which a page's own sticky panels stay below */
+	--clear-top: 0px;
 }
 
 /* Set for two frames by setModeInstantly, so light and dark swap at once instead of fading control by control */
@@ -40,16 +42,30 @@ html.theme-switching *::after {
 	view-transition-name: settings-content;
 }
 
-::view-transition-old(root),
-::view-transition-new(root) {
-	animation: none;
+/* The shell stays live during page transitions because Firefox and Safari drop backdrop-filter from snapshots, which would unblur the backdrop layout's sidebar */
+:root {
+	view-transition-name: none;
 }
 
 /* The phone bars swap instantly and stay above the content, whose new snapshot is otherwise painted last because only the new page has its name */
+/* The top bar layout's bands join them, because the old page's snapshot covers them where it was scrolled under the tabs */
 ::view-transition-group(phone-top-bar),
 ::view-transition-group(phone-nav),
-::view-transition-group(phone-search) {
+::view-transition-group(phone-search),
+::view-transition-group(top-bar-brand),
+::view-transition-group(top-bar-tabs) {
 	z-index: 1;
+	animation: none;
+}
+
+/* A band that faded in would let the old page show through it, and the old tabs would ghost the underline while it slides */
+::view-transition-old(top-bar-brand),
+::view-transition-old(top-bar-tabs) {
+	display: none;
+}
+
+::view-transition-new(top-bar-brand),
+::view-transition-new(top-bar-tabs) {
 	animation: none;
 }
 
@@ -75,11 +91,13 @@ html.theme-switching *::after {
 
 /* The sign-up card unfolds into a bare surface, so the shell's bars take on their fill and contents on it */
 /* Backwards fill only, so no animated translate lingers and turns the content into a containing block for fixed elements */
-.app-reveal :is([data-slot='app-sidebar'], [data-slot='phone-top-bar']) {
+.app-reveal :is([data-slot='app-sidebar'], [data-slot='app-top-bar'], [data-slot='phone-top-bar']) {
 	animation: app-reveal-fill var(--dur-slow) var(--ease-out) backwards;
 }
 
-.app-reveal :is([data-slot='app-sidebar'], [data-slot='phone-top-bar']) > * {
+.app-reveal
+	:is([data-slot='app-sidebar'], [data-slot='app-top-bar'], [data-slot='phone-top-bar'])
+	> * {
 	animation: app-reveal-slide var(--dur-slow) var(--ease-out) backwards;
 }
 

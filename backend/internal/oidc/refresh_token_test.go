@@ -45,7 +45,7 @@ func TestRefreshTokenRotationGrace(t *testing.T) {
 			require.NoError(t, db.Create(&model.User{Base: model.Base{ID: userID}, Username: "grace"}).Error)
 			provider, err := newProvider(store, nil, testTokenSigner{key: key}, Config{BaseURL: issuer, TokenBaseURL: issuer, Secret: []byte(secret)}, nil)
 			require.NoError(t, err)
-			handler := newTokenHandler(provider, newClaimsService(db, nil, issuer, nil, appconfig.StaticResolver{}), nil)
+			handler := newTokenHandler(provider, newClaimsService(db, nil, issuer, nil, appconfig.StaticResolver{}), nil, nil)
 
 			// Seed an old grant so the grace period must start at rotation rather than token issuance
 			request := newTestRequester(requestID, clientID, userID, "grace-jti")
@@ -160,8 +160,8 @@ func TestRefreshTokenRotationGrace(t *testing.T) {
 func TestRefreshTokenGraceMigrationPreservesExistingSessions(t *testing.T) {
 	const previousVersion = 20260923183637
 	db := testutils.NewDatabaseForTestWithMigrationSeed(t, previousVersion, func(t *testing.T, db *gorm.DB) {
-		// The claim mapping policy column doesn't exist yet at this schema version
-		require.NoError(t, db.Omit("ClaimMappingPolicyId").Create(&model.OidcClient{Base: model.Base{ID: "old-client"}, Name: "Old client"}).Error)
+		// The claim mapping policy and disabled columns don't exist yet at this schema version
+		require.NoError(t, db.Omit("ClaimMappingPolicyId", "Disabled").Create(&model.OidcClient{Base: model.Base{ID: "old-client"}, Name: "Old client"}).Error)
 		require.NoError(t, db.Exec(`INSERT INTO oauth2_sessions (id, created_at, kind, key, request_id, client_id, active, request_data) VALUES ('old-refresh', 1, 'refresh_token', 'old-signature', 'old-request', 'old-client', false, '{}')`).Error)
 	})
 	var session OAuth2Session

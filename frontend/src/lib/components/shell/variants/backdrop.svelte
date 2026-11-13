@@ -61,7 +61,9 @@
 	}
 
 	/* Outranks the sidebar's hairline, and the fills turn translucent so the glass shows through them */
+	/* Muted text and icons move towards the foreground because the photo behind the glass eats their contrast */
 	.backdrop :global([data-slot='app-sidebar']) {
+		--fg-muted: color-mix(in oklab, var(--fg) 75%, var(--sidebar));
 		--fill-hover: rgb(0 0 0 / 0.05);
 		--fill-muted: rgb(0 0 0 / 0.05);
 		--fill-selected: rgb(0 0 0 / 0.08);

@@ -6,12 +6,14 @@ import (
 	"log/slog"
 	"net/http"
 
+	"github.com/go-fuego/fuego/option"
 	"github.com/italypaleale/francis/actor"
 	francishost "github.com/italypaleale/francis/host"
 	"gorm.io/gorm"
 
 	"github.com/pocket-id/pocket-id/backend/internal/authz"
 	"github.com/pocket-id/pocket-id/backend/internal/httpserver"
+	"github.com/pocket-id/pocket-id/backend/internal/openapi"
 )
 
 type Dependencies struct {
@@ -50,11 +52,38 @@ func New(deps Dependencies) (*Module, error) {
 
 // RegisterRoutes mounts the SCIM service provider endpoints, which belong to an OIDC client
 func (m *Module) RegisterRoutes(r *authz.Router) {
-	r.GET("/oidc/clients/:id/scim-service-provider", authz.OidcClientsRead, httpserver.Handle(m.handler.getServiceProviderByClient))
-	r.POST("/scim/service-provider", authz.OidcClientsWrite, httpserver.Handle(m.handler.createServiceProvider))
-	r.POST("/scim/service-provider/:id/sync", authz.OidcClientsWrite, httpserver.Handle(m.handler.syncServiceProvider))
-	r.PUT("/scim/service-provider/:id", authz.OidcClientsWrite, httpserver.Handle(m.handler.updateServiceProvider))
-	r.DELETE("/scim/service-provider/:id", authz.OidcClientsWrite, httpserver.Handle(m.handler.deleteServiceProvider))
+	r.GET("/oidc/clients/:id/scim-service-provider", authz.OidcClientsRead, httpserver.JSON(http.StatusOK, m.handler.getServiceProviderByClient),
+		option.Summary("Get SCIM service provider"),
+		option.Description("Get the SCIM service provider configuration for an OIDC client"),
+		option.Tags("OIDC"),
+		option.Path("id", "Client ID"),
+	)
+	r.POST("/scim/service-provider", authz.OidcClientsWrite, httpserver.BodyJSON(http.StatusCreated, m.handler.createServiceProvider),
+		option.Summary("Create SCIM service provider"),
+		option.Description("Create a new SCIM service provider"),
+		option.Tags("SCIM"),
+	)
+	r.POST("/scim/service-provider/:id/sync", authz.OidcClientsWrite, httpserver.Handle(m.handler.syncServiceProvider),
+		option.Summary("Sync SCIM service provider"),
+		option.Description("Trigger synchronization for a SCIM service provider"),
+		option.Tags("SCIM"),
+		option.Path("id", "Service Provider ID"),
+		openapi.Status(http.StatusOK, ""),
+	)
+	updateServiceProviderDocs := option.Group(
+		option.Summary("Update SCIM service provider"),
+		option.Description("Update an existing SCIM service provider, where PATCH changes only the fields in the body, an omitted token keeps the stored one, an empty token removes it and a changed endpoint requires the token"),
+		option.Tags("SCIM"),
+		option.Path("id", "Service Provider ID"),
+	)
+	r.PUT("/scim/service-provider/:id", authz.OidcClientsWrite, httpserver.UpdateJSON(m.handler.updateServiceProvider), updateServiceProviderDocs)
+	r.PATCH("/scim/service-provider/:id", authz.OidcClientsWrite, httpserver.UpdateJSON(m.handler.updateServiceProvider), updateServiceProviderDocs)
+	r.DELETE("/scim/service-provider/:id", authz.OidcClientsWrite, httpserver.NoContent(m.handler.deleteServiceProvider),
+		option.Summary("Delete SCIM service provider"),
+		option.Description("Delete a SCIM service provider by ID"),
+		option.Tags("SCIM"),
+		option.Path("id", "Service Provider ID"),
+	)
 }
 
 // ScheduleSync schedules a debounced cluster-wide synchronization after SCIM-relevant data changes

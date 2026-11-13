@@ -14,6 +14,7 @@ import (
 	"github.com/stretchr/testify/require"
 	"gorm.io/gorm"
 
+	"github.com/pocket-id/pocket-id/backend/internal/apperror"
 	"github.com/pocket-id/pocket-id/backend/internal/common"
 	"github.com/pocket-id/pocket-id/backend/internal/model"
 	datatype "github.com/pocket-id/pocket-id/backend/internal/model/types"
@@ -420,6 +421,33 @@ func TestGetClient_MetadataDocument(t *testing.T) {
 		assert.Zero(t, count)
 	})
 
+	t.Run("disabled metadata client is refused without fetching but can be refreshed", func(t *testing.T) {
+		resp := testutils.NewMockResponse(http.StatusOK, body) //nolint:bodyclose // mock response, no real body
+		s := newMetadataStore(t, map[string]*http.Response{id: resp})
+		expired := datatype.DateTime(time.Now().Add(-time.Hour))
+		seed := model.OidcClient{
+			Base:              model.Base{ID: id},
+			Name:              "Old",
+			IsPublic:          true,
+			PkceEnabled:       true,
+			ClientType:        model.OidcClientTypeCIMD,
+			MetadataExpiresAt: &expired,
+			Disabled:          true,
+		}
+		require.NoError(t, s.db.Create(&seed).Error)
+
+		_, err := s.GetClient(t.Context(), id)
+		require.True(t, apperror.IsCode(err, apperror.CodeOidcClientDisabled), "expected a disabled client error, got %v", err)
+		stored, err := s.firstClientByID(t.Context(), id)
+		require.NoError(t, err)
+		assert.Equal(t, "Old", stored.Name, "the expired metadata document must not be fetched for a disabled client")
+
+		refreshed, err := s.RefreshMetadataClient(t.Context(), id)
+		require.NoError(t, err)
+		assert.Equal(t, "App", refreshed.Name)
+		assert.True(t, refreshed.Disabled)
+	})
+
 	t.Run("cached authenticated metadata client is rejected", func(t *testing.T) {
 		s := newMetadataStore(t, nil)
 		fresh := datatype.DateTime(time.Now().Add(time.Hour))
@@ -526,6 +554,7 @@ func TestGetClient_MetadataDocument(t *testing.T) {
 		require.NoError(t, s.db.Exec(
 			"INSERT INTO user_authorized_oidc_clients (client_id, user_id, scope, last_used_at) VALUES (?, ?, ?, ?)",
 			id, "user-1", "openid", time.Now()).Error)
+		require.NoError(t, s.CreateRefreshTokenSession(t.Context(), "refresh", "", newTestRequester("request", id, "user-1", "")))
 
 		_, err := s.GetClient(t.Context(), id)
 		require.NoError(t, err)
@@ -534,6 +563,8 @@ func TestGetClient_MetadataDocument(t *testing.T) {
 		require.NoError(t, s.db.Table("user_authorized_oidc_clients").
 			Where("client_id = ?", id).Count(&consent).Error)
 		assert.Zero(t, consent, "consent must not survive a redirect_uris change")
+		_, err = s.GetRefreshTokenSession(t.Context(), "refresh", nil)
+		require.ErrorIs(t, err, fosite.ErrNotFound, "tokens must not survive the consent they were issued under")
 	})
 
 	t.Run("failed consent revocation rolls back refreshed metadata", func(t *testing.T) {

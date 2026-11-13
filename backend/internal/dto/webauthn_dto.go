@@ -10,13 +10,16 @@ type WebauthnCredentialDto struct {
 	Name            string                            `json:"name"`
 	CredentialID    string                            `json:"credentialID"`
 	AttestationType string                            `json:"attestationType"`
-	Transport       []protocol.AuthenticatorTransport `json:"transport" swaggertype:"array,string"`
+	Transport       []protocol.AuthenticatorTransport `json:"transport"`
 
 	BackupEligible bool `json:"backupEligible"`
 	BackupState    bool `json:"backupState"`
 
-	AAGUID  string `json:"aaguid"`
-	HasIcon bool   `json:"hasIcon"`
+	AAGUID              string `json:"aaguid"`
+	HasIcon             bool   `json:"hasIcon"`
+	AttestationVerified bool   `json:"attestationVerified"`
+	// VerifiedAuthenticatorName is empty unless the attestation was verified and the AAGUID is known
+	VerifiedAuthenticatorName string `json:"verifiedAuthenticatorName,omitempty"`
 
 	CreatedAt datatype.DateTime `json:"createdAt"`
 }

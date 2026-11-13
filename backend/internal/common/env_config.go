@@ -44,10 +44,12 @@ const (
 	defaultFsUploadPath     string     = "data/uploads"
 	AppUrl                  string     = "http://localhost:1411"
 
-	// IconLibraryDisabled is the ICON_LIBRARY_URL value that turns off the icon library for OIDC client logos
-	IconLibraryDisabled string = "disabled"
+	// URLDisabled is the ICON_LIBRARY_URL or FIDO_MDS_URL value that keeps Pocket ID from ever contacting that source
+	URLDisabled string = "disabled"
 	// DefaultIconLibraryURL serves the selfh.st icon collection through jsDelivr
 	DefaultIconLibraryURL string = "https://cdn.jsdelivr.net/gh/selfhst/icons@main"
+	// DefaultFidoMetadataURL is the FIDO Alliance Metadata Service that passkey attestations are verified against
+	DefaultFidoMetadataURL string = "https://mds.fidoalliance.org"
 
 	// FrancisHostEmbedded is the FRANCIS_HOST value that keeps the Francis actor runtime embedded in the Pocket ID process
 	FrancisHostEmbedded string = "embedded"
@@ -116,6 +118,10 @@ type EnvConfigSchema struct {
 	// It must serve index.json and the svg and png directories in the same layout as the selfh.st/icons repository
 	// Setting it to "disabled" turns the icon library off, so Pocket ID never contacts it
 	IconLibraryURL string `env:"ICON_LIBRARY_URL" options:"trimTrailingSlash"`
+
+	// FidoMetadataURL is where the FIDO metadata for passkey attestation is downloaded from and refreshed
+	// Setting it to "disabled" never downloads it, so the blob has to be placed at data/fido-mds.jwt by hand, e.g. on air-gapped installs
+	FidoMetadataURL string `env:"FIDO_MDS_URL"`
 
 	ActorsPort string `env:"ACTORS_PORT"`
 	ActorsHost string `env:"ACTORS_HOST" options:"toLower"`
@@ -186,6 +192,7 @@ func defaultConfig() EnvConfigSchema {
 		GeoLiteDBPath:             "data/GeoLite2-City.mmdb",
 		GeoLiteDBUrl:              MaxMindGeoLiteCityUrl,
 		IconLibraryURL:            DefaultIconLibraryURL,
+		FidoMetadataURL:           DefaultFidoMetadataURL,
 		// These targets usually run next to Pocket ID on the same Docker network, cluster or LAN
 		OutboundAllowedHostsSCIM:              "private,loopback",
 		OutboundAllowedHostsBackchannelLogout: "private,loopback",
@@ -273,7 +280,12 @@ func ValidateEnvConfig(config *EnvConfigSchema) error {
 		return err
 	}
 
-	err = validateIconLibraryURL(config)
+	err = validateURLOrDisabled("ICON_LIBRARY_URL", &config.IconLibraryURL, DefaultIconLibraryURL)
+	if err != nil {
+		return err
+	}
+
+	err = validateURLOrDisabled("FIDO_MDS_URL", &config.FidoMetadataURL, DefaultFidoMetadataURL)
 	if err != nil {
 		return err
 	}
@@ -420,20 +432,20 @@ func validateURLWithoutPath(rawURL, envName string) error {
 	return nil
 }
 
-// validateIconLibraryURL checks that ICON_LIBRARY_URL is either "disabled" or an absolute HTTP(S) URL
-func validateIconLibraryURL(config *EnvConfigSchema) error {
+// validateURLOrDisabled checks that the value of the env var named key is either "disabled" or an absolute HTTP(S) URL, and falls back to defaultURL when it is empty
+func validateURLOrDisabled(key string, value *string, defaultURL string) error {
 	switch {
-	case config.IconLibraryURL == "":
-		config.IconLibraryURL = DefaultIconLibraryURL
+	case *value == "":
+		*value = defaultURL
 		return nil
-	case strings.EqualFold(config.IconLibraryURL, IconLibraryDisabled):
-		config.IconLibraryURL = IconLibraryDisabled
+	case strings.EqualFold(*value, URLDisabled):
+		*value = URLDisabled
 		return nil
 	}
 
-	parsedURL, err := url.Parse(config.IconLibraryURL)
+	parsedURL, err := url.Parse(*value)
 	if err != nil || (parsedURL.Scheme != "http" && parsedURL.Scheme != "https") || parsedURL.Host == "" {
-		return errors.New("ICON_LIBRARY_URL must be an HTTP or HTTPS URL, or 'disabled'")
+		return fmt.Errorf("%s must be an HTTP or HTTPS URL, or 'disabled'", key)
 	}
 
 	return nil
@@ -441,7 +453,7 @@ func validateIconLibraryURL(config *EnvConfigSchema) error {
 
 // IconLibraryEnabled reports whether admins can pick OIDC client logos from the icon library
 func (c *EnvConfigSchema) IconLibraryEnabled() bool {
-	return c.IconLibraryURL != IconLibraryDisabled
+	return c.IconLibraryURL != URLDisabled
 }
 
 func validateFileBackend(config *EnvConfigSchema) error {

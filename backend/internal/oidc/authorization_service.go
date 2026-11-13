@@ -16,6 +16,7 @@ import (
 
 	"github.com/pocket-id/pocket-id/backend/internal/apperror"
 	"github.com/pocket-id/pocket-id/backend/internal/auditlogs"
+	"github.com/pocket-id/pocket-id/backend/internal/claimmappingpolicy"
 	"github.com/pocket-id/pocket-id/backend/internal/dto"
 	"github.com/pocket-id/pocket-id/backend/internal/model"
 	datatype "github.com/pocket-id/pocket-id/backend/internal/model/types"
@@ -46,7 +47,18 @@ type authorizationService struct {
 // It always resolves against the client's user-delegated grants because every flow that passes through here acts on behalf of a user
 // Once the user is known, scopes they can never hold are dropped too, while an empty userID only validates the request before sign-in
 func (s *authorizationService) resolveGrant(ctx context.Context, clientID, userID, resource string, requestedScopes []string) (audience string, grantedScopes []string, consentKeys []string, err error) {
-	audience, grantedScopes, err = resolveResource(ctx, dbFromContext(ctx, s.db), s.apiAccess, clientID, resource, requestedScopes, SubjectTypeUser)
+	db := dbFromContext(ctx, s.db)
+	var client model.OidcClient
+	err = db.Select("id", "client_type").First(&client, "id = ?", clientID).Error
+	if err != nil {
+		return "", nil, nil, err
+	}
+	customScopes, err := claimmappingpolicy.ClientCustomScopeKeys(ctx, db, client)
+	if err != nil {
+		return "", nil, nil, err
+	}
+
+	audience, grantedScopes, err = resolveResource(ctx, db, s.apiAccess, clientID, resource, requestedScopes, SubjectTypeUser, customScopes)
 	if err != nil {
 		return "", nil, nil, err
 	}
@@ -64,7 +76,7 @@ func (s *authorizationService) heldScopes(ctx context.Context, userID, resource 
 	if userID == "" || resource == "" || s.apiAccess == nil {
 		return scopes, nil
 	}
-	return s.apiAccess.HeldScopes(ctx, dbFromContext(ctx, s.db), userID, resource, scopes)
+	return s.apiAccess.HeldScopes(ctx, dbFromContext(ctx, s.db), userID, canonicalResource(resource), scopes)
 }
 
 type requestMeta struct {
@@ -100,6 +112,7 @@ func consentRequired(hasAlreadyAuthorizedClient, clientSkipsConsent bool, prompt
 // authorizeInput is the authorization request as provided by the handler.
 type authorizeInput struct {
 	userID                        string
+	sessionID                     string
 	authenticationMethod          string
 	authenticationTime            time.Time
 	requester                     fosite.AuthorizeRequester
@@ -165,7 +178,12 @@ func (s *authorizationService) authorize(ctx context.Context, input authorizeInp
 			return authorizationResult{}, fosite.ErrLoginRequired
 		}
 
-		interactionSession, err := s.createInteractionSession(ctx, input.requester, input.requestParams, "", interactionRequirements{
+		// A resumed interaction that still waits for the sign-in is continued, because storing a fresh copy on every anonymous resume lets anyone fill the database
+		if interactionSession != nil {
+			return authorizationResult{RequiresInteraction: true, InteractionID: interactionSession.ID}, nil
+		}
+
+		created, err := s.createInteractionSession(ctx, input.requester, input.requestParams, "", interactionRequirements{
 			AuthenticationRequired:   true,
 			ReauthenticationRequired: prompt.has("login") || client.RequiresReauthentication,
 			AccountSelectionRequired: prompt.has("select_account"),
@@ -175,7 +193,7 @@ func (s *authorizationService) authorize(ctx context.Context, input authorizeInp
 			return authorizationResult{}, err
 		}
 
-		return authorizationResult{RequiresInteraction: true, InteractionID: interactionSession.ID}, nil
+		return authorizationResult{RequiresInteraction: true, InteractionID: created.ID}, nil
 	}
 
 	req := authorizeRequest{
@@ -305,7 +323,7 @@ func (s *authorizationService) authorizeAuthenticated(ctx context.Context, req a
 		authorizationEvent = auditlogs.EventNewClientAuthorization
 	}
 	if s.auditLog != nil {
-		s.auditLog.Create(ctx, authorizationEvent, req.meta.IPAddress, req.meta.UserAgent, req.userID, auditlogs.Data{"clientName": req.client.Name}, dbFromContext(ctx, s.db))
+		s.auditLog.Create(ctx, authorizationEvent, req.meta.IPAddress, req.meta.UserAgent, req.userID, auditlogs.Data{"clientID": req.client.ID, "clientName": req.client.Name}, dbFromContext(ctx, s.db))
 	}
 
 	return authorizationResult{Session: session}, nil
@@ -397,7 +415,9 @@ func (s *authorizationService) buildAuthorizedSession(req authorizeRequest, inte
 		requestedAt = req.now
 	}
 
-	return NewAuthenticatedSession(req.userID, req.authenticationMethod, authenticationTime, requestedAt)
+	session := NewAuthenticatedSession(req.userID, req.authenticationMethod, authenticationTime, requestedAt)
+	session.SessionID = req.sessionID
+	return session
 }
 
 // interactionRequestQuery returns the authorize parameters stored for the interaction
@@ -576,33 +596,38 @@ func (s *authorizationService) buildInteractionForUser(ctx context.Context, inte
 	return result, nil
 }
 
-// resolveScopeInfoForRequest resolves display names and descriptions for the requested non-standard scopes against the API identified by resource
-// The browser and device consent flows share it so both show friendly permission names instead of raw scope keys, while standard identity scopes are rendered by the client
+// resolveScopeInfoForRequest resolves display names and descriptions for the requested custom scopes and for the permissions of the API identified by resource
+// The browser and device consent flows share it so both show friendly names instead of raw scope keys, while standard identity scopes are rendered by the client
 func (s *authorizationService) resolveScopeInfoForRequest(ctx context.Context, resource string, scopes []string) ([]dto.ScopeInfoDto, error) {
-	if s.apiAccess == nil {
+	// Filter out standard scopes, leaving only custom scopes and API permission keys for further processing
+	keys := slices.DeleteFunc(slices.Clone(scopes), isStandardScope)
+	if len(keys) == 0 {
 		return nil, nil
 	}
 
-	if resource == "" {
-		return nil, nil
-	}
-
-	customKeys := make([]string, 0, len(scopes))
-	for _, scope := range scopes {
-		if !isStandardScope(scope) {
-			customKeys = append(customKeys, scope)
-		}
-	}
-	if len(customKeys) == 0 {
-		return nil, nil
-	}
-
-	infos, err := s.apiAccess.DescribePermissions(ctx, resource, customKeys)
+	customScopes, err := claimmappingpolicy.CustomScopesByKey(ctx, dbFromContext(ctx, s.db), keys)
 	if err != nil {
 		return nil, err
 	}
 
-	return infos, nil
+	// Map custom scopes by key for quick lookup
+	infos := make([]dto.ScopeInfoDto, 0, len(keys))
+	for _, scope := range customScopes {
+		infos = append(infos, dto.ScopeInfoDto{Key: scope.Key, Name: scope.Name, Description: scope.Description})
+		keys = slices.DeleteFunc(keys, func(key string) bool { return key == scope.Key })
+	}
+
+	// Custom scope and API permission keys never collide, so the remaining keys can only be permissions
+	if s.apiAccess == nil || resource == "" || len(keys) == 0 {
+		return infos, nil
+	}
+
+	permissions, err := s.apiAccess.DescribePermissions(ctx, canonicalResource(resource), keys)
+	if err != nil {
+		return nil, err
+	}
+
+	return append(infos, permissions...), nil
 }
 
 func (s *authorizationService) completeInteractionStep(ctx context.Context, interactionSessionID, userID string, step interactionStep, approvedScopes []string, reauthenticationToken string, authenticationTime time.Time, meta requestMeta) (completeInteractionResponse, error) {
@@ -626,6 +651,23 @@ func (s *authorizationService) completeInteractionStep(ctx context.Context, inte
 
 		if userID == "" {
 			return fosite.ErrLoginRequired
+		}
+
+		// The authorize endpoint only checks the group restriction once every step is done, so a user who signed in or switched accounts here is checked before the consent step can record an authorization
+		if interactionSession.Client.IsGroupRestricted {
+			tx := dbFromContext(ctx, s.db)
+			var user model.User
+			err = tx.Preload("UserGroups").First(&user, "id = ?", userID).Error
+			if err != nil {
+				return err
+			}
+			err = tx.Model(&interactionSession.Client).Association("AllowedUserGroups").Find(&interactionSession.Client.AllowedUserGroups)
+			if err != nil {
+				return err
+			}
+			if !IsUserGroupAllowedToAuthorize(user, interactionSession.Client) {
+				return apperror.OidcAccessDenied()
+			}
 		}
 
 		requiredSteps := requiredInteractionSteps(interactionSession)
@@ -724,7 +766,7 @@ func (s *authorizationService) completeConsentStep(ctx context.Context, interact
 		return err
 	}
 	if !hasAlreadyAuthorizedClient && s.auditLog != nil {
-		s.auditLog.Create(ctx, auditlogs.EventNewClientAuthorization, meta.IPAddress, meta.UserAgent, userID, auditlogs.Data{"clientName": interactionSession.Client.Name}, dbFromContext(ctx, s.db))
+		s.auditLog.Create(ctx, auditlogs.EventNewClientAuthorization, meta.IPAddress, meta.UserAgent, userID, auditlogs.Data{"clientID": interactionSession.Client.ID, "clientName": interactionSession.Client.Name}, dbFromContext(ctx, s.db))
 	}
 	interactionSession.ConsentRequired = false
 	return nil

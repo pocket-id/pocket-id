@@ -60,7 +60,9 @@ type SignupTokenState struct {
 // signupTokenConsumeResponse is the response of the "consume" method
 type signupTokenConsumeResponse struct {
 	Status signupTokenConsumeStatus
-	// UserGroupIDs is set only when Status is "ok", and contains the groups the new user should join
+	// ID and UserGroupIDs are set only when Status is "ok"
+	// ID is the token's non-secret identifier and UserGroupIDs are the groups the new user should join
+	ID           string
 	UserGroupIDs []string
 }
 
@@ -161,6 +163,7 @@ func (a *signupTokenActor) consume(parentCtx context.Context) (signupTokenConsum
 
 	return signupTokenConsumeResponse{
 		Status:       signupTokenConsumeOK,
+		ID:           state.ID,
 		UserGroupIDs: state.UserGroupIDs,
 	}, nil
 }

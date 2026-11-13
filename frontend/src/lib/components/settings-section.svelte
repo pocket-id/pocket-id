@@ -21,7 +21,7 @@
 		<div class="flex min-w-0 flex-1 flex-col gap-1">
 			<h2 id={headingId} class="text-title text-fg">{title}</h2>
 			{#if description}
-				<p class="text-caption text-fg-muted max-w-[68ch]">
+				<p class="text-caption text-fg-muted">
 					{#if typeof description === 'string'}{description}{:else}{@render description()}{/if}
 				</p>
 			{/if}

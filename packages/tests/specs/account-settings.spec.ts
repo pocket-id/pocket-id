@@ -19,12 +19,36 @@ test('Update account details', async ({ page }) => {
 	await saveUnsavedChanges(page);
 });
 
+// The form has no language field, so saving it must not reset the language picked elsewhere
+test('Saving account details keeps the language', async ({ page }) => {
+	await page.request.patch('/api/users/me', { data: { locale: 'en' } });
+	await page.goto('/settings/account');
+
+	await page.getByLabel('Display Name').fill('Kept Language');
+	await saveUnsavedChanges(page);
+
+	const account = await (await page.request.get('/api/users/me')).json();
+	expect(account.locale).toBe('en');
+});
+
+// A cleared optional field must reach the server, because a merge patch keeps every field it leaves out
+test('Clear the last name of the account', async ({ page }) => {
+	await page.goto('/settings/account');
+
+	await page.getByLabel('Last name').fill('');
+	await page.getByLabel('Display Name').fill('Tim');
+	await saveUnsavedChanges(page);
+
+	const account = await (await page.request.get('/api/users/me')).json();
+	expect(account.lastName).toBe('');
+});
+
 test('Failed account update remains dirty and can be retried', async ({ page }) => {
 	await page.goto('/settings/account');
 
 	let failedUpdates = 0;
 	await page.route('**/api/users/me', async (route) => {
-		if (route.request().method() !== 'PUT' || failedUpdates > 0) {
+		if (route.request().method() !== 'PATCH' || failedUpdates > 0) {
 			await route.fallback();
 			return;
 		}

@@ -5,7 +5,7 @@
 	import SearchableSelect from '#lib/components/form/searchable-select.svelte';
 	import FormattedMessage from '#lib/components/formatted-message.svelte';
 	import SettingRow from '#lib/components/setting-row.svelte';
-	import SettingsSection from '#lib/components/settings-section.svelte';
+	import SettingsCard from '#lib/components/settings-card.svelte';
 	import { Switch } from '@pocket-id/ui/switch';
 	import { m } from '#lib/paraglide/messages.js';
 	import OidcClaimMappingPolicyService from '#lib/services/oidc-claim-mapping-policy-service.ts';
@@ -39,7 +39,7 @@
 		existingClient: OidcClient;
 		// Left out while the claim mappings feature is off, which hides the Claims section
 		claimMappingPolicies?: OidcClaimMappingPolicyMetadataDto[];
-		callback: (client: OidcClientCreateWithLogo) => Promise<void>;
+		callback: (client: Partial<OidcClientCreateWithLogo>) => Promise<void>;
 	} = $props();
 
 	// What a new client starts with; anything else counts as changed and keeps Advanced open
@@ -160,12 +160,10 @@
 	async function saveClient(data: z.infer<FormSchema>) {
 		await callback({
 			...data,
-			credentials: existingClient.credentials ?? { federatedIdentities: [], secrets: [] },
 			logo: $inputs.logoUrl?.value ? undefined : logo,
 			logoUrl: $inputs.logoUrl?.value,
 			darkLogo: $inputs.darkLogoUrl?.value ? undefined : darkLogo,
-			darkLogoUrl: $inputs.darkLogoUrl?.value,
-			isGroupRestricted: existingClient.isGroupRestricted
+			darkLogoUrl: $inputs.darkLogoUrl?.value
 		});
 
 		const hasLogo = logo != null || !!$inputs.logoUrl?.value;
@@ -279,9 +277,9 @@
 	</SettingRow>
 {/snippet}
 
-<form onsubmit={preventDefault(onSubmit)} class="flex flex-col gap-10">
-	<SettingsSection title={m.application()}>
-		<div class="flex flex-col gap-6 pt-2">
+<form onsubmit={preventDefault(onSubmit)} class="flex flex-col gap-4">
+	<SettingsCard title={m.application()}>
+		<div class="flex flex-col gap-6 py-4">
 			<OidcClientLogoPicker
 				clientName={$inputs.name.value}
 				{logoDataURL}
@@ -325,10 +323,10 @@
 				disabled={isCIMDClient}
 			/>
 		</div>
-	</SettingsSection>
+	</SettingsCard>
 
-	<SettingsSection title={m.redirects()}>
-		<div class="pt-2">
+	<SettingsCard title={m.redirects()}>
+		<div class="py-4">
 			<OidcCallbackUrlInput
 				label={m.callback_urls()}
 				description={callbackUrlDescription}
@@ -340,9 +338,9 @@
 				error={$inputs.callbackURLs.error}
 			/>
 		</div>
-	</SettingsSection>
+	</SettingsCard>
 
-	<SettingsSection title={m.security()}>
+	<SettingsCard title={m.security()}>
 		<div>
 			<SettingRow
 				title={m.pkce()}
@@ -370,11 +368,11 @@
 				{/snippet}
 			</SettingRow>
 		</div>
-	</SettingsSection>
+	</SettingsCard>
 
 	<AdvancedDisclosure summary={m.oidc_client_advanced_summary()} {changedCount}>
-		<SettingsSection title={m.sign_out_section()}>
-			<div class="flex flex-col gap-6 pt-2">
+		<SettingsCard title={m.sign_out_section()}>
+			<div class="flex flex-col gap-6 py-4">
 				<OidcCallbackUrlInput
 					label={m.logout_callback_urls()}
 					description={callbackUrlDescription}
@@ -406,9 +404,9 @@
 					{/if}
 				</div>
 			</div>
-		</SettingsSection>
+		</SettingsCard>
 
-		<SettingsSection title={m.authorization()}>
+		<SettingsCard title={m.authorization()}>
 			<div>
 				{@render switchRow(
 					'skipConsent',
@@ -423,10 +421,10 @@
 					changed.par
 				)}
 			</div>
-		</SettingsSection>
+		</SettingsCard>
 
-		<SettingsSection title={m.token_lifetimes()}>
-			<div class="grid gap-6 pt-2 sm:grid-cols-2">
+		<SettingsCard title={m.token_lifetimes()}>
+			<div class="grid gap-6 py-4 sm:grid-cols-2">
 				<div class="relative min-w-0">
 					<DurationInput
 						id="access-token-lifetime"
@@ -445,7 +443,10 @@
 					<DurationInput
 						id="refresh-token-lifetime"
 						label={m.refresh_token_inactivity_timeout()}
-						description={m.refresh_token_lifetime_helper({ name: existingClient.name })}
+						description={m.refresh_token_lifetime_helper({
+							name: existingClient.name,
+							appName: $appConfigStore.appName
+						})}
 						changed={changed.refresh}
 						bind:input={$inputs.refreshTokenDurationMinutes}
 					/>
@@ -458,11 +459,11 @@
 					{/if}
 				</div>
 			</div>
-		</SettingsSection>
+		</SettingsCard>
 
 		{#if claimMappingPolicies}
-			<SettingsSection title={m.claims()}>
-				<div class="flex flex-col gap-3 pt-2">
+			<SettingsCard title={m.claims()}>
+				<div class="flex flex-col gap-3 py-4">
 					<div class="relative max-w-100 min-w-0">
 						<FormInput
 							label={m.claim_mapping_policy()}
@@ -496,7 +497,7 @@
 						</a>
 					{/if}
 				</div>
-			</SettingsSection>
+			</SettingsCard>
 		{/if}
 	</AdvancedDisclosure>
 </form>

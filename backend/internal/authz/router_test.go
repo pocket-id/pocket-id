@@ -9,11 +9,14 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/pocket-id/pocket-id/backend/internal/apperror"
+	"github.com/pocket-id/pocket-id/backend/internal/httpserver"
 )
 
 func noop(c *gin.Context) {
 	c.Status(http.StatusNoContent)
 }
+
+var noopEndpoint = httpserver.Endpoint{Handler: noop}
 
 func TestIsDeclared(t *testing.T) {
 	gin.SetMode(gin.TestMode)
@@ -23,13 +26,13 @@ func TestIsDeclared(t *testing.T) {
 	api := m.Router(apiGroup)
 
 	// Declare routes through every router variant
-	api.GET("/users", UsersRead, noop)
-	api.Group("/api-keys").POST("", AccountAPIKeysCreate, noop)
-	api.Group("/nested").Group("/deeper").DELETE("/:id", UsersWrite, noop)
-	api.Optional().GET("/optional", AccountSession, noop)
-	api.Public().POST("/signup", noop)
-	api.Use(noop).GET("/with-middleware", AccountRead, noop)
-	m.Router(engine.Group("/")).Optional().GET("/authorize", AccountSession, noop)
+	api.GET("/users", UsersRead, noopEndpoint)
+	api.Group("/api-keys").POST("", AccountAPIKeysCreate, noopEndpoint)
+	api.Group("/nested").Group("/deeper").DELETE("/:id", UsersWrite, noopEndpoint)
+	api.Optional().GET("/optional", AccountSession, noopEndpoint)
+	api.Public().POST("/signup", noopEndpoint)
+	api.Use(noop).GET("/with-middleware", AccountRead, noopEndpoint)
+	m.Router(engine.Group("/")).Optional().GET("/authorize", AccountSession, noopEndpoint)
 
 	// Register routes past the routers
 	apiGroup.GET("/forgotten", noop)
@@ -64,7 +67,7 @@ func TestRouterUseWrapsAuthorization(t *testing.T) {
 			seen = c.Errors.Last().Err
 		}
 	})
-	r.GET("/account", AccountRead, noop)
+	r.GET("/account", AccountRead, noopEndpoint)
 
 	recorder := httptest.NewRecorder()
 	engine.ServeHTTP(recorder, httptest.NewRequestWithContext(t.Context(), http.MethodGet, "/api/account", nil))
@@ -77,7 +80,7 @@ func TestRouterRejectsUnknownScopes(t *testing.T) {
 	r := NewMiddleware().Router(gin.New().Group("/api"))
 
 	require.PanicsWithValue(t, `route GET /api/users requires unknown scope "users:everything"`, func() {
-		r.GET("/users", Scope("users:everything"), noop)
+		r.GET("/users", Scope("users:everything"), noopEndpoint)
 	})
 }
 

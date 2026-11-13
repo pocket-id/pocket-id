@@ -30,7 +30,10 @@ func (f *fakeAuditLogger) Create(_ context.Context, event auditlogs.Event, _, _,
 	return auditlogs.AuditLog{}, true
 }
 
-const defaultClaimMappingPolicyId = claimmappingpolicy.BuiltInClaimMappingPolicyID
+func (f *fakeAuditLogger) Record(_ context.Context, event auditlogs.Event, _ auditlogs.Origin, _ string, data auditlogs.Data, _ *gorm.DB) {
+	f.events = append(f.events, event)
+	f.data = append(f.data, data)
+}
 
 func TestAuthorizationServiceAuthorizeLogsClientAuthorization(t *testing.T) {
 	db := testutils.NewDatabaseForTest(t)
@@ -66,7 +69,7 @@ func TestAuthorizationServiceAuthorizeLogsClientAuthorization(t *testing.T) {
 	require.False(t, authorization.RequiresInteraction)
 
 	require.Equal(t, []auditlogs.Event{auditlogs.EventClientAuthorization}, auditLogger.events)
-	require.Equal(t, auditlogs.Data{"clientName": "Test Client"}, auditLogger.data[0])
+	require.Equal(t, auditlogs.Data{"clientID": clientID, "clientName": "Test Client"}, auditLogger.data[0])
 }
 
 func TestAuthorizationServiceRejectsCustomScopeWithoutResource(t *testing.T) {
@@ -174,7 +177,7 @@ func TestAuthorizationServiceConsentStepLogsNewClientAuthorization(t *testing.T)
 	require.NotEmpty(t, response.RedirectURL)
 
 	require.Equal(t, []auditlogs.Event{auditlogs.EventNewClientAuthorization}, auditLogger.events)
-	require.Equal(t, auditlogs.Data{"clientName": "Test Client"}, auditLogger.data[0])
+	require.Equal(t, auditlogs.Data{"clientID": clientID, "clientName": "Test Client"}, auditLogger.data[0])
 }
 
 // TestAuthorizationServiceConsentStepGrantsOnlyApprovedScopes guards that scopes the user deselects on the consent screen are neither consented to nor granted when the request resumes
@@ -577,6 +580,41 @@ func TestInteractionSessionServiceGetRejectsExpiredSession(t *testing.T) {
 	require.ErrorIs(t, err, gorm.ErrRecordNotFound)
 }
 
+func TestAuthorizationServiceCompleteInteractionRejectsDisabledClient(t *testing.T) {
+	db := testutils.NewDatabaseForTest(t)
+	service := newAuthorizationService(db, newInteractionSessionService(db), newClaimsService(db, nil, "", nil, appconfig.StaticResolver{}), nil, nil, nil)
+
+	const (
+		userID        = "test-user"
+		clientID      = "test-client"
+		interactionID = "test-interaction"
+	)
+
+	require.NoError(t, db.Create(&model.User{Base: model.Base{ID: userID}}).Error)
+	require.NoError(t, db.Create(&model.OidcClient{Base: model.Base{ID: clientID}, Name: "Test Client"}).Error)
+	require.NoError(t, db.Create(&InteractionSession{
+		Base:            model.Base{ID: interactionID},
+		Scopes:          datatype.StringList{"openid"},
+		ClientID:        clientID,
+		ConsentRequired: true,
+		RequestedAt:     datatype.DateTime(time.Now().UTC()),
+		Parameters:      map[string]string{},
+	}).Error)
+
+	// The admin disables the client while the user is on the consent screen
+	require.NoError(t, db.Model(&model.OidcClient{}).Where("id = ?", clientID).Update("disabled", true).Error)
+
+	_, err := service.getInteractionSession(t.Context(), interactionID)
+	require.True(t, apperror.IsCode(err, apperror.CodeOidcClientDisabled), "expected a disabled client error, got %v", err)
+
+	_, err = service.completeInteractionStep(t.Context(), interactionID, userID, interactionStepConsent, nil, "", time.Now().UTC(), requestMeta{})
+	require.True(t, apperror.IsCode(err, apperror.CodeOidcClientDisabled), "expected a disabled client error, got %v", err)
+
+	var authorizations int64
+	require.NoError(t, db.Model(&model.UserAuthorizedOidcClient{}).Where("client_id = ?", clientID).Count(&authorizations).Error)
+	require.Zero(t, authorizations)
+}
+
 func TestInteractionAPIClassifiesMissingSession(t *testing.T) {
 	db := testutils.NewDatabaseForTest(t)
 	service := newAuthorizationService(db, newInteractionSessionService(db), newClaimsService(db, nil, "", nil, appconfig.StaticResolver{}), nil, nil, nil)
@@ -741,6 +779,38 @@ func TestAuthorizationServiceAuthorizeSwitchesUserAndResetsRequirements(t *testi
 	require.True(t, interactionSession.ConsentRequired)
 	require.True(t, interactionSession.ReauthenticationRequired)
 	require.Nil(t, interactionSession.ReauthenticatedAt)
+}
+
+func TestAuthorizationServiceAuthorizeReusesInteractionWhileNotSignedIn(t *testing.T) {
+	db := testutils.NewDatabaseForTest(t)
+	service := newAuthorizationService(db, newInteractionSessionService(db), newClaimsService(db, nil, "", nil, appconfig.StaticResolver{}), nil, nil, nil)
+
+	const clientID = "test-client"
+
+	require.NoError(t, db.Create(&model.OidcClient{
+		Base: model.Base{ID: clientID},
+		Name: "Test Client",
+	}).Error)
+
+	first, err := service.authorize(t.Context(), authorizeInput{
+		requester:     newTestAuthorizeRequester("first-request", clientID, ""),
+		requestParams: map[string]string{"client_id": clientID},
+	})
+	require.NoError(t, err)
+	require.True(t, first.RequiresInteraction)
+
+	resumed, err := service.authorize(t.Context(), authorizeInput{
+		requester:     newTestAuthorizeRequester("resumed-request", clientID, ""),
+		requestParams: map[string]string{"client_id": clientID},
+		interactionID: first.InteractionID,
+	})
+	require.NoError(t, err)
+	require.True(t, resumed.RequiresInteraction)
+	require.Equal(t, first.InteractionID, resumed.InteractionID)
+
+	var count int64
+	require.NoError(t, db.Model(&InteractionSession{}).Count(&count).Error)
+	require.Equal(t, int64(1), count)
 }
 
 func TestAuthorizationServiceAuthorizeRequiresLoginForUserBoundInteraction(t *testing.T) {
@@ -909,6 +979,41 @@ func TestAuthorizationServiceSelectAccountRecomputesConsentForSelectedUser(t *te
 		Where("user_id = ? AND client_id = ?", switchedID, clientID).
 		Count(&count).Error)
 	require.Zero(t, count)
+}
+
+func TestAuthorizationServiceInteractionRejectsUserOutsideAllowedGroups(t *testing.T) {
+	db := testutils.NewDatabaseForTest(t)
+	auditLogger := &fakeAuditLogger{}
+	service := newAuthorizationService(db, newInteractionSessionService(db), newClaimsService(db, nil, "", nil, appconfig.StaticResolver{}), nil, auditLogger, nil)
+
+	const (
+		userID   = "outsider-user"
+		clientID = "restricted-client"
+	)
+
+	require.NoError(t, db.Create(&model.User{Base: model.Base{ID: userID}, Username: "outsider"}).Error)
+	require.NoError(t, db.Create(&model.OidcClient{
+		Base:              model.Base{ID: clientID},
+		Name:              "Restricted Client",
+		IsGroupRestricted: true,
+		AllowedUserGroups: []model.UserGroup{{Base: model.Base{ID: "allowed-group"}, Name: "allowed", FriendlyName: "Allowed"}},
+	}).Error)
+
+	authorization, err := service.authorize(t.Context(), authorizeInput{
+		requester: newTestAuthorizeRequester("signed-out-request", clientID, ""),
+	})
+	require.NoError(t, err)
+	require.True(t, authorization.RequiresInteraction)
+
+	for _, step := range []interactionStep{interactionStepAuthenticate, interactionStepConsent} {
+		_, err = service.completeInteractionStep(t.Context(), authorization.InteractionID, userID, step, nil, "", time.Now().UTC(), requestMeta{})
+		require.True(t, apperror.IsCode(err, apperror.CodeOidcAccessDenied), "step %s: %v", step, err)
+	}
+
+	var count int64
+	require.NoError(t, db.Model(&model.UserAuthorizedOidcClient{}).Where("user_id = ?", userID).Count(&count).Error)
+	require.Zero(t, count)
+	require.Empty(t, auditLogger.events)
 }
 
 func TestValidateClientPKCERequirement(t *testing.T) {

@@ -55,21 +55,10 @@ func FormatAAGUID(aaguid []byte) string {
 	return hex.EncodeToString(aaguid)
 }
 
-// GetAuthenticatorName returns the name of the authenticator for the given AAGUID
-func GetAuthenticatorName(aaguid []byte) string {
-	aaguidStr := FormatAAGUID(aaguid)
-	if aaguidStr == "" {
-		return ""
-	}
-
-	// Then check the embedded metadata manifest
+// GetAuthenticatorName returns the name of the authenticator for the given AAGUID, or an empty string if it is unknown
+func GetAuthenticatorName(aaguid string) string {
 	aaguidMetadataOnce.Do(loadAAGUIDMetadataFromFile)
-
-	if metadata, ok := aaguidMetadata[aaguidStr]; ok && metadata.Name != "" {
-		return metadata.Name + " Passkey"
-	}
-
-	return ""
+	return aaguidMetadata[aaguid].Name
 }
 
 // loadAAGUIDMetadataFromFile loads AAGUID names and icon references from the embedded manifest

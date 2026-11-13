@@ -58,6 +58,9 @@ cd ../../.. && pnpm test                         # = playwright test in packages
 
 - **Config:** global `common.EnvConfig` (caarlos0/env); any secret var supports a `*_FILE` variant.
 - **Logging:** stdlib `log/slog` only (bridged to OpenTelemetry). No zerolog/logrus in app code.
+- **Handlers and API docs:** register JSON handlers through the typed endpoints in `internal/httpserver` (`JSON`, `BodyJSON`, `UpdateJSON`, `NoContent`, `BodyNoContent`), which bind the body, write the response and document both from the handler's types.
+  Summaries, tags and parameters are fuego options at the registration on `authz.Router`, where a list route passes `openapi.List[Model]()` to document the pagination, sort columns and filters from the model's `sortable`/`filterable` tags, and only handlers that write files or several kinds of response use `httpserver.Handle` with `openapi` helpers; a route without docs stays out of the spec.
+  `go run -tags exclude_frontend ./cmd/openapi` prints the spec the docs site renders, and a new tag must be added to `tags` in `internal/openapi`.
 - Fosite comes from Pocket ID's **fork** `github.com/pocket-id/fosite`, not `github.com/ory/fosite`. It ports upstream fixes from `ory/hydra`.
 
 ## Frontend (SvelteKit)
@@ -72,6 +75,10 @@ cd ../../.. && pnpm test                         # = playwright test in packages
   The few strings they render come from `setUiLabels` in the root layout; app behavior goes in a wrapper under `frontend/src/lib/components` (e.g. `hash-tabs.svelte`).
 - **Icons are Solar**, bundled at build time by `unplugin-icons` (`import TrashIcon from '~icons/solar/trash-bin-minimalistic-bold'`), never Lucide, in `packages/ui` too, so its consumers need the plugin.
   Bold for actions (buttons, menu items and the "…" that opens them, command palette commands, confirm dialogs), Bold Duotone for icons that stand for something (nav items, features, setting rows, devices, claims, states), Linear for controls (close, chevrons, arrows, checkmarks, search, sidebar toggles).
+- **Groups of settings are cards, lists stay open.** On settings pages a group of fields or setting rows goes in `settings-card.svelte`, also when it is the only group on its tab.
+  A list that fills a tab (members, groups, passkeys, devices, clients, permissions, custom claims) goes in `settings-section.svelte`, as open rows with hairlines like the index tables and My account.
+  Never mix both on one tab, and never put a card in a dialog or sheet.
+  Inside a card every block brings its own `py-4`, like `setting-row.svelte` does, and a list inside a card has no border of its own.
 
 ## Coding Style Guidelines
 

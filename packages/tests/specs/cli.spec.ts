@@ -162,9 +162,10 @@ function compareExports(dir1: string, dir2: string): void {
 		session.extensions ??= '{}';
 	}
 
-	// Legacy exports gain the zero AAGUID when migrated to the current schema
+	// Legacy exports gain the zero AAGUID and an unverified attestation when migrated to the current schema
 	for (const credential of expectedData.tables.webauthn_credentials) {
 		credential.aaguid ??= '00000000-0000-0000-0000-000000000000';
+		credential.attestation_verified ??= false;
 	}
 
 	// The built-in API's audience follows the APP_URL of the stack that produced the export

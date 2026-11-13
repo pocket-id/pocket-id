@@ -1,8 +1,7 @@
 <script lang="ts">
-	import * as Select from '@pocket-id/ui/select';
+	import SearchableSelect from '#lib/components/form/searchable-select.svelte';
 	import { getLocale, type Locale } from '#lib/paraglide/runtime.js';
 	import UserService from '#lib/services/user-service.ts';
-	import userStore from '#lib/stores/user-store.ts';
 	import { setLocale } from '#lib/utils/locale.util.ts';
 
 	let controlProps: { id: string; 'aria-describedby': string | undefined } = $props();
@@ -40,21 +39,15 @@
 	};
 
 	async function updateLocale(locale: Locale) {
-		await userService.updateCurrent({
-			...$userStore!,
-			locale
-		});
+		await userService.updateCurrent({ locale });
 		await setLocale(locale);
 	}
 </script>
 
-<Select.Root type="single" value={currentLocale} onValueChange={(v) => updateLocale(v as Locale)}>
-	<Select.Trigger {...controlProps} size="sm" class="min-w-40">
-		{locales[currentLocale]}
-	</Select.Trigger>
-	<Select.Content align="end" collisionPadding={16} class="max-h-100">
-		{#each Object.entries(locales) as [value, label] (value)}
-			<Select.Item {value}>{label}</Select.Item>
-		{/each}
-	</Select.Content>
-</Select.Root>
+<SearchableSelect
+	{...controlProps}
+	class="h-(--h-sm) w-fit min-w-40 pr-2 pl-3"
+	items={Object.entries(locales).map(([value, label]) => ({ value, label }))}
+	value={currentLocale}
+	onSelect={(locale) => updateLocale(locale as Locale)}
+/>

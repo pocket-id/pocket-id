@@ -12,8 +12,10 @@
 		type Layout
 	} from '#lib/components/appearance/appearance.svelte.ts';
 	import { m } from '#lib/paraglide/messages.js';
+	import appConfigStore from '#lib/stores/application-configuration-store.ts';
 	import type { AllAppConfig } from '#lib/types/application-configuration.type.ts';
 	import { deepEqual } from '#lib/utils/form-util.ts';
+	import * as Alert from '@pocket-id/ui/alert';
 	import { Badge } from '@pocket-id/ui/badge';
 	import { Button } from '@pocket-id/ui/button';
 	import { Input } from '@pocket-id/ui/input';
@@ -21,6 +23,7 @@
 	import { cn } from '@pocket-id/ui/utils';
 	import { RadioGroup } from 'bits-ui';
 	import CheckIcon from '~icons/solar/check-circle-linear';
+	import LockIcon from '~icons/solar/lock-keyhole-minimalistic-bold-duotone';
 	import RestartIcon from '~icons/solar/restart-bold';
 	import UploadIcon from '~icons/solar/upload-minimalistic-bold';
 	import ImageSections from './image-sections.svelte';
@@ -29,14 +32,17 @@
 	import SurfacesSection from './surfaces-section.svelte';
 
 	let {
+		envOverrides,
 		callback
 	}: {
+		envOverrides: Set<keyof AllAppConfig>;
 		callback: (appConfig: Partial<AllAppConfig>) => Promise<void>;
 	} = $props();
 
 	trackAppearance(callback);
 
 	const uid = $props.id();
+	const disabled = $derived($appConfigStore.uiConfigDisabled || envOverrides.has('appearance'));
 
 	const customFont = $derived(appearance.customFont);
 	const isDefault = $derived(deepEqual(appearance.value, defaultAppearance));
@@ -63,11 +69,22 @@
 </script>
 
 <div class="flex w-full flex-col">
+	{#if envOverrides.has('appearance')}
+		<Alert.Root variant="info" class="mb-6">
+			<LockIcon />
+			<Alert.Title>{m.config_set_by_env()}</Alert.Title>
+			<Alert.Description>{m.config_set_by_env_description()}</Alert.Description>
+		</Alert.Root>
+	{/if}
 	<!-- Layout and Colors share one preview, which stays beside both while they scroll past -->
 	<!-- On phones it sits between them, on desktop it spans both rows of the second column -->
 	<!-- The tab row above already divides, so the first section starts without a hairline or top padding -->
 	<div class="grid gap-x-14 lg:grid-cols-[minmax(0,9fr)_minmax(0,11fr)]">
-		<PreviewSection title="Layout" class="pt-0 shadow-none lg:col-start-1 lg:row-start-1">
+		<PreviewSection
+			title="Layout"
+			class="pt-0 shadow-none lg:col-start-1 lg:row-start-1"
+			{disabled}
+		>
 			<RadioGroup.Root
 				aria-label="Layout"
 				class="flex flex-col gap-2"
@@ -99,7 +116,7 @@
 				<Button
 					variant="ghost"
 					size="sm"
-					disabled={isDefault}
+					disabled={disabled || isDefault}
 					onclick={() => (appearance.value = structuredClone(defaultAppearance))}
 				>
 					<RestartIcon />
@@ -111,10 +128,10 @@
 			</PreviewFigure>
 		</div>
 
-		<SurfacesSection class="max-lg:shadow-none lg:col-start-1 lg:row-start-2" />
+		<SurfacesSection class="max-lg:shadow-none lg:col-start-1 lg:row-start-2" {disabled} />
 	</div>
 
-	<PreviewSection title="Typography" preview={typePreview}>
+	<PreviewSection title="Typography" preview={typePreview} {disabled}>
 		<div class="flex flex-col gap-3">
 			<p id="{uid}-font" class="text-control text-fg font-medium">Title font</p>
 			<!-- The upload card always takes the last column, so every card is as wide as the ones below -->
@@ -184,7 +201,7 @@
 		</div>
 	</PreviewSection>
 
-	<PreviewSection title="Corner radius" preview={radiusPreview}>
+	<PreviewSection title="Corner radius" preview={radiusPreview} {disabled}>
 		<RadioGroup.Root
 			aria-label="Corner radius"
 			orientation="horizontal"

@@ -112,6 +112,25 @@ func TestRateLimitMiddleware(t *testing.T) {
 		require.Equal(t, http.StatusOK, doRateLimitRequest(t.Context(), r, "203.0.113.3").Code)
 	})
 
+	t.Run("limits IPv6 clients by their /64", func(t *testing.T) {
+		r := newRateLimitRouter(t, services, policy)
+
+		require.Equal(t, http.StatusOK, doRateLimitRequest(t.Context(), r, "2001:db8:0:1::1").Code)
+		require.Equal(t, http.StatusOK, doRateLimitRequest(t.Context(), r, "2001:db8:0:1::2").Code)
+		require.Equal(t, http.StatusTooManyRequests, doRateLimitRequest(t.Context(), r, "2001:db8:0:1:ffff:ffff:ffff:ffff").Code)
+
+		require.Equal(t, http.StatusOK, doRateLimitRequest(t.Context(), r, "2001:db8:0:2::1").Code)
+	})
+
+	t.Run("turns away cancelled requests", func(t *testing.T) {
+		r := newRateLimitRouter(t, services, policy)
+		ctx, cancel := context.WithCancel(t.Context())
+		cancel()
+
+		w := doRateLimitRequest(ctx, r, "203.0.113.8")
+		require.NotEqual(t, "ok", w.Body.String())
+	})
+
 	t.Run("allows all requests when rate limiting is disabled", func(t *testing.T) {
 		common.EnvConfig.DisableRateLimiting = true
 		t.Cleanup(func() { common.EnvConfig.DisableRateLimiting = false })
@@ -140,4 +159,17 @@ func TestRateLimitMiddleware(t *testing.T) {
 		assert.Contains(t, w.Body.String(), `"code":"internal_error"`)
 		assert.NotContains(t, w.Body.String(), "rate limiter service is not configured")
 	})
+}
+
+func TestRateLimitKey(t *testing.T) {
+	tests := map[string]string{
+		"203.0.113.7":          "203.0.113.7",
+		"::ffff:203.0.113.7":   "203.0.113.7",
+		"2001:db8:1:2:3:4:5:6": "2001:db8:1:2::",
+		"fe80::1%eth0":         "fe80::",
+		"not-an-ip":            "not-an-ip",
+	}
+	for in, want := range tests {
+		assert.Equal(t, want, rateLimitKey(in), in)
+	}
 }

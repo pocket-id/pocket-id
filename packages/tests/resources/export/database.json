@@ -1,6 +1,6 @@
 {
 	"provider": "sqlite",
-	"version": 20261101120000,
+	"version": 20261108120000,
 	"tableOrder": [
 		"users",
 		"user_groups",
@@ -326,6 +326,7 @@
 				"requires_reauthentication": false,
 				"refresh_token_duration_minutes": 43200,
 				"skip_consent": false,
+				"disabled": false,
 				"claim_mapping_policy_id": null
 			},
 			{
@@ -353,6 +354,7 @@
 				"requires_reauthentication": false,
 				"refresh_token_duration_minutes": 43200,
 				"skip_consent": false,
+				"disabled": false,
 				"claim_mapping_policy_id": null
 			},
 			{
@@ -380,6 +382,7 @@
 				"requires_reauthentication": false,
 				"refresh_token_duration_minutes": 43200,
 				"skip_consent": false,
+				"disabled": false,
 				"claim_mapping_policy_id": null
 			},
 			{
@@ -407,6 +410,7 @@
 				"requires_reauthentication": false,
 				"refresh_token_duration_minutes": 43200,
 				"skip_consent": false,
+				"disabled": false,
 				"claim_mapping_policy_id": null
 			},
 			{
@@ -433,6 +437,7 @@
 				"requires_reauthentication": false,
 				"refresh_token_duration_minutes": 43200,
 				"skip_consent": false,
+				"disabled": false,
 				"credentials": "eyJzZWNyZXRzIjpbeyJpZCI6IjJmMWI4ZjFhLTFkM2UtNGYwYy05YzFhLTAwMDAwMDAwMDAwNSIsImFsZyI6InNoYTI1NiIsImhhc2giOiJiZWM3ZjA4YTI4MDhlZmNkYmU2ZmIwYjFmM2EwZjFhMDFjNjYwMGQxMTc1MjYyOTNjMTlhOWRlZDNkOGVjMGZiIiwicHJlZml4IjoiblFiaSIsImNyZWF0ZWRBdCI6IjIwMjUtMTEtMjVUMTI6Mzk6MDJaIn1dfQ==",
 				"claim_mapping_policy_id": null
 			},
@@ -461,6 +466,7 @@
 				"requires_reauthentication": false,
 				"refresh_token_duration_minutes": 43200,
 				"skip_consent": false,
+				"disabled": false,
 				"claim_mapping_policy_id": null
 			},
 			{
@@ -488,6 +494,7 @@
 				"requires_reauthentication": false,
 				"refresh_token_duration_minutes": 43200,
 				"skip_consent": true,
+				"disabled": false,
 				"claim_mapping_policy_id": null
 			}
 		],

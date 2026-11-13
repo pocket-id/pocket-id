@@ -3,6 +3,7 @@ package logopreset
 import (
 	"net/http"
 
+	"github.com/go-fuego/fuego/option"
 	"github.com/pocket-id/pocket-id/backend/internal/authz"
 	"github.com/pocket-id/pocket-id/backend/internal/httpserver"
 )
@@ -31,5 +32,10 @@ func New(deps Dependencies) *Module {
 
 // RegisterRoutes mounts the logo preset endpoints
 func (m *Module) RegisterRoutes(r *authz.Router) {
-	r.GET("/oidc/logo-presets", authz.OidcClientsRead, httpserver.Handle(m.handler.search))
+	r.GET("/oidc/logo-presets", authz.OidcClientsRead, httpserver.JSON(http.StatusOK, m.handler.search),
+		option.Summary("Search logo presets"),
+		option.Description("Search the icon library for logos that can be used for OIDC clients"),
+		option.Tags("OIDC"),
+		option.Query("search", "Search term matched against the icon name"),
+	)
 }

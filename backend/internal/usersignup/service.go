@@ -15,7 +15,6 @@ import (
 	"github.com/pocket-id/pocket-id/backend/internal/appconfig"
 	"github.com/pocket-id/pocket-id/backend/internal/apperror"
 	"github.com/pocket-id/pocket-id/backend/internal/auditlogs"
-	"github.com/pocket-id/pocket-id/backend/internal/common"
 	"github.com/pocket-id/pocket-id/backend/internal/dto"
 	"github.com/pocket-id/pocket-id/backend/internal/emailverification"
 	"github.com/pocket-id/pocket-id/backend/internal/model"
@@ -59,6 +58,7 @@ func (s *Service) SignUp(ctx context.Context, config *appconfig.AppConfigModel, 
 		return model.User{}, "", apperror.OpenSignupDisabled()
 	}
 
+	var signupTokenID string
 	var userGroupIDs []string
 	if tokenProvided {
 		// Consume the signup token by invoking its actor: this atomically validates it and increments its usage count
@@ -77,6 +77,7 @@ func (s *Service) SignUp(ctx context.Context, config *appconfig.AppConfigModel, 
 		if consumeRes.Status != signupTokenConsumeOK {
 			return model.User{}, "", apperror.TokenInvalidOrExpired()
 		}
+		signupTokenID = consumeRes.ID
 		userGroupIDs = consumeRes.UserGroupIDs
 	}
 
@@ -92,7 +93,7 @@ func (s *Service) SignUp(ctx context.Context, config *appconfig.AppConfigModel, 
 
 	// The token has now been consumed
 	// From this point on, if we hit an error we compensate by releasing the token (best-effort)
-	user, err := s.createSignedUpUser(ctx, config, userToCreate, signupData.Token, tokenProvided, ipAddress, userAgent)
+	user, err := s.createSignedUpUser(ctx, config, userToCreate, signupTokenID, ipAddress, userAgent)
 	if err != nil {
 		if tokenProvided {
 			s.releaseSignupToken(ctx, signupData.Token)
@@ -100,7 +101,7 @@ func (s *Service) SignUp(ctx context.Context, config *appconfig.AppConfigModel, 
 		return model.User{}, "", err
 	}
 
-	sessionToken, err := s.sessions.Create(ctx, user.ID, "", ipAddress, userAgent, config.SessionDuration.AsDurationMinutes())
+	sessionToken, err := s.sessions.Create(ctx, user.ID, "", ipAddress, userAgent, config.SessionDuration.AsDurationMinutes(), true)
 	if err != nil {
 		return model.User{}, "", err
 	}
@@ -117,7 +118,7 @@ func (s *Service) SignUp(ctx context.Context, config *appconfig.AppConfigModel, 
 
 // createSignedUpUser creates the user within a single transaction.
 // It performs no actor calls, so it's safe to keep the transaction open for its whole duration.
-func (s *Service) createSignedUpUser(ctx context.Context, config *appconfig.AppConfigModel, userToCreate dto.UserCreateDto, token string, tokenProvided bool, ipAddress, userAgent string) (model.User, error) {
+func (s *Service) createSignedUpUser(ctx context.Context, config *appconfig.AppConfigModel, userToCreate dto.UserCreateDto, signupTokenID string, ipAddress, userAgent string) (model.User, error) {
 	tx := s.db.Begin()
 	defer func() {
 		tx.Rollback()
@@ -138,9 +139,10 @@ func (s *Service) createSignedUpUser(ctx context.Context, config *appconfig.AppC
 		user.EmailVerificationDeadline = &deadline
 	}
 
-	if tokenProvided {
+	// The token's value is a reusable credential, so audit log readers only get its ID
+	if signupTokenID != "" {
 		s.auditLog.Create(ctx, auditlogs.EventAccountCreated, ipAddress, userAgent, user.ID, auditlogs.Data{
-			"signupToken": token,
+			"signupTokenID": signupTokenID,
 		}, tx)
 	} else {
 		s.auditLog.Create(ctx, auditlogs.EventAccountCreated, ipAddress, userAgent, user.ID, auditlogs.Data{
@@ -207,6 +209,7 @@ func (s *Service) SignUpInitialAdmin(ctx context.Context, config *appconfig.AppC
 	if err != nil {
 		return model.User{}, "", err
 	}
+	s.auditLog.Create(ctx, auditlogs.EventAccountCreated, ipAddress, userAgent, user.ID, auditlogs.Data{"method": "initial_setup"}, tx)
 
 	err = tx.Commit().Error
 	if err != nil {
@@ -217,7 +220,7 @@ func (s *Service) SignUpInitialAdmin(ctx context.Context, config *appconfig.AppC
 	}
 
 	// Start the session only after the transaction has committed, since it invokes an actor
-	token, err := s.sessions.Create(ctx, user.ID, authenticationMethodOneTimePassword, ipAddress, userAgent, config.SessionDuration.AsDurationMinutes())
+	token, err := s.sessions.Create(ctx, user.ID, authenticationMethodOneTimePassword, ipAddress, userAgent, config.SessionDuration.AsDurationMinutes(), true)
 	if err != nil {
 		return model.User{}, "", err
 	}
@@ -243,9 +246,7 @@ func (s *Service) IsInitialAdminSetupCompleted(ctx context.Context) (bool, error
 
 func (s *Service) isInitialAdminSetupCompleted(ctx context.Context, db *gorm.DB) (bool, error) {
 	var userCount int64
-	if err := db.WithContext(ctx).Model(&model.User{}).
-		Where("id != ?", common.StaticApiKeyUserID).
-		Count(&userCount).Error; err != nil {
+	if err := db.WithContext(ctx).Model(&model.User{}).Count(&userCount).Error; err != nil {
 		return false, err
 	}
 

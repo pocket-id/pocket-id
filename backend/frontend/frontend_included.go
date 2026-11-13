@@ -10,6 +10,7 @@ import (
 	"io/fs"
 	"mime"
 	"net/http"
+	"net/url"
 	"path"
 	"strconv"
 	"strings"
@@ -83,7 +84,9 @@ func RegisterFrontend(router *gin.Engine) error {
 		path := strings.TrimPrefix(c.Request.URL.Path, "/")
 
 		if strings.HasSuffix(path, "/") {
-			c.Redirect(http.StatusMovedPermanently, strings.TrimRight(c.Request.URL.String(), "/"))
+			// The target is built from the path, because the serialized request URL turns "//example.com/" into a redirect to another host
+			target := url.URL{Path: "/" + strings.Trim(path, "/"), RawQuery: c.Request.URL.RawQuery}
+			c.Redirect(http.StatusMovedPermanently, target.String())
 			return
 		}
 

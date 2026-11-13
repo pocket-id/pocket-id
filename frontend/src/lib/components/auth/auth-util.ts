@@ -17,6 +17,14 @@ export function alternativeSignInHref() {
 		: `/login/alternative?redirect=${encodeURIComponent(page.url.pathname + page.url.search)}`;
 }
 
+// Leaving other ways to sign in returns to an app's sign-in step when that step sent the person there, since /login would drop the app
+export function leaveAlternativeSignInHref() {
+	const redirect = page.url.searchParams.get('redirect');
+	return redirect && /^\/(interaction|device)([?#]|$)/.test(redirect)
+		? redirect
+		: `/login${page.url.search}`;
+}
+
 // Closing the browser's passkey prompt is the person's choice, so it reads as information rather than an error
 export function isPasskeyPromptClosed(e: unknown) {
 	return (

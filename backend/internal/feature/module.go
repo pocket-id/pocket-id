@@ -4,6 +4,7 @@ import (
 	"net/http"
 
 	"github.com/gin-gonic/gin"
+	"github.com/go-fuego/fuego/option"
 	"gorm.io/gorm"
 
 	"github.com/pocket-id/pocket-id/backend/internal/authz"
@@ -27,23 +28,13 @@ func New(deps Dependencies) *Module {
 
 // RegisterRoutes mounts the feature endpoints
 func (m *Module) RegisterRoutes(r *authz.Router) {
-	r.GET("/features", authz.AccountRead, httpserver.Handle(m.list))
+	r.GET("/features", authz.AccountRead, httpserver.JSON(http.StatusOK, m.list),
+		option.Summary("List optional features"),
+		option.Description("Get whether each optional feature is on and whether anything uses it; a feature in use is always on"),
+		option.Tags("Features"),
+	)
 }
 
-// list godoc
-// @Summary List optional features
-// @Description Get whether each optional feature is on and whether anything uses it; a feature in use is always on
-// @Tags Features
-// @Produce json
-// @Success 200 {object} map[string]feature.Status
-// @Failure default {object} dto.ErrorDto "Error"
-// @Router /api/features [get]
-func (m *Module) list(c *gin.Context) error {
-	statuses, err := m.service.List(c.Request.Context())
-	if err != nil {
-		return err
-	}
-
-	c.JSON(http.StatusOK, statuses)
-	return nil
+func (m *Module) list(c *gin.Context) (map[Feature]Status, error) {
+	return m.service.List(c.Request.Context())
 }

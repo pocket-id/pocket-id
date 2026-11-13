@@ -101,7 +101,7 @@ test('Invalid email configuration is not saved', async ({ page }) => {
 	let updateRequests = 0;
 	page.on('request', (request) => {
 		if (
-			request.method() === 'PUT' &&
+			request.method() === 'PATCH' &&
 			new URL(request.url()).pathname === '/api/application-configuration'
 		) {
 			updateRequests++;
@@ -195,6 +195,7 @@ test('Update passkey configuration', async ({ page }) => {
 	const userVerification = page.getByLabel('User verification');
 	const authenticatorType = page.getByLabel('Allowed authenticator type');
 	const allowSyncedPasskeys = page.getByRole('switch', { name: 'Allow synced passkeys' });
+	const authenticatorVerification = page.getByLabel('Authenticator verification');
 
 	await expect(userVerification).toContainText('Required');
 	await userVerification.click();
@@ -205,7 +206,12 @@ test('Update passkey configuration', async ({ page }) => {
 	await page.getByRole('option', { name: /^Security keys only/ }).click();
 
 	await expect(allowSyncedPasskeys).toBeChecked();
-	await allowSyncedPasskeys.click();
+
+	await expect(authenticatorVerification).toContainText('Not required');
+	await authenticatorVerification.click();
+	await page.getByRole('option', { name: /^FIDO Certified Level 2\+/ }).click();
+	await expect(allowSyncedPasskeys).not.toBeChecked();
+	await expect(allowSyncedPasskeys).toBeDisabled();
 
 	await saveUnsavedChanges(page);
 
@@ -215,7 +221,8 @@ test('Update passkey configuration', async ({ page }) => {
 		authenticatorSelection: {
 			authenticatorAttachment: 'cross-platform',
 			userVerification: 'preferred'
-		}
+		},
+		attestation: 'direct'
 	});
 
 	const loginResponse = await page.request.get('/api/webauthn/login/start');
@@ -229,6 +236,9 @@ test('Update passkey configuration', async ({ page }) => {
 	await expect(page.getByLabel('User verification')).toContainText('Preferred');
 	await expect(page.getByLabel('Allowed authenticator type')).toContainText('Security keys only');
 	await expect(page.getByRole('switch', { name: 'Allow synced passkeys' })).not.toBeChecked();
+	await expect(page.getByLabel('Authenticator verification')).toContainText(
+		'FIDO Certified Level 2+'
+	);
 });
 
 test('Update email configuration', async ({ page }) => {
@@ -254,7 +264,8 @@ test('Update email configuration', async ({ page }) => {
 	await expect(page.getByLabel('Host')).toHaveValue('smtp.gmail.com');
 	await expect(page.getByLabel('Port')).toHaveValue('587');
 	await expect(page.getByLabel('Username')).toHaveValue('test@gmail.com');
-	await expect(page.getByLabel('Password')).toHaveValue('password');
+	// The saved password is never sent back to the browser
+	await expect(page.getByLabel('Password')).toHaveValue('XXXXXXXXXX');
 	await expect(page.getByLabel('From address')).toHaveValue('test@gmail.com');
 	await expect(page.getByLabel('Sign-in notifications')).toContainText('Unrecognized browser');
 	await expect(page.getByLabel('Login codes requested by people')).toBeChecked();

@@ -19,6 +19,8 @@ import (
 	"github.com/pocket-id/fosite"
 	"github.com/stretchr/testify/require"
 
+	"github.com/pocket-id/pocket-id/backend/internal/appconfig"
+	"github.com/pocket-id/pocket-id/backend/internal/claimmappingpolicy"
 	"github.com/pocket-id/pocket-id/backend/internal/model"
 	jwkutils "github.com/pocket-id/pocket-id/backend/internal/utils/jwk"
 	testutils "github.com/pocket-id/pocket-id/backend/internal/utils/testing"
@@ -32,8 +34,12 @@ func TestIntrospectionHandlerBindsTokenToCallerClient(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 
 	db := testutils.NewDatabaseForTest(t)
+	require.NoError(t, claimmappingpolicy.Bootstrap(t.Context(), db))
 	require.NoError(t, db.Create(&model.OidcClient{Base: model.Base{ID: "client-a"}, Name: "Client A"}).Error)
 	require.NoError(t, db.Create(&model.OidcClient{Base: model.Base{ID: "client-b"}, Name: "Client B"}).Error)
+	require.NoError(t, db.Create(&model.User{Base: model.Base{ID: "user-a"}, Username: "user-a"}).Error)
+	require.NoError(t, db.Create(&model.User{Base: model.Base{ID: "user-b"}, Username: "user-b"}).Error)
+	require.NoError(t, db.Create(&model.User{Base: model.Base{ID: "user-disabled"}, Username: "user-disabled", Disabled: true}).Error)
 
 	signerKey, err := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
 	require.NoError(t, err)
@@ -69,8 +75,11 @@ func TestIntrospectionHandlerBindsTokenToCallerClient(t *testing.T) {
 	clientAToken := issueAccessToken(t, "req-a", "client-a", "user-a")
 	clientBToken := issueAccessToken(t, "req-b", "client-b", "user-b")
 	clientBOtherToken := issueAccessToken(t, "req-b-2", "client-b", "user-b")
+	clientBDisabledUserToken := issueAccessToken(t, "req-b-disabled", "client-b", "user-disabled")
+	clientBMachineToken := issueAccessToken(t, "req-b-machine", "client-b", ClientSubject("client-b"))
 
-	handler := newIntrospectionHandler(provider, nil, "https://issuer.example.com")
+	claimsService := newClaimsService(db, nil, "https://issuer.example.com", nil, appconfig.StaticResolver{})
+	handler := newIntrospectionHandler(provider, nil, claimsService, nil, "https://issuer.example.com")
 
 	introspect := func(t *testing.T, bearer, token string) map[string]any {
 		t.Helper()
@@ -97,6 +106,13 @@ func TestIntrospectionHandlerBindsTokenToCallerClient(t *testing.T) {
 	// A client may introspect another of its own tokens.
 	same := introspect(t, clientBToken, clientBOtherToken)
 	require.Equal(t, true, same["active"])
+
+	// A token stays inactive once its user is disabled, even though it has not expired yet.
+	disabled := introspect(t, clientBToken, clientBDisabledUserToken)
+	require.Equal(t, false, disabled["active"])
+
+	machine := introspect(t, clientBToken, clientBMachineToken)
+	require.Equal(t, true, machine["active"], "a client_credentials token has no user to re-check")
 }
 
 func TestIntrospectionHandlerAllowsReusedFederatedClientAssertion(t *testing.T) {
@@ -122,6 +138,8 @@ func TestIntrospectionHandlerAllowsReusedFederatedClientAssertion(t *testing.T) 
 	require.NoError(t, jwks.AddKey(publicKey))
 
 	db := testutils.NewDatabaseForTest(t)
+	require.NoError(t, claimmappingpolicy.Bootstrap(t.Context(), db))
+	require.NoError(t, db.Create(&model.User{Base: model.Base{ID: "user-a"}, Username: "user-a"}).Error)
 	replayProtection := false
 	require.NoError(t, db.Create(&model.OidcClient{
 		Base: model.Base{ID: clientID},
@@ -178,7 +196,7 @@ func TestIntrospectionHandlerAllowsReusedFederatedClientAssertion(t *testing.T) 
 	signedAssertion, err := jwt.Sign(assertionToken, jwt.WithKey(signingAlg, signingKey))
 	require.NoError(t, err)
 
-	handler := newIntrospectionHandler(provider, authenticator, baseURL)
+	handler := newIntrospectionHandler(provider, authenticator, newClaimsService(db, nil, baseURL, nil, appconfig.StaticResolver{}), nil, baseURL)
 	introspect := func(t *testing.T) (int, map[string]any) {
 		t.Helper()
 		body := url.Values{

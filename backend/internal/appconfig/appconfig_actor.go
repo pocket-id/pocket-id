@@ -8,9 +8,9 @@ import (
 	"time"
 
 	"github.com/italypaleale/francis/actor"
+	"gorm.io/gorm"
 
 	"github.com/pocket-id/pocket-id/backend/internal/common"
-	"github.com/pocket-id/pocket-id/backend/internal/dto"
 )
 
 // The AppConfig singleton actor maintains the dynamic configuration for the Pocket ID cluster
@@ -24,6 +24,7 @@ const AppConfigActorType = "AppConfig"
 type appConfigActor struct {
 	log    *slog.Logger
 	client actor.Client[*AppConfigModel]
+	db     *gorm.DB
 }
 
 // appConfigActorBootstrap is the type for the payload of the init method
@@ -31,9 +32,15 @@ type appConfigActorBootstrap struct {
 	LegacyConfig map[string]string
 }
 
-// NewAppConfigActor allocates a new AppConfig actor
-// It satisfies actor.Factory
-func NewAppConfigActor(actorID string, service *actor.Service) actor.Actor {
+// newAppConfigActorFactory returns the actor.Factory for the AppConfig actor
+func newAppConfigActorFactory(db *gorm.DB) actor.Factory {
+	return func(actorID string, service *actor.Service) actor.Actor {
+		return newAppConfigActor(actorID, service, db)
+	}
+}
+
+// newAppConfigActor allocates a new AppConfig actor
+func newAppConfigActor(actorID string, service *actor.Service, db *gorm.DB) actor.Actor {
 	log := slog.
 		With(
 			slog.String("scope", "actor"),
@@ -46,6 +53,7 @@ func NewAppConfigActor(actorID string, service *actor.Service) actor.Actor {
 	return &appConfigActor{
 		log:    log,
 		client: actor.NewActorClient[*AppConfigModel](AppConfigActorType, actorID, service),
+		db:     db,
 	}
 }
 
@@ -59,12 +67,15 @@ func (a *appConfigActor) Bootstrap(parentCtx context.Context, data actor.Envelop
 		return fmt.Errorf("error retrieving actor state: %w", err)
 	}
 
-	// Upgrade existing state with defaults added by newer Pocket ID versions
+	// Upgrade existing state with defaults added by newer Pocket ID versions, and encrypt the secrets saved before they were encrypted
+	save := true
 	if state != nil {
-		state = state.Clone()
-		if !state.applyDefaults() {
-			return nil
+		hasPlaintextSecrets := state.hasPlaintextSecrets()
+		state, err = state.decryptSecrets()
+		if err != nil {
+			return fmt.Errorf("error decrypting actor state: %w", err)
 		}
+		save = state.applyDefaults() || hasPlaintextSecrets
 	}
 
 	// Check if a new state should be initialized from legacy configuration
@@ -89,11 +100,20 @@ func (a *appConfigActor) Bootstrap(parentCtx context.Context, data actor.Envelop
 	}
 
 	// Persist new and upgraded state eagerly so every later activation sees the complete model
-	ctx, cancel = context.WithTimeout(parentCtx, 10*time.Second)
-	defer cancel()
-	err = a.client.SetState(ctx, state, nil)
+	if save {
+		ctx, cancel = context.WithTimeout(parentCtx, 10*time.Second)
+		defer cancel()
+		err = a.setState(ctx, state)
+		if err != nil {
+			return err
+		}
+	}
+
+	// The legacy config is not needed anymore once the state is saved, and it holds the secrets in plaintext
+	// Failing to delete it does not affect the config, so the next activation just tries again
+	err = deleteLegacyConfig(parentCtx, a.db)
 	if err != nil {
-		return fmt.Errorf("error saving actor state: %w", err)
+		a.log.WarnContext(parentCtx, "Failed to delete the legacy config", slog.Any("error", err))
 	}
 
 	return nil
@@ -108,9 +128,9 @@ func (a *appConfigActor) Peek(parentCtx context.Context, method string, data act
 	// Load the actor state
 	ctx, cancel := context.WithTimeout(parentCtx, 10*time.Second)
 	defer cancel()
-	state, err := a.client.GetState(ctx)
+	state, err := a.getState(ctx)
 	if err != nil {
-		return nil, fmt.Errorf("error retrieving actor state: %w", err)
+		return nil, err
 	}
 
 	// Return the state
@@ -120,7 +140,7 @@ func (a *appConfigActor) Peek(parentCtx context.Context, method string, data act
 func (a *appConfigActor) Invoke(parentCtx context.Context, method string, data actor.Envelope) (any, error) {
 	// Check the method first
 	switch method {
-	case "get", "update", "replace":
+	case "get", "update":
 		// All good
 		// Note: we support "get" also via Invoke and not just Peek
 	default:
@@ -130,42 +150,15 @@ func (a *appConfigActor) Invoke(parentCtx context.Context, method string, data a
 	// Load the actor state
 	ctx, cancel := context.WithTimeout(parentCtx, 10*time.Second)
 	defer cancel()
-	state, err := a.client.GetState(ctx)
+	state, err := a.getState(ctx)
 	if err != nil {
-		return nil, fmt.Errorf("error retrieving actor state: %w", err)
+		return nil, err
 	}
 
 	switch method {
 	case "get":
 		// If the method is "get", just return the actor state, we're done
 		// This switch case is a no-op
-
-	case "replace":
-		// Replace the entire config
-		// The input data must be a dto.AppConfigUpdateDto
-		if data == nil {
-			return nil, errors.New("request body is empty for method 'replace'")
-		}
-		payload := dto.AppConfigUpdateDto{}
-		err = data.Decode(&payload)
-		if err != nil {
-			return nil, fmt.Errorf("request body is not valid for method 'replace': %w", err)
-		}
-
-		// Update the in-memory data
-		// Work on a clone to avoid touching the cached object in case of errors
-		newState := state.Clone()
-		newState.Replace(payload)
-
-		// Save the updated state, which also updates the cached object
-		ctx, cancel = context.WithTimeout(parentCtx, 10*time.Second)
-		defer cancel()
-		err = a.client.SetState(ctx, newState, nil)
-		if err != nil {
-			return nil, fmt.Errorf("error saving actor state: %w", err)
-		}
-
-		return newState, nil
 
 	case "update":
 		// Update the config
@@ -179,10 +172,8 @@ func (a *appConfigActor) Invoke(parentCtx context.Context, method string, data a
 			return nil, fmt.Errorf("request body is not valid for method 'update': %w", err)
 		}
 
-		// Update the in-memory data
-		// Work on a clone to avoid touching the cached object in case of errors
-		newState := state.Clone()
-		err = newState.Update(payload)
+		// Update the in-memory data, which is a decrypted copy of the cached object
+		err = state.Update(payload)
 		if err != nil {
 			return nil, fmt.Errorf("request body is not valid for method 'update': %w", err)
 		}
@@ -190,14 +181,45 @@ func (a *appConfigActor) Invoke(parentCtx context.Context, method string, data a
 		// Save the updated state, which also updates the cached object
 		ctx, cancel = context.WithTimeout(parentCtx, 10*time.Second)
 		defer cancel()
-		err = a.client.SetState(ctx, newState, nil)
+		err = a.setState(ctx, state)
 		if err != nil {
-			return nil, fmt.Errorf("error saving actor state: %w", err)
+			return nil, err
 		}
 
-		return newState, nil
+		return state, nil
 	}
 
 	// Return the state
 	return state, nil
+}
+
+// getState returns the actor state with its secrets decrypted
+func (a *appConfigActor) getState(ctx context.Context) (*AppConfigModel, error) {
+	state, err := a.client.GetState(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("error retrieving actor state: %w", err)
+	}
+	if state == nil {
+		return nil, nil
+	}
+
+	state, err = state.decryptSecrets()
+	if err != nil {
+		return nil, fmt.Errorf("error decrypting actor state: %w", err)
+	}
+	return state, nil
+}
+
+// setState saves the actor state with its secrets encrypted, so they never end up in the database in plaintext
+func (a *appConfigActor) setState(ctx context.Context, state *AppConfigModel) error {
+	encrypted, err := state.encryptSecrets()
+	if err != nil {
+		return fmt.Errorf("error encrypting actor state: %w", err)
+	}
+
+	err = a.client.SetState(ctx, encrypted, nil)
+	if err != nil {
+		return fmt.Errorf("error saving actor state: %w", err)
+	}
+	return nil
 }

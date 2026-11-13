@@ -10,14 +10,17 @@ import (
 	"time"
 
 	"github.com/pocket-id/fosite"
+	"gorm.io/gorm"
+	"gorm.io/gorm/clause"
+
 	"github.com/pocket-id/pocket-id/backend/internal/apperror"
 	"github.com/pocket-id/pocket-id/backend/internal/authz"
+	"github.com/pocket-id/pocket-id/backend/internal/claimmappingpolicy"
+	"github.com/pocket-id/pocket-id/backend/internal/dto"
 	"github.com/pocket-id/pocket-id/backend/internal/model"
 	datatype "github.com/pocket-id/pocket-id/backend/internal/model/types"
 	"github.com/pocket-id/pocket-id/backend/internal/oidc"
 	"github.com/pocket-id/pocket-id/backend/internal/utils"
-	"gorm.io/gorm"
-	"gorm.io/gorm/clause"
 )
 
 // isPermissionKeyReserved reports whether the key is a scope or claim name owned by Pocket ID's built-in identity layer
@@ -53,13 +56,13 @@ func permissionsByKey(db *gorm.DB) *gorm.DB {
 
 // isReservedAudience reports whether the audience refers to Pocket ID itself, either as the issuer or as the built-in API
 // A custom API must not claim the issuer, otherwise its tokens would be indistinguishable from Pocket ID's own identity tokens
-// Nor may it claim the built-in API's resource, otherwise its tokens could call Pocket ID's API
+// Nor may it claim one of the built-in API's resources, otherwise its tokens could call Pocket ID's API
 func isReservedAudience(audience, issuer string) bool {
 	if issuer == "" {
 		return false
 	}
 	audience = strings.ToLower(strings.TrimRight(audience, "/"))
-	return audience == issuer || audience == authz.ResourceURI(issuer)
+	return audience == issuer || audience == authz.ResourceURI(issuer) || audience == authz.MCPResourceURI(issuer)
 }
 
 func (s *Service) List(ctx context.Context, search string, listRequestOptions utils.ListRequestOptions) (apis []API, response utils.PaginationResponse, err error) {
@@ -131,7 +134,7 @@ func (s *Service) Create(ctx context.Context, input apiCreateDto) (api API, err 
 	return api, nil
 }
 
-func (s *Service) Update(ctx context.Context, id string, input apiUpdateDto) (api API, err error) {
+func (s *Service) Update(ctx context.Context, id string, update dto.Update[apiUpdateDto]) (api API, err error) {
 	tx := s.db.Begin()
 	defer func() {
 		tx.Rollback()
@@ -143,6 +146,12 @@ func (s *Service) Update(ctx context.Context, id string, input apiUpdateDto) (ap
 	}
 	if api.ID == BuiltInAPIID {
 		return API{}, apperror.BuiltInAPIReadOnly("The built-in Pocket ID API can't be renamed")
+	}
+
+	// Compute the update from the locked API, so a PATCH merges onto the state it saves over
+	input, err := update(api)
+	if err != nil {
+		return API{}, err
 	}
 
 	api.Name = input.Name
@@ -201,7 +210,18 @@ func (s *Service) UpdatePermissions(ctx context.Context, id string, input apiPer
 		return API{}, apperror.BuiltInAPIReadOnly("The permissions of the built-in Pocket ID API follow Pocket ID's scopes and can't be changed")
 	}
 
-	// Reject keys with invalid characters, that collide with Pocket ID's reserved scopes and claims, or that repeat within the request before persisting anything
+	// Collect all permission keys from the input for validation against custom scopes and reserved keys
+	keys := make([]string, len(input.Permissions))
+	for i, permission := range input.Permissions {
+		keys[i] = permission.Key
+	}
+	var customScopeKeys []string
+	err = tx.WithContext(ctx).Model(&claimmappingpolicy.CustomScope{}).Where("key IN ?", keys).Pluck("key", &customScopeKeys).Error
+	if err != nil {
+		return API{}, err
+	}
+
+	// Reject keys with invalid characters, that collide with Pocket ID's reserved scopes and claims or a custom scope, or that repeat within the request before persisting anything
 	// A duplicate key would otherwise be silently coalesced last-wins into the map below, dropping a row behind a 200
 	seen := make(map[string]struct{}, len(input.Permissions))
 	for index, permission := range input.Permissions {
@@ -211,6 +231,9 @@ func (s *Service) UpdatePermissions(ctx context.Context, id string, input apiPer
 		}
 		if isPermissionKeyReserved(permission.Key) {
 			return API{}, apperror.InvalidField(field, "reserved", "is reserved by Pocket ID")
+		}
+		if slices.Contains(customScopeKeys, permission.Key) {
+			return API{}, apperror.InvalidField(field, "reserved", "is already used by a custom scope")
 		}
 		_, ok := seen[permission.Key]
 		if ok {

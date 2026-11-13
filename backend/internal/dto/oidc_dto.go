@@ -32,6 +32,7 @@ type OidcClientDto struct {
 	AccessTokenDurationMinutes          int64                    `json:"accessTokenDurationMinutes"`
 	RefreshTokenDurationMinutes         int64                    `json:"refreshTokenDurationMinutes"`
 	ClaimMappingPolicyId                string                   `json:"claimMappingPolicyId"`
+	Disabled                            bool                     `json:"disabled"`
 }
 
 type OidcClientWithAllowedUserGroupsDto struct {
@@ -71,6 +72,7 @@ type OidcClientUpdateDto struct {
 	AccessTokenDurationMinutes          int64                    `json:"accessTokenDurationMinutes" binding:"omitempty,token_duration"`
 	RefreshTokenDurationMinutes         int64                    `json:"refreshTokenDurationMinutes" binding:"omitempty,token_duration"`
 	ClaimMappingPolicyId                string                   `json:"claimMappingPolicyId"`
+	Disabled                            bool                     `json:"disabled"`
 }
 
 type OidcClientCreateDto struct {
@@ -113,7 +115,7 @@ type OidcClientFederatedIdentityDto struct {
 	Subject          string            `json:"subject,omitempty"`
 	Audience         string            `json:"audience,omitempty"`
 	JWKS             string            `json:"jwks,omitempty"`
-	PublicKeys       []json.RawMessage `json:"publicKeys,omitempty" swaggertype:"array,object"`
+	PublicKeys       []json.RawMessage `json:"publicKeys,omitempty"`
 	ReplayProtection bool              `json:"replayProtection"`
 }
 
@@ -122,10 +124,10 @@ type OidcUpdateAllowedUserGroupsDto struct {
 }
 
 type OidcLogoutDto struct {
-	IdTokenHint           string `form:"id_token_hint"`
-	ClientId              string `form:"client_id"`
-	PostLogoutRedirectUri string `form:"post_logout_redirect_uri"`
-	State                 string `form:"state"`
+	IdTokenHint           string `form:"id_token_hint" json:"idTokenHint"`
+	ClientId              string `form:"client_id" json:"clientId"`
+	PostLogoutRedirectUri string `form:"post_logout_redirect_uri" json:"postLogoutRedirectUri"`
+	State                 string `form:"state" json:"state"`
 }
 
 type OidcDeviceAuthorizationResponseDto struct {

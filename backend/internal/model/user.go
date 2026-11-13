@@ -2,7 +2,6 @@ package model
 
 import (
 	"strings"
-	"time"
 
 	"github.com/go-webauthn/webauthn/protocol"
 	"github.com/go-webauthn/webauthn/webauthn"
@@ -86,11 +85,4 @@ func (u User) FullName() string {
 	}
 
 	return u.Username
-}
-
-func (u User) LastModified() time.Time {
-	if u.UpdatedAt != nil {
-		return u.UpdatedAt.ToTime()
-	}
-	return u.CreatedAt.ToTime()
 }

@@ -25,6 +25,21 @@ type OidcClaimMappingPolicy struct {
 
 func (OidcClaimMappingPolicy) TableName() string { return "oidc_claim_mapping_policies" }
 
+// CustomScope is an admin-defined OIDC scope that claim mappings can be released with, like the built-in ones
+// A client may request it when its claim mapping policy releases at least one claim with it
+type CustomScope struct {
+	model.Base
+
+	Key         string `sortable:"true"`
+	Name        string `sortable:"case-insensitive"`
+	Description string
+
+	// Policies holds the names of the policies that release claims with the scope, and is only filled when listing
+	Policies []string `gorm:"-"`
+}
+
+func (CustomScope) TableName() string { return "oidc_custom_scopes" }
+
 // OidcClaimMappings used to store the claim mappings as json in the database.
 type OidcClaimMappings []OidcClaimMapping //nolint:recvcheck
 

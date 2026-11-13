@@ -65,34 +65,23 @@ func TestGetAuthenticatorName(t *testing.T) {
 	// Inject test metadata without loading the embedded manifest
 	aaguidMetadata = map[string]authenticatorMetadata{
 		"adce0002-35bc-c60a-648b-0b25f1f05503": {Name: "Test Authenticator"},
-		"00000000-0000-0000-0000-000000000000": {Name: "Zero Authenticator"},
 	}
 	aaguidMetadataOnce = &sync.Once{}
 	aaguidMetadataOnce.Do(func() {})
 
 	tests := []struct {
 		name   string
-		aaguid []byte
+		aaguid string
 		want   string
 	}{
 		{
-			name:   "empty byte slice",
-			aaguid: []byte{},
-			want:   "",
-		},
-		{
 			name:   "known AAGUID",
-			aaguid: mustDecodeHex("adce000235bcc60a648b0b25f1f05503"),
-			want:   "Test Authenticator Passkey",
-		},
-		{
-			name:   "zero UUID",
-			aaguid: mustDecodeHex("00000000000000000000000000000000"),
-			want:   "Zero Authenticator Passkey",
+			aaguid: "adce0002-35bc-c60a-648b-0b25f1f05503",
+			want:   "Test Authenticator",
 		},
 		{
 			name:   "unknown AAGUID",
-			aaguid: mustDecodeHex("ffffffffffffffffffffffffffffffff"),
+			aaguid: "ffffffff-ffff-ffff-ffff-ffffffffffff",
 			want:   "",
 		},
 	}
@@ -113,7 +102,7 @@ func TestLoadAAGUIDMetadataFromFile(t *testing.T) {
 	aaguidMetadataOnce = &sync.Once{}
 
 	// Trigger loading by resolving an arbitrary AAGUID
-	GetAuthenticatorName([]byte{0x01, 0x02, 0x03, 0x04})
+	GetAuthenticatorName("")
 
 	if len(aaguidMetadata) == 0 {
 		t.Error("loadAAGUIDMetadataFromFile() failed to populate aaguidMetadata")

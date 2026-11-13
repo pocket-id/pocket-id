@@ -172,6 +172,19 @@ test('Update user', async ({ page }) => {
 	await saveUnsavedChanges(page);
 });
 
+// The form has no language field, so saving it must not reset the language the user picked
+test('Saving a user keeps their language', async ({ page }) => {
+	const user = users.craig;
+	await page.request.patch(`/api/users/${user.id}`, { data: { locale: 'en' } });
+	await page.goto(`/settings/admin/users/${user.id}`);
+
+	await page.getByLabel('First name').fill('Crack');
+	await saveUnsavedChanges(page);
+
+	const saved = await (await page.request.get(`/api/users/${user.id}`)).json();
+	expect(saved.locale).toBe('en');
+});
+
 test('Update user fails with already taken email', async ({ page }) => {
 	const user = users.craig;
 
@@ -284,6 +297,11 @@ test('Update user group assignments', async ({ page }) => {
 		})
 		.click();
 
+	await expect(
+		page.getByText(`${user.firstname} removed from ${userGroups.developers.friendlyName}`, {
+			exact: true
+		})
+	).toBeVisible();
 	await page.reload();
 
 	const groups = page.getByRole('tabpanel');
@@ -335,4 +353,29 @@ test('Non-admin cannot use admin passkey endpoints', async ({ page }) => {
 		`/api/users/${users.tim.id}/webauthn-credentials/test-passkey-id`
 	);
 	expect(deleteResponse.status()).toBe(403);
+});
+
+test('Reorder table columns in the column picker', async ({ page }) => {
+	await page.goto('/settings/admin/users');
+
+	const headerNames = async () =>
+		(await page.getByRole('columnheader').allInnerTexts()).map((t) => t.trim()).filter(Boolean);
+	await expect.poll(headerNames).toEqual(['User', 'Username', 'Role', 'Status']);
+
+	await page.getByRole('button', { name: 'Columns' }).click();
+	const grip = (name: string) => page.getByRole('button', { name: `Reorder ${name}` });
+
+	await grip('Status').press('ArrowUp');
+	await grip('Status').press('ArrowUp');
+	await expect.poll(headerNames).toEqual(['User', 'Status', 'Username', 'Role']);
+
+	await grip('Role').dragTo(grip('Status'));
+	await expect.poll(headerNames).toEqual(['User', 'Role', 'Status', 'Username']);
+
+	await page.reload();
+	await expect.poll(headerNames).toEqual(['User', 'Role', 'Status', 'Username']);
+
+	await page.getByRole('button', { name: 'Columns' }).click();
+	await page.getByRole('button', { name: 'Reset' }).click();
+	await expect.poll(headerNames).toEqual(['User', 'Username', 'Role', 'Status']);
 });

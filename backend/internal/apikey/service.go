@@ -2,6 +2,7 @@ package apikey
 
 import (
 	"context"
+	"crypto/subtle"
 	"errors"
 	"fmt"
 	"slices"
@@ -11,9 +12,9 @@ import (
 	"gorm.io/gorm/clause"
 
 	"github.com/pocket-id/pocket-id/backend/internal/apperror"
+	"github.com/pocket-id/pocket-id/backend/internal/auditlogs"
 	"github.com/pocket-id/pocket-id/backend/internal/authz"
-	"github.com/pocket-id/pocket-id/backend/internal/common"
-	"github.com/pocket-id/pocket-id/backend/internal/model"
+	"github.com/pocket-id/pocket-id/backend/internal/dto"
 	datatype "github.com/pocket-id/pocket-id/backend/internal/model/types"
 	"github.com/pocket-id/pocket-id/backend/internal/utils"
 )
@@ -22,22 +23,11 @@ import (
 type Service struct {
 	db           *gorm.DB
 	staticApiKey string
+	auditLog     AuditLogger
 }
 
-func newService(ctx context.Context, db *gorm.DB, staticApiKey string) (*Service, error) {
-	s := &Service{
-		db:           db,
-		staticApiKey: staticApiKey,
-	}
-
-	if staticApiKey == "" {
-		err := s.deleteStaticApiKeyUser(ctx)
-		if err != nil {
-			return nil, err
-		}
-	}
-
-	return s, nil
+func newService(db *gorm.DB, staticApiKey string, auditLog AuditLogger) *Service {
+	return &Service{db: db, staticApiKey: staticApiKey, auditLog: auditLog}
 }
 
 func (s *Service) ListApiKeys(ctx context.Context, userID string, listRequestOptions utils.ListRequestOptions) ([]ApiKey, utils.PaginationResponse, error) {
@@ -56,7 +46,7 @@ func (s *Service) ListApiKeys(ctx context.Context, userID string, listRequestOpt
 }
 
 // CreateApiKey creates a key for the user that holds only the requested scopes, each of which must be in grantable
-func (s *Service) CreateApiKey(ctx context.Context, userID string, grantable authz.ScopeSet, input apiKeyCreateDto) (ApiKey, string, error) {
+func (s *Service) CreateApiKey(ctx context.Context, userID string, grantable authz.ScopeSet, input apiKeyCreateDto, origin auditlogs.Origin) (ApiKey, string, error) {
 	// Check if expiration is in the future
 	if !input.ExpiresAt.ToTime().After(time.Now()) {
 		return ApiKey{}, "", apperror.InvalidAPIKeyExpiration()
@@ -92,21 +82,24 @@ func (s *Service) CreateApiKey(ctx context.Context, userID string, grantable aut
 		}
 		return ApiKey{}, "", fmt.Errorf("error creating API key: %w", err)
 	}
+	s.auditLog.Record(ctx, auditlogs.EventAPIKeyCreated, origin, userID, auditlogs.Data{"apiKeyName": apiKey.Name}, nil)
 
 	// Return the raw token only once - it cannot be retrieved later
 	return apiKey, token, nil
 }
 
 // UpdateApiKey changes a key's name, description and scopes without changing its token
-func (s *Service) UpdateApiKey(ctx context.Context, userID, apiKeyID string, grantable authz.ScopeSet, input apiKeyUpdateDto) (ApiKey, error) {
-	scopes, err := grantedScopes(input.Scopes, grantable)
-	if err != nil {
-		return ApiKey{}, err
-	}
+func (s *Service) UpdateApiKey(ctx context.Context, userID, apiKeyID string, grantable authz.ScopeSet, update dto.Update[apiKeyUpdateDto]) (ApiKey, error) {
+	tx := s.db.Begin()
+	defer func() {
+		tx.Rollback()
+	}()
 
+	// Lock the key and compute the update from it, so a PATCH merges onto the state it saves over
 	var apiKey ApiKey
-	err = s.db.
+	err := tx.
 		WithContext(ctx).
+		Clauses(clause.Locking{Strength: "UPDATE"}).
 		Where("id = ? AND user_id = ?", apiKeyID, userID).
 		First(&apiKey).
 		Error
@@ -115,12 +108,20 @@ func (s *Service) UpdateApiKey(ctx context.Context, userID, apiKeyID string, gra
 	} else if err != nil {
 		return ApiKey{}, fmt.Errorf("error loading API key: %w", err)
 	}
+	input, err := update(apiKey)
+	if err != nil {
+		return ApiKey{}, err
+	}
+	scopes, err := grantedScopes(input.Scopes, grantable)
+	if err != nil {
+		return ApiKey{}, err
+	}
 
 	apiKey.Name = input.Name
 	apiKey.Description = input.Description
 	apiKey.Scopes = scopes
 
-	err = s.db.WithContext(ctx).Save(&apiKey).Error
+	err = tx.WithContext(ctx).Save(&apiKey).Error
 	if err != nil {
 		if errors.Is(err, gorm.ErrDuplicatedKey) {
 			return ApiKey{}, apperror.AlreadyInUse("API key name")
@@ -128,7 +129,7 @@ func (s *Service) UpdateApiKey(ctx context.Context, userID, apiKeyID string, gra
 		return ApiKey{}, fmt.Errorf("error saving API key: %w", err)
 	}
 
-	return apiKey, nil
+	return apiKey, tx.Commit().Error
 }
 
 // grantedScopes returns the requested scopes sorted and without duplicates, or an error if any of them is not in grantable
@@ -147,7 +148,7 @@ func grantedScopes(requested []string, grantable authz.ScopeSet) (datatype.Strin
 // RenewApiKey replaces a key's token
 // If the key has not expired yet, its old token keeps working for gracePeriod, capped at the key's previous expiration
 // The token replaced by an earlier rotation stops working right away
-func (s *Service) RenewApiKey(ctx context.Context, userID, apiKeyID string, expiration time.Time, gracePeriod time.Duration) (ApiKey, string, error) {
+func (s *Service) RenewApiKey(ctx context.Context, userID, apiKeyID string, expiration time.Time, gracePeriod time.Duration, origin auditlogs.Origin) (ApiKey, string, error) {
 	now := time.Now()
 
 	// Check if expiration is in the future
@@ -198,6 +199,7 @@ func (s *Service) RenewApiKey(ctx context.Context, userID, apiKeyID string, expi
 	if err != nil {
 		return ApiKey{}, "", fmt.Errorf("error saving API key: %w", err)
 	}
+	s.auditLog.Record(ctx, auditlogs.EventAPIKeyRenewed, origin, userID, auditlogs.Data{"apiKeyName": apiKey.Name}, tx)
 
 	err = tx.Commit().Error
 	if err != nil {
@@ -207,10 +209,11 @@ func (s *Service) RenewApiKey(ctx context.Context, userID, apiKeyID string, expi
 	return apiKey, token, nil
 }
 
-func (s *Service) RevokeApiKey(ctx context.Context, userID, apiKeyID string) error {
+func (s *Service) RevokeApiKey(ctx context.Context, userID, apiKeyID string, origin auditlogs.Origin) error {
 	var apiKey ApiKey
 	result := s.db.
 		WithContext(ctx).
+		Clauses(clause.Returning{}).
 		Where("id = ? AND user_id = ?", apiKeyID, userID).
 		Delete(&apiKey)
 	if result.Error != nil {
@@ -219,22 +222,20 @@ func (s *Service) RevokeApiKey(ctx context.Context, userID, apiKeyID string) err
 	if result.RowsAffected == 0 {
 		return apperror.APIKeyNotFound()
 	}
+	s.auditLog.Record(ctx, auditlogs.EventAPIKeyRevoked, origin, userID, auditlogs.Data{"apiKeyName": apiKey.Name}, nil)
 
 	return nil
 }
 
 // ValidateApiKey resolves a raw API key to the stored key with its owner preloaded
+// The static API key belongs to no user, so it resolves to a key without a UserID, which no stored key can have
 func (s *Service) ValidateApiKey(ctx context.Context, apiKey string) (ApiKey, error) {
 	if apiKey == "" {
 		return ApiKey{}, apperror.NoAPIKeyProvided()
 	}
 
-	if s.staticApiKey != "" && apiKey == s.staticApiKey {
-		user, err := s.initStaticApiKeyUser(ctx)
-		if err != nil {
-			return ApiKey{}, err
-		}
-		return ApiKey{User: user, Scopes: AllScopes()}, nil
+	if s.staticApiKey != "" && subtle.ConstantTimeCompare([]byte(apiKey), []byte(s.staticApiKey)) == 1 {
+		return ApiKey{}, nil
 	}
 
 	now := time.Now()
@@ -261,7 +262,7 @@ func (s *Service) ValidateApiKey(ctx context.Context, apiKey string) (ApiKey, er
 	return key, nil
 }
 
-// AllScopes returns every scope an API key can hold, which is what the static API key is granted
+// AllScopes returns every scope an API key can hold
 func AllScopes() datatype.StringList {
 	scopes := make(datatype.StringList, 0)
 	for scope := range authz.UserScopes(true, authz.KindAPIKey) {
@@ -297,58 +298,6 @@ func (s *Service) MarkExpirationEmailSent(ctx context.Context, apiKeyID string) 
 		Error
 	if err != nil {
 		return fmt.Errorf("error marking API key expiration email sent: %w", err)
-	}
-
-	return nil
-}
-
-func (s *Service) initStaticApiKeyUser(ctx context.Context) (user model.User, err error) {
-	err = s.db.
-		WithContext(ctx).
-		First(&user, "id = ?", common.StaticApiKeyUserID).
-		Error
-
-	if err == nil {
-		return user, nil
-	}
-
-	if !errors.Is(err, gorm.ErrRecordNotFound) {
-		return model.User{}, fmt.Errorf("error loading static API key user: %w", err)
-	}
-
-	usernameSuffix, err := utils.GenerateRandomAlphanumericString(6)
-	if err != nil {
-		return model.User{}, fmt.Errorf("error generating static API key username suffix: %w", err)
-	}
-
-	user = model.User{
-		Base: model.Base{
-			ID: common.StaticApiKeyUserID,
-		},
-		FirstName:   "Static API User",
-		Username:    "static-api-user-" + usernameSuffix,
-		DisplayName: "Static API User",
-		IsAdmin:     true,
-	}
-
-	err = s.db.
-		WithContext(ctx).
-		Create(&user).
-		Error
-	if err != nil {
-		return model.User{}, fmt.Errorf("error creating static API key user: %w", err)
-	}
-
-	return user, nil
-}
-
-func (s *Service) deleteStaticApiKeyUser(ctx context.Context) error {
-	err := s.db.
-		WithContext(ctx).
-		Delete(&model.User{}, "id = ?", common.StaticApiKeyUserID).
-		Error
-	if err != nil {
-		return fmt.Errorf("error deleting static API key user: %w", err)
 	}
 
 	return nil

@@ -17,7 +17,7 @@ export function confirmDeleteGroup(
 				? m.delete_empty_group_consequence()
 				: m.delete_group_consequence({ count: group.memberCount }),
 		confirm: {
-			label: m.delete_name_action({ name: group.friendlyName }),
+			label: m.delete_group(),
 			destructive: true,
 			action: async () => {
 				try {

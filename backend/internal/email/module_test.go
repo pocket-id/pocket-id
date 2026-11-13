@@ -199,6 +199,17 @@ func TestSMTPConnStringRequiresHostAndDefaultsTLS(t *testing.T) {
 	assert.Empty(t, smtpURL.Query().Get("insecureSkipVerify"))
 }
 
+func TestMalformedSMTPHostDoesNotLeakPassword(t *testing.T) {
+	_, err := (&Module{}).getEmailer(t.Context(), &appconfig.AppConfigModel{
+		SmtpHost:     "127.0.0.1:2525",
+		SmtpPort:     "2525",
+		SmtpUser:     "mailer",
+		SmtpPassword: "secret-password",
+	})
+	require.Error(t, err)
+	require.NotContains(t, err.Error(), "secret-password")
+}
+
 type smtpTestSession struct {
 	mailFrom string
 	rcptTo   string

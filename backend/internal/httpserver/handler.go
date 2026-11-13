@@ -13,8 +13,13 @@ import (
 // HandlerFunc is an application HTTP handler that returns failures to the shared error middleware
 type HandlerFunc func(*gin.Context) error
 
-// Handle adapts an error-returning application handler to Gin
-func Handle(handler HandlerFunc) gin.HandlerFunc {
+// Handle serves an error-returning handler that writes its own response, so the route documents its body and responses itself
+func Handle(handler HandlerFunc) Endpoint {
+	return Endpoint{Handler: handle(handler)}
+}
+
+// handle adapts an error-returning handler to Gin, reporting its errors and panics to the shared error middleware
+func handle(handler HandlerFunc) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		defer func() {
 			recovered := recover()

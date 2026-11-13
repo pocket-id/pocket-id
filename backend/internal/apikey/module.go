@@ -4,14 +4,22 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"net/http"
 
+	"github.com/go-fuego/fuego/option"
 	francishost "github.com/italypaleale/francis/host"
 	"gorm.io/gorm"
 
 	"github.com/pocket-id/pocket-id/backend/internal/appconfig"
+	"github.com/pocket-id/pocket-id/backend/internal/auditlogs"
 	"github.com/pocket-id/pocket-id/backend/internal/authz"
 	"github.com/pocket-id/pocket-id/backend/internal/httpserver"
+	"github.com/pocket-id/pocket-id/backend/internal/openapi"
 )
+
+type AuditLogger interface {
+	Record(ctx context.Context, event auditlogs.Event, origin auditlogs.Origin, userID string, data auditlogs.Data, tx *gorm.DB)
+}
 
 type Dependencies struct {
 	DB              *gorm.DB
@@ -19,6 +27,7 @@ type Dependencies struct {
 	StaticApiKey    string
 	AppConfig       appconfig.AppConfigResolver
 	EmailSender     APIKeyExpiryEmailSender
+	AuditLog        AuditLogger
 	CleanupDisabled bool
 }
 
@@ -27,12 +36,8 @@ type Module struct {
 	handler *handler
 }
 
-func New(ctx context.Context, deps Dependencies) (*Module, error) {
-	service, err := newService(ctx, deps.DB, deps.StaticApiKey)
-	if err != nil {
-		return nil, err
-	}
-
+func New(deps Dependencies) (*Module, error) {
+	service := newService(deps.DB, deps.StaticApiKey, deps.AuditLog)
 	module := &Module{
 		service: service,
 		handler: newHandler(service),
@@ -65,11 +70,37 @@ func New(ctx context.Context, deps Dependencies) (*Module, error) {
 // Creating, renewing and editing keys requires a browser session so an API key cannot mint further API keys or widen their scopes
 func (m *Module) RegisterRoutes(r *authz.Router) {
 	group := r.Group("/api-keys")
-	group.GET("", authz.AccountAPIKeys, httpserver.Handle(m.handler.list))
-	group.POST("", authz.AccountAPIKeysCreate, httpserver.Handle(m.handler.create))
-	group.PUT("/:id", authz.AccountAPIKeysCreate, httpserver.Handle(m.handler.update))
-	group.POST("/:id/renew", authz.AccountAPIKeysCreate, httpserver.Handle(m.handler.renew))
-	group.DELETE("/:id", authz.AccountAPIKeys, httpserver.Handle(m.handler.revoke))
+	group.GET("", authz.AccountAPIKeys, httpserver.JSON(http.StatusOK, m.handler.list),
+		option.Summary("List API keys"),
+		option.Description("Get a paginated list of API keys belonging to the current user"),
+		option.Tags("API Keys"),
+		openapi.List[ApiKey](),
+	)
+	group.POST("", authz.AccountAPIKeysCreate, httpserver.BodyJSON(http.StatusCreated, m.handler.create),
+		option.Summary("Create API key"),
+		option.Description("Create a new API key for the current user"),
+		option.Tags("API Keys"),
+	)
+	updateDocs := option.Group(
+		option.Summary("Update API key"),
+		option.Description("Change the name, description and scopes of an existing API key, where PATCH changes only the fields in the body; its token stays the same"),
+		option.Tags("API Keys"),
+		option.Path("id", "API Key ID"),
+	)
+	group.PUT("/:id", authz.AccountAPIKeysCreate, httpserver.UpdateJSON(m.handler.update), updateDocs)
+	group.PATCH("/:id", authz.AccountAPIKeysCreate, httpserver.UpdateJSON(m.handler.update), updateDocs)
+	group.POST("/:id/renew", authz.AccountAPIKeysCreate, httpserver.BodyJSON(http.StatusOK, m.handler.renew),
+		option.Summary("Renew API key"),
+		option.Description("While a key has not expired, its old token keeps working for the given grace period, but never past the key's previous expiration"),
+		option.Tags("API Keys"),
+		option.Path("id", "API Key ID"),
+	)
+	group.DELETE("/:id", authz.AccountAPIKeys, httpserver.NoContent(m.handler.revoke),
+		option.Summary("Revoke API key"),
+		option.Description("Revoke (delete) an existing API key by ID"),
+		option.Tags("API Keys"),
+		option.Path("id", "API Key ID"),
+	)
 }
 
 // ValidateApiKey resolves the given raw API key to the stored key with its owner preloaded

@@ -10,6 +10,7 @@ import (
 
 	"github.com/pocket-id/pocket-id/backend/internal/apperror"
 	"github.com/pocket-id/pocket-id/backend/internal/authz"
+	"github.com/pocket-id/pocket-id/backend/internal/dto"
 	"github.com/pocket-id/pocket-id/backend/internal/model"
 	"github.com/pocket-id/pocket-id/backend/internal/oidc"
 	"github.com/pocket-id/pocket-id/backend/internal/utils"
@@ -102,7 +103,7 @@ func TestBuiltInAPIIsReadOnly(t *testing.T) {
 	svc := New(Dependencies{DB: db, Issuer: bootstrapTestAppURL}).service
 	require.NoError(t, Bootstrap(t.Context(), db, bootstrapTestAppURL))
 
-	_, err := svc.Update(t.Context(), BuiltInAPIID, apiUpdateDto{Name: "Renamed"})
+	_, err := svc.Update(t.Context(), BuiltInAPIID, dto.Replace(apiUpdateDto{Name: "Renamed"}))
 	require.True(t, apperror.IsCode(err, apperror.CodeBuiltInAPIReadOnly))
 	_, err = svc.UpdatePermissions(t.Context(), BuiltInAPIID, apiPermissionsUpdateDto{})
 	require.True(t, apperror.IsCode(err, apperror.CodeBuiltInAPIReadOnly))

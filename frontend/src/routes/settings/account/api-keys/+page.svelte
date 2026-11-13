@@ -120,7 +120,7 @@
 			title: m.revoke_name_question({ name: key.name }),
 			message: m.revoke_api_key_consequence(),
 			confirm: {
-				label: m.revoke_name_action({ name: key.name }),
+				label: m.revoke_api_key(),
 				destructive: true,
 				icon: BanIcon,
 				action: async () => {

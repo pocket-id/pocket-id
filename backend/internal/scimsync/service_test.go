@@ -9,10 +9,13 @@ import (
 	"testing"
 	"time"
 
-	"github.com/pocket-id/pocket-id/backend/internal/apperror"
-	"github.com/pocket-id/pocket-id/backend/internal/model"
-	testutils "github.com/pocket-id/pocket-id/backend/internal/utils/testing"
 	"github.com/stretchr/testify/require"
+
+	"github.com/pocket-id/pocket-id/backend/internal/apperror"
+	"github.com/pocket-id/pocket-id/backend/internal/dto"
+	"github.com/pocket-id/pocket-id/backend/internal/model"
+	datatype "github.com/pocket-id/pocket-id/backend/internal/model/types"
+	testutils "github.com/pocket-id/pocket-id/backend/internal/utils/testing"
 )
 
 func TestServiceProviderOperationsReturnSpecificNotFoundErrors(t *testing.T) {
@@ -50,10 +53,10 @@ func TestServiceProviderCreateAndUpdate(t *testing.T) {
 	require.NotEmpty(t, provider.ID)
 
 	// Move the provider to the second client in one transaction
-	provider, err = service.UpdateServiceProvider(t.Context(), provider.ID, &ScimServiceProviderCreateDTO{
+	provider, err = service.UpdateServiceProvider(t.Context(), provider.ID, dto.Replace(ScimServiceProviderCreateDTO{
 		Endpoint:     "https://scim.example.com/v2",
 		OidcClientID: "client-2",
-	})
+	}))
 	require.NoError(t, err)
 	require.Equal(t, "https://scim.example.com/v2", provider.Endpoint)
 	require.Equal(t, "client-2", provider.OidcClientID)
@@ -68,6 +71,47 @@ func TestServiceProviderCreateAndUpdate(t *testing.T) {
 	snapshot, err := service.loadSyncSnapshot(t.Context(), provider.ID)
 	require.NoError(t, err)
 	require.Equal(t, provider.ID, snapshot.provider.ID)
+}
+
+func TestUpdateServiceProviderToken(t *testing.T) {
+	db := testutils.NewDatabaseForTest(t)
+	service := newService(db, nil)
+	require.NoError(t, db.Create(&model.OidcClient{Base: model.Base{ID: "client"}, Name: "Client"}).Error)
+
+	provider, err := service.CreateServiceProvider(t.Context(), &ScimServiceProviderCreateDTO{
+		Endpoint:     "https://scim.example.com",
+		Token:        new("stored-token"),
+		OidcClientID: "client",
+	})
+	require.NoError(t, err)
+
+	update := func(endpoint string, token *string) error {
+		_, err := service.UpdateServiceProvider(t.Context(), provider.ID, dto.Replace(ScimServiceProviderCreateDTO{
+			Endpoint:     endpoint,
+			Token:        token,
+			OidcClientID: "client",
+		}))
+		return err
+	}
+	requireToken := func(expected string) {
+		t.Helper()
+		persisted, err := service.GetServiceProvider(t.Context(), provider.ID)
+		require.NoError(t, err)
+		require.Equal(t, datatype.EncryptedString(expected), persisted.Token)
+	}
+
+	require.NoError(t, update("https://scim.example.com", nil))
+	requireToken("stored-token")
+
+	err = update("https://attacker.example.com", nil)
+	require.True(t, apperror.IsCode(err, apperror.CodeValidationFailed), "expected a validation error, got %v", err)
+	requireToken("stored-token")
+
+	require.NoError(t, update("https://scim2.example.com", new("new-token")))
+	requireToken("new-token")
+
+	require.NoError(t, update("https://scim2.example.com", new("")))
+	requireToken("")
 }
 
 func TestSyncSnapshotTxOptions(t *testing.T) {

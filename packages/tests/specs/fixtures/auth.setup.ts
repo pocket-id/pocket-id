@@ -18,6 +18,7 @@ setup('authenticate', async ({ page }) => {
 	]);
 	await page.goto('/settings/account');
 	await page.waitForURL('/settings/account');
+	await page.evaluate(() => localStorage.setItem('keep-signed-in', 'true'));
 
 	await page.context().storageState({ path: authFile });
 });

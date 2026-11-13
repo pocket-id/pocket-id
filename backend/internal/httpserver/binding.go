@@ -31,6 +31,47 @@ func BindJSON(c *gin.Context, value any) error {
 	return nil
 }
 
+// acceptedPatchTypes lists the PATCH formats BindUpdate accepts, where plain JSON is read as a merge patch too
+const acceptedPatchTypes = "application/merge-patch+json, application/json"
+
+// BindUpdate binds the body of a PUT or PATCH update into the update the service applies once it has locked the resource
+// A PUT replaces the resource with the validated body, and a PATCH is a JSON merge patch (RFC 7396) that the service merges onto the locked state
+func BindUpdate[T any](c *gin.Context) (dto.Update[T], error) {
+	// Advertise the PATCH formats on every update response, as RFC 5789 suggests, so clients can discover them from a PUT or a rejected PATCH
+	c.Header("Accept-Patch", acceptedPatchTypes)
+
+	if c.Request.Method != http.MethodPatch {
+		var input T
+		if err := BindJSON(c, &input); err != nil {
+			return nil, err
+		}
+		return dto.Replace(input), nil
+	}
+
+	// Reject other patch formats such as JSON Patch, which would otherwise be misread as a merge patch
+	mediaType, _, err := mime.ParseMediaType(c.GetHeader("Content-Type"))
+	if err != nil || (mediaType != "application/merge-patch+json" && mediaType != "application/json") {
+		return nil, apperror.UnsupportedPatchType(acceptedPatchTypes)
+	}
+
+	// Parse the patch before the service loads the resource, so a malformed body fails as invalid input
+	var patch any
+	if err := dto.DecodeJSON(c.Request.Body, &patch); err != nil {
+		return nil, apperror.InvalidRequestBody(err)
+	}
+	return dto.MergePatch[T](patch), nil
+}
+
+// Validate validates and normalizes input that was not bound from a request, such as MCP tool arguments, with the same rules as BindJSON
+func Validate(value any) error {
+	if err := binding.Validator.ValidateStruct(value); err != nil {
+		return err
+	}
+
+	dto.Normalize(value)
+	return nil
+}
+
 // BindOptionalJSON accepts an empty body while normalizing valid input and classifying malformed JSON as invalid input
 func BindOptionalJSON(c *gin.Context, value any) error {
 	err := c.ShouldBindJSON(value)

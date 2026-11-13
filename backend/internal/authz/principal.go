@@ -11,9 +11,12 @@ const principalContextKey = "authz.principal"
 // Principal is the authenticated caller of a request together with the scopes it holds
 type Principal struct {
 	Kind PrincipalKind
-	// UserID is empty for KindOAuthClient, where ClientID identifies the client acting as itself instead
-	UserID   string
+	// UserID is empty for KindOAuthClient, where ClientID identifies the client acting as itself instead, and for KindStaticAPIKey
+	UserID string
+	// ClientID is the client the OAuth access token was issued to, for KindOAuthUser and KindOAuthClient
 	ClientID string
+	// APIKeyID is the key a KindAPIKey principal authenticated with
+	APIKeyID string
 	Scopes   ScopeSet
 
 	// WithheldUntilVerified are the scopes the user's role grants but that are withheld until the user verifies their email

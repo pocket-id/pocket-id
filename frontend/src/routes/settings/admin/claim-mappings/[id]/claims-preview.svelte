@@ -16,11 +16,13 @@
 
 	let {
 		mappings,
-		highlighted
+		highlighted,
+		customScopes
 	}: {
 		mappings: OidcClaimMappingDto[];
 		// The claim whose row is hovered or focused, whose lines light up
 		highlighted: string | null;
+		customScopes: string[];
 	} = $props();
 
 	const policyService = new OidcClaimMappingPolicyService();
@@ -53,14 +55,6 @@
 			}))
 		];
 	});
-
-	const skipped = $derived(
-		mappings.filter(
-			(mapping) =>
-				mapping.claimName !== '*' &&
-				!(mapping[token] && mapping.scope.some((s) => scopes.includes(s)))
-		).length
-	);
 
 	// Each request gets a number so that responses arriving out of order don't overwrite newer ones
 	let latestRequest = 0;
@@ -96,11 +90,11 @@
 
 <aside
 	aria-labelledby="claims-preview-title"
-	class="bg-surface-sunken flex min-w-0 flex-col gap-3 rounded-lg p-4 shadow-[inset_0_0_0_1px_var(--border)] xl:sticky xl:top-6"
+	class="bg-surface-sunken flex min-w-0 flex-col gap-3 rounded-lg p-4 shadow-[inset_0_0_0_1px_var(--border)] xl:sticky xl:top-[calc(var(--clear-top)+var(--spacing)*6)]"
 >
 	<h3 id="claims-preview-title" class="text-heading text-fg">{m.preview()}</h3>
 
-	<TokenPreviewInputs bind:userId bind:scopes />
+	<TokenPreviewInputs bind:userId bind:scopes {customScopes} />
 
 	<Tabs.Root bind:value={token}>
 		<Tabs.List aria-label={m.token()} class="w-full">
@@ -143,10 +137,4 @@
 					>{/each}<span class="block px-3">{'}'}</span></pre>
 		{/if}
 	</div>
-
-	{#if issued && skipped}
-		<p class="text-caption text-fg-muted">
-			{skipped === 1 ? m.claims_not_released_one() : m.claims_not_released({ count: skipped })}
-		</p>
-	{/if}
 </aside>

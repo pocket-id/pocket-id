@@ -12,6 +12,7 @@ import (
 
 	"github.com/pocket-id/pocket-id/backend/internal/appconfig"
 	"github.com/pocket-id/pocket-id/backend/internal/apperror"
+	"github.com/pocket-id/pocket-id/backend/internal/auditlogs"
 	"github.com/pocket-id/pocket-id/backend/internal/model"
 	datatype "github.com/pocket-id/pocket-id/backend/internal/model/types"
 	"github.com/pocket-id/pocket-id/backend/internal/utils"
@@ -40,16 +41,18 @@ type Service struct {
 	emailSender EmailSender
 	scimSync    ScimSyncScheduler
 	sendLimiter SendLimiter
+	auditLog    AuditLogger
 	appURL      string
 }
 
-func newService(db *gorm.DB, actors *actor.Service, emailSender EmailSender, scimSync ScimSyncScheduler, sendLimiter SendLimiter, appURL string) *Service {
+func newService(db *gorm.DB, actors *actor.Service, emailSender EmailSender, scimSync ScimSyncScheduler, sendLimiter SendLimiter, auditLog AuditLogger, appURL string) *Service {
 	return &Service{
 		db:          db,
 		actors:      actors,
 		emailSender: emailSender,
 		scimSync:    scimSync,
 		sendLimiter: sendLimiter,
+		auditLog:    auditLog,
 		appURL:      appURL,
 	}
 }
@@ -69,6 +72,10 @@ func (s *Service) loadUser(ctx context.Context, userID string) (model.User, erro
 
 // Send emails a verification link for the user's current email
 func (s *Service) Send(ctx context.Context, dbConfig *appconfig.AppConfigModel, userID string) error {
+	if dbConfig.EmailVerification.String() == appconfig.EmailVerificationDisabled {
+		return apperror.EmailVerificationDisabled()
+	}
+
 	user, err := s.loadUser(ctx, userID)
 	if err != nil {
 		return err
@@ -184,7 +191,7 @@ func (s *Service) issue(ctx context.Context, dbConfig *appconfig.AppConfigModel,
 	return nil
 }
 
-func (s *Service) Verify(ctx context.Context, userID, token string) error {
+func (s *Service) Verify(ctx context.Context, userID, token string, origin auditlogs.Origin) error {
 	// Consume the token in the email verification actor for this user
 	response, err := s.actors.Invoke(ctx, ActorType, userID, methodConsume, tokenRequest{
 		TokenHash: utils.CreateSha256Hash(token),
@@ -241,8 +248,14 @@ func (s *Service) Verify(ctx context.Context, userID, token string) error {
 		return apperror.InvalidEmailVerificationToken()
 	}
 
+	if !isEmailChange {
+		s.auditLog.Record(ctx, auditlogs.EventEmailVerified, origin, userID, auditlogs.Data{"email": result.State.Email}, nil)
+		return nil
+	}
+	s.auditLog.Record(ctx, auditlogs.EventEmailChanged, origin, userID, auditlogs.Data{"email": result.State.Email, "previousEmail": result.State.ReplacesEmail}, nil)
+
 	// Service providers have to learn about the new address
-	if isEmailChange && s.scimSync != nil {
+	if s.scimSync != nil {
 		s.scimSync.ScheduleSync(ctx)
 	}
 

@@ -3,23 +3,23 @@ package scimsync
 import (
 	"time"
 
-	"github.com/pocket-id/pocket-id/backend/internal/dto"
 	datatype "github.com/pocket-id/pocket-id/backend/internal/model/types"
 )
 
+// ScimServiceProviderDTO leaves out the token because it lets whoever holds it manage the users of the downstream app
 type ScimServiceProviderDTO struct {
-	ID           string                    `json:"id"`
-	Endpoint     string                    `json:"endpoint"`
-	Token        string                    `json:"token"`
-	LastSyncedAt *datatype.DateTime        `json:"lastSyncedAt"`
-	OidcClient   dto.OidcClientMetaDataDto `json:"oidcClient"`
-	CreatedAt    datatype.DateTime         `json:"createdAt"`
+	ID           string             `json:"id"`
+	Endpoint     string             `json:"endpoint"`
+	HasToken     bool               `json:"hasToken"`
+	LastSyncedAt *datatype.DateTime `json:"lastSyncedAt"`
+	CreatedAt    datatype.DateTime  `json:"createdAt"`
 }
 
 type ScimServiceProviderCreateDTO struct {
-	Endpoint     string `json:"endpoint" binding:"required,url"`
-	Token        string `json:"token"`
-	OidcClientID string `json:"oidcClientId" binding:"required"`
+	Endpoint string `json:"endpoint" binding:"required,url"`
+	// Token is a pointer so an update can keep the stored token when it's omitted and remove it when it's empty
+	Token        *string `json:"token"`
+	OidcClientID string  `json:"oidcClientId" binding:"required"`
 }
 
 type ScimUser struct {
@@ -85,17 +85,8 @@ func (r ScimResourceData) GetSchemas() []string {
 	return r.Schemas
 }
 
-func (r ScimResourceData) GetMeta() ScimResourceMeta {
-	if r.Meta == nil {
-		return ScimResourceMeta{}
-	}
-
-	return *r.Meta
-}
-
 type ScimResource interface {
 	GetID() string
 	GetExternalID() string
 	GetSchemas() []string
-	GetMeta() ScimResourceMeta
 }

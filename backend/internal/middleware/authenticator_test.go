@@ -16,17 +16,22 @@ import (
 
 	"github.com/pocket-id/pocket-id/backend/internal/apikey"
 	"github.com/pocket-id/pocket-id/backend/internal/appconfig"
+	"github.com/pocket-id/pocket-id/backend/internal/auditlogs"
 	"github.com/pocket-id/pocket-id/backend/internal/authz"
 	"github.com/pocket-id/pocket-id/backend/internal/common"
+	"github.com/pocket-id/pocket-id/backend/internal/httpserver"
 	"github.com/pocket-id/pocket-id/backend/internal/model"
 	datatype "github.com/pocket-id/pocket-id/backend/internal/model/types"
 	"github.com/pocket-id/pocket-id/backend/internal/oidc"
-	"github.com/pocket-id/pocket-id/backend/internal/service"
 	"github.com/pocket-id/pocket-id/backend/internal/session"
+	"github.com/pocket-id/pocket-id/backend/internal/users"
 	"github.com/pocket-id/pocket-id/backend/internal/utils"
 	"github.com/pocket-id/pocket-id/backend/internal/utils/cookie"
 	testutils "github.com/pocket-id/pocket-id/backend/internal/utils/testing"
 )
+
+// #nosec G101
+const staticAPIKey = "static-raw-api-key"
 
 func TestAuthorizationWithRealCredentials(t *testing.T) {
 	gin.SetMode(gin.TestMode)
@@ -40,8 +45,8 @@ func TestAuthorizationWithRealCredentials(t *testing.T) {
 
 	db := testutils.NewDatabaseForTest(t)
 
-	userService := service.NewUserService(db, nil, nil, nil, nil, nil, nil)
-	apiKeyModule, err := apikey.New(t.Context(), apikey.Dependencies{DB: db, CleanupDisabled: true})
+	usersModule := users.New(users.Dependencies{DB: db})
+	apiKeyModule, err := apikey.New(apikey.Dependencies{DB: db, StaticApiKey: staticAPIKey, CleanupDisabled: true})
 	require.NoError(t, err)
 
 	// Create one credential of each kind for a regular user, an admin and a disabled user
@@ -54,18 +59,18 @@ func TestAuthorizationWithRealCredentials(t *testing.T) {
 
 	var sessions *session.Module
 	testutils.NewActorHostForTest(t, func(t *testing.T, h *local.Host) {
-		sessions, err = session.New(session.Dependencies{Actors: h, IPLocator: noIPLocation{}})
+		sessions, err = session.New(session.Dependencies{Actors: h, IPLocator: noIPLocation{}, AuditLog: nopAuditLogger{}, EndNotifier: noEndNotifier{}})
 		require.NoError(t, err)
 	})
-	userSession, err := sessions.Create(t.Context(), user.ID, "", "", "", time.Hour)
+	userSession, err := sessions.Create(t.Context(), user.ID, "", "", "", time.Hour, true)
 	require.NoError(t, err)
-	unverifiedSession, err := sessions.Create(t.Context(), unverified.ID, "", "", "", time.Hour)
+	unverifiedSession, err := sessions.Create(t.Context(), unverified.ID, "", "", "", time.Hour, true)
 	require.NoError(t, err)
-	revokedSession, err := sessions.Create(t.Context(), user.ID, "", "", "", time.Hour)
+	revokedSession, err := sessions.Create(t.Context(), user.ID, "", "", "", time.Hour, true)
 	require.NoError(t, err)
 	_, revoked, err := sessions.Validate(t.Context(), revokedSession)
 	require.NoError(t, err)
-	require.NoError(t, sessions.Revoke(t.Context(), user.ID, revoked.ID))
+	require.NoError(t, sessions.Revoke(t.Context(), user.ID, revoked.ID, auditlogs.Origin{}))
 	userAPIKey := createAPIKeyForAuthorizationTest(t, db, user, "user-raw-api-key", apikey.AllScopes())
 	adminAPIKey := createAPIKeyForAuthorizationTest(t, db, admin, "admin-raw-api-key", apikey.AllScopes())
 	adminAccountOnlyAPIKey := createAPIKeyForAuthorizationTest(t, db, admin, "admin-account-only-raw-api-key", datatype.StringList{string(authz.AccountRead)})
@@ -90,10 +95,17 @@ func TestAuthorizationWithRealCredentials(t *testing.T) {
 		"unverified-api-token": oauthAccessRequest(unverified.ID, fosite.Arguments{resource}, string(authz.AccountRead), string(authz.AccountApps)),
 		"machine-token":        oauthAccessRequest(oidc.ClientSubject(oauthTestClientID), fosite.Arguments{resource}, string(authz.UsersRead), string(authz.AccountRead)),
 	}
-	apiRouter := NewAuthorization(apiKeyModule, accessTokens, userService, sessions, appconfig.StaticResolver{Config: cfg}).Router(router.Group("/api"))
-	ok := func(c *gin.Context) {
+	groupRestrictedToken := oauthAccessRequest(admin.ID, fosite.Arguments{resource}, string(authz.UsersRead)).(*fosite.AccessRequest)
+	groupRestrictedToken.Client = oidc.Client{OidcClient: model.OidcClient{
+		Base:              model.Base{ID: oauthTestClientID},
+		IsGroupRestricted: true,
+		AllowedUserGroups: []model.UserGroup{{Base: model.Base{ID: "group-without-the-admin"}}},
+	}}
+	accessTokens["group-restricted-token"] = groupRestrictedToken
+	apiRouter := NewAuthorization(apiKeyModule, accessTokens, usersModule, sessions, appconfig.StaticResolver{Config: cfg}).Router(router.Group("/api"))
+	ok := httpserver.Endpoint{Handler: func(c *gin.Context) {
 		c.String(http.StatusOK, authz.PrincipalFrom(c).UserID)
-	}
+	}}
 	apiRouter.GET("/session-only", authz.AccountSession, ok)
 	apiRouter.GET("/account", authz.AccountRead, ok)
 	apiRouter.GET("/apps", authz.AccountApps, ok)
@@ -118,6 +130,8 @@ func TestAuthorizationWithRealCredentials(t *testing.T) {
 		{name: "admin API key on admin route", path: "/api/admin", apiKey: adminAPIKey, status: http.StatusOK, userID: admin.ID},
 		{name: "admin API key without the route's scope", path: "/api/admin", apiKey: adminAccountOnlyAPIKey, status: http.StatusForbidden, errorCode: "forbidden"},
 		{name: "admin API key with the route's scope", path: "/api/account", apiKey: adminAccountOnlyAPIKey, status: http.StatusOK, userID: admin.ID},
+		{name: "static API key on admin route", path: "/api/admin", apiKey: staticAPIKey, status: http.StatusOK},
+		{name: "static API key on account route", path: "/api/account", apiKey: staticAPIKey, status: http.StatusForbidden, errorCode: "api_key_auth_not_allowed"},
 		{name: "revoked session", path: "/api/account", sessionCookie: revokedSession, status: http.StatusUnauthorized, errorCode: "not_signed_in"},
 		{name: "session token in the Authorization header", path: "/api/account", authorization: "Bearer " + userSession, status: http.StatusUnauthorized, errorCode: "not_signed_in"},
 		{name: "invalid session cookie falls back to API key", path: "/api/admin", sessionCookie: "not-a-jwt", apiKey: adminAPIKey, status: http.StatusOK, userID: admin.ID},
@@ -136,6 +150,7 @@ func TestAuthorizationWithRealCredentials(t *testing.T) {
 		{name: "admin OAuth token without the route's scope", path: "/api/admin", authorization: "Bearer admin-account-token", status: http.StatusForbidden, errorCode: "forbidden"},
 		{name: "regular user OAuth token that carries an admin scope", path: "/api/admin", authorization: "Bearer user-admin-token", status: http.StatusForbidden, errorCode: "forbidden"},
 		{name: "disabled user's OAuth token", path: "/api/admin", authorization: "Bearer disabled-token", status: http.StatusForbidden, errorCode: "user_disabled"},
+		{name: "OAuth token of a client the user lost group access to", path: "/api/admin", authorization: "Bearer group-restricted-token", status: http.StatusUnauthorized, errorCode: "not_signed_in"},
 		{name: "OAuth token on session-only route", path: "/api/session-only", authorization: "Bearer session-scope-token", status: http.StatusForbidden, errorCode: "oauth_token_auth_not_allowed"},
 		{name: "custom API token with a colliding scope key", path: "/api/admin", authorization: "Bearer custom-api-token", status: http.StatusUnauthorized, errorCode: "not_signed_in"},
 		{name: "unverified user OAuth token on apps route", path: "/api/apps", authorization: "Bearer unverified-api-token", status: http.StatusForbidden, errorCode: "email_verification_required"},
@@ -175,6 +190,27 @@ func TestAuthorizationWithRealCredentials(t *testing.T) {
 	}
 }
 
+type nopAuditLogger struct{}
+
+func (nopAuditLogger) Record(context.Context, auditlogs.Event, auditlogs.Origin, string, auditlogs.Data, *gorm.DB) {
+}
+
+func (nopAuditLogger) KeepUsername(context.Context, string, string, *gorm.DB) error {
+	return nil
+}
+
+func (nopAuditLogger) DeviceStringFromUserAgent(string) string {
+	return ""
+}
+
+type noEndNotifier struct{}
+
+func (noEndNotifier) SessionsEnded(context.Context, string, []string) {}
+
+func (noEndNotifier) SessionsExpired(context.Context, string, []string) error { return nil }
+
+func (noEndNotifier) SignedOutEverywhere(context.Context, string) error { return nil }
+
 type noIPLocation struct{}
 
 func (noIPLocation) GetLocationByIP(context.Context, string) (string, string, error) {
@@ -196,7 +232,7 @@ const oauthTestClientID = "machine-client"
 
 func oauthAccessRequest(subject string, audience fosite.Arguments, scopes ...string) fosite.AccessRequester {
 	accessRequest := fosite.NewAccessRequest(&fosite.DefaultSession{Subject: subject})
-	accessRequest.Client = &fosite.DefaultClient{ID: oauthTestClientID}
+	accessRequest.Client = oidc.Client{OidcClient: model.OidcClient{Base: model.Base{ID: oauthTestClientID}}}
 	accessRequest.GrantedAudience = audience
 	accessRequest.GrantedScope = scopes
 	return accessRequest

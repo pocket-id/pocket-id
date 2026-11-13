@@ -8,9 +8,6 @@ import (
 	"time"
 
 	"github.com/italypaleale/go-kit/utils"
-
-	"github.com/pocket-id/pocket-id/backend/internal/common"
-	"github.com/pocket-id/pocket-id/backend/internal/dto"
 )
 
 const (
@@ -25,6 +22,8 @@ const (
 	EmailVerificationOptional = "optional"
 	EmailVerificationRequired = "required"
 )
+
+const redactedValue = "XXXXXXXXXX"
 
 type AppConfigModel struct {
 	// General
@@ -78,6 +77,7 @@ type AppConfigModel struct {
 	WebauthnUserVerification        AppConfigValue `json:"webauthnUserVerification" env:"WEBAUTHN_USER_VERIFICATION"`
 	WebauthnAllowSyncedPasskeys     AppConfigValue `json:"webauthnAllowSyncedPasskeys" env:"WEBAUTHN_ALLOW_SYNCED_PASSKEYS" type:"bool"`
 	WebauthnAuthenticatorAttachment AppConfigValue `json:"webauthnAuthenticatorAttachment" env:"WEBAUTHN_AUTHENTICATOR_ATTACHMENT"`
+	WebauthnAttestation             AppConfigValue `json:"webauthnAttestation" env:"WEBAUTHN_ATTESTATION"`
 	// OIDC
 	CIMDURLAllowlist           AppConfigValue `json:"cimdUrlAllowlist" env:"CIMD_URL_ALLOWLIST"` // JSON-encoded array of strings
 	AutoCreateOIDCClientSecret AppConfigValue `json:"autoCreateOidcClientSecret" env:"AUTO_CREATE_OIDC_CLIENT_SECRET" type:"bool"`
@@ -186,6 +186,7 @@ func getDefaultConfig() *AppConfigModel {
 		WebauthnUserVerification:        "required",
 		WebauthnAllowSyncedPasskeys:     "true",
 		WebauthnAuthenticatorAttachment: "any",
+		WebauthnAttestation:             "none",
 		// OIDC
 		CIMDURLAllowlist:           "[]",
 		AutoCreateOIDCClientSecret: "true",
@@ -211,36 +212,6 @@ func (m *AppConfigModel) applyDefaults() bool {
 	}
 
 	return changed
-}
-
-// Replace updates every configuration property with the values from the input DTO
-// An empty string value resets the corresponding property to its default value
-func (m *AppConfigModel) Replace(input dto.AppConfigUpdateDto) {
-	// Collect the values from the input DTO into a map, keyed by the "json" tag
-	inRv := reflect.ValueOf(input)
-	inRt := inRv.Type()
-	values := make(map[string]string, inRt.NumField())
-	for i := range inRt.NumField() {
-		// Get the value of the json tag, taking only what's before the comma
-		key, _, _ := strings.Cut(inRt.Field(i).Tag.Get("json"), ",")
-		values[key] = inRv.Field(i).String()
-	}
-
-	// Iterate through all the properties, setting each one from the input
-	// Properties that are missing from the input or have an empty value are reset to their default
-	defaults := reflect.ValueOf(getDefaultConfig()).Elem()
-	rv := reflect.ValueOf(m).Elem()
-	rt := rv.Type()
-	for i := range rt.NumField() {
-		key, _, _ := strings.Cut(rt.Field(i).Tag.Get("json"), ",")
-
-		value, ok := values[key]
-		if !ok || value == "" {
-			value = defaults.Field(i).String()
-		}
-
-		rv.Field(i).SetString(value)
-	}
 }
 
 // Update sets configuration properties from the provided key-value pairs
@@ -280,14 +251,16 @@ func (m *AppConfigModel) Update(values map[string]string) error {
 
 // AppConfigVariable is a single application configuration property, as a key/value pair
 type AppConfigVariable struct {
-	Key   string
-	Value string
+	Key         string
+	Value       string
+	EnvOverride bool
 }
 
-// ToAppConfigVariableSlice returns the configuration as a slice of key/value pairs
+// ToAppConfigVariableSlice returns the configuration as a slice of key/value pairs for HTTP responses
 // If showAll is false, only properties marked as public are included
-// If redactSensitiveValues is true, sensitive values are redacted when the UI config is disabled
-func (m *AppConfigModel) ToAppConfigVariableSlice(showAll bool, redactSensitiveValues bool) []AppConfigVariable {
+// Properties in envOverrides are marked as set in the environment
+// Sensitive values that are set are redacted, because credentials that may read the config must never read secrets back
+func (m *AppConfigModel) ToAppConfigVariableSlice(showAll bool, envOverrides map[string]string) []AppConfigVariable {
 	// Iterate through all fields
 	cfgValue := reflect.ValueOf(m).Elem()
 	cfgType := cfgValue.Type()
@@ -307,15 +280,15 @@ func (m *AppConfigModel) ToAppConfigVariableSlice(showAll bool, redactSensitiveV
 		}
 
 		value := cfgValue.Field(i).String()
-
-		// Redact sensitive values if the value isn't empty, the UI config is disabled, and redactSensitiveValues is true
-		if value != "" && common.EnvConfig.UiConfigDisabled && redactSensitiveValues && field.Tag.Get("sensitive") == "true" {
-			value = "XXXXXXXXXX"
+		if value != "" && field.Tag.Get("sensitive") == "true" {
+			value = redactedValue
 		}
+		_, envOverride := envOverrides[key]
 
 		res = append(res, AppConfigVariable{
-			Key:   key,
-			Value: value,
+			Key:         key,
+			Value:       value,
+			EnvOverride: envOverride,
 		})
 	}
 

@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"net/http"
 	"time"
 
 	"github.com/gin-gonic/gin"
@@ -18,20 +19,26 @@ import (
 )
 
 type SessionStore interface {
-	Create(ctx context.Context, userID, authenticationMethod, ipAddress, userAgent string, duration time.Duration) (string, error)
-	Revoke(ctx context.Context, userID, sessionID string) error
+	Create(ctx context.Context, userID, authenticationMethod, ipAddress, userAgent string, duration time.Duration, remember bool) (string, error)
+	Revoke(ctx context.Context, userID, sessionID string, origin auditlogs.Origin) error
 }
 
 type AuditLogger interface {
 	CreateSignIn(ctx context.Context, event auditlogs.Event, ipAddress, userAgent, userID, browserToken string, tx *gorm.DB, notificationMode appconfig.AppConfigValue) auditlogs.SignInResult
 	SendSignInNotification(ctx context.Context, result auditlogs.SignInResult)
 	Create(ctx context.Context, event auditlogs.Event, ipAddress, userAgent, userID string, data auditlogs.Data, tx *gorm.DB) (auditlogs.AuditLog, bool)
+	Record(ctx context.Context, event auditlogs.Event, origin auditlogs.Origin, userID string, data auditlogs.Data, tx *gorm.DB)
 }
 
 type Dependencies struct {
 	DB     *gorm.DB
 	Actors francishost.Host
 	AppURL string
+
+	// HTTPClient downloads the FIDO metadata that attestations are verified against
+	HTTPClient *http.Client
+	// FidoMetadataURL is where the FIDO metadata is downloaded from, and empty never downloads it
+	FidoMetadataURL string
 
 	Sessions  SessionStore
 	AuditLog  AuditLogger
@@ -83,11 +90,11 @@ func (m *Module) RegisterRoutes(r *authz.Router, loginRateLimit, reauthRateLimit
 	r.POST("/webauthn/register/finish", authz.AccountPasskeysEnroll, httpserver.Handle(m.handler.verifyRegistration))
 
 	r.Public().GET("/webauthn/login/start", httpserver.Handle(m.handler.beginLogin))
-	r.Public().POST("/webauthn/login/finish", loginRateLimit, httpserver.Handle(m.handler.verifyLogin))
+	r.With(loginRateLimit).Public().POST("/webauthn/login/finish", httpserver.Handle(m.handler.verifyLogin))
 
 	r.POST("/webauthn/logout", authz.AccountSession, httpserver.Handle(m.handler.logout))
 
-	r.POST("/webauthn/reauthenticate", authz.AccountSession, reauthRateLimit, httpserver.Handle(m.handler.reauthenticate))
+	r.With(reauthRateLimit).POST("/webauthn/reauthenticate", authz.AccountSession, httpserver.Handle(m.handler.reauthenticate))
 
 	r.GET("/webauthn/credentials", authz.AccountPasskeys, httpserver.Handle(m.handler.listCredentials))
 	r.PATCH("/webauthn/credentials/:id", authz.AccountPasskeys, httpserver.Handle(m.handler.updateCredential))
@@ -109,6 +116,6 @@ func (m *Module) ListCredentials(ctx context.Context, userID string) ([]model.We
 
 // DeleteCredential removes a passkey, optionally on behalf of an admin or a client acting for another user
 // It is consumed by the user controller for the admin "manage passkeys" view
-func (m *Module) DeleteCredential(ctx context.Context, userID, credentialID, ipAddress, userAgent string, actor authz.Principal) error {
-	return m.service.DeleteCredential(ctx, userID, credentialID, ipAddress, userAgent, actor)
+func (m *Module) DeleteCredential(ctx context.Context, userID, credentialID string, origin auditlogs.Origin) error {
+	return m.service.DeleteCredential(ctx, userID, credentialID, origin)
 }

@@ -2,6 +2,8 @@ import type { ListRequestOptions, Paginated } from '#lib/types/list-request.type
 import type { OidcClientMetaData } from '#lib/types/oidc.type.ts';
 import { encodeClientIdParam } from '#lib/utils/client-id-util.ts';
 import type {
+	CustomScope,
+	CustomScopeInput,
 	OidcClaimMappingDto,
 	OidcClaimMappingPolicy,
 	OidcClaimMappingPolicyInput,
@@ -28,8 +30,8 @@ class OidcClaimMappingPolicyService extends APIService {
 		return res.data as OidcClaimMappingPolicyInput & { id: string };
 	};
 
-	updateClaimMappingPolicy = async (id: string, policy: OidcClaimMappingPolicyInput) => {
-		const res = await this.api.put(`/oidc/claim-mapping-policies/${id}`, policy);
+	updateClaimMappingPolicy = async (id: string, policy: Partial<OidcClaimMappingPolicyInput>) => {
+		const res = await this.api.patch(`/oidc/claim-mapping-policies/${id}`, policy);
 		return res.data as OidcClaimMappingPolicyInput & { id: string };
 	};
 
@@ -74,6 +76,30 @@ class OidcClaimMappingPolicyService extends APIService {
 		await this.api.delete(
 			`/oidc/claim-mapping-policies/${id}/clients/${encodeClientIdParam(clientId)}`
 		);
+	};
+
+	listCustomScopes = async (options?: ListRequestOptions) => {
+		const res = await this.api.get('/oidc/custom-scopes', { params: options });
+		return res.data as Paginated<CustomScope>;
+	};
+
+	listCustomScopeKeys = async () => {
+		const res = await this.api.get('/oidc/custom-scopes/keys');
+		return res.data as string[];
+	};
+
+	createCustomScope = async (scope: CustomScopeInput) => {
+		const res = await this.api.post('/oidc/custom-scopes', scope);
+		return res.data as CustomScope;
+	};
+
+	updateCustomScope = async (id: string, scope: CustomScopeInput) => {
+		const res = await this.api.put(`/oidc/custom-scopes/${id}`, scope);
+		return res.data as CustomScope;
+	};
+
+	deleteCustomScope = async (id: string) => {
+		await this.api.delete(`/oidc/custom-scopes/${id}`);
 	};
 }
 

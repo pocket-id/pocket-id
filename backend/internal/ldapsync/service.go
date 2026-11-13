@@ -463,6 +463,27 @@ func (s *Service) reconcileGroups(ctx context.Context, tx *gorm.DB, desiredGroup
 	}
 	removedMembers := map[string]struct{}{}
 
+	// Delete groups that are no longer present in LDAP first, so a group re-created in LDAP under the same name can take over the name
+	for _, group := range ldapGroupsInDB {
+		if group.LdapID == nil {
+			continue
+		}
+
+		if _, exists := ldapGroupIDs[*group.LdapID]; exists {
+			continue
+		}
+
+		err = s.groups.DeleteInternal(ctx, group, tx)
+		if err != nil {
+			return nil, fmt.Errorf("failed to delete group '%s': %w", group.Name, err)
+		}
+
+		slog.Info("Deleted group", slog.String("group", group.Name))
+
+		// Deleting the group removes every member from it
+		collectRemovedMembers(removedMembers, membersByGroup[group.ID], nil)
+	}
+
 	// Apply creates and updates to match the desired LDAP group state
 	for _, desiredGroup := range desiredGroups {
 		memberUserIDs := make([]string, 0, len(desiredGroup.memberUsernames))
@@ -502,30 +523,6 @@ func (s *Service) reconcileGroups(ctx context.Context, tx *gorm.DB, desiredGroup
 		}
 
 		collectRemovedMembers(removedMembers, membersByGroup[databaseGroup.ID], memberUserIDs)
-	}
-
-	// Delete groups that are no longer present in LDAP
-	for _, group := range ldapGroupsInDB {
-		if group.LdapID == nil {
-			continue
-		}
-
-		if _, exists := ldapGroupIDs[*group.LdapID]; exists {
-			continue
-		}
-
-		err = tx.
-			WithContext(ctx).
-			Delete(&model.UserGroup{}, "ldap_id = ?", *group.LdapID).
-			Error
-		if err != nil {
-			return nil, fmt.Errorf("failed to delete group '%s': %w", group.Name, err)
-		}
-
-		slog.Info("Deleted group", slog.String("group", group.Name))
-
-		// Deleting the group removes every member from it
-		collectRemovedMembers(removedMembers, membersByGroup[group.ID], nil)
 	}
 
 	return slices.Collect(maps.Keys(removedMembers)), nil
@@ -795,24 +792,36 @@ func (s *Service) saveProfilePicture(parentCtx context.Context, userId string, p
 	return nil
 }
 
-// normalizeLDAPDN returns a canonical lowercase form of a DN for use as a map key
+// normalizeLDAPDN returns a canonical form of a DN with ASCII letters lowercased, for use as a map key
 // Escaping preserves the distinction between separators and literal characters inside attribute values
 func normalizeLDAPDN(dn string) string {
 	// Parse components so equivalent formatting shares a cache key
 	parsed, err := ldap.ParseDN(dn)
 	if err != nil {
-		return strings.ToLower(strings.TrimSpace(dn))
+		return lowerASCII(strings.TrimSpace(dn))
 	}
 
 	// Preserve case-insensitive lookups while letting the LDAP serializer escape values and sort multi-valued RDNs
 	for _, rdn := range parsed.RDNs {
 		for _, attr := range rdn.Attributes {
-			attr.Type = strings.ToLower(attr.Type)
-			attr.Value = strings.ToLower(attr.Value)
+			attr.Type = lowerASCII(attr.Type)
+			attr.Value = lowerASCII(attr.Value)
 		}
 	}
 
 	return parsed.String()
+}
+
+// lowerASCII lowercases only A to Z, because strings.ToLower maps some non-ASCII letters onto ASCII ones (U+0130 to "i", U+212A to "k") and can change the string's length
+func lowerASCII(s string) string {
+	b := []byte(s)
+	for i, c := range b {
+		if c >= 'A' && c <= 'Z' {
+			b[i] = c + ('a' - 'A')
+		}
+	}
+
+	return string(b)
 }
 
 // getDNProperty returns the value of a property from a LDAP identifier
@@ -820,11 +829,11 @@ func normalizeLDAPDN(dn string) string {
 func getDNProperty(property string, str string) string {
 	// Example format is "CN=username,ou=people,dc=example,dc=com"
 	// First we split at the comma
-	property = strings.ToLower(property)
+	property = lowerASCII(property)
 	l := len(property) + 1
 	for v := range strings.SplitSeq(str, ",") {
 		v = strings.TrimSpace(v)
-		if len(v) > l && strings.ToLower(v)[0:l] == property+"=" {
+		if len(v) > l && lowerASCII(v)[0:l] == property+"=" {
 			return v[l:]
 		}
 	}

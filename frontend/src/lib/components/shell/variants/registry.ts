@@ -4,7 +4,7 @@ import type { Component, Snippet } from 'svelte';
 import type { NavGroup } from '../nav-items.ts';
 import Backdrop from './backdrop.svelte';
 import Classic from './classic.svelte';
-import TwinCards from './twin-cards.svelte';
+import TopBar from './top-bar.svelte';
 
 // Every shell frames the same <main> content, which the settings layout passes as children
 export type ShellProps = {
@@ -16,6 +16,6 @@ export type ShellProps = {
 
 export const shells: Record<Layout, Component<ShellProps>> = {
 	classic: Classic,
-	'twin-cards': TwinCards,
-	backdrop: Backdrop
+	backdrop: Backdrop,
+	'top-bar': TopBar
 };

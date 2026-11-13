@@ -17,8 +17,8 @@ import (
 	"github.com/pocket-id/pocket-id/backend/internal/apperror"
 	"github.com/pocket-id/pocket-id/backend/internal/middleware"
 	"github.com/pocket-id/pocket-id/backend/internal/model"
-	"github.com/pocket-id/pocket-id/backend/internal/service"
 	"github.com/pocket-id/pocket-id/backend/internal/session"
+	"github.com/pocket-id/pocket-id/backend/internal/users"
 	"github.com/pocket-id/pocket-id/backend/internal/utils/cookie"
 	testutils "github.com/pocket-id/pocket-id/backend/internal/utils/testing"
 )
@@ -28,20 +28,20 @@ func TestImageUploadRoutesLimitRequestSize(t *testing.T) {
 
 	db := testutils.NewDatabaseForTest(t)
 
-	userService := service.NewUserService(db, nil, nil, nil, nil, nil, nil)
-	apiKeyModule, err := apikey.New(t.Context(), apikey.Dependencies{DB: db, CleanupDisabled: true})
+	usersModule := users.New(users.Dependencies{DB: db})
+	apiKeyModule, err := apikey.New(apikey.Dependencies{DB: db, CleanupDisabled: true})
 	require.NoError(t, err)
 
 	user := model.User{Username: "upload-admin", IsAdmin: true}
 	require.NoError(t, db.Create(&user).Error)
 
-	auth := middleware.NewAuthorization(apiKeyModule, nil, userService, staticSessionValidator{userID: user.ID}, appconfig.StaticResolver{})
+	auth := middleware.NewAuthorization(apiKeyModule, nil, usersModule, staticSessionValidator{userID: user.ID}, appconfig.StaticResolver{})
 	fileSizeLimitMiddleware := middleware.NewFileSizeLimitMiddleware()
 
 	router := gin.New()
 	router.Use(middleware.NewErrorHandlerMiddleware().Add())
 	apiRouter := auth.Router(router.Group("/api"))
-	NewUserController(apiRouter, fileSizeLimitMiddleware, nil, userService, nil)
+	usersModule.RegisterRoutes(apiRouter, fileSizeLimitMiddleware.Add(10<<20))
 	NewAppAssetsController(apiRouter, fileSizeLimitMiddleware, nil)
 
 	routes := []string{

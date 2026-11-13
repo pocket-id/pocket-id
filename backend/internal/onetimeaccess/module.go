@@ -3,9 +3,12 @@ package onetimeaccess
 import (
 	"context"
 	"fmt"
+	"net/http"
 	"time"
 
 	"github.com/gin-gonic/gin"
+	"github.com/go-fuego/fuego/option"
+	"github.com/go-fuego/fuego/param"
 	francishost "github.com/italypaleale/francis/host"
 	"gorm.io/gorm"
 
@@ -22,13 +25,14 @@ type EmailSender interface {
 }
 
 type SessionCreator interface {
-	Create(ctx context.Context, userID, authenticationMethod, ipAddress, userAgent string, duration time.Duration) (string, error)
+	Create(ctx context.Context, userID, authenticationMethod, ipAddress, userAgent string, duration time.Duration, remember bool) (string, error)
 }
 
 type AuditLogger interface {
 	CreateSignIn(ctx context.Context, event auditlogs.Event, ipAddress, userAgent, userID, browserToken string, tx *gorm.DB, notificationMode appconfig.AppConfigValue) auditlogs.SignInResult
 	SendSignInNotification(ctx context.Context, result auditlogs.SignInResult)
 	Create(ctx context.Context, event auditlogs.Event, ipAddress, userAgent, userID string, data auditlogs.Data, tx *gorm.DB) (auditlogs.AuditLog, bool)
+	Record(ctx context.Context, event auditlogs.Event, origin auditlogs.Origin, userID string, data auditlogs.Data, tx *gorm.DB)
 }
 
 type UserProvider interface {
@@ -69,8 +73,27 @@ func New(deps Dependencies) (*Module, error) {
 // RegisterRoutes mounts the one-time access token endpoints
 // The rate limiters throttle the public exchange and email endpoints
 func (m *Module) RegisterRoutes(r *authz.Router, exchangeRateLimit, emailRateLimit gin.HandlerFunc) {
-	r.POST("/users/:id/one-time-access-token", authz.UsersWrite, httpserver.Handle(m.handler.createTokenForUser))
-	r.POST("/users/:id/one-time-access-email", authz.UsersWrite, httpserver.Handle(m.handler.requestEmailAsAdmin))
-	r.Public().POST("/one-time-access-token/:token", exchangeRateLimit, httpserver.Handle(m.handler.exchangeToken))
-	r.Public().POST("/one-time-access-email", emailRateLimit, httpserver.Handle(m.handler.requestEmailAsUnauthenticatedUser))
+	r.POST("/users/:id/one-time-access-token", authz.UsersWrite, httpserver.BodyJSON(http.StatusCreated, m.handler.createTokenForUser),
+		option.Summary("Create one-time access token for user (admin)"),
+		option.Description("Generate a one-time access token for a specific user (admin only)"),
+		option.Tags("Users"),
+		option.Path("id", "User ID"),
+	)
+	r.POST("/users/:id/one-time-access-email", authz.UsersWrite, httpserver.BodyNoContent(m.handler.requestEmailAsAdmin),
+		option.Summary("Request one-time access email (admin)"),
+		option.Description("Request a one-time access email for a specific user (admin only)"),
+		option.Tags("Users"),
+		option.Path("id", "User ID"),
+	)
+	r.With(exchangeRateLimit).Public().POST("/one-time-access-token", httpserver.BodyJSON(http.StatusOK, m.handler.exchangeToken),
+		option.Summary("Exchange one-time access token"),
+		option.Description("Exchange a one-time access token for a session token"),
+		option.Tags("Users"),
+		option.QueryBool("remember", "Set to false for a session that ends when the browser closes or after 20 minutes without activity", param.Default(true)),
+	)
+	r.With(emailRateLimit).Public().POST("/one-time-access-email", httpserver.BodyNoContent(m.handler.requestEmailAsUnauthenticatedUser),
+		option.Summary("Request one-time access email"),
+		option.Description("Request a one-time access email for unauthenticated users"),
+		option.Tags("Users"),
+	)
 }

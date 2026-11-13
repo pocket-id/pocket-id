@@ -1,30 +1,25 @@
 package middleware
 
 import (
-	"context"
-	"errors"
-	"log/slog"
 	"net/http"
-	"reflect"
 	"strconv"
-	"strings"
 	"time"
-	"unicode"
 	"uuid"
 
 	"github.com/gin-gonic/gin"
-	"github.com/gin-gonic/gin/binding"
-	"github.com/go-playground/validator/v10"
-	"go.opentelemetry.io/otel/trace"
 
 	"github.com/pocket-id/pocket-id/backend/internal/apperror"
+	"github.com/pocket-id/pocket-id/backend/internal/authz"
+	"github.com/pocket-id/pocket-id/backend/internal/common"
 	"github.com/pocket-id/pocket-id/backend/internal/dto"
+	"github.com/pocket-id/pocket-id/backend/internal/httpserver"
 )
 
 const requestIDHeader = "X-Request-ID"
 
 type requestIDContextKey struct{}
 type requestErrorCodeContextKey struct{}
+type requestErrorContextKey struct{}
 
 // RequestID returns the identifier assigned to the current request
 func RequestID(c *gin.Context) string {
@@ -64,19 +59,25 @@ func RequestErrorCode(c *gin.Context) apperror.Code {
 	return value
 }
 
+// RequestError returns the error handled for the current request, so the request log can record it
+func RequestError(c *gin.Context) error {
+	if c == nil {
+		return nil
+	}
+
+	value, exists := c.Get(requestErrorContextKey{})
+	if !exists {
+		return nil
+	}
+
+	err, _ := value.(error)
+	return err
+}
+
 type ErrorHandlerMiddleware struct{}
 
 func NewErrorHandlerMiddleware() *ErrorHandlerMiddleware {
 	return &ErrorHandlerMiddleware{}
-}
-
-type classifiedError struct {
-	code       apperror.Code
-	status     int
-	message    string
-	details    map[string]string
-	fields     []apperror.FieldError
-	retryAfter time.Duration
 }
 
 // Add records a request ID before executing the request and serializes the first returned error afterward
@@ -92,157 +93,45 @@ func (m *ErrorHandlerMiddleware) Add() gin.HandlerFunc {
 		}
 
 		err := c.Errors[0].Err
-		classified := classifyError(err)
-		c.Set(requestErrorCodeContextKey{}, classified.code)
-		logRequestError(c, err, classified, requestID)
+		classified := httpserver.ClassifyError(err)
+		c.Set(requestErrorCodeContextKey{}, classified.Code)
+		c.Set(requestErrorContextKey{}, err)
 
 		if c.Writer.Written() {
 			return
 		}
 
-		if classified.retryAfter > 0 {
-			c.Header("Retry-After", formatRetryAfter(classified.retryAfter))
+		if classified.RetryAfter > 0 {
+			c.Header("Retry-After", formatRetryAfter(classified.RetryAfter))
+		}
+		// MCP clients follow the challenge to the endpoint's protected resource metadata to find out where to get a token (RFC 9728)
+		if classified.Status == http.StatusUnauthorized && c.Request.URL.Path == authz.MCPPath {
+			c.Header("WWW-Authenticate", `Bearer resource_metadata="`+common.EnvConfig.AppURL+authz.MCPResourceMetadataPath+`"`)
 		}
 		writeErrorResponse(c, classified, requestID)
 	}
 }
 
-func classifyError(err error) classifiedError {
-	var structuredErr *apperror.Error
-	if errors.As(err, &structuredErr) && structuredErr != nil {
-		return classifiedError{
-			code:       structuredErr.Code(),
-			status:     normalizeStatus(structuredErr.HTTPStatus()),
-			message:    capitalizeFirst(structuredErr.ClientMessage()),
-			details:    structuredErr.Details(),
-			fields:     structuredErr.Fields(),
-			retryAfter: structuredErr.RetryAfter(),
-		}
-	}
-
-	if errors.Is(err, context.DeadlineExceeded) {
-		return classifiedError{
-			code:    apperror.CodeRequestTimeout,
-			status:  http.StatusGatewayTimeout,
-			message: "Request timed out",
-		}
-	}
-
-	var validationErrors validator.ValidationErrors
-	if errors.As(err, &validationErrors) && len(validationErrors) > 0 {
-		return classifiedValidationError(validationErrors)
-	}
-
-	var sliceValidationErrors binding.SliceValidationError
-	if errors.As(err, &sliceValidationErrors) && len(sliceValidationErrors) > 0 {
-		if errors.As(sliceValidationErrors[0], &validationErrors) {
-			return classifiedValidationError(validationErrors)
-		}
-	}
-
-	return classifiedError{
-		code:    apperror.CodeInternal,
-		status:  http.StatusInternalServerError,
-		message: "Something went wrong",
-	}
-}
-
-func classifiedValidationError(validationErrors validator.ValidationErrors) classifiedError {
-	fields := make([]apperror.FieldError, 0, len(validationErrors))
-	messages := make([]string, 0, len(validationErrors))
-
-	for _, validationError := range validationErrors {
-		fieldName := validationError.Field()
-		code, message := dto.ValidationErrorDetails(validationError)
-		fields = append(fields, apperror.FieldError{
-			Field:   fieldName,
-			Code:    code,
-			Message: message,
-		})
-		messages = append(messages, fieldName+" "+message)
-	}
-
-	return classifiedError{
-		code:    apperror.CodeValidationFailed,
-		status:  http.StatusBadRequest,
-		message: capitalizeFirst(strings.Join(messages, ", ")),
-		fields:  fields,
-	}
-}
-
-func writeErrorResponse(c *gin.Context, classified classifiedError, requestID string) {
-	details := make(map[string]any, len(classified.details)+1)
-	for key, value := range classified.details {
+func writeErrorResponse(c *gin.Context, classified httpserver.ClassifiedError, requestID string) {
+	details := make(map[string]any, len(classified.Details)+1)
+	for key, value := range classified.Details {
 		details[key] = value
 	}
-	if len(classified.fields) > 0 {
-		details["fields"] = classified.fields
+	if len(classified.Fields) > 0 {
+		details["fields"] = classified.Fields
 	}
 	if len(details) == 0 {
 		details = nil
 	}
 
 	response := dto.ErrorDto{
-		Error:     classified.message,
-		Code:      classified.code,
+		Error:     classified.Message,
+		Code:      classified.Code,
 		Details:   details,
 		RequestID: requestID,
 	}
 
-	c.JSON(classified.status, response)
-}
-
-func logRequestError(c *gin.Context, err error, classified classifiedError, requestID string) {
-	if classified.status < http.StatusInternalServerError {
-		cause := errors.Unwrap(err)
-		if cause == nil {
-			return
-		}
-
-		slog.DebugContext(c.Request.Context(), "Request rejected",
-			slog.String("error_code", string(classified.code)),
-			slog.String("error_type", errorTypeName(err)),
-			slog.String("cause_type", errorTypeName(cause)),
-			slog.Int("http_status", classified.status),
-			slog.String("request_id", requestID),
-			slog.String("http_method", c.Request.Method),
-			slog.String("http_path", c.Request.URL.Path),
-			slog.Any("error", err),
-			slog.Any("cause", cause),
-		)
-		return
-	}
-
-	attrs := []any{
-		slog.String("error_code", string(classified.code)),
-		slog.String("error_type", errorTypeName(err)),
-		slog.Int("http_status", classified.status),
-		slog.String("request_id", requestID),
-		slog.String("http_method", c.Request.Method),
-		slog.String("http_path", c.Request.URL.Path),
-		slog.Any("error", err),
-	}
-	if spanContext := trace.SpanFromContext(c.Request.Context()).SpanContext(); spanContext.IsValid() {
-		attrs = append(attrs, slog.String("trace_id", spanContext.TraceID().String()))
-	}
-
-	slog.ErrorContext(c.Request.Context(), "Request failed", attrs...)
-}
-
-func errorTypeName(err error) string {
-	if err == nil {
-		return "<nil>"
-	}
-
-	return reflect.TypeOf(err).String()
-}
-
-func normalizeStatus(status int) int {
-	if status < http.StatusBadRequest || status > 599 {
-		return http.StatusInternalServerError
-	}
-
-	return status
+	c.JSON(classified.Status, response)
 }
 
 func formatRetryAfter(retryAfter time.Duration) string {
@@ -255,14 +144,4 @@ func formatRetryAfter(retryAfter time.Duration) string {
 	}
 
 	return strconv.Itoa(seconds)
-}
-
-func capitalizeFirst(message string) string {
-	runes := []rune(message)
-	if len(runes) == 0 {
-		return message
-	}
-
-	runes[0] = unicode.ToUpper(runes[0])
-	return string(runes)
 }

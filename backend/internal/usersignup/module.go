@@ -3,9 +3,11 @@ package usersignup
 import (
 	"context"
 	"fmt"
+	"net/http"
 	"time"
 
 	"github.com/gin-gonic/gin"
+	"github.com/go-fuego/fuego/option"
 	francishost "github.com/italypaleale/francis/host"
 	"gorm.io/gorm"
 
@@ -15,10 +17,11 @@ import (
 	"github.com/pocket-id/pocket-id/backend/internal/dto"
 	"github.com/pocket-id/pocket-id/backend/internal/httpserver"
 	"github.com/pocket-id/pocket-id/backend/internal/model"
+	"github.com/pocket-id/pocket-id/backend/internal/openapi"
 )
 
 type SessionCreator interface {
-	Create(ctx context.Context, userID, authenticationMethod, ipAddress, userAgent string, duration time.Duration) (string, error)
+	Create(ctx context.Context, userID, authenticationMethod, ipAddress, userAgent string, duration time.Duration, remember bool) (string, error)
 }
 
 type AuditLogger interface {
@@ -104,10 +107,37 @@ func (m *Module) RunSignupTokenMigration(ctx context.Context) error {
 // RegisterRoutes mounts the signup and signup-token management endpoints
 // signupRateLimit throttles public self-signup
 func (m *Module) RegisterRoutes(r *authz.Router, signupRateLimit gin.HandlerFunc) {
-	r.POST("/signup-tokens", authz.UsersWrite, httpserver.Handle(m.handler.createSignupToken))
-	r.GET("/signup-tokens", authz.UsersRead, httpserver.Handle(m.handler.listSignupTokens))
-	r.DELETE("/signup-tokens/:id", authz.UsersWrite, httpserver.Handle(m.handler.deleteSignupToken))
-	r.Public().POST("/signup", signupRateLimit, httpserver.Handle(m.handler.signup))
-	r.Public().GET("/signup/setup", httpserver.Handle(m.handler.checkInitialAdminSetupAvailable))
-	r.Public().POST("/signup/setup", httpserver.Handle(m.handler.signUpInitialAdmin))
+	r.POST("/signup-tokens", authz.UsersWrite, httpserver.BodyJSON(http.StatusCreated, m.handler.createSignupToken),
+		option.Summary("Create signup token"),
+		option.Description("Create a new signup token that allows user registration"),
+		option.Tags("Users"),
+	)
+	// Listing returns working token values, which can create accounts
+	r.GET("/signup-tokens", authz.UsersWrite, httpserver.JSON(http.StatusOK, m.handler.listSignupTokens),
+		option.Summary("List signup tokens"),
+		option.Description("Get a paginated list of signup tokens"),
+		option.Tags("Users"),
+		openapi.List[SignupToken](),
+	)
+	r.DELETE("/signup-tokens/:id", authz.UsersWrite, httpserver.NoContent(m.handler.deleteSignupToken),
+		option.Summary("Delete signup token"),
+		option.Description("Delete a signup token by ID"),
+		option.Tags("Users"),
+		option.Path("id", "Token ID"),
+	)
+	r.With(signupRateLimit).Public().POST("/signup", httpserver.BodyJSON(http.StatusCreated, m.handler.signup),
+		option.Summary("Sign up"),
+		option.Description("Create a new user account"),
+		option.Tags("Users"),
+	)
+	r.Public().GET("/signup/setup", httpserver.NoContent(m.handler.checkInitialAdminSetupAvailable),
+		option.Summary("Check initial admin setup"),
+		option.Description("Succeeds while no admin has been set up yet and fails with setup_not_available afterwards"),
+		option.Tags("Users"),
+	)
+	r.Public().POST("/signup/setup", httpserver.BodyJSON(http.StatusOK, m.handler.signUpInitialAdmin),
+		option.Summary("Sign up initial admin user"),
+		option.Description("Sign up and generate setup access token for initial admin user"),
+		option.Tags("Users"),
+	)
 }

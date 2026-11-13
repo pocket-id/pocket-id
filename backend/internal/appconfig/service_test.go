@@ -4,9 +4,11 @@ import (
 	"encoding/json"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 	"time"
 
+	"github.com/italypaleale/francis/actor"
 	"github.com/italypaleale/francis/host/local"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -35,8 +37,21 @@ func setUIConfigDisabled(t *testing.T, disabled bool) {
 func newActorBackedService(t *testing.T, db *gorm.DB) *AppConfigService {
 	t.Helper()
 
+	svc, _ := newActorBackedServiceWithState(t, db, nil)
+	return svc
+}
+
+// newActorBackedServiceWithState is newActorBackedService with the actor state saved before the actor bootstraps, if state is set, and it also returns the actor host
+func newActorBackedServiceWithState(t *testing.T, db *gorm.DB, state *AppConfigModel) (*AppConfigService, *local.Host) {
+	t.Helper()
+
 	var svc *AppConfigService
-	testutils.NewActorHostForTest(t, func(t *testing.T, h *local.Host) {
+	h := testutils.NewActorHostForTest(t, func(t *testing.T, h *local.Host) {
+		if state != nil {
+			err := h.SetState(t.Context(), AppConfigActorType, actor.SingletonActorID, state, nil)
+			require.NoError(t, err)
+		}
+
 		var err error
 		svc, err = NewService(t.Context(), h, db)
 		require.NoError(t, err)
@@ -50,7 +65,7 @@ func newActorBackedService(t *testing.T, db *gorm.DB) *AppConfigService {
 		return err == nil && cfg != nil && *cfg != (AppConfigModel{})
 	}, 10*time.Second, 20*time.Millisecond, "config actor was not bootstrapped in time")
 
-	return svc
+	return svc, h
 }
 
 // seedLegacyConfig writes a legacy config blob to the kv table so the AppConfig actor bootstraps from it.
@@ -103,6 +118,31 @@ func TestService_NewService(t *testing.T) {
 		assert.Equal(t, AppConfigValue("true"), cfg.LdapEnabled)
 		// Keys not present in the legacy config keep their defaults
 		assert.Equal(t, getDefaultConfig().SessionDuration, cfg.SessionDuration)
+
+		legacyCfg, err := LoadLegacyConfig(t.Context(), db)
+		require.NoError(t, err)
+		assert.Nil(t, legacyCfg, "the legacy config should be deleted once the actor state is saved")
+	})
+
+	t.Run("deletes the legacy config left over from an earlier bootstrap", func(t *testing.T) {
+		setUIConfigDisabled(t, false)
+		db := testutils.NewDatabaseForTest(t)
+		seedLegacyConfig(t, db, map[string]string{
+			"appName":      "Legacy App",
+			"smtpPassword": "legacy-secret",
+		})
+		state := getDefaultConfig()
+		state.AppName = "Saved App"
+
+		svc, _ := newActorBackedServiceWithState(t, db, state)
+
+		cfg, err := svc.GetConfig(t.Context())
+		require.NoError(t, err)
+		assert.Equal(t, AppConfigValue("Saved App"), cfg.AppName)
+
+		legacyCfg, err := LoadLegacyConfig(t.Context(), db)
+		require.NoError(t, err)
+		assert.Nil(t, legacyCfg)
 	})
 
 	t.Run("loads config from the environment when the UI config is disabled", func(t *testing.T) {
@@ -226,7 +266,7 @@ func TestService_UpdateAppConfig(t *testing.T) {
 			LdapEnabled:     "true",
 			SmtpTls:         "tls",
 		}
-		res, err := svc.UpdateAppConfig(t.Context(), input)
+		res, err := svc.UpdateAppConfig(t.Context(), dto.Replace(input))
 		require.NoError(t, err)
 
 		// The returned slice includes all variables, both public and private
@@ -251,15 +291,15 @@ func TestService_UpdateAppConfig(t *testing.T) {
 		svc := newActorBackedService(t, db)
 
 		// First set some non-default values
-		_, err := svc.UpdateAppConfig(t.Context(), dto.AppConfigUpdateDto{
+		_, err := svc.UpdateAppConfig(t.Context(), dto.Replace(dto.AppConfigUpdateDto{
 			AppName:     "First",
 			LdapEnabled: "true",
 			SmtpTls:     "tls",
-		})
+		}))
 		require.NoError(t, err)
 
 		// Replace again with only AppName set: the rest must reset to their defaults
-		_, err = svc.UpdateAppConfig(t.Context(), dto.AppConfigUpdateDto{AppName: "Second"})
+		_, err = svc.UpdateAppConfig(t.Context(), dto.Replace(dto.AppConfigUpdateDto{AppName: "Second"}))
 		require.NoError(t, err)
 
 		cfg, err := svc.GetConfig(t.Context())
@@ -273,9 +313,53 @@ func TestService_UpdateAppConfig(t *testing.T) {
 		setUIConfigDisabled(t, true)
 		svc := NewTestAppConfigService(nil)
 
-		_, err := svc.UpdateAppConfig(t.Context(), dto.AppConfigUpdateDto{AppName: "X"})
+		_, err := svc.UpdateAppConfig(t.Context(), dto.Replace(dto.AppConfigUpdateDto{AppName: "X"}))
 		require.Error(t, err)
 		assert.True(t, apperror.IsCode(err, apperror.CodeUIConfigDisabled))
+	})
+
+	t.Run("redacts saved secrets in its response and the list, leaving unset ones empty", func(t *testing.T) {
+		setUIConfigDisabled(t, false)
+		db := testutils.NewDatabaseForTest(t)
+		svc := newActorBackedService(t, db)
+
+		res, err := svc.UpdateAppConfig(t.Context(), dto.Replace(dto.AppConfigUpdateDto{SmtpPassword: "smtp-secret"}))
+		require.NoError(t, err)
+		vars, err := svc.ListAppConfig(t.Context(), true)
+		require.NoError(t, err)
+
+		for _, got := range [][]AppConfigVariable{res, vars} {
+			smtpPassword, _ := findConfigValue(got, "smtpPassword")
+			assert.Equal(t, redactedValue, smtpPassword)
+			ldapBindPassword, ok := findConfigValue(got, "ldapBindPassword")
+			require.True(t, ok)
+			assert.Empty(t, ldapBindPassword)
+		}
+
+		cfg, err := svc.GetConfig(t.Context())
+		require.NoError(t, err)
+		assert.Equal(t, AppConfigValue("smtp-secret"), cfg.SmtpPassword)
+	})
+
+	t.Run("a redacted secret keeps the saved one and a new secret replaces it", func(t *testing.T) {
+		setUIConfigDisabled(t, false)
+		db := testutils.NewDatabaseForTest(t)
+		svc := newActorBackedService(t, db)
+
+		_, err := svc.UpdateAppConfig(t.Context(), dto.Replace(dto.AppConfigUpdateDto{SmtpPassword: "smtp-secret"}))
+		require.NoError(t, err)
+
+		_, err = svc.UpdateAppConfig(t.Context(), dto.Replace(dto.AppConfigUpdateDto{SmtpPassword: redactedValue}))
+		require.NoError(t, err)
+		cfg, err := svc.GetConfig(t.Context())
+		require.NoError(t, err)
+		assert.Equal(t, AppConfigValue("smtp-secret"), cfg.SmtpPassword)
+
+		_, err = svc.UpdateAppConfig(t.Context(), dto.Replace(dto.AppConfigUpdateDto{SmtpPassword: "new-secret"}))
+		require.NoError(t, err)
+		cfg, err = svc.GetConfig(t.Context())
+		require.NoError(t, err)
+		assert.Equal(t, AppConfigValue("new-secret"), cfg.SmtpPassword)
 	})
 }
 
@@ -396,11 +480,11 @@ func TestService_ListAppConfig(t *testing.T) {
 		assert.Equal(t, "Listed App", got)
 	})
 
-	t.Run("redacts sensitive values when the UI config is disabled", func(t *testing.T) {
+	t.Run("redacts sensitive values set in the environment", func(t *testing.T) {
 		setUIConfigDisabled(t, true)
-		svc := NewTestAppConfigService(&AppConfigModel{
-			SmtpPassword: "super-secret",
-		})
+		t.Setenv("SMTP_PASSWORD", "super-secret")
+		svc, err := NewService(t.Context(), nil, nil)
+		require.NoError(t, err)
 
 		vars, err := svc.ListAppConfig(t.Context(), true)
 		require.NoError(t, err)
@@ -408,6 +492,104 @@ func TestService_ListAppConfig(t *testing.T) {
 		got, ok := findConfigValue(vars, "smtpPassword")
 		require.True(t, ok)
 		assert.Equal(t, "XXXXXXXXXX", got)
+	})
+}
+
+func TestService_EnvOverrides(t *testing.T) {
+	t.Run("environment values take precedence over the saved ones and are never saved", func(t *testing.T) {
+		setUIConfigDisabled(t, false)
+		t.Setenv("APP_NAME", "Env App")
+		t.Setenv("SMTP_PASSWORD", "env-secret")
+		db := testutils.NewDatabaseForTest(t)
+		svc := newActorBackedService(t, db)
+
+		res, err := svc.UpdateAppConfig(t.Context(), dto.Replace(dto.AppConfigUpdateDto{
+			AppName:         "UI App",
+			SessionDuration: "120",
+			SmtpPassword:    "XXXXXXXXXX",
+		}))
+		require.NoError(t, err)
+		appName, _ := findConfigValue(res, "appName")
+		assert.Equal(t, "Env App", appName)
+
+		cfg, err := svc.GetConfig(t.Context())
+		require.NoError(t, err)
+		assert.Equal(t, AppConfigValue("Env App"), cfg.AppName)
+		assert.Equal(t, AppConfigValue("env-secret"), cfg.SmtpPassword)
+		assert.Equal(t, AppConfigValue("120"), cfg.SessionDuration)
+
+		saved, err := svc.getSavedConfig(t.Context())
+		require.NoError(t, err)
+		assert.Equal(t, getDefaultConfig().AppName, saved.AppName)
+		assert.Empty(t, saved.SmtpPassword)
+
+		vars, err := svc.ListAppConfig(t.Context(), true)
+		require.NoError(t, err)
+		for _, v := range vars {
+			assert.Equal(t, v.Key == "appName" || v.Key == "smtpPassword", v.EnvOverride, v.Key)
+		}
+	})
+
+	t.Run("cross-property rules are left to saving when the UI config is enabled", func(t *testing.T) {
+		setUIConfigDisabled(t, false)
+		t.Setenv("EMAIL_VERIFICATION", "required")
+		db := testutils.NewDatabaseForTest(t)
+		svc := newActorBackedService(t, db)
+
+		cfg, err := svc.GetConfig(t.Context())
+		require.NoError(t, err)
+		assert.Equal(t, AppConfigValue(EmailVerificationRequired), cfg.EmailVerification)
+	})
+}
+
+func TestService_SecretEncryption(t *testing.T) {
+	// loadSavedState returns the actor state as it is saved in the database
+	loadSavedState := func(t *testing.T, h *local.Host) AppConfigModel {
+		t.Helper()
+
+		var state AppConfigModel
+		err := h.GetState(t.Context(), AppConfigActorType, actor.SingletonActorID, &state)
+		require.NoError(t, err)
+		return state
+	}
+
+	t.Run("secrets are encrypted in the database", func(t *testing.T) {
+		setUIConfigDisabled(t, false)
+		db := testutils.NewDatabaseForTest(t)
+		svc, h := newActorBackedServiceWithState(t, db, nil)
+
+		_, err := svc.UpdateAppConfig(t.Context(), dto.Replace(dto.AppConfigUpdateDto{
+			SmtpPassword:     "smtp-secret",
+			LdapBindPassword: "ldap-secret",
+			SmtpUser:         "smtp-user",
+		}))
+		require.NoError(t, err)
+
+		saved := loadSavedState(t, h)
+		assert.True(t, strings.HasPrefix(saved.SmtpPassword.String(), encryptedSecretPrefix))
+		assert.True(t, strings.HasPrefix(saved.LdapBindPassword.String(), encryptedSecretPrefix))
+		assert.NotContains(t, saved.SmtpPassword.String(), "smtp-secret")
+		assert.Equal(t, AppConfigValue("smtp-user"), saved.SmtpUser)
+
+		cfg, err := svc.GetConfig(t.Context())
+		require.NoError(t, err)
+		assert.Equal(t, AppConfigValue("smtp-secret"), cfg.SmtpPassword)
+		assert.Equal(t, AppConfigValue("ldap-secret"), cfg.LdapBindPassword)
+	})
+
+	t.Run("secrets saved before they were encrypted are encrypted when the actor bootstraps", func(t *testing.T) {
+		setUIConfigDisabled(t, false)
+		db := testutils.NewDatabaseForTest(t)
+		state := getDefaultConfig()
+		state.SmtpPassword = "plaintext-secret"
+		svc, h := newActorBackedServiceWithState(t, db, state)
+
+		saved := loadSavedState(t, h)
+		assert.True(t, strings.HasPrefix(saved.SmtpPassword.String(), encryptedSecretPrefix))
+
+		cfg, err := svc.GetConfig(t.Context())
+		require.NoError(t, err)
+		assert.Equal(t, AppConfigValue("plaintext-secret"), cfg.SmtpPassword)
 	})
 }
 
@@ -425,11 +607,11 @@ func TestService_CIMDURLAllowlist(t *testing.T) {
 		db := testutils.NewDatabaseForTest(t)
 		svc := newActorBackedService(t, db)
 
-		_, err := svc.UpdateAppConfig(t.Context(), dto.AppConfigUpdateDto{
+		_, err := svc.UpdateAppConfig(t.Context(), dto.Replace(dto.AppConfigUpdateDto{
 			AppName:          "App",
 			SessionDuration:  "60",
 			CIMDURLAllowlist: `["https://app.example.com/**","https://*.trusted.com/oauth"]`,
-		})
+		}))
 		require.NoError(t, err)
 
 		assert.Equal(t,
@@ -443,11 +625,11 @@ func TestService_CIMDURLAllowlist(t *testing.T) {
 		db := testutils.NewDatabaseForTest(t)
 		svc := newActorBackedService(t, db)
 
-		_, err := svc.UpdateAppConfig(t.Context(), dto.AppConfigUpdateDto{
+		_, err := svc.UpdateAppConfig(t.Context(), dto.Replace(dto.AppConfigUpdateDto{
 			AppName:          "App",
 			SessionDuration:  "60",
 			CIMDURLAllowlist: `["javascript:alert(1)"]`,
-		})
+		}))
 		require.Error(t, err)
 	})
 
@@ -461,7 +643,15 @@ func TestService_CIMDURLAllowlist(t *testing.T) {
 	})
 }
 
-func TestService_LoadDbConfigFromEnv(t *testing.T) {
+func TestService_LoadEnvConfig(t *testing.T) {
+	loadEnvConfig := func() (*AppConfigModel, error) {
+		overrides, err := loadEnvOverrides()
+		if err != nil {
+			return nil, err
+		}
+		return newEnvConfig(overrides)
+	}
+
 	t.Run("required verification rejects conflicting settings", func(t *testing.T) {
 		for _, setting := range []struct{ name, value string }{
 			{"EMAILS_VERIFIED", "true"},
@@ -470,6 +660,7 @@ func TestService_LoadDbConfigFromEnv(t *testing.T) {
 			{"SMTP_FROM", ""},
 		} {
 			t.Run(setting.name, func(t *testing.T) {
+				setUIConfigDisabled(t, true)
 				t.Setenv("EMAIL_VERIFICATION", "required")
 				t.Setenv("EMAILS_VERIFIED", "false")
 				t.Setenv("REQUIRE_USER_EMAIL", "true")
@@ -477,7 +668,7 @@ func TestService_LoadDbConfigFromEnv(t *testing.T) {
 				t.Setenv("SMTP_FROM", "pocket-id@example.com")
 				t.Setenv(setting.name, setting.value)
 
-				_, err := (&AppConfigService{}).loadDbConfigFromEnv()
+				_, err := loadEnvConfig()
 				require.ErrorContains(t, err, "EMAIL_VERIFICATION requires user emails, an SMTP host and sender address, and forbids emails verified by default")
 			})
 		}
@@ -488,7 +679,7 @@ func TestService_LoadDbConfigFromEnv(t *testing.T) {
 		t.Setenv("SMTP_HOST", "smtp.example.com")
 		t.Setenv("SMTP_FROM", "pocket-id@example.com")
 
-		cfg, err := (&AppConfigService{}).loadDbConfigFromEnv()
+		cfg, err := loadEnvConfig()
 		require.NoError(t, err)
 		assert.Equal(t, AppConfigValue(EmailVerificationRequired), cfg.EmailVerification)
 	})
@@ -507,8 +698,7 @@ func TestService_LoadDbConfigFromEnv(t *testing.T) {
 	t.Run("loads a sensitive value from a file", func(t *testing.T) {
 		t.Setenv("LDAP_BIND_PASSWORD_FILE", writeSecretFile(t, "my-ldap-password"))
 
-		svc := &AppConfigService{}
-		cfg, err := svc.loadDbConfigFromEnv()
+		cfg, err := loadEnvConfig()
 		require.NoError(t, err)
 
 		assert.Equal(t, AppConfigValue("my-ldap-password"), cfg.LdapBindPassword)
@@ -519,8 +709,7 @@ func TestService_LoadDbConfigFromEnv(t *testing.T) {
 		t.Setenv("LDAP_BIND_PASSWORD_FILE", writeSecretFile(t, "my-ldap-password\n"))
 		t.Setenv("SMTP_PASSWORD_FILE", writeSecretFile(t, "  my-smtp-password  \r\n"))
 
-		svc := &AppConfigService{}
-		cfg, err := svc.loadDbConfigFromEnv()
+		cfg, err := loadEnvConfig()
 		require.NoError(t, err)
 
 		assert.Equal(t, AppConfigValue("my-ldap-password"), cfg.LdapBindPassword)
@@ -531,8 +720,7 @@ func TestService_LoadDbConfigFromEnv(t *testing.T) {
 		t.Setenv("LDAP_BIND_PASSWORD", "from-env")
 		t.Setenv("LDAP_BIND_PASSWORD_FILE", writeSecretFile(t, "from-file\n"))
 
-		svc := &AppConfigService{}
-		cfg, err := svc.loadDbConfigFromEnv()
+		cfg, err := loadEnvConfig()
 		require.NoError(t, err)
 
 		assert.Equal(t, AppConfigValue("from-file"), cfg.LdapBindPassword)
@@ -541,8 +729,7 @@ func TestService_LoadDbConfigFromEnv(t *testing.T) {
 	t.Run("values that are not sensitive are not loaded from a file", func(t *testing.T) {
 		t.Setenv("LDAP_BIND_DN_FILE", writeSecretFile(t, "cn=from-file"))
 
-		svc := &AppConfigService{}
-		cfg, err := svc.loadDbConfigFromEnv()
+		cfg, err := loadEnvConfig()
 		require.NoError(t, err)
 
 		assert.Empty(t, cfg.LdapBindDn)
@@ -551,8 +738,7 @@ func TestService_LoadDbConfigFromEnv(t *testing.T) {
 	t.Run("returns an error when the file cannot be read", func(t *testing.T) {
 		t.Setenv("LDAP_BIND_PASSWORD_FILE", filepath.Join(t.TempDir(), "does-not-exist.txt"))
 
-		svc := &AppConfigService{}
-		_, err := svc.loadDbConfigFromEnv()
+		_, err := loadEnvConfig()
 		require.Error(t, err)
 		assert.ErrorContains(t, err, "LDAP_BIND_PASSWORD_FILE")
 	})

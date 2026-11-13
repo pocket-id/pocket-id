@@ -1,7 +1,8 @@
 <script lang="ts">
+	import EnvOverrideLock from '#lib/components/env-override-lock.svelte';
 	import CustomClaimsInput from '#lib/components/form/custom-claims-input.svelte';
 	import UserGroupInput from '#lib/components/form/user-group-input.svelte';
-	import SettingsSection from '#lib/components/settings-section.svelte';
+	import SettingsCard from '#lib/components/settings-card.svelte';
 	import * as Field from '@pocket-id/ui/field';
 	import * as RadioGroup from '@pocket-id/ui/radio-group';
 	import { m } from '#lib/paraglide/messages.js';
@@ -12,10 +13,12 @@
 
 	let {
 		appConfig,
+		envOverrides,
 		showCustomClaims,
 		callback
 	}: {
 		appConfig: AllAppConfig;
+		envOverrides: Set<keyof AllAppConfig>;
 		showCustomClaims: boolean;
 		callback: (updatedConfig: Partial<AllAppConfig>) => Promise<void>;
 	} = $props();
@@ -50,9 +53,12 @@
 	);
 </script>
 
-<fieldset class="flex min-w-0 flex-col gap-10" disabled={$appConfigStore.uiConfigDisabled}>
-	<SettingsSection title={m.config_who_can_sign_up()}>
-		<div class="flex flex-col gap-3 pt-2">
+<fieldset class="flex min-w-0 flex-col gap-4" disabled={$appConfigStore.uiConfigDisabled}>
+	<SettingsCard
+		title={m.config_who_can_sign_up()}
+		envOverride={envOverrides.has('allowUserSignups')}
+	>
+		<fieldset class="flex flex-col gap-3 py-4" disabled={envOverrides.has('allowUserSignups')}>
 			<RadioGroup.Root
 				bind:value={
 					() => allowUserSignups, (v) => (allowUserSignups = v as AllAppConfig['allowUserSignups'])
@@ -80,22 +86,36 @@
 					<a href="/settings/admin/users" class="inline-link">{m.config_manage_signup_tokens()}</a>
 				</p>
 			{/if}
-		</div>
-	</SettingsSection>
+		</fieldset>
+	</SettingsCard>
 
-	<SettingsSection title={m.config_new_accounts()}>
-		<div class="flex flex-col gap-6 pt-2">
-			<Field.Field class="max-w-[400px]">
-				<Field.Label for="default-groups">{m.config_default_groups()}</Field.Label>
-				<UserGroupInput bind:selectedGroupIds />
-				<Field.Description>{m.config_default_groups_description()}</Field.Description>
-			</Field.Field>
-			{#if showCustomClaims}
-				<Field.Field>
-					<Field.Label>{m.config_default_custom_claims()}</Field.Label>
-					<CustomClaimsInput bind:customClaims />
+	<SettingsCard title={m.config_new_accounts()}>
+		<div class="flex flex-col gap-6 py-4">
+			<fieldset class="contents" disabled={envOverrides.has('signupDefaultUserGroupIDs')}>
+				<Field.Field class="max-w-[400px]">
+					<div class="flex items-center gap-2">
+						<Field.Label for="default-groups">{m.config_default_groups()}</Field.Label>
+						{#if envOverrides.has('signupDefaultUserGroupIDs')}
+							<EnvOverrideLock />
+						{/if}
+					</div>
+					<UserGroupInput bind:selectedGroupIds />
+					<Field.Description>{m.config_default_groups_description()}</Field.Description>
 				</Field.Field>
+			</fieldset>
+			{#if showCustomClaims}
+				<fieldset class="contents" disabled={envOverrides.has('signupDefaultCustomClaims')}>
+					<Field.Field>
+						<div class="flex items-center gap-2">
+							<Field.Label>{m.config_default_custom_claims()}</Field.Label>
+							{#if envOverrides.has('signupDefaultCustomClaims')}
+								<EnvOverrideLock />
+							{/if}
+						</div>
+						<CustomClaimsInput bind:customClaims />
+					</Field.Field>
+				</fieldset>
 			{/if}
 		</div>
-	</SettingsSection>
+	</SettingsCard>
 </fieldset>

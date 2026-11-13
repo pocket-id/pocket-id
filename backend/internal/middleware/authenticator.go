@@ -15,7 +15,6 @@ import (
 	"github.com/pocket-id/pocket-id/backend/internal/emailverification"
 	"github.com/pocket-id/pocket-id/backend/internal/model"
 	"github.com/pocket-id/pocket-id/backend/internal/oidc"
-	"github.com/pocket-id/pocket-id/backend/internal/service"
 	"github.com/pocket-id/pocket-id/backend/internal/session"
 	"github.com/pocket-id/pocket-id/backend/internal/utils/cookie"
 )
@@ -25,11 +24,11 @@ const apiKeyHeader = "X-API-Key"
 
 // NewAuthorization creates the authorization middleware with every credential Pocket ID accepts
 // A browser session is tried before an API key or OAuth token, so a signed-in browser is never mistaken for an API client
-func NewAuthorization(apiKeyModule *apikey.Module, accessTokenVerifier AccessTokenVerifier, userService *service.UserService, sessions SessionValidator, appConfig appconfig.AppConfigResolver) *authz.Middleware {
+func NewAuthorization(apiKeyModule *apikey.Module, accessTokenVerifier AccessTokenVerifier, users UserProvider, sessions SessionValidator, appConfig appconfig.AppConfigResolver) *authz.Middleware {
 	return authz.NewMiddleware(
-		NewSessionAuthenticator(sessions, userService, appConfig),
+		NewSessionAuthenticator(sessions, users, appConfig),
 		NewAPIKeyAuthenticator(apiKeyModule, appConfig),
-		NewOAuthAuthenticator(accessTokenVerifier, userService, appConfig),
+		NewOAuthAuthenticator(accessTokenVerifier, users, appConfig),
 	)
 }
 
@@ -55,15 +54,20 @@ type SessionValidator interface {
 	Validate(ctx context.Context, token string) (string, session.Session, error)
 }
 
-// SessionAuthenticator authenticates the session cookie Pocket ID sets after sign-in
-type SessionAuthenticator struct {
-	sessions    SessionValidator
-	userService *service.UserService
-	appConfig   appconfig.AppConfigResolver
+// UserProvider loads the user a credential belongs to, which the users module implements
+type UserProvider interface {
+	GetUser(ctx context.Context, userID string) (model.User, error)
 }
 
-func NewSessionAuthenticator(sessions SessionValidator, userService *service.UserService, appConfig appconfig.AppConfigResolver) *SessionAuthenticator {
-	return &SessionAuthenticator{sessions: sessions, userService: userService, appConfig: appConfig}
+// SessionAuthenticator authenticates the session cookie Pocket ID sets after sign-in
+type SessionAuthenticator struct {
+	sessions  SessionValidator
+	users     UserProvider
+	appConfig appconfig.AppConfigResolver
+}
+
+func NewSessionAuthenticator(sessions SessionValidator, users UserProvider, appConfig appconfig.AppConfigResolver) *SessionAuthenticator {
+	return &SessionAuthenticator{sessions: sessions, users: users, appConfig: appConfig}
 }
 
 func (a *SessionAuthenticator) Kinds() authz.PrincipalKind {
@@ -83,7 +87,7 @@ func (a *SessionAuthenticator) Authenticate(c *gin.Context) (*authz.Principal, e
 	}
 
 	// Load the user so disabling an account, changing its admin flag or its email verification takes effect right away
-	user, err := a.userService.GetUser(c, userID)
+	user, err := a.users.GetUser(c, userID)
 	if err != nil {
 		return nil, apperror.NotSignedIn()
 	}
@@ -107,7 +111,7 @@ func (a *SessionAuthenticator) Authenticate(c *gin.Context) (*authz.Principal, e
 	return principal, nil
 }
 
-// APIKeyAuthenticator authenticates a personal API key sent in the X-API-Key header
+// APIKeyAuthenticator authenticates a personal API key or the static API key sent in the X-API-Key header
 type APIKeyAuthenticator struct {
 	apiKeyModule *apikey.Module
 	appConfig    appconfig.AppConfigResolver
@@ -118,7 +122,7 @@ func NewAPIKeyAuthenticator(apiKeyModule *apikey.Module, appConfig appconfig.App
 }
 
 func (a *APIKeyAuthenticator) Kinds() authz.PrincipalKind {
-	return authz.KindAPIKey
+	return authz.KindAPIKey | authz.KindStaticAPIKey
 }
 
 func (a *APIKeyAuthenticator) Present(c *gin.Context) bool {
@@ -130,6 +134,15 @@ func (a *APIKeyAuthenticator) Authenticate(c *gin.Context) (*authz.Principal, er
 	if err != nil {
 		return nil, apperror.NotSignedIn()
 	}
+
+	// The static API key belongs to no user, so it holds every admin scope and none that act on an account
+	if key.UserID == "" {
+		return &authz.Principal{
+			Kind:   authz.KindStaticAPIKey,
+			Scopes: authz.UserScopes(true, authz.KindStaticAPIKey),
+		}, nil
+	}
+
 	user := key.User
 	if user.Disabled {
 		return nil, apperror.UserDisabled()
@@ -141,9 +154,10 @@ func (a *APIKeyAuthenticator) Authenticate(c *gin.Context) (*authz.Principal, er
 		keyScopes[authz.Scope(scope)] = struct{}{}
 	}
 	principal := &authz.Principal{
-		Kind:   authz.KindAPIKey,
-		UserID: user.ID,
-		Scopes: authz.UserScopes(user.IsAdmin, authz.KindAPIKey).Intersect(keyScopes),
+		Kind:     authz.KindAPIKey,
+		UserID:   user.ID,
+		APIKeyID: key.ID,
+		Scopes:   authz.UserScopes(user.IsAdmin, authz.KindAPIKey).Intersect(keyScopes),
 	}
 	err = restrictUnverified(c.Request.Context(), a.appConfig, &user, principal)
 	if err != nil {
@@ -160,14 +174,14 @@ type AccessTokenVerifier interface {
 
 // OAuthAuthenticator authenticates an OAuth access token that a client obtained for Pocket ID's own API, either on behalf of a user or for itself
 type OAuthAuthenticator struct {
-	verifier    AccessTokenVerifier
-	userService *service.UserService
-	appConfig   appconfig.AppConfigResolver
-	audience    string
+	verifier  AccessTokenVerifier
+	users     UserProvider
+	appConfig appconfig.AppConfigResolver
+	audience  string
 }
 
-func NewOAuthAuthenticator(verifier AccessTokenVerifier, userService *service.UserService, appConfig appconfig.AppConfigResolver) *OAuthAuthenticator {
-	return &OAuthAuthenticator{verifier: verifier, userService: userService, appConfig: appConfig, audience: authz.ResourceURI(common.EnvConfig.AppURL)}
+func NewOAuthAuthenticator(verifier AccessTokenVerifier, users UserProvider, appConfig appconfig.AppConfigResolver) *OAuthAuthenticator {
+	return &OAuthAuthenticator{verifier: verifier, users: users, appConfig: appConfig, audience: authz.ResourceURI(common.EnvConfig.AppURL)}
 }
 
 func (a *OAuthAuthenticator) Kinds() authz.PrincipalKind {
@@ -207,7 +221,7 @@ func (a *OAuthAuthenticator) Authenticate(c *gin.Context) (*authz.Principal, err
 	}
 
 	// Load the user so disabling the account or changing its role takes effect before the token expires
-	user, err := a.userService.GetUser(ctx, subject)
+	user, err := a.users.GetUser(ctx, subject)
 	if err != nil {
 		return nil, apperror.NotSignedIn()
 	}
@@ -215,11 +229,18 @@ func (a *OAuthAuthenticator) Authenticate(c *gin.Context) (*authz.Principal, err
 		return nil, apperror.UserDisabled()
 	}
 
+	// Removing the user from the client's allowed groups doesn't revoke its tokens, so the restriction is checked like on the token endpoint
+	client, ok := accessRequest.GetClient().(oidc.Client)
+	if !ok || !oidc.IsUserGroupAllowedToAuthorize(user, client.OidcClient) {
+		return nil, apperror.NotSignedIn()
+	}
+
 	// A token never holds more than its user currently does, so demoting the user narrows their tokens right away
 	principal := &authz.Principal{
-		Kind:   authz.KindOAuthUser,
-		UserID: user.ID,
-		Scopes: authz.UserScopes(user.IsAdmin, authz.KindOAuthUser).Intersect(tokenScopes),
+		Kind:     authz.KindOAuthUser,
+		UserID:   user.ID,
+		ClientID: clientID,
+		Scopes:   authz.UserScopes(user.IsAdmin, authz.KindOAuthUser).Intersect(tokenScopes),
 	}
 	err = restrictUnverified(ctx, a.appConfig, &user, principal)
 	if err != nil {
