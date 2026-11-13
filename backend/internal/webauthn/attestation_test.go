@@ -164,13 +164,13 @@ func TestVerifyRegistrationAttestation(t *testing.T) {
 				assert.True(t, apperror.IsCode(err, tc.wantCode), "unexpected error: %v", err)
 
 				var count int64
-				require.NoError(t, db.Model(&model.WebauthnCredential{}).Count(&count).Error)
+				require.NoError(t, db.Model(&WebauthnCredential{}).Count(&count).Error)
 				assert.Zero(t, count)
 				return
 			}
 			require.NoError(t, err)
 
-			var stored model.WebauthnCredential
+			var stored WebauthnCredential
 			require.NoError(t, db.First(&stored, "id = ?", credential.ID).Error)
 			assert.Equal(t, tc.wantVerified, stored.AttestationVerified)
 		})

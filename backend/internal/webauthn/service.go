@@ -93,12 +93,7 @@ func (s *Service) BeginRegistration(ctx context.Context, dbConfig *appconfig.App
 		tx.Rollback()
 	}()
 
-	var user model.User
-	err := tx.
-		WithContext(ctx).
-		Preload("Credentials").
-		First(&user, "id = ?", userID).
-		Error
+	user, err := loadPasskeyUser(ctx, tx, userID)
 	if errors.Is(err, gorm.ErrRecordNotFound) {
 		return nil, apperror.UserNotFound()
 	}
@@ -117,14 +112,14 @@ func (s *Service) BeginRegistration(ctx context.Context, dbConfig *appconfig.App
 	}
 
 	options, session, err := s.webAuthn.BeginRegistration(
-		&user,
+		user,
 		gowebauthn.WithAuthenticatorSelection(protocol.AuthenticatorSelection{
 			AuthenticatorAttachment: authenticatorAttachment(dbConfig),
 			UserVerification:        userVerificationRequirement(dbConfig),
 		}),
 		gowebauthn.WithResidentKeyRequirement(protocol.ResidentKeyRequirementRequired),
 		gowebauthn.WithCredentialParameters(gowebauthn.CredentialParametersPQCRecommendedL3()),
-		gowebauthn.WithExclusions(user.WebAuthnCredentialDescriptors()),
+		gowebauthn.WithExclusions(gowebauthn.Credentials(user.WebAuthnCredentials()).CredentialDescriptors()),
 		gowebauthn.WithExtensions(gowebauthn.WithExtensionCredProps()), // Required for Firefox Android to properly save the key in Google password manager
 		gowebauthn.WithConveyancePreference(conveyance),
 	)
@@ -160,7 +155,7 @@ func (s *Service) BeginRegistration(ctx context.Context, dbConfig *appconfig.App
 	}, nil
 }
 
-func (s *Service) VerifyRegistration(ctx context.Context, dbConfig *appconfig.AppConfigModel, sessionID string, userID string, credentialCreationData *protocol.ParsedCredentialCreationData, ipAddress, userAgent string) (model.WebauthnCredential, error) {
+func (s *Service) VerifyRegistration(ctx context.Context, dbConfig *appconfig.AppConfigModel, sessionID string, userID string, credentialCreationData *protocol.ParsedCredentialCreationData, ipAddress, userAgent string) (WebauthnCredential, error) {
 	// Load the FIDO metadata before the transaction starts, because the first load downloads it
 	minCertification, attestationRequired := requiredAttestation(dbConfig)
 	var metadataProvider metadata.Provider
@@ -168,7 +163,7 @@ func (s *Service) VerifyRegistration(ctx context.Context, dbConfig *appconfig.Ap
 		var err error
 		metadataProvider, err = s.fidoMetadata.get()
 		if err != nil {
-			return model.WebauthnCredential{}, apperror.AttestationUnavailable(err)
+			return WebauthnCredential{}, apperror.AttestationUnavailable(err)
 		}
 	}
 
@@ -184,10 +179,10 @@ func (s *Service) VerifyRegistration(ctx context.Context, dbConfig *appconfig.Ap
 		Clauses(clause.Returning{}).
 		Delete(&storedSession, "id = ?", sessionID)
 	if result.Error != nil {
-		return model.WebauthnCredential{}, fmt.Errorf("failed to load WebAuthn session: %w", result.Error)
+		return WebauthnCredential{}, fmt.Errorf("failed to load WebAuthn session: %w", result.Error)
 	}
 	if result.RowsAffected == 0 {
-		return model.WebauthnCredential{}, apperror.InvalidWebAuthnSession()
+		return WebauthnCredential{}, apperror.InvalidWebAuthnSession()
 	}
 
 	session := gowebauthn.SessionData{
@@ -199,34 +194,34 @@ func (s *Service) VerifyRegistration(ctx context.Context, dbConfig *appconfig.Ap
 		UserID:           []byte(userID),
 	}
 
-	var user model.User
+	var user passkeyUser
 	err := tx.
 		WithContext(ctx).
-		First(&user, "id = ?", userID).
+		First(&user.User, "id = ?", userID).
 		Error
 	if errors.Is(err, gorm.ErrRecordNotFound) {
-		return model.WebauthnCredential{}, apperror.UserNotFound()
+		return WebauthnCredential{}, apperror.UserNotFound()
 	}
 	if err != nil {
-		return model.WebauthnCredential{}, fmt.Errorf("failed to load user: %w", err)
+		return WebauthnCredential{}, fmt.Errorf("failed to load user: %w", err)
 	}
 
 	// Self attestation is verified with the new key, so its size has to be checked before the response is verified
 	if hasOversizedPublicKey(credentialCreationData.Response.AttestationObject.AuthData.AttData.CredentialPublicKey) {
-		return model.WebauthnCredential{}, apperror.InvalidWebAuthnResponse(fmt.Errorf("RSA public key is larger than %d bits", maxRSAKeyBits))
+		return WebauthnCredential{}, apperror.InvalidWebAuthnResponse(fmt.Errorf("RSA public key is larger than %d bits", maxRSAKeyBits))
 	}
 
 	credential, err := s.webAuthn.CreateCredential(&user, session, credentialCreationData)
 	if err != nil {
-		return model.WebauthnCredential{}, classifyPasskeyError(err, apperror.InvalidWebAuthnResponse)
+		return WebauthnCredential{}, classifyPasskeyError(err, apperror.InvalidWebAuthnResponse)
 	}
 	if err := validateCredentialPolicy(dbConfig, credential); err != nil {
-		return model.WebauthnCredential{}, err
+		return WebauthnCredential{}, err
 	}
 	if attestationRequired {
 		err = s.verifyAttestation(ctx, metadataProvider, credential, minCertification)
 		if err != nil {
-			return model.WebauthnCredential{}, err
+			return WebauthnCredential{}, err
 		}
 	}
 
@@ -234,7 +229,7 @@ func (s *Service) VerifyRegistration(ctx context.Context, dbConfig *appconfig.Ap
 	passkeyName := s.determinePasskeyName(credential.Authenticator.AAGUID)
 	aaguid := utils.FormatAAGUID(credential.Authenticator.AAGUID)
 
-	credentialToStore := model.WebauthnCredential{
+	credentialToStore := WebauthnCredential{
 		Name:            passkeyName,
 		CredentialID:    credential.ID,
 		AttestationType: credential.AttestationType,
@@ -252,7 +247,7 @@ func (s *Service) VerifyRegistration(ctx context.Context, dbConfig *appconfig.Ap
 		Create(&credentialToStore).
 		Error
 	if err != nil {
-		return model.WebauthnCredential{}, fmt.Errorf("failed to store WebAuthn credential: %w", err)
+		return WebauthnCredential{}, fmt.Errorf("failed to store WebAuthn credential: %w", err)
 	}
 
 	auditLogData := auditlogs.Data{"credentialID": hex.EncodeToString(credential.ID), "passkeyName": passkeyName}
@@ -260,7 +255,7 @@ func (s *Service) VerifyRegistration(ctx context.Context, dbConfig *appconfig.Ap
 
 	err = tx.Commit().Error
 	if err != nil {
-		return model.WebauthnCredential{}, fmt.Errorf("failed to commit transaction: %w", err)
+		return WebauthnCredential{}, fmt.Errorf("failed to commit transaction: %w", err)
 	}
 
 	return credentialToStore, nil
@@ -334,13 +329,10 @@ func (s *Service) VerifyLogin(ctx context.Context, dbConfig *appconfig.AppConfig
 	}
 	discardUnrequestedFalseAppIDOutput(session.Extensions, credentialAssertionData)
 
-	var user *model.User
+	var user *passkeyUser
 	_, err := s.webAuthn.ValidateDiscoverableLogin(func(_, userHandle []byte) (gowebauthn.User, error) {
-		innerErr := tx.
-			WithContext(ctx).
-			Preload("Credentials").
-			First(&user, "id = ?", string(userHandle)).
-			Error
+		var innerErr error
+		user, innerErr = loadPasskeyUser(ctx, tx, string(userHandle))
 		// Preserve infrastructure failures through go-webauthn's wrapped callback error
 		if innerErr != nil {
 			if !errors.Is(innerErr, gorm.ErrRecordNotFound) {
@@ -382,11 +374,11 @@ func (s *Service) VerifyLogin(ctx context.Context, dbConfig *appconfig.AppConfig
 
 	// Deliver the notification only after the login transaction has committed
 	s.auditLog.SendSignInNotification(ctx, signIn)
-	return *user, model.LoginTokens{SessionToken: token, KnownBrowserToken: signIn.KnownBrowserToken}, nil
+	return user.User, model.LoginTokens{SessionToken: token, KnownBrowserToken: signIn.KnownBrowserToken}, nil
 }
 
-func (s *Service) ListCredentials(ctx context.Context, userID string) ([]model.WebauthnCredential, error) {
-	var credentials []model.WebauthnCredential
+func (s *Service) ListCredentials(ctx context.Context, userID string) ([]WebauthnCredential, error) {
+	var credentials []WebauthnCredential
 	err := s.db.
 		WithContext(ctx).
 		Find(&credentials, "user_id = ?", userID).
@@ -404,7 +396,7 @@ func (s *Service) DeleteCredential(ctx context.Context, userID string, credentia
 		tx.Rollback()
 	}()
 
-	credential := &model.WebauthnCredential{}
+	credential := &WebauthnCredential{}
 	result := tx.
 		WithContext(ctx).
 		Clauses(clause.Returning{}).
@@ -426,20 +418,20 @@ func (s *Service) DeleteCredential(ctx context.Context, userID string, credentia
 	return nil
 }
 
-func (s *Service) UpdateCredential(ctx context.Context, userID, credentialID, name string) (model.WebauthnCredential, error) {
+func (s *Service) UpdateCredential(ctx context.Context, userID, credentialID, name string) (WebauthnCredential, error) {
 	tx := s.db.Begin()
 	defer func() {
 		tx.Rollback()
 	}()
 
-	var credential model.WebauthnCredential
+	var credential WebauthnCredential
 	err := tx.
 		WithContext(ctx).
 		Where("id = ? AND user_id = ?", credentialID, userID).
 		First(&credential).
 		Error
 	if errors.Is(err, gorm.ErrRecordNotFound) {
-		return model.WebauthnCredential{}, apperror.NotFound("Passkey")
+		return WebauthnCredential{}, apperror.NotFound("Passkey")
 	}
 	if err != nil {
 		return credential, err
@@ -627,13 +619,10 @@ func (s *Service) CreateReauthenticationTokenWithWebauthn(ctx context.Context, s
 	discardUnrequestedFalseAppIDOutput(session.Extensions, credentialAssertionData)
 
 	// Validate the credential assertion
-	var user *model.User
+	var user *passkeyUser
 	_, err := s.webAuthn.ValidateDiscoverableLogin(func(_, userHandle []byte) (gowebauthn.User, error) {
-		innerErr := tx.
-			WithContext(ctx).
-			Preload("Credentials").
-			First(&user, "id = ?", string(userHandle)).
-			Error
+		var innerErr error
+		user, innerErr = loadPasskeyUser(ctx, tx, string(userHandle))
 		// Preserve infrastructure failures through go-webauthn's wrapped callback error
 		if innerErr != nil {
 			if !errors.Is(innerErr, gorm.ErrRecordNotFound) {
@@ -677,9 +666,24 @@ func hasOversizedPublicKey(publicKey []byte) bool {
 	return ok && new(big.Int).SetBytes(rsaKey.Modulus).BitLen() > maxRSAKeyBits
 }
 
+// loadPasskeyUser loads a user with their passkeys and returns gorm.ErrRecordNotFound if the user doesn't exist
+func loadPasskeyUser(ctx context.Context, tx *gorm.DB, userID string) (*passkeyUser, error) {
+	user := &passkeyUser{}
+	err := tx.WithContext(ctx).First(&user.User, "id = ?", userID).Error
+	if err != nil {
+		return nil, err
+	}
+
+	err = tx.WithContext(ctx).Find(&user.credentials, "user_id = ?", userID).Error
+	if err != nil {
+		return nil, fmt.Errorf("failed to load passkeys: %w", err)
+	}
+	return user, nil
+}
+
 // discardOversizedCredentials drops passkeys registered before RSA keys were bounded, so a sign-in can't be pointed at one of them
-func discardOversizedCredentials(user *model.User) {
-	user.Credentials = slices.DeleteFunc(user.Credentials, func(credential model.WebauthnCredential) bool {
+func discardOversizedCredentials(user *passkeyUser) {
+	user.credentials = slices.DeleteFunc(user.credentials, func(credential WebauthnCredential) bool {
 		return hasOversizedPublicKey(credential.PublicKey)
 	})
 }

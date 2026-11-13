@@ -15,7 +15,6 @@ import (
 	"github.com/pocket-id/pocket-id/backend/internal/auditlogs"
 	"github.com/pocket-id/pocket-id/backend/internal/authz"
 	"github.com/pocket-id/pocket-id/backend/internal/httpserver"
-	"github.com/pocket-id/pocket-id/backend/internal/model"
 )
 
 type SessionStore interface {
@@ -110,7 +109,7 @@ func (m *Module) ConsumeReauthenticationToken(ctx context.Context, tx *gorm.DB, 
 
 // ListCredentials returns the passkeys registered for the given user
 // It is consumed by the user controller for the admin "manage passkeys" view
-func (m *Module) ListCredentials(ctx context.Context, userID string) ([]model.WebauthnCredential, error) {
+func (m *Module) ListCredentials(ctx context.Context, userID string) ([]WebauthnCredential, error) {
 	return m.service.ListCredentials(ctx, userID)
 }
 

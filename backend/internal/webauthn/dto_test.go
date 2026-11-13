@@ -1,4 +1,4 @@
-package dto
+package webauthn
 
 import (
 	"encoding/json"
@@ -7,21 +7,21 @@ import (
 
 	"github.com/stretchr/testify/require"
 
-	"github.com/pocket-id/pocket-id/backend/internal/model"
+	"github.com/pocket-id/pocket-id/backend/internal/dto"
 	"github.com/pocket-id/pocket-id/backend/internal/utils"
 )
 
 func TestWebauthnCredentialDto_iconFields(t *testing.T) {
 	withIcon := anyAAGUIDWithIcon(t)
 
-	credentials := []model.WebauthnCredential{
+	credentials := []WebauthnCredential{
 		{Name: "With icon", AAGUID: withIcon},
 		{Name: "Unknown authenticator", AAGUID: "ffffffff-ffff-ffff-ffff-ffffffffffff"},
 		{Name: "Authenticator that does not identify itself", AAGUID: utils.ZeroAAGUID},
 	}
 
 	var dtos []WebauthnCredentialDto
-	require.NoError(t, MapStructList(credentials, &dtos))
+	require.NoError(t, dto.MapStructList(credentials, &dtos))
 	require.Len(t, dtos, len(credentials))
 
 	require.Equal(t, withIcon, dtos[0].AAGUID)
@@ -36,13 +36,13 @@ func TestWebauthnCredentialDto_iconFields(t *testing.T) {
 func TestWebauthnCredentialDto_verifiedAuthenticatorName(t *testing.T) {
 	aaguid := anyAAGUIDWithIcon(t)
 
-	credentials := []model.WebauthnCredential{
+	credentials := []WebauthnCredential{
 		{Name: "Verified", AAGUID: aaguid, AttestationVerified: true},
 		{Name: "Claimed only", AAGUID: aaguid},
 	}
 
 	var dtos []WebauthnCredentialDto
-	require.NoError(t, MapStructList(credentials, &dtos))
+	require.NoError(t, dto.MapStructList(credentials, &dtos))
 
 	require.Equal(t, utils.GetAuthenticatorName(aaguid), dtos[0].VerifiedAuthenticatorName)
 	require.NotEmpty(t, dtos[0].VerifiedAuthenticatorName)

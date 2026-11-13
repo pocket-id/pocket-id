@@ -495,13 +495,13 @@ func (s *TestService) SeedDatabase(baseURL string) error {
 
 		publicKeyPasskey1, _ := base64.StdEncoding.DecodeString("pQMmIAEhWCDBw6jkpXXr0pHrtAQetxiR5cTcILG/YGDCdKrhVhNDHCJYIIu12YrF6B7Frwl3AUqEpdrYEwj3Fo3XkGgvrBIJEUmGAQI=")
 		publicKeyPasskey2, _ := base64.StdEncoding.DecodeString("pSJYIPmc+FlEB0neERqqscxKckGF8yq1AYrANiloshAUAouHAQIDJiABIVggj4qA0PrZzg8Co1C27nyUbzrp8Ewjr7eOlGI2LfrzmbI=")
-		webauthnCredentials := []model.WebauthnCredential{
+		webauthnCredentials := []webauthn.WebauthnCredential{
 			{
 				Name:            "Passkey 1",
 				CredentialID:    []byte("test-credential-tim"),
 				PublicKey:       publicKeyPasskey1,
 				AttestationType: "none",
-				Transport:       model.AuthenticatorTransportList{protocol.Internal},
+				Transport:       webauthn.AuthenticatorTransportList{protocol.Internal},
 				UserID:          users[0].ID,
 			},
 			{
@@ -509,7 +509,7 @@ func (s *TestService) SeedDatabase(baseURL string) error {
 				CredentialID:    []byte("test-credential-craig"),
 				PublicKey:       publicKeyPasskey2,
 				AttestationType: "none",
-				Transport:       model.AuthenticatorTransportList{protocol.Internal},
+				Transport:       webauthn.AuthenticatorTransportList{protocol.Internal},
 				UserID:          users[1].ID,
 			},
 		}

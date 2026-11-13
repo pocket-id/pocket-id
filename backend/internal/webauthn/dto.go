@@ -1,4 +1,4 @@
-package dto
+package webauthn
 
 import (
 	"github.com/go-webauthn/webauthn/protocol"
@@ -24,6 +24,6 @@ type WebauthnCredentialDto struct {
 	CreatedAt datatype.DateTime `json:"createdAt"`
 }
 
-type WebauthnCredentialUpdateDto struct {
+type webauthnCredentialUpdateDto struct {
 	Name string `json:"name" binding:"required,min=1,max=50"`
 }

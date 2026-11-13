@@ -410,7 +410,7 @@ func TestUpdateCredentialKeepsAAGUID(t *testing.T) {
 		Username: userID,
 	}).Error)
 
-	credential := model.WebauthnCredential{
+	credential := WebauthnCredential{
 		Name:         "Original name",
 		CredentialID: []byte("test-credential"),
 		PublicKey:    []byte("test-public-key"),
@@ -426,7 +426,7 @@ func TestUpdateCredentialKeepsAAGUID(t *testing.T) {
 	assert.Equal(t, "New name", updated.Name)
 	assert.Equal(t, aaguid, updated.AAGUID)
 
-	var stored model.WebauthnCredential
+	var stored WebauthnCredential
 	require.NoError(t, db.First(&stored, "id = ?", credential.ID).Error)
 	assert.Equal(t, "New name", stored.Name)
 	assert.Equal(t, aaguid, stored.AAGUID)

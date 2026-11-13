@@ -73,7 +73,7 @@ func (h *handler) verifyRegistration(c *gin.Context) error {
 		return err
 	}
 
-	var credentialDto dto.WebauthnCredentialDto
+	var credentialDto WebauthnCredentialDto
 	if err := dto.MapStruct(credential, &credentialDto); err != nil {
 		return err
 	}
@@ -142,7 +142,7 @@ func (h *handler) listCredentials(c *gin.Context) error {
 		return err
 	}
 
-	var credentialDtos []dto.WebauthnCredentialDto
+	var credentialDtos []WebauthnCredentialDto
 	if err := dto.MapStructList(credentials, &credentialDtos); err != nil {
 		return err
 	}
@@ -166,7 +166,7 @@ func (h *handler) updateCredential(c *gin.Context) error {
 	userID := authz.PrincipalFrom(c).UserID
 	credentialID := c.Param("id")
 
-	var input dto.WebauthnCredentialUpdateDto
+	var input webauthnCredentialUpdateDto
 	if err := httpserver.BindJSON(c, &input); err != nil {
 		return err
 	}
@@ -176,7 +176,7 @@ func (h *handler) updateCredential(c *gin.Context) error {
 		return err
 	}
 
-	var credentialDto dto.WebauthnCredentialDto
+	var credentialDto WebauthnCredentialDto
 	if err := dto.MapStruct(credential, &credentialDto); err != nil {
 		return err
 	}

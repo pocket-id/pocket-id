@@ -19,6 +19,7 @@ import (
 	"github.com/pocket-id/pocket-id/backend/internal/model"
 	"github.com/pocket-id/pocket-id/backend/internal/openapi"
 	"github.com/pocket-id/pocket-id/backend/internal/storage"
+	"github.com/pocket-id/pocket-id/backend/internal/webauthn"
 )
 
 // CustomClaimUpdater applies the default custom claims to new users
@@ -34,7 +35,7 @@ type AppAssetProvider interface {
 
 // PasskeyManager lists and deletes the passkeys of any user for admins
 type PasskeyManager interface {
-	ListCredentials(ctx context.Context, userID string) ([]model.WebauthnCredential, error)
+	ListCredentials(ctx context.Context, userID string) ([]webauthn.WebauthnCredential, error)
 	DeleteCredential(ctx context.Context, userID, credentialID string, origin auditlogs.Origin) error
 }
 

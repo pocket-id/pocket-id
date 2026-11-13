@@ -13,6 +13,7 @@ import (
 	"github.com/pocket-id/pocket-id/backend/internal/dto"
 	"github.com/pocket-id/pocket-id/backend/internal/httpserver"
 	"github.com/pocket-id/pocket-id/backend/internal/utils"
+	"github.com/pocket-id/pocket-id/backend/internal/webauthn"
 )
 
 type handler struct {
@@ -40,7 +41,7 @@ func (h *handler) getUserGroupsHandler(c *gin.Context) ([]dto.UserGroupDto, erro
 	return groupsDto, nil
 }
 
-func (h *handler) listUserWebauthnCredentialsHandler(c *gin.Context) ([]dto.WebauthnCredentialDto, error) {
+func (h *handler) listUserWebauthnCredentialsHandler(c *gin.Context) ([]webauthn.WebauthnCredentialDto, error) {
 	userID := c.Param("id")
 
 	if _, err := h.service.GetUser(c.Request.Context(), userID); err != nil {
@@ -52,7 +53,7 @@ func (h *handler) listUserWebauthnCredentialsHandler(c *gin.Context) ([]dto.Weba
 		return nil, err
 	}
 
-	var credentialDtos []dto.WebauthnCredentialDto
+	var credentialDtos []webauthn.WebauthnCredentialDto
 	if err := dto.MapStructList(credentials, &credentialDtos); err != nil {
 		return nil, err
 	}
