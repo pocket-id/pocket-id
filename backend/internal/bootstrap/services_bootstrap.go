@@ -95,7 +95,7 @@ func initServices(
 	}
 
 	// Init the app config service
-	svc.appConfigService, err = appconfig.NewService(ctx, actors, db)
+	svc.appConfigService, err = appconfig.NewService(ctx, actors)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create app config service: %w", err)
 	}

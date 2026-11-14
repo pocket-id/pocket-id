@@ -13,7 +13,6 @@ import (
 )
 
 // encryptedSecretPrefix marks the sensitive values that are encrypted in the actor state
-// Values saved before secrets were encrypted lack it, and the actor encrypts them when it bootstraps
 const encryptedSecretPrefix = "encrypted:"
 
 // encryptSecrets returns a copy of the config with its sensitive values encrypted with the ENCRYPTION_KEY
@@ -27,26 +26,13 @@ func (m *AppConfigModel) encryptSecrets() (*AppConfigModel, error) {
 	})
 }
 
-// decryptSecrets returns a copy of the config with its sensitive values decrypted, keeping the ones saved before secrets were encrypted as they are
+// decryptSecrets returns a copy of the config with its sensitive values decrypted
 func (m *AppConfigModel) decryptSecrets() (*AppConfigModel, error) {
 	return m.mapSecrets(func(value string) (string, error) {
-		encrypted, ok := strings.CutPrefix(value, encryptedSecretPrefix)
-		if !ok {
-			return value, nil
-		}
 		var decrypted datatype.EncryptedString
-		err := decrypted.Scan(encrypted)
+		err := decrypted.Scan(strings.TrimPrefix(value, encryptedSecretPrefix))
 		return string(decrypted), err
 	})
-}
-
-// hasPlaintextSecrets reports whether any sensitive value was saved before secrets were encrypted
-func (m *AppConfigModel) hasPlaintextSecrets() (found bool) {
-	_, _ = m.mapSecrets(func(value string) (string, error) {
-		found = found || !strings.HasPrefix(value, encryptedSecretPrefix)
-		return value, nil
-	})
-	return found
 }
 
 // mapSecrets returns a copy of the config with fn applied to each sensitive value that is set
@@ -81,17 +67,11 @@ func ReencryptSecrets(ctx context.Context, store actor.Host, oldKey []byte, newK
 	}
 
 	return state.mapSecrets(func(value string) (string, error) {
-		// Values saved before secrets were encrypted are encrypted with the new key when the actor bootstraps
-		encrypted, ok := strings.CutPrefix(value, encryptedSecretPrefix)
-		if !ok {
-			return value, nil
-		}
-
-		decrypted, err := datatype.DecryptEncryptedStringWithKey(oldKey, encrypted)
+		decrypted, err := datatype.DecryptEncryptedStringWithKey(oldKey, strings.TrimPrefix(value, encryptedSecretPrefix))
 		if err != nil {
 			return "", err
 		}
-		encrypted, err = datatype.EncryptEncryptedStringWithKey(newKey, decrypted)
+		encrypted, err := datatype.EncryptEncryptedStringWithKey(newKey, decrypted)
 		if err != nil {
 			return "", err
 		}

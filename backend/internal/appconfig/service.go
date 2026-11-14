@@ -13,7 +13,6 @@ import (
 	"github.com/go-playground/validator/v10"
 	"github.com/italypaleale/francis/actor"
 	francishost "github.com/italypaleale/francis/host"
-	"gorm.io/gorm"
 
 	"github.com/pocket-id/pocket-id/backend/internal/apperror"
 	"github.com/pocket-id/pocket-id/backend/internal/common"
@@ -29,7 +28,7 @@ type AppConfigService struct {
 	envOverrides map[string]string
 }
 
-func NewService(ctx context.Context, actors francishost.Host, db *gorm.DB) (service *AppConfigService, err error) {
+func NewService(ctx context.Context, actors francishost.Host) (service *AppConfigService, err error) {
 	service = &AppConfigService{}
 
 	// Load and validate the properties set in the environment
@@ -49,23 +48,12 @@ func NewService(ctx context.Context, actors francishost.Host, db *gorm.DB) (serv
 	}
 
 	// Note: we need to assign to the "err" variable in this method (for tracing), do not inline this into the "if"
-	ctx, span := tracing.Start(ctx, "pocketid.appconfig.init")
+	_, span := tracing.Start(ctx, "pocketid.appconfig.init")
 	defer tracing.End(span, err)
 
-	// Load the legacy config if any, which we need to send to the actor as bootstrap data
-	legacyCfg, err := LoadLegacyConfig(ctx, db)
-	if err != nil {
-		return nil, fmt.Errorf("error loading legacy config: %w", err)
-	}
-
-	// Register the AppConfig actor
-	// This is a singleton actor and it's bootstrapped with the legacy config if present
-	bootstrapData := &appConfigActorBootstrap{
-		LegacyConfig: legacyCfg,
-	}
+	// Register the AppConfig actor, which is a singleton
 	err = actors.RegisterSingletonActor(
-		AppConfigActorType, newAppConfigActorFactory(db),
-		francishost.WithBootstrapData(bootstrapData),
+		AppConfigActorType, newAppConfigActor,
 		francishost.WithIdleTimeout(-1), // Disable idle timeout for this actor
 	)
 	if err != nil {
@@ -288,28 +276,6 @@ func loadEnvOverrides() (map[string]string, error) {
 
 		if value := os.Getenv(envVarName); value != "" {
 			overrides[key] = value
-		}
-	}
-
-	// TODO: Remove in next major version (v3)
-	// Preserve the old environment setting unless an explicit notification mode replaces it
-	if _, ok := overrides["emailLoginNotificationMode"]; !ok {
-		if enabled := os.Getenv("EMAIL_LOGIN_NOTIFICATION_ENABLED"); enabled != "" {
-			if enabled != "true" && enabled != "false" {
-				return nil, errors.New("EMAIL_LOGIN_NOTIFICATION_ENABLED must be true or false")
-			}
-			overrides["emailLoginNotificationMode"] = string(legacyLoginNotificationMode(AppConfigValue(enabled)))
-		}
-	}
-
-	// TODO: Remove in next major version (v3)
-	// Preserve the old environment setting unless an explicit email verification mode replaces it
-	if _, ok := overrides["emailVerification"]; !ok {
-		if enabled := os.Getenv("EMAIL_VERIFICATION_ENABLED"); enabled != "" {
-			if enabled != "true" && enabled != "false" {
-				return nil, errors.New("EMAIL_VERIFICATION_ENABLED must be true or false")
-			}
-			overrides["emailVerification"] = string(legacyEmailVerification(AppConfigValue(enabled)))
 		}
 	}
 
