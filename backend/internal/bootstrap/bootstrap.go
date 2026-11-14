@@ -7,8 +7,6 @@ import (
 	"log/slog"
 	"time"
 
-	_ "github.com/golang-migrate/migrate/v4/source/file"
-
 	"github.com/italypaleale/francis/components"
 	francishost "github.com/italypaleale/francis/host"
 	"github.com/italypaleale/go-kit/servicerunner"

@@ -101,7 +101,7 @@ func extractDatabaseTx(tx *gorm.DB) (DatabaseExport, error) {
 
 	for table := range schema {
 		// Skip internal tables and the actor host's own "francis_" tables
-		if table == "storage" || table == "schema_migrations" || strings.HasPrefix(table, "francis_") {
+		if table == "storage" || utils.IsMigrationTable(table) || strings.HasPrefix(table, "francis_") {
 			continue
 		}
 		err = dumpTable(tx, table, schema[table], &out)
@@ -113,9 +113,9 @@ func extractDatabaseTx(tx *gorm.DB) (DatabaseExport, error) {
 	return out, nil
 }
 
-func schemaVersion(tx *gorm.DB) (uint, error) {
-	var version uint
-	err := tx.Raw("SELECT version FROM schema_migrations").Row().Scan(&version)
+func schemaVersion(tx *gorm.DB) (int64, error) {
+	var version int64
+	err := tx.Raw("SELECT MAX(version_id) FROM goose_db_version").Row().Scan(&version)
 	if err != nil {
 		return 0, fmt.Errorf("failed to query schema version: %w", err)
 	}

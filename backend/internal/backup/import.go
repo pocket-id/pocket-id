@@ -16,6 +16,7 @@ import (
 
 	"gorm.io/gorm"
 
+	"github.com/pocket-id/pocket-id/backend/internal/common"
 	datatype "github.com/pocket-id/pocket-id/backend/internal/model/types"
 	"github.com/pocket-id/pocket-id/backend/internal/storage"
 	"github.com/pocket-id/pocket-id/backend/internal/utils"
@@ -30,7 +31,7 @@ type ImportService struct {
 
 type DatabaseExport struct {
 	Provider   string                      `json:"provider"`
-	Version    uint                        `json:"version"`
+	Version    int64                       `json:"version"`
 	Tables     map[string][]map[string]any `json:"tables"`
 	TableOrder []string                    `json:"tableOrder"`
 }
@@ -51,6 +52,12 @@ func (s *ImportService) ImportFromZip(ctx context.Context, r *zip.Reader) error 
 	dbData, err := processZipDatabaseJson(r.File)
 	if err != nil {
 		return err
+	}
+
+	// An export of Pocket ID v2 holds its data in a form this version can't read, and nothing may be replaced before that is known
+	err = utils.CheckMigrationVersionSupported(dbData.Version)
+	if err != nil {
+		return fmt.Errorf("%w: import it with Pocket ID v2, then upgrade", err)
 	}
 
 	// The actor host's data is restored first because it's an atomic operation that validates its own preconditions, most importantly that no Pocket ID instance is still running
@@ -87,7 +94,7 @@ func (s *ImportService) importActorsBackup(ctx context.Context, files []*zip.Fil
 		}
 	}
 	if backupFile == nil {
-		// Archives exported before Pocket ID included the actor host's data don't have that entry, in which case the existing data is left untouched
+		// Archives exported from an instance that uses a standalone actor runtime don't have that entry, in which case the existing data is left untouched
 		slog.WarnContext(ctx, "The archive does not contain the actor host's data, which will be left unchanged", slog.String("file", ActorsBackupFileName))
 		return nil
 	}
@@ -193,7 +200,7 @@ func (s *ImportService) importUploads(ctx context.Context, files []*zip.File) er
 // resetSchema drops the existing Pocket ID schema and migrates it to the target version.
 //
 // It deliberately preserves the actor host's own tables (those with the "francis_" prefix): the actor host owns and migrates them, they are not part of a Pocket ID export, and dropping them here would break the actor host on the next startup.
-func (s *ImportService) resetSchema(ctx context.Context, targetVersion uint) error {
+func (s *ImportService) resetSchema(ctx context.Context, targetVersion int64) error {
 	sqlDb, err := s.db.DB()
 	if err != nil {
 		return fmt.Errorf("failed to get sql.DB: %w", err)
@@ -214,18 +221,7 @@ func (s *ImportService) resetSchema(ctx context.Context, targetVersion uint) err
 
 	// Re-create the schema by migrating to the target version
 	// The migration files manage their own foreign-key state where needed
-	m, cleanup, err := utils.GetEmbeddedMigrateInstance(ctx, sqlDb)
-	if err != nil {
-		return fmt.Errorf("failed to get migrate instance: %w", err)
-	}
-	defer cleanup()
-
-	err = m.Migrate(targetVersion)
-	if err != nil {
-		return fmt.Errorf("migration failed: %w", err)
-	}
-
-	return nil
+	return utils.MigrateDatabaseTo(ctx, sqlDb, common.EnvConfig.DbProvider, targetVersion)
 }
 
 // dropPocketIDTablesSQLite drops every Pocket ID table (everything except the actor host's "francis_" tables and SQLite's internal tables) on a single dedicated connection with foreign keys disabled.
@@ -329,8 +325,8 @@ func (s *ImportService) insertData(dbData DatabaseExport) error {
 		tables = append(tables, dbData.TableOrder...)
 
 		for t := range dbData.Tables {
-			// Skip tables already present where the order matters, the schema_migrations table, and the actor host's own "francis_" tables in case they were included
-			if slices.Contains(dbData.TableOrder, t) || t == "schema_migrations" || strings.HasPrefix(t, "francis_") {
+			// Skip tables already present where the order matters, the migration tables, and the actor host's own "francis_" tables in case they were included
+			if slices.Contains(dbData.TableOrder, t) || utils.IsMigrationTable(t) || strings.HasPrefix(t, "francis_") {
 				continue
 			}
 			tables = append(tables, t)

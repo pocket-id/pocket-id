@@ -11,20 +11,15 @@ import (
 
 	"github.com/pocket-id/pocket-id/backend/internal/common"
 	"github.com/pocket-id/pocket-id/backend/internal/utils"
-	sqliteutil "github.com/pocket-id/pocket-id/backend/internal/utils/sqlite"
 )
 
-// importResetTargetVersion is a real migration version the import resets the schema to
-// It only has to be at or beyond 20240817191051 (the rename_config_table migration that toggles foreign keys), so the reset exercises a foreign-key-sensitive migration
-const importResetTargetVersion = 20260707170000
+// importResetTargetVersion is the version of the baseline migration, the oldest schema an import can reset to
+const importResetTargetVersion = 20261114130000
 
 // openImportTestDB opens a Gorm SQLite pool on a file database using the same pragmas the application configures in production, most importantly foreign_keys(1) on every connection
 func openImportTestDB(t *testing.T, dbPath string, cfg func(*sql.DB)) *gorm.DB {
 	t.Helper()
 	common.EnvConfig.DbProvider = common.DbProviderSqlite
-
-	// The migrations call SQL functions that only exist once registered with the driver
-	sqliteutil.RegisterSqliteFunctions()
 
 	dsn := "file:" + dbPath + "?_txlock=immediate&_pragma=busy_timeout(2500)&_pragma=journal_mode(WAL)&_pragma=foreign_keys(1)"
 
@@ -78,7 +73,7 @@ func importAndRestart(importCfg func(*sql.DB)) func(t *testing.T) {
 		// Initial boot: connect, migrate, and let the actor host create its own schema.
 		boot := openImportTestDB(t, dbPath, nil)
 		sqlDB, _ := boot.DB()
-		err := utils.MigrateDatabase(t.Context(), sqlDB)
+		err := utils.MigrateDatabase(t.Context(), sqlDB, common.DbProviderSqlite)
 		require.NoError(t, err)
 		seedActorHostSchema(t, boot)
 		closeImportTestDB(boot)
@@ -99,7 +94,7 @@ func importAndRestart(importCfg func(*sql.DB)) func(t *testing.T) {
 		restart := openImportTestDB(t, dbPath, nil)
 		defer closeImportTestDB(restart)
 		sqlDB, _ = restart.DB()
-		err = utils.MigrateDatabase(t.Context(), sqlDB)
+		err = utils.MigrateDatabase(t.Context(), sqlDB, common.DbProviderSqlite)
 		require.NoError(t, err)
 		requireActorHostSchemaPreserved(t, restart)
 	}

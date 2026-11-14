@@ -9,6 +9,7 @@ import (
 	"github.com/stretchr/testify/require"
 	"gorm.io/gorm"
 
+	"github.com/pocket-id/pocket-id/backend/internal/common"
 	"github.com/pocket-id/pocket-id/backend/internal/utils"
 )
 
@@ -20,7 +21,7 @@ func TestExportExcludesActorHostTables(t *testing.T) {
 	defer closeImportTestDB(db)
 
 	sqlDB, _ := db.DB()
-	require.NoError(t, utils.MigrateDatabase(t.Context(), sqlDB))
+	require.NoError(t, utils.MigrateDatabase(t.Context(), sqlDB, common.DbProviderSqlite))
 	seedActorHostSchema(t, db) // creates francis_active_actors (with a row) and a view over it
 
 	export, err := NewExportService(db, nil, nil).extractDatabase(t.Context())
@@ -95,7 +96,7 @@ func newExportTestDB(t *testing.T) *gorm.DB {
 
 	sqlDB, err := db.DB()
 	require.NoError(t, err)
-	require.NoError(t, utils.MigrateDatabase(t.Context(), sqlDB))
+	require.NoError(t, utils.MigrateDatabase(t.Context(), sqlDB, common.DbProviderSqlite))
 
 	return db
 }

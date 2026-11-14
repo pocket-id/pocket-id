@@ -1,1 +1,0 @@
--- No rollback is needed for this migration.

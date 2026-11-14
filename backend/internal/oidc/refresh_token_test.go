@@ -16,14 +16,12 @@ import (
 	"github.com/pocket-id/fosite"
 	"github.com/pocket-id/fosite/compose"
 	"github.com/stretchr/testify/require"
-	"gorm.io/gorm"
 
 	"github.com/pocket-id/pocket-id/backend/internal/appconfig"
 	"github.com/pocket-id/pocket-id/backend/internal/claimmappingpolicy"
 	"github.com/pocket-id/pocket-id/backend/internal/model"
 	datatype "github.com/pocket-id/pocket-id/backend/internal/model/types"
 	testutils "github.com/pocket-id/pocket-id/backend/internal/utils/testing"
-	"github.com/pocket-id/pocket-id/backend/resources"
 )
 
 func TestRefreshTokenRotationGrace(t *testing.T) {
@@ -155,23 +153,4 @@ func TestRefreshTokenRotationGrace(t *testing.T) {
 			}
 		})
 	}
-}
-
-func TestRefreshTokenGraceMigrationPreservesExistingSessions(t *testing.T) {
-	const previousVersion = 20260923183637
-	db := testutils.NewDatabaseForTestWithMigrationSeed(t, previousVersion, func(t *testing.T, db *gorm.DB) {
-		// The claim mapping policy, disabled and notes columns don't exist yet at this schema version
-		require.NoError(t, db.Omit("ClaimMappingPolicyId", "Disabled", "Notes").Create(&model.OidcClient{Base: model.Base{ID: "old-client"}, Name: "Old client"}).Error)
-		require.NoError(t, db.Exec(`INSERT INTO oauth2_sessions (id, created_at, kind, key, request_id, client_id, active, request_data) VALUES ('old-refresh', 1, 'refresh_token', 'old-signature', 'old-request', 'old-client', false, '{}')`).Error)
-	})
-	var session OAuth2Session
-	require.NoError(t, db.First(&session, "id = ?", "old-refresh").Error)
-	require.False(t, session.Active)
-	require.Nil(t, session.RotatedAt)
-	down, err := resources.FS.ReadFile("migrations/sqlite/20260929120000_refresh_token_rotation_grace.down.sql")
-	require.NoError(t, err)
-	require.NoError(t, db.Exec(string(down)).Error)
-	var count int64
-	require.NoError(t, db.Table("oauth2_sessions").Where("id = ?", "old-refresh").Count(&count).Error)
-	require.EqualValues(t, 1, count)
 }

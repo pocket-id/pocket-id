@@ -24,7 +24,6 @@ require (
 	github.com/go-playground/validator/v10 v10.30.6
 	github.com/go-webauthn/webauthn v0.18.2
 	github.com/go-webauthn/x v0.3.1
-	github.com/golang-migrate/migrate/v4 v4.20.1
 	github.com/google/uuid v1.6.0
 	github.com/italypaleale/francis v0.2.1
 	github.com/italypaleale/go-kit v1.7.1
@@ -43,6 +42,7 @@ require (
 	github.com/oschwald/maxminddb-golang/v2 v2.9.0
 	github.com/pires/go-proxyproto v0.16.0
 	github.com/pocket-id/fosite v1.6.0
+	github.com/pressly/goose/v3 v3.29.0
 	github.com/quic-go/quic-go v0.64.1
 	github.com/spf13/cobra v1.10.2
 	github.com/stretchr/testify v1.12.1
@@ -62,7 +62,6 @@ require (
 	gorm.io/driver/postgres v1.6.3
 	gorm.io/gorm v1.31.2
 	gorm.io/plugin/opentelemetry v0.1.16
-	modernc.org/sqlite v1.61.1
 )
 
 require (
@@ -109,8 +108,6 @@ require (
 	github.com/gogo/googleapis v1.4.1 // indirect
 	github.com/gogo/protobuf v1.3.2 // indirect
 	github.com/golang-jwt/jwt/v5 v5.3.1 // indirect
-	github.com/google/go-github/v39 v39.2.0 // indirect
-	github.com/google/go-querystring v1.2.0 // indirect
 	github.com/google/go-tpm v0.9.8 // indirect
 	github.com/google/jsonschema-go v0.4.3 // indirect
 	github.com/gorilla/schema v1.4.1 // indirect
@@ -133,9 +130,9 @@ require (
 	github.com/lestrrat-go/httpcc v1.0.1 // indirect
 	github.com/lestrrat-go/option/v2 v2.0.0 // indirect
 	github.com/lestrrat-go/option/v3 v3.0.0-alpha1 // indirect
-	github.com/lib/pq v1.12.3 // indirect
 	github.com/mattn/go-sqlite3 v1.14.52 // indirect
 	github.com/mattn/goveralls v0.0.12 // indirect
+	github.com/mfridman/interpolate v0.0.2 // indirect
 	github.com/modern-go/concurrent v0.0.0-20180306012644-bacd9c7ef1dd // indirect
 	github.com/modern-go/reflect2 v1.0.2 // indirect
 	github.com/mohae/deepcopy v0.0.0-20170929034955-c48cc78d4826 // indirect
@@ -164,8 +161,9 @@ require (
 	github.com/sagikazarmark/locafero v0.12.0 // indirect
 	github.com/santhosh-tekuri/jsonschema/v6 v6.0.3 // indirect
 	github.com/seatgeek/logrus-gelf-formatter v0.0.0-20210414080842-5b05eb8ff761 // indirect
-	github.com/segmentio/asm v1.2.0 // indirect
+	github.com/segmentio/asm v1.2.1 // indirect
 	github.com/segmentio/encoding v0.5.4 // indirect
+	github.com/sethvargo/go-retry v0.5.0 // indirect
 	github.com/sirupsen/logrus v1.10.2 // indirect
 	github.com/spf13/afero v1.15.0 // indirect
 	github.com/spf13/cast v1.10.0 // indirect
@@ -203,6 +201,7 @@ require (
 	go.opentelemetry.io/otel/metric v1.47.0 // indirect
 	go.opentelemetry.io/proto/otlp v1.11.1 // indirect
 	go.uber.org/mock v0.6.0 // indirect
+	go.uber.org/multierr v1.11.0 // indirect
 	go.yaml.in/yaml/v3 v3.0.5 // indirect
 	golang.org/x/arch v0.31.0 // indirect
 	golang.org/x/exp v0.0.0-20261014143641-f0251eb4aa3e // indirect
@@ -221,4 +220,5 @@ require (
 	modernc.org/libc v1.79.1 // indirect
 	modernc.org/mathutil v1.7.1 // indirect
 	modernc.org/memory v1.12.1 // indirect
+	modernc.org/sqlite v1.61.1 // indirect
 )

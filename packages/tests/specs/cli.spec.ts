@@ -140,9 +140,7 @@ function compareExports(dir1: string, dir2: string): void {
 	const hashes2 = hashAllFiles(dir2);
 
 	const files1 = Object.keys(hashes1).sort();
-	const files2 = Object.keys(hashes2)
-		.sort()
-		.filter((p) => !p.includes('.inited'));
+	const files2 = Object.keys(hashes2).sort();
 	expect(files2).toEqual(files1);
 
 	for (const file of files1) {
@@ -280,7 +278,7 @@ function validateSpecialFields(obj: any): void {
 					`Expected 'provider' to be either 'postgres' or 'sqlite', got '${value}'`
 				).toBe(true);
 			} else if (key === 'version') {
-				expect(value).toBeGreaterThanOrEqual(20251001000000);
+				expect(value).toBeGreaterThanOrEqual(20261114130000);
 			} else {
 				validateSpecialFields(value);
 			}

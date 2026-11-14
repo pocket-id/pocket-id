@@ -730,7 +730,7 @@ func (s *Service) ResetDatabase() error {
 					WHERE type='table'
 						AND name NOT LIKE 'sqlite_%'
 						AND name NOT LIKE 'francis_%'
-						AND name != 'schema_migrations'`).
+						AND name NOT LIKE 'goose_%'`).
 				Scan(&tables).
 				Error
 			if err != nil {
@@ -743,7 +743,7 @@ func (s *Service) ResetDatabase() error {
 					FROM pg_tables
 					WHERE schemaname = 'public'
 						AND tablename NOT LIKE 'francis_%'
-						AND tablename != 'schema_migrations'`).
+						AND tablename NOT LIKE 'goose_%'`).
 				Scan(&tables).
 				Error
 			if err != nil {

@@ -1,1 +1,0 @@
-ALTER TABLE webauthn_sessions DROP COLUMN credential_params;

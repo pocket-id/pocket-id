@@ -1,1 +1,0 @@
-CREATE INDEX idx_audit_logs_country ON audit_logs(country);
