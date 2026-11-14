@@ -1,6 +1,6 @@
 {
 	"provider": "sqlite",
-	"version": 20261108120000,
+	"version": 20261114130000,
 	"tableOrder": [
 		"users",
 		"user_groups",
@@ -319,7 +319,7 @@
 				"metadata_expires_at": null,
 				"metadata_grant_types": "bnVsbA==",
 				"name": "Nextcloud",
-				"description": "This is an example description for Nextcloud",
+				"notes": "Nextcloud reads its OIDC settings from the user_oidc app",
 				"pkce_enabled": false,
 				"pkce_supported": false,
 				"requires_pushed_authorization_requests": false,
@@ -347,7 +347,7 @@
 				"metadata_expires_at": null,
 				"metadata_grant_types": "bnVsbA==",
 				"name": "Immich",
-				"description": "",
+				"notes": "",
 				"pkce_enabled": false,
 				"pkce_supported": false,
 				"requires_pushed_authorization_requests": false,
@@ -375,7 +375,7 @@
 				"metadata_expires_at": null,
 				"metadata_grant_types": "bnVsbA==",
 				"name": "Tailscale",
-				"description": "",
+				"notes": "",
 				"pkce_enabled": false,
 				"pkce_supported": false,
 				"requires_pushed_authorization_requests": false,
@@ -403,7 +403,7 @@
 				"metadata_expires_at": null,
 				"metadata_grant_types": "bnVsbA==",
 				"name": "Federated",
-				"description": "",
+				"notes": "",
 				"pkce_enabled": false,
 				"pkce_supported": false,
 				"requires_pushed_authorization_requests": false,
@@ -430,7 +430,7 @@
 				"metadata_expires_at": null,
 				"metadata_grant_types": "bnVsbA==",
 				"name": "SCIM Client",
-				"description": "",
+				"notes": "",
 				"pkce_enabled": false,
 				"pkce_supported": false,
 				"requires_pushed_authorization_requests": false,
@@ -459,7 +459,7 @@
 				"metadata_expires_at": null,
 				"metadata_grant_types": "bnVsbA==",
 				"name": "PAR Test Client",
-				"description": "",
+				"notes": "",
 				"pkce_enabled": false,
 				"pkce_supported": false,
 				"requires_pushed_authorization_requests": false,
@@ -487,7 +487,7 @@
 				"metadata_expires_at": null,
 				"metadata_grant_types": "bnVsbA==",
 				"name": "Skip Consent Client",
-				"description": "",
+				"notes": "",
 				"pkce_enabled": false,
 				"pkce_supported": false,
 				"requires_pushed_authorization_requests": false,
@@ -683,7 +683,9 @@
 				"name": "Passkey 1",
 				"public_key": "pQMmIAEhWCDBw6jkpXXr0pHrtAQetxiR5cTcILG/YGDCdKrhVhNDHCJYIIu12YrF6B7Frwl3AUqEpdrYEwj3Fo3XkGgvrBIJEUmGAQI=",
 				"transport": "WyJpbnRlcm5hbCJd",
-				"user_id": "f4b89dc2-62fb-46bf-9f5f-c34f4eafe93e"
+				"user_id": "f4b89dc2-62fb-46bf-9f5f-c34f4eafe93e",
+				"aaguid": "00000000-0000-0000-0000-000000000000",
+				"attestation_verified": false
 			},
 			{
 				"attestation_type": "none",
@@ -695,7 +697,9 @@
 				"name": "Passkey 2",
 				"public_key": "pSJYIPmc+FlEB0neERqqscxKckGF8yq1AYrANiloshAUAouHAQIDJiABIVggj4qA0PrZzg8Co1C27nyUbzrp8Ewjr7eOlGI2LfrzmbI=",
 				"transport": "WyJpbnRlcm5hbCJd",
-				"user_id": "1cd19686-f9a6-43f4-a41f-14a0bf5b4036"
+				"user_id": "1cd19686-f9a6-43f4-a41f-14a0bf5b4036",
+				"aaguid": "00000000-0000-0000-0000-000000000000",
+				"attestation_verified": false
 			}
 		],
 		"webauthn_sessions": [
@@ -705,7 +709,8 @@
 				"credential_params": "W3sidHlwZSI6InB1YmxpYy1rZXkiLCJhbGciOi03fSx7InR5cGUiOiJwdWJsaWMta2V5IiwiYWxnIjotMjU3fV0=",
 				"expires_at": "2025-11-25T13:39:02Z",
 				"id": "267f6907-7bc8-4ea1-9d47-c42a172dc1c7",
-				"user_verification": "preferred"
+				"user_verification": "preferred",
+				"extensions": "e30="
 			}
 		]
 	}

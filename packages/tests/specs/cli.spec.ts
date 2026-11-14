@@ -157,17 +157,6 @@ function compareExports(dir1: string, dir2: string): void {
 	const expectedData = loadJSON(path.join(dir1, 'database.json'));
 	const actualData = loadJSON(path.join(dir2, 'database.json'));
 
-	// Legacy exports gain empty session extensions when migrated to the current schema
-	for (const session of expectedData.tables.webauthn_sessions) {
-		session.extensions ??= '{}';
-	}
-
-	// Legacy exports gain the zero AAGUID and an unverified attestation when migrated to the current schema
-	for (const credential of expectedData.tables.webauthn_credentials) {
-		credential.aaguid ??= '00000000-0000-0000-0000-000000000000';
-		credential.attestation_verified ??= false;
-	}
-
 	// The built-in API's audience follows the APP_URL of the stack that produced the export
 	for (const api of expectedData.tables.apis) {
 		api.audience = api.audience.replace('http://localhost:1411', test.info().project.use.baseURL!);

@@ -90,7 +90,7 @@ test('Edit OIDC client', async ({ page }) => {
 	await page.goto(`/settings/admin/oidc-clients/${oidcClient.id}`);
 
 	await page.getByLabel('Name').fill('Nextcloud updated');
-	await page.getByLabel('Notes').fill('Updated notes');
+	await page.getByRole('textbox', { name: 'Notes' }).fill('Updated notes');
 	await page.getByTestId('callback-url-1').getByRole('button').click();
 	await page.getByTestId('callback-url-input').fill('http://nextcloud-updated/auth/callback');
 	await page.getByTestId('callback-url-input').press('Enter');
@@ -521,7 +521,9 @@ test('Update OIDC client federated credentials', async ({ page }) => {
 
 	// Saving the main client form must preserve credentials managed by the separate card
 	await page.locator('[role="tab"][data-value="general"]').click();
-	await page.getByLabel('Notes').fill('Updated without replacing federated credentials');
+	await page
+		.getByRole('textbox', { name: 'Notes' })
+		.fill('Updated without replacing federated credentials');
 	const formUpdate = page.waitForResponse(
 		(response) =>
 			response.request().method() === 'PATCH' &&
