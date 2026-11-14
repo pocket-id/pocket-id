@@ -97,19 +97,6 @@ func New(deps Dependencies) (*Module, error) {
 	}, nil
 }
 
-// RunSignupTokenMigration performs the one-time migration of the pre-actor signup tokens, then blocks until the context is canceled.
-// It's meant to be started as a background service gated on the actor host being ready, since the migration needs the actor state store.
-// Note that it must not return before the context is canceled, as the service runner stops the application as soon as any of its services returns.
-func (m *Module) RunSignupTokenMigration(ctx context.Context) error {
-	err := m.service.migrateSignupTokens(ctx)
-	if err != nil {
-		return fmt.Errorf("failed to migrate signup tokens: %w", err)
-	}
-
-	<-ctx.Done()
-	return ctx.Err()
-}
-
 // RegisterRoutes mounts the signup and signup-token management endpoints
 // signupRateLimit throttles public self-signup
 func (m *Module) RegisterRoutes(r *authz.Router, signupRateLimit gin.HandlerFunc) {

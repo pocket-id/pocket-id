@@ -147,27 +147,3 @@ func TestSignupTokenActorDelete(t *testing.T) {
 	_, err = svc.Invoke(t.Context(), SignupTokenActorType, "token-3", SignupTokenMethodDelete, nil)
 	require.NoError(t, err)
 }
-
-// TestSignupTokenActorMigrateDoesNotOverwrite verifies that the one-time migration never resets a token that was already migrated and used since
-func TestSignupTokenActorMigrateDoesNotOverwrite(t *testing.T) {
-	svc := newSignupTokenActorService(t)
-
-	state := SignupTokenState{
-		ID:         "id-4",
-		ExpiresAt:  time.Now().Add(time.Hour),
-		UsageLimit: 2,
-		CreatedAt:  time.Now(),
-	}
-	createSignupTokenForTest(t, svc, "token-4", state)
-
-	// Use the token once
-	require.Equal(t, signupTokenConsumeOK, consumeSignupTokenForTest(t, svc, "token-4").Status)
-
-	// Re-running the migration must not reset the usage count
-	_, err := svc.Invoke(t.Context(), SignupTokenActorType, "token-4", signupTokenMethodMigrate, state)
-	require.NoError(t, err)
-
-	// Only one use is left, so a single consume succeeds and the next one doesn't
-	require.Equal(t, signupTokenConsumeOK, consumeSignupTokenForTest(t, svc, "token-4").Status)
-	require.Equal(t, signupTokenConsumeLimitReached, consumeSignupTokenForTest(t, svc, "token-4").Status)
-}

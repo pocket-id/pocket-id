@@ -29,7 +29,6 @@ const (
 	// SignupTokenMethodDelete removes a signup token
 	SignupTokenMethodDelete = "delete"
 
-	signupTokenMethodMigrate = "migrate"
 	signupTokenMethodConsume = "consume"
 	signupTokenMethodRelease = "release"
 )
@@ -89,9 +88,7 @@ func NewSignupTokenActor(actorID string, service *actor.Service) actor.Actor {
 func (a *signupTokenActor) Invoke(parentCtx context.Context, method string, data actor.Envelope) (any, error) {
 	switch method {
 	case SignupTokenMethodCreate:
-		return nil, a.create(parentCtx, data, false)
-	case signupTokenMethodMigrate:
-		return nil, a.create(parentCtx, data, true)
+		return nil, a.create(parentCtx, data)
 	case signupTokenMethodConsume:
 		return a.consume(parentCtx)
 	case signupTokenMethodRelease:
@@ -104,8 +101,7 @@ func (a *signupTokenActor) Invoke(parentCtx context.Context, method string, data
 }
 
 // create stores the token's state.
-// When onlyIfMissing is true the write is skipped if the actor already has state: this is used by the one-time migration of the pre-actor tokens, so a token that has already been migrated is never reset.
-func (a *signupTokenActor) create(parentCtx context.Context, data actor.Envelope, onlyIfMissing bool) error {
+func (a *signupTokenActor) create(parentCtx context.Context, data actor.Envelope) error {
 	if data == nil {
 		return fmt.Errorf("request body is empty for method '%s'", SignupTokenMethodCreate)
 	}
@@ -114,20 +110,6 @@ func (a *signupTokenActor) create(parentCtx context.Context, data actor.Envelope
 	err := data.Decode(&state)
 	if err != nil {
 		return fmt.Errorf("request body is not valid for method '%s': %w", SignupTokenMethodCreate, err)
-	}
-
-	if onlyIfMissing {
-		ctx, cancel := context.WithTimeout(parentCtx, 10*time.Second)
-		defer cancel()
-		current, err := a.client.GetState(ctx)
-		if err != nil {
-			return fmt.Errorf("error retrieving actor state: %w", err)
-		}
-
-		// An empty ID means there's no state yet
-		if current.ID != "" {
-			return nil
-		}
 	}
 
 	return a.setState(parentCtx, state)
