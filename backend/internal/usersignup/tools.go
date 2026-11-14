@@ -48,7 +48,7 @@ func (h *handler) createSignupLinkTool(ctx context.Context, _ mcp.Call, input cr
 		return nil, err
 	}
 
-	signupToken, err := h.service.CreateSignupToken(ctx, createDto.TTL.Duration, createDto.UsageLimit, createDto.UserGroupIDs)
+	signupToken, err := h.service.CreateSignupToken(ctx, createDto.TTL.Duration, createDto.UsageLimit, createDto.UserGroupIDs, "")
 	if err != nil {
 		return nil, err
 	}

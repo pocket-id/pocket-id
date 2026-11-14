@@ -325,6 +325,7 @@ func initServices(
 		ScimSync:          svc.scimSyncModule,
 		UserDeleter:       svc.usersModule,
 		EmailVerification: svc.emailVerificationModule,
+		EmailSender:       svc.emailModule,
 		// Disable in test environment
 		CleanupDisabled: common.EnvConfig.AppEnv.IsTest(),
 	})

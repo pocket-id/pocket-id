@@ -65,9 +65,18 @@ func (h *handler) createSignupToken(c *gin.Context, input signupTokenCreateDto) 
 		ttl = defaultSignupTokenDuration
 	}
 
-	signupToken, err := h.service.CreateSignupToken(c.Request.Context(), ttl, input.UsageLimit, input.UserGroupIDs)
+	signupToken, err := h.service.CreateSignupToken(c.Request.Context(), ttl, input.UsageLimit, input.UserGroupIDs, input.Email)
 	if err != nil {
 		return signupTokenDto{}, err
+	}
+
+	// Email the link when the admin entered an address
+	if input.Email != "" {
+		dbConfig, err := h.appConfig.GetConfig(c.Request.Context())
+		if err != nil {
+			return signupTokenDto{}, fmt.Errorf("error loading app configuration: %w", err)
+		}
+		h.service.SendSignupInvitation(c.Request.Context(), dbConfig, signupToken, input.Email, ttl)
 	}
 
 	var tokenDto signupTokenDto

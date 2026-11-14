@@ -55,6 +55,7 @@ type SignupTokenState struct {
 	UserGroupIDs []string
 	CreatedAt    time.Time
 	ExpiresAt    time.Time
+	SentTo       string
 }
 
 // signupTokenConsumeResponse is the response of the "consume" method

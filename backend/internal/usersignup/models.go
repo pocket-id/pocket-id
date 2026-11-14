@@ -14,4 +14,5 @@ type SignupToken struct {
 	UsageLimit int               `json:"usageLimit" sortable:"true"`
 	UsageCount int               `json:"usageCount" sortable:"true"`
 	UserGroups []model.UserGroup `json:"userGroups"`
+	SentTo     string            `json:"sentTo"`
 }

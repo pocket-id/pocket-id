@@ -32,6 +32,11 @@ type UserCreator interface {
 	CreateUserInternal(ctx context.Context, dbConfig *appconfig.AppConfigModel, input dto.UserCreateDto, isLdapSync bool, tx *gorm.DB) (model.User, error)
 }
 
+// EmailSender sends a signup link to the address an admin invites
+type EmailSender interface {
+	SendSignupInvitation(ctx context.Context, dbConfig *appconfig.AppConfigModel, recipientEmail, signupLink, expirationString string) error
+}
+
 type EmailVerificationSender interface {
 	Send(ctx context.Context, dbConfig *appconfig.AppConfigModel, userID string) error
 }
@@ -53,6 +58,7 @@ type Dependencies struct {
 	UserDeleter UserDeleter
 
 	EmailVerification EmailVerificationSender
+	EmailSender       EmailSender
 
 	// CleanupDisabled skips registering the cron job that deletes signups that missed their email verification deadline, for example in tests
 	CleanupDisabled bool

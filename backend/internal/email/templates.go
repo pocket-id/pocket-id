@@ -20,6 +20,13 @@ var oneTimeAccessTemplate = template[oneTimeAccessTemplateData]{
 	},
 }
 
+var signupInvitationTemplate = template[signupInvitationTemplateData]{
+	path: "signup-invitation",
+	title: func(data *templateData[signupInvitationTemplateData]) string {
+		return "You're invited to " + data.AppName
+	},
+}
+
 var testTemplate = template[struct{}]{
 	path: "test",
 	title: func(_ *templateData[struct{}]) string {
@@ -57,6 +64,11 @@ type oneTimeAccessTemplateData struct {
 	ExpirationString  string
 }
 
+type signupInvitationTemplateData struct {
+	SignupLink       string
+	ExpirationString string
+}
+
 type apiKeyExpiringSoonTemplateData struct {
 	Name       string
 	ApiKeyName string
@@ -71,6 +83,7 @@ type emailVerificationTemplateData struct {
 var templatePaths = []string{
 	newLoginTemplate.path,
 	oneTimeAccessTemplate.path,
+	signupInvitationTemplate.path,
 	testTemplate.path,
 	apiKeyExpiringSoonTemplate.path,
 	emailVerificationTemplate.path,

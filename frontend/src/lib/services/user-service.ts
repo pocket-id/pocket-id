@@ -96,9 +96,15 @@ export default class UserService extends APIService {
 	createSignupToken = async (
 		ttl: string | number,
 		usageLimit: number,
-		userGroupIds: string[] = []
+		userGroupIds: string[] = [],
+		email?: string
 	) => {
-		const res = await this.api.post(`/admin/signup-tokens`, { ttl, usageLimit, userGroupIds });
+		const res = await this.api.post(`/admin/signup-tokens`, {
+			ttl,
+			usageLimit,
+			userGroupIds,
+			email
+		});
 		return res.data.token;
 	};
 
