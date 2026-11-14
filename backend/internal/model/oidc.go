@@ -47,7 +47,7 @@ type OidcClient struct {
 	Base
 
 	Name                                string `sortable:"case-insensitive"`
-	Description                         string
+	Notes                               string
 	CallbackURLs                        datatype.StringList
 	LogoutCallbackURLs                  datatype.StringList
 	BackchannelLogoutURL                string

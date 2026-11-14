@@ -232,7 +232,7 @@ func (s *clientService) UpdateClient(ctx context.Context, clientID string, updat
 		err = tx.WithContext(ctx).
 			Model(&client).
 			Select(
-				"Description",
+				"Notes",
 				"RequiresReauthentication",
 				"RequiresPushedAuthorizationRequests",
 				"SkipConsent",
@@ -299,7 +299,7 @@ func (s *clientService) UpdateClient(ctx context.Context, clientID string, updat
 func clientChanges(before, after model.OidcClient) string {
 	changed := map[string]bool{
 		"name":                                before.Name != after.Name,
-		"description":                         before.Description != after.Description,
+		"notes":                               before.Notes != after.Notes,
 		"callbackURLs":                        !slices.Equal(before.CallbackURLs, after.CallbackURLs),
 		"logoutCallbackURLs":                  !slices.Equal(before.LogoutCallbackURLs, after.LogoutCallbackURLs),
 		"backchannelLogoutURL":                before.BackchannelLogoutURL != after.BackchannelLogoutURL,
@@ -352,7 +352,7 @@ func checkClaimMappingPolicyExists(ctx context.Context, db *gorm.DB, policyID st
 
 func updateOIDCClientModelFromDto(client *model.OidcClient, input *dto.OidcClientUpdateDto) error {
 	// Update fields that remain locally managed for every client type
-	client.Description = input.Description
+	client.Notes = input.Notes
 	client.RequiresReauthentication = input.RequiresReauthentication
 	client.RequiresPushedAuthorizationRequests = input.RequiresPushedAuthorizationRequests
 	client.SkipConsent = input.SkipConsent
@@ -985,7 +985,6 @@ func (s *clientService) ListAccessibleOidcClients(ctx context.Context, userID st
 			OidcClientMetaDataDto: dto.OidcClientMetaDataDto{
 				ID:          client.ID,
 				Name:        client.Name,
-				Description: client.Description,
 				LaunchURL:   client.LaunchURL,
 				HasLogo:     client.HasLogo(),
 				HasDarkLogo: client.HasDarkLogo(),

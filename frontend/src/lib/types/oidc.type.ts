@@ -6,7 +6,6 @@ export type OidcClientType = 'standard' | 'cimd';
 export type OidcClientMetaData = {
 	id: string;
 	name: string;
-	description: string;
 	hasLogo: boolean;
 	hasDarkLogo: boolean;
 	requiresReauthentication: boolean;
@@ -52,6 +51,7 @@ export type OidcDiscoveryConfiguration = {
 };
 
 export type OidcClient = OidcClientMetaData & {
+	notes: string;
 	callbackURLs: string[];
 	logoutCallbackURLs: string[];
 	backchannelLogoutURL: string;

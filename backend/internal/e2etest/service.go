@@ -210,7 +210,7 @@ func (s *Service) SeedDatabase(baseURL string) error {
 					ID: "3654a746-35d4-4321-ac61-0bdcff2b4055",
 				},
 				Name:                 "Nextcloud",
-				Description:          "This is an example description for Nextcloud",
+				Notes:                "Nextcloud reads its OIDC settings from the user_oidc app",
 				LaunchURL:            new("https://nextcloud.local"),
 				Credentials:          seededClientCredentials("2f1b8f1a-1d3e-4f0c-9c1a-000000000001", "w2mUeZISmEvIDMEDvpY0PnxQIpj1m3zY"),
 				CallbackURLs:         datatype.StringList{"http://nextcloud.localhost/auth/callback"},

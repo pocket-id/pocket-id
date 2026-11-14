@@ -64,7 +64,7 @@
 				name: data.name,
 				isPublic: data.isPublic,
 				callbackURLs: data.callbackURL ? [data.callbackURL] : [],
-				description: '',
+				notes: '',
 				logoutCallbackURLs: [],
 				backchannelLogoutURL: '',
 				pkceEnabled: data.isPublic,

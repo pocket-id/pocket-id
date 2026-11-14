@@ -67,7 +67,6 @@ export const oidcClients = {
 	},
 	pingvinShare: {
 		name: 'Pingvin Share',
-		description: 'Self-hosted file sharing platform',
 		callbackUrl: 'http://pingvin-share.localhost/auth/callback',
 		secondCallbackUrl: 'http://pingvin-share.localhost/auth/callback2',
 		launchURL: 'https://pingvin-share.local'

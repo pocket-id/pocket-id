@@ -7,6 +7,7 @@
 	import SettingRow from '#lib/components/setting-row.svelte';
 	import SettingsCard from '#lib/components/settings-card.svelte';
 	import { Switch } from '@pocket-id/ui/switch';
+	import { Textarea } from '@pocket-id/ui/textarea';
 	import { m } from '#lib/paraglide/messages.js';
 	import OidcClaimMappingPolicyService from '#lib/services/oidc-claim-mapping-policy-service.ts';
 	import appConfigStore from '#lib/stores/application-configuration-store.ts';
@@ -69,7 +70,7 @@
 
 	const formSchema = z.object({
 		name: z.string().min(2).max(50),
-		description: z.string().max(150),
+		notes: z.string().max(5000),
 		callbackURLs: z.array(callbackUrlSchema).default([]),
 		logoutCallbackURLs: z.array(callbackUrlSchema).default([]),
 		backchannelLogoutURL: z.url().or(z.literal('')),
@@ -89,7 +90,7 @@
 	type FormSchema = typeof formSchema;
 	const formStore = createForm<FormSchema>(formSchema, {
 		name: existingClient.name,
-		description: existingClient.description || '',
+		notes: existingClient.notes || '',
 		callbackURLs: existingClient.callbackURLs,
 		logoutCallbackURLs: existingClient.logoutCallbackURLs,
 		backchannelLogoutURL: existingClient.backchannelLogoutURL || '',
@@ -279,7 +280,7 @@
 
 <form onsubmit={preventDefault(onSubmit)} class="flex flex-col gap-4">
 	<SettingsCard title={m.application()}>
-		<div class="flex flex-col gap-6 py-4">
+		<div class="@container flex flex-col gap-6 py-4">
 			<OidcClientLogoPicker
 				clientName={$inputs.name.value}
 				{logoDataURL}
@@ -292,7 +293,7 @@
 					resetLogo(false);
 				}}
 			/>
-			<div class="grid gap-6 sm:grid-cols-2">
+			<div class="grid gap-6 @3xl:grid-cols-2">
 				<FormInput
 					label={m.name()}
 					description={isCIMDClient ? m.set_by_the_metadata_document() : undefined}
@@ -300,24 +301,15 @@
 					bind:input={$inputs.name}
 				/>
 				<FormInput
-					label={m.description()}
+					label={m.launch_url()}
 					optional
-					description={m.count_of_max({
-						count: $inputs.description.value.length,
-						max: 150
-					})}
-					bind:input={$inputs.description}
+					description={m.opened_when_someone_launches_name_from_my_apps()}
+					placeholder="https://"
+					type="url"
+					inputClass="font-mono"
+					bind:input={$inputs.launchURL}
 				/>
 			</div>
-			<FormInput
-				label={m.launch_url()}
-				optional
-				description={m.opened_when_someone_launches_name_from_my_apps()}
-				placeholder="https://"
-				type="url"
-				inputClass="font-mono"
-				bind:input={$inputs.launchURL}
-			/>
 			<ClientTypeTiles
 				bind:isPublic={() => $inputs.isPublic.value, setPublic}
 				disabled={isCIMDClient}
@@ -367,6 +359,20 @@
 					<Switch {...props} bind:checked={$inputs.requiresReauthentication.value} />
 				{/snippet}
 			</SettingRow>
+		</div>
+	</SettingsCard>
+
+	<SettingsCard title={m.notes()}>
+		<div class="py-4">
+			<FormInput description={m.client_notes_description()} input={$inputs.notes}>
+				<Textarea
+					aria-label={m.notes()}
+					rows={4}
+					placeholder={m.client_notes_placeholder()}
+					aria-invalid={!!$inputs.notes.error}
+					bind:value={$inputs.notes.value}
+				/>
+			</FormInput>
 		</div>
 	</SettingsCard>
 
