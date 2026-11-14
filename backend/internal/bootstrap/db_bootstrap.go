@@ -39,6 +39,12 @@ func NewDatabase(ctx context.Context) (db *gorm.DB, pg *pgxpool.Pool, err error)
 		return nil, nil, fmt.Errorf("failed to get sql.DB: %w", err)
 	}
 
+	// A database of Pocket ID v1 or v2 is upgraded by a separate tool before the migrations of v3 can run
+	err = upgradeLegacyDatabase(ctx, sqlDb)
+	if err != nil {
+		return nil, nil, err
+	}
+
 	// Run migrations
 	err = utils.MigrateDatabase(ctx, sqlDb, common.EnvConfig.DbProvider)
 	if err != nil {

@@ -44,11 +44,14 @@ cd ../../.. && pnpm test                         # = playwright test in packages
 - **Never edit generated files:** `frontend/src/lib/paraglide/**` (Paraglide i18n output) and
   `backend/frontend/dist/**`. For i18n, only edit `frontend/messages/en.json`; other locales come
   from Crowdin.
-- **Migrations are split by DB.** Raw SQL via golang-migrate in
-  `backend/resources/migrations/{sqlite,postgres}/` — separate files _and_ separate version
-  timelines. Add a matching up/down pair to **both**. Not GORM AutoMigrate. SQLite migrations
-  are not auto-wrapped in a transaction (`NoTxWrap`); wrap multi-statement ones manually
-  (`PRAGMA foreign_keys=OFF; BEGIN; … COMMIT; PRAGMA foreign_keys=ON;`).
+- **Migrations are split by DB.** Raw SQL via goose in
+  `backend/resources/migrations/{sqlite,postgres}/`, one `<version>_<name>.sql` file per migration
+  with a `-- +goose Up` and a `-- +goose Down` section. Add a file with the same version to **both**.
+  Not GORM AutoMigrate. A SQLite migration that rebuilds a table starts with `-- +goose NO TRANSACTION`
+  and wraps its statements manually (`PRAGMA foreign_keys=OFF; BEGIN; … COMMIT; PRAGMA foreign_keys=ON;`).
+  The baseline is the schema v3 started with; a database of an earlier major version is brought there by
+  [pocket-id/upgrade](https://github.com/pocket-id/upgrade), which
+  `backend/internal/bootstrap/upgrade_tool_bootstrap.go` downloads, verifies and runs.
 - **Column types must match across DBs for export/import.** A SQLite export must import into Postgres
   and vice versa, so every column must map to the same `DBExportKind` (`backend/internal/utils/db_util.go`)
   on both: JSON/binary is `JSONB`/`BYTEA` ↔ `BLOB`, timestamps are `TIMESTAMPTZ` ↔ `DATETIME` (never
