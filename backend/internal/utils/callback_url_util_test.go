@@ -148,9 +148,14 @@ func TestNormalizeToURLPatternStandard(t *testing.T) {
 			expected: "https://[\\:\\:1]:8080/callback",
 		},
 		{
-			name:     "wildcard in query is converted when query is part of input",
-			input:    "https://example.com/callback?code=*",
-			expected: "https://example.com/callback?code=:p15",
+			name:     "urlpattern syntax in the path is escaped",
+			input:    "https://example.com/a(.*)/{b}+\\c",
+			expected: "https://example.com/a\\(.:p4\\)/\\{b\\}\\+\\\\c",
+		},
+		{
+			name:     "urlpattern syntax in the host is escaped",
+			input:    "https://(.*)/callback",
+			expected: "https://\\(.*\\)/callback",
 		},
 	}
 
@@ -911,6 +916,35 @@ func TestMatchCallbackURL_ColonIsNotAWildcard(t *testing.T) {
 		{"single asterisk does not span two", "https://app.example.com/*/cb", "https://app.example.com/x/y/cb", false},
 		{"globstar spans many segments", "https://app.example.com/**", "https://app.example.com/a/b/c", true},
 		{"asterisk in host", "https://*.example.com/cb", "https://sub.example.com/cb", true},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got, err := matchCallbackURL(tt.pattern, tt.input)
+			require.NoError(t, err)
+			assert.Equal(t, tt.want, got)
+		})
+	}
+}
+
+// urlpattern and path.Match support more syntax than * and **, such as regexp groups, modifiers and character classes, which must all stay literal
+func TestMatchCallbackURL_OnlyAsteriskIsAWildcard(t *testing.T) {
+	tests := []struct {
+		name    string
+		pattern string
+		input   string
+		want    bool
+	}{
+		{"regexp group in host", "https://(.*)/cb", "https://evil.example.com/cb", false},
+		{"regexp group in path", "https://app.example.com/(.*)", "https://app.example.com/a/b", false},
+		{"repeat modifier after wildcard", "https://app.example.com/cb/*+", "https://app.example.com/cb/a/b", false},
+		{"backslash escape in path", `https://app.example.com/a\b`, "https://app.example.com/ab", false},
+		{"question mark in query value", "https://app.example.com/cb?x=?", "https://app.example.com/cb?x=a", false},
+		{"character class in query value", "https://app.example.com/cb?x=[a-z]", "https://app.example.com/cb?x=q", false},
+		{"question mark in query value matches itself", "https://app.example.com/cb?x=%3F", "https://app.example.com/cb?x=%3F", true},
+		{"character class in query value matches itself", "https://app.example.com/cb?x=[a-z]", "https://app.example.com/cb?x=[a-z]", true},
+		{"plus in custom scheme", "com.example+app://cb", "com.example+app://cb", true},
+		{"asterisk in query value does not span a slash", "https://app.example.com/cb?x=*", "https://app.example.com/cb?x=a/b", false},
 	}
 
 	for _, tt := range tests {
