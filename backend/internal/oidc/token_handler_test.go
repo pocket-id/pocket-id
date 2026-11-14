@@ -6,6 +6,8 @@ import (
 	"crypto/elliptic"
 	"crypto/rand"
 	"encoding/json"
+	"errors"
+	"io"
 	"maps"
 	"net/http"
 	"net/http/httptest"
@@ -16,6 +18,8 @@ import (
 	"time"
 
 	"github.com/gin-gonic/gin"
+	"github.com/lestrrat-go/jwx/v4/jwa"
+	"github.com/lestrrat-go/jwx/v4/jwt"
 	"github.com/pocket-id/fosite"
 	"github.com/pocket-id/fosite/compose"
 	fositeoauth2 "github.com/pocket-id/fosite/handler/oauth2"
@@ -930,6 +934,110 @@ func TestTokenHandlerClientWithoutSecrets(t *testing.T) {
 	require.NoError(t, json.Unmarshal(rec.Body.Bytes(), &body))
 	require.Empty(t, body["access_token"])
 	require.Equal(t, "invalid_client", body["error"])
+}
+
+// TestTokenHandlerMetadataDocumentClient drives the token endpoint as a client identified by a metadata document, which is always a public client.
+func TestTokenHandlerMetadataDocumentClient(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+
+	const (
+		baseURL  = "https://issuer.example.com"
+		clientID = "https://8.8.8.8/oauth/client"
+	)
+
+	key, err := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
+	require.NoError(t, err)
+	assertionToken, err := jwt.NewBuilder().Issuer(clientID).Subject(clientID).Build()
+	require.NoError(t, err)
+	assertion, err := jwt.Sign(assertionToken, jwt.WithKey(jwa.ES256(), key))
+	require.NoError(t, err)
+
+	// Every case redeems an unknown authorization code, so a request that passes client authentication ends in invalid_grant
+	requestToken := func(t *testing.T, metadataExpiresAt time.Time, authenticate func(req *http.Request, form url.Values)) (int, string) {
+		t.Helper()
+
+		db := testutils.NewDatabaseForTest(t)
+		expiresAt := datatype.DateTime(metadataExpiresAt)
+		require.NoError(t, db.Create(&model.OidcClient{
+			Base:              model.Base{ID: clientID},
+			Name:              "Metadata Client",
+			ClientType:        model.OidcClientTypeCIMD,
+			IsPublic:          true,
+			PkceEnabled:       true,
+			MetadataExpiresAt: &expiresAt,
+		}).Error)
+
+		store := NewStore(db, nil)
+		resolver := newCIMDClientResolver(store, cimdResolverConfig{
+			getURLAllowlist: func() []string { return []string{"*"} },
+			transport:       &testutils.MockRoundTripper{Err: errors.New("connection refused")},
+		})
+		authenticator, err := newFederatedClientAuthenticator(t.Context(), store, nil, baseURL)
+		require.NoError(t, err)
+		provider, err := newProvider(store, authenticator, testTokenSigner{key: key}, Config{
+			BaseURL:      baseURL,
+			TokenBaseURL: baseURL,
+			Secret:       []byte("test-secret"),
+		}, resolver)
+		require.NoError(t, err)
+		handler := newTokenHandler(provider, newClaimsService(db, nil, baseURL, nil, appconfig.StaticResolver{}), nil, nil)
+
+		form := url.Values{"grant_type": {"authorization_code"}, "code": {"unknown"}, "client_id": {clientID}}
+		req := httptest.NewRequestWithContext(t.Context(), http.MethodPost, "/api/oidc/token", nil)
+		req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+		authenticate(req, form)
+		req.Body = io.NopCloser(strings.NewReader(form.Encode()))
+
+		rec := httptest.NewRecorder()
+		c, _ := gin.CreateTestContext(rec)
+		c.Request = req
+		handler.token(c)
+
+		var body map[string]any
+		require.NoError(t, json.Unmarshal(rec.Body.Bytes(), &body))
+		return rec.Code, body["error"].(string)
+	}
+	fresh := time.Now().Add(time.Hour)
+
+	t.Run("no client authentication is accepted", func(t *testing.T) {
+		_, errorCode := requestToken(t, fresh, func(*http.Request, url.Values) {})
+		require.Equal(t, "invalid_grant", errorCode)
+	})
+
+	t.Run("client secret is rejected", func(t *testing.T) {
+		_, errorCode := requestToken(t, fresh, func(req *http.Request, _ url.Values) {
+			req.SetBasicAuth(url.QueryEscape(clientID), "secret")
+		})
+		require.Equal(t, "invalid_client", errorCode)
+	})
+
+	t.Run("client assertion is rejected", func(t *testing.T) {
+		_, errorCode := requestToken(t, fresh, func(_ *http.Request, form url.Values) {
+			form.Set("client_assertion_type", clientAssertionTypeJWTBearer)
+			form.Set("client_assertion", string(assertion))
+		})
+		require.Equal(t, "invalid_client", errorCode)
+	})
+
+	t.Run("client assertion of an unsupported type is rejected", func(t *testing.T) {
+		_, errorCode := requestToken(t, fresh, func(_ *http.Request, form url.Values) {
+			form.Set("client_assertion_type", "urn:ietf:params:oauth:client-assertion-type:jwt-client-attestation")
+			form.Set("client_assertion", string(assertion))
+		})
+		require.Equal(t, "invalid_client", errorCode)
+	})
+
+	// The expired document cannot be fetched again, which says nothing about the client itself
+	t.Run("unreachable metadata document keeps the expired one in use", func(t *testing.T) {
+		_, errorCode := requestToken(t, time.Now().Add(-time.Hour), func(*http.Request, url.Values) {})
+		require.Equal(t, "invalid_grant", errorCode)
+	})
+
+	t.Run("unreachable metadata document asks the client to retry once the expired one is too old", func(t *testing.T) {
+		status, errorCode := requestToken(t, time.Now().Add(-25*time.Hour), func(*http.Request, url.Values) {})
+		require.Equal(t, http.StatusServiceUnavailable, status)
+		require.Equal(t, "temporarily_unavailable", errorCode)
+	})
 }
 
 func TestTokenHandlerValidateGrantSessionForAuthorizationCode(t *testing.T) {

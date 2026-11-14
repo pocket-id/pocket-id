@@ -2,13 +2,14 @@ package oidc
 
 import (
 	"context"
-	"encoding/json"
 	"errors"
 	"fmt"
+	"log/slog"
 	"net/http"
 	"net/url"
 	"slices"
 	"strings"
+	"time"
 
 	"github.com/pocket-id/fosite"
 
@@ -35,6 +36,8 @@ var _ fosite.CIMDClientPolicy = cimdPolicy{}
 func newCIMDClientResolver(store *Store, config cimdResolverConfig) *cimdClientResolver {
 	options := []fosite.CIMDFetcherOption{
 		fosite.WithCIMDUserAgent("pocket-id/oidc-client-metadata-fetcher"),
+		// A document that forbids caching is still kept briefly, because clients are persisted and must not be able to force a fetch on every request
+		fosite.WithCIMDMinCacheTTL(time.Minute),
 	}
 	if config.transport != nil {
 		// The provided transport is the outbound package's guarded transport so we skip Fosite's own pre-resolution checks
@@ -44,7 +47,7 @@ func newCIMDClientResolver(store *Store, config cimdResolverConfig) *cimdClientR
 		options = append(options, fosite.WithCIMDTransportDecorator(config.transportDecorator))
 	}
 
-	policy := cimdPolicy{getURLAllowlist: config.getURLAllowlist}
+	policy := cimdPolicy{getURLAllowlist: config.getURLAllowlist, apiAccess: store.apiAccess}
 	return &cimdClientResolver{
 		resolver: &fosite.CIMDResolver{
 			Fetcher:                  fosite.NewDefaultCIMDFetcher(options...),
@@ -52,6 +55,10 @@ func newCIMDClientResolver(store *Store, config cimdResolverConfig) *cimdClientR
 			Materializer:             store,
 			Policy:                   policy,
 			MaxConcurrentDiscoveries: 10,
+			// An outage of a client's host must not lock out its users, so the last document stays in use for a day
+			StaleIfUnavailable: 24 * time.Hour,
+			// A client ID that failed is left alone as long as a fetched document is kept at least
+			RetryAfterFailure: time.Minute,
 		},
 		store:  store,
 		policy: policy,
@@ -74,7 +81,34 @@ func (r *cimdClientResolver) ResolveClient(ctx context.Context, clientID string,
 		}
 		return client, nil
 	}
-	return r.resolver.ResolveClient(ctx, clientID, registeredOnly)
+	client, err := r.resolver.ResolveClient(ctx, clientID, registeredOnly)
+	return client, r.revokeOnClientIDMismatch(ctx, clientID, err)
+}
+
+// revokeOnClientIDMismatch revokes what users granted to a client whose document no longer claims its client ID
+// The lookup error is returned either way, so the request still fails as an invalid client
+func (r *cimdClientResolver) revokeOnClientIDMismatch(ctx context.Context, clientID string, err error) error {
+	if !errors.Is(err, fosite.ErrCIMDClientIDMismatch) {
+		return err
+	}
+
+	var revoked int64
+	revokeErr := withTx(ctx, r.store.db, func(ctx context.Context) error {
+		var err error
+		revoked, err = r.store.revokeClientGrants(ctx, clientID)
+		return err
+	})
+	if revokeErr != nil {
+		return errors.Join(err, revokeErr)
+	}
+
+	// The mismatch is reported on every request for the client ID, also for one that never was a client
+	if revoked > 0 {
+		slog.WarnContext(ctx, "Revoked the user consent and tokens of a client whose metadata document no longer matches its client ID",
+			slog.String("client_id", clientID),
+		)
+	}
+	return err
 }
 
 // RefreshMetadataClient forces a re-fetch of the metadata document for an already-cached CIMD client, bypassing the cache TTL
@@ -94,7 +128,7 @@ func (r *cimdClientResolver) RefreshMetadataClient(ctx context.Context, id strin
 	}
 	client, err := r.resolver.RefreshClient(ctx, id)
 	if err != nil {
-		return model.OidcClient{}, err
+		return model.OidcClient{}, r.revokeOnClientIDMismatch(ctx, id, err)
 	}
 	pocketIDClient, ok := client.(Client)
 	if !ok {
@@ -105,6 +139,7 @@ func (r *cimdClientResolver) RefreshMetadataClient(ctx context.Context, id strin
 
 type cimdPolicy struct {
 	getURLAllowlist func() []string
+	apiAccess       APIAccessProvider
 }
 
 func (p cimdPolicy) cimdURLAllowed(id string) bool {
@@ -115,9 +150,21 @@ func (p cimdPolicy) cimdURLAllowed(id string) bool {
 }
 
 // AllowCIMDClient applies Pocket ID's operator-managed dynamic-client allowlist
-func (p cimdPolicy) AllowCIMDClient(_ context.Context, id string) error {
+func (p cimdPolicy) AllowCIMDClient(ctx context.Context, id string) error {
 	if !p.cimdURLAllowed(id) {
 		return errors.New("client ID is not in the metadata document allowlist")
+	}
+
+	// A client ID is also the audience of the client's login tokens, so one that names an API could have them accepted there
+	// The issuer needs no check of its own, because it has no path and a client ID must have one
+	if p.apiAccess != nil {
+		_, apiExists, _, err := p.apiAccess.AllowedScopesForAudience(ctx, nil, id, canonicalResource(id), SubjectTypeUser)
+		if err != nil {
+			return err
+		}
+		if apiExists {
+			return errors.New("client ID must not be the audience of an API")
+		}
 	}
 	return nil
 }
@@ -125,8 +172,9 @@ func (p cimdPolicy) AllowCIMDClient(_ context.Context, id string) error {
 // ValidateCIMDClient restricts generic CIMD features to those supported by Pocket ID's client model
 func (cimdPolicy) ValidateCIMDClient(_ context.Context, doc *fosite.ClientMetadataDocument) error {
 	// Require public-client authentication because Pocket ID does not persist CIMD key material
-	if !metadataAllowsPublicClient(doc) {
-		return fmt.Errorf("client metadata documents must support token_endpoint_auth_method %q, got %q", "none", doc.TokenEndpointAuthMethod)
+	// A client like ChatGPT lists "none" next to the methods it prefers, and those are not an error
+	if methods := doc.TokenEndpointAuthMethods(); !slices.Contains(methods, "none") {
+		return fmt.Errorf("client metadata documents must support the token endpoint authentication method %q, got %q", "none", methods)
 	}
 
 	// Require a flow that can initiate authorization (ignoring the grant types Pocket ID does not implement)
@@ -134,31 +182,13 @@ func (cimdPolicy) ValidateCIMDClient(_ context.Context, doc *fosite.ClientMetada
 		return errInitiatingGrantRequired
 	}
 
-	// Pocket ID only implements the code response type for metadata clients
-	responseTypes := doc.ResponseTypes
-	if len(responseTypes) == 0 {
-		responseTypes = []string{"code"}
-	}
-	for _, responseType := range responseTypes {
-		if responseType != "code" {
-			return fmt.Errorf("client metadata document contains unsupported response_type %q", responseType)
-		}
+	// Pocket ID only implements the code response type for metadata clients, which is also the default of an omitted list
+	// Other declared response types are ignored, so the document is rejected only when code is not among them
+	if len(doc.ResponseTypes) > 0 && !slices.Contains(doc.ResponseTypes, "code") {
+		return fmt.Errorf("client metadata document must support the response type %q, got %q", "code", doc.ResponseTypes)
 	}
 
 	return nil
-}
-
-// metadataAllowsPublicClient reports whether the document lets the client use the token endpoint without a credential
-// Clients like ChatGPT name their preferred method in token_endpoint_auth_method and list every method they can use in token_endpoint_auth_methods_supported
-func metadataAllowsPublicClient(doc *fosite.ClientMetadataDocument) bool {
-	if doc.TokenEndpointAuthMethod == "none" {
-		return true
-	}
-
-	// A missing or malformed list leaves the slice empty, so the document is judged by the singular field alone
-	var supported []string
-	_ = json.Unmarshal(doc.AdditionalMetadata["token_endpoint_auth_methods_supported"], &supported)
-	return slices.Contains(supported, "none")
 }
 
 var errInitiatingGrantRequired = errors.New("client metadata document must enable authorization_code or device_code")
