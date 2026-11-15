@@ -1,6 +1,8 @@
 package bootstrap
 
 import (
+	"bytes"
+	"compress/gzip"
 	"context"
 	"crypto/sha256"
 	"database/sql"
@@ -22,30 +24,30 @@ import (
 )
 
 // Everything a database of an earlier major version needs before this one can use it lives in a separate program, github.com/pocket-id/upgrade
-// This file is the only upgrade code in Pocket ID: when it finds such a database it takes that program from a file next to the Pocket ID binary or downloads it, and runs it only if it is the exact binary pinned below
+// This file is the only upgrade code in Pocket ID: when it finds such a database it takes that program from a file next to the Pocket ID binary or downloads it, and runs it only if it is the exact file pinned below
 
 const (
 	upgradeToolVersion = "v3.0.0"
 
-	// upgradeToolMaxSize is far above the size of a released binary, and a download cut off by it fails the checksum
+	// upgradeToolMaxSize is far above the size of a released file, and a download cut off by it fails the checksum
 	upgradeToolMaxSize = 128 << 20
 
 	// legacyMigrationsTable is the version table of golang-migrate, which the upgrade tool drops when it is done
 	legacyMigrationsTable = "schema_migrations"
 )
 
-// upgradeToolChecksums holds the SHA-256 checksum of each released binary of upgradeToolVersion, keyed by GOOS/GOARCH
+// upgradeToolChecksums holds the SHA-256 checksum of each released gzipped binary of upgradeToolVersion, keyed by GOOS/GOARCH
 var upgradeToolChecksums = map[string]string{
-	"darwin/amd64":  "501d0a3e991d739171bb3e47bdfa1ad3563bf400d955f267c8955cc025125997",
-	"darwin/arm64":  "168763064c73715cf958e42ed8bd5c9eecb3aa9963a8607f7b2f35de5688411f",
-	"freebsd/amd64": "d6cfd78f12ae502f3d9174f43d17f1bdbba9346724b177b235a4e430953d28d2",
-	"freebsd/arm64": "4085d79d41b5e08228cea02334a35649cefa3fe663925f234668c7f0dadb59a8",
-	"linux/amd64":   "460ca530b468924afaf9582b04a59508d569f173c45e7526dde93a952bea2ff6",
-	"linux/arm64":   "1b5fea8d9e5f9c3f1cd73e294a677149a9c2b44afd39fe8aad7ea276d9836915",
-	"openbsd/amd64": "64802a992b2c0ba34bfdafdb747881ad1c7ce74bdb7281eb2f3990dc503536ae",
-	"openbsd/arm64": "24fc8b8b85c0a167dd6a8b032bd55b9bd5474fabb7c89dbd568aea76aeb715f3",
-	"windows/amd64": "f8d832ae2b20c678804ac219930310c288396e143c3538bbdecc6382eff0a6b4",
-	"windows/arm64": "e522d0aedbb797034f7d9b162ca0afcbe18684713846a437d70fab7cb24b7d04",
+	"darwin/amd64":  "9245a382fd018278fc57eb301be164bb5bcd743fe15f280f7236f293315560a5",
+	"darwin/arm64":  "78bb470b6fc7a4501bcb82d3bb417a23604d42809666ca8d98ec4d67b8f722e4",
+	"freebsd/amd64": "678ca25a66746f3d79cfcfe12f099c817e81354688248734f76cc73cc14777fe",
+	"freebsd/arm64": "7f0dc1ce9ce848aaed92518bf0f08484dc7b9e38bf936c221cbf8d489f9fbcc9",
+	"linux/amd64":   "b7dab47ede9d3e46d65eca4a7865cc5d2f1727352432064d4b9141232bf44c4b",
+	"linux/arm64":   "c5e46dab3aa172520b1fb1a98a4a2dfa24704b7718145f0d6f89c2021b7d9bfa",
+	"openbsd/amd64": "b712fe5a882c84d5963e47daa6e1b7914c6a020ea927f676ef15239c909107bd",
+	"openbsd/arm64": "9320aef0c4cde0fdad135cc2fec4a52c2099e9056f1583fbb1ce87f6f3d2eed9",
+	"windows/amd64": "e276b2be084600e9cfdfb12bac08d78e4444d8d5e8fb0d65a118401699583316",
+	"windows/arm64": "913808014a67b033d8b7736247422b56e0581ca857a6d64afbd358ee690f1adf",
 }
 
 // upgradeLegacyDatabase runs the upgrade tool if the database was last used by Pocket ID v1 or v2
@@ -61,7 +63,7 @@ func upgradeLegacyDatabase(ctx context.Context, sqlDb *sql.DB) error {
 	if runtime.GOOS == "windows" {
 		name += ".exe"
 	}
-	url := "https://github.com/pocket-id/upgrade/releases/download/" + upgradeToolVersion + "/" + name
+	url := "https://github.com/pocket-id/upgrade/releases/download/" + upgradeToolVersion + "/" + name + ".gz"
 	checksum, ok := upgradeToolChecksums[runtime.GOOS+"/"+runtime.GOARCH]
 	if !ok {
 		return fmt.Errorf("the database must be upgraded by the Pocket ID upgrade tool %s, which is not released for %s/%s: build it from https://github.com/pocket-id/upgrade, run it once with the same environment and working directory as Pocket ID, then start Pocket ID again", upgradeToolVersion, runtime.GOOS, runtime.GOARCH)
@@ -71,22 +73,22 @@ func upgradeLegacyDatabase(ctx context.Context, sqlDb *sql.DB) error {
 	if err != nil {
 		return fmt.Errorf("failed to locate the Pocket ID binary: %w", err)
 	}
-	localPath := filepath.Join(filepath.Dir(executable), name)
+	localPath := filepath.Join(filepath.Dir(executable), name+".gz")
 	manualRun := fmt.Sprintf("without internet access, download %s, put it at %s and start Pocket ID again", url, localPath)
 
-	// Load the tool into memory from that file or from GitHub, and keep it there unless it is the pinned binary
-	binary, err := os.ReadFile(localPath)
+	// Load the tool into memory from that file or from GitHub, and keep it there unless it is the pinned file
+	compressed, err := os.ReadFile(localPath)
 	switch {
 	case err == nil:
 		slog.InfoContext(ctx, "The database was last used by an earlier major version of Pocket ID, using the tool that upgrades it from next to the Pocket ID binary", slog.String("path", localPath))
-		err = verifyChecksum(binary, checksum)
+		err = verifyChecksum(compressed, checksum)
 		if err != nil {
 			// The file was put there on purpose, so it is reported instead of being replaced by a download
 			return fmt.Errorf("the Pocket ID upgrade tool at %s is not version %s: %w", localPath, upgradeToolVersion, err)
 		}
 	case errors.Is(err, fs.ErrNotExist):
 		slog.InfoContext(ctx, "The database was last used by an earlier major version of Pocket ID, downloading the tool that upgrades it", slog.String("url", url))
-		binary, err = downloadVerified(ctx, url, checksum)
+		compressed, err = downloadVerified(ctx, url, checksum)
 		if err != nil {
 			return fmt.Errorf("failed to download the Pocket ID upgrade tool %s: %w; %s", upgradeToolVersion, err, manualRun)
 		}
@@ -94,7 +96,17 @@ func upgradeLegacyDatabase(ctx context.Context, sqlDb *sql.DB) error {
 		return fmt.Errorf("failed to read the Pocket ID upgrade tool at %s: %w", localPath, err)
 	}
 
-	// Write the verified bytes to a directory only this user can access, so what runs is what was verified
+	// Decompress only after the checksum matched, so no untrusted data reaches the decompressor
+	gz, err := gzip.NewReader(bytes.NewReader(compressed))
+	if err != nil {
+		return fmt.Errorf("failed to decompress the Pocket ID upgrade tool %s: %w", upgradeToolVersion, err)
+	}
+	binary, err := io.ReadAll(gz)
+	if err != nil {
+		return fmt.Errorf("failed to decompress the Pocket ID upgrade tool %s: %w", upgradeToolVersion, err)
+	}
+
+	// Write the verified binary to a directory only this user can access, so what runs is what was verified
 	dir, err := os.MkdirTemp("", "pocket-id-upgrade-")
 	if err != nil {
 		return fmt.Errorf("failed to store the Pocket ID upgrade tool %s: %w; %s", upgradeToolVersion, err, manualRun)
@@ -143,7 +155,7 @@ func downloadVerified(ctx context.Context, url string, checksum string) ([]byte,
 		return nil, err
 	}
 
-	// Anything but the pinned binary is discarded, whether the download was cut off or the release was replaced
+	// Anything but the pinned file is discarded, whether the download was cut off or the release was replaced
 	err = verifyChecksum(content, checksum)
 	if err != nil {
 		return nil, err
