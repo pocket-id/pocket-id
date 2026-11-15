@@ -28,6 +28,7 @@ import (
 	"github.com/pocket-id/pocket-id/backend/internal/api"
 	"github.com/pocket-id/pocket-id/backend/internal/apikey"
 	"github.com/pocket-id/pocket-id/backend/internal/appconfig"
+	"github.com/pocket-id/pocket-id/backend/internal/authz"
 	"github.com/pocket-id/pocket-id/backend/internal/claimmappingpolicy"
 	"github.com/pocket-id/pocket-id/backend/internal/common"
 	"github.com/pocket-id/pocket-id/backend/internal/dto"
@@ -603,6 +604,8 @@ func (s *Service) seedSession(ctx context.Context) error {
 		CreatedAt:            now,
 		LastActiveAt:         now,
 		ExpiresAt:            now.Add(24 * time.Hour),
+		SudoStartedAt:        now,
+		SudoUsedAt:           now,
 	})
 	return err
 }
@@ -800,7 +803,7 @@ func (s *Service) ResetApplicationAssets(ctx context.Context) error {
 
 func (s *Service) ResetAppConfig(ctx context.Context) error {
 	// Reset all application configuration values through the singleton actor
-	_, err := s.appConfigService.UpdateAppConfig(ctx, dto.Replace(appconfig.AppConfigUpdateDto{}), true)
+	_, err := s.appConfigService.UpdateAppConfig(ctx, dto.Replace(appconfig.AppConfigUpdateDto{}), authz.Principal{Scopes: authz.NewScopeSet(authz.AdminAccessWrite)})
 	if err != nil {
 		return err
 	}

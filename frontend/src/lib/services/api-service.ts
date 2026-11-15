@@ -1,4 +1,4 @@
-import { signInAgain } from '#lib/stores/sign-in-again-store.svelte.ts';
+import { signInAgain, sudoPrompt } from '#lib/stores/request-prompt-store.svelte.ts';
 import userStore from '#lib/stores/user-store.ts';
 import { getAxiosErrorCode } from '#lib/utils/error-util.ts';
 import { endRequestSpan, startRequestSpan } from '#lib/utils/tracing-util.ts';
@@ -57,6 +57,11 @@ abstract class APIService {
 					error.config.url !== '/webauthn/logout' &&
 					(await signInAgain.wait())
 				) {
+					return this.api.request(error.config);
+				}
+
+				// A change the server only allows in sudo mode asks for the passkey in a dialog, and the request then runs once more
+				if (getAxiosErrorCode(error) === 'sudo_required' && (await sudoPrompt.wait())) {
 					return this.api.request(error.config);
 				}
 				throw error;

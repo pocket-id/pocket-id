@@ -37,7 +37,7 @@ func TestListingSignupTokensRequiresUsersInvite(t *testing.T) {
 		c.Next()
 		errs = c.Errors
 	})
-	(&Module{}).RegisterRoutes(authz.NewMiddleware(usersReadAuthenticator{}).Router(router.Group("/api")), nil)
+	(&Module{}).RegisterRoutes(authz.NewMiddleware(nil, usersReadAuthenticator{}).Router(router.Group("/api")), nil)
 
 	request := httptest.NewRequestWithContext(t.Context(), http.MethodGet, "/api/admin/signup-tokens", nil)
 	router.ServeHTTP(httptest.NewRecorder(), request)

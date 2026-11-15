@@ -352,7 +352,7 @@ func (s *authorizationService) resolveRequirements(ctx context.Context, req auth
 	if err != nil {
 		return interactionRequirements{}, authenticationTime, err
 	}
-	_, _, consentKeys, err := s.resolveGrant(ctx, req.client.GetID(), req.userID, resource, req.requester.GetRequestedScopes())
+	audience, grantedScopes, consentKeys, err := s.resolveGrant(ctx, req.client.GetID(), req.userID, resource, req.requester.GetRequestedScopes())
 	if err != nil {
 		return interactionRequirements{}, authenticationTime, err
 	}
@@ -368,7 +368,7 @@ func (s *authorizationService) resolveRequirements(ctx context.Context, req auth
 
 	requirements := interactionRequirements{
 		ConsentRequired:          consentRequired(hasAlreadyAuthorizedClient, req.client.SkipConsent, req.prompt),
-		ReauthenticationRequired: req.prompt.has("login") || req.client.RequiresReauthentication || maxAgeReauthenticationRequired,
+		ReauthenticationRequired: req.prompt.has("login") || req.client.RequiresReauthentication || maxAgeReauthenticationRequired || grantsAdminAccess(audience, grantedScopes),
 		AccountSelectionRequired: req.prompt.has("select_account"),
 		AuthenticationRequired:   false,
 	}
@@ -842,7 +842,7 @@ func (s *authorizationService) populatePostAuthenticationRequirements(ctx contex
 func (s *authorizationService) interactionRequirementsForUser(ctx context.Context, userID string, interactionSession *InteractionSession, authenticationTime time.Time) (interactionRequirements, error) {
 	prompt := newPromptValues(interactionSession.Parameters["prompt"])
 	resource := interactionSession.Parameters["resource"]
-	_, _, consentKeys, err := s.resolveGrant(ctx, interactionSession.ClientID, userID, resource, interactionSession.Scopes)
+	audience, grantedScopes, consentKeys, err := s.resolveGrant(ctx, interactionSession.ClientID, userID, resource, interactionSession.Scopes)
 	if err != nil {
 		return interactionRequirements{}, err
 	}
@@ -858,7 +858,7 @@ func (s *authorizationService) interactionRequirementsForUser(ctx context.Contex
 
 	return interactionRequirements{
 		ConsentRequired:          consentRequired(hasAlreadyAuthorizedClient, interactionSession.Client.SkipConsent, prompt),
-		ReauthenticationRequired: prompt.has("login") || interactionSession.Client.RequiresReauthentication || maxAgeReauthenticationRequired,
+		ReauthenticationRequired: prompt.has("login") || interactionSession.Client.RequiresReauthentication || maxAgeReauthenticationRequired || grantsAdminAccess(audience, grantedScopes),
 		AccountSelectionRequired: prompt.has("select_account"),
 		AuthenticationRequired:   false,
 	}, nil

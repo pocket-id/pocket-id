@@ -187,10 +187,6 @@ func (s *Service) GetUserGroups(ctx context.Context, userID string) ([]model.Use
 
 // requireAdminAccessFor rejects a principal without admin access that acts on an admin, since changing an admin's account would hand over their access
 func (s *Service) requireAdminAccessFor(ctx context.Context, principal authz.Principal, userID string) error {
-	if principal.Scopes.Has(authz.AdminAccessWrite) {
-		return nil
-	}
-
 	// An unknown user isn't an admin, so the route's handler reports it as not found
 	var isAdmin bool
 	err := s.db.WithContext(ctx).Model(&model.User{}).Select("is_admin").Where("id = ?", userID).Scan(&isAdmin).Error
@@ -200,7 +196,7 @@ func (s *Service) requireAdminAccessFor(ctx context.Context, principal authz.Pri
 	if !isAdmin {
 		return nil
 	}
-	return principal.Require(authz.AdminAccessWrite)
+	return principal.RequireAdminAccess()
 }
 
 func (s *Service) UpdateProfilePicture(ctx context.Context, userID string, file io.ReadSeeker) error {
@@ -324,7 +320,7 @@ func (s *Service) deleteUserInternal(ctx context.Context, cfg *appconfig.AppConf
 
 func (s *Service) CreateUser(ctx context.Context, dbConfig *appconfig.AppConfigModel, input dto.UserCreateDto, origin auditlogs.Origin) (model.User, error) {
 	if input.IsAdmin {
-		if err := origin.Principal.Require(authz.AdminAccessWrite); err != nil {
+		if err := origin.Principal.RequireAdminAccess(); err != nil {
 			return model.User{}, err
 		}
 	}
@@ -591,7 +587,7 @@ func (s *Service) UpdateUser(ctx context.Context, cfg *appconfig.AppConfigModel,
 	// An admin moving their own email elsewhere counts too, since a login code sent to the new address signs in with all of their access
 	emailChanged := updatedUser.Email != nil && (locked.Email == nil || *locked.Email != *updatedUser.Email)
 	if !isLdapSync && ((!updateOwnUser && (locked.IsAdmin || updatedUser.IsAdmin)) || (updateOwnUser && locked.IsAdmin && emailChanged)) {
-		if err := origin.Principal.Require(authz.AdminAccessWrite); err != nil {
+		if err := origin.Principal.RequireAdminAccess(); err != nil {
 			return model.User{}, err
 		}
 	}

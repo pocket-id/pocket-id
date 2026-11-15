@@ -135,7 +135,7 @@ func (s *deviceService) acceptDeviceCode(ctx context.Context, userCode, userID, 
 	grantResourceIndicator(request, audience, grantedScopes)
 
 	return withTx(ctx, s.db, func(ctx context.Context) error {
-		if client.RequiresReauthentication {
+		if client.RequiresReauthentication || grantsAdminAccess(audience, grantedScopes) {
 			if reauthenticationToken == "" || s.authorizationService == nil || s.authorizationService.reauth == nil {
 				return apperror.ReauthenticationRequired()
 			}
@@ -281,7 +281,7 @@ func (s *deviceService) getDeviceCodeInfo(ctx context.Context, userCode, userID 
 		Scope:                    scope,
 		ScopeInfo:                scopeInfo,
 		AuthorizationRequired:    authorizationRequired,
-		ReauthenticationRequired: client.RequiresReauthentication,
+		ReauthenticationRequired: client.RequiresReauthentication || grantsAdminAccess(canonicalResource(resource), scope),
 	}, nil
 }
 

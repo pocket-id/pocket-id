@@ -15,6 +15,7 @@ const codeMessages: Record<string, () => string> = {
 	rate_limited: () => m.please_try_again(),
 	not_signed_in: () => m.please_try_to_sign_in_again(),
 	reauthentication_required: () => m.please_try_to_sign_in_again(),
+	sudo_required: () => m.sudo_description(),
 	invalid_webauthn_session: () => m.passkey_request_expired(),
 	invalid_webauthn_response: () => m.passkey_response_invalid(),
 	webauthn_authentication_failed: () => m.passkey_verification_failed(),

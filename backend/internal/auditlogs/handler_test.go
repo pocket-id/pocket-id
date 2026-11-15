@@ -46,7 +46,7 @@ func TestAuditLogRoutesPreservePermissionsAndResponses(t *testing.T) {
 		}
 		c.JSON(status, gin.H{"error": c.Errors.String()})
 	})
-	module.RegisterRoutes(authz.NewMiddleware(auditLogTestAuthenticator{}).Router(router.Group("/api")))
+	module.RegisterRoutes(authz.NewMiddleware(nil, auditLogTestAuthenticator{}).Router(router.Group("/api")))
 
 	for _, path := range []string{"/audit-logs", "/admin/audit-logs", "/admin/audit-logs/filters/client-names", "/admin/audit-logs/filters/users"} {
 		for _, role := range []string{"", "user", "admin"} {

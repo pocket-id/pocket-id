@@ -141,7 +141,7 @@ func TestBeginCeremoniesUseRequestConfig(t *testing.T) {
 				WebauthnAttestation:             tc.attestation,
 			}
 
-			registration, err := service.BeginRegistration(t.Context(), dbConfig, user.ID)
+			registration, err := service.BeginRegistration(t.Context(), dbConfig, authz.Principal{UserID: user.ID})
 			require.NoError(t, err)
 			assert.Equal(t, tc.wantAttestation, registration.Response.Attestation)
 			assert.Equal(t, tc.wantUserVerification, registration.Response.AuthenticatorSelection.UserVerification)
@@ -292,7 +292,7 @@ func TestWebAuthnManagementOperationsReturnSpecificNotFoundErrors(t *testing.T) 
 	})
 	require.NoError(t, err)
 
-	_, err = service.BeginRegistration(t.Context(), &appconfig.AppConfigModel{}, "missing-user")
+	_, err = service.BeginRegistration(t.Context(), &appconfig.AppConfigModel{}, authz.Principal{UserID: "missing-user"})
 	require.True(t, apperror.IsCode(err, apperror.CodeUserNotFound))
 
 	_, err = service.UpdateCredential(t.Context(), "missing-user", "missing-passkey", "New name")
@@ -324,7 +324,7 @@ func TestCeremoniesRejectSessionThatDoesNotExist(t *testing.T) {
 	t.Run("registration rejects an unknown session", func(t *testing.T) {
 		service := setupService(t)
 
-		_, err := service.VerifyRegistration(t.Context(), &appconfig.AppConfigModel{}, "does-not-exist", userID, nil, "127.0.0.1", "")
+		_, err := service.VerifyRegistration(t.Context(), &appconfig.AppConfigModel{}, "does-not-exist", authz.Principal{UserID: userID}, nil, "127.0.0.1", "")
 
 		require.Error(t, err)
 		assert.True(t, apperror.IsCode(err, apperror.CodeInvalidWebAuthnSession))
@@ -343,7 +343,7 @@ func TestCeremoniesRejectSessionThatDoesNotExist(t *testing.T) {
 	t.Run("reauthentication rejects an unknown session", func(t *testing.T) {
 		service := setupService(t)
 
-		token, err := service.CreateReauthenticationTokenWithWebauthn(t.Context(), "does-not-exist", nil)
+		token, err := service.CreateReauthenticationTokenWithWebauthn(t.Context(), "does-not-exist", authz.Principal{}, nil)
 
 		assert.Empty(t, token)
 		require.Error(t, err)
@@ -362,7 +362,7 @@ func TestCeremoniesRejectSessionThatDoesNotExist(t *testing.T) {
 		}
 		require.NoError(t, service.db.Create(&expiredSession).Error)
 
-		token, err := service.CreateReauthenticationTokenWithWebauthn(t.Context(), expiredSession.ID, nil)
+		token, err := service.CreateReauthenticationTokenWithWebauthn(t.Context(), expiredSession.ID, authz.Principal{}, nil)
 
 		assert.Empty(t, token)
 		require.Error(t, err)
@@ -445,4 +445,24 @@ func TestHasOversizedPublicKey(t *testing.T) {
 
 	assert.False(t, hasOversizedPublicKey(rsaKey(maxRSAKeyBits)))
 	assert.True(t, hasOversizedPublicKey(rsaKey(maxRSAKeyBits+8)))
+}
+
+func TestRequireSudoToEnroll(t *testing.T) {
+	session := authz.Principal{Kind: authz.KindSession}
+	passkeys := []WebauthnCredential{{}}
+
+	// Another passkey of an admin holds all of their access, so the session has to prove an existing one first
+	err := requireSudoToEnroll(session, &passkeyUser{User: model.User{IsAdmin: true}, credentials: passkeys})
+	require.True(t, apperror.IsCode(err, apperror.CodeSudoRequired), err)
+
+	// An admin who has no passkey yet has none to prove, and other users hold no admin access
+	require.NoError(t, requireSudoToEnroll(session, &passkeyUser{User: model.User{IsAdmin: true}}))
+	require.NoError(t, requireSudoToEnroll(session, &passkeyUser{credentials: passkeys}))
+
+	// A login code lets an admin replace lost passkeys, but only right after signing in with it
+	loginCode := authz.Principal{Kind: authz.KindSession, AuthenticationMethod: "otp", AuthenticationTime: time.Now()}
+	require.NoError(t, requireSudoToEnroll(loginCode, &passkeyUser{User: model.User{IsAdmin: true}, credentials: passkeys}))
+	loginCode.AuthenticationTime = time.Now().Add(-enrollmentWindow)
+	err = requireSudoToEnroll(loginCode, &passkeyUser{User: model.User{IsAdmin: true}, credentials: passkeys})
+	require.True(t, apperror.IsCode(err, apperror.CodeSudoRequired), err)
 }

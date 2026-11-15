@@ -140,6 +140,12 @@ func canonicalResource(resource string) string {
 	return resource
 }
 
+// grantsAdminAccess reports whether a grant lets its client decide who holds admin access through Pocket ID's own API
+// Such a grant outlives the browser session it is approved in, so the user proves their passkey for it like for a client that requires reauthentication
+func grantsAdminAccess(audience string, scopes []string) bool {
+	return audience == authz.ResourceURI(common.EnvConfig.AppURL) && slices.Contains(scopes, string(authz.AdminAccessWrite))
+}
+
 // grantResourceIndicator applies a resolved resource audience and scopes to the request
 func grantResourceIndicator(requester fosite.Requester, audience string, scopes []string) {
 	for _, scope := range scopes {

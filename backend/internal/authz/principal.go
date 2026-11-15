@@ -1,6 +1,7 @@
 package authz
 
 import (
+	"sync/atomic"
 	"time"
 
 	"github.com/gin-gonic/gin"
@@ -28,6 +29,11 @@ type Principal struct {
 	SessionID            string
 	AuthenticationMethod string
 	AuthenticationTime   time.Time
+
+	// SudoUntil is when the session's sudo mode ends unless it is used before then, and is only set for KindSession
+	SudoUntil time.Time
+	// sudoUsed is shared by every copy of the principal, so the middleware learns after the handler whether the request relied on sudo mode
+	sudoUsed *atomic.Bool
 }
 
 // RestrictUnverified withholds every scope except those a user needs to verify their email, such as signing out or correcting the address
@@ -51,6 +57,33 @@ func (p *Principal) Require(scope Scope) error {
 		return nil
 	}
 	return apperror.MissingScope(string(scope))
+}
+
+// RequireSudo returns the error that makes a browser session prove its passkey again, unless it is in sudo mode
+// It guards what would turn a hijacked session into lasting access, which the session cookie alone must not be enough for
+// Every other kind passes, because an API key or token can't prove a passkey and only holds the scopes it was deliberately given
+func (p *Principal) RequireSudo() error {
+	if p.Kind != KindSession {
+		return nil
+	}
+	if !p.SudoUntil.After(time.Now()) {
+		return apperror.SudoRequired()
+	}
+
+	// A principal that didn't pass through the middleware, such as one built by a test, has nowhere to record the use
+	if p.sudoUsed != nil {
+		p.sudoUsed.Store(true)
+	}
+	return nil
+}
+
+// RequireAdminAccess returns the error for a principal that may not decide who holds admin access, for checks that depend on the target of a request
+func (p *Principal) RequireAdminAccess() error {
+	err := p.Require(AdminAccessWrite)
+	if err != nil {
+		return err
+	}
+	return p.RequireSudo()
 }
 
 // PrincipalFrom returns the principal the authorization middleware attached to the request

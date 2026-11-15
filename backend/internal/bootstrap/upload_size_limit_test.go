@@ -106,3 +106,5 @@ type staticSessionValidator struct {
 func (v staticSessionValidator) Validate(context.Context, string) (string, session.Session, error) {
 	return v.userID, session.Session{ID: "session-id"}, nil
 }
+
+func (staticSessionValidator) KeepSudo(context.Context, string, string) {}

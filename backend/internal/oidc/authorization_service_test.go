@@ -13,7 +13,9 @@ import (
 	"github.com/pocket-id/pocket-id/backend/internal/appconfig"
 	"github.com/pocket-id/pocket-id/backend/internal/apperror"
 	"github.com/pocket-id/pocket-id/backend/internal/auditlogs"
+	"github.com/pocket-id/pocket-id/backend/internal/authz"
 	"github.com/pocket-id/pocket-id/backend/internal/claimmappingpolicy"
+	"github.com/pocket-id/pocket-id/backend/internal/common"
 	"github.com/pocket-id/pocket-id/backend/internal/model"
 	datatype "github.com/pocket-id/pocket-id/backend/internal/model/types"
 	testutils "github.com/pocket-id/pocket-id/backend/internal/utils/testing"
@@ -444,6 +446,59 @@ func TestAuthorizationServiceConsentMergesAudienceQualifiedScopeKeys(t *testing.
 
 // TestAuthorizationServiceRequiresConsentForScopelessAPIAccess guards that a token audienced to a custom API always needs
 // its own consent, even when the grant carries no custom scope and the user already consented to a plain login.
+func TestAuthorizationServiceRequiresReauthenticationForAdminAccess(t *testing.T) {
+	db := testutils.NewDatabaseForTest(t)
+	require.NoError(t, claimmappingpolicy.Bootstrap(t.Context(), db))
+
+	const (
+		userID   = "test-user"
+		clientID = "test-client"
+	)
+	pocketIDAPI := authz.ResourceURI(common.EnvConfig.AppURL)
+	otherAPI := "https://api-a.example.com"
+
+	// Another API may name a permission like Pocket ID's admin access scope without it meaning anything there
+	scopes := []string{string(authz.UsersRead), string(authz.AdminAccessWrite)}
+	service := newAuthorizationService(db, newInteractionSessionService(db), newClaimsService(db, nil, "", nil, appconfig.StaticResolver{}), nil, nil, userAccess(map[string][]string{
+		pocketIDAPI: scopes,
+		otherAPI:    scopes,
+	}))
+
+	require.NoError(t, db.Create(&model.User{Base: model.Base{ID: userID}}).Error)
+	require.NoError(t, db.Create(&model.OidcClient{Base: model.Base{ID: clientID}, Name: "Test Client"}).Error)
+
+	tests := []struct {
+		name                 string
+		resource             string
+		scope                authz.Scope
+		wantReauthentication bool
+	}{
+		{name: "a grant with admin access to Pocket ID", resource: pocketIDAPI, scope: authz.AdminAccessWrite, wantReauthentication: true},
+		{name: "a grant requested through the MCP endpoint", resource: authz.MCPResourceURI(common.EnvConfig.AppURL), scope: authz.AdminAccessWrite, wantReauthentication: true},
+		{name: "a grant without admin access", resource: pocketIDAPI, scope: authz.UsersRead},
+		{name: "a grant for another API", resource: otherAPI, scope: authz.AdminAccessWrite},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			// The consent is already on record, so only the reauthentication can still ask for an interaction
+			_, err := service.consent(t.Context(), userID, clientID, consentKeysForGrant(canonicalResource(tt.resource), tt.resource, []string{string(tt.scope)}))
+			require.NoError(t, err)
+
+			requester := newTestAuthorizeRequesterWithForm(tt.name, clientID, url.Values{"resource": {tt.resource}})
+			requester.(*fosite.AuthorizeRequest).RequestedScope = fosite.Arguments{string(tt.scope)}
+			authorization, err := service.authorize(t.Context(), authorizeInput{
+				userID:             userID,
+				authenticationTime: time.Now().UTC(),
+				requester:          requester,
+				meta:               requestMeta{IPAddress: "203.0.113.1", UserAgent: "test-agent"},
+			})
+			require.NoError(t, err)
+			require.Equal(t, tt.wantReauthentication, authorization.RequiresInteraction)
+		})
+	}
+}
+
 func TestAuthorizationServiceRequiresConsentForScopelessAPIAccess(t *testing.T) {
 	db := testutils.NewDatabaseForTest(t)
 	require.NoError(t, claimmappingpolicy.Bootstrap(t.Context(), db))

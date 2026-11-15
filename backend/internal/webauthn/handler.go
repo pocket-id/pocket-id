@@ -39,8 +39,7 @@ func (h *handler) beginRegistration(c *gin.Context) error {
 		return fmt.Errorf("error loading app configuration: %w", err)
 	}
 
-	userID := authz.PrincipalFrom(c).UserID
-	options, err := h.service.BeginRegistration(c.Request.Context(), dbConfig, userID)
+	options, err := h.service.BeginRegistration(c.Request.Context(), dbConfig, authz.PrincipalFrom(c))
 	if err != nil {
 		return err
 	}
@@ -67,8 +66,7 @@ func (h *handler) verifyRegistration(c *gin.Context) error {
 		return apperror.InvalidWebAuthnResponse(err)
 	}
 
-	userID := authz.PrincipalFrom(c).UserID
-	credential, err := h.service.VerifyRegistration(c.Request.Context(), dbConfig, sessionID, userID, credentialCreationData, c.ClientIP(), c.Request.UserAgent())
+	credential, err := h.service.VerifyRegistration(c.Request.Context(), dbConfig, sessionID, authz.PrincipalFrom(c), credentialCreationData, c.ClientIP(), c.Request.UserAgent())
 	if err != nil {
 		return err
 	}
@@ -208,7 +206,7 @@ func (h *handler) reauthenticate(c *gin.Context) error {
 	// Try to create a reauthentication token with WebAuthn
 	credentialAssertionData, err := protocol.ParseCredentialRequestResponseBody(c.Request.Body)
 	if err == nil {
-		token, err = h.service.CreateReauthenticationTokenWithWebauthn(c.Request.Context(), sessionID, credentialAssertionData)
+		token, err = h.service.CreateReauthenticationTokenWithWebauthn(c.Request.Context(), sessionID, authz.PrincipalFrom(c), credentialAssertionData)
 		if err != nil {
 			return err
 		}

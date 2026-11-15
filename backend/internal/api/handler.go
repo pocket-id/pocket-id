@@ -196,15 +196,11 @@ func (h *handler) listClientApis(c *gin.Context) ([]clientApiGrantDto, error) {
 // protectBuiltInAPI rejects a principal without admin access on routes that change which clients may use the API in the path, when that is Pocket ID's own API
 func (h *handler) protectBuiltInAPI(c *gin.Context) {
 	principal := authz.PrincipalFrom(c)
-	if principal.Scopes.Has(authz.AdminAccessWrite) {
-		c.Next()
-		return
-	}
 
 	// The loaded ID is compared, since Postgres also matches other spellings of the built-in API's ID
 	api, err := h.service.Get(c.Request.Context(), nil, c.Param("id"))
 	if err == nil && api.ID == BuiltInAPIID {
-		err = principal.Require(authz.AdminAccessWrite)
+		err = principal.RequireAdminAccess()
 	}
 	if err != nil {
 		c.Abort()

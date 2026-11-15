@@ -129,8 +129,8 @@ func (s *AppConfigService) GetCIMDURLAllowlist() []string {
 
 // UpdateAppConfig applies an update to the saved configuration and returns the configuration in effect
 // Only the properties whose value changes are sent to the actor, which applies them atomically, so concurrent updates of different properties never undo each other
-// adminAccess allows changing the settings that decide who holds admin access, see needsAdminAccess
-func (s *AppConfigService) UpdateAppConfig(ctx context.Context, update dto.Update[AppConfigUpdateDto], adminAccess bool) ([]AppConfigVariable, error) {
+// Changing the settings that decide who holds admin access needs the principal to have admin access, see needsAdminAccess
+func (s *AppConfigService) UpdateAppConfig(ctx context.Context, update dto.Update[AppConfigUpdateDto], principal authz.Principal) ([]AppConfigVariable, error) {
 	// If the UI config is disabled, we cannot continue
 	if common.EnvConfig.UiConfigDisabled {
 		return nil, apperror.UIConfigDisabled()
@@ -177,12 +177,15 @@ func (s *AppConfigService) UpdateAppConfig(ctx context.Context, update dto.Updat
 	}
 
 	// A caller without admin access may change everything except the settings that could hand it admin access
-	if !adminAccess {
-		for key := range changes {
-			if needsAdminAccess(key) {
-				return nil, apperror.MissingScope(string(authz.AdminAccessWrite))
-			}
+	for key := range changes {
+		if !needsAdminAccess(key) {
+			continue
 		}
+		err = principal.RequireAdminAccess()
+		if err != nil {
+			return nil, err
+		}
+		break
 	}
 
 	// Apply the changes by invoking the actor

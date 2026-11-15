@@ -64,7 +64,7 @@ func TestAuthorizationHandlerRedirectsAuthorizationErrors(t *testing.T) {
 		t.Helper()
 
 		router := gin.New()
-		authz.NewMiddleware(authenticator).Router(router.Group("/")).Use(handler.redirectAuthorizationErrors).Optional().
+		authz.NewMiddleware(nil, authenticator).Router(router.Group("/")).Use(handler.redirectAuthorizationErrors).Optional().
 			GET("/authorize", authz.AccountAuthorize, httpserver.Endpoint{Handler: func(c *gin.Context) { c.Status(http.StatusNoContent) }})
 
 		recorder := httptest.NewRecorder()

@@ -4,6 +4,7 @@ import { apis, oidcClients } from '../data';
 import { setAppConfigValues } from '../utils/app-config.util';
 import { cleanupBackend } from '../utils/cleanup.util';
 import * as oidcUtil from '../utils/oidc.util';
+import passkeyUtil from '../utils/passkey.util';
 import { saveUnsavedChanges } from '../utils/unsaved-changes.util';
 
 test.beforeEach(async () => await cleanupBackend());
@@ -599,7 +600,10 @@ test('Consent screen warns before an app gets scopes that amount to admin access
 		redirect_uri: client.callbackUrl,
 		state: 'nXx-6Qr-owc1SHBa'
 	});
+	// A grant with admin access outlives the session, so the passkey is confirmed before the consent screen
+	await (await passkeyUtil.init(page)).addPasskey();
 	await page.goto(`/authorize?${params.toString()}`);
+	await page.getByRole('button', { name: 'Continue with passkey' }).click();
 
 	const warning = page.getByText('This app can gain full admin access');
 	await expect(warning).toBeVisible();

@@ -33,6 +33,7 @@ import (
 	"github.com/pocket-id/pocket-id/backend/internal/appconfig"
 	"github.com/pocket-id/pocket-id/backend/internal/apperror"
 	"github.com/pocket-id/pocket-id/backend/internal/auditlogs"
+	"github.com/pocket-id/pocket-id/backend/internal/authz"
 	"github.com/pocket-id/pocket-id/backend/internal/model"
 	testutils "github.com/pocket-id/pocket-id/backend/internal/utils/testing"
 )
@@ -154,11 +155,11 @@ func TestVerifyRegistrationAttestation(t *testing.T) {
 				WebauthnAuthenticatorAttachment: "any",
 				WebauthnAttestation:             tc.attestation,
 			}
-			registration, err := service.BeginRegistration(t.Context(), dbConfig, user.ID)
+			registration, err := service.BeginRegistration(t.Context(), dbConfig, authz.Principal{UserID: user.ID})
 			require.NoError(t, err)
 
 			response := authenticator.registrationResponse(t, registration.Response.Challenge, tc.format)
-			credential, err := service.VerifyRegistration(t.Context(), dbConfig, registration.SessionID, user.ID, response, "127.0.0.1", "")
+			credential, err := service.VerifyRegistration(t.Context(), dbConfig, registration.SessionID, authz.Principal{UserID: user.ID}, response, "127.0.0.1", "")
 
 			if tc.wantCode != "" {
 				require.Error(t, err)

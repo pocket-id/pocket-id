@@ -54,7 +54,7 @@ func (m *Module) AllowedScopesForAudience(ctx context.Context, tx *gorm.DB, clie
 // RequireAdminAccessForClients rejects a principal without admin access that changes clients of which any may use Pocket ID's own API, since their credentials, callback URLs, groups or claims would let it act with the admin scopes granted to them
 // A nil tx reads outside of a transaction
 func (m *Module) RequireAdminAccessForClients(ctx context.Context, tx *gorm.DB, principal authz.Principal, clientIDs ...string) error {
-	if principal.Scopes.Has(authz.AdminAccessWrite) || len(clientIDs) == 0 {
+	if len(clientIDs) == 0 {
 		return nil
 	}
 	if tx == nil {
@@ -69,7 +69,7 @@ func (m *Module) RequireAdminAccessForClients(ctx context.Context, tx *gorm.DB, 
 	if count == 0 {
 		return nil
 	}
-	return principal.Require(authz.AdminAccessWrite)
+	return principal.RequireAdminAccess()
 }
 
 // ProtectPocketIDClients returns a handler for routes that change the client named by the path parameter, which rejects a principal without admin access when that client may use Pocket ID's own API

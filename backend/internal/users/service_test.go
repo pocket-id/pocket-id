@@ -552,4 +552,12 @@ func TestManagingAdminsRequiresAdminAccess(t *testing.T) {
 	require.NoError(t, userService.requireAdminAccessFor(t.Context(), usersWrite.Principal, member.ID))
 	_, err = userService.UpdateUser(t.Context(), config, member.ID, dto.Replace(dto.UserCreateDto{Username: "renamed-member"}), false, false, usersWrite)
 	require.NoError(t, err)
+
+	// A browser session with admin access also has to be in sudo mode, but only to act on an admin
+	session := authz.Principal{Kind: authz.KindSession, Scopes: authz.NewScopeSet(authz.UsersWrite, authz.AdminAccessWrite)}
+	err = userService.requireAdminAccessFor(t.Context(), session, admin.ID)
+	require.True(t, apperror.IsCode(err, apperror.CodeSudoRequired), err)
+	require.NoError(t, userService.requireAdminAccessFor(t.Context(), session, member.ID))
+	session.SudoUntil = time.Now().Add(time.Minute)
+	require.NoError(t, userService.requireAdminAccessFor(t.Context(), session, admin.ID))
 }

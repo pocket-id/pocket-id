@@ -1,8 +1,10 @@
 package authz
 
 import (
+	"context"
 	"maps"
 	"slices"
+	"sync/atomic"
 
 	"github.com/gin-gonic/gin"
 	"github.com/go-fuego/fuego"
@@ -25,16 +27,23 @@ type Authenticator interface {
 	Authenticate(c *gin.Context) (*Principal, error)
 }
 
+// SudoKeeper records that a session's sudo mode was used, which keeps it from ending for being unused
+type SudoKeeper interface {
+	KeepSudo(ctx context.Context, userID, sessionID string)
+}
+
 // Middleware authenticates requests and enforces the scope each route declares
 type Middleware struct {
+	sudo           SudoKeeper
 	authenticators []Authenticator
 	declared       map[string]openapi.Route
 }
 
 // NewMiddleware creates the authorization middleware
 // Authenticators are tried in order and the first one that resolves a principal wins
-func NewMiddleware(authenticators ...Authenticator) *Middleware {
+func NewMiddleware(sudo SudoKeeper, authenticators ...Authenticator) *Middleware {
 	return &Middleware{
+		sudo:           sudo,
 		authenticators: authenticators,
 		declared:       make(map[string]openapi.Route),
 	}
@@ -102,8 +111,14 @@ func (m *Middleware) require(scope Scope, optional bool) gin.HandlerFunc {
 			return
 		}
 
+		principal.sudoUsed = new(atomic.Bool)
 		SetPrincipal(c, principal)
 		c.Next()
+
+		// Sudo mode lasts while it is used, which is recorded after the handler because the session can't be written while the handler's database transaction is open
+		if principal.sudoUsed.Load() {
+			m.sudo.KeepSudo(c.Request.Context(), principal.UserID, principal.SessionID)
+		}
 	}
 }
 

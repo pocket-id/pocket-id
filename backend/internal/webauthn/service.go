@@ -31,6 +31,9 @@ import (
 // It must match the value emitted by the JWT service in the access token's "amr" claim
 const authenticationMethodPhishingResistant = "phr"
 
+// enrollmentWindow is how long after a sign-in without a passkey an admin may enrol one without proving an existing passkey
+const enrollmentWindow = 10 * time.Minute
+
 const defaultRPDisplayName = "Pocket ID"
 
 // maxRSAKeyBits bounds passkey RSA keys, because go-webauthn sets no upper limit and verifying with a huge modulus takes minutes
@@ -91,7 +94,7 @@ func newService(deps Dependencies) (*Service, error) {
 	}, nil
 }
 
-func (s *Service) BeginRegistration(ctx context.Context, dbConfig *appconfig.AppConfigModel, userID string) (*PublicKeyCredentialCreationOptions, error) {
+func (s *Service) BeginRegistration(ctx context.Context, dbConfig *appconfig.AppConfigModel, principal authz.Principal) (*PublicKeyCredentialCreationOptions, error) {
 	s.updateWebAuthnConfig(dbConfig)
 
 	tx := s.db.Begin()
@@ -99,12 +102,18 @@ func (s *Service) BeginRegistration(ctx context.Context, dbConfig *appconfig.App
 		tx.Rollback()
 	}()
 
-	user, err := loadPasskeyUser(ctx, tx, userID)
+	user, err := loadPasskeyUser(ctx, tx, principal.UserID)
 	if errors.Is(err, gorm.ErrRecordNotFound) {
 		return nil, apperror.UserNotFound()
 	}
 	if err != nil {
 		return nil, fmt.Errorf("failed to load user: %w", err)
+	}
+
+	// Ask for sudo mode before the browser prompts for the new passkey, so the ceremony isn't wasted on a registration that would be refused
+	err = requireSudoToEnroll(principal, user)
+	if err != nil {
+		return nil, err
 	}
 
 	// Ask for an attestation only when it will be verified, because browsers prompt before sending one
@@ -161,7 +170,7 @@ func (s *Service) BeginRegistration(ctx context.Context, dbConfig *appconfig.App
 	}, nil
 }
 
-func (s *Service) VerifyRegistration(ctx context.Context, dbConfig *appconfig.AppConfigModel, sessionID string, userID string, credentialCreationData *protocol.ParsedCredentialCreationData, ipAddress, userAgent string) (WebauthnCredential, error) {
+func (s *Service) VerifyRegistration(ctx context.Context, dbConfig *appconfig.AppConfigModel, sessionID string, principal authz.Principal, credentialCreationData *protocol.ParsedCredentialCreationData, ipAddress, userAgent string) (WebauthnCredential, error) {
 	// Load the FIDO metadata before the transaction starts, because the first load downloads it
 	minCertification, attestationRequired := requiredAttestation(dbConfig)
 	var metadataProvider metadata.Provider
@@ -197,14 +206,10 @@ func (s *Service) VerifyRegistration(ctx context.Context, dbConfig *appconfig.Ap
 		CredParams:       storedSession.CredentialParams,
 		UserVerification: protocol.UserVerificationRequirement(storedSession.UserVerification),
 		Extensions:       storedSession.Extensions,
-		UserID:           []byte(userID),
+		UserID:           []byte(principal.UserID),
 	}
 
-	var user passkeyUser
-	err := tx.
-		WithContext(ctx).
-		First(&user.User, "id = ?", userID).
-		Error
+	user, err := loadPasskeyUser(ctx, tx, principal.UserID)
 	if errors.Is(err, gorm.ErrRecordNotFound) {
 		return WebauthnCredential{}, apperror.UserNotFound()
 	}
@@ -212,12 +217,18 @@ func (s *Service) VerifyRegistration(ctx context.Context, dbConfig *appconfig.Ap
 		return WebauthnCredential{}, fmt.Errorf("failed to load user: %w", err)
 	}
 
+	// The check when the registration began isn't enough, because the stored challenge isn't bound to the user who requested it, so one that another account began could be finished here
+	err = requireSudoToEnroll(principal, user)
+	if err != nil {
+		return WebauthnCredential{}, err
+	}
+
 	// Self attestation is verified with the new key, so its size has to be checked before the response is verified
 	if hasOversizedPublicKey(credentialCreationData.Response.AttestationObject.AuthData.AttData.CredentialPublicKey) {
 		return WebauthnCredential{}, apperror.InvalidWebAuthnResponse(fmt.Errorf("RSA public key is larger than %d bits", maxRSAKeyBits))
 	}
 
-	credential, err := s.webAuthn.CreateCredential(&user, session, credentialCreationData)
+	credential, err := s.webAuthn.CreateCredential(user, session, credentialCreationData)
 	if err != nil {
 		return WebauthnCredential{}, classifyPasskeyError(err, apperror.InvalidWebAuthnResponse)
 	}
@@ -257,7 +268,7 @@ func (s *Service) VerifyRegistration(ctx context.Context, dbConfig *appconfig.Ap
 	}
 
 	auditLogData := auditlogs.Data{"credentialID": hex.EncodeToString(credential.ID), "passkeyName": passkeyName}
-	s.auditLog.Create(ctx, auditlogs.EventPasskeyAdded, ipAddress, userAgent, userID, auditLogData, tx)
+	s.auditLog.Create(ctx, auditlogs.EventPasskeyAdded, ipAddress, userAgent, user.ID, auditLogData, tx)
 
 	err = tx.Commit().Error
 	if err != nil {
@@ -265,6 +276,20 @@ func (s *Service) VerifyRegistration(ctx context.Context, dbConfig *appconfig.Ap
 	}
 
 	return credentialToStore, nil
+}
+
+// requireSudoToEnroll makes the browser session of an admin prove an existing passkey before another one is added, since a passkey holds all of the admin's access and outlives the session
+// An admin without a passkey has none to prove, which is how the first one is enrolled after the setup
+func requireSudoToEnroll(principal authz.Principal, user *passkeyUser) error {
+	if !user.IsAdmin || len(user.credentials) == 0 {
+		return nil
+	}
+
+	// An admin who lost their passkeys signs in with a login code to enrol a new one, which that sign-in allows for a short while
+	if principal.AuthenticationMethod != authenticationMethodPhishingResistant && time.Since(principal.AuthenticationTime) < enrollmentWindow {
+		return nil
+	}
+	return principal.RequireSudo()
 }
 
 func (s *Service) determinePasskeyName(aaguid []byte) string {
@@ -611,7 +636,8 @@ func (s *Service) CreateReauthenticationTokenWithSession(ctx context.Context, pr
 	return reauthToken, nil
 }
 
-func (s *Service) CreateReauthenticationTokenWithWebauthn(ctx context.Context, sessionID string, credentialAssertionData *protocol.ParsedCredentialAssertionData) (string, error) {
+// CreateReauthenticationTokenWithWebauthn verifies a passkey of the signed-in user, which also puts their session into sudo mode
+func (s *Service) CreateReauthenticationTokenWithWebauthn(ctx context.Context, sessionID string, principal authz.Principal, credentialAssertionData *protocol.ParsedCredentialAssertionData) (string, error) {
 	tx := s.db.Begin()
 	defer func() {
 		tx.Rollback()
@@ -662,6 +688,11 @@ func (s *Service) CreateReauthenticationTokenWithWebauthn(ctx context.Context, s
 		return "", apperror.WebAuthnAuthenticationFailed(errors.New("WebAuthn response did not resolve to a user"))
 	}
 
+	// The passkey of another account proves nothing about the user of this session
+	if user.ID != principal.UserID {
+		return "", apperror.WebAuthnAuthenticationFailed(errors.New("passkey belongs to another user"))
+	}
+
 	// Create reauthentication token
 	token, err := s.createReauthenticationToken(ctx, tx, user.ID)
 	if err != nil {
@@ -669,6 +700,12 @@ func (s *Service) CreateReauthenticationTokenWithWebauthn(ctx context.Context, s
 	}
 
 	err = tx.Commit().Error
+	if err != nil {
+		return "", err
+	}
+
+	// Sudo mode starts only after the transaction has committed, since it invokes an actor
+	err = s.sessions.StartSudo(ctx, principal.UserID, principal.SessionID)
 	if err != nil {
 		return "", err
 	}

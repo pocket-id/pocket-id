@@ -29,6 +29,7 @@
 >
 	<AlertDialog.Content
 		class="z-9999"
+		overlayClass="z-9999"
 		onOpenAutoFocus={(e) => {
 			// Cancel takes focus, so Enter never confirms unless the confirm button was focused on purpose
 			e.preventDefault();

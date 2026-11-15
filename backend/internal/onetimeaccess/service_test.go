@@ -291,3 +291,23 @@ func TestLoginCodesForAdminsRequireAdminAccess(t *testing.T) {
 	_, _, err = svc.ExchangeToken(t.Context(), dbConfig, token, "", "1.2.3.4", "test-agent", "", false)
 	require.True(t, apperror.IsCode(err, apperror.CodeTokenInvalidOrExpired), err)
 }
+
+func TestLoginCodesForAdminsRequireSudoModeFromSessions(t *testing.T) {
+	db := testutils.NewDatabaseForTest(t)
+	svc, _, _ := newServiceForTest(t, db)
+	admin := model.User{Username: "admin", IsAdmin: true}
+	require.NoError(t, db.Create(&admin).Error)
+	member := model.User{Username: "member"}
+	require.NoError(t, db.Create(&member).Error)
+
+	// Signing in as an admin hands over their access, while a code for a regular user is everyday admin work
+	session := auditlogs.Origin{Principal: authz.Principal{Kind: authz.KindSession, Scopes: authz.NewScopeSet(authz.UsersLoginCodes, authz.AdminAccessWrite)}}
+	_, err := svc.CreateToken(t.Context(), admin.ID, time.Minute, session)
+	require.True(t, apperror.IsCode(err, apperror.CodeSudoRequired), err)
+	_, err = svc.CreateToken(t.Context(), member.ID, time.Minute, session)
+	require.NoError(t, err)
+
+	session.Principal.SudoUntil = time.Now().Add(time.Minute)
+	_, err = svc.CreateToken(t.Context(), admin.ID, time.Minute, session)
+	require.NoError(t, err)
+}

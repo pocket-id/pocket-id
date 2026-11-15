@@ -120,7 +120,7 @@ func (acc *handler) listAllAppConfigHandler(c *gin.Context) ([]AppConfigVariable
 }
 
 func (acc *handler) updateAppConfigHandler(c *gin.Context, update dto.Update[AppConfigUpdateDto]) ([]AppConfigVariableDto, error) {
-	savedConfigVariables, err := acc.service.UpdateAppConfig(c.Request.Context(), update, authz.PrincipalFrom(c).Scopes.Has(authz.AdminAccessWrite))
+	savedConfigVariables, err := acc.service.UpdateAppConfig(c.Request.Context(), update, authz.PrincipalFrom(c))
 	if err != nil {
 		return nil, err
 	}

@@ -288,13 +288,10 @@ func StoreToken(ctx context.Context, store TokenStore, userID string, ttl time.D
 // adminCodeRestriction checks that the origin may create a login code for the user, since signing in as an admin hands over their access
 // It reports whether the code must stop working should the user become an admin before it is used
 func adminCodeRestriction(user model.User, origin auditlogs.Origin) (forbidAdmin bool, err error) {
-	if origin.Principal.Scopes.Has(authz.AdminAccessWrite) {
-		return false, nil
-	}
 	if user.IsAdmin {
-		return false, origin.Principal.Require(authz.AdminAccessWrite)
+		return false, origin.Principal.RequireAdminAccess()
 	}
-	return true, nil
+	return !origin.Principal.Scopes.Has(authz.AdminAccessWrite), nil
 }
 
 // generateToken generates the random token value for a one-time access token.

@@ -56,6 +56,10 @@ func (s *Service) CreateApiKey(ctx context.Context, userID string, grantable aut
 	if err != nil {
 		return ApiKey{}, "", err
 	}
+	err = requireSudoForScopes(origin.Principal, scopes)
+	if err != nil {
+		return ApiKey{}, "", err
+	}
 
 	// Generate a secure random API key
 	token, err := utils.GenerateRandomAlphanumericString(32)
@@ -89,7 +93,7 @@ func (s *Service) CreateApiKey(ctx context.Context, userID string, grantable aut
 }
 
 // UpdateApiKey changes a key's name, description and scopes without changing its token
-func (s *Service) UpdateApiKey(ctx context.Context, userID, apiKeyID string, grantable authz.ScopeSet, update dto.Update[apiKeyUpdateDto]) (ApiKey, error) {
+func (s *Service) UpdateApiKey(ctx context.Context, principal authz.Principal, apiKeyID string, grantable authz.ScopeSet, update dto.Update[apiKeyUpdateDto]) (ApiKey, error) {
 	tx := s.db.Begin()
 	defer func() {
 		tx.Rollback()
@@ -100,7 +104,7 @@ func (s *Service) UpdateApiKey(ctx context.Context, userID, apiKeyID string, gra
 	err := tx.
 		WithContext(ctx).
 		Clauses(clause.Locking{Strength: "UPDATE"}).
-		Where("id = ? AND user_id = ?", apiKeyID, userID).
+		Where("id = ? AND user_id = ?", apiKeyID, principal.UserID).
 		First(&apiKey).
 		Error
 	if errors.Is(err, gorm.ErrRecordNotFound) {
@@ -113,6 +117,10 @@ func (s *Service) UpdateApiKey(ctx context.Context, userID, apiKeyID string, gra
 		return ApiKey{}, err
 	}
 	scopes, err := grantedScopes(input.Scopes, grantable)
+	if err != nil {
+		return ApiKey{}, err
+	}
+	err = requireSudoForScopes(principal, scopes)
 	if err != nil {
 		return ApiKey{}, err
 	}
@@ -145,6 +153,14 @@ func grantedScopes(requested []string, grantable authz.ScopeSet) (datatype.Strin
 	return slices.Compact(scopes), nil
 }
 
+// requireSudoForScopes makes a browser session prove its passkey before it gets hold of a key that can decide who holds admin access, since the key outlives the session
+func requireSudoForScopes(principal authz.Principal, scopes []string) error {
+	if !slices.Contains(scopes, string(authz.AdminAccessWrite)) {
+		return nil
+	}
+	return principal.RequireSudo()
+}
+
 // RenewApiKey replaces a key's token
 // If the key has not expired yet, its old token keeps working for gracePeriod, capped at the key's previous expiration
 // The token replaced by an earlier rotation stops working right away
@@ -170,6 +186,10 @@ func (s *Service) RenewApiKey(ctx context.Context, userID, apiKeyID string, expi
 		return ApiKey{}, "", apperror.APIKeyNotFound()
 	} else if err != nil {
 		return ApiKey{}, "", fmt.Errorf("error loading API key: %w", err)
+	}
+	err = requireSudoForScopes(origin.Principal, apiKey.Scopes)
+	if err != nil {
+		return ApiKey{}, "", err
 	}
 
 	// Generate a secure random API key

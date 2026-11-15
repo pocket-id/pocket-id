@@ -113,6 +113,17 @@ func (m *Module) Validate(ctx context.Context, token string) (string, Session, e
 	return m.service.Validate(ctx, token)
 }
 
+// StartSudo puts a session into sudo mode after its user proved their passkey again
+// It invokes an actor, so it must not be called while a database transaction is open
+func (m *Module) StartSudo(ctx context.Context, userID, sessionID string) error {
+	return m.service.StartSudo(ctx, userID, sessionID)
+}
+
+// KeepSudo records that a request relied on the session's sudo mode
+func (m *Module) KeepSudo(ctx context.Context, userID, sessionID string) {
+	m.service.KeepSudo(ctx, userID, sessionID)
+}
+
 // IsActive reports whether the user is still signed in with the session
 // It invokes an actor, so it must not be called while a database transaction is open
 func (m *Module) IsActive(ctx context.Context, userID, sessionID string) (bool, error) {

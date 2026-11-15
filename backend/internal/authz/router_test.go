@@ -21,7 +21,7 @@ var noopEndpoint = httpserver.Endpoint{Handler: noop}
 func TestIsDeclared(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 	engine := gin.New()
-	m := NewMiddleware()
+	m := NewMiddleware(nil)
 	apiGroup := engine.Group("/api")
 	api := m.Router(apiGroup)
 
@@ -61,7 +61,7 @@ func TestRouterUseWrapsAuthorization(t *testing.T) {
 
 	// The middleware added with Use runs around authorization, so it sees the error of a refused request and can render it
 	var seen error
-	r := NewMiddleware().Router(engine.Group("/api")).Use(func(c *gin.Context) {
+	r := NewMiddleware(nil).Router(engine.Group("/api")).Use(func(c *gin.Context) {
 		c.Next()
 		if len(c.Errors) > 0 {
 			seen = c.Errors.Last().Err
@@ -77,7 +77,7 @@ func TestRouterUseWrapsAuthorization(t *testing.T) {
 
 func TestRouterRejectsUnknownScopes(t *testing.T) {
 	gin.SetMode(gin.TestMode)
-	r := NewMiddleware().Router(gin.New().Group("/api"))
+	r := NewMiddleware(nil).Router(gin.New().Group("/api"))
 
 	require.PanicsWithValue(t, `route GET /api/users requires unknown scope "users:everything"`, func() {
 		r.GET("/users", Scope("users:everything"), noopEndpoint)
@@ -86,7 +86,7 @@ func TestRouterRejectsUnknownScopes(t *testing.T) {
 
 func TestRouterKeepsAdminScopesBelowTheAdminPrefix(t *testing.T) {
 	gin.SetMode(gin.TestMode)
-	r := NewMiddleware().Router(gin.New().Group("/api"))
+	r := NewMiddleware(nil).Router(gin.New().Group("/api"))
 
 	require.Panics(t, func() { r.GET("/users", UsersRead, noopEndpoint) })
 	require.Panics(t, func() { r.GET("/admin/me", AccountRead, noopEndpoint) })

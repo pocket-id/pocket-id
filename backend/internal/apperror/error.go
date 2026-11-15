@@ -38,6 +38,7 @@ const (
 	CodeInvalidAPIKey                     Code = "invalid_api_key"
 	CodeDeviceLoginExpired                Code = "device_login_expired"
 	CodeReauthenticationRequired          Code = "reauthentication_required"
+	CodeSudoRequired                      Code = "sudo_required"
 	CodeEmailVerificationTokenInvalid     Code = "invalid_email_verification_token"
 	CodeEmailVerificationRequired         Code = "email_verification_required"
 	CodeEmailVerificationDisabled         Code = "email_verification_disabled"
