@@ -146,11 +146,11 @@ class OidcService extends APIService {
 	};
 
 	verifyDeviceCode = async (userCode: string, scopes?: string[]) => {
-		return await this.api.post(`/oidc/device/verify?code=${userCode}`, { scopes });
+		return await this.api.post('/oidc/device/verify', { scopes }, { params: { code: userCode } });
 	};
 
 	getDeviceCodeInfo = async (userCode: string): Promise<OidcDeviceCodeInfo> => {
-		const response = await this.api.get(`/oidc/device/info?code=${userCode}`);
+		const response = await this.api.get('/oidc/device/info', { params: { code: userCode } });
 		return response.data;
 	};
 
