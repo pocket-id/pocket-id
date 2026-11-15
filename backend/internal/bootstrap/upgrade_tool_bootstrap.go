@@ -38,16 +38,16 @@ const (
 
 // upgradeToolChecksums holds the SHA-256 checksum of each released gzipped binary of upgradeToolVersion, keyed by GOOS/GOARCH
 var upgradeToolChecksums = map[string]string{
-	"darwin/amd64":  "9245a382fd018278fc57eb301be164bb5bcd743fe15f280f7236f293315560a5",
-	"darwin/arm64":  "78bb470b6fc7a4501bcb82d3bb417a23604d42809666ca8d98ec4d67b8f722e4",
-	"freebsd/amd64": "678ca25a66746f3d79cfcfe12f099c817e81354688248734f76cc73cc14777fe",
-	"freebsd/arm64": "7f0dc1ce9ce848aaed92518bf0f08484dc7b9e38bf936c221cbf8d489f9fbcc9",
-	"linux/amd64":   "b7dab47ede9d3e46d65eca4a7865cc5d2f1727352432064d4b9141232bf44c4b",
-	"linux/arm64":   "c5e46dab3aa172520b1fb1a98a4a2dfa24704b7718145f0d6f89c2021b7d9bfa",
-	"openbsd/amd64": "b712fe5a882c84d5963e47daa6e1b7914c6a020ea927f676ef15239c909107bd",
-	"openbsd/arm64": "9320aef0c4cde0fdad135cc2fec4a52c2099e9056f1583fbb1ce87f6f3d2eed9",
-	"windows/amd64": "e276b2be084600e9cfdfb12bac08d78e4444d8d5e8fb0d65a118401699583316",
-	"windows/arm64": "913808014a67b033d8b7736247422b56e0581ca857a6d64afbd358ee690f1adf",
+	"darwin/amd64":  "55bd1101c08f6fd89661d905eaaaf0b2ef7e11759d49f90fa26ff04b9094cde5",
+	"darwin/arm64":  "183abeeb1c40de46b240aeb2c565f182a8d8827d65b9c4d92e7f41f59f416eaa",
+	"freebsd/amd64": "5e81a6cf46e054e170f0999e108c042330b5dc25b7171d230fafb3e28cbd12e0",
+	"freebsd/arm64": "0a010eff53d2b7d5c3ef6fcc0587b71ca175b62b2f5b783656a3322a9d73d632",
+	"linux/amd64":   "6911634efa136cfc7669f84df9dc531735fd70441d248d6d9ce4397386c117bd",
+	"linux/arm64":   "f1227304420605b498b7b628b0d19c32f43d31fe94fe0e88ae8d664012ad21de",
+	"openbsd/amd64": "e32bcf4efc248f7f821767989c6cc8805fd8cb312400b213d005880dd2d0d90f",
+	"openbsd/arm64": "e5e7018a20cd7ba583bb9eb0e4ef57814a2f0a2191431fd39e753f49d3595550",
+	"windows/amd64": "1751d033385ba7012704712b47fd9d8e6c7f728671dddcb80314ed743d628ce7",
+	"windows/arm64": "e44112998c313004467f6c31a92ccd634db926ec9acb91eb1b79a4b865ebeaab",
 }
 
 // upgradeLegacyDatabase runs the upgrade tool if the database was last used by Pocket ID v1 or v2

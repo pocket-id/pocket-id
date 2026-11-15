@@ -654,9 +654,10 @@ func (s *Service) seedSignupTokens(ctx context.Context) error {
 		return err
 	}
 
-	// Each signup token is its own actor, whose actor ID is the token's value
+	// Each signup token is its own actor, whose actor ID is the token's hash
 	for token, state := range tokens {
-		_, err = s.actors.Service().Invoke(ctx, usersignup.SignupTokenActorType, token, usersignup.SignupTokenMethodCreate, state)
+		state.Prefix = token[:4]
+		_, err = s.actors.Service().Invoke(ctx, usersignup.SignupTokenActorType, utils.CreateSha256Hash(token), usersignup.SignupTokenMethodCreate, state)
 		if err != nil {
 			return fmt.Errorf("failed to seed signup token %q: %w", token, err)
 		}
@@ -707,7 +708,7 @@ func (s *Service) seedOneTimeAccessTokens(ctx context.Context) error {
 		}
 		// Seed through the actor's "restore" method, which sets the state, rather than writing the state directly
 		// If an actor for this token is still active from a previous test, for example one whose token was already consumed, invoking it refreshes its in-memory cache too, whereas a direct state write would leave that cache stale
-		_, err := s.actors.Service().Invoke(ctx, onetimeaccess.TokenActorType, t.token, onetimeaccess.TokenMethodRestore, state)
+		_, err := s.actors.Service().Invoke(ctx, onetimeaccess.TokenActorType, utils.CreateSha256Hash(t.token), onetimeaccess.TokenMethodRestore, state)
 		if err != nil {
 			return fmt.Errorf("failed to seed one-time access token %q: %w", t.token, err)
 		}

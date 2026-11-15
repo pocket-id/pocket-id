@@ -44,7 +44,7 @@ func consumeSignupTokenForTest(t *testing.T, svc *actor.Service, token string) s
 	return out
 }
 
-// listSignupTokenIDsForTest returns the actor IDs (that is, the token values) of every stored signup token
+// listSignupTokenIDsForTest returns the actor IDs of every stored signup token
 func listSignupTokenIDsForTest(t *testing.T, svc *actor.Service) []string {
 	t.Helper()
 	res, err := svc.ListStates(t.Context(), SignupTokenActorType, nil)

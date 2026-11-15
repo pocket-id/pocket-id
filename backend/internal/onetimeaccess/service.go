@@ -174,12 +174,12 @@ func (s *Service) CreateToken(ctx context.Context, userID string, ttl time.Durat
 }
 
 func (s *Service) ExchangeToken(ctx context.Context, dbConfig *appconfig.AppConfigModel, token, deviceToken, ipAddress, userAgent, browserToken string, remember bool) (model.User, model.LoginTokens, error) {
-	token = utils.NormalizeUnambiguousString(token)
+	actorID := utils.CreateSha256Hash(utils.NormalizeUnambiguousString(token))
 
 	// Consume the token by invoking its actor: this atomically validates it and, if valid, deletes it.
 	// It must happen outside of a DB transaction, since invoking an actor while a transaction is open would deadlock on SQLite.
-	res, err := s.actorService.Invoke(ctx, TokenActorType, token, tokenMethodConsume, tokenConsumeRequest{
-		DeviceToken: deviceToken,
+	res, err := s.actorService.Invoke(ctx, TokenActorType, actorID, tokenMethodConsume, tokenConsumeRequest{
+		DeviceToken: utils.CreateSha256Hash(deviceToken),
 	})
 	if err != nil {
 		return model.User{}, model.LoginTokens{}, fmt.Errorf("error invoking one-time access token actor: %w", err)
@@ -203,7 +203,7 @@ func (s *Service) ExchangeToken(ctx context.Context, dbConfig *appconfig.AppConf
 	// The token has now been consumed. From this point on, if we hit an error we compensate by restoring the token (this is best-effort).
 	user, tokens, err := s.completeTokenExchange(ctx, dbConfig, consumeRes.State, ipAddress, userAgent, browserToken, remember)
 	if err != nil {
-		s.restoreToken(ctx, token, consumeRes.State)
+		s.restoreToken(ctx, actorID, consumeRes.State)
 		return model.User{}, model.LoginTokens{}, err
 	}
 
@@ -247,12 +247,12 @@ func (s *Service) completeTokenExchange(ctx context.Context, dbConfig *appconfig
 
 // restoreToken restores a token that was consumed but whose exchange could not be completed.
 // It's a best-effort compensation: if it fails (or the process crashes before it runs) we accept that the token was consumed unnecessarily.
-func (s *Service) restoreToken(parentCtx context.Context, token string, state TokenState) {
+func (s *Service) restoreToken(parentCtx context.Context, actorID string, state TokenState) {
 	// Use a context that is not canceled when the original request ends
 	ctx, cancel := context.WithTimeout(context.WithoutCancel(parentCtx), 10*time.Second)
 	defer cancel()
 
-	_, err := s.actorService.Invoke(ctx, TokenActorType, token, TokenMethodRestore, state)
+	_, err := s.actorService.Invoke(ctx, TokenActorType, actorID, TokenMethodRestore, state)
 	if err != nil {
 		slog.ErrorContext(ctx, "Failed to restore one-time access token after a failed exchange", slog.Any("error", err))
 	}
@@ -270,12 +270,14 @@ func StoreToken(ctx context.Context, store TokenStore, userID string, ttl time.D
 	now := time.Now().Round(time.Second)
 	state := TokenState{
 		UserID:      userID,
-		DeviceToken: deviceToken,
 		ExpiresAt:   now.Add(ttl),
 		ForbidAdmin: forbidAdmin,
 	}
+	if deviceToken != nil {
+		state.DeviceToken = new(utils.CreateSha256Hash(*deviceToken))
+	}
 
-	err = store.SetState(ctx, TokenActorType, token, state, &actor.SetStateOpts{TTL: ttl})
+	err = store.SetState(ctx, TokenActorType, utils.CreateSha256Hash(token), state, &actor.SetStateOpts{TTL: ttl})
 	if err != nil {
 		return "", fmt.Errorf("error saving one-time access token state: %w", err)
 	}

@@ -65,7 +65,8 @@
 	};
 
 	const link = (token: string) => `${page.url.origin}/st/${token}`;
-	const short = (token: string) => `${token.slice(0, 3)}…${token.slice(-4)}`;
+	// Only the prefix of a stored token is known, since the link is shown just once when it is created
+	const short = (token: SignupToken) => `${token.prefix}…`;
 	const formatDate = (date: string | Date) =>
 		new Date(date).toLocaleString(getLocale(), { dateStyle: 'medium', timeStyle: 'short' });
 	const formatDay = (date: string | Date) =>
@@ -135,7 +136,7 @@
 				view = 'list';
 				return;
 			}
-			created = tokens?.find((t) => t.token === token);
+			created = token;
 			view = 'created';
 		} catch (e) {
 			axiosErrorToast(e);
@@ -147,7 +148,7 @@
 	function deleteToken(token: SignupToken) {
 		openConfirmDialog({
 			title: m.delete_this_signup_token(),
-			message: m.delete_signup_token_consequence({ token: short(token.token) }),
+			message: m.delete_signup_token_consequence({ token: short(token) }),
 			confirm: {
 				label: m.delete_token(),
 				destructive: true,
@@ -199,8 +200,7 @@
 									{#if token.sentTo}
 										<span class="text-control text-fg truncate font-medium">{token.sentTo}</span>
 									{:else}
-										<span class="text-mono text-fg font-mono font-medium">{short(token.token)}</span
-										>
+										<span class="text-mono text-fg font-mono font-medium">{short(token)}</span>
 									{/if}
 									<span class="text-caption text-fg-muted truncate">
 										<!-- Phones move the status into this line, so the row keeps its width for the text -->
@@ -227,20 +227,12 @@
 									id={`signup-token-${token.id}`}
 									class="transition-motion flex flex-col items-start gap-4 px-4 pt-1 pb-4 duration-(--dur-base) starting:-translate-y-1 starting:opacity-0"
 								>
-									{#if status.active}
-										<CopyField
-											label={m.signup_link()}
-											value={link(token.token)}
-											copyLabel={m.copy_link()}
-											truncate
-										/>
-									{/if}
 									{@render details(token)}
 									<Button
 										variant="ghost"
 										size="sm"
 										class="-ml-3"
-										aria-label={m.delete_signup_token_name({ token: short(token.token) })}
+										aria-label={m.delete_signup_token_name({ token: short(token) })}
 										onclick={() => deleteToken(token)}
 									>
 										<Trash2Icon />
@@ -306,13 +298,13 @@
 		{:else if created}
 			<div class="flex flex-col gap-5 sm:flex-row sm:items-start">
 				<Qrcode
-					value={link(created.token)}
+					value={link(created.token!)}
 					size={140}
 					class="shrink-0 self-center rounded-sm bg-white p-2 sm:self-start"
 				/>
 				<CopyField
 					label={m.signup_link()}
-					value={link(created.token)}
+					value={link(created.token!)}
 					copyLabel={m.copy_link()}
 					testId="signup-token-link"
 					truncate
@@ -322,6 +314,7 @@
 			<p class="text-caption text-fg-muted flex items-start gap-1.5">
 				<InfoIcon class="mt-[3px] size-3 shrink-0" />
 				{m.signup_link_consequence()}
+				{m.copy_key_now_before_closing()}
 			</p>
 		{/if}
 		{#snippet footer()}

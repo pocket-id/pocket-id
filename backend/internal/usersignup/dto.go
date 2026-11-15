@@ -23,7 +23,8 @@ type signupTokenCreateDto struct {
 
 type signupTokenDto struct {
 	ID         string                    `json:"id"`
-	Token      string                    `json:"token"`
+	Token      string                    `json:"token,omitempty"`
+	Prefix     string                    `json:"prefix"`
 	ExpiresAt  datatype.DateTime         `json:"expiresAt"`
 	UsageLimit int                       `json:"usageLimit"`
 	UsageCount int                       `json:"usageCount"`

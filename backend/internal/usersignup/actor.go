@@ -13,7 +13,7 @@ import (
 )
 
 // Signup tokens are stored entirely in the actor state store.
-// Each token is its own actor, whose actor ID is the token value itself.
+// Each token is its own actor, whose actor ID is the SHA-256 hash of the token, so the state store never holds a usable token
 // The state is persisted with a TTL equal to the token's lifetime, so it's purged automatically when the token expires (there's no separate cleanup job and no expiration alarm).
 // Listing tokens uses ListStates, which only returns states that haven't expired yet.
 
@@ -46,9 +46,11 @@ const (
 )
 
 // SignupTokenState is the persisted state of a signup token actor.
-// The token value itself is the actor's ID, so it isn't repeated here.
+// The hash of the token is the actor's ID, so it isn't repeated here.
 type SignupTokenState struct {
-	ID           string
+	ID string
+	// Prefix is the start of the token, kept in clear text so admins can tell tokens apart
+	Prefix       string
 	UsageLimit   int
 	UsageCount   int
 	UserGroupIDs []string

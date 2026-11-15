@@ -105,7 +105,7 @@ export default class UserService extends APIService {
 			userGroupIds,
 			email
 		});
-		return res.data.token;
+		return res.data as SignupToken;
 	};
 
 	exchangeOneTimeAccessToken = async (token: string) => {

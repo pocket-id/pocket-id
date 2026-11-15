@@ -108,6 +108,22 @@ func TestSignUpConsumesTokenOnSuccess(t *testing.T) {
 	require.Equal(t, 1, signupTokenUsageCount(t, svc, token.ID))
 }
 
+func TestSignupTokenIsStoredOnlyAsHash(t *testing.T) {
+	db := testutils.NewDatabaseForTest(t)
+	svc := newSignupServiceForTest(t, db, fakeUserCreator{})
+
+	created, err := svc.CreateSignupToken(t.Context(), time.Hour, 1, nil, "")
+	require.NoError(t, err)
+
+	// Neither the actor ID nor the listing may reveal the token, only its prefix
+	require.Equal(t, []string{utils.CreateSha256Hash(created.Token)}, listSignupTokenIDsForTest(t, svc.actorService))
+	tokens, _, err := svc.ListSignupTokens(t.Context(), listAllOptions())
+	require.NoError(t, err)
+	require.Len(t, tokens, 1)
+	require.Empty(t, tokens[0].Token)
+	require.Equal(t, created.Token[:signupTokenPrefixLength], tokens[0].Prefix)
+}
+
 func TestSignUpAuditsTokenIDInsteadOfValue(t *testing.T) {
 	db := testutils.NewDatabaseForTest(t)
 	svc := newSignupServiceForTest(t, db, fakeUserCreator{user: model.User{Base: model.Base{ID: "new-user"}}})

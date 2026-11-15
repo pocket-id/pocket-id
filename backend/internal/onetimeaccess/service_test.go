@@ -16,6 +16,7 @@ import (
 	"github.com/pocket-id/pocket-id/backend/internal/auditlogs"
 	"github.com/pocket-id/pocket-id/backend/internal/authz"
 	"github.com/pocket-id/pocket-id/backend/internal/model"
+	"github.com/pocket-id/pocket-id/backend/internal/utils"
 	testutils "github.com/pocket-id/pocket-id/backend/internal/utils/testing"
 )
 
@@ -155,7 +156,7 @@ func TestExchangeTokenSuccess(t *testing.T) {
 
 	// The token must have been consumed
 	var state TokenState
-	err = host.GetState(t.Context(), TokenActorType, token, &state)
+	err = host.GetState(t.Context(), TokenActorType, utils.CreateSha256Hash(token), &state)
 	require.ErrorIs(t, err, actor.ErrStateNotFound)
 
 	// A sign-in audit log must have been created
@@ -172,8 +173,7 @@ func TestExchangeTokenAcceptsAmbiguousAliases(t *testing.T) {
 	}
 	require.NoError(t, db.Create(&user).Error)
 
-	const token = "a10bc2"
-	require.NoError(t, host.SetState(t.Context(), TokenActorType, token, TokenState{
+	require.NoError(t, host.SetState(t.Context(), TokenActorType, utils.CreateSha256Hash("a10bc2"), TokenState{
 		UserID:    user.ID,
 		ExpiresAt: time.Now().Add(time.Minute),
 	}, &actor.SetStateOpts{TTL: time.Minute}))
@@ -215,9 +215,14 @@ func TestExchangeTokenDeviceMismatch(t *testing.T) {
 
 	// The token must not have been consumed on a device-token mismatch
 	var state TokenState
-	err = host.GetState(t.Context(), TokenActorType, token, &state)
+	err = host.GetState(t.Context(), TokenActorType, utils.CreateSha256Hash(token), &state)
 	require.NoError(t, err)
 	require.Equal(t, user.ID, state.UserID)
+
+	// The state store must hold neither the token nor the device token, so reading it doesn't hand out a working login code
+	require.Equal(t, utils.CreateSha256Hash("device-token"), *state.DeviceToken)
+	err = host.GetState(t.Context(), TokenActorType, token, &TokenState{})
+	require.ErrorIs(t, err, actor.ErrStateNotFound)
 }
 
 func TestExchangeTokenRejectsDisabledUser(t *testing.T) {
@@ -244,7 +249,7 @@ func TestExchangeTokenRejectsDisabledUser(t *testing.T) {
 
 	// The token must have been restored (not consumed), since the exchange failed because the user is disabled
 	var state TokenState
-	err = host.GetState(t.Context(), TokenActorType, token, &state)
+	err = host.GetState(t.Context(), TokenActorType, utils.CreateSha256Hash(token), &state)
 	require.NoError(t, err)
 	require.Equal(t, user.ID, state.UserID)
 
