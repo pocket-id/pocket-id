@@ -1,3 +1,14 @@
+## v2.19.3
+
+### Bug Fixes
+
+- require a JSON body to approve a device authorization ([d6a0563](https://github.com/pocket-id/pocket-id/commit/d6a056355a3238b0d0c624d4788e8118dafed7f6) by @Elias Schneider)
+
+### Other
+
+- update vulnerable dependencies ([3a82995](https://github.com/pocket-id/pocket-id/commit/3a829955067567e6dbb30befa56f3070c977a0f7) by @Elias Schneider)
+
+**Full Changelog**: https://github.com/pocket-id/pocket-id/compare/v2.19.2...v2.19.3
 ## v2.19.2
 
 ### Other

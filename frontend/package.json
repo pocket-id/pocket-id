@@ -1,6 +1,6 @@
 {
 	"name": "pocket-id-frontend",
-	"version": "2.19.2",
+	"version": "2.19.3",
 	"private": true,
 	"type": "module",
 	"imports": {
