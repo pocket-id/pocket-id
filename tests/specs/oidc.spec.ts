@@ -915,7 +915,9 @@ test('Device authorization flow forces reauthentication when client requires it'
 	});
 
 	const userCode = await oidcUtil.getUserCode(page, client.id, client.secret);
-	const directVerify = await page.request.post(`/api/oidc/device/verify?code=${userCode}`);
+	const directVerify = await page.request.post(`/api/oidc/device/verify?code=${userCode}`, {
+		data: {}
+	});
 	expect(directVerify.status()).toBe(401);
 
 	let reauthCalled = false;
