@@ -33,7 +33,7 @@
 	let ended: { kind: 'expired' | 'denied' | 'failed'; message?: string } | undefined = $state();
 	let success = $state(false);
 	let pollTimer: ReturnType<typeof setTimeout> | undefined;
-	let copied = $state(false);
+	let copied: 'code' | 'url' | undefined = $state();
 	let copiedTimer: ReturnType<typeof setTimeout> | undefined;
 
 	let now = $state(Date.now());
@@ -49,6 +49,7 @@
 	// The server can end the request before the local countdown does, and a denied code is just as dead
 	const expired = $derived(!!ended || (!!request && secondsLeft === 0));
 	const remaining = $derived(expired ? 0 : (secondsLeft * 1000) / lifetime);
+	const active = $derived(!!request && !expired && !success);
 	const verificationUrl = $derived(request?.verificationUri.replace(/^https?:\/\//, '') ?? '');
 	let requestController: AbortController | undefined;
 
@@ -70,7 +71,6 @@
 			const next = await deviceLoginService.createRequest(controller.signal);
 			// Ignore a response from an attempt replaced while the request was in flight
 			if (requestController !== controller) return;
-			// The old panel stays until the new code arrives, so the card does not collapse in between
 			request = next;
 			ended = undefined;
 			schedulePoll(controller);
@@ -143,11 +143,13 @@
 		clearTimers();
 	}
 
-	async function copyCode() {
-		await navigator.clipboard.writeText(request!.userCode);
-		copied = true;
+	async function copy(what: 'code' | 'url') {
+		await navigator.clipboard.writeText(
+			what === 'code' ? request!.userCode : request!.verificationUri
+		);
+		copied = what;
 		clearTimeout(copiedTimer);
-		copiedTimer = setTimeout(() => (copied = false), 1500);
+		copiedTimer = setTimeout(() => (copied = undefined), 1500);
 	}
 
 	function clearTimers() {
@@ -161,111 +163,119 @@
 	<title>{m.sign_in_with_another_device()}</title>
 </svelte:head>
 
-<SignInWrapper back={'/login/alternative' + page.url.search}>
+{#snippet copyState(done: boolean)}
+	<span class="text-fg-muted grid size-4 shrink-0 *:col-start-1 *:row-start-1" aria-hidden="true">
+		<CopyIcon class={cn('size-4 transition-opacity', done && 'opacity-0')} />
+		<CheckIcon class={cn('size-4 transition-opacity', !done && 'opacity-0')} />
+	</span>
+{/snippet}
+
+{#snippet scan()}
+	<!-- A phone cannot scan its own screen, and on narrow cards this column follows the typing instructions -->
+	<div
+		class="bg-surface-sunken mb-6 flex flex-col items-center gap-4 rounded-xl p-6 text-center max-sm:hidden lg:mb-0 lg:h-full lg:justify-center"
+		out:fade={{ duration: cssMs('--dur-fast') }}
+	>
+		<!-- The ring drains over the code's lifetime -->
+		<div class="relative grid size-58 place-items-center">
+			<svg class="absolute inset-0" viewBox="0 0 232 232" aria-hidden="true">
+				<rect
+					x="2"
+					y="2"
+					width="228"
+					height="228"
+					rx="26"
+					fill="none"
+					stroke="var(--border)"
+					stroke-width="3"
+				/>
+				<rect
+					x="2"
+					y="2"
+					width="228"
+					height="228"
+					rx="26"
+					fill="none"
+					stroke="var(--fg)"
+					stroke-width="3"
+					stroke-linecap="round"
+					pathLength="100"
+					stroke-dasharray="100"
+					stroke-dashoffset={100 * (1 - remaining)}
+					class="transition-[stroke-dashoffset] duration-1000 ease-linear"
+				/>
+			</svg>
+			<Qrcode
+				value={request!.verificationUriComplete}
+				size={144}
+				role="img"
+				aria-label={m.device_login_qr_code()}
+				class="rounded-[18px] p-4"
+			/>
+		</div>
+		<div class="flex max-w-64 flex-col gap-1">
+			<p class="text-heading">{m.device_login_scan_title()}</p>
+			<p class="text-body text-fg-muted">{m.device_login_scan_description()}</p>
+		</div>
+	</div>
+{/snippet}
+
+<SignInWrapper
+	back={'/login/alternative' + page.url.search}
+	wide={active}
+	side={active ? scan : undefined}
+>
 	<AuthTile {success} error={ended?.kind === 'failed'} />
 	<AuthHeading title={success ? m.auth_signed_in() : m.sign_in_with_another_device()}>
 		{#if success}
 			{takingYouMessage(data.redirect)}
-		{:else if ended?.kind === 'expired'}
-			{m.auth_another_device_expired()}
 		{:else if ended?.kind === 'denied'}
 			{m.auth_another_device_denied()}
-		{:else if ended}
+		{:else if ended?.kind === 'failed'}
 			{ended.message}
-		{:else if request}
-			<!-- Phones show only the code, so the subtitle carries the instruction instead of a second line above it -->
-			<span class="max-sm:hidden">{m.auth_use_another_device_description()}</span>
-			<span class="sm:hidden">{m.device_login_go_to({ url: verificationUrl })}</span>
+		{:else if expired}
+			{m.auth_another_device_expired()}
 		{:else}
 			{m.auth_use_another_device_description()}
 		{/if}
 	</AuthHeading>
-	{#if !success}
-		<div
-			class="flex flex-col items-center max-sm:items-stretch"
-			out:fade={{ duration: cssMs('--dur-fast') }}
-		>
-			{#if request}
-				<!-- A phone cannot scan its own screen, so phones get only the code -->
-				<!-- The ring drains over the code's lifetime, as the bar under the code does on phones, so neither needs countdown text -->
-				<!-- It shrinks on short windows so the card fits without scrolling for as long as it can -->
-				<div
-					class="relative mb-6 grid size-(--ring) place-items-center [--ring:clamp(176px,100dvh-630px,232px)] max-sm:hidden"
-				>
-					<svg class="absolute inset-0" viewBox="0 0 232 232" aria-hidden="true">
-						<rect
-							x="2"
-							y="2"
-							width="228"
-							height="228"
-							rx="26"
-							fill="none"
-							stroke="var(--border)"
-							stroke-width="3"
-						/>
-						<rect
-							x="2"
-							y="2"
-							width="228"
-							height="228"
-							rx="26"
-							fill="none"
-							stroke="var(--fg)"
-							stroke-width="3"
-							stroke-linecap="round"
-							pathLength="100"
-							stroke-dasharray="100"
-							stroke-dashoffset={100 * (1 - remaining)}
-							class="transition-[stroke-dashoffset] duration-1000 ease-linear"
-						/>
-					</svg>
-					<Qrcode
-						value={request.verificationUriComplete}
-						size={176}
-						role="img"
-						aria-label={m.device_login_qr_code()}
-						aria-hidden={expired}
-						class={cn(
-							'h-auto w-[calc(var(--ring)-56px)] rounded-[18px] p-4 transition-opacity duration-(--dur-base)',
-							expired && 'opacity-20'
-						)}
-					/>
-				</div>
-				<p class="text-body text-fg-muted mb-3 text-center wrap-anywhere max-sm:hidden">
-					{m.device_login_or_go_to({ url: verificationUrl })}
-				</p>
+	{#if active}
+		<div class="mb-6 flex flex-col gap-5" out:fade={{ duration: cssMs('--dur-fast') }}>
+			<div class="flex flex-col items-start gap-1.5">
+				<p class="text-caption text-fg-muted">{m.device_login_open_on_that_device()}</p>
 				<button
 					type="button"
-					class={cn(
-						'bg-surface-sunken hover:bg-fill-hover inset-ring-border disabled:hover:bg-surface-sunken mb-6 flex items-center justify-center gap-3 rounded-full py-2.5 pr-4 pl-6 font-mono text-2xl font-medium tracking-[0.12em] inset-ring transition-colors disabled:cursor-default max-sm:mb-3 max-sm:rounded-lg max-sm:py-5 max-sm:text-3xl',
-						expired && 'text-fg-muted'
-					)}
-					disabled={expired}
+					class="hover:text-fg-muted text-title flex max-w-full items-center gap-2 text-left font-medium transition-colors"
+					aria-label={m.copy_link()}
+					onclick={() => copy('url')}
+				>
+					<span class="wrap-anywhere">{verificationUrl}</span>
+					{@render copyState(copied === 'url')}
+				</button>
+			</div>
+			<div class="flex flex-col items-start gap-1.5">
+				<p class="text-caption text-fg-muted">{m.device_login_and_enter()}</p>
+				<button
+					type="button"
+					class="hover:text-fg-muted flex items-center gap-3 font-mono text-3xl font-medium tracking-[0.12em] transition-colors"
 					aria-label={m.copy_code()}
-					onclick={copyCode}
+					onclick={() => copy('code')}
 					data-testid="device-login-code"
 				>
-					{request.userCode.slice(0, 4)}–{request.userCode.slice(4)}
-					{#if !expired}
-						<span class="text-fg-muted grid size-4 *:col-start-1 *:row-start-1" aria-hidden="true">
-							<CopyIcon class={cn('size-4 transition-opacity', copied && 'opacity-0')} />
-							<CheckIcon class={cn('size-4 transition-opacity', !copied && 'opacity-0')} />
-						</span>
-					{/if}
+					{request!.userCode.slice(0, 4)}–{request!.userCode.slice(4)}
+					{@render copyState(copied === 'code')}
 				</button>
-				<div class="bg-border mb-6 h-1 overflow-hidden rounded-full sm:hidden" aria-hidden="true">
-					<div
-						class="bg-fg h-full origin-left rounded-full transition-transform duration-1000 ease-linear"
-						style:scale="{remaining} 1"
-					></div>
-				</div>
-				<span class="sr-only" aria-live="polite">{copied ? m.copied() : ''}</span>
-			{/if}
-			{#if expired}
-				<Button class={authPrimaryClass} usePromiseLoading onclick={startRequest}>
-					{ended?.kind === 'denied' ? m.try_again() : m.auth_get_a_new_code()}
-				</Button>
-			{/if}
+			</div>
+			<p class="text-caption text-fg-muted">
+				{m.device_login_expires_in({
+					time: `${Math.floor(secondsLeft / 60)}:${String(secondsLeft % 60).padStart(2, '0')}`
+				})}
+			</p>
 		</div>
+		<span class="sr-only" aria-live="polite">{copied ? m.copied() : ''}</span>
+	{:else if expired && !success}
+		<Button class={authPrimaryClass} usePromiseLoading onclick={startRequest}>
+			{ended?.kind === 'denied' ? m.try_again() : m.auth_get_a_new_code()}
+		</Button>
 	{/if}
 </SignInWrapper>

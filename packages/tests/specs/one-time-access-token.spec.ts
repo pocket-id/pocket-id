@@ -96,7 +96,7 @@ async function setEmailLoginEnabled(browser: Browser) {
 	const page = await context.newPage();
 
 	try {
-		const configResponse = await page.request.get('/api/application-configuration/all');
+		const configResponse = await page.request.get('/api/admin/application-configuration');
 		expect(configResponse.ok()).toBe(true);
 
 		const config = Object.fromEntries(
@@ -106,7 +106,7 @@ async function setEmailLoginEnabled(browser: Browser) {
 		);
 		config.emailOneTimeAccessAsUnauthenticatedEnabled = 'true';
 
-		const updateResponse = await page.request.put('/api/application-configuration', {
+		const updateResponse = await page.request.put('/api/admin/application-configuration', {
 			data: config
 		});
 		expect(updateResponse.ok()).toBe(true);

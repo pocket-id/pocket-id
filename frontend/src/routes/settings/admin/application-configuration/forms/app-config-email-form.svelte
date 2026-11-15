@@ -2,7 +2,7 @@
 	import { openConfirmDialog } from '#lib/components/confirm-dialog/index.ts';
 	import FormInput from '#lib/components/form/form-input.svelte';
 	import SettingRow from '#lib/components/setting-row.svelte';
-	import SettingsSection from '#lib/components/settings-section.svelte';
+	import SettingsCard from '#lib/components/settings-card.svelte';
 	import * as Alert from '@pocket-id/ui/alert';
 	import { Button } from '@pocket-id/ui/button';
 	import { Switch } from '@pocket-id/ui/switch';
@@ -211,8 +211,8 @@
 	</span>
 {/snippet}
 
-<div class="flex min-w-0 flex-col gap-10">
-	<SettingsSection title={m.config_email_addresses()}>
+<div class="flex min-w-0 flex-col gap-4">
+	<SettingsCard title={m.config_email_addresses()}>
 		<fieldset class="contents" disabled={$appConfigStore.uiConfigDisabled}>
 			<SettingRow
 				title={m.config_require_email()}
@@ -260,12 +260,12 @@
 				{/snippet}
 			</SettingRow>
 		</fieldset>
-	</SettingsSection>
+	</SettingsCard>
 
-	<SettingsSection title={m.config_mail_server()} description={m.config_mail_server_description()}>
+	<SettingsCard title={m.config_mail_server()} description={m.config_mail_server_description()}>
 		<fieldset class="contents" disabled={$appConfigStore.uiConfigDisabled}>
 			{#if smtpMissing}
-				<Alert.Root variant="warning" class="mt-2">
+				<Alert.Root variant="warning" class="mt-4">
 					<TriangleAlertIcon />
 					<Alert.Title>{m.config_smtp_missing_title()}</Alert.Title>
 					<Alert.Description>{m.config_smtp_missing_description()}</Alert.Description>
@@ -340,15 +340,15 @@
 			</SettingRow>
 		</fieldset>
 		<!-- Sending changes nothing, so it stays available while the configuration is managed by environment variables -->
-		<div class="flex pt-3">
+		<div class="flex border-t py-4">
 			<Button size="sm" variant="secondary" isLoading={isSendingTestEmail} onclick={onTestEmail}>
 				<SendIcon />
 				{m.send_test_email()}
 			</Button>
 		</div>
-	</SettingsSection>
+	</SettingsCard>
 
-	<SettingsSection title={m.config_emails_app_sends({ appName })}>
+	<SettingsCard title={m.config_emails_app_sends({ appName })}>
 		<fieldset class="contents" disabled={$appConfigStore.uiConfigDisabled}>
 			<SettingRow
 				title={m.config_signin_notifications()}
@@ -401,5 +401,5 @@
 				{/snippet}
 			</SettingRow>
 		</fieldset>
-	</SettingsSection>
+	</SettingsCard>
 </div>

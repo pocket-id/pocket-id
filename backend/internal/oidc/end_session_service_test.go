@@ -11,6 +11,7 @@ import (
 
 	"github.com/lestrrat-go/jwx/v4/jwa"
 	"github.com/lestrrat-go/jwx/v4/jwt"
+	"github.com/pocket-id/fosite"
 	"github.com/stretchr/testify/require"
 
 	"github.com/pocket-id/pocket-id/backend/internal/apperror"
@@ -143,13 +144,13 @@ func TestEndSessionService(t *testing.T) {
 
 	t.Run("missing id_token_hint is rejected", func(t *testing.T) {
 		service, _ := newService(t)
-		_, err := service.endSession(t.Context(), dto.OidcLogoutDto{}, userID)
+		_, err := service.resolve(t.Context(), dto.OidcLogoutDto{}, userID)
 		require.True(t, apperror.IsCode(err, apperror.CodeInvalidToken))
 	})
 
 	t.Run("malformed id_token_hint is rejected", func(t *testing.T) {
 		service, _ := newService(t)
-		_, err := service.endSession(t.Context(), dto.OidcLogoutDto{IdTokenHint: "not-a-jwt"}, userID)
+		_, err := service.resolve(t.Context(), dto.OidcLogoutDto{IdTokenHint: "not-a-jwt"}, userID)
 		require.True(t, apperror.IsCode(err, apperror.CodeInvalidToken))
 	})
 
@@ -163,7 +164,7 @@ func TestEndSessionService(t *testing.T) {
 		signed, err := jwt.Sign(token, jwt.WithKey(jwa.RS256(), otherKey))
 		require.NoError(t, err)
 
-		_, err = service.endSession(t.Context(), dto.OidcLogoutDto{IdTokenHint: string(signed)}, userID)
+		_, err = service.resolve(t.Context(), dto.OidcLogoutDto{IdTokenHint: string(signed)}, userID)
 		require.True(t, apperror.IsCode(err, apperror.CodeInvalidToken))
 	})
 
@@ -172,21 +173,21 @@ func TestEndSessionService(t *testing.T) {
 		// not be accepted as an id_token_hint; only genuine ID tokens carry the type claim.
 		service, _ := newService(t)
 		token := signToken(t, tokenOptions{issuer: baseURL, subject: userID, audience: clientID, jti: jti, omitType: true})
-		_, err := service.endSession(t.Context(), dto.OidcLogoutDto{IdTokenHint: token}, userID)
+		_, err := service.resolve(t.Context(), dto.OidcLogoutDto{IdTokenHint: token}, userID)
 		require.True(t, apperror.IsCode(err, apperror.CodeInvalidToken))
 	})
 
 	t.Run("subject not matching the logged-in user is rejected", func(t *testing.T) {
 		service, _ := newService(t)
 		token := signToken(t, tokenOptions{issuer: baseURL, subject: "someone-else", audience: clientID, jti: jti})
-		_, err := service.endSession(t.Context(), dto.OidcLogoutDto{IdTokenHint: token}, userID)
+		_, err := service.resolve(t.Context(), dto.OidcLogoutDto{IdTokenHint: token}, userID)
 		require.True(t, apperror.IsCode(err, apperror.CodeInvalidToken))
 	})
 
 	t.Run("client_id parameter not matching the token audience is rejected", func(t *testing.T) {
 		service, _ := newService(t)
 		token := signToken(t, validToken)
-		_, err := service.endSession(t.Context(), dto.OidcLogoutDto{IdTokenHint: token, ClientId: "different-client"}, userID)
+		_, err := service.resolve(t.Context(), dto.OidcLogoutDto{IdTokenHint: token, ClientId: "different-client"}, userID)
 		require.True(t, apperror.IsCode(err, apperror.CodeOidcClientIDNotMatching))
 	})
 
@@ -194,14 +195,14 @@ func TestEndSessionService(t *testing.T) {
 		service, _ := newService(t)
 		// A valid token for a user that has no authorization record for the client.
 		token := signToken(t, tokenOptions{issuer: baseURL, subject: "ghost-user", audience: clientID, jti: jti})
-		_, err := service.endSession(t.Context(), dto.OidcLogoutDto{IdTokenHint: token}, "ghost-user")
+		_, err := service.resolve(t.Context(), dto.OidcLogoutDto{IdTokenHint: token}, "ghost-user")
 		require.True(t, apperror.IsCode(err, apperror.CodeOidcMissingAuthorization))
 	})
 
 	t.Run("unregistered post_logout_redirect_uri is rejected", func(t *testing.T) {
 		service, _ := newService(t)
 		token := signToken(t, validToken)
-		_, err := service.endSession(t.Context(), dto.OidcLogoutDto{
+		_, err := service.resolve(t.Context(), dto.OidcLogoutDto{
 			IdTokenHint:           token,
 			PostLogoutRedirectUri: "https://evil.example/steal",
 		}, userID)
@@ -216,8 +217,10 @@ func TestEndSessionService(t *testing.T) {
 		require.NoError(t, store.CreateAccessTokenSession(t.Context(), "at-sig", newTestRequester("logout-req", clientID, userID, jti)))
 
 		token := signToken(t, validToken)
-		callback, err := service.endSession(t.Context(), dto.OidcLogoutDto{IdTokenHint: token}, userID)
+		req, err := service.resolve(t.Context(), dto.OidcLogoutDto{IdTokenHint: token}, userID)
 		require.NoError(t, err)
+		require.NoError(t, service.revokeClientGrant(t.Context(), req))
+		callback := req.callbackURL
 		require.Equal(t, "https://app.example/logout", callback)
 
 		var refresh OAuth2Session
@@ -240,8 +243,10 @@ func TestEndSessionService(t *testing.T) {
 		require.NoError(t, store.CreateAccessTokenSession(t.Context(), "at-other", newTestRequester("other-req", clientID, userID, "other-id-token-jti")))
 
 		token := signToken(t, validToken)
-		callback, err := service.endSession(t.Context(), dto.OidcLogoutDto{IdTokenHint: token}, userID)
+		req, err := service.resolve(t.Context(), dto.OidcLogoutDto{IdTokenHint: token}, userID)
 		require.NoError(t, err)
+		require.NoError(t, service.revokeClientGrant(t.Context(), req))
+		callback := req.callbackURL
 		require.Equal(t, "https://app.example/logout", callback)
 
 		var matchingRefresh OAuth2Session
@@ -274,8 +279,10 @@ func TestEndSessionService(t *testing.T) {
 		require.NoError(t, store.CreateAccessTokenSession(t.Context(), "at-no-session", newTestRequester("logout-req", clientID, userID, jti)))
 
 		token := signToken(t, validToken)
-		callback, err := service.endSession(t.Context(), dto.OidcLogoutDto{IdTokenHint: token}, "")
+		req, err := service.resolve(t.Context(), dto.OidcLogoutDto{IdTokenHint: token}, "")
 		require.NoError(t, err)
+		require.NoError(t, service.revokeClientGrant(t.Context(), req))
+		callback := req.callbackURL
 		require.Equal(t, "https://app.example/logout", callback)
 
 		var refresh OAuth2Session
@@ -292,11 +299,26 @@ func TestEndSessionService(t *testing.T) {
 	t.Run("valid logout honors a registered post_logout_redirect_uri", func(t *testing.T) {
 		service, _ := newService(t)
 		token := signToken(t, validToken)
-		callback, err := service.endSession(t.Context(), dto.OidcLogoutDto{
+		req, err := service.resolve(t.Context(), dto.OidcLogoutDto{
 			IdTokenHint:           token,
 			PostLogoutRedirectUri: "https://app.example/logout",
 		}, userID)
 		require.NoError(t, err)
-		require.Equal(t, "https://app.example/logout", callback)
+		require.Equal(t, "https://app.example/logout", req.callbackURL)
+	})
+
+	t.Run("valid logout keeps the client's offline_access grant", func(t *testing.T) {
+		service, store := newService(t)
+		requester := newTestRequester("offline-req", clientID, userID, jti).(*fosite.Request)
+		requester.GrantedScope = append(requester.GrantedScope, "offline_access")
+		require.NoError(t, store.CreateRefreshTokenSession(t.Context(), "rt-offline", "", requester))
+
+		req, err := service.resolve(t.Context(), dto.OidcLogoutDto{IdTokenHint: signToken(t, validToken)}, userID)
+		require.NoError(t, err)
+		require.NoError(t, service.revokeClientGrant(t.Context(), req))
+
+		var refresh OAuth2Session
+		require.NoError(t, service.db.First(&refresh, "kind = ? AND key = ?", sessionKindRefreshToken, "rt-offline").Error)
+		require.True(t, refresh.Active)
 	})
 }

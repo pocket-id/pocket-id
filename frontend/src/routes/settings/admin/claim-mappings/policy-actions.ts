@@ -29,11 +29,9 @@ export async function duplicatePolicy(policy: PolicyRef) {
 	}
 }
 
-// The update replaces the whole policy, so the saved claims are read first and sent back unchanged
 export async function makeDefaultPolicy(policy: PolicyRef) {
 	try {
-		const saved = await policyService.getClaimMappingPolicy(policy.id);
-		await policyService.updateClaimMappingPolicy(policy.id, { ...saved, isDefault: true });
+		await policyService.updateClaimMappingPolicy(policy.id, { isDefault: true });
 		toast.success(m.name_is_now_the_default({ name: policy.name }), {
 			description: m.apps_without_a_policy_use_it()
 		});

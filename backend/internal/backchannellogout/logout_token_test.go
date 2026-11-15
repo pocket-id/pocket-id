@@ -22,7 +22,8 @@ func TestGenerateLogoutToken(t *testing.T) {
 	key, err := signingkey.Load(t.Context(), db, &common.EnvConfigSchema{EncryptionKey: []byte("0123456789abcdef0123456789abcdef")}, instanceID)
 	require.NoError(t, err)
 
-	signed, err := NewTokenSigner(key, "https://test.example.com").GenerateLogoutToken("user-id", "client-id")
+	signer := NewTokenSigner(key, "https://test.example.com")
+	signed, err := signer.GenerateLogoutToken("user-id", "client-id", "session-id")
 	require.NoError(t, err)
 
 	// The spec requires the typ header, and clients pick the verification key from the JWKS by the key ID
@@ -49,6 +50,8 @@ func TestGenerateLogoutToken(t *testing.T) {
 	assert.Equal(t, "https://test.example.com", issuer)
 	jti, _ := token.JwtID()
 	assert.NotEmpty(t, jti)
+	sessionID, _ := jwt.Get[string](token, "sid")
+	assert.Equal(t, "session-id", sessionID)
 
 	events, err := jwt.Get[map[string]any](token, "events")
 	require.NoError(t, err)
@@ -56,4 +59,11 @@ func TestGenerateLogoutToken(t *testing.T) {
 
 	// The spec forbids a nonce claim in logout tokens
 	assert.False(t, token.Has("nonce"))
+
+	// Without a session the token tells the client to end every session of the user
+	signed, err = signer.GenerateLogoutToken("user-id", "client-id", "")
+	require.NoError(t, err)
+	token, err = jwt.ParseString(signed, jwt.WithValidate(true), jwt.WithKeySet(jwks))
+	require.NoError(t, err)
+	assert.False(t, token.Has("sid"))
 }

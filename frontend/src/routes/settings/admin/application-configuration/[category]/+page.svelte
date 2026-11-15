@@ -23,13 +23,13 @@
 
 	let { data } = $props();
 
-	// Each save replaces it with the server's response, so the next save of the same tab merges into current values
+	// Each save replaces it with the server's response, so the forms show the saved values
 	let appConfig = $derived(data.appConfig);
 
 	const appConfigService = new AppConfigService();
 
 	async function updateAppConfig(updatedAppConfig: Partial<AllAppConfig>) {
-		appConfig = await appConfigService.update({ ...appConfig, ...updatedAppConfig });
+		appConfig = await appConfigService.update(updatedAppConfig);
 		appConfigStore.set({ ...$appConfigStore, ...appConfig });
 	}
 
@@ -160,7 +160,7 @@
 
 		<Tabs.Content value={data.category}>
 			{#key data.category}
-				<div class="mt-6 flex flex-col gap-10" in:fade={{ duration: cssMs('--dur-base') }}>
+				<div class="mt-8 flex flex-col gap-4" in:fade={{ duration: cssMs('--dur-base') }}>
 					{#if data.category === 'general'}
 						<AppConfigGeneralForm
 							{appConfig}

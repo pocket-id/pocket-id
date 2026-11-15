@@ -95,7 +95,7 @@
 		{#each surfaceRoles as role (role.value)}
 			{@render colorRow(
 				role.value,
-				role.label,
+				role.value === 'sidebar' && appearance.value.layout === 'top-bar' ? 'Top Bar' : role.label,
 				undefined,
 				surfaces[role.value],
 				greys(role.value),

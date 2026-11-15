@@ -6,6 +6,7 @@ import (
 	"net/http/httptest"
 	"strconv"
 	"strings"
+	"sync"
 	"testing"
 	"time"
 
@@ -15,6 +16,8 @@ import (
 	"gorm.io/gorm"
 
 	"github.com/pocket-id/pocket-id/backend/internal/apperror"
+	"github.com/pocket-id/pocket-id/backend/internal/auditlogs"
+	"github.com/pocket-id/pocket-id/backend/internal/authz"
 	"github.com/pocket-id/pocket-id/backend/internal/claimmappingpolicy"
 	"github.com/pocket-id/pocket-id/backend/internal/common"
 	"github.com/pocket-id/pocket-id/backend/internal/dto"
@@ -27,7 +30,7 @@ import (
 )
 
 func TestListAuthorizedClientsRejectsMissingUser(t *testing.T) {
-	service := &clientService{db: testutils.NewDatabaseForTest(t)}
+	service := &clientService{db: testutils.NewDatabaseForTest(t), auditLog: &fakeAuditLogger{}}
 
 	_, _, err := service.ListAuthorizedClients(t.Context(), "missing-user", "", utils.ListRequestOptions{})
 
@@ -65,8 +68,8 @@ func TestClientService_DeleteClientDeletesOAuth2Sessions(t *testing.T) {
 		RequestData: `{"client_id":"other-client","session":{"subject":"test-user"}}`,
 	}).Error)
 
-	service := &clientService{db: db}
-	require.NoError(t, service.DeleteClient(t.Context(), client.ID))
+	service := &clientService{db: db, auditLog: &fakeAuditLogger{}}
+	require.NoError(t, service.DeleteClient(t.Context(), client.ID, auditlogs.Origin{}))
 
 	var deletedClientSessionCount int64
 	require.NoError(t, db.Model(&OAuth2Session{}).Where("client_id = ?", client.ID).Count(&deletedClientSessionCount).Error)
@@ -89,13 +92,32 @@ func TestClientService_RevokeAuthorizedClientRevokesAccessTokenWithoutRefreshTok
 	require.NoError(t, store.CreateAccessTokenSession(t.Context(), "revoked-access", newTestRequester("revoked-request", clientID, "revoking-user", "")))
 	require.NoError(t, store.CreateAccessTokenSession(t.Context(), "other-access", newTestRequester("other-request", clientID, "other-user", "")))
 
-	service := &clientService{db: db}
-	require.NoError(t, service.RevokeAuthorizedClient(t.Context(), "revoking-user", clientID))
+	service := &clientService{db: db, auditLog: &fakeAuditLogger{}}
+	require.NoError(t, service.RevokeAuthorizedClient(t.Context(), "revoking-user", clientID, auditlogs.Origin{}))
 
 	_, err := store.GetAccessTokenSession(t.Context(), "revoked-access", nil)
 	require.ErrorIs(t, err, fosite.ErrNotFound)
 	_, err = store.GetAccessTokenSession(t.Context(), "other-access", nil)
 	require.NoError(t, err, "another user's access token must stay valid")
+}
+
+func TestClientService_RevokeAuthorizedClientDeletesInteractionSessions(t *testing.T) {
+	db := testutils.NewDatabaseForTest(t)
+	const (
+		clientID = "revoked-client"
+		userID   = "revoking-user"
+	)
+	require.NoError(t, db.Create(&model.OidcClient{Base: model.Base{ID: clientID}, Name: "Client"}).Error)
+	require.NoError(t, db.Create(&model.User{Base: model.Base{ID: userID}, Username: userID}).Error)
+	require.NoError(t, db.Create(&model.UserAuthorizedOidcClient{UserID: userID, ClientID: clientID}).Error)
+	require.NoError(t, db.Create(&InteractionSession{ClientID: clientID, UserID: new(userID)}).Error)
+
+	service := &clientService{db: db, auditLog: &fakeAuditLogger{}}
+	require.NoError(t, service.RevokeAuthorizedClient(t.Context(), userID, clientID, auditlogs.Origin{}))
+
+	var count int64
+	require.NoError(t, db.Model(&InteractionSession{}).Count(&count).Error)
+	require.Zero(t, count, "a finished interaction must not be resumable after the user revoked the client")
 }
 
 func TestClientService_RefreshClientMetadataReturnsNotFoundForMissingClient(t *testing.T) {
@@ -573,64 +595,19 @@ func TestClientService_downloadAndSaveLogoFromURL(t *testing.T) {
 	})
 }
 
-func TestClientService_CreateClient_withDescription(t *testing.T) {
-	db := testutils.NewDatabaseForTest(t)
-
-	s := &clientService{db: db}
-
-	description := "A test client description"
-	input := dto.OidcClientCreateDto{
-		OidcClientUpdateDto: dto.OidcClientUpdateDto{
-			Name:         "Test Client",
-			Description:  description,
-			CallbackURLs: []string{"https://example.com/callback"},
-		},
-	}
-
-	client, _, err := s.CreateClient(t.Context(), input, "user-id", true)
-	require.NoError(t, err)
-
-	var fetched model.OidcClient
-	err = db.First(&fetched, "id = ?", client.ID).Error
-	require.NoError(t, err)
-	require.NotEmpty(t, fetched.Description)
-	assert.Equal(t, description, fetched.Description)
-}
-
 func TestClientService_CreateClient_byClientActingForItself(t *testing.T) {
 	db := testutils.NewDatabaseForTest(t)
 	require.NoError(t, db.Exec("PRAGMA foreign_keys = ON").Error)
 
-	s := &clientService{db: db}
+	s := &clientService{db: db, auditLog: &fakeAuditLogger{}}
 
 	input := dto.OidcClientCreateDto{OidcClientUpdateDto: dto.OidcClientUpdateDto{Name: "Provisioned Client"}}
-	client, _, err := s.CreateClient(t.Context(), input, "", true)
+	client, _, err := s.CreateClient(t.Context(), input, auditlogs.Origin{}, true)
 	require.NoError(t, err)
 
 	var fetched model.OidcClient
 	require.NoError(t, db.First(&fetched, "id = ?", client.ID).Error)
 	assert.Nil(t, fetched.CreatedByID)
-}
-
-func TestClientService_CreateClient_withoutDescription(t *testing.T) {
-	db := testutils.NewDatabaseForTest(t)
-
-	s := &clientService{db: db}
-
-	input := dto.OidcClientCreateDto{
-		OidcClientUpdateDto: dto.OidcClientUpdateDto{
-			Name:         "Test Client",
-			CallbackURLs: []string{"https://example.com/callback"},
-		},
-	}
-
-	client, _, err := s.CreateClient(t.Context(), input, "user-id", true)
-	require.NoError(t, err)
-
-	var fetched model.OidcClient
-	err = db.First(&fetched, "id = ?", client.ID).Error
-	require.NoError(t, err)
-	assert.Empty(t, fetched.Description)
 }
 
 func TestClientService_CreateClient_initialSecret(t *testing.T) {
@@ -646,7 +623,7 @@ func TestClientService_CreateClient_initialSecret(t *testing.T) {
 	} {
 		t.Run(test.name, func(t *testing.T) {
 			db := testutils.NewDatabaseForTest(t)
-			s := &clientService{db: db}
+			s := &clientService{db: db, auditLog: &fakeAuditLogger{}}
 			input := dto.OidcClientCreateDto{
 				OidcClientUpdateDto: dto.OidcClientUpdateDto{
 					Name:     "Test Client",
@@ -654,7 +631,7 @@ func TestClientService_CreateClient_initialSecret(t *testing.T) {
 				},
 			}
 
-			client, value, err := s.CreateClient(t.Context(), input, "user-id", test.autoCreateSecret)
+			client, value, err := s.CreateClient(t.Context(), input, auditlogs.Origin{Principal: authz.Principal{UserID: "user-id"}}, test.autoCreateSecret)
 			require.NoError(t, err)
 
 			var fetched model.OidcClient
@@ -705,7 +682,7 @@ func TestClientService_CreateClient_tokenLifetimes(t *testing.T) {
 		t.Run(test.name, func(t *testing.T) {
 			db := testutils.NewDatabaseForTest(t)
 
-			s := &clientService{db: db}
+			s := &clientService{db: db, auditLog: &fakeAuditLogger{}}
 
 			input := dto.OidcClientCreateDto{
 				OidcClientUpdateDto: dto.OidcClientUpdateDto{
@@ -716,7 +693,7 @@ func TestClientService_CreateClient_tokenLifetimes(t *testing.T) {
 				},
 			}
 
-			client, _, err := s.CreateClient(t.Context(), input, "user-id", true)
+			client, _, err := s.CreateClient(t.Context(), input, auditlogs.Origin{Principal: authz.Principal{UserID: "user-id"}}, true)
 			require.NoError(t, err)
 
 			var fetched model.OidcClient
@@ -731,7 +708,7 @@ func TestClientService_CreateClient_tokenLifetimes(t *testing.T) {
 func TestClientService_UpdateClient_tokenLifetimes(t *testing.T) {
 	db := testutils.NewDatabaseForTest(t)
 
-	s := &clientService{db: db}
+	s := &clientService{db: db, auditLog: &fakeAuditLogger{}}
 
 	client := model.OidcClient{
 		Name:                        "Test Client",
@@ -746,7 +723,7 @@ func TestClientService_UpdateClient_tokenLifetimes(t *testing.T) {
 		Name:         "Test Client",
 		CallbackURLs: []string{"https://example.com/callback"},
 	}
-	_, err := s.UpdateClient(t.Context(), client.ID, input)
+	_, err := s.UpdateClient(t.Context(), client.ID, dto.Replace(input), auditlogs.Origin{})
 	require.NoError(t, err)
 
 	var fetched model.OidcClient
@@ -756,7 +733,7 @@ func TestClientService_UpdateClient_tokenLifetimes(t *testing.T) {
 
 	// Providing only one of them leaves the other at its default
 	input.AccessTokenDurationMinutes = 3 * 60
-	_, err = s.UpdateClient(t.Context(), client.ID, input)
+	_, err = s.UpdateClient(t.Context(), client.ID, dto.Replace(input), auditlogs.Origin{})
 	require.NoError(t, err)
 
 	require.NoError(t, db.First(&fetched, "id = ?", client.ID).Error)
@@ -764,10 +741,50 @@ func TestClientService_UpdateClient_tokenLifetimes(t *testing.T) {
 	assert.Equal(t, model.DefaultRefreshTokenDurationMinutes, fetched.RefreshTokenDurationMinutes)
 }
 
+// Every PATCH merges onto the client it locked, so concurrent PATCHes of different fields keep each other's changes
+func TestClientService_UpdateClient_concurrentPatches(t *testing.T) {
+	forEachTestDatabase(t, func(t *testing.T, db *gorm.DB) {
+		s := &clientService{db: db, auditLog: &fakeAuditLogger{}}
+		client := model.OidcClient{Name: "Test Client", CallbackURLs: datatype.StringList{"https://example.com/callback"}}
+		require.NoError(t, db.Create(&client).Error)
+
+		patches := []string{
+			`{"notes":"changed"}`,
+			`{"skipConsent":true}`,
+			`{"launchURL":"https://example.com"}`,
+			`{"pkceEnabled":true}`,
+			`{"requiresReauthentication":true}`,
+		}
+		var wg sync.WaitGroup
+		for _, body := range patches {
+			wg.Go(func() {
+				var patch any
+				err := dto.DecodeJSON(strings.NewReader(body), &patch)
+				if err == nil {
+					_, err = s.UpdateClient(t.Context(), client.ID, dto.MergePatch[dto.OidcClientUpdateDto](patch), auditlogs.Origin{})
+				}
+				if err != nil {
+					t.Error(err)
+				}
+			})
+		}
+		wg.Wait()
+
+		var fetched model.OidcClient
+		require.NoError(t, db.First(&fetched, "id = ?", client.ID).Error)
+		assert.Equal(t, "changed", fetched.Notes)
+		assert.True(t, fetched.SkipConsent)
+		require.NotNil(t, fetched.LaunchURL)
+		assert.Equal(t, "https://example.com", *fetched.LaunchURL)
+		assert.True(t, fetched.PkceEnabled)
+		assert.True(t, fetched.RequiresReauthentication)
+	})
+}
+
 func TestClientService_CreateClientSecret_withCustomSecret(t *testing.T) {
 	db := testutils.NewDatabaseForTest(t)
 
-	s := &clientService{db: db}
+	s := &clientService{db: db, auditLog: &fakeAuditLogger{}}
 
 	client := model.OidcClient{Name: "Test Client"}
 	err := db.Create(&client).Error
@@ -776,7 +793,7 @@ func TestClientService_CreateClientSecret_withCustomSecret(t *testing.T) {
 	customSecret := "custom-client-secret-with-a-minimum-length"
 	input := dto.OidcClientSecretCreateDto{Secret: customSecret}
 
-	created, secret, err := s.CreateClientSecret(t.Context(), client.ID, input)
+	created, secret, err := s.CreateClientSecret(t.Context(), client.ID, input, auditlogs.Origin{})
 	require.NoError(t, err)
 	assert.Equal(t, customSecret, secret)
 	assert.Equal(t, "cust", created.Prefix)
@@ -795,17 +812,17 @@ func TestClientService_CreateClientSecret_withCustomSecret(t *testing.T) {
 func TestClientService_CreateClientSecret_multipleSecrets(t *testing.T) {
 	db := testutils.NewDatabaseForTest(t)
 
-	s := &clientService{db: db}
+	s := &clientService{db: db, auditLog: &fakeAuditLogger{}}
 
 	client := model.OidcClient{Name: "Test Client"}
 	err := db.Create(&client).Error
 	require.NoError(t, err)
 
 	// Adding a second secret leaves the first one in place
-	first, _, err := s.CreateClientSecret(t.Context(), client.ID, dto.OidcClientSecretCreateDto{})
+	first, _, err := s.CreateClientSecret(t.Context(), client.ID, dto.OidcClientSecretCreateDto{}, auditlogs.Origin{})
 	require.NoError(t, err)
 	expiresAt := datatype.DateTime(time.Now().Add(24 * time.Hour))
-	second, _, err := s.CreateClientSecret(t.Context(), client.ID, dto.OidcClientSecretCreateDto{ExpiresAt: &expiresAt})
+	second, _, err := s.CreateClientSecret(t.Context(), client.ID, dto.OidcClientSecretCreateDto{ExpiresAt: &expiresAt}, auditlogs.Origin{})
 	require.NoError(t, err)
 
 	secrets, err := s.ListClientSecrets(t.Context(), client.ID)
@@ -816,7 +833,7 @@ func TestClientService_CreateClientSecret_multipleSecrets(t *testing.T) {
 	assert.Equal(t, expiresAt.ToTime().Unix(), secrets[1].ExpiresAt.ToTime().Unix())
 
 	// Deleting one secret keeps the other usable
-	err = s.DeleteClientSecret(t.Context(), client.ID, first.ID)
+	err = s.DeleteClientSecret(t.Context(), client.ID, first.ID, auditlogs.Origin{})
 	require.NoError(t, err)
 
 	secrets, err = s.ListClientSecrets(t.Context(), client.ID)
@@ -825,46 +842,46 @@ func TestClientService_CreateClientSecret_multipleSecrets(t *testing.T) {
 	assert.Equal(t, second.ID, secrets[0].ID)
 
 	// Deleting an unknown secret is reported as not found
-	err = s.DeleteClientSecret(t.Context(), client.ID, first.ID)
+	err = s.DeleteClientSecret(t.Context(), client.ID, first.ID, auditlogs.Origin{})
 	require.Error(t, err)
 }
 
 func TestClientService_CreateClientSecret_expirationInThePast(t *testing.T) {
 	db := testutils.NewDatabaseForTest(t)
 
-	s := &clientService{db: db}
+	s := &clientService{db: db, auditLog: &fakeAuditLogger{}}
 
 	client := model.OidcClient{Name: "Test Client"}
 	err := db.Create(&client).Error
 	require.NoError(t, err)
 
 	expiresAt := datatype.DateTime(time.Now().Add(-time.Minute))
-	_, _, err = s.CreateClientSecret(t.Context(), client.ID, dto.OidcClientSecretCreateDto{ExpiresAt: &expiresAt})
+	_, _, err = s.CreateClientSecret(t.Context(), client.ID, dto.OidcClientSecretCreateDto{ExpiresAt: &expiresAt}, auditlogs.Origin{})
 	require.Error(t, err)
 }
 
 func TestClientService_CreateClientSecret_limit(t *testing.T) {
 	db := testutils.NewDatabaseForTest(t)
 
-	s := &clientService{db: db}
+	s := &clientService{db: db, auditLog: &fakeAuditLogger{}}
 
 	client := model.OidcClient{Name: "Test Client"}
 	err := db.Create(&client).Error
 	require.NoError(t, err)
 
 	for range model.MaxOidcClientSecrets {
-		_, _, err = s.CreateClientSecret(t.Context(), client.ID, dto.OidcClientSecretCreateDto{})
+		_, _, err = s.CreateClientSecret(t.Context(), client.ID, dto.OidcClientSecretCreateDto{}, auditlogs.Origin{})
 		require.NoError(t, err)
 	}
 
-	_, _, err = s.CreateClientSecret(t.Context(), client.ID, dto.OidcClientSecretCreateDto{})
+	_, _, err = s.CreateClientSecret(t.Context(), client.ID, dto.OidcClientSecretCreateDto{}, auditlogs.Origin{})
 	require.Error(t, err)
 }
 
 func TestClientService_CreateClientSecret_preservesFederatedIdentities(t *testing.T) {
 	db := testutils.NewDatabaseForTest(t)
 
-	s := &clientService{db: db}
+	s := &clientService{db: db, auditLog: &fakeAuditLogger{}}
 
 	client := model.OidcClient{
 		Name:         "Test Client",
@@ -876,17 +893,18 @@ func TestClientService_CreateClientSecret_preservesFederatedIdentities(t *testin
 	err := db.Create(&client).Error
 	require.NoError(t, err)
 
-	_, _, err = s.CreateClientSecret(t.Context(), client.ID, dto.OidcClientSecretCreateDto{})
+	_, _, err = s.CreateClientSecret(t.Context(), client.ID, dto.OidcClientSecretCreateDto{}, auditlogs.Origin{})
 	require.NoError(t, err)
 
 	// Updating the client must not drop the secrets managed by the dedicated endpoints
-	_, err = s.UpdateClient(t.Context(), client.ID, dto.OidcClientUpdateDto{
+	_, err = s.UpdateClient(t.Context(), client.ID, dto.Replace(dto.OidcClientUpdateDto{
 		Name:         "Test Client",
 		CallbackURLs: []string{"https://example.com/callback"},
 		Credentials: dto.OidcClientCredentialsDto{
 			FederatedIdentities: []dto.OidcClientFederatedIdentityDto{{Issuer: "https://other.example.com"}},
 		},
-	})
+	}), auditlogs.Origin{})
+
 	require.NoError(t, err)
 
 	var fetched model.OidcClient
@@ -896,50 +914,10 @@ func TestClientService_CreateClientSecret_preservesFederatedIdentities(t *testin
 	assert.Equal(t, "https://other.example.com", fetched.Credentials.FederatedIdentities[0].Issuer)
 }
 
-func TestClientService_UpdateClient_description(t *testing.T) {
-	db := testutils.NewDatabaseForTest(t)
-
-	s := &clientService{db: db}
-
-	// Create a client without a description
-	client := model.OidcClient{
-		Name:         "Test Client",
-		CallbackURLs: datatype.StringList{"https://example.com/callback"},
-	}
-	err := db.Create(&client).Error
-	require.NoError(t, err)
-
-	// Update with a description
-	description := "Updated description"
-	input := dto.OidcClientUpdateDto{
-		Name:         "Test Client",
-		Description:  description,
-		CallbackURLs: []string{"https://example.com/callback"},
-	}
-
-	_, err = s.UpdateClient(t.Context(), client.ID, input)
-	require.NoError(t, err)
-
-	var fetched model.OidcClient
-	err = db.First(&fetched, "id = ?", client.ID).Error
-	require.NoError(t, err)
-	require.NotEmpty(t, fetched.Description)
-	assert.Equal(t, description, fetched.Description)
-
-	// Update to clear the description
-	input.Description = ""
-	_, err = s.UpdateClient(t.Context(), client.ID, input)
-	require.NoError(t, err)
-
-	err = db.First(&fetched, "id = ?", client.ID).Error
-	require.NoError(t, err)
-	assert.Empty(t, fetched.Description)
-}
-
 func TestClientService_UpdateClient_CIMDPreservesMetadataFields(t *testing.T) {
 	db := testutils.NewDatabaseForTest(t)
 
-	s := &clientService{db: db}
+	s := &clientService{db: db, auditLog: &fakeAuditLogger{}}
 
 	client := model.OidcClient{
 		Name:               "Metadata Client",
@@ -964,7 +942,7 @@ func TestClientService_UpdateClient_CIMDPreservesMetadataFields(t *testing.T) {
 	refreshDuration := int64(7 * 24 * 60)
 	input := dto.OidcClientUpdateDto{
 		Name:                                "Overridden Client",
-		Description:                         "Locally managed description",
+		Notes:                               "Locally managed notes",
 		CallbackURLs:                        []string{"https://override.example.com/callback"},
 		LogoutCallbackURLs:                  []string{"https://override.example.com/logout"},
 		IsPublic:                            false,
@@ -986,7 +964,7 @@ func TestClientService_UpdateClient_CIMDPreservesMetadataFields(t *testing.T) {
 		},
 	}
 
-	_, err := s.UpdateClient(t.Context(), client.ID, input)
+	_, err := s.UpdateClient(t.Context(), client.ID, dto.Replace(input), auditlogs.Origin{})
 	require.NoError(t, err)
 
 	var fetched model.OidcClient
@@ -997,7 +975,7 @@ func TestClientService_UpdateClient_CIMDPreservesMetadataFields(t *testing.T) {
 	assert.Equal(t, client.IsPublic, fetched.IsPublic)
 	assert.Equal(t, client.PkceEnabled, fetched.PkceEnabled)
 	assert.Equal(t, client.Credentials, fetched.Credentials)
-	assert.Equal(t, input.Description, fetched.Description)
+	assert.Equal(t, input.Notes, fetched.Notes)
 	assert.Equal(t, input.RequiresReauthentication, fetched.RequiresReauthentication)
 	assert.Equal(t, input.RequiresPushedAuthorizationRequests, fetched.RequiresPushedAuthorizationRequests)
 	assert.Equal(t, input.SkipConsent, fetched.SkipConsent)
@@ -1012,7 +990,7 @@ func TestClientService_UpdateClient_CIMDPreservesMetadataFields(t *testing.T) {
 func TestClientService_UpdateClient_CIMDDoesNotOverwriteConcurrentMetadataRefresh(t *testing.T) {
 	db := testutils.NewDatabaseForTest(t)
 
-	s := &clientService{db: db}
+	s := &clientService{db: db, auditLog: &fakeAuditLogger{}}
 
 	client := model.OidcClient{
 		Name:         "Original metadata name",
@@ -1024,27 +1002,27 @@ func TestClientService_UpdateClient_CIMDDoesNotOverwriteConcurrentMetadataRefres
 	// Simulate metadata refresh changing a document-owned column after the admin request read its snapshot
 	require.NoError(t, db.Exec(`
 		CREATE TRIGGER refresh_metadata_before_admin_update
-		BEFORE UPDATE OF description ON oidc_clients
+		BEFORE UPDATE OF notes ON oidc_clients
 		BEGIN
 			UPDATE oidc_clients SET name = 'Refreshed metadata name' WHERE id = OLD.id;
 		END;
 	`).Error)
 
 	input := dto.OidcClientUpdateDto{
-		Description: "Locally managed description",
+		Notes: "Locally managed notes",
 	}
-	_, err := s.UpdateClient(t.Context(), client.ID, input)
+	_, err := s.UpdateClient(t.Context(), client.ID, dto.Replace(input), auditlogs.Origin{})
 	require.NoError(t, err)
 
 	var fetched model.OidcClient
 	require.NoError(t, db.First(&fetched, "id = ?", client.ID).Error)
 	assert.Equal(t, "Refreshed metadata name", fetched.Name)
-	assert.Equal(t, input.Description, fetched.Description)
+	assert.Equal(t, input.Notes, fetched.Notes)
 }
 
 func TestClientService_ListAccessibleOidcClients_requiresExplicitGroupPermission(t *testing.T) {
 	db := testutils.NewDatabaseForTest(t)
-	s := &clientService{db: db}
+	s := &clientService{db: db, auditLog: &fakeAuditLogger{}}
 
 	allowedGroup := model.UserGroup{Name: "allowed", FriendlyName: "Allowed"}
 	otherGroup := model.UserGroup{Name: "other", FriendlyName: "Other"}
@@ -1079,7 +1057,7 @@ func TestClientService_ListAccessibleOidcClients_requiresExplicitGroupPermission
 
 func TestClientService_ListClientViewsFilterByLaunchURLPresence(t *testing.T) {
 	db := testutils.NewDatabaseForTest(t)
-	s := &clientService{db: db}
+	s := &clientService{db: db, auditLog: &fakeAuditLogger{}}
 
 	user := model.User{Username: "launch-url-filter"}
 	require.NoError(t, db.Create(&user).Error)
@@ -1132,7 +1110,7 @@ func TestClientService_ListClientViewsFilterByLaunchURLPresence(t *testing.T) {
 
 func TestClientService_ListAccessibleOidcClients_searchAndSort(t *testing.T) {
 	forEachTestDatabase(t, func(t *testing.T, db *gorm.DB) {
-		s := &clientService{db: db}
+		s := &clientService{db: db, auditLog: &fakeAuditLogger{}}
 
 		user := model.User{Username: "search-and-sort"}
 		require.NoError(t, db.Create(&user).Error)
@@ -1184,7 +1162,7 @@ func TestClientService_ListAccessibleOidcClients_searchAndSort(t *testing.T) {
 
 func TestClientService_ListAuthorizedClients_searchAndSort(t *testing.T) {
 	forEachTestDatabase(t, func(t *testing.T, db *gorm.DB) {
-		s := &clientService{db: db}
+		s := &clientService{db: db, auditLog: &fakeAuditLogger{}}
 
 		user := model.User{Username: "authorized-search-and-sort"}
 		require.NoError(t, db.Create(&user).Error)
@@ -1337,17 +1315,36 @@ func TestClientService_GetClientLogo(t *testing.T) {
 func TestClientService_UpdateClient_unknownClaimMappingPolicy(t *testing.T) {
 	db := testutils.NewDatabaseForTest(t)
 
-	s := &clientService{db: db}
+	s := &clientService{db: db, auditLog: &fakeAuditLogger{}}
 
 	client := model.OidcClient{Name: "Test Client", CallbackURLs: datatype.StringList{"https://example.com/callback"}}
 	require.NoError(t, db.Create(&client).Error)
 
-	_, err := s.UpdateClient(t.Context(), client.ID, dto.OidcClientUpdateDto{
+	_, err := s.UpdateClient(t.Context(), client.ID, dto.Replace(dto.OidcClientUpdateDto{
 		Name:                 "Test Client",
 		CallbackURLs:         []string{"https://example.com/callback"},
 		ClaimMappingPolicyId: "00000000-0000-0000-0000-000000000099",
-	})
+	}), auditlogs.Origin{})
+
 	var appErr *apperror.Error
 	require.ErrorAs(t, err, &appErr)
 	assert.Equal(t, http.StatusNotFound, appErr.HTTPStatus())
+}
+
+func TestClientService_UpdateClient_recordsChangedSettings(t *testing.T) {
+	db := testutils.NewDatabaseForTest(t)
+	auditLog := &fakeAuditLogger{}
+	s := &clientService{db: db, auditLog: auditLog}
+	client := model.OidcClient{Name: "Photos", CallbackURLs: datatype.StringList{"https://photos.example.com/callback"}}
+	require.NoError(t, db.Create(&client).Error)
+
+	_, err := s.UpdateClient(t.Context(), client.ID, dto.Replace(dto.OidcClientUpdateDto{
+		Name:         "Photos",
+		CallbackURLs: []string{"https://attacker.example.com/callback"},
+		PkceEnabled:  true,
+	}), auditlogs.Origin{})
+	require.NoError(t, err)
+
+	assert.Equal(t, []auditlogs.Event{auditlogs.EventClientUpdated}, auditLog.events)
+	assert.Equal(t, auditlogs.Data{"clientID": client.ID, "clientName": "Photos", "changes": "callbackURLs, pkceEnabled"}, auditLog.data[0])
 }

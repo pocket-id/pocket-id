@@ -170,7 +170,7 @@ func (s *deviceService) acceptDeviceCode(ctx context.Context, userCode, userID, 
 		if !hasAlreadyAuthorizedClient {
 			event = auditlogs.EventNewDeviceCodeAuthorization
 		}
-		s.auditLog.Create(ctx, event, meta.IPAddress, meta.UserAgent, userID, auditlogs.Data{"clientName": client.Name}, dbFromContext(ctx, s.db))
+		s.auditLog.Create(ctx, event, meta.IPAddress, meta.UserAgent, userID, auditlogs.Data{"clientID": client.ID, "clientName": client.Name}, dbFromContext(ctx, s.db))
 
 		deviceCodeSignature, err := s.store.AcceptDeviceCodeSessionByUserCodeSignature(ctx, userCodeSignature, request)
 		if err != nil {

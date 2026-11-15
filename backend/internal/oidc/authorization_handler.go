@@ -52,6 +52,11 @@ func (h *authorizationHandler) authorize(c *gin.Context) {
 			return
 		}
 		c.Request.URL.RawQuery = query.Encode()
+
+		// Drop the body so the form parsing below can't merge it over the stored parameters, which the completed steps such as consent and the PAR check were given for
+		c.Request.Body = http.NoBody
+		c.Request.ContentLength = 0
+		c.Request.Header.Del("Content-Type")
 	}
 
 	// Match Fosite's form parsing so the PAR check uses the same request_uri even when query and body values conflict
@@ -63,6 +68,14 @@ func (h *authorizationHandler) authorize(c *gin.Context) {
 
 	// Capture the PAR URI before Fosite merges request object parameters and validates the referenced PAR session
 	hasPushedAuthorizationRequest := strings.HasPrefix(c.Request.Form.Get("request_uri"), parRequestURIPrefix)
+
+	// Fosite merges the pushed parameters over the form, so parameters the client didn't push must be dropped to keep them from being injected through the link (RFC 9126 section 4)
+	if hasPushedAuthorizationRequest {
+		c.Request.Form = url.Values{
+			"client_id":   {c.Request.Form.Get("client_id")},
+			"request_uri": {c.Request.Form.Get("request_uri")},
+		}
+	}
 
 	ar, err := h.provider.NewAuthorizeRequest(ctx, c.Request)
 	if err != nil {
@@ -85,6 +98,7 @@ func (h *authorizationHandler) authorize(c *gin.Context) {
 
 	authorization, err := h.authorizationService.authorize(ctx, authorizeInput{
 		userID:                        principal.UserID,
+		sessionID:                     principal.SessionID,
 		authenticationMethod:          principal.AuthenticationMethod,
 		authenticationTime:            principal.AuthenticationTime,
 		requester:                     ar,

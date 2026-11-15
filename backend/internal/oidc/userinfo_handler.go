@@ -23,15 +23,6 @@ func newUserInfoHandler(provider fosite.OAuth2Provider, claimsService *ClaimsSer
 	}
 }
 
-// userInfo godoc
-// @Summary Get user information
-// @Description Get user information based on the access token
-// @Tags OIDC
-// @Accept json
-// @Produce json
-// @Success 200 {object} object "User claims based on requested scopes"
-// @Security OAuth2AccessToken
-// @Router /api/oidc/userinfo [get]
 func (h *userInfoHandler) userInfo(c *gin.Context) {
 	ctx := c.Request.Context()
 	tokenType, accessRequest, err := h.provider.IntrospectToken(ctx, fosite.AccessTokenFromRequest(c.Request), fosite.AccessToken, NewEmptySession())

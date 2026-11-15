@@ -65,9 +65,11 @@
 		{:else}
 			<div class="side">
 				{@render mark()}
-				{#each [62, 48, 56, 40] as width, i (i)}
-					<i class={cn('nav', i === 0 && 'active')}><u></u><b style:width="{width}%"></b></i>
-				{/each}
+				<div class="navs">
+					{#each [62, 48, 56, 40] as width, i (i)}
+						<i class={cn('nav', i === 0 && 'active')}><u></u><b style:width="{width}%"></b></i>
+					{/each}
+				</div>
 			</div>
 			<div class="page">
 				<div class="head">
@@ -108,7 +110,6 @@
 	}
 
 	/* The gap between the cards follows the shells' 8px on a window about 1440px wide, the edge gets a little more so the cards do not crowd the frame */
-	.twin-cards,
 	.backdrop {
 		gap: max(2px, 0.6cqw);
 		padding: max(3px, 1.4cqw);
@@ -146,14 +147,57 @@
 		box-shadow: inset -1px 0 0 var(--border);
 	}
 
-	.twin-cards .side,
+	.navs {
+		display: flex;
+		flex-direction: column;
+		gap: inherit;
+	}
+
+	/* The top bar lays the sidebar's parts out as a band, with the page's column below it */
+	.top-bar {
+		flex-direction: column;
+	}
+
+	.top-bar .side {
+		width: auto;
+		gap: 0;
+		padding: 2.6cqw 12cqw 0;
+		box-shadow: inset 0 -1px 0 var(--border);
+	}
+
+	.top-bar .navs {
+		flex-direction: row;
+		gap: 3.4cqw;
+	}
+
+	.top-bar .nav {
+		width: 7cqw;
+		height: 5cqw;
+		padding: 0;
+		border-radius: 0;
+	}
+
+	.top-bar .nav u {
+		display: none;
+	}
+
+	.top-bar .nav b {
+		flex: 1;
+	}
+
+	.top-bar .nav.active {
+		background: none;
+		box-shadow: inset 0 calc(max(1px, 0.5cqw) * -1) 0 var(--primary-control);
+	}
+
+	.top-bar .page {
+		border-radius: 0;
+		padding-inline: 12cqw;
+	}
+
 	.backdrop .side,
 	.page {
 		border-radius: calc(1.8cqw * var(--k));
-	}
-
-	.twin-cards .side {
-		box-shadow: inset 0 0 0 1px var(--border);
 	}
 
 	.backdrop .side {
@@ -221,10 +265,6 @@
 
 	.classic .page {
 		border-radius: 0;
-	}
-
-	.twin-cards .page {
-		box-shadow: inset 0 0 0 1px var(--border);
 	}
 
 	.backdrop .page {

@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"log/slog"
+	"net/netip"
 	"time"
 
 	"github.com/gin-gonic/gin"
@@ -19,6 +20,7 @@ import (
 const (
 	RateLimitAPI                     = "api"
 	RateLimitSignup                  = "signup"
+	RateLimitUpdateOwnAccount        = "update-own-account"
 	RateLimitWebauthnLogin           = "webauthn-login"
 	RateLimitWebauthnReauthenticate  = "webauthn-reauthenticate"
 	RateLimitOneTimeAccessToken      = "one-time-access-token"
@@ -32,8 +34,8 @@ const (
 )
 
 // RateLimitPolicy is the configuration for a single rate-limit actor
-// Each policy maps to one Francis rate-limit actor type and requests are keyed by client IP, so every IP is limited independently and policies can be shared across routes
-// The send-email-verification policy is the exception: the emailverification module keys it by user ID instead of applying it to routes
+// Each policy maps to one Francis rate-limit actor type and requests are keyed by client IP (by /64 for IPv6), so every client is limited independently and policies can be shared across routes
+// The send-email-verification and update-own-account policies are the exceptions: the emailverification and users modules key them by user ID instead of applying them to routes
 type RateLimitPolicy struct {
 	// Name must be unique across policies and must not contain '/'
 	Name string
@@ -51,6 +53,7 @@ func RateLimitPolicies() []RateLimitPolicy {
 	return []RateLimitPolicy{
 		{Name: RateLimitAPI, Rate: 100, Per: time.Second, Burst: 300},
 		{Name: RateLimitSignup, Rate: 2, Per: time.Minute, Burst: 10},
+		{Name: RateLimitUpdateOwnAccount, Rate: 2, Per: time.Minute, Burst: 10},
 		{Name: RateLimitWebauthnLogin, Rate: 1, Per: 5 * time.Second, Burst: 10},
 		{Name: RateLimitWebauthnReauthenticate, Rate: 1, Per: 10 * time.Second, Burst: 5},
 		{Name: RateLimitOneTimeAccessToken, Rate: 1, Per: 10 * time.Second, Burst: 5},
@@ -96,16 +99,16 @@ func (m *RateLimitMiddleware) Add(policy string) gin.HandlerFunc {
 	}
 
 	return func(c *gin.Context) {
-		ip := c.ClientIP()
-
-		// Allow is a non-blocking token-bucket check keyed by client IP: it consumes a slot and reports whether the call is admitted right now
-		allowed, retryAfter, err := svc.Allow(c.Request.Context(), ip)
+		// Allow is a non-blocking token-bucket check keyed by client: it consumes a slot and reports whether the call is admitted right now
+		allowed, retryAfter, err := svc.Allow(c.Request.Context(), rateLimitKey(c.ClientIP()))
+		// A client can cancel its request context by half-closing the connection, so a cancelled request is turned away instead of skipping the limit
+		if errors.Is(err, context.Canceled) {
+			c.Abort()
+			return
+		}
 		if err != nil {
 			// Fail open so a limiter error does not turn away otherwise-valid traffic
-			if !errors.Is(err, context.Canceled) {
-				// A cancelled context just means the client went away, so it is not worth logging
-				slog.WarnContext(c.Request.Context(), "Rate limiter unavailable, allowing request", slog.String("policy", policy), slog.Any("error", err))
-			}
+			slog.WarnContext(c.Request.Context(), "Rate limiter unavailable, allowing request", slog.String("policy", policy), slog.Any("error", err))
 			c.Next()
 			return
 		}
@@ -119,4 +122,20 @@ func (m *RateLimitMiddleware) Add(policy string) gin.HandlerFunc {
 
 		c.Next()
 	}
+}
+
+// rateLimitKey keys IPv6 clients by their /64, since a single host usually controls a whole /64 and could otherwise get a fresh budget per address
+func rateLimitKey(clientIP string) string {
+	addr, err := netip.ParseAddr(clientIP)
+	if err != nil {
+		return clientIP
+	}
+
+	addr = addr.Unmap().WithZone("")
+	if addr.Is4() {
+		return addr.String()
+	}
+
+	// Limiter keys must not contain '/', so the prefix is represented by its first address
+	return netip.PrefixFrom(addr, 64).Masked().Addr().String()
 }

@@ -7,6 +7,8 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/pocket-id/pocket-id/backend/internal/apperror"
+	"github.com/pocket-id/pocket-id/backend/internal/claimmappingpolicy"
+	"github.com/pocket-id/pocket-id/backend/internal/dto"
 	"github.com/pocket-id/pocket-id/backend/internal/model"
 	"github.com/pocket-id/pocket-id/backend/internal/oidc"
 	"github.com/pocket-id/pocket-id/backend/internal/utils"
@@ -56,7 +58,7 @@ func TestAPICrudAndPermissionDiff(t *testing.T) {
 	require.NoError(t, db.Model(&OidcClientAllowedAPIPermission{}).Where("api_permission_id = ?", readPerm.ID).Count(&grantCount).Error)
 	assert.Equal(t, int64(0), grantCount)
 
-	renamed, err := svc.Update(t.Context(), created.ID, apiUpdateDto{Name: "Orders"})
+	renamed, err := svc.Update(t.Context(), created.ID, dto.Replace(apiUpdateDto{Name: "Orders"}))
 	require.NoError(t, err)
 	assert.Equal(t, "Orders", renamed.Name)
 	require.NotNil(t, renamed.UpdatedAt)
@@ -286,6 +288,20 @@ func TestUpdatePermissionsRejectsReservedKeys(t *testing.T) {
 		require.Error(t, err, "key %q must be rejected", key)
 		require.True(t, apperror.IsCode(err, apperror.CodeValidationFailed))
 	}
+}
+
+func TestUpdatePermissionsRejectsCustomScopeKeys(t *testing.T) {
+	db := testutils.NewDatabaseForTest(t)
+	svc := New(Dependencies{DB: db}).service
+	require.NoError(t, db.Create(&claimmappingpolicy.CustomScope{Key: "kuber", Name: "Kubernetes role", Description: "Your Kubernetes role"}).Error)
+
+	orders, err := svc.Create(t.Context(), apiCreateDto{Name: "Orders", Resource: "https://api.orders.example.com"})
+	require.NoError(t, err)
+
+	_, err = svc.UpdatePermissions(t.Context(), orders.ID, apiPermissionsUpdateDto{Permissions: []apiPermissionInputDto{
+		{Key: "kuber", Name: "Kubernetes"},
+	}})
+	require.True(t, apperror.IsCode(err, apperror.CodeValidationFailed))
 }
 
 func TestUpdatePermissionsRejectsDuplicateKeys(t *testing.T) {
@@ -669,4 +685,9 @@ func findPermission(api API, key string) *Permission {
 		}
 	}
 	return nil
+}
+
+// A PATCH fills the update DTO from the current API, so every field must be fillable or the omitted ones would be reset
+func TestUpdateDTOIsFilledFromAPI(t *testing.T) {
+	require.Empty(t, testutils.UnmappedFields(API{}, apiUpdateDto{}))
 }

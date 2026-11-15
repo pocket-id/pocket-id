@@ -9,7 +9,6 @@ import (
 	"strings"
 	"time"
 
-	_ "github.com/golang-migrate/migrate/v4/source/github"
 	sqlinstrument "github.com/italypaleale/go-sql-utils/instrument"
 	postgresinstrument "github.com/italypaleale/go-sql-utils/instrument/postgres"
 	sqliteinstrument "github.com/italypaleale/go-sql-utils/instrument/sqlite"
@@ -24,7 +23,6 @@ import (
 
 	"github.com/pocket-id/pocket-id/backend/internal/common"
 	"github.com/pocket-id/pocket-id/backend/internal/utils"
-	sqliteutil "github.com/pocket-id/pocket-id/backend/internal/utils/sqlite"
 )
 
 // Records whether the SQLite database was found on a networked filesystem
@@ -41,8 +39,14 @@ func NewDatabase(ctx context.Context) (db *gorm.DB, pg *pgxpool.Pool, err error)
 		return nil, nil, fmt.Errorf("failed to get sql.DB: %w", err)
 	}
 
+	// A database of Pocket ID v1 or v2 is upgraded by a separate tool before the migrations of v3 can run
+	err = upgradeLegacyDatabase(ctx, sqlDb)
+	if err != nil {
+		return nil, nil, err
+	}
+
 	// Run migrations
-	err = utils.MigrateDatabase(ctx, sqlDb)
+	err = utils.MigrateDatabase(ctx, sqlDb, common.EnvConfig.DbProvider)
 	if err != nil {
 		return nil, nil, fmt.Errorf("failed to run migrations: %w", err)
 	}
@@ -59,8 +63,6 @@ func ConnectDatabase(ctx context.Context) (db *gorm.DB, pg *pgxpool.Pool, err er
 		if common.EnvConfig.DbConnectionString == "" {
 			return nil, nil, errors.New("missing required env var 'DB_CONNECTION_STRING' for SQLite database")
 		}
-
-		sqliteutil.RegisterSqliteFunctions()
 
 		// The connector validates the connection string and performs the filesystem setup SQLite needs: it creates the database and temporary directories
 		// It also warns when the database lives on a networked filesystem, which is unsupported

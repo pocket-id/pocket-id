@@ -26,7 +26,7 @@
 <!-- The preview follows a tall column of controls, so what they change stays in view -->
 <figure
 	class={cn(
-		'border-border bg-surface relative min-w-0 self-start overflow-hidden rounded-xl border lg:sticky lg:top-8',
+		'border-border bg-surface relative min-w-0 self-start overflow-hidden rounded-xl border lg:sticky lg:top-[calc(var(--clear-top)+var(--spacing)*8)]',
 		className
 	)}
 >

@@ -11,8 +11,10 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
+	"github.com/pocket-id/pocket-id/backend/internal/claimmappingpolicy"
 	"github.com/pocket-id/pocket-id/backend/internal/common"
 	"github.com/pocket-id/pocket-id/backend/internal/httpserver"
+	testutils "github.com/pocket-id/pocket-id/backend/internal/utils/testing"
 )
 
 type testKeyPublisher struct{}
@@ -30,6 +32,7 @@ func TestClientIDMetadataDocumentDiscoveryFollowsAllowlist(t *testing.T) {
 	common.EnvConfig.AppURL = "https://test.example.com"
 	cimdURLAllowlist := []string(nil)
 	wkc := &discoveryHandler{
+		db:   testutils.NewDatabaseForTest(t),
 		keys: testKeyPublisher{},
 		getCIMDURLAllowlist: func() []string {
 			return cimdURLAllowlist
@@ -38,7 +41,7 @@ func TestClientIDMetadataDocumentDiscoveryFollowsAllowlist(t *testing.T) {
 
 	parse := func(t *testing.T) map[string]any {
 		t.Helper()
-		raw, err := wkc.computeServerMetadata()
+		raw, err := wkc.computeServerMetadata(t.Context())
 		require.NoError(t, err)
 		var cfg map[string]any
 		require.NoError(t, json.Unmarshal(raw, &cfg))
@@ -64,10 +67,13 @@ func TestOAuthAuthorizationServerMetadata(t *testing.T) {
 	common.EnvConfig.AppURL = "https://test.example.com"
 	common.EnvConfig.InternalAppURL = "https://test.example.com"
 
-	h := &discoveryHandler{keys: testKeyPublisher{}}
+	db := testutils.NewDatabaseForTest(t)
+	require.NoError(t, db.Create(&claimmappingpolicy.CustomScope{Key: "kuber", Name: "Kubernetes role", Description: "Your Kubernetes role"}).Error)
+
+	h := &discoveryHandler{db: db, keys: testKeyPublisher{}}
 	router := gin.New()
-	router.GET("/.well-known/oauth-authorization-server", httpserver.Handle(h.oauthAuthorizationServerHandler))
-	router.GET("/.well-known/openid-configuration", httpserver.Handle(h.openIDConfigurationHandler))
+	router.GET("/.well-known/oauth-authorization-server", httpserver.Handle(h.oauthAuthorizationServerHandler).Handler)
+	router.GET("/.well-known/openid-configuration", httpserver.Handle(h.openIDConfigurationHandler).Handler)
 
 	get := func(t *testing.T, path string) *httptest.ResponseRecorder {
 		t.Helper()
@@ -90,6 +96,7 @@ func TestOAuthAuthorizationServerMetadata(t *testing.T) {
 	assert.Contains(t, doc["response_types_supported"], "code")
 	assert.NotEmpty(t, doc["jwks_uri"])
 	assert.Contains(t, doc["scopes_supported"], "openid")
+	assert.Contains(t, doc["scopes_supported"], "kuber")
 	assert.Contains(t, doc["grant_types_supported"], "authorization_code")
 	assert.Contains(t, doc["code_challenge_methods_supported"], "S256")
 	assert.Equal(t, "https://pocket-id.org/docs", doc["service_documentation"])

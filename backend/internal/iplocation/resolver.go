@@ -3,8 +3,6 @@ package iplocation
 import (
 	"context"
 	"net"
-
-	"github.com/pocket-id/pocket-id/backend/internal/utils"
 )
 
 type Resolver interface {
@@ -18,13 +16,13 @@ func LocalLocation(ip net.IP) (country string, city string) {
 	}
 
 	switch {
-	case utils.IsLocalIPv6(ip):
+	case isLocalIPv6(ip):
 		return "Internal Network", "LAN"
-	case utils.IsTailscaleIP(ip):
+	case isTailscaleIP(ip):
 		return "Internal Network", "Tailscale"
-	case utils.IsPrivateIP(ip):
+	case isPrivateIP(ip):
 		return "Internal Network", "LAN"
-	case utils.IsLocalhostIP(ip):
+	case isLocalhostIP(ip):
 		return "Internal Network", "localhost"
 	default:
 		return "", ""

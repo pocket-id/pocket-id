@@ -27,6 +27,8 @@ const clientAssertionTypeJWTBearer = "urn:ietf:params:oauth:client-assertion-typ
 
 var errNoFederatedClientAssertion = errors.New("no federated client assertion")
 
+var errMetadataClientAuthentication = fosite.ErrInvalidClient.WithHint("A client identified by a metadata document is a public client and must not send client authentication.")
+
 // federatedClientStore is the subset of the store the federated authenticator needs.
 type federatedClientStore interface {
 	GetClient(ctx context.Context, id string) (fosite.Client, error)
@@ -98,18 +100,37 @@ func newClientAuthenticationStrategy(authenticator *federatedClientAuthenticator
 			return nil, err
 		}
 
-		return provider.DefaultClientAuthenticationStrategy(ctx, r, form)
+		client, err = provider.DefaultClientAuthenticationStrategy(ctx, r, form)
+		if err != nil {
+			return nil, err
+		}
+
+		// The default strategy ignores a secret sent by a public client, which a metadata document client must be refused for
+		_, basicSecret, _ := r.BasicAuth()
+		oidcClient, ok := client.(Client)
+		if ok && oidcClient.IsMetadataDocument() && (basicSecret != "" || form.Get("client_secret") != "") {
+			return nil, errMetadataClientAuthentication
+		}
+		return client, nil
 	}
 }
 
 // authenticateForm returns errNoFederatedClientAssertion when the form carries no
 // federated assertion, so the caller can fall back to other authentication methods.
 func (a *federatedClientAuthenticator) authenticateForm(ctx context.Context, form url.Values) (fosite.Client, error) {
-	if form.Get("client_assertion_type") != clientAssertionTypeJWTBearer || form.Get("client_assertion") == "" {
-		return nil, errNoFederatedClientAssertion
+	assertionType, assertion := form.Get("client_assertion_type"), form.Get("client_assertion")
+	if assertionType == clientAssertionTypeJWTBearer && assertion != "" {
+		return a.authenticateAssertion(ctx, assertion, form.Get("client_id"))
 	}
 
-	return a.authenticateAssertion(ctx, form.Get("client_assertion"), form.Get("client_id"))
+	// Any other assertion is left to the default strategy, which answers with invalid_request where a metadata document client must get invalid_client
+	if assertionType != "" || assertion != "" {
+		client, _ := a.clients.GetClient(ctx, form.Get("client_id"))
+		if oidcClient, ok := client.(Client); ok && oidcClient.IsMetadataDocument() {
+			return nil, errMetadataClientAuthentication
+		}
+	}
+	return nil, errNoFederatedClientAssertion
 }
 
 // authenticateAssertion validates the assertion JWT against the client's configured
@@ -141,6 +162,11 @@ func (a *federatedClientAuthenticator) authenticateAssertion(ctx context.Context
 	oidcClient, ok := client.(Client)
 	if !ok {
 		return nil, errNoFederatedClientAssertion
+	}
+
+	// A metadata document client has no credential, so its assertion is refused here instead of being passed on as an unsupported one
+	if oidcClient.IsMetadataDocument() {
+		return nil, errMetadataClientAuthentication
 	}
 
 	federatedIdentity, ok := oidcClient.Credentials.FederatedIdentityForIssuer(issuer)

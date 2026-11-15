@@ -20,7 +20,7 @@
 		variant,
 		version
 	}: {
-		// row: the sidebar's account row; rail: the avatar at the foot of the rail; avatar: the phone top bar
+		// row: the sidebar's account row; rail: the avatar at the foot of the rail; avatar: the phone top bar and the top bar layout
 		variant: 'row' | 'rail' | 'avatar';
 		version?: string;
 	} = $props();
@@ -114,10 +114,12 @@
 					<IdCard />
 					{m.my_account()}
 				</DropdownMenu.Item>
-				<DropdownMenu.Item onclick={() => (mcpServerOpen = true)}>
-					<Plug />
-					{m.mcp_server()}
-				</DropdownMenu.Item>
+				{#if $userStore.isAdmin}
+					<DropdownMenu.Item onclick={() => (mcpServerOpen = true)}>
+						<Plug />
+						{m.mcp_server()}
+					</DropdownMenu.Item>
+				{/if}
 				{#if variant !== 'avatar'}
 					<DropdownMenu.Sub>
 						<DropdownMenu.SubTrigger>
@@ -148,6 +150,11 @@
 				<LogOut />
 				{m.sign_out()}
 			</DropdownMenu.Item>
+			<!-- The top bar layout has no sidebar foot to carry the version -->
+			{#if variant === 'avatar' && version}
+				<DropdownMenu.Separator />
+				<p class="text-fg-muted px-2 py-1.5 text-xs tabular-nums">{version}</p>
+			{/if}
 		</DropdownMenu.Content>
 	</DropdownMenu.Root>
 	<McpServerDialog bind:open={mcpServerOpen} />

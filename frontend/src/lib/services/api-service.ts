@@ -19,6 +19,16 @@ abstract class APIService {
 
 		// Wrap each API request in a CLIENT span and inject its W3C trace headers, so backend spans correlate with the SPA
 		this.api.interceptors.request.use((config) => {
+			// A merge patch keeps every member it leaves out, so a field a form cleared to undefined is sent as null instead of being dropped from the JSON
+			if (config.method === 'patch' && config.data?.constructor === Object) {
+				config.data = Object.fromEntries(
+					Object.entries(config.data).map(([key, value]) => [
+						key,
+						value === undefined ? null : value
+					])
+				);
+			}
+
 			const method = (config.method ?? 'get').toUpperCase();
 			const url = `${config.baseURL ?? ''}${config.url ?? ''}`;
 			// startRequestSpan returns undefined when tracing is disabled, so only track a span when one was created.

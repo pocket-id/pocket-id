@@ -13,13 +13,15 @@ type tokenHandler struct {
 	provider      fosite.OAuth2Provider
 	claimsService *ClaimsService
 	apiAccess     APIAccessProvider
+	sessions      Sessions
 }
 
-func newTokenHandler(provider fosite.OAuth2Provider, claimsService *ClaimsService, apiAccess APIAccessProvider) *tokenHandler {
+func newTokenHandler(provider fosite.OAuth2Provider, claimsService *ClaimsService, apiAccess APIAccessProvider, sessions Sessions) *tokenHandler {
 	return &tokenHandler{
 		provider:      provider,
 		claimsService: claimsService,
 		apiAccess:     apiAccess,
+		sessions:      sessions,
 	}
 }
 
@@ -55,7 +57,14 @@ func (h *tokenHandler) token(c *gin.Context) {
 			return
 		}
 
-		err = h.validateRefreshAPIGrant(ctx, client, accessRequest)
+		err = h.validateGrantSession(ctx, requestSession, accessRequest)
+		if err != nil {
+			slog.WarnContext(ctx, "Rejected token request: the session the grant was issued in has ended", "error", err.Error())
+			h.provider.WriteAccessError(ctx, c.Writer, accessRequest, err)
+			return
+		}
+
+		err = h.validateRefreshAPIGrant(ctx, accessRequest)
 		if err != nil {
 			slog.WarnContext(ctx, "Rejected refresh token request: API grant is no longer allowed for the user subject", "error", err.Error())
 			h.provider.WriteAccessError(ctx, c.Writer, accessRequest, err)
@@ -71,14 +80,16 @@ func (h *tokenHandler) token(c *gin.Context) {
 				h.provider.WriteAccessError(ctx, c.Writer, accessRequest, err)
 				return
 			}
-			audience, grantedScopes, err := resolveResource(ctx, nil, h.apiAccess, client.GetID(), resource, accessRequest.GetRequestedScopes(), SubjectTypeClient)
+			audience, grantedScopes, err := resolveResource(ctx, nil, h.apiAccess, client.GetID(), resource, accessRequest.GetRequestedScopes(), SubjectTypeClient, client.customScopes)
 			if err != nil {
 				h.provider.WriteAccessError(ctx, c.Writer, accessRequest, err)
 				return
 			}
-			// A client credentials token has no resource owner, so it must never carry identity scopes such as openid or profile
+			// A client credentials token has no resource owner, so it must never carry identity scopes such as openid, profile or a custom scope
 			// Dropping them keeps machine tokens out of the userinfo endpoint, which is gated on the openid scope
-			grantedScopes = slices.DeleteFunc(grantedScopes, isStandardScope)
+			grantedScopes = slices.DeleteFunc(grantedScopes, func(scope string) bool {
+				return isStandardScope(scope) || slices.Contains(client.customScopes, scope)
+			})
 			accessReq, ok := accessRequest.(*fosite.AccessRequest)
 			if ok {
 				accessReq.GrantedScope = grantedScopes
@@ -90,7 +101,12 @@ func (h *tokenHandler) token(c *gin.Context) {
 
 	// A grant without a resource owner has no source and carries no user claims
 	if claimsSource != nil {
-		err = h.claimsService.applyTokenClaims(requestSession, accessRequest.GetGrantedScopes(), claimsSource)
+		// Fosite grants a code's scopes only when it builds the response, but the requested scopes already are the ones the user approved
+		scopes := accessRequest.GetGrantedScopes()
+		if accessRequest.GetGrantTypes().HasOneOf(string(fosite.GrantTypeAuthorizationCode), string(fosite.GrantTypeDeviceCode)) {
+			scopes = accessRequest.GetRequestedScopes()
+		}
+		err = h.claimsService.applyTokenClaims(requestSession, scopes, claimsSource)
 		if err != nil {
 			slog.ErrorContext(ctx, "Failed to apply token claims", "error", err)
 			h.provider.WriteAccessError(ctx, c.Writer, accessRequest, err)
@@ -116,17 +132,32 @@ func (h *tokenHandler) token(c *gin.Context) {
 	h.provider.WriteAccessResponse(ctx, c.Writer, accessRequest, response)
 }
 
-func (h *tokenHandler) validateRefreshAPIGrant(ctx context.Context, client Client, accessRequest fosite.AccessRequester) error {
+// validateGrantSession rejects a grant whose Pocket ID session has ended, unless it requested offline_access
+// Ending a session revokes these grants as well, but this check also covers a failed revocation and a grant stored while its session was being ended
+func (h *tokenHandler) validateGrantSession(ctx context.Context, session *Session, accessRequest fosite.AccessRequester) error {
+	// Fosite grants a code's scopes only when it builds the response, but the requested scopes already are the ones the user approved
+	offline := accessRequest.GetGrantedScopes().Has("offline_access") || accessRequest.GetRequestedScopes().Has("offline_access")
+	if session.SessionID == "" || offline {
+		return nil
+	}
+
+	active, err := h.sessions.IsActive(ctx, session.Subject, session.SessionID)
+	if err != nil {
+		return err
+	}
+	if !active {
+		return fosite.ErrInvalidGrant.WithHint("The session the grant was issued in has ended.")
+	}
+	return nil
+}
+
+func (h *tokenHandler) validateRefreshAPIGrant(ctx context.Context, accessRequest fosite.AccessRequester) error {
 	if !accessRequest.GetGrantTypes().Has(string(fosite.GrantTypeRefreshToken)) {
 		return nil
 	}
 
-	resource, err := refreshGrantResource(client.GetID(), accessRequest.GetGrantedAudience())
-	if err != nil {
-		return err
-	}
-
-	_, _, err = resolveResource(ctx, nil, h.apiAccess, client.GetID(), resource, accessRequest.GetGrantedScopes(), SubjectTypeUser)
+	// Refresh grants never carry the issuer audience, which is added only to the access tokens they issue
+	resource, err := validateGrantAPIAccess(ctx, h.apiAccess, "", accessRequest)
 	if err != nil || resource == "" {
 		return err
 	}
@@ -140,19 +171,4 @@ func (h *tokenHandler) validateRefreshAPIGrant(ctx context.Context, client Clien
 		accessReq.GrantedScope = held
 	}
 	return nil
-}
-
-// refreshGrantResource recovers the API resource of a refresh grant from its granted audience
-func refreshGrantResource(clientID string, grantedAudience fosite.Arguments) (string, error) {
-	resource := ""
-	for _, audience := range grantedAudience {
-		if audience == "" || audience == clientID {
-			continue
-		}
-		if resource != "" && resource != audience {
-			return "", fosite.ErrInvalidTarget.WithHint("Refresh-token grants may only target one API resource.")
-		}
-		resource = audience
-	}
-	return resource, nil
 }

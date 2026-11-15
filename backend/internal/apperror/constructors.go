@@ -43,10 +43,6 @@ func TokenInvalidOrExpired() *Error {
 	return New(CodeTokenInvalidOrExpired, http.StatusUnauthorized, "Token is invalid or expired")
 }
 
-func DeviceCodeInvalid() *Error {
-	return New(CodeDeviceCodeInvalid, http.StatusUnauthorized, "One-time access code must be used on the device it was generated for")
-}
-
 func TokenInvalid() *Error {
 	return New(CodeInvalidToken, http.StatusUnauthorized, "Token is invalid")
 }
@@ -76,6 +72,11 @@ func UnsupportedFileType(expected string) *Error {
 
 	return New(CodeFileTypeNotSupported, http.StatusUnsupportedMediaType, "File must be of type "+expected).
 		WithDetail("expected_file_type", expected)
+}
+
+func UnsupportedPatchType(accepted string) *Error {
+	return New(CodePatchTypeNotSupported, http.StatusUnsupportedMediaType, "PATCH body must be of type "+accepted).
+		WithDetail("accepted_patch_types", accepted)
 }
 
 func FileTooLarge(maxSize string) *Error {
@@ -137,6 +138,18 @@ func SyncedPasskeyNotAllowed() *Error {
 
 func AuthenticatorAttachmentNotAllowed() *Error {
 	return New(CodeAuthenticatorAttachmentNotAllowed, http.StatusBadRequest, "This type of passkey is not allowed")
+}
+
+func PasskeyAttestationRequired() *Error {
+	return New(CodePasskeyAttestationRequired, http.StatusBadRequest, "Only passkeys on a verified authenticator are allowed")
+}
+
+func AuthenticatorNotCertified(cause error) *Error {
+	return Wrap(cause, CodeAuthenticatorNotCertified, http.StatusBadRequest, "This authenticator is not allowed")
+}
+
+func AttestationUnavailable(cause error) *Error {
+	return Wrap(cause, CodeAttestationUnavailable, http.StatusServiceUnavailable, "Passkeys can't be verified right now")
 }
 
 func ReservedClaim(key string) *Error {
@@ -343,6 +356,10 @@ func InvalidEmailVerificationToken() *Error {
 
 func EmailVerificationRequired() *Error {
 	return New(CodeEmailVerificationRequired, http.StatusForbidden, "You must verify your email address before you can access this service.")
+}
+
+func EmailVerificationDisabled() *Error {
+	return New(CodeEmailVerificationDisabled, http.StatusForbidden, "Email verification is disabled")
 }
 
 func EmailChangeNotStarted(cause error) *Error {

@@ -35,7 +35,7 @@ test('Map preferred username to email in the access token of an assigned client'
 
 	// The preview shows the unsaved change right away
 	const preview = page.getByRole('complementary', { name: 'Preview' });
-	await preview.getByRole('combobox').click();
+	await preview.getByRole('combobox', { name: 'Person' }).click();
 	await page.getByRole('option', { name: user.displayName, exact: true }).click();
 	await preview.getByRole('tab', { name: 'Access token' }).click();
 	await expect(preview.getByLabel('Token as JSON')).toContainText(

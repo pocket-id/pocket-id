@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/pocket-id/pocket-id/backend/internal/auditlogs"
 	"github.com/pocket-id/pocket-id/backend/internal/authz"
 	"github.com/pocket-id/pocket-id/backend/internal/common"
 	"github.com/pocket-id/pocket-id/backend/internal/httpserver"
@@ -32,7 +33,7 @@ type loginLinkResult struct {
 	EmailSent bool   `json:"emailSent,omitempty"`
 }
 
-func (h *handler) createLoginLinkTool(ctx context.Context, _ mcp.Call, input createLoginLinkInput) (any, error) {
+func (h *handler) createLoginLinkTool(ctx context.Context, call mcp.Call, input createLoginLinkInput) (any, error) {
 	ttlInput := tokenCreateDto{TTL: utils.JSONDuration{Duration: time.Duration(input.ExpiresInMinutes) * time.Minute}}
 	if err := httpserver.Validate(&ttlInput); err != nil {
 		return nil, err
@@ -47,13 +48,13 @@ func (h *handler) createLoginLinkTool(ctx context.Context, _ mcp.Call, input cre
 		if err != nil {
 			return nil, fmt.Errorf("error loading app configuration: %w", err)
 		}
-		if err := h.service.RequestOneTimeAccessEmailAsAdmin(ctx, dbConfig, input.UserID, ttl); err != nil {
+		if err := h.service.RequestOneTimeAccessEmailAsAdmin(ctx, dbConfig, input.UserID, ttl, auditlogs.OriginFromMCP(call)); err != nil {
 			return nil, err
 		}
 		return loginLinkResult{EmailSent: true}, nil
 	}
 
-	token, err := h.service.CreateToken(ctx, input.UserID, ttl)
+	token, err := h.service.CreateToken(ctx, input.UserID, ttl, auditlogs.OriginFromMCP(call))
 	if err != nil {
 		return nil, err
 	}

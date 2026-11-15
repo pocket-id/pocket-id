@@ -22,13 +22,14 @@ func TestAuditLogRoutesPreservePermissionsAndResponses(t *testing.T) {
 	module, err := New(t.Context(), Dependencies{DB: db, EnvConfig: &common.EnvConfigSchema{EncryptionKey: []byte("0123456789abcdef0123456789abcdef")}, CleanupDisabled: true})
 	require.NoError(t, err)
 
-	// Different owners make accidental loss of the current-user filter visible
-	for _, id := range []string{"alice", "bob"} {
+	// Alice's own activity leaves out what she did to Bob's account, which the admin list shows, while Carol's entry makes accidental loss of the current-user filter visible
+	for id, actor := range map[string]string{"alice": "alice", "bob": "alice", "carol": "carol"} {
 		require.NoError(t, db.Create(&model.User{Base: model.Base{ID: id}, Username: id}).Error)
 		require.NoError(t, db.Create(&AuditLog{
 			Base: model.Base{ID: id + "-log"}, UserID: id, Event: EventSignIn,
 			IpAddress: new("192.0.2.1"), UserAgent: "Firefox", Country: "Switzerland", City: "Zurich",
-			Data: Data{"clientName": id + "-client", "actorUsername": "administrator"},
+			Data:      Data{"clientName": id + "-client"},
+			ActorType: ActorUser, ActorID: actor, ActorName: actor,
 		}).Error)
 	}
 
@@ -47,7 +48,7 @@ func TestAuditLogRoutesPreservePermissionsAndResponses(t *testing.T) {
 	})
 	module.RegisterRoutes(authz.NewMiddleware(auditLogTestAuthenticator{}).Router(router.Group("/api")))
 
-	for _, path := range []string{"/audit-logs", "/audit-logs/all", "/audit-logs/filters/client-names", "/audit-logs/filters/users"} {
+	for _, path := range []string{"/audit-logs", "/admin/audit-logs", "/admin/audit-logs/filters/client-names", "/admin/audit-logs/filters/users"} {
 		for _, role := range []string{"", "user", "admin"} {
 			t.Run(path+"/"+role, func(t *testing.T) {
 				request := httptest.NewRequestWithContext(t.Context(), http.MethodGet, "/api"+path, nil)
@@ -94,7 +95,7 @@ func (auditLogTestAuthenticator) Authenticate(c *gin.Context) (*authz.Principal,
 func assertAuditLogRouteResponse(t *testing.T, path string, response *httptest.ResponseRecorder) {
 	t.Helper()
 	switch path {
-	case "/audit-logs", "/audit-logs/all":
+	case "/audit-logs", "/admin/audit-logs":
 		var body struct {
 			Data       []map[string]any `json:"data"`
 			Pagination map[string]any   `json:"pagination"`
@@ -102,30 +103,30 @@ func assertAuditLogRouteResponse(t *testing.T, path string, response *httptest.R
 		require.NoError(t, json.Unmarshal(response.Body.Bytes(), &body))
 		require.NotEmpty(t, body.Pagination)
 		count := 1
-		if path == "/audit-logs/all" {
-			count = 2
+		if path == "/admin/audit-logs" {
+			count = 3
 		}
 		require.Len(t, body.Data, count)
 		for _, entry := range body.Data {
 			require.Equal(t, "SIGN_IN", entry["event"])
 			require.Equal(t, "192.0.2.1", entry["ipAddress"])
-			require.Equal(t, "administrator", entry["actorUsername"])
+			require.Equal(t, "user", entry["actorType"])
+			require.Equal(t, entry["actorID"], entry["actorName"])
+			require.Equal(t, entry["userID"], entry["username"])
 			require.Contains(t, entry, "device")
 			require.Contains(t, entry, "createdAt")
 			require.NotContains(t, entry, "userAgent")
 			if path == "/audit-logs" {
 				require.Equal(t, "alice", entry["userID"])
-			} else {
-				require.Equal(t, entry["userID"], entry["username"])
 			}
 		}
-	case "/audit-logs/filters/client-names":
+	case "/admin/audit-logs/filters/client-names":
 		var names []string
 		require.NoError(t, json.Unmarshal(response.Body.Bytes(), &names))
-		require.ElementsMatch(t, []string{"alice-client", "bob-client"}, names)
-	case "/audit-logs/filters/users":
+		require.ElementsMatch(t, []string{"alice-client", "bob-client", "carol-client"}, names)
+	case "/admin/audit-logs/filters/users":
 		var users map[string]string
 		require.NoError(t, json.Unmarshal(response.Body.Bytes(), &users))
-		require.Equal(t, map[string]string{"alice": "alice", "bob": "bob"}, users)
+		require.Equal(t, map[string]string{"alice": "alice", "bob": "bob", "carol": "carol"}, users)
 	}
 }

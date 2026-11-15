@@ -5,12 +5,14 @@ import (
 	"errors"
 	"reflect"
 
-	"github.com/pocket-id/pocket-id/backend/internal/apperror"
-	"github.com/pocket-id/pocket-id/backend/internal/common"
-	"github.com/pocket-id/pocket-id/backend/internal/model"
-	"github.com/pocket-id/pocket-id/backend/internal/utils"
 	"gorm.io/gorm"
 	"gorm.io/gorm/clause"
+
+	"github.com/pocket-id/pocket-id/backend/internal/apperror"
+	"github.com/pocket-id/pocket-id/backend/internal/common"
+	"github.com/pocket-id/pocket-id/backend/internal/dto"
+	"github.com/pocket-id/pocket-id/backend/internal/model"
+	"github.com/pocket-id/pocket-id/backend/internal/utils"
 )
 
 // isValidUserFieldSource checks if a user field name can be used as a mapping source
@@ -242,6 +244,11 @@ func (s *Service) CreateClaimMappingPolicy(ctx context.Context, dto OidcClaimMap
 		tx.Rollback()
 	}()
 
+	err = validateMappingScopes(tx.WithContext(ctx), dto.ClaimMappings)
+	if err != nil {
+		return OidcClaimMappingPolicy{}, err
+	}
+
 	// Unset the current default first, because the unique index allows only one default at a time
 	if dto.IsDefault {
 		err = lockDefaultChanges(ctx, tx)
@@ -271,20 +278,14 @@ func (s *Service) CreateClaimMappingPolicy(ctx context.Context, dto OidcClaimMap
 	return claimMappingPolicy, nil
 }
 
-func (s *Service) UpdateClaimMappingPolicy(ctx context.Context, policyID string, dto OidcClaimMappingPolicyDto) (OidcClaimMappingPolicy, error) {
-	// Validate claim mappings
-	err := ValidateClaimMappings(dto.ClaimMappings)
-	if err != nil {
-		return OidcClaimMappingPolicy{}, err
-	}
-
+func (s *Service) UpdateClaimMappingPolicy(ctx context.Context, policyID string, update dto.Update[OidcClaimMappingPolicyDto]) (OidcClaimMappingPolicy, error) {
 	tx := s.db.Begin()
 	defer func() {
 		tx.Rollback()
 	}()
 
 	// The update can move the default flag, so take that lock before the policy's own one
-	err = lockDefaultChanges(ctx, tx)
+	err := lockDefaultChanges(ctx, tx)
 	if err != nil {
 		return OidcClaimMappingPolicy{}, err
 	}
@@ -295,9 +296,23 @@ func (s *Service) UpdateClaimMappingPolicy(ctx context.Context, policyID string,
 		return OidcClaimMappingPolicy{}, err
 	}
 
+	// Compute the update from the locked policy, so a PATCH merges onto the state it saves over, and validate its claim mappings
+	input, err := update(claimMappingPolicy)
+	if err != nil {
+		return OidcClaimMappingPolicy{}, err
+	}
+	err = ValidateClaimMappings(input.ClaimMappings)
+	if err != nil {
+		return OidcClaimMappingPolicy{}, err
+	}
+	err = validateMappingScopes(tx.WithContext(ctx), input.ClaimMappings)
+	if err != nil {
+		return OidcClaimMappingPolicy{}, err
+	}
+
 	// Apply the changes
 	original := claimMappingPolicy
-	updateClaimMappingPolicyFromDto(&claimMappingPolicy, dto)
+	updateClaimMappingPolicyFromDto(&claimMappingPolicy, input)
 
 	// The built-in policy is rewritten from the code on every startup, so only its default flag may change
 	if original.ID == BuiltInClaimMappingPolicyID &&

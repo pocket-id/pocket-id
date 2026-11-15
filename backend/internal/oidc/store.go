@@ -16,6 +16,8 @@ import (
 	"github.com/pocket-id/fosite/handler/pkce"
 	"github.com/pocket-id/fosite/handler/rfc8628"
 	"github.com/pocket-id/pocket-id/backend/internal/apperror"
+	"github.com/pocket-id/pocket-id/backend/internal/claimmappingpolicy"
+	"github.com/pocket-id/pocket-id/backend/internal/common"
 	"github.com/pocket-id/pocket-id/backend/internal/model"
 	datatype "github.com/pocket-id/pocket-id/backend/internal/model/types"
 	"gorm.io/gorm"
@@ -136,6 +138,12 @@ func (s *Store) clientFromModel(ctx context.Context, tx *gorm.DB, clientModel mo
 		client.apiAudiences = apiAudiences
 	}
 
+	customScopes, err := claimmappingpolicy.ClientCustomScopeKeys(ctx, tx, clientModel)
+	if err != nil {
+		return Client{}, err
+	}
+	client.customScopes = customScopes
+
 	return client, nil
 }
 
@@ -203,12 +211,8 @@ func (s *Store) StoreCIMDClient(ctx context.Context, resolved fosite.Client, _ *
 		// No back-channel logout tokens are sent here, which is safe only because CIMD clients cannot register a backchannel_logout_url today
 		// If that URL is ever mapped from the metadata document, resolve the notifications before this delete removes the rows
 		if revokeConsent {
-			err := s.dbFor(ctx).
-				Where("client_id = ?", client.ID).
-				Delete(&model.UserAuthorizedOidcClient{}).
-				Error
-			if err != nil {
-				return fmt.Errorf("failed to revoke consent after metadata change: %w", err)
+			if _, err := s.revokeClientGrants(ctx, client.ID); err != nil {
+				return err
 			}
 		}
 
@@ -238,6 +242,26 @@ func (s *Store) StoreCIMDClient(ctx context.Context, resolved fosite.Client, _ *
 	}
 
 	return stored, nil
+}
+
+// revokeClientGrants deletes every consent users gave to a client together with the tokens issued under it, and returns how many of both it deleted
+// The caller runs it in a transaction so a client never keeps tokens whose consent is gone
+func (s *Store) revokeClientGrants(ctx context.Context, clientID string) (int64, error) {
+	consents := s.dbFor(ctx).
+		Where("client_id = ?", clientID).
+		Delete(&model.UserAuthorizedOidcClient{})
+	if consents.Error != nil {
+		return 0, fmt.Errorf("failed to revoke the consent of the client: %w", consents.Error)
+	}
+
+	// Users revoke tokens through their consent, so the tokens issued under it must go with it
+	tokens := s.dbFor(ctx).
+		Where("client_id = ?", clientID).
+		Delete(&OAuth2Session{})
+	if tokens.Error != nil {
+		return 0, fmt.Errorf("failed to revoke the tokens of the client: %w", tokens.Error)
+	}
+	return consents.RowsAffected + tokens.RowsAffected, nil
 }
 
 // metadataClientChanges returns the names of security-relevant metadata fields that differ between the stored client and a freshly fetched one
@@ -432,7 +456,7 @@ func (s *Store) RevokeAccessToken(ctx context.Context, requestID string) error {
 }
 
 func (s *Store) RevokeSessionsByIDTokenHint(ctx context.Context, userID, clientID, idTokenJTI string) error {
-	_, jtiMatches, err := s.findTokenRequestIDsForUserClient(ctx, userID, clientID, idTokenJTI)
+	_, jtiMatches, err := s.findGrantRequestIDs(ctx, userID, clientID, idTokenJTI)
 	if err != nil {
 		return err
 	}
@@ -442,32 +466,42 @@ func (s *Store) RevokeSessionsByIDTokenHint(ctx context.Context, userID, clientI
 
 func RevokeUserClientSessions(ctx context.Context, db *gorm.DB, userID, clientID string) error {
 	s := NewStore(db, nil)
-	requestIDs, _, err := s.findTokenRequestIDsForUserClient(ctx, userID, clientID, "")
+	requestIDs, _, err := s.findGrantRequestIDs(ctx, userID, clientID, "")
 	if err != nil {
 		return err
 	}
 	return s.revokeRequestIDs(ctx, requestIDs)
 }
 
-// findTokenRequestIDsForUserClient returns request IDs for usable token sessions belonging to the user and client, plus the subset matching the optional ID token JTI
-// Access token sessions are searched as well because clients without the refresh_token grant never get a refresh token session
-func (s *Store) findTokenRequestIDsForUserClient(ctx context.Context, userID, clientID, idTokenJTI string) (candidates []string, jtiMatches []string, err error) {
+// RevokeUserGrants revokes every grant of the user at every client, offline_access ones included
+func RevokeUserGrants(ctx context.Context, db *gorm.DB, userID string) error {
+	s := NewStore(db, nil)
+	requestIDs, _, err := s.findGrantRequestIDs(ctx, userID, "", "")
+	if err != nil {
+		return err
+	}
+	return s.revokeRequestIDs(ctx, requestIDs)
+}
+
+// findGrantRequestIDs returns the request IDs of the usable grants of the user and the optional client, plus the subset matching the optional ID token JTI
+// Grants are found through their refresh and access tokens and through codes that weren't exchanged yet, which become grants once they are
+// Access tokens are searched as well because clients without the refresh_token grant never get a refresh token session
+// The subset leaves out grants that requested offline_access, because those outlive the logout the ID token is passed to
+func (s *Store) findGrantRequestIDs(ctx context.Context, userID, clientID, idTokenJTI string) (candidates []string, jtiMatches []string, err error) {
 	var sessions []OAuth2Session
 	query := s.dbFor(ctx).
 		Select("request_id", "request_data").
-		Where("client_id = ?", clientID).
-		Where("kind = ? OR (kind = ? AND (active = ? OR rotated_at > ?))", sessionKindAccessToken, sessionKindRefreshToken, true, datatype.DateTime(time.Now().UTC().Add(-refreshTokenGracePeriod)))
+		Where("kind = ? OR (kind IN ? AND (active = ? OR rotated_at > ?))", sessionKindAccessToken, []string{sessionKindAuthorizeCode, sessionKindDeviceCode, sessionKindRefreshToken}, true, datatype.DateTime(time.Now().UTC().Add(-refreshTokenGracePeriod)))
+	if clientID != "" {
+		query = query.Where("client_id = ?", clientID)
+	}
 
-	// Filter by the user ID stored in the JSON request data
-	switch query.Name() {
-	case "sqlite":
-		query = query.Where("json_extract(CAST(request_data AS TEXT), '$.session.subject') = ?", userID)
-	case "postgres":
-		query = query.Where("request_data #>> '{session,subject}' = ?", userID)
-	default:
-		return nil, nil, fmt.Errorf("unsupported database dialect: %s", query.Name())
+	subjectField, err := requestDataField(query, "subject")
+	if err != nil {
+		return nil, nil, err
 	}
 	err = query.
+		Where(subjectField+" = ?", userID).
 		Find(&sessions).
 		Error
 	if err != nil {
@@ -487,12 +521,129 @@ func (s *Store) findTokenRequestIDsForUserClient(ctx context.Context, userID, cl
 		if err := json.Unmarshal([]byte(session.RequestData), &stored); err != nil {
 			return nil, nil, err
 		}
-		if stored.Session != nil && stored.Session.Claims != nil && stored.Session.Claims.JTI == idTokenJTI {
+		if stored.Session != nil && stored.Session.Claims != nil && stored.Session.Claims.JTI == idTokenJTI && !stored.GrantedScope.Has("offline_access") {
 			matchingRequestIDs[session.RequestID] = struct{}{}
 		}
 	}
 
 	return mapKeys(candidateRequestIDs), mapKeys(matchingRequestIDs), nil
+}
+
+// EndBrowserSession revokes the grants issued from the user's Pocket ID session and returns every client the session authorized, so they can be told it ended
+// Grants that requested offline_access are kept, because Back-Channel Logout 1.0 lets them outlive the session they were issued in
+// They lose the session ID, so tokens refreshed from them, and the ID token a code not yet exchanged still mints, no longer name the ended session
+// Revoked grants are read too, so the client that started an RP-initiated logout is notified although its grant was revoked just before
+func EndBrowserSession(ctx context.Context, db *gorm.DB, userID, sessionID string) (clientIDs []string, err error) {
+	err = db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
+		clientIDs, err = endBrowserSession(ctx, tx, userID, sessionID)
+		return err
+	})
+	return clientIDs, err
+}
+
+func endBrowserSession(ctx context.Context, tx *gorm.DB, userID, sessionID string) ([]string, error) {
+	subjectField, err := requestDataField(tx, "subject")
+	if err != nil {
+		return nil, err
+	}
+	sessionIDField, err := requestDataField(tx, "sid")
+	if err != nil {
+		return nil, err
+	}
+
+	var sessions []OAuth2Session
+	err = tx.
+		Select("id", "request_id", "client_id", "request_data").
+		Where("kind IN ?", []string{sessionKindAuthorizeCode, sessionKindOpenID, sessionKindAccessToken, sessionKindRefreshToken}).
+		Where(subjectField+" = ? AND "+sessionIDField+" = ?", userID, sessionID).
+		Find(&sessions).
+		Error
+	if err != nil {
+		return nil, err
+	}
+
+	clientIDs := map[string]struct{}{}
+	revokedRequestIDs := map[string]struct{}{}
+	for _, session := range sessions {
+		clientIDs[session.ClientID] = struct{}{}
+		var stored storedRequester
+		if err := json.Unmarshal([]byte(session.RequestData), &stored); err != nil {
+			return nil, err
+		}
+		if !stored.GrantedScope.Has("offline_access") {
+			revokedRequestIDs[session.RequestID] = struct{}{}
+			continue
+		}
+
+		stored.Session.SessionID = ""
+		if stored.Session.Claims != nil {
+			delete(stored.Session.Claims.Extra, common.SessionIDClaim)
+		}
+		requestData, err := json.Marshal(stored)
+		if err != nil {
+			return nil, err
+		}
+		err = tx.Model(&OAuth2Session{}).Where("id = ?", session.ID).Update("request_data", string(requestData)).Error
+		if err != nil {
+			return nil, err
+		}
+	}
+
+	err = NewStore(tx, nil).revokeRequestIDs(ctx, mapKeys(revokedRequestIDs))
+	if err != nil {
+		return nil, err
+	}
+	return mapKeys(clientIDs), nil
+}
+
+// GrantSession is a Pocket ID session in which a user authorized a client
+type GrantSession struct {
+	UserID    string
+	ClientID  string
+	SessionID string
+}
+
+// GrantSessions returns the Pocket ID sessions in which the given users authorized the given clients, read from the refresh tokens of their grants
+func GrantSessions(ctx context.Context, db *gorm.DB, userIDs, clientIDs []string) ([]GrantSession, error) {
+	if len(userIDs) == 0 || len(clientIDs) == 0 {
+		return nil, nil
+	}
+
+	subjectField, err := requestDataField(db, "subject")
+	if err != nil {
+		return nil, err
+	}
+	sessionIDField, err := requestDataField(db, "sid")
+	if err != nil {
+		return nil, err
+	}
+
+	var grantSessions []GrantSession
+	err = db.
+		WithContext(ctx).
+		Model(&OAuth2Session{}).
+		Select("DISTINCT client_id, "+subjectField+" AS user_id, "+sessionIDField+" AS session_id").
+		Where("kind = ? AND client_id IN ?", sessionKindRefreshToken, clientIDs).
+		Where(subjectField+" IN ?", userIDs).
+		Where(sessionIDField + " <> ''").
+		Scan(&grantSessions).
+		Error
+	if err != nil {
+		return nil, err
+	}
+	return grantSessions, nil
+}
+
+// requestDataField returns the SQL expression that reads a field of the stored session from the JSON request data
+func requestDataField(db *gorm.DB, field string) (string, error) {
+	switch db.Name() {
+	case "sqlite":
+		return "json_extract(CAST(request_data AS TEXT), '$.session." + field + "')", nil
+	case "postgres":
+		return "request_data #>> '{session," + field + "}'", nil
+	default:
+		return "", fmt.Errorf("unsupported database dialect: %s", db.Name())
+	}
 }
 
 func (s *Store) revokeRequestIDs(ctx context.Context, requestIDs []string) error {
@@ -504,6 +655,15 @@ func (s *Store) revokeRequestIDs(ctx context.Context, requestIDs []string) error
 		Model(&OAuth2Session{}).
 		Where("kind = ? AND request_id IN ?", sessionKindRefreshToken, requestIDs).
 		Updates(map[string]any{"active": false, "rotated_at": nil}).
+		Error; err != nil {
+		return err
+	}
+
+	// A code that is not exchanged yet must not mint tokens for a revoked grant
+	if err := s.dbFor(ctx).
+		Model(&OAuth2Session{}).
+		Where("kind IN ? AND request_id IN ?", []string{sessionKindAuthorizeCode, sessionKindDeviceCode}, requestIDs).
+		Update("active", false).
 		Error; err != nil {
 		return err
 	}
@@ -550,12 +710,20 @@ func (s *Store) CreateOpenIDConnectSession(ctx context.Context, authorizeCode st
 	return s.upsertSession(ctx, sessionKindOpenID, authorizeCode, requester, "", true, expiresAtKey)
 }
 
-func (s *Store) GetOpenIDConnectSession(ctx context.Context, authorizeCode string, _ fosite.Requester) (fosite.Requester, error) {
+func (s *Store) GetOpenIDConnectSession(ctx context.Context, authorizeCode string, requester fosite.Requester) (fosite.Requester, error) {
 	request, _, err := s.getRequesterSession(ctx, sessionKindOpenID, authorizeCode)
 	if errors.Is(err, fosite.ErrNotFound) {
 		return nil, openid.ErrNoSessionFound
 	}
-	return request, err
+	if err != nil {
+		return nil, err
+	}
+
+	// The token endpoint rebuilt the claims from the current user data, so the ID token must not carry the ones stored at approval
+	if current, ok := requester.GetSession().(*Session); ok {
+		request.GetSession().(*Session).IDTokenClaims().Extra = current.IDTokenClaims().Extra
+	}
+	return request, nil
 }
 
 func (s *Store) DeleteOpenIDConnectSession(ctx context.Context, authorizeCode string) error {
@@ -669,11 +837,13 @@ func (s *Store) AcceptDeviceCodeSessionByUserCodeSignature(ctx context.Context, 
 		if err != nil {
 			return err
 		}
-		storedRequest, err := s.decodeDeviceRequester(ctx, userCodeSession.RequestData)
+		// Decoding the full requester would resolve the client, which for a metadata document client can be a fetch that must not hold the write lock
+		var storedRequest storedRequester
+		err = json.Unmarshal([]byte(userCodeSession.RequestData), &storedRequest)
 		if err != nil {
 			return err
 		}
-		if !userCodeSession.Active || storedRequest.GetUserCodeState() != fosite.UserCodeUnused {
+		if !userCodeSession.Active || storedRequest.UserCodeState != fosite.UserCodeUnused {
 			return fosite.ErrNotFound
 		}
 

@@ -1,1 +1,0 @@
-ALTER TABLE webauthn_sessions ADD COLUMN credential_params JSONB NOT NULL DEFAULT '[]';

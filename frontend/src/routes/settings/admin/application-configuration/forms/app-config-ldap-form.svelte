@@ -3,7 +3,7 @@
 	import EnvOverrideLock from '#lib/components/env-override-lock.svelte';
 	import FormInput from '#lib/components/form/form-input.svelte';
 	import SettingRow from '#lib/components/setting-row.svelte';
-	import SettingsSection from '#lib/components/settings-section.svelte';
+	import SettingsCard from '#lib/components/settings-card.svelte';
 	import { Badge } from '@pocket-id/ui/badge';
 	import { Button } from '@pocket-id/ui/button';
 	import * as Field from '@pocket-id/ui/field';
@@ -198,8 +198,8 @@
 	}
 </script>
 
-<div class="flex min-w-0 flex-col gap-10">
-	<SettingsSection title={m.status()}>
+<div class="flex min-w-0 flex-col gap-4">
+	<SettingsCard title={m.status()}>
 		<div class="flex min-h-13 flex-wrap items-center gap-x-4 gap-y-3 py-3">
 			<div class="flex min-w-0 flex-1 basis-64 flex-col gap-0.5" aria-live="polite">
 				{#if syncing}
@@ -244,10 +244,10 @@
 				{/if}
 			</div>
 		</div>
-	</SettingsSection>
+	</SettingsCard>
 
 	<fieldset class="contents" disabled={$appConfigStore.uiConfigDisabled}>
-		<SettingsSection title={m.config_connection()}>
+		<SettingsCard title={m.config_connection()}>
 			<div class="flex flex-col gap-4 py-4 shadow-[inset_0_-1px_0_var(--border)]">
 				<FormInput
 					class="max-w-[400px]"
@@ -290,9 +290,9 @@
 					<Switch {...props} bind:checked={$inputs.ldapSkipCertVerify.value} />
 				{/snippet}
 			</SettingRow>
-		</SettingsSection>
+		</SettingsCard>
 
-		<SettingsSection title={m.config_search()}>
+		<SettingsCard title={m.config_search()}>
 			<div class="flex flex-col gap-4 py-4 shadow-[inset_0_-1px_0_var(--border)]">
 				<FormInput
 					inputClass="font-mono"
@@ -319,13 +319,11 @@
 					<Switch {...props} bind:checked={$inputs.ldapSoftDeleteUsers.value} />
 				{/snippet}
 			</SettingRow>
-		</SettingsSection>
+		</SettingsCard>
 
-		<SettingsSection title={m.attribute_mapping()}>
-			<!-- On phones each mapping becomes a block of label, input and note inside one box -->
-			<table
-				class="text-control mt-2 w-full table-fixed max-sm:block max-sm:rounded-md max-sm:shadow-[inset_0_0_0_1px_var(--border)]"
-			>
+		<SettingsCard title={m.attribute_mapping()}>
+			<!-- On phones each mapping becomes a block of label, input and note -->
+			<table class="text-control my-2 w-full table-fixed max-sm:block">
 				<thead class="text-caption text-fg-muted text-start max-sm:sr-only">
 					<tr>
 						<th scope="col" class="w-40 py-2 pe-3 text-start font-semibold">
@@ -342,7 +340,7 @@
 						{@const input = $inputs[row.key]!}
 						{@const envOverride = envOverrides.has(row.key)}
 						<tr
-							class="shadow-[inset_0_-1px_0_var(--border)] last:shadow-none max-sm:flex max-sm:flex-col max-sm:gap-1.5 max-sm:p-3"
+							class="shadow-[inset_0_-1px_0_var(--border)] last:shadow-none max-sm:flex max-sm:flex-col max-sm:gap-1.5 max-sm:py-3"
 						>
 							<th
 								scope="row"
@@ -385,6 +383,6 @@
 					{/each}
 				</tbody>
 			</table>
-		</SettingsSection>
+		</SettingsCard>
 	</fieldset>
 </div>

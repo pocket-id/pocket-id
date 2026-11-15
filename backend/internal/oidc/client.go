@@ -13,6 +13,7 @@ type Client struct {
 
 	apiScopes    []string
 	apiAudiences []string
+	customScopes []string
 }
 
 func (c Client) GetID() string {
@@ -79,13 +80,14 @@ func (c Client) GetResponseTypes() fosite.Arguments {
 }
 
 func (c Client) GetScopes() fosite.Arguments {
-	scopes := make(fosite.Arguments, 5, 5+len(c.apiScopes))
+	scopes := make(fosite.Arguments, 5, 5+len(c.apiScopes)+len(c.customScopes))
 	scopes[0] = "openid"
 	scopes[1] = "profile"
 	scopes[2] = "email"
 	scopes[3] = "groups"
 	scopes[4] = "offline_access"
 	scopes = append(scopes, c.apiScopes...)
+	scopes = append(scopes, c.customScopes...)
 	return scopes
 }
 

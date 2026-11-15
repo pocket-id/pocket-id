@@ -38,6 +38,7 @@ type Service struct {
 	auditLog          AuditLogger
 	scimSync          ScimSyncScheduler
 	emailVerification EmailVerificationSender
+	emailSender       EmailSender
 }
 
 func newService(deps Dependencies, actorService *actor.Service) *Service {
@@ -49,6 +50,7 @@ func newService(deps Dependencies, actorService *actor.Service) *Service {
 		auditLog:          deps.AuditLog,
 		scimSync:          deps.ScimSync,
 		emailVerification: deps.EmailVerification,
+		emailSender:       deps.EmailSender,
 	}
 }
 
@@ -210,6 +212,7 @@ func (s *Service) SignUpInitialAdmin(ctx context.Context, config *appconfig.AppC
 	if err != nil {
 		return model.User{}, "", err
 	}
+	s.auditLog.Create(ctx, auditlogs.EventAccountCreated, ipAddress, userAgent, user.ID, auditlogs.Data{"method": "initial_setup"}, tx)
 
 	err = tx.Commit().Error
 	if err != nil {
@@ -246,9 +249,7 @@ func (s *Service) IsInitialAdminSetupCompleted(ctx context.Context) (bool, error
 
 func (s *Service) isInitialAdminSetupCompleted(ctx context.Context, db *gorm.DB) (bool, error) {
 	var userCount int64
-	if err := db.WithContext(ctx).Model(&model.User{}).
-		Where("id != ?", common.StaticApiKeyUserID).
-		Count(&userCount).Error; err != nil {
+	if err := db.WithContext(ctx).Model(&model.User{}).Count(&userCount).Error; err != nil {
 		return false, err
 	}
 
@@ -348,7 +349,7 @@ func (s *Service) listSignupTokenStates(ctx context.Context) ([]signupTokenEntry
 	return entries, nil
 }
 
-func (s *Service) CreateSignupToken(ctx context.Context, ttl time.Duration, usageLimit int, userGroupIDs []string) (SignupToken, error) {
+func (s *Service) CreateSignupToken(ctx context.Context, ttl time.Duration, usageLimit int, userGroupIDs []string, sentTo string) (SignupToken, error) {
 	// Load the referenced user groups to validate them and to include them in the response
 	var userGroups []model.UserGroup
 	if len(userGroupIDs) > 0 {
@@ -379,6 +380,7 @@ func (s *Service) CreateSignupToken(ctx context.Context, ttl time.Duration, usag
 		UsageLimit:   usageLimit,
 		UsageCount:   0,
 		UserGroupIDs: validGroupIDs,
+		SentTo:       sentTo,
 		CreatedAt:    now,
 	}
 
@@ -389,6 +391,21 @@ func (s *Service) CreateSignupToken(ctx context.Context, ttl time.Duration, usag
 	}
 
 	return signupTokenModelFromState(randomString, state, userGroups), nil
+}
+
+// SendSignupInvitation emails the signup link of a token to the given address
+// It sends in the background like an admin-sent login code, so a failure is only logged
+func (s *Service) SendSignupInvitation(ctx context.Context, dbConfig *appconfig.AppConfigModel, signupToken SignupToken, recipientEmail string, ttl time.Duration) {
+	go func() {
+		// Keep the request's tracing info but not its cancellation, which would stop the delivery when the request ends
+		innerCtx := context.WithoutCancel(ctx)
+
+		signupLink := common.EnvConfig.AppURL + "/st/" + signupToken.Token
+		err := s.emailSender.SendSignupInvitation(innerCtx, dbConfig, recipientEmail, signupLink, utils.DurationToString(ttl))
+		if err != nil {
+			slog.ErrorContext(innerCtx, "Failed to send signup invitation email", slog.Any("error", err), slog.String("address", recipientEmail))
+		}
+	}()
 }
 
 // loadUserGroupsByID loads every user group referenced by the given tokens, keyed by ID.
@@ -454,6 +471,7 @@ func signupTokenModelFromState(token string, state SignupTokenState, groups []mo
 		UsageLimit: state.UsageLimit,
 		UsageCount: state.UsageCount,
 		UserGroups: groups,
+		SentTo:     state.SentTo,
 	}
 }
 

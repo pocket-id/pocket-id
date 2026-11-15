@@ -16,8 +16,10 @@ import (
 
 	"github.com/pocket-id/pocket-id/backend/internal/apikey"
 	"github.com/pocket-id/pocket-id/backend/internal/appconfig"
+	"github.com/pocket-id/pocket-id/backend/internal/auditlogs"
 	"github.com/pocket-id/pocket-id/backend/internal/authz"
 	"github.com/pocket-id/pocket-id/backend/internal/common"
+	"github.com/pocket-id/pocket-id/backend/internal/httpserver"
 	"github.com/pocket-id/pocket-id/backend/internal/model"
 	datatype "github.com/pocket-id/pocket-id/backend/internal/model/types"
 	"github.com/pocket-id/pocket-id/backend/internal/oidc"
@@ -27,6 +29,9 @@ import (
 	"github.com/pocket-id/pocket-id/backend/internal/utils/cookie"
 	testutils "github.com/pocket-id/pocket-id/backend/internal/utils/testing"
 )
+
+// #nosec G101
+const staticAPIKey = "static-raw-api-key"
 
 func TestAuthorizationWithRealCredentials(t *testing.T) {
 	gin.SetMode(gin.TestMode)
@@ -40,8 +45,9 @@ func TestAuthorizationWithRealCredentials(t *testing.T) {
 
 	db := testutils.NewDatabaseForTest(t)
 
-	usersModule := users.New(users.Dependencies{DB: db})
-	apiKeyModule, err := apikey.New(t.Context(), apikey.Dependencies{DB: db, CleanupDisabled: true})
+	usersModule, err := users.New(users.Dependencies{DB: db, CleanupDisabled: true})
+	require.NoError(t, err)
+	apiKeyModule, err := apikey.New(apikey.Dependencies{DB: db, StaticApiKey: staticAPIKey, CleanupDisabled: true})
 	require.NoError(t, err)
 
 	// Create one credential of each kind for a regular user, an admin and a disabled user
@@ -54,7 +60,7 @@ func TestAuthorizationWithRealCredentials(t *testing.T) {
 
 	var sessions *session.Module
 	testutils.NewActorHostForTest(t, func(t *testing.T, h *local.Host) {
-		sessions, err = session.New(session.Dependencies{Actors: h, IPLocator: noIPLocation{}})
+		sessions, err = session.New(session.Dependencies{Actors: h, IPLocator: noIPLocation{}, AuditLog: nopAuditLogger{}, EndNotifier: noEndNotifier{}})
 		require.NoError(t, err)
 	})
 	userSession, err := sessions.Create(t.Context(), user.ID, "", "", "", time.Hour, true)
@@ -65,7 +71,7 @@ func TestAuthorizationWithRealCredentials(t *testing.T) {
 	require.NoError(t, err)
 	_, revoked, err := sessions.Validate(t.Context(), revokedSession)
 	require.NoError(t, err)
-	require.NoError(t, sessions.Revoke(t.Context(), user.ID, revoked.ID))
+	require.NoError(t, sessions.Revoke(t.Context(), user.ID, revoked.ID, auditlogs.Origin{}))
 	userAPIKey := createAPIKeyForAuthorizationTest(t, db, user, "user-raw-api-key", apikey.AllScopes())
 	adminAPIKey := createAPIKeyForAuthorizationTest(t, db, admin, "admin-raw-api-key", apikey.AllScopes())
 	adminAccountOnlyAPIKey := createAPIKeyForAuthorizationTest(t, db, admin, "admin-account-only-raw-api-key", datatype.StringList{string(authz.AccountRead)})
@@ -90,15 +96,22 @@ func TestAuthorizationWithRealCredentials(t *testing.T) {
 		"unverified-api-token": oauthAccessRequest(unverified.ID, fosite.Arguments{resource}, string(authz.AccountRead), string(authz.AccountApps)),
 		"machine-token":        oauthAccessRequest(oidc.ClientSubject(oauthTestClientID), fosite.Arguments{resource}, string(authz.UsersRead), string(authz.AccountRead)),
 	}
+	groupRestrictedToken := oauthAccessRequest(admin.ID, fosite.Arguments{resource}, string(authz.UsersRead)).(*fosite.AccessRequest)
+	groupRestrictedToken.Client = oidc.Client{OidcClient: model.OidcClient{
+		Base:              model.Base{ID: oauthTestClientID},
+		IsGroupRestricted: true,
+		AllowedUserGroups: []model.UserGroup{{Base: model.Base{ID: "group-without-the-admin"}}},
+	}}
+	accessTokens["group-restricted-token"] = groupRestrictedToken
 	apiRouter := NewAuthorization(apiKeyModule, accessTokens, usersModule, sessions, appconfig.StaticResolver{Config: cfg}).Router(router.Group("/api"))
-	ok := func(c *gin.Context) {
+	ok := httpserver.Endpoint{Handler: func(c *gin.Context) {
 		c.String(http.StatusOK, authz.PrincipalFrom(c).UserID)
-	}
+	}}
 	apiRouter.GET("/session-only", authz.AccountSession, ok)
 	apiRouter.GET("/account", authz.AccountRead, ok)
 	apiRouter.GET("/apps", authz.AccountApps, ok)
 	apiRouter.GET("/authorize", authz.AccountAuthorize, ok)
-	apiRouter.GET("/admin", authz.UsersRead, ok)
+	apiRouter.GET("/admin/users", authz.UsersRead, ok)
 
 	tests := []struct {
 		name          string
@@ -113,14 +126,16 @@ func TestAuthorizationWithRealCredentials(t *testing.T) {
 		{name: "session on session-only route", path: "/api/session-only", sessionCookie: userSession, status: http.StatusOK, userID: user.ID},
 		{name: "API key on session-only route", path: "/api/session-only", apiKey: adminAPIKey, status: http.StatusForbidden, errorCode: "api_key_auth_not_allowed"},
 		{name: "API key on account route", path: "/api/account", apiKey: userAPIKey, status: http.StatusOK, userID: user.ID},
-		{name: "regular user session on admin route", path: "/api/admin", sessionCookie: userSession, status: http.StatusForbidden, errorCode: "forbidden"},
-		{name: "regular user API key that stores admin scopes on admin route", path: "/api/admin", apiKey: userAPIKey, status: http.StatusForbidden, errorCode: "forbidden"},
-		{name: "admin API key on admin route", path: "/api/admin", apiKey: adminAPIKey, status: http.StatusOK, userID: admin.ID},
-		{name: "admin API key without the route's scope", path: "/api/admin", apiKey: adminAccountOnlyAPIKey, status: http.StatusForbidden, errorCode: "forbidden"},
+		{name: "regular user session on admin route", path: "/api/admin/users", sessionCookie: userSession, status: http.StatusForbidden, errorCode: "forbidden"},
+		{name: "regular user API key that stores admin scopes on admin route", path: "/api/admin/users", apiKey: userAPIKey, status: http.StatusForbidden, errorCode: "forbidden"},
+		{name: "admin API key on admin route", path: "/api/admin/users", apiKey: adminAPIKey, status: http.StatusOK, userID: admin.ID},
+		{name: "admin API key without the route's scope", path: "/api/admin/users", apiKey: adminAccountOnlyAPIKey, status: http.StatusForbidden, errorCode: "forbidden"},
 		{name: "admin API key with the route's scope", path: "/api/account", apiKey: adminAccountOnlyAPIKey, status: http.StatusOK, userID: admin.ID},
+		{name: "static API key on admin route", path: "/api/admin/users", apiKey: staticAPIKey, status: http.StatusOK},
+		{name: "static API key on account route", path: "/api/account", apiKey: staticAPIKey, status: http.StatusForbidden, errorCode: "api_key_auth_not_allowed"},
 		{name: "revoked session", path: "/api/account", sessionCookie: revokedSession, status: http.StatusUnauthorized, errorCode: "not_signed_in"},
 		{name: "session token in the Authorization header", path: "/api/account", authorization: "Bearer " + userSession, status: http.StatusUnauthorized, errorCode: "not_signed_in"},
-		{name: "invalid session cookie falls back to API key", path: "/api/admin", sessionCookie: "not-a-jwt", apiKey: adminAPIKey, status: http.StatusOK, userID: admin.ID},
+		{name: "invalid session cookie falls back to API key", path: "/api/admin/users", sessionCookie: "not-a-jwt", apiKey: adminAPIKey, status: http.StatusOK, userID: admin.ID},
 		{name: "disabled user's API key", path: "/api/account", apiKey: disabledAPIKey, status: http.StatusForbidden, errorCode: "user_disabled"},
 		{name: "verified user session on apps route", path: "/api/apps", sessionCookie: userSession, status: http.StatusOK, userID: user.ID},
 		{name: "unverified user session on session-only route", path: "/api/session-only", sessionCookie: unverifiedSession, status: http.StatusOK, userID: unverified.ID},
@@ -130,17 +145,18 @@ func TestAuthorizationWithRealCredentials(t *testing.T) {
 		{name: "verified user session on authorize route", path: "/api/authorize", sessionCookie: userSession, status: http.StatusOK, userID: user.ID},
 		{name: "unverified user API key on account route", path: "/api/account", apiKey: unverifiedAPIKey, status: http.StatusOK, userID: unverified.ID},
 		{name: "unverified user API key on apps route", path: "/api/apps", apiKey: unverifiedAPIKey, status: http.StatusForbidden, errorCode: "email_verification_required"},
-		{name: "unverified admin API key on admin route", path: "/api/admin", apiKey: unverifiedAdminAPIKey, status: http.StatusOK, userID: unverifiedAdmin.ID},
+		{name: "unverified admin API key on admin route", path: "/api/admin/users", apiKey: unverifiedAdminAPIKey, status: http.StatusOK, userID: unverifiedAdmin.ID},
 		{name: "unknown API key", path: "/api/account", apiKey: "unknown", status: http.StatusUnauthorized, errorCode: "not_signed_in"},
-		{name: "admin OAuth token on admin route", path: "/api/admin", authorization: "Bearer admin-token", status: http.StatusOK, userID: admin.ID},
-		{name: "admin OAuth token without the route's scope", path: "/api/admin", authorization: "Bearer admin-account-token", status: http.StatusForbidden, errorCode: "forbidden"},
-		{name: "regular user OAuth token that carries an admin scope", path: "/api/admin", authorization: "Bearer user-admin-token", status: http.StatusForbidden, errorCode: "forbidden"},
-		{name: "disabled user's OAuth token", path: "/api/admin", authorization: "Bearer disabled-token", status: http.StatusForbidden, errorCode: "user_disabled"},
+		{name: "admin OAuth token on admin route", path: "/api/admin/users", authorization: "Bearer admin-token", status: http.StatusOK, userID: admin.ID},
+		{name: "admin OAuth token without the route's scope", path: "/api/admin/users", authorization: "Bearer admin-account-token", status: http.StatusForbidden, errorCode: "forbidden"},
+		{name: "regular user OAuth token that carries an admin scope", path: "/api/admin/users", authorization: "Bearer user-admin-token", status: http.StatusForbidden, errorCode: "forbidden"},
+		{name: "disabled user's OAuth token", path: "/api/admin/users", authorization: "Bearer disabled-token", status: http.StatusForbidden, errorCode: "user_disabled"},
+		{name: "OAuth token of a client the user lost group access to", path: "/api/admin/users", authorization: "Bearer group-restricted-token", status: http.StatusUnauthorized, errorCode: "not_signed_in"},
 		{name: "OAuth token on session-only route", path: "/api/session-only", authorization: "Bearer session-scope-token", status: http.StatusForbidden, errorCode: "oauth_token_auth_not_allowed"},
-		{name: "custom API token with a colliding scope key", path: "/api/admin", authorization: "Bearer custom-api-token", status: http.StatusUnauthorized, errorCode: "not_signed_in"},
+		{name: "custom API token with a colliding scope key", path: "/api/admin/users", authorization: "Bearer custom-api-token", status: http.StatusUnauthorized, errorCode: "not_signed_in"},
 		{name: "unverified user OAuth token on apps route", path: "/api/apps", authorization: "Bearer unverified-api-token", status: http.StatusForbidden, errorCode: "email_verification_required"},
 		{name: "unknown OAuth token", path: "/api/account", authorization: "Bearer unknown", status: http.StatusUnauthorized, errorCode: "not_signed_in"},
-		{name: "client acting as itself on admin route", path: "/api/admin", authorization: "Bearer machine-token", status: http.StatusOK, userID: ""},
+		{name: "client acting as itself on admin route", path: "/api/admin/users", authorization: "Bearer machine-token", status: http.StatusOK, userID: ""},
 		{name: "client acting as itself on account route", path: "/api/account", authorization: "Bearer machine-token", status: http.StatusForbidden, errorCode: "client_token_auth_not_allowed"},
 		{name: "client acting as itself on session-only route", path: "/api/session-only", authorization: "Bearer machine-token", status: http.StatusForbidden, errorCode: "oauth_token_auth_not_allowed"},
 		{name: "no credentials", path: "/api/account", status: http.StatusUnauthorized, errorCode: "not_signed_in"},
@@ -175,6 +191,27 @@ func TestAuthorizationWithRealCredentials(t *testing.T) {
 	}
 }
 
+type nopAuditLogger struct{}
+
+func (nopAuditLogger) Record(context.Context, auditlogs.Event, auditlogs.Origin, string, auditlogs.Data, *gorm.DB) {
+}
+
+func (nopAuditLogger) KeepUsername(context.Context, string, string, *gorm.DB) error {
+	return nil
+}
+
+func (nopAuditLogger) DeviceStringFromUserAgent(string) string {
+	return ""
+}
+
+type noEndNotifier struct{}
+
+func (noEndNotifier) SessionsEnded(context.Context, string, []string) {}
+
+func (noEndNotifier) SessionsExpired(context.Context, string, []string) error { return nil }
+
+func (noEndNotifier) SignedOutEverywhere(context.Context, string) error { return nil }
+
 type noIPLocation struct{}
 
 func (noIPLocation) GetLocationByIP(context.Context, string) (string, string, error) {
@@ -196,7 +233,7 @@ const oauthTestClientID = "machine-client"
 
 func oauthAccessRequest(subject string, audience fosite.Arguments, scopes ...string) fosite.AccessRequester {
 	accessRequest := fosite.NewAccessRequest(&fosite.DefaultSession{Subject: subject})
-	accessRequest.Client = &fosite.DefaultClient{ID: oauthTestClientID}
+	accessRequest.Client = oidc.Client{OidcClient: model.OidcClient{Base: model.Base{ID: oauthTestClientID}}}
 	accessRequest.GrantedAudience = audience
 	accessRequest.GrantedScope = scopes
 	return accessRequest

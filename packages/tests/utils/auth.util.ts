@@ -1,4 +1,4 @@
-import type { Page } from '@playwright/test';
+import type { Browser, Page } from '@playwright/test';
 import playwrightConfig from '../playwright.config';
 import passkeyUtil from './passkey.util';
 
@@ -30,4 +30,12 @@ async function changeUser(page: Page, username: keyof typeof passkeyUtil.passkey
 	await page.waitForURL('/settings/**');
 }
 
-export default { authenticate, changeUser };
+// Signs in from a separate browser, which gets a Pocket ID session of its own
+async function signInElsewhere(browser: Browser, username: keyof typeof passkeyUtil.passkeys) {
+	const context = await browser.newContext({ storageState: signedOutState });
+	const page = await context.newPage();
+	await changeUser(page, username);
+	return { context, page };
+}
+
+export default { authenticate, changeUser, signInElsewhere };

@@ -1,6 +1,7 @@
 package oidc
 
 import (
+	"encoding/json"
 	"net/http"
 	"net/http/httptest"
 	"net/url"
@@ -8,8 +9,12 @@ import (
 	"testing"
 	"time"
 
+	"github.com/gin-gonic/gin"
 	"github.com/pocket-id/fosite"
 	"github.com/stretchr/testify/require"
+
+	"github.com/pocket-id/pocket-id/backend/internal/claimmappingpolicy"
+	"github.com/pocket-id/pocket-id/backend/internal/model"
 )
 
 func TestDeviceCodeExchangeConsumesOpenIDConnectSession(t *testing.T) {
@@ -49,6 +54,53 @@ func TestDeviceCodeExchangeConsumesOpenIDConnectSession(t *testing.T) {
 	// The replay revokes the access token that the first exchange issued
 	require.NoError(t, store.db.Model(&OAuth2Session{}).Where("kind = ? AND request_id = ?", sessionKindAccessToken, deviceSession.RequestID).Count(&count).Error)
 	require.Zero(t, count)
+}
+
+func TestTokenHandlerDeviceCodeExchangeBuildsClaimsFromCurrentUserData(t *testing.T) {
+	const (
+		userID   = "test-user"
+		clientID = "test-client"
+	)
+	service, store, provider, userCode, deviceCode := newTestDeviceServiceWithCode(t, clientID, userID, false, nil)
+	require.NoError(t, store.db.Model(&claimmappingpolicy.OidcClaimMappingPolicy{}).Where("is_default = ?", true).Update("claim_mappings", claimmappingpolicy.OidcClaimMappings{
+		{ClaimName: "mail", SourceType: claimmappingpolicy.MappingSourceUserField, SourceValue: "email", Scope: []string{"openid"}, AccessToken: true, IDToken: true},
+	}).Error)
+	require.NoError(t, store.db.Model(&model.User{}).Where("id = ?", userID).Update("email", "approved@example.com").Error)
+	require.NoError(t, service.acceptDeviceCode(t.Context(), userCode, userID, "phr", time.Now().UTC(), nil, "", requestMeta{}))
+	require.NoError(t, store.db.Model(&model.User{}).Where("id = ?", userID).Update("email", "current@example.com").Error)
+
+	handler := newTokenHandler(provider, service.claimsService, nil, nil)
+	form := url.Values{
+		"grant_type":  {string(fosite.GrantTypeDeviceCode)},
+		"device_code": {deviceCode},
+		"client_id":   {clientID},
+	}
+	req := httptest.NewRequestWithContext(t.Context(), http.MethodPost, "/api/oidc/token", strings.NewReader(form.Encode()))
+	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+	rec := httptest.NewRecorder()
+	c, _ := gin.CreateTestContext(rec)
+	c.Request = req
+	handler.token(c)
+
+	var body map[string]any
+	require.NoError(t, json.Unmarshal(rec.Body.Bytes(), &body))
+	require.NotEmpty(t, body["access_token"], "expected tokens, got error: %v", body["error"])
+	require.Equal(t, "current@example.com", decodeJWTPart(t, body["access_token"].(string), 1)["mail"], "access token")
+	require.Equal(t, "current@example.com", decodeJWTPart(t, body["id_token"].(string), 1)["mail"], "ID token")
+}
+
+func TestRevokeUserClientSessionsRevokesApprovedDeviceCode(t *testing.T) {
+	const (
+		userID   = "test-user"
+		clientID = "test-client"
+	)
+	service, store, provider, userCode, deviceCode := newTestDeviceServiceWithCode(t, clientID, userID, false, nil)
+	require.NoError(t, service.acceptDeviceCode(t.Context(), userCode, userID, "phr", time.Now().UTC(), nil, "", requestMeta{}))
+
+	require.NoError(t, RevokeUserClientSessions(t.Context(), store.db, userID, clientID))
+
+	_, err := exchangeDeviceCode(t, provider, clientID, deviceCode)
+	require.ErrorIs(t, err, fosite.ErrInvalidGrant)
 }
 
 func TestStoreInvalidateDeviceCodeSessionReportsLostRaceAsInvalidGrant(t *testing.T) {

@@ -110,6 +110,15 @@ func (m *Module) SendOneTimeAccessEmail(ctx context.Context, dbConfig *appconfig
 	})
 }
 
+func (m *Module) SendSignupInvitation(ctx context.Context, dbConfig *appconfig.AppConfigModel, recipientEmail, signupLink, expirationString string) error {
+	return send(ctx, m, dbConfig, address{
+		email: recipientEmail,
+	}, signupInvitationTemplate, &signupInvitationTemplateData{
+		SignupLink:       signupLink,
+		ExpirationString: expirationString,
+	})
+}
+
 func (m *Module) SendNewLogin(ctx context.Context, dbConfig *appconfig.AppConfigModel, userFullName, userEmail, ipAddress, country, city, device, method string, dateTime time.Time) error {
 	return send(ctx, m, dbConfig, address{
 		name:  userFullName,
@@ -177,9 +186,19 @@ func (m *Module) getEmailer(ctx context.Context, dbConfig *appconfig.AppConfigMo
 		return nil, err
 	}
 
-	return emailer.NewEmailer(ctx, emailer.NewEmailerOpts{
+	e, err := emailer.NewEmailer(ctx, emailer.NewEmailerOpts{
 		ConnString: connString,
 	})
+	if err != nil {
+		// The *url.Error of a malformed host or port quotes the connection string, which carries the SMTP password, so only its cause is kept
+		var urlErr *url.Error
+		if errors.As(err, &urlErr) {
+			return nil, fmt.Errorf("invalid SMTP host or port: %w", urlErr.Err)
+		}
+		return nil, err
+	}
+
+	return e, nil
 }
 
 func smtpConnString(dbConfig *appconfig.AppConfigModel) (string, error) {

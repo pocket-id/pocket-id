@@ -19,8 +19,10 @@ import (
 	"time"
 
 	"gorm.io/gorm"
+	"gorm.io/gorm/clause"
 
 	"github.com/pocket-id/pocket-id/backend/internal/apperror"
+	"github.com/pocket-id/pocket-id/backend/internal/dto"
 	"github.com/pocket-id/pocket-id/backend/internal/model"
 	datatype "github.com/pocket-id/pocket-id/backend/internal/model/types"
 	"github.com/pocket-id/pocket-id/backend/internal/oidc"
@@ -149,7 +151,7 @@ func (s *Service) CreateServiceProvider(ctx context.Context, input *ScimServiceP
 	return provider, nil
 }
 
-func (s *Service) UpdateServiceProvider(ctx context.Context, serviceProviderID string, input *ScimServiceProviderCreateDTO) (ServiceProvider, error) {
+func (s *Service) UpdateServiceProvider(ctx context.Context, serviceProviderID string, update dto.Update[ScimServiceProviderCreateDTO]) (ServiceProvider, error) {
 	tx := s.db.Begin()
 	defer func() {
 		tx.Rollback()
@@ -157,12 +159,19 @@ func (s *Service) UpdateServiceProvider(ctx context.Context, serviceProviderID s
 
 	var provider ServiceProvider
 	err := tx.WithContext(ctx).
+		Clauses(clause.Locking{Strength: "UPDATE"}).
 		First(&provider, "id = ?", serviceProviderID).
 		Error
 	if errors.Is(err, gorm.ErrRecordNotFound) {
 		return ServiceProvider{}, apperror.NotFound("SCIM service provider")
 	} else if err != nil {
 		return ServiceProvider{}, fmt.Errorf("error loading SCIM service provider: %w", err)
+	}
+
+	// Compute the update from the locked provider without its stored token, so a PATCH that changes the endpoint has to send the token again like a PUT
+	input, err := update(ScimServiceProviderCreateDTO{Endpoint: provider.Endpoint, OidcClientID: provider.OidcClientID})
+	if err != nil {
+		return ServiceProvider{}, err
 	}
 
 	err = ensureScimOIDCClientExists(ctx, tx, input.OidcClientID)
@@ -518,9 +527,10 @@ func (s *Service) syncUser(ctx context.Context, provider ServiceProvider, user m
 		}}
 	}
 
-	// If the user exists on the SCIM provider, and it has been modified, update it
+	// If the user exists on the SCIM provider, update it unless the provider already has the current data
+	// meta.lastModified can't tell, because it also moves when the resource is changed at the provider
 	if userResource != nil {
-		if user.LastModified().Before(userResource.GetMeta().LastModified) {
+		if scimUserUpToDate(*userResource, payload) {
 			return scimActionNone, nil, nil
 		}
 
@@ -576,9 +586,10 @@ func (s *Service) syncGroup(ctx context.Context, provider ServiceProvider, group
 		Members: members,
 	}
 
-	// If the group exists on the SCIM provider, and it has been modified, update it
+	// If the group exists on the SCIM provider, update it unless the provider already has the current data
+	// meta.lastModified can't tell, because it also moves when the resource is changed at the provider
 	if groupResource != nil {
-		if group.LastModified().Before(groupResource.GetMeta().LastModified) {
+		if scimGroupUpToDate(*groupResource, groupPayload) {
 			return scimActionNone, nil
 		}
 
@@ -598,6 +609,39 @@ func (s *Service) syncGroup(ctx context.Context, provider ServiceProvider, group
 	}
 
 	return scimActionCreated, nil
+}
+
+// scimUserUpToDate reports whether the provider's copy of a user already has the attributes the payload would write
+func scimUserUpToDate(remote ScimUser, payload ScimUser) bool {
+	var remoteName, payloadName ScimName
+	if remote.Name != nil {
+		remoteName = *remote.Name
+	}
+	if payload.Name != nil {
+		payloadName = *payload.Name
+	}
+
+	return remote.UserName == payload.UserName &&
+		remoteName == payloadName &&
+		remote.Display == payload.Display &&
+		remote.Active == payload.Active &&
+		slices.Equal(remote.Emails, payload.Emails)
+}
+
+// scimGroupUpToDate reports whether the provider's copy of a group already has the name and the members the payload would write
+func scimGroupUpToDate(remote ScimGroup, payload ScimGroup) bool {
+	return remote.Display == payload.Display &&
+		slices.Equal(sortedMemberValues(remote.Members), sortedMemberValues(payload.Members))
+}
+
+// sortedMemberValues returns the members' IDs in a fixed order, because the provider may list them in any order
+func sortedMemberValues(members []ScimGroupMember) []string {
+	values := make([]string, len(members))
+	for i, member := range members {
+		values[i] = member.Value
+	}
+	slices.Sort(values)
+	return values
 }
 
 func groupAllowedForClient(groupID string, client model.OidcClient) bool {

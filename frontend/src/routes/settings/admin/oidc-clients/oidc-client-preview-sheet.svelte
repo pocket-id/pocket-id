@@ -7,6 +7,7 @@
 	import * as Tabs from '@pocket-id/ui/tabs';
 	import { m } from '#lib/paraglide/messages.js';
 	import { getLocale } from '#lib/paraglide/runtime.js';
+	import OidcClaimMappingPolicyService from '#lib/services/oidc-claim-mapping-policy-service.ts';
 	import OidcService from '#lib/services/oidc-service.ts';
 	import type { OidcClient } from '#lib/types/oidc.type.ts';
 	import { getAxiosErrorMessage } from '#lib/utils/error-util.ts';
@@ -25,6 +26,7 @@
 	} = $props();
 
 	const oidcService = new OidcService();
+	const policyService = new OidcClaimMappingPolicyService();
 
 	// Claims holding a Unix timestamp, which are shown with a readable date next to them
 	const TIMESTAMP_CLAIMS = new Set(['exp', 'iat', 'nbf', 'auth_time', 'updated_at']);
@@ -78,6 +80,12 @@
 			: null;
 	}
 
+	// Every custom scope is offered, and the preview drops the ones the app's policy doesn't release claims with, like a real authorization
+	let customScopes = $state<string[]>([]);
+	$effect(() => {
+		if (open) policyService.listCustomScopeKeys().then((keys) => (customScopes = keys));
+	});
+
 	// Reload the preview whenever the selected user or the scopes change
 	$effect(() => {
 		if (open && userId) {
@@ -123,7 +131,7 @@
 
 <Sheet.Root bind:open>
 	<Sheet.Content title={m.data_preview()}>
-		<TokenPreviewInputs bind:userId bind:scopes />
+		<TokenPreviewInputs bind:userId bind:scopes {customScopes} />
 
 		<div class="flex min-h-0 flex-col gap-3">
 			<Tabs.Root bind:value={activeTab}>

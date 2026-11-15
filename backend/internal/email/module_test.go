@@ -51,47 +51,61 @@ func TestModuleSendsEveryEmailType(t *testing.T) {
 
 	eventTime := time.Date(2030, time.January, 2, 15, 4, 5, 0, time.UTC)
 	tests := []struct {
-		name         string
-		subject      string
-		bodyContains []string
-		send         func(ctx context.Context, config *appconfig.AppConfigModel) error
+		name          string
+		subject       string
+		recipientName string
+		bodyContains  []string
+		send          func(ctx context.Context, config *appconfig.AppConfigModel) error
 	}{
 		{
-			name:         "test email",
-			subject:      "Test email",
-			bodyContains: []string{"TEST EMAIL", "Your email setup is working correctly!"},
+			name:          "test email",
+			subject:       "Test email",
+			recipientName: "Test User",
+			bodyContains:  []string{"TEST EMAIL", "Your email setup is working correctly!"},
 			send: func(ctx context.Context, config *appconfig.AppConfigModel) error {
 				return module.SendTestEmail(ctx, config, user.ID)
 			},
 		},
 		{
-			name:         "email verification",
-			subject:      "Verify your Pocket ID Test email address",
-			bodyContains: []string{"VERIFY YOUR EMAIL ADDRESS", "Hello Test User", "https://id.example.test/verify-token"},
+			name:          "email verification",
+			subject:       "Verify your Pocket ID Test email address",
+			recipientName: "Test User",
+			bodyContains:  []string{"VERIFY YOUR EMAIL ADDRESS", "Hello Test User", "https://id.example.test/verify-token"},
 			send: func(ctx context.Context, config *appconfig.AppConfigModel) error {
 				return module.SendEmailVerification(ctx, config, user.FullName(), userEmail, "https://id.example.test/verify-token")
 			},
 		},
 		{
-			name:         "one-time access",
-			subject:      "Login Code",
-			bodyContains: []string{"YOUR LOGIN CODE", "123456", "https://id.example.test/lc/123456", "15 minutes"},
+			name:          "one-time access",
+			subject:       "Login Code",
+			recipientName: "Test User",
+			bodyContains:  []string{"YOUR LOGIN CODE", "123456", "https://id.example.test/lc/123456", "15 minutes"},
 			send: func(ctx context.Context, config *appconfig.AppConfigModel) error {
 				return module.SendOneTimeAccessEmail(ctx, config, user.FullName(), userEmail, "123456", "https://id.example.test/lc", "https://id.example.test/lc/123456", "15 minutes")
 			},
 		},
 		{
-			name:         "new login",
-			subject:      "New device login with Pocket ID Test",
-			bodyContains: []string{"NEW SIGN-IN DETECTED", "Zurich, Switzerland", "192.0.2.10", "Firefox on Linux", "Sign-in method", "One-time code", "January 2, 2030 at 3:04 PM UTC"},
+			name:         "signup invitation",
+			subject:      "You're invited to Pocket ID Test",
+			bodyContains: []string{"YOU'RE INVITED", "https://id.example.test/st/abcdefgh12345678", "1 day"},
+			send: func(ctx context.Context, config *appconfig.AppConfigModel) error {
+				return module.SendSignupInvitation(ctx, config, userEmail, "https://id.example.test/st/abcdefgh12345678", "1 day")
+			},
+		},
+		{
+			name:          "new login",
+			subject:       "New device login with Pocket ID Test",
+			recipientName: "Test User",
+			bodyContains:  []string{"NEW SIGN-IN DETECTED", "Zurich, Switzerland", "192.0.2.10", "Firefox on Linux", "Sign-in method", "One-time code", "January 2, 2030 at 3:04 PM UTC"},
 			send: func(ctx context.Context, config *appconfig.AppConfigModel) error {
 				return module.SendNewLogin(ctx, config, user.FullName(), userEmail, "192.0.2.10", "Switzerland", "Zurich", "Firefox on Linux", "One-time code", eventTime)
 			},
 		},
 		{
-			name:         "API key expiration",
-			subject:      `API Key "Automation" Expiring Soon`,
-			bodyContains: []string{"API KEY EXPIRING SOON", "Hello Test", "Automation", "2030-01-02 15:04:05 UTC"},
+			name:          "API key expiration",
+			subject:       `API Key "Automation" Expiring Soon`,
+			recipientName: "Test User",
+			bodyContains:  []string{"API KEY EXPIRING SOON", "Hello Test", "Automation", "2030-01-02 15:04:05 UTC"},
 			send: func(ctx context.Context, config *appconfig.AppConfigModel) error {
 				return module.SendAPIKeyExpiringSoon(ctx, config, user.FullName(), userEmail, user.FirstName, "Automation", eventTime)
 			},
@@ -119,7 +133,7 @@ func TestModuleSendsEveryEmailType(t *testing.T) {
 			assert.Equal(t, "sender@example.test", from.Address)
 			to, err := mail.ParseAddress(message.Header.Get("To"))
 			require.NoError(t, err)
-			assert.Equal(t, "Test User", to.Name)
+			assert.Equal(t, test.recipientName, to.Name)
 			assert.Equal(t, "recipient@example.test", to.Address)
 			assert.Equal(t, test.subject, message.Header.Get("Subject"))
 
@@ -197,6 +211,17 @@ func TestSMTPConnStringRequiresHostAndDefaultsTLS(t *testing.T) {
 	require.NoError(t, err)
 	assert.Equal(t, "none", smtpURL.Query().Get("tls"))
 	assert.Empty(t, smtpURL.Query().Get("insecureSkipVerify"))
+}
+
+func TestMalformedSMTPHostDoesNotLeakPassword(t *testing.T) {
+	_, err := (&Module{}).getEmailer(t.Context(), &appconfig.AppConfigModel{
+		SmtpHost:     "127.0.0.1:2525",
+		SmtpPort:     "2525",
+		SmtpUser:     "mailer",
+		SmtpPassword: "secret-password",
+	})
+	require.Error(t, err)
+	require.NotContains(t, err.Error(), "secret-password")
 }
 
 type smtpTestSession struct {

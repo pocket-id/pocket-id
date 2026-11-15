@@ -17,6 +17,7 @@ import (
 	"github.com/fsnotify/fsnotify"
 	sloggin "github.com/gin-contrib/slog"
 	"github.com/gin-gonic/gin"
+	"github.com/go-fuego/fuego/option"
 	"github.com/italypaleale/francis/builtin/ratelimit"
 	"github.com/italypaleale/go-kit/servicerunner"
 	"go.opentelemetry.io/contrib/instrumentation/github.com/gin-gonic/gin/otelgin"
@@ -26,23 +27,28 @@ import (
 	"github.com/pocket-id/pocket-id/backend/frontend"
 	"github.com/pocket-id/pocket-id/backend/internal/authz"
 	"github.com/pocket-id/pocket-id/backend/internal/common"
-	"github.com/pocket-id/pocket-id/backend/internal/controller"
+	"github.com/pocket-id/pocket-id/backend/internal/httpserver"
 	"github.com/pocket-id/pocket-id/backend/internal/mcp"
 	"github.com/pocket-id/pocket-id/backend/internal/middleware"
 	"github.com/pocket-id/pocket-id/backend/internal/tracing"
 	"github.com/pocket-id/pocket-id/backend/internal/utils/systemd"
 )
 
-// This is used to register additional controllers for tests
-var registerTestControllers []func(apiRouter *authz.Router, db *gorm.DB, svc *services)
+// testModule is a module that only builds for the end-to-end tests contain
+type testModule interface {
+	RegisterRoutes(r *authz.PublicRouter)
+}
 
-func initRouter(db *gorm.DB, svc *services, rateLimitServices map[string]*ratelimit.RateLimitService) (servicerunner.Service, error) {
+// newTestModule is set by builds for the end-to-end tests
+var newTestModule func(db *gorm.DB, svc *services) (testModule, error)
+
+func initRouter(svc *services, rateLimitServices map[string]*ratelimit.RateLimitService) (servicerunner.Service, error) {
 	r, err := initEngine()
 	if err != nil {
 		return nil, err
 	}
 	auth := middleware.NewAuthorization(svc.apiKeyModule, svc.oidcModule, svc.usersModule, svc.sessionModule, svc.appConfigService)
-	err = registerRoutes(r, db, svc, auth, rateLimitServices)
+	err = registerRoutes(r, svc, auth, rateLimitServices)
 	if err != nil {
 		return nil, err
 	}
@@ -119,8 +125,7 @@ func shouldTraceRequest(r *http.Request) bool {
 	switch {
 	case strings.HasPrefix(p, "/api/"),
 		strings.HasPrefix(p, "/.well-known/"),
-		p == "/authorize",
-		p == authz.MCPPath:
+		p == "/authorize":
 		return true
 	default:
 		return false
@@ -132,6 +137,7 @@ func registerGlobalMiddleware(r *gin.Engine) {
 		r.Use(middleware.CloudflareLocationMiddleware())
 	}
 	r.Use(middleware.HeadMiddleware())
+	r.Use(middleware.NewBodySizeLimitMiddleware().Add(1 << 20))
 	r.Use(middleware.NewCacheControlMiddleware().Add())
 	r.Use(middleware.NewCorsMiddleware().Add())
 	r.Use(middleware.NewCspMiddleware().Add())
@@ -149,7 +155,7 @@ func registerTools(t *mcp.Tools, svc *services) {
 	svc.auditLogsModule.RegisterTools(t)
 }
 
-func registerRoutes(r *gin.Engine, db *gorm.DB, svc *services, auth *authz.Middleware, rateLimitServices map[string]*ratelimit.RateLimitService) error {
+func registerRoutes(r *gin.Engine, svc *services, auth *authz.Middleware, rateLimitServices map[string]*ratelimit.RateLimitService) error {
 
 	err := frontend.RegisterFrontend(r)
 	if errors.Is(err, frontend.ErrFrontendNotIncluded) {
@@ -185,13 +191,13 @@ func registerRoutes(r *gin.Engine, db *gorm.DB, svc *services, auth *authz.Middl
 	)
 	svc.usersModule.RegisterRoutes(apiRouter, fileSizeLimitMiddleware.Add(10<<20))
 	svc.claimMappingPolicyModule.RegisterRoutes(apiRouter)
-	controller.NewAppConfigController(apiRouter, svc.appConfigService, svc.emailModule)
+	svc.appConfigService.RegisterRoutes(apiRouter, baseGroup, svc.emailModule)
 	svc.ldapSyncModule.RegisterRoutes(apiRouter)
-	controller.NewAppAssetsController(apiRouter, fileSizeLimitMiddleware, svc.appAssetsService)
+	svc.appAssetsModule.RegisterRoutes(apiRouter, fileSizeLimitMiddleware.Add(10<<20))
 	svc.auditLogsModule.RegisterRoutes(apiRouter)
 	svc.userGroupsModule.RegisterRoutes(apiRouter)
 	svc.apiModule.RegisterRoutes(apiRouter)
-	controller.NewCustomClaimController(apiRouter, svc.customClaimService)
+	svc.customClaimsModule.RegisterRoutes(apiRouter)
 	svc.environmentModule.RegisterRoutes(apiRouter)
 	svc.logoPresetModule.RegisterRoutes(apiRouter)
 	svc.featureModule.RegisterRoutes(apiRouter)
@@ -205,28 +211,22 @@ func registerRoutes(r *gin.Engine, db *gorm.DB, svc *services, auth *authz.Middl
 	svc.oidcModule.RegisterRoutes(baseRouter, apiRouter, fileSizeLimitMiddleware.Add(2<<20))
 	svc.mcpModule.RegisterRoutes(baseRouter)
 
-	registerTestRoutes(apiRouter, db, svc)
-
-	controller.NewWebManifestController(baseGroup, svc.appConfigService)
+	if svc.testModule != nil {
+		svc.testModule.RegisterRoutes(apiRouter.Public())
+	}
 
 	// These are not rate-limited.
-	controller.NewHealthzController(r)
+	auth.Router(r.Group("/")).Public().GET("/healthz", httpserver.NoContent(func(*gin.Context) error { return nil }),
+		option.Summary("Responds to healthchecks"),
+		option.Description("Responds with a successful status code to healthcheck requests"),
+		option.Tags("Health"),
+	)
 
 	// Receives OTLP trace payloads from the browser SPA (POST /internal/telemetry/traces) and forwards them to the collector, when trace export is enabled.
 	// Outside /api, so it's unauthenticated and not traced, but it is rate-limited.
 	tracing.NewTelemetryController(r, rateLimitMiddleware.Add(middleware.RateLimitInternal))
 
 	return nil
-}
-
-func registerTestRoutes(apiRouter *authz.Router, db *gorm.DB, svc *services) {
-	if common.EnvConfig.AppEnv.IsProduction() {
-		return
-	}
-
-	for _, f := range registerTestControllers {
-		f(apiRouter, db, svc)
-	}
 }
 
 func initServer(r *gin.Engine) (*serverConfig, error) {
@@ -302,7 +302,8 @@ func initServerProtocols() (*http.Protocols, *tls.Config, *tlsCertProvider, erro
 
 func newHTTPServer(r *gin.Engine, protocols *http.Protocols) *http.Server {
 	return &http.Server{
-		MaxHeaderBytes:    1 << 20,
+		// Some request headers, such as Content-Type, cost a multiple of their size to parse
+		MaxHeaderBytes:    64 << 10,
 		ReadHeaderTimeout: 10 * time.Second,
 		Protocols:         protocols,
 		Handler: http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
@@ -435,7 +436,11 @@ func initLogger(r *gin.Engine) {
 		}),
 		sloggin.WithContext(enrichRequestLog),
 		// Skip logging for certain paths to reduce noise in the logs
+		// Server errors are always logged because the request log is their only record
 		sloggin.WithSkipper(func(c *gin.Context) bool {
+			if c.Writer.Status() >= http.StatusInternalServerError {
+				return false
+			}
 			for _, prefix := range loggerSkipPathsPrefix {
 				if strings.HasPrefix(c.Request.Method+" "+c.Request.URL.String(), prefix) {
 					return true
@@ -446,43 +451,63 @@ func initLogger(r *gin.Engine) {
 	))
 }
 
-// enrichRequestLog enriches the slog.Record with additional attributes from the request context, such as request ID, error code, and trace/span IDs.
+// enrichRequestLog rebuilds the request log record with the request ID, the handled error and the trace, leaving out secrets
+// Text logs lead with an access log summary and, unless the log level is debug, keep only the client IP of the request fields
 func enrichRequestLog(c *gin.Context, record *slog.Record) *slog.Record {
-	enriched := slog.NewRecord(record.Time, record.Level, "HTTP request completed", record.PC)
-	// Add request ID if present in the context
-	if requestID := middleware.RequestID(c); requestID != "" {
-		enriched.AddAttrs(slog.String("request_id", requestID))
-	}
-	// Add error code if present in the context
-	if errorCode := middleware.RequestErrorCode(c); errorCode != "" {
-		enriched.AddAttrs(slog.String("error_code", string(errorCode)))
+	compact := !common.EnvConfig.LogJSON && common.EnvConfig.LogLevel != "debug"
+
+	// The signup and login code pages are the only paths that carry a token
+	path := c.Request.URL.Path
+	for _, prefix := range []string{"/st/", "/lc/"} {
+		if strings.HasPrefix(path, prefix) {
+			path = prefix + ":token"
+		}
 	}
 
-	// Add trace and span IDs if present in the context
-	if spanContext := trace.SpanFromContext(c.Request.Context()).SpanContext(); spanContext.IsValid() {
-		enriched.AddAttrs(
-			slog.String("trace_id", spanContext.TraceID().String()),
-			slog.String("span_id", spanContext.SpanID().String()),
-		)
-	}
-	// Query strings carry secrets such as ID token hints and email verification tokens, and the referer repeats them
-	// The signup and login code pages are the only paths that carry a token
+	// Collect the request fields, dropping the query string and the referer because they carry secrets such as ID token hints and email verification tokens
+	var latency time.Duration
+	requestAttrs := make([]slog.Attr, 0, record.NumAttrs())
 	record.Attrs(func(attr slog.Attr) bool {
 		switch attr.Key {
-		case "path":
-			path := attr.Value.String()
-			for _, prefix := range []string{"/st/", "/lc/"} {
-				if strings.HasPrefix(path, prefix) {
-					path = prefix + ":token"
-				}
-			}
-			enriched.AddAttrs(slog.String("path", path))
 		case "query", "referer":
-		default:
-			enriched.AddAttrs(attr)
+			return true
+		case "path":
+			attr = slog.String("path", path)
+		case "latency":
+			latency = attr.Value.Duration()
+		}
+		if !compact || attr.Key == "ip" {
+			requestAttrs = append(requestAttrs, attr)
 		}
 		return true
 	})
+
+	// Log processors filter on a fixed message, while people scan text logs by method, path and status
+	message := "HTTP request completed"
+	if !common.EnvConfig.LogJSON {
+		message = fmt.Sprintf("%s %s %d %s", c.Request.Method, path, c.Writer.Status(), latency.Round(time.Microsecond))
+	}
+	enriched := slog.NewRecord(record.Time, record.Level, message, record.PC)
+
+	// This line is the only log of a failed request, so it carries the error itself
+	if err := middleware.RequestError(c); err != nil {
+		enriched.AddAttrs(slog.Any("error", err))
+	}
+	if errorCode := middleware.RequestErrorCode(c); errorCode != "" {
+		enriched.AddAttrs(slog.String("error_code", string(errorCode)))
+	}
+	enriched.AddAttrs(requestAttrs...)
+	if requestID := middleware.RequestID(c); requestID != "" {
+		enriched.AddAttrs(slog.String("request_id", requestID))
+	}
+
+	// The span context is only valid when traces are exported, so the trace ID always leads somewhere
+	if spanContext := trace.SpanFromContext(c.Request.Context()).SpanContext(); spanContext.IsValid() {
+		enriched.AddAttrs(slog.String("trace_id", spanContext.TraceID().String()))
+		if !compact {
+			enriched.AddAttrs(slog.String("span_id", spanContext.SpanID().String()))
+		}
+	}
 
 	return &enriched
 }

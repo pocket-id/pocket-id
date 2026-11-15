@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/pocket-id/pocket-id/backend/internal/auditlogs"
 	"github.com/pocket-id/pocket-id/backend/internal/authz"
 	"github.com/pocket-id/pocket-id/backend/internal/dto"
 	"github.com/pocket-id/pocket-id/backend/internal/httpserver"
@@ -127,7 +128,7 @@ func (h *handler) getUserTool(ctx context.Context, _ mcp.Call, input userIDInput
 	return toUserResult(user)
 }
 
-func (h *handler) createUserTool(ctx context.Context, _ mcp.Call, input createUserInput) (any, error) {
+func (h *handler) createUserTool(ctx context.Context, call mcp.Call, input createUserInput) (any, error) {
 	dbConfig, err := h.appConfig.GetConfig(ctx)
 	if err != nil {
 		return nil, fmt.Errorf("error loading app configuration: %w", err)
@@ -152,56 +153,50 @@ func (h *handler) createUserTool(ctx context.Context, _ mcp.Call, input createUs
 		return nil, err
 	}
 
-	user, err := h.service.CreateUser(ctx, dbConfig, createDto)
+	user, err := h.service.CreateUser(ctx, dbConfig, createDto, auditlogs.OriginFromMCP(call))
 	if err != nil {
 		return nil, err
 	}
 	return toUserResult(user)
 }
 
-func (h *handler) updateUserTool(ctx context.Context, _ mcp.Call, input updateUserInput) (any, error) {
+func (h *handler) updateUserTool(ctx context.Context, call mcp.Call, input updateUserInput) (any, error) {
 	dbConfig, err := h.appConfig.GetConfig(ctx)
 	if err != nil {
 		return nil, fmt.Errorf("error loading app configuration: %w", err)
 	}
 
-	// The service replaces every field, so start from the current user and apply only the given fields
-	user, err := h.service.GetUser(ctx, input.ID)
-	if err != nil {
-		return nil, err
-	}
-	var updateDto dto.UserCreateDto
-	if err := dto.MapStruct(user, &updateDto); err != nil {
-		return nil, err
-	}
-	mcp.SetIfPresent(&updateDto.Username, input.Username)
-	mcp.SetIfPresent(&updateDto.EmailVerified, input.EmailVerified)
-	mcp.SetIfPresent(&updateDto.FirstName, input.FirstName)
-	mcp.SetIfPresent(&updateDto.LastName, input.LastName)
-	mcp.SetIfPresent(&updateDto.DisplayName, input.DisplayName)
-	mcp.SetIfPresent(&updateDto.IsAdmin, input.IsAdmin)
-	mcp.SetIfPresent(&updateDto.Disabled, input.Disabled)
-	if input.Email != nil {
-		updateDto.Email = input.Email
-	}
-	if err := httpserver.Validate(&updateDto); err != nil {
-		return nil, err
-	}
-
-	user, err = h.service.UpdateUser(ctx, dbConfig, input.ID, updateDto, false, false)
+	// The service replaces every field, so start from the locked user and apply only the given fields
+	user, err := h.service.UpdateUser(ctx, dbConfig, input.ID, func(current any) (dto.UserCreateDto, error) {
+		var updateDto dto.UserCreateDto
+		if err := dto.MapStruct(current, &updateDto); err != nil {
+			return updateDto, err
+		}
+		mcp.SetIfPresent(&updateDto.Username, input.Username)
+		mcp.SetIfPresent(&updateDto.EmailVerified, input.EmailVerified)
+		mcp.SetIfPresent(&updateDto.FirstName, input.FirstName)
+		mcp.SetIfPresent(&updateDto.LastName, input.LastName)
+		mcp.SetIfPresent(&updateDto.DisplayName, input.DisplayName)
+		mcp.SetIfPresent(&updateDto.IsAdmin, input.IsAdmin)
+		mcp.SetIfPresent(&updateDto.Disabled, input.Disabled)
+		if input.Email != nil {
+			updateDto.Email = input.Email
+		}
+		return updateDto, httpserver.Validate(&updateDto)
+	}, false, false, auditlogs.OriginFromMCP(call))
 	if err != nil {
 		return nil, err
 	}
 	return toUserResult(user)
 }
 
-func (h *handler) deleteUserTool(ctx context.Context, _ mcp.Call, input userIDInput) (any, error) {
+func (h *handler) deleteUserTool(ctx context.Context, call mcp.Call, input userIDInput) (any, error) {
 	dbConfig, err := h.appConfig.GetConfig(ctx)
 	if err != nil {
 		return nil, fmt.Errorf("error loading app configuration: %w", err)
 	}
 
-	if err := h.service.DeleteUser(ctx, dbConfig, input.ID, false); err != nil {
+	if err := h.service.DeleteUser(ctx, dbConfig, input.ID, false, auditlogs.OriginFromMCP(call)); err != nil {
 		return nil, err
 	}
 	return mcp.Deleted, nil

@@ -9,6 +9,7 @@ import (
 	"gorm.io/gorm"
 
 	"github.com/pocket-id/pocket-id/backend/internal/appconfig"
+	"github.com/pocket-id/pocket-id/backend/internal/auditlogs"
 	"github.com/pocket-id/pocket-id/backend/internal/model"
 	datatype "github.com/pocket-id/pocket-id/backend/internal/model/types"
 	testutils "github.com/pocket-id/pocket-id/backend/internal/utils/testing"
@@ -19,7 +20,7 @@ type testUserDeleter struct {
 	deleted []string
 }
 
-func (d *testUserDeleter) DeleteUser(ctx context.Context, _ *appconfig.AppConfigModel, userID string, _ bool) error {
+func (d *testUserDeleter) DeleteUser(ctx context.Context, _ *appconfig.AppConfigModel, userID string, _ bool, _ auditlogs.Origin) error {
 	d.deleted = append(d.deleted, userID)
 	return d.db.WithContext(ctx).Delete(&model.User{}, "id = ?", userID).Error
 }

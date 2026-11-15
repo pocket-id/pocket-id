@@ -26,7 +26,7 @@ async function forEachUser(users: User[], run: (user: User) => Promise<unknown>)
 }
 
 function setDisabled(user: User, disabled: boolean) {
-	return userService.update(user.id, { ...user, disabled });
+	return userService.update(user.id, { disabled });
 }
 
 export function confirmDisableUsers(users: User[], onDone: () => unknown) {
@@ -39,9 +39,7 @@ export function confirmDisableUsers(users: User[], onDone: () => unknown) {
 			? m.disable_user_consequence({ name: users[0].firstName || users[0].displayName })
 			: m.disable_users_consequence({ names: joinNames(users) }),
 		confirm: {
-			label: one
-				? m.disable_name_action({ name: users[0].displayName })
-				: m.disable_count_users({ count: users.length }),
+			label: one ? m.disable_user() : m.disable_count_users({ count: users.length }),
 			destructive: true,
 			icon: BanIcon,
 			action: async () => {
@@ -77,9 +75,7 @@ export function confirmDeleteUsers(users: User[], onDone: () => unknown) {
 			: m.delete_count_users_question({ count: users.length }),
 		message: m.delete_users_consequence({ names: joinNames(users) }),
 		confirm: {
-			label: one
-				? m.delete_name_action({ name: users[0].displayName })
-				: m.delete_count_users({ count: users.length }),
+			label: one ? m.delete_user() : m.delete_count_users({ count: users.length }),
 			destructive: true,
 			action: async () => {
 				const done = await forEachUser(users, (u) => userService.remove(u.id));

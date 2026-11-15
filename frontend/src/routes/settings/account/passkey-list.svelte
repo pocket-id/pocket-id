@@ -42,7 +42,7 @@
 					? m.delete_last_own_passkey_consequence()
 					: m.delete_own_passkey_consequence(),
 			confirm: {
-				label: m.delete_name_action({ name: passkey.name }),
+				label: m.delete_passkey(),
 				destructive: true,
 				action: async () => {
 					try {

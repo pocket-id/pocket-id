@@ -45,8 +45,8 @@ function nextcloudAuthorizeParams() {
 
 // Marks Craig's email as verified through the admin API
 async function markCraigVerified(request: APIRequestContext) {
-	const craig = await request.get(`/api/users/${users.craig.id}`).then((r) => r.json());
-	const response = await request.put(`/api/users/${users.craig.id}`, {
+	const craig = await request.get(`/api/admin/users/${users.craig.id}`).then((r) => r.json());
+	const response = await request.put(`/api/admin/users/${users.craig.id}`, {
 		data: { ...craig, emailVerified: true }
 	});
 	expect(response.ok()).toBe(true);

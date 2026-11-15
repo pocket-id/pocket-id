@@ -2,7 +2,7 @@
 	import ActionsMenu from '#lib/components/actions-menu.svelte';
 	import ApiPermissionsSheet from '#lib/components/api-permissions-sheet.svelte';
 	import { openConfirmDialog } from '#lib/components/confirm-dialog/index.ts';
-	import SettingsSection from '#lib/components/settings-section.svelte';
+	import SettingsCard from '#lib/components/settings-card.svelte';
 	import { Button } from '@pocket-id/ui/button';
 	import { m } from '#lib/paraglide/messages.js';
 	import ApisService from '#lib/services/apis-service.ts';
@@ -116,7 +116,7 @@
 	}
 </script>
 
-<SettingsSection title={m.api_access()}>
+<SettingsCard title={m.api_access()}>
 	{#snippet action()}
 		{#if grants.length > 0}
 			<Button variant="secondary" size="sm" onclick={() => (pickerOpen = true)}>
@@ -125,11 +125,9 @@
 			</Button>
 		{/if}
 	{/snippet}
-	<ul class="mt-2 flex flex-col rounded-md border">
+	<ul class="flex flex-col">
 		{#each grants as entry (entry.api.id)}
-			<li
-				class="flex min-h-(--row-2line) items-center gap-4 border-b py-2 ps-4 pe-2 last:border-b-0"
-			>
+			<li class="flex min-h-(--row-2line) items-center gap-4 border-b py-2 last:border-b-0">
 				<div class="flex min-w-0 flex-1 flex-col">
 					<span class="text-control font-medium">{entry.api.name}</span>
 					<span class="text-caption text-fg-muted truncate font-mono" title={entry.api.resource}
@@ -158,7 +156,7 @@
 				/>
 			</li>
 		{:else}
-			<li class="flex min-h-(--row-2line) flex-wrap items-center justify-between gap-2 ps-4 pe-2">
+			<li class="flex min-h-(--row-2line) flex-wrap items-center justify-between gap-2">
 				<span class="text-control text-fg-muted min-w-0">
 					{m.name_cant_request_tokens_for_any_api({ name: client.name })}
 				</span>
@@ -169,7 +167,7 @@
 			</li>
 		{/each}
 	</ul>
-</SettingsSection>
+</SettingsCard>
 
 <ApiSelectionModal bind:open={pickerOpen} clientId={client.id} onSelect={addApi} />
 

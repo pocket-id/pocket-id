@@ -79,7 +79,7 @@ func TestIntrospectionHandlerBindsTokenToCallerClient(t *testing.T) {
 	clientBMachineToken := issueAccessToken(t, "req-b-machine", "client-b", ClientSubject("client-b"))
 
 	claimsService := newClaimsService(db, nil, "https://issuer.example.com", nil, appconfig.StaticResolver{})
-	handler := newIntrospectionHandler(provider, nil, claimsService, "https://issuer.example.com")
+	handler := newIntrospectionHandler(provider, nil, claimsService, nil, "https://issuer.example.com")
 
 	introspect := func(t *testing.T, bearer, token string) map[string]any {
 		t.Helper()
@@ -196,7 +196,7 @@ func TestIntrospectionHandlerAllowsReusedFederatedClientAssertion(t *testing.T) 
 	signedAssertion, err := jwt.Sign(assertionToken, jwt.WithKey(signingAlg, signingKey))
 	require.NoError(t, err)
 
-	handler := newIntrospectionHandler(provider, authenticator, newClaimsService(db, nil, baseURL, nil, appconfig.StaticResolver{}), baseURL)
+	handler := newIntrospectionHandler(provider, authenticator, newClaimsService(db, nil, baseURL, nil, appconfig.StaticResolver{}), nil, baseURL)
 	introspect := func(t *testing.T) (int, map[string]any) {
 		t.Helper()
 		body := url.Values{

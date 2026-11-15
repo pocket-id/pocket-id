@@ -9,8 +9,8 @@ import (
 	jwxjwt "github.com/lestrrat-go/jwx/v4/jwt"
 	"github.com/pocket-id/fosite"
 
+	"github.com/pocket-id/pocket-id/backend/internal/claimmappingpolicy"
 	"github.com/pocket-id/pocket-id/backend/internal/model"
-	"github.com/pocket-id/pocket-id/backend/internal/utils"
 )
 
 type ClientPreview struct {
@@ -82,8 +82,13 @@ func (b *ClientPreviewBuilder) BuildClientPreview(ctx context.Context, client mo
 func (b *ClientPreviewBuilder) validatedScopes(ctx context.Context, client model.OidcClient, scopes []string) (fosite.Arguments, error) {
 	// Mirror the authorize endpoint's scope handling so the preview matches the tokens a real
 	// authorization would produce, including dropping unknown scopes when configured.
+	customScopes, err := claimmappingpolicy.ClientCustomScopeKeys(ctx, b.claimsService.db, client)
+	if err != nil {
+		return nil, err
+	}
+
 	requested := fosite.Arguments(fosite.RemoveEmpty(scopes))
-	validated, err := fosite.FilterRequestedScopes(b.strategies.config.GetScopeStrategy(ctx), Client{OidcClient: client}, requested, b.strategies.config.GetIgnoreUnknownScopes(ctx))
+	validated, err := fosite.FilterRequestedScopes(b.strategies.config.GetScopeStrategy(ctx), Client{OidcClient: client, customScopes: customScopes}, requested, b.strategies.config.GetIgnoreUnknownScopes(ctx))
 	if err != nil {
 		return nil, err
 	}
@@ -128,5 +133,15 @@ func claimsFromJWTString(tokenString string) (map[string]any, error) {
 		return nil, err
 	}
 
-	return utils.GetClaimsFromToken(token)
+	// Collect every claim of the token for the preview response
+	keys := token.Keys()
+	claims := make(map[string]any, len(keys))
+	for _, key := range keys {
+		value, err := jwxjwt.Get[any](token, key)
+		if err != nil {
+			return nil, fmt.Errorf("failed to get claim %s: %w", key, err)
+		}
+		claims[key] = value
+	}
+	return claims, nil
 }

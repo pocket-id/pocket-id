@@ -43,6 +43,21 @@ type completeInteractionResponse struct {
 	RedirectURL string                     `json:"redirectUrl,omitempty"`
 }
 
+type verifyDeviceCodeRequest struct {
+	// Scopes are the scopes the user approved on the consent screen
+	// Omitting them approves every requested scope
+	Scopes []string `json:"scopes"`
+}
+
+type endSessionRequestDto struct {
+	ClientName string `json:"clientName"`
+}
+
+type endSessionConfirmationDto struct {
+	// RedirectURL is the client's post-logout URL, or empty when the client registered none
+	RedirectURL string `json:"redirectUrl"`
+}
+
 type claimMappingsPreviewInput struct {
 	UserID        string                                   `json:"userId" binding:"required"`
 	Scopes        []string                                 `json:"scopes"`

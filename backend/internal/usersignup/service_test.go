@@ -92,7 +92,7 @@ func TestSignUpConsumesTokenOnSuccess(t *testing.T) {
 	db := testutils.NewDatabaseForTest(t)
 	svc := newSignupServiceForTest(t, db, fakeUserCreator{user: model.User{Base: model.Base{ID: "new-user"}}})
 
-	token, err := svc.CreateSignupToken(t.Context(), time.Hour, 2, nil)
+	token, err := svc.CreateSignupToken(t.Context(), time.Hour, 2, nil, "")
 	require.NoError(t, err)
 
 	config := appconfig.NewTestConfig(nil)
@@ -114,7 +114,7 @@ func TestSignUpAuditsTokenIDInsteadOfValue(t *testing.T) {
 	auditLog := &fakeAuditLogger{}
 	svc.auditLog = auditLog
 
-	token, err := svc.CreateSignupToken(t.Context(), time.Hour, 2, nil)
+	token, err := svc.CreateSignupToken(t.Context(), time.Hour, 2, nil, "")
 	require.NoError(t, err)
 
 	_, _, err = svc.SignUp(t.Context(), appconfig.NewTestConfig(nil), signUpDto{
@@ -131,7 +131,7 @@ func TestSignUpCompensatesTokenOnFailure(t *testing.T) {
 	boom := errors.New("could not create user")
 	svc := newSignupServiceForTest(t, db, fakeUserCreator{err: boom})
 
-	token, err := svc.CreateSignupToken(t.Context(), time.Hour, 2, nil)
+	token, err := svc.CreateSignupToken(t.Context(), time.Hour, 2, nil, "")
 	require.NoError(t, err)
 
 	config := appconfig.NewTestConfig(nil)

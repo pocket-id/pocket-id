@@ -66,7 +66,7 @@
 	}
 
 	const columns: AdvancedTableColumn<OidcClientWithAllowedGroups>[] = $derived([
-		{ label: m.client(), column: 'name', sortable: true, cell: ClientCell },
+		{ label: m.name(), column: 'name', sortable: true, cell: ClientCell },
 		{
 			label: m.who_can_sign_in(),
 			column: 'isGroupRestricted',
@@ -250,7 +250,7 @@
 	</PageHeader>
 
 	{#if empty}
-		<EmptyList columns={[m.client(), m.who_can_sign_in()]} title={m.add_your_first_oidc_client()}>
+		<EmptyList columns={[m.name(), m.who_can_sign_in()]} title={m.add_your_first_oidc_client()}>
 			{#snippet description()}
 				{m.oidc_clients_page_description({ appName: $appConfigStore.appName })}
 			{/snippet}

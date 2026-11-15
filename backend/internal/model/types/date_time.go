@@ -2,6 +2,7 @@ package datatype
 
 import (
 	"database/sql/driver"
+	"errors"
 	"fmt"
 	"time"
 
@@ -66,5 +67,17 @@ func (date DateTime) MarshalJSON() ([]byte, error) {
 }
 
 func (date *DateTime) UnmarshalJSON(b []byte) error {
-	return (*time.Time)(date).UnmarshalJSON(b)
+	var t time.Time
+	err := t.UnmarshalJSON(b)
+	if err != nil {
+		return err
+	}
+
+	// MarshalJSON fails for years past 9999 in the time's zone, so a stored time must stay below that in any zone it's read back in
+	if t.UTC().Year() >= 9999 {
+		return errors.New("year must be before 9999")
+	}
+
+	*date = DateTime(t)
+	return nil
 }

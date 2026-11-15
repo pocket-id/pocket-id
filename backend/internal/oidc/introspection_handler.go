@@ -15,26 +15,28 @@ type introspectionHandler struct {
 	provider      fosite.OAuth2Provider
 	authenticator *federatedClientAuthenticator
 	claimsService *ClaimsService
+	apiAccess     APIAccessProvider
 	baseURL       string
 }
 
-func newIntrospectionHandler(provider fosite.OAuth2Provider, authenticator *federatedClientAuthenticator, claimsService *ClaimsService, baseURL string) *introspectionHandler {
+func newIntrospectionHandler(provider fosite.OAuth2Provider, authenticator *federatedClientAuthenticator, claimsService *ClaimsService, apiAccess APIAccessProvider, baseURL string) *introspectionHandler {
 	return &introspectionHandler{
 		provider:      provider,
 		authenticator: authenticator,
 		claimsService: claimsService,
+		apiAccess:     apiAccess,
 		baseURL:       baseURL,
 	}
 }
 
-// introspectToken godoc
-// @Summary Introspect OIDC tokens
-// @Description Pass a token to verify if it is considered valid.
-// @Tags OIDC
-// @Produce json
-// @Param token formData string true "The token to be introspected."
-// @Success 200 {object} object "Response with the introspection result."
-// @Router /api/oidc/introspect [post]
+// introspectionForm documents the form body of the introspection endpoint, which fosite parses itself
+type introspectionForm struct {
+	Token         string `json:"token" binding:"required" description:"The token to be introspected"`
+	TokenTypeHint string `json:"token_type_hint,omitempty" description:"The type of the token, access_token or refresh_token"`
+	Scope         string `json:"scope,omitempty" description:"Space-separated scopes the token must have"`
+	ClientID      string `json:"client_id,omitempty" description:"The client whose federated client assertion is sent as the bearer token"`
+}
+
 func (h *introspectionHandler) introspectToken(c *gin.Context) {
 	ctx := c.Request.Context()
 
@@ -57,7 +59,7 @@ func (h *introspectionHandler) introspectToken(c *gin.Context) {
 		return
 	}
 
-	h.writeUserCheckedResponse(ctx, c, response)
+	h.writeCheckedResponse(ctx, c, response)
 }
 
 // tryFederatedClientAssertionIntrospection handles introspection requests authenticated
@@ -96,16 +98,19 @@ func (h *introspectionHandler) tryFederatedClientAssertionIntrospection(c *gin.C
 		return true
 	}
 
-	h.writeUserCheckedResponse(ctx, c, response)
+	h.writeCheckedResponse(ctx, c, response)
 	return true
 }
 
-// writeUserCheckedResponse writes the introspection response, reporting the token as inactive when its user may no longer use the client
-// Disabling a user or removing them from the client's groups does not revoke the tokens already issued, so resource servers learn about it only here
-func (h *introspectionHandler) writeUserCheckedResponse(ctx context.Context, c *gin.Context, response fosite.IntrospectionResponder) {
+// writeCheckedResponse writes the introspection response, reporting the token as inactive when its user may no longer use the client or the client lost the access the token carries
+// Disabling a user, removing them from the client's groups or narrowing the client's API access does not revoke the tokens already issued, so resource servers learn about it only here
+func (h *introspectionHandler) writeCheckedResponse(ctx context.Context, c *gin.Context, response fosite.IntrospectionResponder) {
 	requester := response.GetAccessRequester()
 	client, _ := requester.GetClient().(Client)
 	_, err := h.claimsService.loadGrantClaimsSource(ctx, requester.GetSession().GetSubject(), client)
+	if err == nil {
+		_, err = validateGrantAPIAccess(ctx, h.apiAccess, h.baseURL, requester)
+	}
 	var rfcErr *fosite.RFC6749Error
 	if errors.As(err, &rfcErr) {
 		h.provider.WriteIntrospectionResponse(ctx, c.Writer, &fosite.IntrospectionResponse{Active: false})

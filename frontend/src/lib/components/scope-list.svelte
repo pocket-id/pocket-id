@@ -1,8 +1,10 @@
 <script lang="ts">
 	import * as Alert from '@pocket-id/ui/alert';
 	import { m } from '#lib/paraglide/messages.js';
+	import appConfigStore from '#lib/stores/application-configuration-store.ts';
 	import type { InteractionScopeInfo } from '#lib/types/oidc.type.ts';
 	import { isAdminEquivalentScope, scopeLabel } from '#lib/utils/api-key-scopes.ts';
+	import ClockIcon from '~icons/solar/clock-circle-bold-duotone';
 	import KeyRoundIcon from '~icons/solar/key-minimalistic-bold-duotone';
 	import MailIcon from '~icons/solar/letter-bold-duotone';
 	import TriangleAlertIcon from '~icons/solar/danger-triangle-bold-duotone';
@@ -73,6 +75,14 @@
 			name={m.groups()}
 			description={m.consent_groups_description()}
 			{...selectionProps('groups')}
+		/>
+	{/if}
+	{#if (scopes || []).includes('offline_access')}
+		<ScopeItem
+			icon={ClockIcon}
+			name={m.offline_access()}
+			description={m.keep_access_after_sign_out({ appName: $appConfigStore.appName })}
+			{...selectionProps('offline_access')}
 		/>
 	{/if}
 	{#each customScopes as scope (scope)}

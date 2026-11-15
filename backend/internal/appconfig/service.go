@@ -13,7 +13,6 @@ import (
 	"github.com/go-playground/validator/v10"
 	"github.com/italypaleale/francis/actor"
 	francishost "github.com/italypaleale/francis/host"
-	"gorm.io/gorm"
 
 	"github.com/pocket-id/pocket-id/backend/internal/apperror"
 	"github.com/pocket-id/pocket-id/backend/internal/common"
@@ -29,7 +28,7 @@ type AppConfigService struct {
 	envOverrides map[string]string
 }
 
-func NewService(ctx context.Context, actors francishost.Host, db *gorm.DB) (service *AppConfigService, err error) {
+func NewService(ctx context.Context, actors francishost.Host) (service *AppConfigService, err error) {
 	service = &AppConfigService{}
 
 	// Load and validate the properties set in the environment
@@ -49,23 +48,12 @@ func NewService(ctx context.Context, actors francishost.Host, db *gorm.DB) (serv
 	}
 
 	// Note: we need to assign to the "err" variable in this method (for tracing), do not inline this into the "if"
-	ctx, span := tracing.Start(ctx, "pocketid.appconfig.init")
+	_, span := tracing.Start(ctx, "pocketid.appconfig.init")
 	defer tracing.End(span, err)
 
-	// Load the legacy config if any, which we need to send to the actor as bootstrap data
-	legacyCfg, err := LoadLegacyConfig(ctx, db)
-	if err != nil {
-		return nil, fmt.Errorf("error loading legacy config: %w", err)
-	}
-
-	// Register the AppConfig actor
-	// This is a singleton actor and it's bootstrapped with the legacy config if present
-	bootstrapData := &appConfigActorBootstrap{
-		LegacyConfig: legacyCfg,
-	}
+	// Register the AppConfig actor, which is a singleton
 	err = actors.RegisterSingletonActor(
-		AppConfigActorType, newAppConfigActorFactory(db),
-		francishost.WithBootstrapData(bootstrapData),
+		AppConfigActorType, newAppConfigActor,
 		francishost.WithIdleTimeout(-1), // Disable idle timeout for this actor
 	)
 	if err != nil {
@@ -138,11 +126,22 @@ func (s *AppConfigService) GetCIMDURLAllowlist() []string {
 	return patterns
 }
 
-// UpdateAppConfig replaces the entire application configuration with the values from the input DTO.
-func (s *AppConfigService) UpdateAppConfig(ctx context.Context, input dto.AppConfigUpdateDto) ([]AppConfigVariable, error) {
+// UpdateAppConfig applies an update to the saved configuration and returns the configuration in effect
+// Only the properties whose value changes are sent to the actor, which applies them atomically, so concurrent updates of different properties never undo each other
+func (s *AppConfigService) UpdateAppConfig(ctx context.Context, update dto.Update[AppConfigUpdateDto]) ([]AppConfigVariable, error) {
 	// If the UI config is disabled, we cannot continue
 	if common.EnvConfig.UiConfigDisabled {
 		return nil, apperror.UIConfigDisabled()
+	}
+
+	// Compute the update from the saved configuration, which holds the secrets but not the values set in the environment
+	saved, err := s.getSavedConfig(ctx)
+	if err != nil {
+		return nil, err
+	}
+	input, err := update(saved)
+	if err != nil {
+		return nil, err
 	}
 
 	// Validate the CIMD URL allowlist patterns, if provided
@@ -158,25 +157,25 @@ func (s *AppConfigService) UpdateAppConfig(ctx context.Context, input dto.AppCon
 		}
 	}
 
-	// Keep the saved values of the properties set in the environment, so environment values such as secrets never end up in the database
-	if len(s.envOverrides) > 0 {
-		saved, err := s.getSavedConfig(ctx)
-		if err != nil {
-			return nil, err
+	// Collect the properties that change, leaving out the ones set in the environment and secrets sent back redacted, so neither ends up in the database
+	changes := make(map[string]string)
+	inputValue := reflect.ValueOf(input)
+	savedValue := reflect.ValueOf(saved).Elem()
+	for i := range inputValue.NumField() {
+		field := inputValue.Type().Field(i)
+		key, _, _ := strings.Cut(field.Tag.Get("json"), ",")
+		value := inputValue.Field(i).String()
+		modelField, _ := savedValue.Type().FieldByName(field.Name)
+		_, overridden := s.envOverrides[key]
+		redacted := value == redactedValue && modelField.Tag.Get("sensitive") == "true"
+		if overridden || redacted || value == savedValue.FieldByName(field.Name).String() {
+			continue
 		}
-		inputValue := reflect.ValueOf(&input).Elem()
-		savedValue := reflect.ValueOf(saved).Elem()
-		for i := range inputValue.NumField() {
-			field := inputValue.Type().Field(i)
-			key, _, _ := strings.Cut(field.Tag.Get("json"), ",")
-			if _, ok := s.envOverrides[key]; ok {
-				inputValue.Field(i).SetString(savedValue.FieldByName(field.Name).String())
-			}
-		}
+		changes[key] = value
 	}
 
-	// Replace the entire config by invoking the actor
-	cfg, err := s.invokeConfigActor(ctx, "replace", input)
+	// Apply the changes by invoking the actor
+	cfg, err := s.invokeConfigActor(ctx, "update", changes)
 	if err != nil {
 		return nil, err
 	}
@@ -280,28 +279,6 @@ func loadEnvOverrides() (map[string]string, error) {
 		}
 	}
 
-	// TODO: Remove in next major version (v3)
-	// Preserve the old environment setting unless an explicit notification mode replaces it
-	if _, ok := overrides["emailLoginNotificationMode"]; !ok {
-		if enabled := os.Getenv("EMAIL_LOGIN_NOTIFICATION_ENABLED"); enabled != "" {
-			if enabled != "true" && enabled != "false" {
-				return nil, errors.New("EMAIL_LOGIN_NOTIFICATION_ENABLED must be true or false")
-			}
-			overrides["emailLoginNotificationMode"] = string(legacyLoginNotificationMode(AppConfigValue(enabled)))
-		}
-	}
-
-	// TODO: Remove in next major version (v3)
-	// Preserve the old environment setting unless an explicit email verification mode replaces it
-	if _, ok := overrides["emailVerification"]; !ok {
-		if enabled := os.Getenv("EMAIL_VERIFICATION_ENABLED"); enabled != "" {
-			if enabled != "true" && enabled != "false" {
-				return nil, errors.New("EMAIL_VERIFICATION_ENABLED must be true or false")
-			}
-			overrides["emailVerification"] = string(legacyEmailVerification(AppConfigValue(enabled)))
-		}
-	}
-
 	return overrides, nil
 }
 
@@ -325,7 +302,7 @@ func newEnvConfig(overrides map[string]string) (*AppConfigModel, error) {
 // validateEnvConfig applies the HTTP configuration rules and reports failures using environment variable names
 func validateEnvConfig(config *AppConfigModel) error {
 	// Map the resolved model to the canonical update DTO so both configuration paths share validation rules
-	var input dto.AppConfigUpdateDto
+	var input AppConfigUpdateDto
 	err := dto.MapStruct(config, &input)
 	if err != nil {
 		return fmt.Errorf("failed to prepare environment app configuration for validation: %w", err)

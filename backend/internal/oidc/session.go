@@ -23,6 +23,7 @@ type Session struct {
 	ExpiresAt            map[fosite.TokenType]time.Time `json:"expires_at,omitempty"`
 	Subject              string                         `json:"subject"`
 	AuthenticationMethod string                         `json:"authentication_method,omitempty"`
+	SessionID            string                         `json:"sid,omitempty"`
 }
 
 func NewEmptySession() *Session {

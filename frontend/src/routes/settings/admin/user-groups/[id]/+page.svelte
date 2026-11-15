@@ -4,6 +4,7 @@
 	import CustomClaimsInput from '#lib/components/form/custom-claims-input.svelte';
 	import OidcClientAvatar from '#lib/components/oidc-client-avatar.svelte';
 	import PageHeader from '#lib/components/page-header.svelte';
+	import SettingsCard from '#lib/components/settings-card.svelte';
 	import SettingsSection from '#lib/components/settings-section.svelte';
 	import { Badge } from '@pocket-id/ui/badge';
 	import { Button } from '@pocket-id/ui/button';
@@ -251,7 +252,7 @@
 		{/snippet}
 	</PageHeader>
 
-	<HashTabs bind:value={tab} class="gap-10">
+	<HashTabs bind:value={tab} class="gap-8">
 		<div class="flex shadow-[inset_0_-1px_0_var(--border)]">
 			<div class="scroll-fade-x min-w-0 [scrollbar-width:none] overflow-x-auto">
 				<Tabs.List variant="line" class="shadow-none max-sm:gap-4" aria-label={m.group_sections()}>
@@ -274,8 +275,8 @@
 		</div>
 
 		<Tabs.Content value="general">
-			<SettingsSection title={m.names()}>
-				<div class="flex max-w-100 flex-col gap-6 pt-4">
+			<SettingsCard title={m.names()}>
+				<div class="flex max-w-100 flex-col gap-6 py-4">
 					{#if readOnly}
 						<p class="text-caption text-fg-muted flex items-start gap-1.5">
 							<LockIcon class="mt-1 size-3 shrink-0" />
@@ -295,7 +296,7 @@
 						readonly={readOnly}
 					/>
 				</div>
-			</SettingsSection>
+			</SettingsCard>
 		</Tabs.Content>
 
 		<Tabs.Content value="members">

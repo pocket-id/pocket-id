@@ -23,6 +23,7 @@ export function getAuthRedirectPath(url: URL, user: User | null, appConfig: AppC
 		[
 			'/interaction',
 			'/interaction/error',
+			'/end-session',
 			'/login/alternative/code',
 			'/device',
 			'/health',

@@ -4,18 +4,22 @@ import (
 	"context"
 	"fmt"
 	"net/http"
+	"time"
 
+	"github.com/go-webauthn/x/revoke"
 	"github.com/italypaleale/francis/builtin/ratelimit"
 	francishost "github.com/italypaleale/francis/host"
 	"gorm.io/gorm"
 
 	"github.com/pocket-id/pocket-id/backend/internal/api"
 	"github.com/pocket-id/pocket-id/backend/internal/apikey"
+	"github.com/pocket-id/pocket-id/backend/internal/appassets"
 	"github.com/pocket-id/pocket-id/backend/internal/appconfig"
 	"github.com/pocket-id/pocket-id/backend/internal/auditlogs"
 	"github.com/pocket-id/pocket-id/backend/internal/backchannellogout"
 	"github.com/pocket-id/pocket-id/backend/internal/claimmappingpolicy"
 	"github.com/pocket-id/pocket-id/backend/internal/common"
+	"github.com/pocket-id/pocket-id/backend/internal/customclaims"
 	"github.com/pocket-id/pocket-id/backend/internal/devicelogin"
 	"github.com/pocket-id/pocket-id/backend/internal/email"
 	"github.com/pocket-id/pocket-id/backend/internal/emailverification"
@@ -31,7 +35,6 @@ import (
 	"github.com/pocket-id/pocket-id/backend/internal/onetimeaccess"
 	"github.com/pocket-id/pocket-id/backend/internal/outbound"
 	"github.com/pocket-id/pocket-id/backend/internal/scimsync"
-	"github.com/pocket-id/pocket-id/backend/internal/service"
 	"github.com/pocket-id/pocket-id/backend/internal/session"
 	"github.com/pocket-id/pocket-id/backend/internal/signingkey"
 	"github.com/pocket-id/pocket-id/backend/internal/storage"
@@ -43,12 +46,12 @@ import (
 
 type services struct {
 	appConfigService         *appconfig.AppConfigService
-	appAssetsService         *service.AppAssetsService
+	appAssetsModule          *appassets.Module
 	emailModule              *email.Module
 	geoLiteModule            *geolite.Module
 	ipLocator                iplocation.Resolver
 	signingKey               *signingkey.Key
-	customClaimService       *service.CustomClaimService
+	customClaimsModule       *customclaims.Module
 	claimMappingPolicyModule *claimmappingpolicy.Module
 	fileStorage              storage.FileStorage
 
@@ -71,6 +74,7 @@ type services struct {
 	userGroupsModule        *usergroups.Module
 	mcpModule               *mcp.Module
 	actors                  francishost.Host
+	testModule              testModule
 }
 
 // Initializes all services
@@ -81,22 +85,22 @@ func initServices(
 	actors francishost.Host,
 	httpClient *http.Client,
 	outboundClients *outbound.Clients,
-	assetExtensions map[string]string,
+	appAssetsModule *appassets.Module,
 	fileStorage storage.FileStorage,
 	rateLimitServices map[string]*ratelimit.RateLimitService,
 ) (svc *services, err error) {
 	svc = &services{
-		actors: actors,
+		actors:          actors,
+		appAssetsModule: appAssetsModule,
 	}
 
 	// Init the app config service
-	svc.appConfigService, err = appconfig.NewService(ctx, actors, db)
+	svc.appConfigService, err = appconfig.NewService(ctx, actors)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create app config service: %w", err)
 	}
 
 	svc.fileStorage = fileStorage
-	svc.appAssetsService = service.NewAppAssetsService(assetExtensions, fileStorage)
 
 	svc.emailModule, err = email.New(db)
 	if err != nil {
@@ -131,22 +135,44 @@ func initServices(
 		return nil, fmt.Errorf("failed to create audit logs module: %w", err)
 	}
 
+	backchannelLogoutService, err := backchannellogout.NewService(db, backchannellogout.NewTokenSigner(svc.signingKey, common.EnvConfig.AppURL), outboundClients.Client(outbound.PurposeBackchannelLogout), actors)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create back-channel logout service: %w", err)
+	}
+
 	svc.sessionModule, err = session.New(session.Dependencies{
-		Actors:    actors,
-		IPLocator: svc.ipLocator,
+		Actors:      actors,
+		IPLocator:   svc.ipLocator,
+		AuditLog:    svc.auditLogsModule,
+		EndNotifier: backchannelLogoutService,
 	})
 	if err != nil {
 		return nil, fmt.Errorf("failed to create session module: %w", err)
 	}
 
-	svc.customClaimService = service.NewCustomClaimService(db)
+	svc.customClaimsModule = customclaims.New(db)
+
+	// Registrations wait for the FIDO metadata download and the revocation checks of its signing certificates, so both get a timeout the shared client doesn't have
+	// The timeout covers the whole 11 MB blob, and a download that times out isn't retried for an hour
+	fidoMetadataClient := &http.Client{Transport: httpClient.Transport, Timeout: 30 * time.Second}
+	// go-webauthn makes the revocation checks through a package-level client, and an unreachable revocation server counts as not revoked, so they may give up early
+	revoke.HTTPClient = &http.Client{Transport: httpClient.Transport, Timeout: 10 * time.Second}
+
+	// An empty URL keeps the FIDO metadata from ever being downloaded
+	var fidoMetadataURL string
+	if common.EnvConfig.FidoMetadataURL != common.URLDisabled {
+		fidoMetadataURL = common.EnvConfig.FidoMetadataURL
+	}
+
 	svc.webauthnModule, err = webauthn.New(webauthn.Dependencies{
-		DB:        db,
-		Actors:    actors,
-		AppURL:    common.EnvConfig.AppURL,
-		Sessions:  svc.sessionModule,
-		AuditLog:  svc.auditLogsModule,
-		AppConfig: svc.appConfigService,
+		DB:              db,
+		Actors:          actors,
+		AppURL:          common.EnvConfig.AppURL,
+		HTTPClient:      fidoMetadataClient,
+		FidoMetadataURL: fidoMetadataURL,
+		Sessions:        svc.sessionModule,
+		AuditLog:        svc.auditLogsModule,
+		AppConfig:       svc.appConfigService,
 		// Disable in test environment
 		CleanupDisabled: common.EnvConfig.AppEnv.IsTest(),
 	})
@@ -178,11 +204,6 @@ func initServices(
 		return nil, fmt.Errorf("failed to create SCIM sync module: %w", err)
 	}
 
-	backchannelLogoutService, err := backchannellogout.NewService(db, backchannellogout.NewTokenSigner(svc.signingKey, common.EnvConfig.AppURL), outboundClients.Client(outbound.PurposeBackchannelLogout), actors)
-	if err != nil {
-		return nil, fmt.Errorf("failed to create back-channel logout service: %w", err)
-	}
-
 	svc.apiModule = api.New(api.Dependencies{DB: db, Issuer: common.EnvConfig.AppURL})
 
 	svc.oidcModule, err = oidc.New(ctx, oidc.Dependencies{
@@ -200,7 +221,7 @@ func initServices(
 			AllowInsecureCallbackURLs: common.EnvConfig.AllowInsecureCallbackURLs,
 		},
 		Signer:            svc.signingKey,
-		CustomClaims:      svc.customClaimService,
+		CustomClaims:      svc.customClaimsModule,
 		Reauth:            svc.webauthnModule,
 		AuditLog:          svc.auditLogsModule,
 		Sessions:          svc.sessionModule,
@@ -221,11 +242,14 @@ func initServices(
 		AppConfig:         svc.appConfigService,
 		ScimSync:          svc.scimSyncModule,
 		BackchannelLogout: backchannelLogoutService,
+		AuditLog:          svc.auditLogsModule,
 	})
 	// The users module sends verification links through this module, so it's created first and never depends on the users module itself
 	var sendLimiter emailverification.SendLimiter
+	var ownAccountLimiter users.OwnAccountLimiter
 	if middleware.RateLimitingEnabled() {
 		sendLimiter = rateLimitServices[middleware.RateLimitSendEmailVerification]
+		ownAccountLimiter = rateLimitServices[middleware.RateLimitUpdateOwnAccount]
 	}
 	svc.emailVerificationModule, err = emailverification.New(emailverification.Dependencies{
 		DB:          db,
@@ -234,23 +258,32 @@ func initServices(
 		ScimSync:    svc.scimSyncModule,
 		SendLimiter: sendLimiter,
 		AppConfig:   svc.appConfigService,
+		AuditLog:    svc.auditLogsModule,
 		AppURL:      common.EnvConfig.AppURL,
 	})
 	if err != nil {
 		return nil, fmt.Errorf("failed to create email verification module: %w", err)
 	}
 
-	svc.usersModule = users.New(users.Dependencies{
+	svc.usersModule, err = users.New(users.Dependencies{
 		DB:                db,
 		AppConfig:         svc.appConfigService,
 		FileStorage:       fileStorage,
-		CustomClaims:      svc.customClaimService,
-		AppAssets:         svc.appAssetsService,
+		CustomClaims:      svc.customClaimsModule,
+		AppAssets:         svc.appAssetsModule,
 		WebAuthn:          svc.webauthnModule,
 		ScimSync:          svc.scimSyncModule,
 		BackchannelLogout: backchannelLogoutService,
 		EmailVerification: svc.emailVerificationModule,
+		OwnAccountLimiter: ownAccountLimiter,
+		AuditLog:          svc.auditLogsModule,
+		Actors:            actors,
+		// Disable in test environment
+		CleanupDisabled: common.EnvConfig.AppEnv.IsTest(),
 	})
+	if err != nil {
+		return nil, fmt.Errorf("failed to create users module: %w", err)
+	}
 
 	svc.ldapSyncModule, err = ldapsync.New(ldapsync.Dependencies{
 		DB:                db,
@@ -269,12 +302,13 @@ func initServices(
 		return nil, fmt.Errorf("failed to create LDAP sync module: %w", err)
 	}
 
-	svc.apiKeyModule, err = apikey.New(ctx, apikey.Dependencies{
+	svc.apiKeyModule, err = apikey.New(apikey.Dependencies{
 		DB:              db,
 		Actors:          actors,
 		StaticApiKey:    common.EnvConfig.StaticApiKey,
 		AppConfig:       svc.appConfigService,
 		EmailSender:     svc.emailModule,
+		AuditLog:        svc.auditLogsModule,
 		CleanupDisabled: common.EnvConfig.AppEnv.IsTest(),
 	})
 	if err != nil {
@@ -291,6 +325,7 @@ func initServices(
 		ScimSync:          svc.scimSyncModule,
 		UserDeleter:       svc.usersModule,
 		EmailVerification: svc.emailVerificationModule,
+		EmailSender:       svc.emailModule,
 		// Disable in test environment
 		CleanupDisabled: common.EnvConfig.AppEnv.IsTest(),
 	})
@@ -331,6 +366,14 @@ func initServices(
 	tools := &mcp.Tools{}
 	registerTools(tools, svc)
 	svc.mcpModule = mcp.New(mcp.Dependencies{Tools: tools, HTTPClient: httpClient})
+
+	// Builds for the end-to-end tests add their module, which never runs in production
+	if newTestModule != nil && !common.EnvConfig.AppEnv.IsProduction() {
+		svc.testModule, err = newTestModule(db, svc)
+		if err != nil {
+			return nil, fmt.Errorf("failed to create test module: %w", err)
+		}
+	}
 
 	return svc, nil
 }

@@ -64,7 +64,7 @@
 				name: data.name,
 				isPublic: data.isPublic,
 				callbackURLs: data.callbackURL ? [data.callbackURL] : [],
-				description: '',
+				notes: '',
 				logoutCallbackURLs: [],
 				backchannelLogoutURL: '',
 				pkceEnabled: data.isPublic,
@@ -72,7 +72,7 @@
 				requiresPushedAuthorizationRequests: false,
 				skipConsent: false,
 				isGroupRestricted: true,
-				credentials: { federatedIdentities: [], secrets: [] },
+				credentials: { federatedIdentities: [] },
 				accessTokenDurationMinutes: 60,
 				refreshTokenDurationMinutes: 30 * 24 * 60,
 				disabled: false

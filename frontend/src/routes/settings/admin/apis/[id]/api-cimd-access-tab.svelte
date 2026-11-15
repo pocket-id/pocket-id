@@ -1,6 +1,6 @@
 <script lang="ts">
 	import SettingRow from '#lib/components/setting-row.svelte';
-	import SettingsSection from '#lib/components/settings-section.svelte';
+	import SettingsCard from '#lib/components/settings-card.svelte';
 	import { Checkbox } from '@pocket-id/ui/checkbox';
 	import { Switch } from '@pocket-id/ui/switch';
 	import { m } from '#lib/paraglide/messages.js';
@@ -24,7 +24,7 @@
 	trackFormChanges(() => formStore, onSave);
 </script>
 
-<SettingsSection title={m.metadata_document_clients()}>
+<SettingsCard title={m.metadata_document_clients()}>
 	<SettingRow
 		title={m.allow_all_metadata_document_clients()}
 		description={m.allow_all_metadata_document_clients_description()}
@@ -35,7 +35,7 @@
 		{/snippet}
 	</SettingRow>
 	{#if $inputs.enabled.value && api.permissions.length > 0}
-		<fieldset class="mt-4 flex min-w-0 flex-col gap-2">
+		<fieldset class="my-4 flex min-w-0 flex-col gap-2">
 			<legend class="text-caption text-fg-muted mb-2 font-medium">{m.granted_permissions()}</legend>
 			<div class="rounded-md border">
 				{#if api.permissions.length > 1}
@@ -80,4 +80,4 @@
 			</div>
 		</fieldset>
 	{/if}
-</SettingsSection>
+</SettingsCard>

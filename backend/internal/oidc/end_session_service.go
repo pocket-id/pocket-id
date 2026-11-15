@@ -31,67 +31,85 @@ func newEndSessionService(db *gorm.DB, store *Store, signer TokenSigner, baseURL
 	}
 }
 
-// endSession revokes the sessions belonging to the ID token hint and returns the
-// client's post-logout callback URL (empty if none is configured).
-func (s *endSessionService) endSession(ctx context.Context, input dto.OidcLogoutDto, userID string) (string, error) {
+// endSessionRequest is a validated RP-initiated logout
+type endSessionRequest struct {
+	userID     string
+	clientID   string
+	clientName string
+	// sessionID is the Pocket ID session the ID token was issued in, which is empty for ID tokens without a sid
+	sessionID   string
+	idTokenJTI  string
+	callbackURL string
+	state       string
+}
+
+// resolve validates the id_token_hint of a logout request and returns the logout it asks for
+// A signed-in caller must be the user the ID token was issued to
+func (s *endSessionService) resolve(ctx context.Context, input dto.OidcLogoutDto, userID string) (endSessionRequest, error) {
 	if input.IdTokenHint == "" {
-		return "", apperror.TokenInvalid()
+		return endSessionRequest{}, apperror.TokenInvalid()
 	}
 
 	token, err := s.verifyIDTokenHint(input.IdTokenHint)
 	if err != nil {
-		return "", apperror.TokenInvalid()
+		return endSessionRequest{}, apperror.TokenInvalid()
 	}
 
 	clientIDs, ok := token.Audience()
 	if !ok || len(clientIDs) == 0 {
-		return "", apperror.TokenInvalid()
+		return endSessionRequest{}, apperror.TokenInvalid()
 	}
 	clientID := clientIDs[0]
 	if input.ClientId != "" && clientID != input.ClientId {
-		return "", apperror.OidcClientIDNotMatching()
+		return endSessionRequest{}, apperror.OidcClientIDNotMatching()
 	}
 
 	subject, ok := token.Subject()
 	if !ok || subject == "" {
-		return "", apperror.TokenInvalid()
+		return endSessionRequest{}, apperror.TokenInvalid()
 	}
 	if userID != "" && subject != userID {
-		return "", apperror.TokenInvalid()
+		return endSessionRequest{}, apperror.TokenInvalid()
 	}
-	userID = subject
 
 	idTokenJTI, ok := token.JwtID()
 	if !ok {
-		return "", apperror.TokenInvalid()
+		return endSessionRequest{}, apperror.TokenInvalid()
 	}
+	sessionID, _ := jwt.Get[string](token, common.SessionIDClaim)
 
-	var callbackURL string
-	err = withTx(ctx, s.db, func(ctx context.Context) error {
-		var authorizedClient model.UserAuthorizedOidcClient
-		err := dbFromContext(ctx, s.db).
-			Preload("Client").
-			First(&authorizedClient, "client_id = ? AND user_id = ?", clientID, userID).
-			Error
-		if err != nil {
-			if errors.Is(err, gorm.ErrRecordNotFound) {
-				return apperror.OidcMissingAuthorization()
-			}
-			return err
-		}
-
-		callbackURL, err = logoutCallbackURL(&authorizedClient.Client, input.PostLogoutRedirectUri)
-		if err != nil {
-			return err
-		}
-
-		return s.store.RevokeSessionsByIDTokenHint(ctx, userID, clientID, idTokenJTI)
-	})
+	var authorizedClient model.UserAuthorizedOidcClient
+	err = s.db.
+		WithContext(ctx).
+		Preload("Client").
+		First(&authorizedClient, "client_id = ? AND user_id = ?", clientID, subject).
+		Error
+	if errors.Is(err, gorm.ErrRecordNotFound) {
+		return endSessionRequest{}, apperror.OidcMissingAuthorization()
+	}
 	if err != nil {
-		return "", err
+		return endSessionRequest{}, err
 	}
 
-	return callbackURL, nil
+	callbackURL, err := logoutCallbackURL(&authorizedClient.Client, input.PostLogoutRedirectUri)
+	if err != nil {
+		return endSessionRequest{}, err
+	}
+
+	return endSessionRequest{
+		userID:      subject,
+		clientID:    clientID,
+		clientName:  authorizedClient.Client.Name,
+		sessionID:   sessionID,
+		idTokenJTI:  idTokenJTI,
+		callbackURL: callbackURL,
+		state:       input.State,
+	}, nil
+}
+
+// revokeClientGrant revokes the grant the ID token was issued with, unless it requested offline_access
+func (s *endSessionService) revokeClientGrant(ctx context.Context, req endSessionRequest) error {
+	return s.store.RevokeSessionsByIDTokenHint(ctx, req.userID, req.clientID, req.idTokenJTI)
 }
 
 func (s *endSessionService) verifyIDTokenHint(tokenString string) (jwt.Token, error) {

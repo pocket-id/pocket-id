@@ -57,7 +57,7 @@ export async function setClientDisabled<T extends OidcClient>(
 	onDone: (disabled: boolean) => unknown
 ) {
 	try {
-		await oidcService.updateClient(client.id, { ...client, disabled });
+		await oidcService.updateClient(client.id, { disabled });
 		await onDone(disabled);
 		toast.success(
 			disabled ? m.name_disabled({ name: client.name }) : m.name_enabled({ name: client.name })
@@ -87,7 +87,7 @@ export function toggleClientDisabledAction<T extends OidcClient>(
 				title: m.disable_name_question({ name: client.name }),
 				message: m.disable_oidc_client_consequence({ name: client.name }),
 				confirm: {
-					label: m.disable_name_action({ name: client.name }),
+					label: m.disable_client(),
 					destructive: true,
 					icon: BanIcon,
 					action: () => setClientDisabled(client, true, onDone)
@@ -109,7 +109,7 @@ export function deleteClientAction<T extends OidcClient>(
 				title: m.delete_name_question({ name: client.name }),
 				message: m.delete_oidc_client_consequence({ name: client.name }),
 				confirm: {
-					label: m.delete_name_action({ name: client.name }),
+					label: m.delete_client(),
 					destructive: true,
 					action: async () => {
 						try {

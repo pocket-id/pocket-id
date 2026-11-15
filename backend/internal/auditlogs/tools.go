@@ -11,14 +11,14 @@ import (
 func (m *Module) RegisterTools(t *mcp.Tools) {
 	mcp.AddTool(t, mcp.Tool{
 		Name:        "search_audit_logs",
-		Description: "Search the audit log of all users, newest first. It records sign-ins, app authorizations, new accounts and passkey changes, with the IP address, location and device of each.",
+		Description: "Search the audit log of all users, newest first. Each entry names the user it is about, who acted and what they signed in with, and the IP address, location and device.",
 		Effect:      mcp.ReadOnly,
 	}, authz.AuditLogsRead, m.handler.searchAuditLogsTool)
 }
 
 type searchAuditLogsInput struct {
-	UserID     string `json:"userId,omitempty" jsonschema:"Only entries of this user"`
-	Event      Event  `json:"event,omitempty" jsonschema:"Only entries of this event: SIGN_IN, TOKEN_SIGN_IN, REMOTE_SIGN_IN, ACCOUNT_CREATED, CLIENT_AUTHORIZATION, NEW_CLIENT_AUTHORIZATION, DEVICE_CODE_AUTHORIZATION, NEW_DEVICE_CODE_AUTHORIZATION, PASSKEY_ADDED or PASSKEY_REMOVED"`
+	UserID     string `json:"userId,omitempty" jsonschema:"Only entries about this user or actions they took"`
+	Event      Event  `json:"event,omitempty" jsonschema:"Only entries of this event, such as SIGN_IN, PASSKEY_ADDED, ADMIN_GRANTED or CLIENT_UPDATED"`
 	ClientName string `json:"clientName,omitempty" jsonschema:"Only entries of the OIDC client with this name"`
 	From       string `json:"from,omitempty" jsonschema:"Only entries created at or after this RFC 3339 time"`
 	To         string `json:"to,omitempty" jsonschema:"Only entries created before this RFC 3339 time"`

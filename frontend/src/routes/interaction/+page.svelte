@@ -47,10 +47,8 @@
 	const client = $derived(interactionSession.client);
 	// Metadata-document clients go by their host in body copy, because their display name is self-declared
 	const clientName = $derived(getClientIDHost(client) ?? client.name);
-	// openid and offline_access show nothing, so a request for only those keeps the compact card
-	const hasScopes = $derived(
-		(interactionSession.scopes ?? []).some((s) => s !== 'openid' && s !== 'offline_access')
-	);
+	// openid shows nothing, so a request for only openid keeps the compact card
+	const hasScopes = $derived((interactionSession.scopes ?? []).some((s) => s !== 'openid'));
 	const emailVerificationRequired = $derived(failure?.code === 'email_verification_required');
 	const view = $derived(
 		redirectUrl
@@ -75,6 +73,9 @@
 		try {
 			if (!$userStore) {
 				await authenticate();
+
+				// Signing in is not consent, so an interaction that already waits at the consent step shows it first
+				if (currentStep === 'consent') return;
 			}
 
 			if (currentStep === 'reauthenticate') {

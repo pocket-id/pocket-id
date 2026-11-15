@@ -13,12 +13,6 @@ import (
 	"github.com/pocket-id/pocket-id/backend/internal/utils/cookie"
 )
 
-type verifyDeviceCodeRequest struct {
-	// Scopes are the scopes the user approved on the consent screen
-	// Omitting them approves every requested scope
-	Scopes []string `json:"scopes"`
-}
-
 type deviceHandler struct {
 	provider      fosite.OAuth2Provider
 	deviceService *deviceService

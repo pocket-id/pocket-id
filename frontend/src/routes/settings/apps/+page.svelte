@@ -47,7 +47,7 @@
 	let showOtherApps = $state(false);
 	let searchInput = $state<HTMLInputElement | null>(null);
 
-	// Pins live in this browser only, as the IDs of apps with a launch link in the order they were pinned
+	// Pins live in this browser only, as the IDs of apps with a launch link in the order the user arranged them
 	const pinnedIds = new PersistedState<string[]>('my-apps-pinned', []);
 
 	// Apps the user signed in to that have no launch link, in the shape of the launchable ones
@@ -186,6 +186,49 @@
 		pinnedIds.current = pinnedIds.current.includes(client.id)
 			? pinnedIds.current.filter((id) => id !== client.id)
 			: [...pinnedIds.current, client.id];
+	}
+
+	// Dragging a pinned tile reorders the pins live, and a drag that ends outside the tiles or is cancelled restores the order it started with
+	let draggedId: string | null = null;
+	let placeholderId = $state<string | null>(null);
+	let idsBeforeDrag: string[] = [];
+
+	function onPinDragStart(e: DragEvent, client: AccessibleOidcClient) {
+		draggedId = client.id;
+		idsBeforeDrag = pinnedIds.current;
+		e.dataTransfer!.effectAllowed = 'move';
+		e.dataTransfer!.setData('text/uri-list', client.launchURL!);
+		// The browser snapshots the tile for the drag image after this handler, so it only turns into a placeholder from the next frame
+		requestAnimationFrame(() => (placeholderId = draggedId));
+	}
+
+	function onPinDragOver(e: DragEvent & { currentTarget: HTMLUListElement }) {
+		if (!draggedId) return;
+		e.preventDefault();
+
+		// Hit-test the layout boxes, which ignore the flip transforms, so a tile sliding past the pointer does not swap back
+		const list = e.currentTarget.getBoundingClientRect();
+		const x = e.clientX - list.left;
+		const y = e.clientY - list.top;
+		const target = [...e.currentTarget.querySelectorAll<HTMLElement>(':scope > li')].find(
+			(li) =>
+				x >= li.offsetLeft &&
+				x < li.offsetLeft + li.offsetWidth &&
+				y >= li.offsetTop &&
+				y < li.offsetTop + li.offsetHeight
+		)?.dataset.id;
+		if (!target || target === draggedId) return;
+
+		// Moving within the full list keeps the hidden pins of unlisted apps in place
+		const ids = pinnedIds.current.filter((id) => id !== draggedId);
+		ids.splice(pinnedIds.current.indexOf(target), 0, draggedId);
+		pinnedIds.current = ids;
+	}
+
+	function onPinDragEnd(e: DragEvent) {
+		if (e.dataTransfer?.dropEffect === 'none') pinnedIds.current = idsBeforeDrag;
+		draggedId = null;
+		placeholderId = null;
 	}
 
 	function revoke(client: AccessibleOidcClient) {
@@ -328,13 +371,24 @@
 		<section class="mt-10" aria-labelledby="apps-pinned">
 			<h2 id="apps-pinned" class="text-heading text-fg mb-3">{m.pinned()}</h2>
 			<!-- The list stays mounted while empty so the first pin and the last unpin still animate -->
-			<ul class="relative grid grid-cols-2 gap-3 lg:grid-cols-4">
+			<ul
+				class="relative grid grid-cols-2 gap-3 lg:grid-cols-4"
+				ondragover={onPinDragOver}
+				ondrop={(e) => e.preventDefault()}
+			>
 				{#each pinnedApps as client (client.id)}
 					<li
 						in:receive={{ key: client.id }}
 						out:send={{ key: client.id }}
 						animate:flip={slide()}
-						class="group/app bg-surface hover:shadow-popover relative flex flex-col gap-6 rounded-lg p-4 shadow-[inset_0_0_0_1px_var(--border)] transition-[box-shadow,translate,scale] duration-(--dur-base) hover:-translate-y-0.5 has-[a:active]:scale-(--press-scale)"
+						data-id={client.id}
+						draggable={pinnedApps.length > 1}
+						ondragstart={(e) => onPinDragStart(e, client)}
+						ondragend={onPinDragEnd}
+						class={[
+							'group/app bg-surface hover:shadow-popover relative flex flex-col gap-6 rounded-lg p-4 shadow-[inset_0_0_0_1px_var(--border)] transition-[box-shadow,translate,scale,opacity] duration-(--dur-base) hover:-translate-y-0.5 has-[a:active]:scale-(--press-scale)',
+							placeholderId === client.id && 'opacity-40'
+						]}
 					>
 						<div class="flex items-start justify-between">
 							<OidcClientAvatar
@@ -353,8 +407,10 @@
 						</div>
 						<div class="flex min-w-0 flex-col">
 							<!-- The name link stretches over the whole tile so the tile is one hit target, and the menu button sits above it -->
+							<!-- It is not draggable itself so a drag on it moves the tile instead of the link -->
 							<a
 								href={client.launchURL}
+								draggable="false"
 								target="_blank"
 								rel="noopener noreferrer"
 								class="text-control text-fg focus-visible:after:outline-ring truncate font-medium outline-none after:absolute after:inset-0 after:rounded-lg focus-visible:after:outline-2"
@@ -423,7 +479,7 @@
 	{/if}
 
 	{#if otherApps.length > 0}
-		<div class="mt-14">
+		<div class="mt-10">
 			<AdvancedDisclosure bind:open={showOtherApps} title={m.other_apps()} titleSize="heading">
 				<div>
 					<p class="text-caption text-fg-muted -mt-3 mb-3">{m.other_apps_description()}</p>

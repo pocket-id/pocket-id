@@ -128,8 +128,9 @@ test('Authorize client requesting offline_access scope', async ({ page }) => {
 	await page.goto(`/authorize?${urlParams.toString()}`);
 
 	// offline_access is a valid OIDC scope: the flow must reach the consent screen rather than
-	// being rejected with invalid_scope (offline_access itself has no displayable scope item)
-	await expectScopes(page, ['Email', 'Profile']);
+	// being rejected with invalid_scope
+	await expectScopes(page, ['Email', 'Profile', 'Offline access']);
+	await expect(page.getByText(/^Keep access after you sign out of /)).toBeVisible();
 
 	const callbackUrl = await expectCallbackRedirect(page, oidcClient.callbackUrl, () =>
 		page.getByRole('button', { name: /^Continue to / }).click()
@@ -299,7 +300,7 @@ test('End session with id token hint redirects to callback URL', async ({ page }
 	);
 });
 
-test('End session with id token hint redirects to callback URL without UI session', async ({
+test('End session with id token hint asks before redirecting to callback URL without UI session', async ({
 	page
 }) => {
 	const client = oidcClients.nextcloud;
@@ -310,10 +311,12 @@ test('End session with id token hint redirects to callback URL without UI sessio
 	);
 	await page.context().clearCookies();
 
+	await page.goto(
+		`/api/oidc/end-session?id_token_hint=${idToken}&post_logout_redirect_uri=${client.logoutCallbackUrl}&state=logout-state`
+	);
+	await expect(page.getByText(`${client.name} asked`)).toBeVisible();
 	const callbackUrl = await expectCallbackRedirect(page, client.logoutCallbackUrl, () =>
-		page.goto(
-			`/api/oidc/end-session?id_token_hint=${idToken}&post_logout_redirect_uri=${client.logoutCallbackUrl}&state=logout-state`
-		)
+		page.getByRole('button', { name: 'Sign out' }).click()
 	);
 	expect(callbackUrl.searchParams.get('state')).toBe('logout-state');
 });
@@ -800,7 +803,7 @@ for (const scenario of [
 			test.setTimeout(30000);
 			const client = scenario.client;
 			if (scenario.isPublic) {
-				const response = await request.put(`/api/oidc/clients/${client.id}`, {
+				const response = await request.put(`/api/admin/oidc/clients/${client.id}`, {
 					data: {
 						name: client.name,
 						callbackURLs: [client.callbackUrl],
@@ -906,7 +909,7 @@ test('Device authorization flow forces reauthentication when client requires it'
 	request
 }) => {
 	const client = oidcClients.nextcloud;
-	await request.put(`/api/oidc/clients/${client.id}`, {
+	await request.put(`/api/admin/oidc/clients/${client.id}`, {
 		data: {
 			name: client.name,
 			callbackURLs: [client.callbackUrl],
@@ -1033,7 +1036,7 @@ test('Forces reauthentication when client requires it', async ({ page, request }
 		await route.continue();
 	});
 
-	await request.put(`/api/oidc/clients/${oidcClients.nextcloud.id}`, {
+	await request.put(`/api/admin/oidc/clients/${oidcClients.nextcloud.id}`, {
 		data: {
 			name: oidcClients.nextcloud.name,
 			callbackURLs: [oidcClients.nextcloud.callbackUrl],
@@ -1585,7 +1588,7 @@ test.describe('Pushed Authorization Requests (PAR)', () => {
 
 	test('PAR endpoint accepts public client with PKCE', async ({ page }) => {
 		// The PAR test client is confidential by default, so make it public first.
-		await page.request.put(`/api/oidc/clients/${client.id}`, {
+		await page.request.put(`/api/admin/oidc/clients/${client.id}`, {
 			headers: { 'Content-Type': 'application/json' },
 			data: {
 				name: client.name,
@@ -1628,7 +1631,7 @@ test.describe('Pushed Authorization Requests (PAR)', () => {
 		request
 	}) => {
 		// Enable the PAR requirement on the client
-		await request.put(`/api/oidc/clients/${client.id}`, {
+		await request.put(`/api/admin/oidc/clients/${client.id}`, {
 			headers: { 'Content-Type': 'application/json' },
 			data: {
 				name: client.name,

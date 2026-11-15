@@ -8,13 +8,15 @@ type auditLogDto struct {
 	ID        string            `json:"id"`
 	CreatedAt datatype.DateTime `json:"createdAt"`
 
-	Event         string            `json:"event"`
-	IpAddress     string            `json:"ipAddress"`
-	Country       string            `json:"country"`
-	City          string            `json:"city"`
-	Device        string            `json:"device"`
-	UserID        string            `json:"userID"`
-	Username      string            `json:"username"`
-	ActorUsername string            `json:"actorUsername"`
-	Data          map[string]string `json:"data"`
+	Event     string            `json:"event"`
+	IpAddress string            `json:"ipAddress"`
+	Country   string            `json:"country"`
+	City      string            `json:"city"`
+	Device    string            `json:"device"`
+	UserID    string            `json:"userID"`
+	Username  string            `json:"username"`
+	ActorType string            `json:"actorType"`
+	ActorID   string            `json:"actorID"`
+	ActorName string            `json:"actorName"`
+	Data      map[string]string `json:"data"`
 }

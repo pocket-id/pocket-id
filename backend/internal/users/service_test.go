@@ -9,15 +9,18 @@ import (
 	"time"
 	"uuid"
 
+	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"gorm.io/gorm"
 
+	"github.com/pocket-id/pocket-id/backend/internal/appassets"
 	"github.com/pocket-id/pocket-id/backend/internal/appconfig"
 	"github.com/pocket-id/pocket-id/backend/internal/apperror"
+	"github.com/pocket-id/pocket-id/backend/internal/auditlogs"
+	"github.com/pocket-id/pocket-id/backend/internal/customclaims"
 	"github.com/pocket-id/pocket-id/backend/internal/dto"
 	"github.com/pocket-id/pocket-id/backend/internal/model"
 	datatype "github.com/pocket-id/pocket-id/backend/internal/model/types"
-	"github.com/pocket-id/pocket-id/backend/internal/service"
 	"github.com/pocket-id/pocket-id/backend/internal/storage"
 	testutils "github.com/pocket-id/pocket-id/backend/internal/utils/testing"
 )
@@ -29,13 +32,31 @@ func newTestUserService(t *testing.T) *Service {
 
 	fileStorage, err := storage.NewDatabaseStorage(db)
 	require.NoError(t, err)
+	appAssets, err := appassets.New(t.Context(), fileStorage)
+	require.NoError(t, err)
 
 	return newService(Dependencies{
 		DB:           db,
-		CustomClaims: service.NewCustomClaimService(db),
-		AppAssets:    service.NewAppAssetsService(map[string]string{}, fileStorage),
+		CustomClaims: customclaims.New(db),
+		AppAssets:    appAssets,
 		FileStorage:  fileStorage,
+		AuditLog:     &fakeAuditLogger{},
 	})
+}
+
+type fakeAuditLogger struct {
+	events map[auditlogs.Event][]auditlogs.Data
+}
+
+func (f *fakeAuditLogger) Record(_ context.Context, event auditlogs.Event, _ auditlogs.Origin, _ string, data auditlogs.Data, _ *gorm.DB) {
+	if f.events == nil {
+		f.events = map[auditlogs.Event][]auditlogs.Data{}
+	}
+	f.events[event] = append(f.events[event], data)
+}
+
+func (*fakeAuditLogger) KeepUsername(context.Context, string, string, *gorm.DB) error {
+	return nil
 }
 
 func createTestGroup(t *testing.T, db *gorm.DB, name, friendlyName string) model.UserGroup {
@@ -67,7 +88,7 @@ func TestUpdateProfilePictureRejectsInvalidImageData(t *testing.T) {
 	user, err := userService.CreateUser(t.Context(), config, dto.UserCreateDto{
 		ID:       uuid.NewV4().String(),
 		Username: "image-test",
-	})
+	}, auditlogs.Origin{})
 	require.NoError(t, err)
 
 	err = userService.UpdateProfilePicture(
@@ -106,13 +127,13 @@ func TestCreateUserBumpsGroupUpdatedAt(t *testing.T) {
 		FirstName:    "Group",
 		LastName:     "Member",
 		UserGroupIds: []string{group.ID},
-	})
+	}, auditlogs.Origin{})
 	require.NoError(t, err)
 
 	// The group's UpdatedAt must now be set
 	updated := getTestGroup(t, userService.db, group.ID)
 	require.NotNil(t, updated.UpdatedAt, "creating a group member must bump the group's UpdatedAt")
-	require.False(t, updated.LastModified().Before(updated.CreatedAt.ToTime()), "group LastModified must not predate its CreatedAt after a membership change")
+	require.False(t, updated.UpdatedAt.ToTime().Before(updated.CreatedAt.ToTime()), "group UpdatedAt must not predate its CreatedAt after a membership change")
 	require.Len(t, updated.Users, 1, "the user should be a member of the group")
 }
 
@@ -135,7 +156,7 @@ func TestCreateUserBumpsDefaultGroupUpdatedAt(t *testing.T) {
 		Email:     &email,
 		FirstName: "Default",
 		LastName:  "Member",
-	})
+	}, auditlogs.Origin{})
 	require.NoError(t, err)
 
 	updated := getTestGroup(t, userService.db, group.ID)
@@ -155,7 +176,7 @@ func TestUpdateUserGroupsBumpsRemovedGroupUpdatedAt(t *testing.T) {
 		FirstName:    "Group",
 		LastName:     "Mover",
 		UserGroupIds: []string{oldGroup.ID},
-	})
+	}, auditlogs.Origin{})
 	require.NoError(t, err)
 
 	// Backdate both groups so a bump is visible regardless of the timestamp precision
@@ -163,12 +184,12 @@ func TestUpdateUserGroupsBumpsRemovedGroupUpdatedAt(t *testing.T) {
 	require.NoError(t, userService.db.Model(&model.UserGroup{}).Where("id IN ?", []string{oldGroup.ID, newGroup.ID}).Update("updated_at", datatype.DateTime(past)).Error)
 
 	// Move the user from the old group to the new one, as the user's group selection does
-	_, err = userService.UpdateUserGroups(t.Context(), user.ID, []string{newGroup.ID})
+	_, err = userService.UpdateUserGroups(t.Context(), user.ID, []string{newGroup.ID}, auditlogs.Origin{})
 	require.NoError(t, err)
 
 	for _, groupID := range []string{oldGroup.ID, newGroup.ID} {
 		updated := getTestGroup(t, userService.db, groupID)
-		require.True(t, updated.LastModified().After(past), "group %s changed membership, so its UpdatedAt must be bumped", updated.Name)
+		require.True(t, updated.UpdatedAt.ToTime().After(past), "group %s changed membership, so its UpdatedAt must be bumped", updated.Name)
 	}
 }
 
@@ -183,29 +204,33 @@ func TestDeleteUserBumpsGroupUpdatedAt(t *testing.T) {
 		FirstName:    "Group",
 		LastName:     "Leaver",
 		UserGroupIds: []string{group.ID},
-	})
+	}, auditlogs.Origin{})
 	require.NoError(t, err)
 
 	// Backdate the group so a bump is visible regardless of the timestamp precision
 	past := time.Now().Add(-time.Hour)
 	require.NoError(t, userService.db.Model(&model.UserGroup{}).Where("id = ?", group.ID).Update("updated_at", datatype.DateTime(past)).Error)
 
-	err = userService.DeleteUser(t.Context(), config, user.ID, false)
+	err = userService.DeleteUser(t.Context(), config, user.ID, false, auditlogs.Origin{})
 	require.NoError(t, err)
 
 	updated := getTestGroup(t, userService.db, group.ID)
 	require.Empty(t, updated.Users)
-	require.True(t, updated.LastModified().After(past), "deleting a member must bump the group's UpdatedAt")
+	require.True(t, updated.UpdatedAt.ToTime().After(past), "deleting a member must bump the group's UpdatedAt")
 }
 
 type recordingEmailVerificationSender struct {
 	sent       []string
 	requested  []string
 	allowErr   error
+	allow      func(ctx context.Context) error
 	requestErr error
 }
 
-func (r *recordingEmailVerificationSender) AllowSend(_ context.Context, _ string) error {
+func (r *recordingEmailVerificationSender) AllowSend(ctx context.Context, _ string) error {
+	if r.allow != nil {
+		return r.allow(ctx)
+	}
 	return r.allowErr
 }
 
@@ -236,7 +261,7 @@ func TestUpdateOwnEmailWithVerification(t *testing.T) {
 			EmailVerified: emailVerified,
 			FirstName:     "Email",
 			LastName:      "Changer",
-		})
+		}, auditlogs.Origin{})
 		require.NoError(t, err)
 
 		update := dto.UserCreateDto{
@@ -251,21 +276,22 @@ func TestUpdateOwnEmailWithVerification(t *testing.T) {
 	t.Run("a verified email stays in effect until the new address is confirmed", func(t *testing.T) {
 		userService, sender, config, user, update := setup(t, appconfig.EmailVerificationRequired, true)
 
-		updated, err := userService.UpdateUser(t.Context(), config, user.ID, update, true, false)
+		updated, err := userService.UpdateUser(t.Context(), config, user.ID, dto.Replace(update), true, false, auditlogs.Origin{})
 		require.NoError(t, err)
 
 		require.Equal(t, "old@example.com", *updated.Email)
 		require.True(t, updated.EmailVerified)
 		require.Equal(t, []string{"new@example.com"}, sender.requested)
 		require.Empty(t, sender.sent)
+		require.Empty(t, userService.auditLog.(*fakeAuditLogger).events[auditlogs.EventEmailChanged])
 	})
 
 	t.Run("a deferred change to an address another user has is rejected right away", func(t *testing.T) {
 		userService, sender, config, user, update := setup(t, appconfig.EmailVerificationRequired, true)
-		_, err := userService.CreateUser(t.Context(), config, dto.UserCreateDto{Username: "other", Email: new("new@example.com"), FirstName: "Other"})
+		_, err := userService.CreateUser(t.Context(), config, dto.UserCreateDto{Username: "other", Email: new("new@example.com"), FirstName: "Other"}, auditlogs.Origin{})
 		require.NoError(t, err)
 
-		_, err = userService.UpdateUser(t.Context(), config, user.ID, update, true, false)
+		_, err = userService.UpdateUser(t.Context(), config, user.ID, dto.Replace(update), true, false, auditlogs.Origin{})
 		require.True(t, apperror.IsCode(err, apperror.CodeAlreadyInUse))
 		require.Empty(t, sender.requested)
 	})
@@ -273,20 +299,21 @@ func TestUpdateOwnEmailWithVerification(t *testing.T) {
 	t.Run("an unverified email is replaced right away and the new one has to be verified", func(t *testing.T) {
 		userService, sender, config, user, update := setup(t, appconfig.EmailVerificationRequired, false)
 
-		updated, err := userService.UpdateUser(t.Context(), config, user.ID, update, true, false)
+		updated, err := userService.UpdateUser(t.Context(), config, user.ID, dto.Replace(update), true, false, auditlogs.Origin{})
 		require.NoError(t, err)
 
 		require.Equal(t, "new@example.com", *updated.Email)
 		require.False(t, updated.EmailVerified)
 		require.Equal(t, []string{user.ID}, sender.sent)
 		require.Empty(t, sender.requested)
+		require.Equal(t, []auditlogs.Data{{"email": "new@example.com", "previousEmail": "old@example.com"}}, userService.auditLog.(*fakeAuditLogger).events[auditlogs.EventEmailChanged])
 	})
 
 	t.Run("the other fields are saved while the email change waits for confirmation", func(t *testing.T) {
 		userService, _, config, user, update := setup(t, appconfig.EmailVerificationRequired, true)
 		update.FirstName = "Renamed"
 
-		updated, err := userService.UpdateUser(t.Context(), config, user.ID, update, true, false)
+		updated, err := userService.UpdateUser(t.Context(), config, user.ID, dto.Replace(update), true, false, auditlogs.Origin{})
 		require.NoError(t, err)
 
 		require.Equal(t, "Renamed", updated.FirstName)
@@ -298,7 +325,7 @@ func TestUpdateOwnEmailWithVerification(t *testing.T) {
 		sender.allowErr = apperror.TooManyRequests()
 		update.FirstName = "Renamed"
 
-		_, err := userService.UpdateUser(t.Context(), config, user.ID, update, true, false)
+		_, err := userService.UpdateUser(t.Context(), config, user.ID, dto.Replace(update), true, false, auditlogs.Origin{})
 		require.True(t, apperror.IsCode(err, apperror.CodeRateLimited))
 		require.Empty(t, sender.requested)
 
@@ -307,12 +334,27 @@ func TestUpdateOwnEmailWithVerification(t *testing.T) {
 		require.Equal(t, user.FirstName, stored.FirstName)
 	})
 
+	t.Run("the send limiter can write to the database", func(t *testing.T) {
+		userService, sender, config, user, update := setup(t, appconfig.EmailVerificationRequired, true)
+
+		// The limiter is an actor that persists its state, which waits for the SQLite write lock
+		sender.allow = func(ctx context.Context) error {
+			ctx, cancel := context.WithTimeout(ctx, 2*time.Second)
+			defer cancel()
+			return userService.db.WithContext(ctx).Exec("CREATE TABLE IF NOT EXISTS limiter_probe (id INTEGER)").Error
+		}
+
+		_, err := userService.UpdateUser(t.Context(), config, user.ID, dto.Replace(update), true, false, auditlogs.Origin{})
+		require.NoError(t, err)
+		require.Equal(t, []string{"new@example.com"}, sender.requested)
+	})
+
 	t.Run("a change link that can't be sent is reported apart from the saved fields", func(t *testing.T) {
 		userService, sender, config, user, update := setup(t, appconfig.EmailVerificationRequired, true)
 		sender.requestErr = errors.New("smtp unavailable")
 		update.FirstName = "Renamed"
 
-		updated, err := userService.UpdateUser(t.Context(), config, user.ID, update, true, false)
+		updated, err := userService.UpdateUser(t.Context(), config, user.ID, dto.Replace(update), true, false, auditlogs.Origin{})
 		require.True(t, apperror.IsCode(err, apperror.CodeEmailChangeNotStarted))
 		require.Equal(t, "Renamed", updated.FirstName)
 
@@ -326,7 +368,7 @@ func TestUpdateOwnEmailWithVerification(t *testing.T) {
 		userService, sender, config, user, update := setup(t, appconfig.EmailVerificationRequired, true)
 		config.AllowOwnAccountEdit = "false"
 
-		updated, err := userService.UpdateUser(t.Context(), config, user.ID, update, true, false)
+		updated, err := userService.UpdateUser(t.Context(), config, user.ID, dto.Replace(update), true, false, auditlogs.Origin{})
 		require.NoError(t, err)
 
 		require.Equal(t, "old@example.com", *updated.Email)
@@ -338,7 +380,7 @@ func TestUpdateOwnEmailWithVerification(t *testing.T) {
 		userService, sender, config, user, update := setup(t, appconfig.EmailVerificationRequired, true)
 		update.EmailVerified = true
 
-		updated, err := userService.UpdateUser(t.Context(), config, user.ID, update, false, false)
+		updated, err := userService.UpdateUser(t.Context(), config, user.ID, dto.Replace(update), false, false, auditlogs.Origin{})
 		require.NoError(t, err)
 
 		require.Equal(t, "new@example.com", *updated.Email)
@@ -349,7 +391,7 @@ func TestUpdateOwnEmailWithVerification(t *testing.T) {
 	t.Run("the email is replaced right away when verification is optional", func(t *testing.T) {
 		userService, sender, config, user, update := setup(t, appconfig.EmailVerificationOptional, true)
 
-		updated, err := userService.UpdateUser(t.Context(), config, user.ID, update, true, false)
+		updated, err := userService.UpdateUser(t.Context(), config, user.ID, dto.Replace(update), true, false, auditlogs.Origin{})
 		require.NoError(t, err)
 
 		require.Equal(t, "new@example.com", *updated.Email)
@@ -357,6 +399,40 @@ func TestUpdateOwnEmailWithVerification(t *testing.T) {
 		require.Empty(t, sender.sent)
 		require.Empty(t, sender.requested)
 	})
+}
+
+type denyingLimiter struct {
+	calls int
+}
+
+func (l *denyingLimiter) Allow(context.Context, string) (bool, time.Duration, error) {
+	l.calls++
+	return false, time.Minute, nil
+}
+
+func TestOwnUsernameAndEmailChangesAreThrottled(t *testing.T) {
+	config := appconfig.NewTestConfig(nil)
+	userService := newTestUserService(t)
+	limiter := &denyingLimiter{}
+	userService.ownAccountLimiter = limiter
+
+	user, err := userService.CreateUser(t.Context(), config, dto.UserCreateDto{Username: "prober", Email: new("prober@example.com"), FirstName: "Prober"}, auditlogs.Origin{})
+	require.NoError(t, err)
+	update := dto.UserCreateDto{Username: user.Username, Email: user.Email, FirstName: "Renamed"}
+
+	_, err = userService.UpdateUser(t.Context(), config, user.ID, dto.Replace(update), true, false, auditlogs.Origin{})
+	require.NoError(t, err, "an update that keeps the username and email must not be throttled")
+	require.Zero(t, limiter.calls)
+
+	withUsername := update
+	withUsername.Username = "admin"
+	_, err = userService.UpdateUser(t.Context(), config, user.ID, dto.Replace(withUsername), true, false, auditlogs.Origin{})
+	require.True(t, apperror.IsCode(err, apperror.CodeRateLimited))
+
+	withEmail := update
+	withEmail.Email = new("someone@example.com")
+	_, err = userService.UpdateUser(t.Context(), config, user.ID, dto.Replace(withEmail), true, false, auditlogs.Origin{})
+	require.True(t, apperror.IsCode(err, apperror.CodeRateLimited))
 }
 
 func TestMarkingEmailVerifiedClearsSignupDeadline(t *testing.T) {
@@ -368,18 +444,18 @@ func TestMarkingEmailVerifiedClearsSignupDeadline(t *testing.T) {
 		Email:     new("pending@example.com"),
 		FirstName: "Pending",
 		LastName:  "User",
-	})
+	}, auditlogs.Origin{})
 	require.NoError(t, err)
 	deadline := datatype.DateTime(time.Now().Add(time.Hour))
 	require.NoError(t, userService.db.Model(&model.User{}).Where("id = ?", user.ID).Update("email_verification_deadline", deadline).Error)
 
-	updated, err := userService.UpdateUser(t.Context(), config, user.ID, dto.UserCreateDto{
+	updated, err := userService.UpdateUser(t.Context(), config, user.ID, dto.Replace(dto.UserCreateDto{
 		Username:      user.Username,
 		Email:         user.Email,
 		EmailVerified: true,
 		FirstName:     user.FirstName,
 		LastName:      user.LastName,
-	}, false, false)
+	}), false, false, auditlogs.Origin{})
 	require.NoError(t, err)
 	require.True(t, updated.EmailVerified)
 
@@ -398,7 +474,7 @@ func TestUpdateUserReturnsGroupsAndCustomClaims(t *testing.T) {
 	}
 	require.NoError(t, userService.db.Create(&user).Error)
 
-	updated, err := userService.UpdateUser(t.Context(), &appconfig.AppConfigModel{RequireUserEmail: "false"}, user.ID, dto.UserCreateDto{Username: "member", FirstName: "Updated"}, false, false)
+	updated, err := userService.UpdateUser(t.Context(), &appconfig.AppConfigModel{RequireUserEmail: "false"}, user.ID, dto.Replace(dto.UserCreateDto{Username: "member", FirstName: "Updated"}), false, false, auditlogs.Origin{})
 	require.NoError(t, err)
 
 	require.Equal(t, "Updated", updated.FirstName)
@@ -412,9 +488,31 @@ func TestCreateUserReturnsDefaultCustomClaims(t *testing.T) {
 	userService := newTestUserService(t)
 	config := &appconfig.AppConfigModel{RequireUserEmail: "false", SignupDefaultCustomClaims: `[{"key":"office","value":"Zurich"}]`}
 
-	user, err := userService.CreateUser(t.Context(), config, dto.UserCreateDto{Username: "newcomer", FirstName: "New"})
+	user, err := userService.CreateUser(t.Context(), config, dto.UserCreateDto{Username: "newcomer", FirstName: "New"}, auditlogs.Origin{})
 	require.NoError(t, err)
 
 	require.Len(t, user.CustomClaims, 1)
 	require.Equal(t, "office", user.CustomClaims[0].Key)
+}
+
+func TestAccessChangesAreRecorded(t *testing.T) {
+	config := &appconfig.AppConfigModel{RequireUserEmail: "false"}
+	userService := newTestUserService(t)
+	auditLog := userService.auditLog.(*fakeAuditLogger)
+	oldGroup := createTestGroup(t, userService.db, "old", "Old")
+	newGroup := createTestGroup(t, userService.db, "new", "New")
+	user := model.User{Username: "member", UserGroups: []model.UserGroup{oldGroup}}
+	require.NoError(t, userService.db.Create(&user).Error)
+
+	_, err := userService.UpdateUser(t.Context(), config, user.ID, dto.Replace(dto.UserCreateDto{Username: "member", IsAdmin: true, Disabled: true}), false, false, auditlogs.Origin{})
+	require.NoError(t, err)
+	_, err = userService.UpdateUserGroups(t.Context(), user.ID, []string{newGroup.ID}, auditlogs.Origin{})
+	require.NoError(t, err)
+	require.NoError(t, userService.DeleteUser(t.Context(), config, user.ID, false, auditlogs.Origin{}))
+
+	assert.Len(t, auditLog.events[auditlogs.EventAdminGranted], 1)
+	assert.Len(t, auditLog.events[auditlogs.EventAccountDisabled], 1)
+	assert.Equal(t, []auditlogs.Data{{"groupName": "New"}}, auditLog.events[auditlogs.EventGroupMemberAdded])
+	assert.Equal(t, []auditlogs.Data{{"groupName": "Old"}}, auditLog.events[auditlogs.EventGroupMemberRemoved])
+	assert.Len(t, auditLog.events[auditlogs.EventAccountDeleted], 1)
 }

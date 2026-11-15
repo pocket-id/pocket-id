@@ -2,6 +2,7 @@ package ldapsync
 
 import (
 	"bytes"
+	"context"
 	"net/http"
 	"net/http/httptest"
 	"testing"
@@ -12,11 +13,13 @@ import (
 	"github.com/stretchr/testify/require"
 	"gorm.io/gorm"
 
+	"github.com/pocket-id/pocket-id/backend/internal/appassets"
 	"github.com/pocket-id/pocket-id/backend/internal/appconfig"
 	"github.com/pocket-id/pocket-id/backend/internal/apperror"
+	"github.com/pocket-id/pocket-id/backend/internal/auditlogs"
+	"github.com/pocket-id/pocket-id/backend/internal/customclaims"
 	"github.com/pocket-id/pocket-id/backend/internal/model"
 	datatype "github.com/pocket-id/pocket-id/backend/internal/model/types"
-	"github.com/pocket-id/pocket-id/backend/internal/service"
 	"github.com/pocket-id/pocket-id/backend/internal/storage"
 	"github.com/pocket-id/pocket-id/backend/internal/usergroups"
 	"github.com/pocket-id/pocket-id/backend/internal/users"
@@ -27,6 +30,14 @@ type fakeLDAPClient struct {
 	searchFn func(searchRequest *ldap.SearchRequest) (*ldap.SearchResult, error)
 }
 
+type nopAuditLogger struct{}
+
+func (nopAuditLogger) Record(context.Context, auditlogs.Event, auditlogs.Origin, string, auditlogs.Data, *gorm.DB) {
+}
+
+func (nopAuditLogger) KeepUsername(context.Context, string, string, *gorm.DB) error {
+	return nil
+}
 func TestCreateLDAPClientRejectsDisabledConfiguration(t *testing.T) {
 	svc := newService(Dependencies{})
 
@@ -249,6 +260,16 @@ func TestLdapServiceSyncAllKeepsDistinctDNMemberships(t *testing.T) {
 			memberDN:   "cn=admin+ou=staff,dc=example,dc=com",
 			attackerDN: `cn=admin\+ou=staff,dc=example,dc=com`,
 		},
+		{
+			name:       "non-ASCII letter that lowercases to ASCII",
+			memberDN:   "cn=admin,ou=staff,dc=example,dc=com",
+			attackerDN: "cn=adm\u0130n,ou=staff,dc=example,dc=com",
+		},
+		{
+			name:       "different invalid UTF-8 bytes",
+			memberDN:   `cn=admin\fe,ou=staff,dc=example,dc=com`,
+			attackerDN: `cn=admin\ff,ou=staff,dc=example,dc=com`,
+		},
 	}
 
 	for _, tt := range tests {
@@ -361,6 +382,29 @@ func TestLdapServiceSyncAllHandlesDuplicateLDAPIDsInSingleRun(t *testing.T) {
 	assert.Equal(t, "team-renamed", groups[0].Name)
 	assert.Equal(t, "team-renamed", groups[0].FriendlyName)
 	assert.ElementsMatch(t, []string{"alice"}, usernames(groups[0].Users))
+}
+
+func TestLdapServiceSyncAllReplacesGroupRecreatedUnderSameName(t *testing.T) {
+	service, db := newTestLdapService(t, newFakeLDAPClient(
+		ldapSearchResult(),
+		ldapSearchResult(
+			ldapEntry("cn=team,ou=groups,dc=example,dc=com", map[string][]string{
+				"entryUUID": {"g-new"},
+				"cn":        {"team"},
+			}),
+		),
+	))
+
+	oldLdapID := "g-old"
+	require.NoError(t, db.Create(&model.UserGroup{Name: "team", FriendlyName: "team", LdapID: &oldLdapID}).Error)
+
+	err := service.SyncAll(t.Context(), defaultTestLDAPAppConfig())
+	require.NoError(t, err)
+
+	var groups []model.UserGroup
+	require.NoError(t, db.Find(&groups, "name = ?", "team").Error)
+	require.Len(t, groups, 1)
+	assert.Equal(t, "g-new", *groups[0].LdapID)
 }
 
 func TestLdapServiceSyncAllBumpsUpdatedAtOfSoftDeletedUsers(t *testing.T) {
@@ -577,15 +621,20 @@ func newTestLdapService(t *testing.T, client ldapClient) (*Service, *gorm.DB) {
 
 	fileStorage, err := storage.NewDatabaseStorage(db)
 	require.NoError(t, err)
+	appAssets, err := appassets.New(t.Context(), fileStorage)
+	require.NoError(t, err)
 
 	// The sync is exercised against the real user and group services, so the assertions below can check what actually lands in the database
-	groupsModule := usergroups.New(usergroups.Dependencies{DB: db})
-	usersModule := users.New(users.Dependencies{
-		DB:           db,
-		FileStorage:  fileStorage,
-		CustomClaims: service.NewCustomClaimService(db),
-		AppAssets:    service.NewAppAssetsService(map[string]string{}, fileStorage),
+	groupsModule := usergroups.New(usergroups.Dependencies{DB: db, AuditLog: nopAuditLogger{}})
+	usersModule, err := users.New(users.Dependencies{
+		DB:              db,
+		FileStorage:     fileStorage,
+		CustomClaims:    customclaims.New(db),
+		AppAssets:       appAssets,
+		AuditLog:        nopAuditLogger{},
+		CleanupDisabled: true,
 	})
+	require.NoError(t, err)
 
 	svc := newService(Dependencies{
 		DB:          db,
@@ -722,6 +771,18 @@ func TestGetDNProperty(t *testing.T) {
 			dn:             "cn=username,ou=people,dc=example,dc=com",
 			expectedResult: "",
 		},
+		{
+			name:           "non-ASCII letter that lowercases to ASCII is not the property",
+			property:       "uid",
+			dn:             "u\u0130d=username,ou=people,dc=example,dc=com",
+			expectedResult: "",
+		},
+		{
+			name:           "component that shrinks when lowercased",
+			property:       "uid",
+			dn:             "cn=user\\,\u212a\u212a,ou=people,dc=example,dc=com",
+			expectedResult: "",
+		},
 	}
 
 	for _, tt := range tests {
@@ -784,9 +845,19 @@ func TestNormalizeLDAPDN(t *testing.T) {
 			expected: `cn=admin\+ou=staff,dc=example,dc=com`,
 		},
 		{
+			name:     "non-ASCII letters keep their case",
+			input:    "CN=Adm\u0130n,DC=example,DC=com",
+			expected: `cn=adm\c4\b0n,dc=example,dc=com`,
+		},
+		{
 			name:     "invalid DN falls back to lowercase+trim",
 			input:    "  NOT A VALID DN  ",
 			expected: "not a valid dn",
+		},
+		{
+			name:     "invalid DN keeps the case of non-ASCII letters",
+			input:    "  NOT A VAL\u0130D DN  ",
+			expected: "not a val\u0130d dn",
 		},
 		{
 			name:     "empty string",

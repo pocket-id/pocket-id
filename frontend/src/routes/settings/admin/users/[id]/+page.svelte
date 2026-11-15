@@ -30,7 +30,6 @@
 	import PickerDialog, { groupsConfirmLabel } from '../../user-groups/picker-dialog.svelte';
 	import LoginCodeDialog from '../login-code-dialog.svelte';
 	import { backNavigate } from '../navigate-back-util';
-	import UserAvatar from '../user-avatar.svelte';
 	import { confirmDeleteUsers, confirmDisableUsers, enableUsers } from '../user-actions';
 	import UserForm from '../user-form.svelte';
 	import UserStatus from '../user-status.svelte';
@@ -119,9 +118,6 @@
 			{ label: m.users(), href: '/settings/admin/users' }
 		]}
 	>
-		{#snippet identity()}
-			<UserAvatar {user} />
-		{/snippet}
 		{#snippet status()}
 			<UserStatus {user} />
 		{/snippet}
@@ -185,7 +181,7 @@
 		{/snippet}
 	</PageHeader>
 
-	<HashTabs bind:value={tab} class="gap-10">
+	<HashTabs bind:value={tab} class="gap-8">
 		<div class="flex shadow-[inset_0_-1px_0_var(--border)]">
 			<div class="scroll-fade-x min-w-0 [scrollbar-width:none] overflow-x-auto">
 				<Tabs.List variant="line" class="shadow-none max-sm:gap-4" aria-label={m.user_sections()}>
@@ -210,7 +206,7 @@
 			</div>
 		</div>
 
-		<Tabs.Content value="general" class="flex flex-col gap-10">
+		<Tabs.Content value="general" class="flex flex-col gap-4">
 			<UserForm bind:user {readOnly} />
 		</Tabs.Content>
 

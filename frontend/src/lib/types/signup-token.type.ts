@@ -8,4 +8,5 @@ export interface SignupToken {
 	usageCount: number;
 	userGroups: UserGroup[];
 	createdAt: string;
+	sentTo?: string;
 }

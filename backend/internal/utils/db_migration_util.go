@@ -5,177 +5,231 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
+	"io/fs"
 	"log/slog"
-	"strconv"
 	"strings"
+	"testing/fstest"
 
-	"github.com/golang-migrate/migrate/v4"
-	"github.com/golang-migrate/migrate/v4/database"
-	postgresMigrate "github.com/golang-migrate/migrate/v4/database/postgres"
-	sqliteMigrate "github.com/golang-migrate/migrate/v4/database/sqlite3"
-	"github.com/golang-migrate/migrate/v4/source/iofs"
+	"github.com/pressly/goose/v3"
+	goosedb "github.com/pressly/goose/v3/database"
+	"github.com/pressly/goose/v3/lock"
+
 	"github.com/pocket-id/pocket-id/backend/internal/common"
 	"github.com/pocket-id/pocket-id/backend/resources"
 )
 
-// MigrateDatabase applies database migrations using embedded migration files or fetches them from GitHub if a downgrade is detected.
-func MigrateDatabase(ctx context.Context, sqlDb *sql.DB) error {
-	m, cleanup, err := GetEmbeddedMigrateInstance(ctx, sqlDb)
-	if err != nil {
-		return fmt.Errorf("failed to get migrate instance: %w", err)
-	}
-	defer cleanup()
+const (
+	// baselineMigrationVersion is the version of the migration that creates the whole schema Pocket ID v3 started with
+	// The migrations of earlier versions are not part of this version, so a schema older than the baseline cannot be migrated
+	baselineMigrationVersion = 20261114130000
 
-	path := "migrations/" + string(common.EnvConfig.DbProvider)
-	requiredVersion, err := getRequiredMigrationVersion(path)
+	// migrationFilesTable keeps a copy of the migration files of every Pocket ID version that ran against the database
+	// An older version needs them to roll back the migrations it doesn't know
+	migrationFilesTable = "goose_migration_files"
+)
+
+// IsMigrationTable reports whether a table keeps track of the migrations instead of holding Pocket ID data
+func IsMigrationTable(table string) bool {
+	return strings.HasPrefix(table, "goose_")
+}
+
+// CheckMigrationVersionSupported returns an error if data at the given schema version is too old to be migrated to the current schema
+func CheckMigrationVersionSupported(version int64) error {
+	if version < baselineMigrationVersion {
+		return fmt.Errorf("schema version %d is older than the one of Pocket ID v3 (%d)", version, baselineMigrationVersion)
+	}
+	return nil
+}
+
+// MigrateDatabase applies the embedded migrations to the database
+// If the database has migrations of a newer Pocket ID version, they are rolled back first, as long as downgrades are allowed
+func MigrateDatabase(ctx context.Context, sqlDb *sql.DB, dbProvider common.DbProvider) error {
+	dialect := migrationDialect(dbProvider)
+	store, err := goosedb.NewStore(dialect, goose.DefaultTablename)
 	if err != nil {
-		return fmt.Errorf("failed to get last migration version: %w", err)
+		return fmt.Errorf("failed to create the migration store: %w", err)
+	}
+	files, err := fs.Sub(resources.FS, "migrations/"+string(dbProvider))
+	if err != nil {
+		return fmt.Errorf("failed to open the embedded migrations: %w", err)
+	}
+	provider, err := newMigrationProvider(sqlDb, dialect, files)
+	if err != nil {
+		return err
 	}
 
-	currentVersion, _, _ := m.Version()
-	if currentVersion > requiredVersion {
-		slog.Warn("Database version is newer than the application supports, possible downgrade detected", slog.Uint64("db_version", uint64(currentVersion)), slog.Uint64("app_version", uint64(requiredVersion)))
-		if !common.EnvConfig.AllowDowngrade {
-			return fmt.Errorf("database version (%d) is newer than application version (%d), downgrades are not allowed (set ALLOW_DOWNGRADE=true to enable)", currentVersion, requiredVersion)
+	// Keep a copy of the migration files, which an older Pocket ID version needs to roll them back
+	err = storeMigrationFiles(ctx, sqlDb, files, provider.ListSources())
+	if err != nil {
+		return err
+	}
+
+	// Roll back the migrations of a newer Pocket ID version, then apply the ones of this version
+	err = rollBackUnknownMigrations(ctx, sqlDb, dbProvider, store, provider.ListSources())
+	if err != nil {
+		return err
+	}
+	results, err := provider.Up(ctx)
+	if err != nil {
+		return fmt.Errorf("failed to apply the migrations: %w", err)
+	}
+	for _, result := range results {
+		slog.InfoContext(ctx, "Applied database migration", slog.String("migration", result.Source.Path), slog.Duration("duration", result.Duration))
+	}
+
+	return nil
+}
+
+// MigrateDatabaseTo applies the embedded migrations up to and including the given version to an empty database
+func MigrateDatabaseTo(ctx context.Context, sqlDb *sql.DB, dbProvider common.DbProvider, version int64) error {
+	files, err := fs.Sub(resources.FS, "migrations/"+string(dbProvider))
+	if err != nil {
+		return fmt.Errorf("failed to open the embedded migrations: %w", err)
+	}
+	provider, err := newMigrationProvider(sqlDb, migrationDialect(dbProvider), files)
+	if err != nil {
+		return err
+	}
+
+	_, err = provider.UpTo(ctx, version)
+	if err != nil {
+		return fmt.Errorf("failed to apply the migrations: %w", err)
+	}
+	return nil
+}
+
+// TableExists reports whether the database has a table with the given name
+func TableExists(ctx context.Context, sqlDb *sql.DB, dbProvider common.DbProvider, table string) (exists bool, err error) {
+	query := `SELECT EXISTS (SELECT 1 FROM sqlite_master WHERE type = 'table' AND name = $1)`
+	if dbProvider == common.DbProviderPostgres {
+		query = `SELECT EXISTS (SELECT 1 FROM pg_tables WHERE schemaname = current_schema() AND tablename = $1)`
+	}
+	err = sqlDb.QueryRowContext(ctx, query, table).Scan(&exists)
+	if err != nil {
+		return false, fmt.Errorf("failed to check for the %s table: %w", table, err)
+	}
+	return exists, nil
+}
+
+func migrationDialect(dbProvider common.DbProvider) goose.Dialect {
+	if dbProvider == common.DbProviderPostgres {
+		return goose.DialectPostgres
+	}
+	return goose.DialectSQLite3
+}
+
+func newMigrationProvider(sqlDb *sql.DB, dialect goose.Dialect, files fs.FS) (*goose.Provider, error) {
+	opts := []goose.ProviderOption{
+		// Migrations of parallel branches can be merged in a different order than their versions, and they must still be applied
+		goose.WithAllowOutofOrder(true),
+		goose.WithDisableGlobalRegistry(true),
+	}
+
+	// Replicas that start at the same time must not migrate the database concurrently
+	// The table lock also works behind connection poolers such as PgBouncer, and it expires if the replica holding it crashes
+	if dialect == goose.DialectPostgres {
+		locker, err := lock.NewPostgresTableLocker()
+		if err != nil {
+			return nil, fmt.Errorf("failed to create the migration lock: %w", err)
 		}
-		slog.Info("Fetching migrations from GitHub to handle possible downgrades")
-		return migrateDatabaseFromGitHub(ctx, sqlDb, requiredVersion, currentVersion)
+		opts = append(opts, goose.WithLocker(locker))
 	}
 
-	err = m.Migrate(requiredVersion)
-	switch {
-	case errors.Is(err, migrate.ErrNoChange):
-		// All good
+	provider, err := goose.NewProvider(dialect, sqlDb, files, opts...)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create the migration provider: %w", err)
+	}
+	return provider, nil
+}
+
+// storeMigrationFiles saves the content of every embedded migration file in the database
+func storeMigrationFiles(ctx context.Context, sqlDb *sql.DB, files fs.FS, sources []*goose.Source) error {
+	tx, err := sqlDb.BeginTx(ctx, nil)
+	if err != nil {
+		return err
+	}
+	defer tx.Rollback() //nolint:errcheck
+
+	_, err = tx.ExecContext(ctx, `CREATE TABLE IF NOT EXISTS `+migrationFilesTable+` (
+		version_id BIGINT NOT NULL PRIMARY KEY,
+		file_name TEXT NOT NULL,
+		content TEXT NOT NULL
+	)`)
+	if err != nil {
+		return fmt.Errorf("failed to create the migration files table: %w", err)
+	}
+
+	for _, source := range sources {
+		content, err := fs.ReadFile(files, source.Path)
+		if err != nil {
+			return fmt.Errorf("failed to read migration %d: %w", source.Version, err)
+		}
+		_, err = tx.ExecContext(ctx, `INSERT INTO `+migrationFilesTable+` (version_id, file_name, content) VALUES ($1, $2, $3)
+			ON CONFLICT (version_id) DO UPDATE SET file_name = excluded.file_name, content = excluded.content`,
+			source.Version, source.Path, string(content))
+		if err != nil {
+			return fmt.Errorf("failed to store migration %d: %w", source.Version, err)
+		}
+	}
+
+	return tx.Commit()
+}
+
+// rollBackUnknownMigrations rolls back the applied migrations that aren't part of this version, newest first, using the files the newer version stored
+func rollBackUnknownMigrations(ctx context.Context, sqlDb *sql.DB, dbProvider common.DbProvider, store goosedb.Store, sources []*goose.Source) error {
+	// A new database has no migrations to roll back
+	exists, err := TableExists(ctx, sqlDb, dbProvider, goose.DefaultTablename)
+	if err != nil || !exists {
+		return err
+	}
+
+	// Find the migrations this version doesn't know, in the reverse order they were applied
+	known := make(map[int64]bool, len(sources))
+	for _, source := range sources {
+		known[source.Version] = true
+	}
+	applied, err := store.ListMigrations(ctx, sqlDb)
+	if err != nil {
+		return fmt.Errorf("failed to list the applied migrations: %w", err)
+	}
+	var unknown []int64
+	for _, migration := range applied {
+		if migration.Version != 0 && migration.IsApplied && !known[migration.Version] {
+			unknown = append(unknown, migration.Version)
+		}
+	}
+	if len(unknown) == 0 {
 		return nil
-	case errors.As(err, &migrate.ErrDirty{}):
-		return fmt.Errorf("database migration failed. Please create an issue on GitHub and temporarely downgrade to the previous version: %w", err)
-	case err != nil:
-		return fmt.Errorf("failed to apply embedded migrations: %w", err)
+	}
+	if !common.EnvConfig.AllowDowngrade {
+		return fmt.Errorf("the database has migrations of a newer Pocket ID version (%v), and downgrades are not allowed (set ALLOW_DOWNGRADE=true to enable)", unknown)
+	}
+	slog.WarnContext(ctx, "Rolling back the migrations of a newer Pocket ID version", slog.Any("versions", unknown))
+
+	// Load the files of those migrations, which the newer version stored when it ran
+	stored := fstest.MapFS{}
+	for _, version := range unknown {
+		var name, content string
+		err = sqlDb.QueryRowContext(ctx, `SELECT file_name, content FROM `+migrationFilesTable+` WHERE version_id = $1`, version).Scan(&name, &content)
+		if errors.Is(err, sql.ErrNoRows) {
+			return fmt.Errorf("migration %d cannot be rolled back, because the Pocket ID version that applied it didn't store it", version)
+		} else if err != nil {
+			return fmt.Errorf("failed to load migration %d: %w", version, err)
+		}
+		stored[name] = &fstest.MapFile{Data: []byte(content)}
+	}
+
+	provider, err := newMigrationProvider(sqlDb, migrationDialect(dbProvider), stored)
+	if err != nil {
+		return err
+	}
+	for _, version := range unknown {
+		result, err := provider.ApplyVersion(ctx, version, false)
+		if err != nil {
+			return fmt.Errorf("failed to roll back migration %d: %w", version, err)
+		}
+		slog.InfoContext(ctx, "Rolled back database migration", slog.String("migration", result.Source.Path), slog.Duration("duration", result.Duration))
 	}
 
 	return nil
-}
-
-// GetEmbeddedMigrateInstance creates a migrate.Migrate instance using embedded migration files.
-// The returned cleanup function must always be called once the instance is no longer needed: for Postgres it releases the dedicated connection the driver holds (see newMigrationDriver).
-func GetEmbeddedMigrateInstance(ctx context.Context, sqlDb *sql.DB) (m *migrate.Migrate, cleanup func(), err error) {
-	path := "migrations/" + string(common.EnvConfig.DbProvider)
-	source, err := iofs.New(resources.FS, path)
-	if err != nil {
-		return nil, nil, fmt.Errorf("failed to create embedded migration source: %w", err)
-	}
-
-	driver, cleanup, err := newMigrationDriver(ctx, sqlDb, common.EnvConfig.DbProvider)
-	if err != nil {
-		return nil, nil, fmt.Errorf("failed to create migration driver: %w", err)
-	}
-
-	m, err = migrate.NewWithInstance("iofs", source, "pocket-id", driver)
-	if err != nil {
-		cleanup()
-		return nil, nil, fmt.Errorf("failed to create migration instance: %w", err)
-	}
-	return m, cleanup, nil
-}
-
-// newMigrationDriver creates a database.Driver instance based on the given database provider.
-// The returned cleanup function releases any resources the driver holds and must always be called.
-func newMigrationDriver(ctx context.Context, sqlDb *sql.DB, dbProvider common.DbProvider) (driver database.Driver, cleanup func(), err error) {
-	// Default cleanup is a no-op
-	cleanup = func() {}
-
-	switch dbProvider {
-	case common.DbProviderSqlite:
-		// The SQLite driver runs statements on the pool directly, so it holds no dedicated connection.
-		driver, err = sqliteMigrate.WithInstance(sqlDb, &sqliteMigrate.Config{
-			NoTxWrap: true,
-		})
-	case common.DbProviderPostgres:
-		// The Postgres driver checks out a dedicated connection
-		// Use WithConnection (rather than WithInstance) with a connection we own so cleanup can return it to the pool without closing the shared *sql.DB
-		// Otherwise the leaked connection makes pgxpool.Close() block on shutdown
-		var conn *sql.Conn
-		conn, err = sqlDb.Conn(ctx)
-		if err != nil {
-			return nil, cleanup, fmt.Errorf("failed to acquire migration connection: %w", err)
-		}
-		cleanup = func() {
-			// Close the connection
-			_ = conn.Close()
-		}
-		driver, err = postgresMigrate.WithConnection(ctx, conn, &postgresMigrate.Config{})
-	default:
-		// Should never happen at this point
-		return nil, cleanup, fmt.Errorf("unsupported database provider: %s", common.EnvConfig.DbProvider)
-	}
-	if err != nil {
-		cleanup()
-		return nil, func() {}, fmt.Errorf("failed to create migration driver: %w", err)
-	}
-
-	return driver, cleanup, nil
-}
-
-// migrateDatabaseFromGitHub applies database migrations fetched from GitHub to handle downgrades.
-func migrateDatabaseFromGitHub(ctx context.Context, sqlDb *sql.DB, requiredVersion uint, currentVersion uint) error {
-	srcURL := "github://pocket-id/pocket-id/backend/resources/migrations/" + string(common.EnvConfig.DbProvider)
-
-	driver, cleanup, err := newMigrationDriver(ctx, sqlDb, common.EnvConfig.DbProvider)
-	if err != nil {
-		return fmt.Errorf("failed to create migration driver: %w", err)
-	}
-	defer cleanup()
-
-	m, err := migrate.NewWithDatabaseInstance(srcURL, "pocket-id", driver)
-	if err != nil {
-		return fmt.Errorf("failed to create GitHub migration instance: %w", err)
-	}
-
-	// Reset the dirty state before forcing the version
-	if err := m.Force(int(currentVersion)); err != nil { //nolint:gosec
-		return fmt.Errorf("failed to force database version: %w", err)
-	}
-
-	if err := m.Migrate(requiredVersion); err != nil {
-		if errors.Is(err, migrate.ErrNoChange) {
-			return nil
-		}
-		return fmt.Errorf("failed to apply GitHub migrations: %w", err)
-	}
-
-	return nil
-}
-
-// getRequiredMigrationVersion reads the embedded migration files and returns the highest version number found.
-func getRequiredMigrationVersion(path string) (uint, error) {
-	entries, err := resources.FS.ReadDir(path)
-	if err != nil {
-		return 0, fmt.Errorf("failed to read migration directory: %w", err)
-	}
-
-	var maxVersion uint64
-	for _, entry := range entries {
-		if entry.IsDir() {
-			continue
-		}
-		verString, _, ok := strings.Cut(entry.Name(), "_")
-		if !ok {
-			continue
-		}
-		version, err := strconv.ParseUint(verString, 10, 64)
-		if err != nil {
-			continue
-		}
-
-		if version > maxVersion {
-			maxVersion = version
-		}
-	}
-
-	if maxVersion > uint64(^uint(0)) {
-		// We do not support 32-bit systems
-		panic("32-bit systems are unsupported")
-	}
-
-	return uint(maxVersion), nil
 }

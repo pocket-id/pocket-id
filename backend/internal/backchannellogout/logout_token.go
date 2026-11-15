@@ -8,6 +8,7 @@ import (
 	"github.com/lestrrat-go/jwx/v4/jws"
 	"github.com/lestrrat-go/jwx/v4/jwt"
 
+	"github.com/pocket-id/pocket-id/backend/internal/common"
 	"github.com/pocket-id/pocket-id/backend/internal/signingkey"
 )
 
@@ -33,10 +34,14 @@ func NewTokenSigner(key *signingkey.Key, issuer string) TokenSigner {
 }
 
 // GenerateLogoutToken creates a logout token for OIDC Back-Channel Logout 1.0
-// The token identifies the user with a "sub" claim only, as Pocket ID does not track per-session "sid" values
-func (s keySigner) GenerateLogoutToken(userID string, clientID string) (string, error) {
+// Without a session ID the token only carries "sub", which tells the client to end every session of the user
+func (s keySigner) GenerateLogoutToken(userID string, clientID string, sessionID string) (string, error) {
 	now := time.Now()
-	token, err := jwt.NewBuilder().
+	builder := jwt.NewBuilder()
+	if sessionID != "" {
+		builder = builder.Claim(common.SessionIDClaim, sessionID)
+	}
+	token, err := builder.
 		Subject(userID).
 		Audience([]string{clientID}).
 		Expiration(now.Add(logoutTokenLifetime)).

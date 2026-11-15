@@ -17,7 +17,7 @@ import { mode } from 'mode-watcher';
 import { fromStore } from 'svelte/store';
 
 export type Mode = 'light' | 'dark';
-export type Layout = 'classic' | 'twin-cards' | 'backdrop';
+export type Layout = 'classic' | 'backdrop' | 'top-bar';
 export type SurfaceRole = 'background' | 'sidebar' | 'surface';
 export type Surfaces = Record<SurfaceRole, string>;
 export type Font = { kind: 'serif' } | { kind: 'custom'; name: string };
@@ -36,7 +36,7 @@ export type Appearance = {
 };
 
 export const defaultAppearance: Appearance = {
-	layout: 'twin-cards',
+	layout: 'backdrop',
 	surfaces: {
 		light: { background: '#f0f0f0', sidebar: '#fafafa', surface: '#ffffff' },
 		dark: { background: '#1a1a1a', sidebar: '#161616', surface: '#111111' }
@@ -48,9 +48,9 @@ export const defaultAppearance: Appearance = {
 };
 
 export const layouts: { value: Layout; label: string }[] = [
+	{ value: 'backdrop', label: 'Backdrop' },
 	{ value: 'classic', label: 'Classic' },
-	{ value: 'twin-cards', label: 'Twin Cards' },
-	{ value: 'backdrop', label: 'Backdrop' }
+	{ value: 'top-bar', label: 'Top Bar' }
 ];
 
 export const surfaceRoles: { value: SurfaceRole; label: string }[] = [
@@ -184,10 +184,11 @@ export const brandImages: {
 const setColors = (colors?: Partial<Record<SurfaceRole, string | null>>) =>
 	Object.fromEntries(Object.entries(colors ?? {}).filter(([, color]) => color));
 
-// Settings saved before a field existed lack it, and older ones may name a font that is gone
+// Settings saved before a field existed lack it, and older ones may name a layout or a font that is gone
 const withDefaults = (a: Partial<Appearance>): Appearance => ({
 	...defaultAppearance,
 	...a,
+	layout: layouts.some((l) => l.value === a.layout) ? a.layout! : defaultAppearance.layout,
 	font: a.font?.kind === 'custom' ? a.font : defaultAppearance.font,
 	surfaces: {
 		light: { ...defaultAppearance.surfaces.light, ...setColors(a.surfaces?.light) },

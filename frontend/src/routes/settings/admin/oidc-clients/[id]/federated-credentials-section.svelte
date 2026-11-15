@@ -1,6 +1,6 @@
 <script lang="ts">
 	import DocsLink from '#lib/components/docs-link.svelte';
-	import SettingsSection from '#lib/components/settings-section.svelte';
+	import SettingsCard from '#lib/components/settings-card.svelte';
 	import { Button } from '@pocket-id/ui/button';
 	import { m } from '#lib/paraglide/messages.js';
 	import type { OidcClient, OidcClientFederatedIdentity } from '#lib/types/oidc.type.ts';
@@ -65,7 +65,7 @@
 	}
 </script>
 
-<SettingsSection title={m.federated_client_credentials()}>
+<SettingsCard title={m.federated_client_credentials()}>
 	{#snippet description()}
 		{m.federated_credentials_section_description({ name: client.name })}
 		<DocsLink href="https://pocket-id.org/docs/guides/oidc-client-authentication" />
@@ -78,7 +78,7 @@
 			</Button>
 		{/if}
 	{/snippet}
-	<div class="mt-2 flex flex-col gap-4" data-testid="federated-credentials">
+	<div class="flex flex-col gap-4 py-4" data-testid="federated-credentials">
 		{#if isCIMDClient}
 			<p class="text-caption text-fg-muted flex items-center gap-1.5">
 				<LockIcon class="size-3" />
@@ -94,4 +94,4 @@
 			onAdd={addFederatedIdentity}
 		/>
 	</div>
-</SettingsSection>
+</SettingsCard>

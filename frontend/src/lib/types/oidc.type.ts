@@ -6,7 +6,6 @@ export type OidcClientType = 'standard' | 'cimd';
 export type OidcClientMetaData = {
 	id: string;
 	name: string;
-	description: string;
 	hasLogo: boolean;
 	hasDarkLogo: boolean;
 	requiresReauthentication: boolean;
@@ -52,6 +51,7 @@ export type OidcDiscoveryConfiguration = {
 };
 
 export type OidcClient = OidcClientMetaData & {
+	notes: string;
 	callbackURLs: string[];
 	logoutCallbackURLs: string[];
 	backchannelLogoutURL: string;
@@ -89,8 +89,11 @@ export type OidcClientWithAllowedGroups = OidcClient & {
 
 export type OidcClientUpdate = Omit<
 	OidcClient,
-	'id' | 'logoURL' | 'hasLogo' | 'hasDarkLogo' | 'pkceSupported' | 'clientType'
->;
+	'id' | 'logoURL' | 'hasLogo' | 'hasDarkLogo' | 'pkceSupported' | 'clientType' | 'credentials'
+> & {
+	// Secrets are managed through their own endpoints, so requests only carry the federated identities
+	credentials?: Pick<OidcClientCredentials, 'federatedIdentities'>;
+};
 export type OidcClientCreate = OidcClientUpdate & {
 	id?: string;
 };
@@ -111,6 +114,13 @@ export type OidcClientLogoPreset = {
 	reference: string;
 	logoUrl: string;
 	darkLogoUrl: string | null;
+};
+
+export type EndSessionParams = {
+	idTokenHint: string;
+	clientId: string;
+	postLogoutRedirectUri: string;
+	state: string;
 };
 
 export type OidcDeviceCodeInfo = {

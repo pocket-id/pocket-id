@@ -96,8 +96,9 @@
 		document.getElementById('login-code')?.focus();
 	}
 
+	// A signed-in browser only switches accounts on a click, so a crafted link can't sign it into someone else's account
 	onMount(() => {
-		if (code) signIn();
+		if (code && !$userStore) signIn();
 	});
 </script>
 
