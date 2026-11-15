@@ -2,7 +2,7 @@
 # Everything after this build runs offline, see threat_model.md next to this file
 
 # Go version must match backend/go.mod
-FROM golang:1.27.3-trixie AS go-toolchain
+FROM golang:1.27.4-trixie AS go-toolchain
 
 # Node version must match .node-version
 FROM node:24-trixie
