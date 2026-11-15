@@ -112,11 +112,11 @@ func (s *clientService) ListClients(ctx context.Context, name string, listReques
 	}
 
 	// Sort the allowed user groups relation by its row count because it is not an OIDC client column
-	if listRequestOptions.Sort.Column == "allowedUserGroups" && utils.IsValidSortDirection(listRequestOptions.Sort.Direction) {
+	if listRequestOptions.Sort.Column == "allowedUserGroups" {
 		query = query.Select("oidc_clients.*, COUNT(oidc_clients_allowed_user_groups.oidc_client_id)").
 			Joins("LEFT JOIN oidc_clients_allowed_user_groups ON oidc_clients.id = oidc_clients_allowed_user_groups.oidc_client_id").
 			Group("oidc_clients.id").
-			Order("COUNT(oidc_clients_allowed_user_groups.oidc_client_id) " + listRequestOptions.Sort.Direction)
+			Order("COUNT(oidc_clients_allowed_user_groups.oidc_client_id) " + utils.NormalizeSortDirection(listRequestOptions.Sort.Direction))
 
 		response, err := utils.Paginate(listRequestOptions.Pagination.Page, listRequestOptions.Pagination.Limit, query, &clients)
 		return clients, response, err
@@ -844,7 +844,7 @@ func (s *clientService) ListAuthorizedClients(ctx context.Context, userID string
 	}
 
 	// The name lives on the joined client, so the generic sorting of the authorization model cannot handle it
-	if listRequestOptions.Sort.Column == "name" && utils.IsValidSortDirection(listRequestOptions.Sort.Direction) {
+	if listRequestOptions.Sort.Column == "name" {
 		query = query.Order("LOWER(oidc_clients.name) " + utils.NormalizeSortDirection(listRequestOptions.Sort.Direction))
 	}
 
@@ -962,7 +962,7 @@ func (s *clientService) ListAccessibleOidcClients(ctx context.Context, userID st
 
 	// Handle custom sorting for lastUsedAt column
 	var response utils.PaginationResponse
-	if listRequestOptions.Sort.Column == "lastUsedAt" && utils.IsValidSortDirection(listRequestOptions.Sort.Direction) {
+	if listRequestOptions.Sort.Column == "lastUsedAt" {
 		// Never used clients share a NULL timestamp, so they are ordered by name to keep pages stable
 		query = query.
 			Joins("LEFT JOIN user_authorized_oidc_clients ON oidc_clients.id = user_authorized_oidc_clients.client_id AND user_authorized_oidc_clients.user_id = ?", userID).
