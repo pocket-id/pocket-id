@@ -178,8 +178,10 @@ func registerRoutes(r *gin.Engine, svc *services, auth *authz.Middleware, rateLi
 	apiRouter := auth.Router(apiGroup)
 	baseRouter := auth.Router(baseGroup)
 
+	protectAdmins := svc.usersModule.ProtectAdmins("id")
+
 	svc.apiKeyModule.RegisterRoutes(apiRouter)
-	svc.sessionModule.RegisterRoutes(apiRouter)
+	svc.sessionModule.RegisterRoutes(apiRouter, protectAdmins)
 	svc.webauthnModule.RegisterRoutes(apiRouter,
 		rateLimitMiddleware.Add(middleware.RateLimitWebauthnLogin),
 		rateLimitMiddleware.Add(middleware.RateLimitWebauthnReauthenticate),
@@ -208,7 +210,7 @@ func registerRoutes(r *gin.Engine, svc *services, auth *authz.Middleware, rateLi
 		rateLimitMiddleware.Add(middleware.RateLimitOneTimeAccessEmail),
 	)
 	svc.emailVerificationModule.RegisterRoutes(apiRouter, rateLimitMiddleware.Add(middleware.RateLimitVerifyEmail))
-	svc.oidcModule.RegisterRoutes(baseRouter, apiRouter, fileSizeLimitMiddleware.Add(2<<20))
+	svc.oidcModule.RegisterRoutes(baseRouter, apiRouter, fileSizeLimitMiddleware.Add(2<<20), svc.apiModule.ProtectPocketIDClients("id"))
 	svc.mcpModule.RegisterRoutes(baseRouter)
 
 	if svc.testModule != nil {

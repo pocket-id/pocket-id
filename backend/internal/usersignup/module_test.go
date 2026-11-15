@@ -28,7 +28,7 @@ func (usersReadAuthenticator) Authenticate(*gin.Context) (*authz.Principal, erro
 	return &authz.Principal{Kind: authz.KindAPIKey, UserID: "admin", Scopes: authz.ScopeSet{authz.UsersRead: {}}}, nil
 }
 
-func TestListingSignupTokensRequiresUsersWrite(t *testing.T) {
+func TestListingSignupTokensRequiresUsersInvite(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 
 	var errs []*gin.Error
@@ -45,5 +45,5 @@ func TestListingSignupTokensRequiresUsersWrite(t *testing.T) {
 	require.Len(t, errs, 1)
 	appErr, ok := errors.AsType[*apperror.Error](errs[0].Err)
 	require.True(t, ok)
-	require.Equal(t, string(authz.UsersWrite), appErr.Details()["required_scope"])
+	require.Equal(t, string(authz.UsersInvite), appErr.Details()["required_scope"])
 }

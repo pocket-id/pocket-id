@@ -15,6 +15,7 @@ import (
 	francishost "github.com/italypaleale/francis/host"
 
 	"github.com/pocket-id/pocket-id/backend/internal/apperror"
+	"github.com/pocket-id/pocket-id/backend/internal/authz"
 	"github.com/pocket-id/pocket-id/backend/internal/common"
 	"github.com/pocket-id/pocket-id/backend/internal/dto"
 	"github.com/pocket-id/pocket-id/backend/internal/tracing"
@@ -128,7 +129,8 @@ func (s *AppConfigService) GetCIMDURLAllowlist() []string {
 
 // UpdateAppConfig applies an update to the saved configuration and returns the configuration in effect
 // Only the properties whose value changes are sent to the actor, which applies them atomically, so concurrent updates of different properties never undo each other
-func (s *AppConfigService) UpdateAppConfig(ctx context.Context, update dto.Update[AppConfigUpdateDto]) ([]AppConfigVariable, error) {
+// adminAccess allows changing the settings that decide who holds admin access, see needsAdminAccess
+func (s *AppConfigService) UpdateAppConfig(ctx context.Context, update dto.Update[AppConfigUpdateDto], adminAccess bool) ([]AppConfigVariable, error) {
 	// If the UI config is disabled, we cannot continue
 	if common.EnvConfig.UiConfigDisabled {
 		return nil, apperror.UIConfigDisabled()
@@ -174,6 +176,15 @@ func (s *AppConfigService) UpdateAppConfig(ctx context.Context, update dto.Updat
 		changes[key] = value
 	}
 
+	// A caller without admin access may change everything except the settings that could hand it admin access
+	if !adminAccess {
+		for key := range changes {
+			if needsAdminAccess(key) {
+				return nil, apperror.MissingScope(string(authz.AdminAccessWrite))
+			}
+		}
+	}
+
 	// Apply the changes by invoking the actor
 	cfg, err := s.invokeConfigActor(ctx, "update", changes)
 	if err != nil {
@@ -186,6 +197,12 @@ func (s *AppConfigService) UpdateAppConfig(ctx context.Context, update dto.Updat
 		return nil, err
 	}
 	return cfg.ToAppConfigVariableSlice(true, s.envOverrides), nil
+}
+
+// needsAdminAccess reports whether changing the setting needs admin access
+// LDAP decides who becomes an admin, whoever controls the mail server can read the login codes sent to admins, and the CIMD allowlist decides which clients may ask admins for access to Pocket ID's own API
+func needsAdminAccess(key string) bool {
+	return strings.HasPrefix(key, "ldap") || strings.HasPrefix(key, "smtp") || key == "cimdUrlAllowlist"
 }
 
 // UpdateAppConfigValues updates the provided application configuration values.

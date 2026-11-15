@@ -243,6 +243,7 @@ func initServices(
 		ScimSync:          svc.scimSyncModule,
 		BackchannelLogout: backchannelLogoutService,
 		AuditLog:          svc.auditLogsModule,
+		PocketIDClients:   svc.apiModule,
 	})
 	// The users module sends verification links through this module, so it's created first and never depends on the users module itself
 	var sendLimiter emailverification.SendLimiter

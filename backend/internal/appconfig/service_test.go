@@ -199,7 +199,7 @@ func TestService_UpdateAppConfig(t *testing.T) {
 			LdapEnabled:     "true",
 			SmtpTls:         "tls",
 		}
-		res, err := svc.UpdateAppConfig(t.Context(), dto.Replace(input))
+		res, err := svc.UpdateAppConfig(t.Context(), dto.Replace(input), true)
 		require.NoError(t, err)
 
 		// The returned slice includes all variables, both public and private
@@ -218,6 +218,23 @@ func TestService_UpdateAppConfig(t *testing.T) {
 		assert.Equal(t, AppConfigValue("true"), cfg.LdapEnabled)
 	})
 
+	t.Run("needs admin access only to change the settings that could hand out admin access", func(t *testing.T) {
+		setUIConfigDisabled(t, false)
+		svc := newActorBackedService(t)
+
+		_, err := svc.UpdateAppConfig(t.Context(), dto.MergePatch[AppConfigUpdateDto](map[string]any{"appName": "Renamed"}), false)
+		require.NoError(t, err)
+
+		for key, value := range map[string]string{
+			"ldapAdminGroupName": "admins",
+			"smtpHost":           "smtp.attacker.example",
+			"cimdUrlAllowlist":   `["https://attacker.example/*"]`,
+		} {
+			_, err = svc.UpdateAppConfig(t.Context(), dto.MergePatch[AppConfigUpdateDto](map[string]any{key: value}), false)
+			require.True(t, apperror.IsCode(err, apperror.CodeForbidden), key)
+		}
+	})
+
 	t.Run("resets fields omitted from the DTO to their defaults", func(t *testing.T) {
 		setUIConfigDisabled(t, false)
 		svc := newActorBackedService(t)
@@ -227,11 +244,11 @@ func TestService_UpdateAppConfig(t *testing.T) {
 			AppName:     "First",
 			LdapEnabled: "true",
 			SmtpTls:     "tls",
-		}))
+		}), true)
 		require.NoError(t, err)
 
 		// Replace again with only AppName set: the rest must reset to their defaults
-		_, err = svc.UpdateAppConfig(t.Context(), dto.Replace(AppConfigUpdateDto{AppName: "Second"}))
+		_, err = svc.UpdateAppConfig(t.Context(), dto.Replace(AppConfigUpdateDto{AppName: "Second"}), true)
 		require.NoError(t, err)
 
 		cfg, err := svc.GetConfig(t.Context())
@@ -245,7 +262,7 @@ func TestService_UpdateAppConfig(t *testing.T) {
 		setUIConfigDisabled(t, true)
 		svc := NewTestAppConfigService(nil)
 
-		_, err := svc.UpdateAppConfig(t.Context(), dto.Replace(AppConfigUpdateDto{AppName: "X"}))
+		_, err := svc.UpdateAppConfig(t.Context(), dto.Replace(AppConfigUpdateDto{AppName: "X"}), true)
 		require.Error(t, err)
 		assert.True(t, apperror.IsCode(err, apperror.CodeUIConfigDisabled))
 	})
@@ -254,7 +271,7 @@ func TestService_UpdateAppConfig(t *testing.T) {
 		setUIConfigDisabled(t, false)
 		svc := newActorBackedService(t)
 
-		res, err := svc.UpdateAppConfig(t.Context(), dto.Replace(AppConfigUpdateDto{SmtpPassword: "smtp-secret"}))
+		res, err := svc.UpdateAppConfig(t.Context(), dto.Replace(AppConfigUpdateDto{SmtpPassword: "smtp-secret"}), true)
 		require.NoError(t, err)
 		vars, err := svc.ListAppConfig(t.Context(), true)
 		require.NoError(t, err)
@@ -276,16 +293,16 @@ func TestService_UpdateAppConfig(t *testing.T) {
 		setUIConfigDisabled(t, false)
 		svc := newActorBackedService(t)
 
-		_, err := svc.UpdateAppConfig(t.Context(), dto.Replace(AppConfigUpdateDto{SmtpPassword: "smtp-secret"}))
+		_, err := svc.UpdateAppConfig(t.Context(), dto.Replace(AppConfigUpdateDto{SmtpPassword: "smtp-secret"}), true)
 		require.NoError(t, err)
 
-		_, err = svc.UpdateAppConfig(t.Context(), dto.Replace(AppConfigUpdateDto{SmtpPassword: redactedValue}))
+		_, err = svc.UpdateAppConfig(t.Context(), dto.Replace(AppConfigUpdateDto{SmtpPassword: redactedValue}), true)
 		require.NoError(t, err)
 		cfg, err := svc.GetConfig(t.Context())
 		require.NoError(t, err)
 		assert.Equal(t, AppConfigValue("smtp-secret"), cfg.SmtpPassword)
 
-		_, err = svc.UpdateAppConfig(t.Context(), dto.Replace(AppConfigUpdateDto{SmtpPassword: "new-secret"}))
+		_, err = svc.UpdateAppConfig(t.Context(), dto.Replace(AppConfigUpdateDto{SmtpPassword: "new-secret"}), true)
 		require.NoError(t, err)
 		cfg, err = svc.GetConfig(t.Context())
 		require.NoError(t, err)
@@ -429,7 +446,7 @@ func TestService_EnvOverrides(t *testing.T) {
 			AppName:         "UI App",
 			SessionDuration: "120",
 			SmtpPassword:    "XXXXXXXXXX",
-		}))
+		}), true)
 		require.NoError(t, err)
 		appName, _ := findConfigValue(res, "appName")
 		assert.Equal(t, "Env App", appName)
@@ -482,7 +499,7 @@ func TestService_SecretEncryption(t *testing.T) {
 			SmtpPassword:     "smtp-secret",
 			LdapBindPassword: "ldap-secret",
 			SmtpUser:         "smtp-user",
-		}))
+		}), true)
 		require.NoError(t, err)
 
 		saved := loadSavedState(t, h)
@@ -514,7 +531,7 @@ func TestService_CIMDURLAllowlist(t *testing.T) {
 			AppName:          "App",
 			SessionDuration:  "60",
 			CIMDURLAllowlist: `["https://app.example.com/**","https://*.trusted.com/oauth"]`,
-		}))
+		}), true)
 		require.NoError(t, err)
 
 		assert.Equal(t,
@@ -531,7 +548,7 @@ func TestService_CIMDURLAllowlist(t *testing.T) {
 			AppName:          "App",
 			SessionDuration:  "60",
 			CIMDURLAllowlist: `["javascript:alert(1)"]`,
-		}))
+		}), true)
 		require.Error(t, err)
 	})
 

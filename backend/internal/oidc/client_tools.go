@@ -152,6 +152,10 @@ func (h *clientHandler) createClientTool(ctx context.Context, call mcp.Call, inp
 }
 
 func (h *clientHandler) updateClientTool(ctx context.Context, call mcp.Call, input updateClientInput) (any, error) {
+	if err := h.apiAccess.RequireAdminAccessForClients(ctx, nil, call.Principal, input.ID); err != nil {
+		return nil, err
+	}
+
 	// Assign the groups before the restriction takes effect, otherwise turning it on would log their members out of the client
 	if input.AllowedUserGroupIDs != nil && len(*input.AllowedUserGroupIDs) > 0 {
 		_, err := h.service.UpdateAllowedUserGroups(ctx, input.ID, dto.OidcUpdateAllowedUserGroupsDto{UserGroupIDs: *input.AllowedUserGroupIDs}, auditlogs.OriginFromMCP(call))
@@ -188,6 +192,9 @@ func (h *clientHandler) updateClientTool(ctx context.Context, call mcp.Call, inp
 }
 
 func (h *clientHandler) deleteClientTool(ctx context.Context, call mcp.Call, input clientIDInput) (any, error) {
+	if err := h.apiAccess.RequireAdminAccessForClients(ctx, nil, call.Principal, input.ID); err != nil {
+		return nil, err
+	}
 	if err := h.service.DeleteClient(ctx, input.ID, auditlogs.OriginFromMCP(call)); err != nil {
 		return nil, err
 	}

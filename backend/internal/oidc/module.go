@@ -190,6 +190,7 @@ func New(ctx context.Context, deps Dependencies) (*Module, error) {
 		clientHandler: &clientHandler{
 			service:   newClientService(deps.DB, previewBuilder, cimdResolver, deps.ScimSync, deps.BackchannelLogout, deps.AuditLog, deps.LogoHTTPClient, deps.FileStorage),
 			appConfig: deps.AppConfig,
+			apiAccess: deps.APIAccess,
 		},
 	}, nil
 }
@@ -211,7 +212,9 @@ func (m *Module) VerifyAccessToken(ctx context.Context, token string) (fosite.Ac
 	return accessRequest, nil
 }
 
-func (m *Module) RegisterRoutes(root, api *authz.Router, logoSizeLimit gin.HandlerFunc) {
+// RegisterRoutes mounts the OIDC endpoints and the admin endpoints for clients
+// protectPocketIDClients guards the routes that change a client, which need admin access when that client may use Pocket ID's own API
+func (m *Module) RegisterRoutes(root, api *authz.Router, logoSizeLimit, protectPocketIDClients gin.HandlerFunc) {
 	// Browsers reach the authorize endpoint through a redirect, so authorization errors are shown on the interaction error page instead of as JSON
 	authorize := root.Use(m.authorizationHandler.redirectAuthorizationErrors).Optional()
 	authorize.GET("/authorize", authz.AccountAuthorize, httpserver.Endpoint{Handler: m.authorizationHandler.authorize})
@@ -269,6 +272,8 @@ func (m *Module) RegisterRoutes(root, api *authz.Router, logoSizeLimit gin.Handl
 	api.GET("/oidc/device/info", authz.AccountAuthorize, httpserver.Endpoint{Handler: m.deviceHandler.deviceCodeInfo})
 
 	admin := api.Group("/admin")
+	// A client with access to Pocket ID's own API can act with admin scopes, so changing it also needs admin access
+	protected := admin.With(protectPocketIDClients)
 
 	// The preview renders a user's claims, so it is guarded by the user scope like the client preview
 	admin.POST("/oidc/claim-mapping-policies/preview", authz.UsersRead, httpserver.BodyJSON(http.StatusOK, m.claimMappingsPreviewHandler.previewClaimMappings),
@@ -301,22 +306,22 @@ func (m *Module) RegisterRoutes(root, api *authz.Router, logoSizeLimit gin.Handl
 		option.Tags("OIDC"),
 		option.Path("id", "Client ID"),
 	)
-	admin.PUT("/oidc/clients/:id", authz.OidcClientsWrite, httpserver.UpdateJSON(m.clientHandler.updateClientHandler), updateClientDocs)
-	admin.PATCH("/oidc/clients/:id", authz.OidcClientsWrite, httpserver.UpdateJSON(m.clientHandler.updateClientHandler), updateClientDocs)
-	admin.POST("/oidc/clients/:id/refresh", authz.OidcClientsWrite, httpserver.JSON(http.StatusOK, m.clientHandler.refreshClientMetadataHandler),
+	protected.PUT("/oidc/clients/:id", authz.OidcClientsWrite, httpserver.UpdateJSON(m.clientHandler.updateClientHandler), updateClientDocs)
+	protected.PATCH("/oidc/clients/:id", authz.OidcClientsWrite, httpserver.UpdateJSON(m.clientHandler.updateClientHandler), updateClientDocs)
+	protected.POST("/oidc/clients/:id/refresh", authz.OidcClientsWrite, httpserver.JSON(http.StatusOK, m.clientHandler.refreshClientMetadataHandler),
 		option.Summary("Refresh client metadata document"),
 		option.Description("Force a re-fetch of the OAuth Client ID Metadata Document for a CIMD client"),
 		option.Tags("OIDC"),
 		option.Path("id", "Client ID"),
 	)
-	admin.DELETE("/oidc/clients/:id", authz.OidcClientsWrite, httpserver.NoContent(m.clientHandler.deleteClientHandler),
+	protected.DELETE("/oidc/clients/:id", authz.OidcClientsWrite, httpserver.NoContent(m.clientHandler.deleteClientHandler),
 		option.Summary("Delete OIDC client"),
 		option.Description("Delete an OIDC client by ID"),
 		option.Tags("OIDC"),
 		option.Path("id", "Client ID"),
 	)
 
-	admin.PUT("/oidc/clients/:id/allowed-user-groups", authz.OidcClientsWrite, httpserver.BodyJSON(http.StatusOK, m.clientHandler.updateAllowedUserGroupsHandler),
+	protected.PUT("/oidc/clients/:id/allowed-user-groups", authz.OidcClientsWrite, httpserver.BodyJSON(http.StatusOK, m.clientHandler.updateAllowedUserGroupsHandler),
 		option.Summary("Update allowed user groups"),
 		option.Description("Update the user groups allowed to access an OIDC client"),
 		option.Tags("OIDC"),
@@ -328,7 +333,7 @@ func (m *Module) RegisterRoutes(root, api *authz.Router, logoSizeLimit gin.Handl
 		option.Tags("OIDC"),
 		option.Path("id", "Client ID"),
 	)
-	admin.POST("/oidc/clients/:id/secrets", authz.OidcClientsWrite, httpserver.JSON(http.StatusCreated, m.clientHandler.createClientSecretHandler),
+	protected.POST("/oidc/clients/:id/secrets", authz.OidcClientsWrite, httpserver.JSON(http.StatusCreated, m.clientHandler.createClientSecretHandler),
 		option.Summary("Create client secret"),
 		option.Description("Add a new secret to an OIDC client, leaving the existing ones usable. The value is only returned by this endpoint and cannot be retrieved later."),
 		option.Tags("OIDC"),
@@ -337,7 +342,7 @@ func (m *Module) RegisterRoutes(root, api *authz.Router, logoSizeLimit gin.Handl
 		// Without a body the secret gets the default expiration
 		func(r *fuego.BaseRoute) { r.Operation.RequestBody.Value.Required = false },
 	)
-	admin.DELETE("/oidc/clients/:id/secrets/:secretId", authz.OidcClientsWrite, httpserver.NoContent(m.clientHandler.deleteClientSecretHandler),
+	protected.DELETE("/oidc/clients/:id/secrets/:secretId", authz.OidcClientsWrite, httpserver.NoContent(m.clientHandler.deleteClientSecretHandler),
 		option.Summary("Delete client secret"),
 		option.Description("Delete a single secret of an OIDC client, making it immediately unusable"),
 		option.Tags("OIDC"),

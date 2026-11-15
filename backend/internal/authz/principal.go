@@ -4,6 +4,8 @@ import (
 	"time"
 
 	"github.com/gin-gonic/gin"
+
+	"github.com/pocket-id/pocket-id/backend/internal/apperror"
 )
 
 const principalContextKey = "authz.principal"
@@ -41,6 +43,14 @@ func (p *Principal) RestrictUnverified() {
 	}
 	p.Scopes = kept
 	p.WithheldUntilVerified = withheld
+}
+
+// Require returns the error a route returns to a principal lacking the scope, for checks that depend on the target of a request
+func (p *Principal) Require(scope Scope) error {
+	if p.Scopes.Has(scope) {
+		return nil
+	}
+	return apperror.MissingScope(string(scope))
 }
 
 // PrincipalFrom returns the principal the authorization middleware attached to the request

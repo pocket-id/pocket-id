@@ -543,9 +543,9 @@ test('A client calls Pocket ID as itself with the client credentials grant', asy
 	await page.getByRole('dialog').getByRole('button', { name: client.name }).click();
 	const dialog = page.getByRole('dialog');
 	await expect(dialog.getByRole('checkbox', { name: 'As itself: Profile · Read' })).toBeDisabled();
-	await dialog.getByRole('checkbox', { name: 'As itself: Users · Write' }).click();
+	await dialog.getByRole('checkbox', { name: 'As itself: Admin access' }).click();
 	await expect(dialog.getByText('This client can act as an admin')).toBeVisible();
-	await dialog.getByRole('checkbox', { name: 'As itself: Users · Write' }).click();
+	await dialog.getByRole('checkbox', { name: 'As itself: Admin access' }).click();
 	await expect(dialog.getByText('This client can act as an admin')).toHaveCount(0);
 	await dialog.getByRole('checkbox', { name: 'As itself: Users · Read' }).click();
 	await dialog.getByRole('button', { name: 'Save' }).click();
@@ -580,7 +580,7 @@ test('Consent screen warns before an app gets scopes that amount to admin access
 	const client = oidcClients.immich;
 	const api = await (await page.request.get(`/api/admin/apis/${pocketIdApi.id}`)).json();
 	const permissionIds = api.permissions
-		.filter((p: { key: string }) => ['users:read', 'users:write'].includes(p.key))
+		.filter((p: { key: string }) => ['users:read', 'admin-access:write'].includes(p.key))
 		.map((p: { id: string }) => p.id);
 	await page.request.put(`/api/admin/apis/${pocketIdApi.id}/clients/${client.id}`, {
 		data: {
@@ -594,7 +594,7 @@ test('Consent screen warns before an app gets scopes that amount to admin access
 	const params = new URLSearchParams({
 		client_id: client.id,
 		response_type: 'code',
-		scope: 'users:read users:write',
+		scope: 'users:read admin-access:write',
 		resource: `${baseURL}/api`,
 		redirect_uri: client.callbackUrl,
 		state: 'nXx-6Qr-owc1SHBa'
@@ -606,7 +606,7 @@ test('Consent screen warns before an app gets scopes that amount to admin access
 	// Deselecting the scope takes the risk away
 	await page
 		.getByTestId('scopes')
-		.getByRole('checkbox', { name: /^Users · Write/ })
+		.getByRole('checkbox', { name: /^Admin access/ })
 		.click();
 	await expect(warning).toHaveCount(0);
 });

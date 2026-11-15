@@ -25,10 +25,11 @@ type Service struct {
 	scimSyncScheduler ScimSyncScheduler
 	backchannelLogout *backchannellogout.Service
 	auditLog          AuditLogger
+	pocketIDClients   PocketIDClients
 }
 
-func newService(db *gorm.DB, scimSyncScheduler ScimSyncScheduler, backchannelLogout *backchannellogout.Service, auditLog AuditLogger) *Service {
-	return &Service{db: db, scimSyncScheduler: scimSyncScheduler, backchannelLogout: backchannelLogout, auditLog: auditLog}
+func newService(db *gorm.DB, scimSyncScheduler ScimSyncScheduler, backchannelLogout *backchannellogout.Service, auditLog AuditLogger, pocketIDClients PocketIDClients) *Service {
+	return &Service{db: db, scimSyncScheduler: scimSyncScheduler, backchannelLogout: backchannelLogout, auditLog: auditLog, pocketIDClients: pocketIDClients}
 }
 
 func (s *Service) List(ctx context.Context, name string, listRequestOptions utils.ListRequestOptions) (groups []model.UserGroup, response utils.PaginationResponse, err error) {
@@ -451,6 +452,17 @@ func (s *Service) UpdateAllowedOidcClient(ctx context.Context, id string, input 
 	}
 
 	added, removed := utils.Changes(previousClients, clients, func(client model.OidcClient) string { return client.ID })
+
+	// Changing which groups may use a client is a change to that client, which needs admin access when it may use Pocket ID's own API
+	changedClientIDs := make([]string, 0, len(added)+len(removed))
+	for _, client := range slices.Concat(added, removed) {
+		changedClientIDs = append(changedClientIDs, client.ID)
+	}
+	err = s.pocketIDClients.RequireAdminAccessForClients(ctx, tx, origin.Principal, changedClientIDs...)
+	if err != nil {
+		return model.UserGroup{}, err
+	}
+
 	for _, client := range added {
 		s.auditLog.Record(ctx, auditlogs.EventClientGroupAdded, origin, "", auditlogs.Data{"clientID": client.ID, "clientName": client.Name, "groupName": group.FriendlyName}, tx)
 	}

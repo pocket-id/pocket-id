@@ -15,6 +15,7 @@ import (
 	"github.com/pocket-id/pocket-id/backend/internal/appconfig"
 	"github.com/pocket-id/pocket-id/backend/internal/apperror"
 	"github.com/pocket-id/pocket-id/backend/internal/auditlogs"
+	"github.com/pocket-id/pocket-id/backend/internal/authz"
 	"github.com/pocket-id/pocket-id/backend/internal/common"
 	"github.com/pocket-id/pocket-id/backend/internal/model"
 	"github.com/pocket-id/pocket-id/backend/internal/utils"
@@ -60,7 +61,7 @@ func (s *Service) RequestOneTimeAccessEmailAsAdmin(ctx context.Context, dbConfig
 		return apperror.OneTimeAccessDisabled()
 	}
 
-	return s.requestOneTimeAccessEmailInternal(ctx, userID, "", ttl, nil, dbConfig, origin)
+	return s.requestOneTimeAccessEmailInternal(ctx, userID, "", ttl, nil, dbConfig, origin, true)
 }
 
 func (s *Service) RequestOneTimeAccessEmailAsUnauthenticatedUser(ctx context.Context, dbConfig *appconfig.AppConfigModel, email, redirectPath string, origin auditlogs.Origin) (string, error) {
@@ -80,7 +81,7 @@ func (s *Service) RequestOneTimeAccessEmailAsUnauthenticatedUser(ctx context.Con
 		var userID string
 		innerErr := s.db.WithContext(innerCtx).Model(&model.User{}).Select("id").Where("email = ?", email).First(&userID).Error
 		if innerErr == nil {
-			innerErr = s.requestOneTimeAccessEmailInternal(innerCtx, userID, redirectPath, 15*time.Minute, &deviceToken, dbConfig, origin)
+			innerErr = s.requestOneTimeAccessEmailInternal(innerCtx, userID, redirectPath, 15*time.Minute, &deviceToken, dbConfig, origin, false)
 		}
 		if innerErr != nil && !errors.Is(innerErr, gorm.ErrRecordNotFound) {
 			slog.ErrorContext(innerCtx, "Failed to create the requested one-time access token", slog.Any("error", innerErr))
@@ -90,7 +91,8 @@ func (s *Service) RequestOneTimeAccessEmailAsUnauthenticatedUser(ctx context.Con
 	return deviceToken, nil
 }
 
-func (s *Service) requestOneTimeAccessEmailInternal(ctx context.Context, userID, redirectPath string, ttl time.Duration, deviceToken *string, dbConfig *appconfig.AppConfigModel, origin auditlogs.Origin) error {
+// byAdmin marks a code an admin requests for the user, as opposed to one the user requests for themselves
+func (s *Service) requestOneTimeAccessEmailInternal(ctx context.Context, userID, redirectPath string, ttl time.Duration, deviceToken *string, dbConfig *appconfig.AppConfigModel, origin auditlogs.Origin, byAdmin bool) error {
 	// Load the user to ensure it exists and has an email address
 	user, err := s.userProvider.GetUser(ctx, userID)
 	if err != nil {
@@ -101,7 +103,15 @@ func (s *Service) requestOneTimeAccessEmailInternal(ctx context.Context, userID,
 		return apperror.UserEmailNotSet()
 	}
 
-	oneTimeAccessToken, err := StoreToken(ctx, s.actorService, user.ID, ttl, deviceToken)
+	forbidAdmin := false
+	if byAdmin {
+		forbidAdmin, err = adminCodeRestriction(user, origin)
+		if err != nil {
+			return err
+		}
+	}
+
+	oneTimeAccessToken, err := StoreToken(ctx, s.actorService, user.ID, ttl, deviceToken, forbidAdmin)
 	if err != nil {
 		return err
 	}
@@ -142,14 +152,19 @@ func (s *Service) requestOneTimeAccessEmailInternal(ctx context.Context, userID,
 
 func (s *Service) CreateToken(ctx context.Context, userID string, ttl time.Duration, origin auditlogs.Origin) (token string, err error) {
 	// Load the user to ensure it exists
-	_, err = s.userProvider.GetUser(ctx, userID)
+	user, err := s.userProvider.GetUser(ctx, userID)
 	if errors.Is(err, gorm.ErrRecordNotFound) {
 		return "", apperror.UserNotFound()
 	} else if err != nil {
 		return "", err
 	}
 
-	token, err = StoreToken(ctx, s.actorService, userID, ttl, nil)
+	forbidAdmin, err := adminCodeRestriction(user, origin)
+	if err != nil {
+		return "", err
+	}
+
+	token, err = StoreToken(ctx, s.actorService, userID, ttl, nil, forbidAdmin)
 	if err != nil {
 		return "", err
 	}
@@ -213,6 +228,11 @@ func (s *Service) completeTokenExchange(ctx context.Context, dbConfig *appconfig
 		return model.User{}, model.LoginTokens{}, apperror.UserDisabled()
 	}
 
+	// The code's creator couldn't have created it for an admin, so it must not sign in as one either
+	if state.ForbidAdmin && user.IsAdmin {
+		return model.User{}, model.LoginTokens{}, apperror.TokenInvalidOrExpired()
+	}
+
 	sessionToken, err := s.sessions.Create(ctx, user.ID, authenticationMethodOneTimePassword, ipAddress, userAgent, dbConfig.SessionDuration.AsDurationMinutes(), remember)
 	if err != nil {
 		return model.User{}, model.LoginTokens{}, err
@@ -240,7 +260,8 @@ func (s *Service) restoreToken(parentCtx context.Context, token string, state To
 
 // StoreToken generates a new one-time access token and persists it in the actor state store, with a TTL matching its lifetime.
 // A non-nil device token binds the token to the device that requested it.
-func StoreToken(ctx context.Context, store TokenStore, userID string, ttl time.Duration, deviceToken *string) (token string, err error) {
+// forbidAdmin makes the token stop working if the user becomes an admin before it is used, see TokenState.
+func StoreToken(ctx context.Context, store TokenStore, userID string, ttl time.Duration, deviceToken *string, forbidAdmin bool) (token string, err error) {
 	token, err = generateToken(ttl)
 	if err != nil {
 		return "", err
@@ -251,6 +272,7 @@ func StoreToken(ctx context.Context, store TokenStore, userID string, ttl time.D
 		UserID:      userID,
 		DeviceToken: deviceToken,
 		ExpiresAt:   now.Add(ttl),
+		ForbidAdmin: forbidAdmin,
 	}
 
 	err = store.SetState(ctx, TokenActorType, token, state, &actor.SetStateOpts{TTL: ttl})
@@ -259,6 +281,18 @@ func StoreToken(ctx context.Context, store TokenStore, userID string, ttl time.D
 	}
 
 	return token, nil
+}
+
+// adminCodeRestriction checks that the origin may create a login code for the user, since signing in as an admin hands over their access
+// It reports whether the code must stop working should the user become an admin before it is used
+func adminCodeRestriction(user model.User, origin auditlogs.Origin) (forbidAdmin bool, err error) {
+	if origin.Principal.Scopes.Has(authz.AdminAccessWrite) {
+		return false, nil
+	}
+	if user.IsAdmin {
+		return false, origin.Principal.Require(authz.AdminAccessWrite)
+	}
+	return true, nil
 }
 
 // generateToken generates the random token value for a one-time access token.

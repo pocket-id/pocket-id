@@ -44,6 +44,7 @@ type TokenState struct {
 	UserID      string
 	DeviceToken *string
 	ExpiresAt   time.Time
+	ForbidAdmin bool
 }
 
 // tokenConsumeRequest is the payload for the "consume" method

@@ -1,6 +1,6 @@
 {
 	"provider": "sqlite",
-	"version": 20261114130000,
+	"version": 20261114150000,
 	"tableOrder": [
 		"users",
 		"user_groups",
@@ -26,7 +26,7 @@
 				"name": "Test API Key",
 				"previous_key": null,
 				"previous_key_expires_at": null,
-				"scopes": "WyJncm91cHM6d3JpdGUiLCJvaWRjLWNsYWltLW1hcHBpbmctcG9saWNpZXM6d3JpdGUiLCJhcGlzOndyaXRlIiwiY29uZmlnOnJlYWQiLCJhY2NvdW50OndyaXRlIiwiYWNjb3VudDphcHBzIiwiYWNjb3VudDphdWRpdC1sb2dzIiwiYXBpczpyZWFkIiwiYXVkaXQtbG9nczpyZWFkIiwib2lkYy1jbGllbnRzOndyaXRlIiwiY29uZmlnOndyaXRlIiwiYWNjb3VudDpyZWFkIiwiYWNjb3VudDphcGkta2V5cyIsInVzZXJzOnJlYWQiLCJvaWRjLWNsaWVudHM6cmVhZCIsIm9pZGMtY2xhaW0tbWFwcGluZy1wb2xpY2llczpyZWFkIiwiYWNjb3VudDpwYXNza2V5cyIsInVzZXJzOndyaXRlIiwiZ3JvdXBzOnJlYWQiXQ==",
+				"scopes": "WyJncm91cHM6d3JpdGUiLCJvaWRjLWNsYWltLW1hcHBpbmctcG9saWNpZXM6d3JpdGUiLCJhcGlzOndyaXRlIiwiY29uZmlnOnJlYWQiLCJhY2NvdW50OndyaXRlIiwiYWNjb3VudDphcHBzIiwiYWNjb3VudDphdWRpdC1sb2dzIiwiYXBpczpyZWFkIiwiYXVkaXQtbG9nczpyZWFkIiwib2lkYy1jbGllbnRzOndyaXRlIiwiY29uZmlnOndyaXRlIiwiYWNjb3VudDpyZWFkIiwiYWNjb3VudDphcGkta2V5cyIsInVzZXJzOnJlYWQiLCJvaWRjLWNsaWVudHM6cmVhZCIsIm9pZGMtY2xhaW0tbWFwcGluZy1wb2xpY2llczpyZWFkIiwiYWNjb3VudDpwYXNza2V5cyIsInVzZXJzOndyaXRlIiwiZ3JvdXBzOnJlYWQiLCJ1c2Vyczpsb2dpbi1jb2RlcyIsInVzZXJzOmludml0ZSIsImFkbWluLWFjY2Vzczp3cml0ZSJd",
 				"user_id": "f4b89dc2-62fb-46bf-9f5f-c34f4eafe93e"
 			},
 			{
@@ -40,7 +40,7 @@
 				"name": "Expired API Key",
 				"previous_key": null,
 				"previous_key_expires_at": null,
-				"scopes": "WyJ1c2Vyczp3cml0ZSIsIm9pZGMtY2xpZW50czp3cml0ZSIsIm9pZGMtY2xhaW0tbWFwcGluZy1wb2xpY2llczp3cml0ZSIsImFwaXM6d3JpdGUiLCJhY2NvdW50OnJlYWQiLCJhY2NvdW50OmFwaS1rZXlzIiwiYXVkaXQtbG9nczpyZWFkIiwidXNlcnM6cmVhZCIsImdyb3Vwczp3cml0ZSIsIm9pZGMtY2xpZW50czpyZWFkIiwib2lkYy1jbGFpbS1tYXBwaW5nLXBvbGljaWVzOnJlYWQiLCJjb25maWc6cmVhZCIsImNvbmZpZzp3cml0ZSIsImFjY291bnQ6d3JpdGUiLCJhY2NvdW50OnBhc3NrZXlzIiwiZ3JvdXBzOnJlYWQiLCJhcGlzOnJlYWQiLCJhY2NvdW50OmFwcHMiLCJhY2NvdW50OmF1ZGl0LWxvZ3MiXQ==",
+				"scopes": "WyJ1c2Vyczp3cml0ZSIsIm9pZGMtY2xpZW50czp3cml0ZSIsIm9pZGMtY2xhaW0tbWFwcGluZy1wb2xpY2llczp3cml0ZSIsImFwaXM6d3JpdGUiLCJhY2NvdW50OnJlYWQiLCJhY2NvdW50OmFwaS1rZXlzIiwiYXVkaXQtbG9nczpyZWFkIiwidXNlcnM6cmVhZCIsImdyb3Vwczp3cml0ZSIsIm9pZGMtY2xpZW50czpyZWFkIiwib2lkYy1jbGFpbS1tYXBwaW5nLXBvbGljaWVzOnJlYWQiLCJjb25maWc6cmVhZCIsImNvbmZpZzp3cml0ZSIsImFjY291bnQ6d3JpdGUiLCJhY2NvdW50OnBhc3NrZXlzIiwiZ3JvdXBzOnJlYWQiLCJhcGlzOnJlYWQiLCJhY2NvdW50OmFwcHMiLCJhY2NvdW50OmF1ZGl0LWxvZ3MiLCJ1c2Vyczpsb2dpbi1jb2RlcyIsInVzZXJzOmludml0ZSIsImFkbWluLWFjY2Vzczp3cml0ZSJd",
 				"user_id": "f4b89dc2-62fb-46bf-9f5f-c34f4eafe93e"
 			}
 		],
@@ -233,6 +233,33 @@
 				"id": "2b3c4d5e-6f7a-4b8c-9d0e-1f2a3b4c5d6e",
 				"key": "write:orders",
 				"name": "Write orders"
+			},
+			{
+				"allowed_for_cimd_clients": false,
+				"api_id": "00000000-0000-0000-0000-000000000000",
+				"created_at": "2026-11-14T12:09:15Z",
+				"description": null,
+				"id": "28ab4129-6df4-4dc9-8df2-fa4d5882c0a1",
+				"key": "users:login-codes",
+				"name": "users:login-codes"
+			},
+			{
+				"allowed_for_cimd_clients": false,
+				"api_id": "00000000-0000-0000-0000-000000000000",
+				"created_at": "2026-11-14T12:09:15Z",
+				"description": null,
+				"id": "567990c9-f268-4073-bae7-233db5f43525",
+				"key": "users:invite",
+				"name": "users:invite"
+			},
+			{
+				"allowed_for_cimd_clients": false,
+				"api_id": "00000000-0000-0000-0000-000000000000",
+				"created_at": "2026-11-14T12:09:15Z",
+				"description": null,
+				"id": "5086f6d7-1661-46f6-be28-190f4b6f9586",
+				"key": "admin-access:write",
+				"name": "admin-access:write"
 			}
 		],
 		"apis": [

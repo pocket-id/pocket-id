@@ -799,7 +799,7 @@ func (s *Service) ResetApplicationAssets(ctx context.Context) error {
 
 func (s *Service) ResetAppConfig(ctx context.Context) error {
 	// Reset all application configuration values through the singleton actor
-	_, err := s.appConfigService.UpdateAppConfig(ctx, dto.Replace(appconfig.AppConfigUpdateDto{}))
+	_, err := s.appConfigService.UpdateAppConfig(ctx, dto.Replace(appconfig.AppConfigUpdateDto{}), true)
 	if err != nil {
 		return err
 	}

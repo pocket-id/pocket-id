@@ -101,19 +101,19 @@ func New(deps Dependencies) (*Module, error) {
 // signupRateLimit throttles public self-signup
 func (m *Module) RegisterRoutes(r *authz.Router, signupRateLimit gin.HandlerFunc) {
 	admin := r.Group("/admin")
-	admin.POST("/signup-tokens", authz.UsersWrite, httpserver.BodyJSON(http.StatusCreated, m.handler.createSignupToken),
+	admin.POST("/signup-tokens", authz.UsersInvite, httpserver.BodyJSON(http.StatusCreated, m.handler.createSignupToken),
 		option.Summary("Create signup token"),
 		option.Description("Create a new signup token that allows user registration"),
 		option.Tags("Users"),
 	)
 	// Listing returns working token values, which can create accounts
-	admin.GET("/signup-tokens", authz.UsersWrite, httpserver.JSON(http.StatusOK, m.handler.listSignupTokens),
+	admin.GET("/signup-tokens", authz.UsersInvite, httpserver.JSON(http.StatusOK, m.handler.listSignupTokens),
 		option.Summary("List signup tokens"),
 		option.Description("Get a paginated list of signup tokens"),
 		option.Tags("Users"),
 		openapi.List[SignupToken](),
 	)
-	admin.DELETE("/signup-tokens/:id", authz.UsersWrite, httpserver.NoContent(m.handler.deleteSignupToken),
+	admin.DELETE("/signup-tokens/:id", authz.UsersInvite, httpserver.NoContent(m.handler.deleteSignupToken),
 		option.Summary("Delete signup token"),
 		option.Description("Delete a signup token by ID"),
 		option.Tags("Users"),

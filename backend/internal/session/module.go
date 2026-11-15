@@ -7,6 +7,7 @@ import (
 	"net/http"
 	"time"
 
+	"github.com/gin-gonic/gin"
 	"github.com/go-fuego/fuego/option"
 	francishost "github.com/italypaleale/francis/host"
 	"gorm.io/gorm"
@@ -55,7 +56,8 @@ func New(deps Dependencies) (*Module, error) {
 }
 
 // RegisterRoutes mounts the endpoints to review, remember and revoke the caller's own sessions and those of any user
-func (m *Module) RegisterRoutes(r *authz.Router) {
+// protectAdmins guards the routes that revoke another user's sessions, which need admin access when that user is an admin
+func (m *Module) RegisterRoutes(r *authz.Router, protectAdmins gin.HandlerFunc) {
 	r.GET("/sessions", authz.AccountSession, httpserver.JSON(http.StatusOK, m.handler.listOwn),
 		option.Summary("List own sessions"),
 		option.Description("Get the browsers in which the current user is signed in, most recently active first"),
@@ -85,13 +87,13 @@ func (m *Module) RegisterRoutes(r *authz.Router) {
 		option.Tags("Sessions"),
 		option.Path("id", "User ID"),
 	)
-	admin.DELETE("/users/:id/sessions", authz.UsersWrite, httpserver.NoContent(m.handler.revokeAllForUser),
+	admin.With(protectAdmins).DELETE("/users/:id/sessions", authz.UsersWrite, httpserver.NoContent(m.handler.revokeAllForUser),
 		option.Summary("Revoke all sessions of a user"),
 		option.Description("Sign a user out of every session and revoke every grant their apps hold, offline_access ones included"),
 		option.Tags("Sessions"),
 		option.Path("id", "User ID"),
 	)
-	admin.DELETE("/users/:id/sessions/:sessionId", authz.UsersWrite, httpserver.NoContent(m.handler.revokeForUser),
+	admin.With(protectAdmins).DELETE("/users/:id/sessions/:sessionId", authz.UsersWrite, httpserver.NoContent(m.handler.revokeForUser),
 		option.Summary("Revoke a session of a user"),
 		option.Description("Sign a user out of one of their sessions"),
 		option.Tags("Sessions"),

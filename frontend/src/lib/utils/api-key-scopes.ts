@@ -60,6 +60,20 @@ export const scopeResources: ScopeResource[] = [
 		write: 'users:write'
 	},
 	{
+		id: 'login-codes',
+		label: m.scope_login_codes,
+		description: m.scope_login_codes_description,
+		admin: true,
+		write: 'users:login-codes'
+	},
+	{
+		id: 'invitations',
+		label: m.scope_invitations,
+		description: m.scope_invitations_description,
+		admin: true,
+		write: 'users:invite'
+	},
+	{
 		id: 'groups',
 		label: m.groups,
 		description: m.scope_groups_description,
@@ -105,6 +119,13 @@ export const scopeResources: ScopeResource[] = [
 		description: m.scope_audit_log_description,
 		admin: true,
 		read: 'audit-logs:read'
+	},
+	{
+		id: 'admin-access',
+		label: m.scope_admin_access,
+		description: m.scope_admin_access_description,
+		admin: true,
+		write: 'admin-access:write'
 	}
 ];
 
@@ -152,9 +173,8 @@ export function presetLabel(scopes: string[], isAdmin: boolean) {
 export const isAdminScope = (scope: string) =>
 	scopeResources.some((r) => r.admin && (r.read === scope || r.write === scope));
 
-// Each of these lets a client acting as itself reach full admin access, for example by making a user an admin or granting itself more scopes
-const adminEquivalentScopes = ['users:write', 'config:write', 'oidc-clients:write', 'apis:write'];
-export const isAdminEquivalentScope = (scope: string) => adminEquivalentScopes.includes(scope);
+// Admin access lets a credential reach every other scope, for example by making a user an admin or granting a client more access to Pocket ID's own API
+export const isAdminEquivalentScope = (scope: string) => scope === 'admin-access:write';
 
 // Labels a single scope, such as a permission of the built-in Pocket ID API, with the same words the API key picker uses
 export function scopeLabel(scope: string): { name: string; description?: string } {

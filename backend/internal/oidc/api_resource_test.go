@@ -10,6 +10,7 @@ import (
 	"github.com/stretchr/testify/require"
 	"gorm.io/gorm"
 
+	"github.com/pocket-id/pocket-id/backend/internal/authz"
 	"github.com/pocket-id/pocket-id/backend/internal/common"
 	"github.com/pocket-id/pocket-id/backend/internal/dto"
 	"github.com/pocket-id/pocket-id/backend/internal/model"
@@ -47,6 +48,10 @@ func (f fakeAPIAccess) ClientAPIScopes(_ context.Context, _ *gorm.DB, _ string, 
 		}
 	}
 	return scopes, audiences, nil
+}
+
+func (f fakeAPIAccess) RequireAdminAccessForClients(context.Context, *gorm.DB, authz.Principal, ...string) error {
+	return nil
 }
 
 func (f fakeAPIAccess) AllowedScopesForAudience(_ context.Context, _ *gorm.DB, _ string, audience string, subjectType SubjectType) ([]string, bool, bool, error) {

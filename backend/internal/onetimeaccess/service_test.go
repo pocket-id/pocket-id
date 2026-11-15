@@ -14,6 +14,7 @@ import (
 	"github.com/pocket-id/pocket-id/backend/internal/appconfig"
 	"github.com/pocket-id/pocket-id/backend/internal/apperror"
 	"github.com/pocket-id/pocket-id/backend/internal/auditlogs"
+	"github.com/pocket-id/pocket-id/backend/internal/authz"
 	"github.com/pocket-id/pocket-id/backend/internal/model"
 	testutils "github.com/pocket-id/pocket-id/backend/internal/utils/testing"
 )
@@ -139,7 +140,7 @@ func TestExchangeTokenSuccess(t *testing.T) {
 	}
 	require.NoError(t, db.Create(&user).Error)
 
-	token, err := StoreToken(t.Context(), svc.actorService, user.ID, time.Minute, nil)
+	token, err := StoreToken(t.Context(), svc.actorService, user.ID, time.Minute, nil, false)
 	require.NoError(t, err)
 
 	dbConfig := appconfig.NewTestConfig(nil)
@@ -204,7 +205,7 @@ func TestExchangeTokenDeviceMismatch(t *testing.T) {
 	require.NoError(t, db.Create(&user).Error)
 
 	// Store a token that requires a device token
-	token, err := StoreToken(t.Context(), svc.actorService, user.ID, time.Minute, new("device-token"))
+	token, err := StoreToken(t.Context(), svc.actorService, user.ID, time.Minute, new("device-token"), false)
 	require.NoError(t, err)
 
 	dbConfig := appconfig.NewTestConfig(nil)
@@ -231,7 +232,7 @@ func TestExchangeTokenRejectsDisabledUser(t *testing.T) {
 	require.NoError(t, db.Create(&user).Error)
 
 	// Store a one-time access token for the disabled user in the actor state store
-	token, err := StoreToken(t.Context(), svc.actorService, user.ID, time.Minute, nil)
+	token, err := StoreToken(t.Context(), svc.actorService, user.ID, time.Minute, nil, false)
 	require.NoError(t, err)
 
 	dbConfig := appconfig.NewTestConfig(nil)
@@ -259,4 +260,29 @@ func (f *fakeAuditLogger) CreateSignIn(ctx context.Context, event auditlogs.Even
 
 func (f *fakeAuditLogger) SendSignInNotification(_ context.Context, result auditlogs.SignInResult) {
 	f.notifications = append(f.notifications, result)
+}
+
+func TestLoginCodesForAdminsRequireAdminAccess(t *testing.T) {
+	db := testutils.NewDatabaseForTest(t)
+	svc, _, _ := newServiceForTest(t, db)
+	admin := model.User{Username: "admin", Email: new("admin@example.com"), IsAdmin: true}
+	require.NoError(t, db.Create(&admin).Error)
+	member := model.User{Username: "member"}
+	require.NoError(t, db.Create(&member).Error)
+	loginCodes := auditlogs.Origin{Principal: authz.Principal{Scopes: authz.NewScopeSet(authz.UsersLoginCodes)}}
+	dbConfig := appconfig.NewTestConfig(nil)
+	dbConfig.EmailOneTimeAccessAsAdminEnabled = "true"
+
+	// Neither a link nor an emailed code may be created for an admin
+	_, err := svc.CreateToken(t.Context(), admin.ID, time.Minute, loginCodes)
+	require.True(t, apperror.IsCode(err, apperror.CodeForbidden), err)
+	err = svc.RequestOneTimeAccessEmailAsAdmin(t.Context(), dbConfig, admin.ID, time.Minute, loginCodes)
+	require.True(t, apperror.IsCode(err, apperror.CodeForbidden), err)
+
+	// A code created for a regular user stops working once they become an admin
+	token, err := svc.CreateToken(t.Context(), member.ID, time.Minute, loginCodes)
+	require.NoError(t, err)
+	require.NoError(t, db.Model(&member).Update("is_admin", true).Error)
+	_, _, err = svc.ExchangeToken(t.Context(), dbConfig, token, "", "1.2.3.4", "test-agent", "", false)
+	require.True(t, apperror.IsCode(err, apperror.CodeTokenInvalidOrExpired), err)
 }

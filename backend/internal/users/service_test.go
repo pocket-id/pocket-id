@@ -17,6 +17,7 @@ import (
 	"github.com/pocket-id/pocket-id/backend/internal/appconfig"
 	"github.com/pocket-id/pocket-id/backend/internal/apperror"
 	"github.com/pocket-id/pocket-id/backend/internal/auditlogs"
+	"github.com/pocket-id/pocket-id/backend/internal/authz"
 	"github.com/pocket-id/pocket-id/backend/internal/customclaims"
 	"github.com/pocket-id/pocket-id/backend/internal/dto"
 	"github.com/pocket-id/pocket-id/backend/internal/model"
@@ -504,15 +505,51 @@ func TestAccessChangesAreRecorded(t *testing.T) {
 	user := model.User{Username: "member", UserGroups: []model.UserGroup{oldGroup}}
 	require.NoError(t, userService.db.Create(&user).Error)
 
-	_, err := userService.UpdateUser(t.Context(), config, user.ID, dto.Replace(dto.UserCreateDto{Username: "member", IsAdmin: true, Disabled: true}), false, false, auditlogs.Origin{})
+	admin := auditlogs.Origin{Principal: authz.Principal{Scopes: authz.NewScopeSet(authz.AdminAccessWrite)}}
+	_, err := userService.UpdateUser(t.Context(), config, user.ID, dto.Replace(dto.UserCreateDto{Username: "member", IsAdmin: true, Disabled: true}), false, false, admin)
 	require.NoError(t, err)
 	_, err = userService.UpdateUserGroups(t.Context(), user.ID, []string{newGroup.ID}, auditlogs.Origin{})
 	require.NoError(t, err)
-	require.NoError(t, userService.DeleteUser(t.Context(), config, user.ID, false, auditlogs.Origin{}))
+	require.NoError(t, userService.DeleteUser(t.Context(), config, user.ID, false, admin))
 
 	assert.Len(t, auditLog.events[auditlogs.EventAdminGranted], 1)
 	assert.Len(t, auditLog.events[auditlogs.EventAccountDisabled], 1)
 	assert.Equal(t, []auditlogs.Data{{"groupName": "New"}}, auditLog.events[auditlogs.EventGroupMemberAdded])
 	assert.Equal(t, []auditlogs.Data{{"groupName": "Old"}}, auditLog.events[auditlogs.EventGroupMemberRemoved])
 	assert.Len(t, auditLog.events[auditlogs.EventAccountDeleted], 1)
+}
+
+func TestManagingAdminsRequiresAdminAccess(t *testing.T) {
+	config := &appconfig.AppConfigModel{RequireUserEmail: "false"}
+	userService := newTestUserService(t)
+	usersWrite := auditlogs.Origin{Principal: authz.Principal{Scopes: authz.NewScopeSet(authz.UsersWrite)}}
+	admin := model.User{Username: "admin", IsAdmin: true}
+	require.NoError(t, userService.db.Create(&admin).Error)
+	member := model.User{Username: "member"}
+	require.NoError(t, userService.db.Create(&member).Error)
+
+	requireAdminAccess := func(t *testing.T, err error) {
+		t.Helper()
+		appErr, ok := errors.AsType[*apperror.Error](err)
+		require.True(t, ok, err)
+		require.Equal(t, string(authz.AdminAccessWrite), appErr.Details()["required_scope"])
+	}
+
+	_, err := userService.CreateUser(t.Context(), config, dto.UserCreateDto{Username: "second-admin", IsAdmin: true}, usersWrite)
+	requireAdminAccess(t, err)
+	_, err = userService.UpdateUser(t.Context(), config, member.ID, dto.Replace(dto.UserCreateDto{Username: "member", IsAdmin: true}), false, false, usersWrite)
+	requireAdminAccess(t, err)
+	_, err = userService.UpdateUser(t.Context(), config, admin.ID, dto.Replace(dto.UserCreateDto{Username: "renamed", IsAdmin: true}), false, false, usersWrite)
+	requireAdminAccess(t, err)
+	requireAdminAccess(t, userService.requireAdminAccessFor(t.Context(), usersWrite.Principal, admin.ID))
+
+	// An admin's own credential without admin access can't move their email to an address where a login code could be received
+	ownAccount := auditlogs.Origin{Principal: authz.Principal{UserID: admin.ID, Scopes: authz.NewScopeSet(authz.AccountWrite)}}
+	_, err = userService.UpdateUser(t.Context(), config, admin.ID, dto.Replace(dto.UserCreateDto{Username: "admin", IsAdmin: true, Email: new("attacker@example.com")}), true, false, ownAccount)
+	requireAdminAccess(t, err)
+
+	// Regular users stay manageable without admin access
+	require.NoError(t, userService.requireAdminAccessFor(t.Context(), usersWrite.Principal, member.ID))
+	_, err = userService.UpdateUser(t.Context(), config, member.ID, dto.Replace(dto.UserCreateDto{Username: "renamed-member"}), false, false, usersWrite)
+	require.NoError(t, err)
 }

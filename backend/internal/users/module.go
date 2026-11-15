@@ -115,6 +115,8 @@ func New(deps Dependencies) (*Module, error) {
 
 func (m *Module) RegisterRoutes(r *authz.Router, profilePictureSizeLimit gin.HandlerFunc) {
 	admin := r.Group("/admin")
+	// Deleting admins or their passkeys could lock every admin out, so these routes also need admin access when the user in the path is an admin
+	protected := admin.With(m.ProtectAdmins("id"))
 	admin.GET("/users", authz.UsersRead, httpserver.JSON(http.StatusOK, m.handler.listUsersHandler),
 		option.Summary("List users"),
 		option.Description("Get a paginated list of users with optional search and sorting"),
@@ -165,13 +167,13 @@ func (m *Module) RegisterRoutes(r *authz.Router, profilePictureSizeLimit gin.Han
 	)
 	r.PUT("/users/me", authz.AccountWrite, httpserver.UpdateJSON(m.handler.updateCurrentUserHandler), updateCurrentUserDocs)
 	r.PATCH("/users/me", authz.AccountWrite, httpserver.UpdateJSON(m.handler.updateCurrentUserHandler), updateCurrentUserDocs)
-	admin.DELETE("/users/:id", authz.UsersWrite, httpserver.NoContent(m.handler.deleteUserHandler),
+	protected.DELETE("/users/:id", authz.UsersWrite, httpserver.NoContent(m.handler.deleteUserHandler),
 		option.Summary("Delete user"),
 		option.Description("Delete a specific user by ID"),
 		option.Tags("Users"),
 		option.Path("id", "User ID"),
 	)
-	admin.DELETE("/users/:id/webauthn-credentials/:credentialId", authz.UsersWrite, httpserver.NoContent(m.handler.deleteUserWebauthnCredentialHandler),
+	protected.DELETE("/users/:id/webauthn-credentials/:credentialId", authz.UsersWrite, httpserver.NoContent(m.handler.deleteUserWebauthnCredentialHandler),
 		option.Summary("Delete user passkey"),
 		option.Description("Delete a specific WebAuthn credential for a user"),
 		option.Tags("Users"),
@@ -219,6 +221,19 @@ func (m *Module) RegisterRoutes(r *authz.Router, profilePictureSizeLimit gin.Han
 		option.Description("Reset the currently authenticated user's profile picture to the default"),
 		option.Tags("Users"),
 	)
+}
+
+// ProtectAdmins returns a handler for routes that act on the user named by the path parameter, which rejects a principal without admin access when that user is an admin
+func (m *Module) ProtectAdmins(param string) gin.HandlerFunc {
+	return func(c *gin.Context) {
+		err := m.service.requireAdminAccessFor(c.Request.Context(), authz.PrincipalFrom(c), c.Param(param))
+		if err != nil {
+			c.Abort()
+			_ = c.Error(err)
+			return
+		}
+		c.Next()
+	}
 }
 
 // GetUser returns a user with their groups and custom claims
