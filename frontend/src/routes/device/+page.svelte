@@ -84,6 +84,10 @@
 					: undefined)
 	);
 	const statusFailure = $derived(codeFailure ? undefined : failure);
+	// Granted scopes stay in view after approving, so the wide card does not collapse into a small one
+	const showScopes = $derived(
+		authorizationRequired && (view === 'consent' || view === 'authorized')
+	);
 
 	// Typing again clears the last outcome
 	$effect(() => {
@@ -207,7 +211,7 @@
 	{/if}
 {/snippet}
 
-<SignInWrapper wide={view === 'consent' && authorizationRequired}>
+<SignInWrapper wide={showScopes}>
 	{#if client && (view === 'consent' || view === 'authorized')}
 		<AuthorizeTiles {client} success={view === 'authorized'} error={!!statusFailure} />
 	{:else}
@@ -330,7 +334,12 @@
 	{/if}
 
 	{#snippet side()}
-		{#if view === 'consent' && client}
+		{#if showScopes && view === 'authorized'}
+			<!-- The granted scopes only fill the second column, because stacked under the outcome they would read as another question -->
+			<div class="max-lg:hidden">
+				<ScopeList scopes={selectedScopes} scopeInfo={deviceInfo!.scopeInfo || []} />
+			</div>
+		{:else if view === 'consent' && client}
 			{#if authorizationRequired}
 				<div class="mb-6">
 					<ScopeList
