@@ -19,9 +19,6 @@ import (
 	"github.com/pocket-id/pocket-id/backend/internal/utils/cookie"
 )
 
-// #nosec G101 -- this is the name of the header that carries the API key, not a credential
-const apiKeyHeader = "X-API-Key"
-
 // NewAuthorization creates the authorization middleware with every credential Pocket ID accepts
 // A browser session is tried before an API key or OAuth token, so a signed-in browser is never mistaken for an API client
 func NewAuthorization(apiKeyModule *apikey.Module, accessTokenVerifier AccessTokenVerifier, users UserProvider, sessions SessionValidator, appConfig appconfig.AppConfigResolver) *authz.Middleware {
@@ -129,11 +126,11 @@ func (a *APIKeyAuthenticator) Kinds() authz.PrincipalKind {
 }
 
 func (a *APIKeyAuthenticator) Present(c *gin.Context) bool {
-	return c.GetHeader(apiKeyHeader) != ""
+	return c.GetHeader(authz.APIKeyHeader) != ""
 }
 
 func (a *APIKeyAuthenticator) Authenticate(c *gin.Context) (*authz.Principal, error) {
-	key, err := a.apiKeyModule.ValidateApiKey(c.Request.Context(), c.GetHeader(apiKeyHeader))
+	key, err := a.apiKeyModule.ValidateApiKey(c.Request.Context(), c.GetHeader(authz.APIKeyHeader))
 	if err != nil {
 		return nil, apperror.NotSignedIn()
 	}

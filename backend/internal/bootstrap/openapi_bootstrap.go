@@ -35,7 +35,7 @@ func OpenAPISpec() ([]byte, error) {
 	if err != nil {
 		return nil, err
 	}
-	return openapi.Spec(auth.Routes())
+	return openapi.Spec(auth.Routes(), authz.SecuritySchemes())
 }
 
 // routeTable registers every route on a new engine

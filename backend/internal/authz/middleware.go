@@ -6,6 +6,7 @@ import (
 	"slices"
 	"sync/atomic"
 
+	"github.com/getkin/kin-openapi/openapi3"
 	"github.com/gin-gonic/gin"
 	"github.com/go-fuego/fuego"
 
@@ -66,10 +67,10 @@ func (m *Middleware) Routes() []openapi.Route {
 }
 
 // register adds the route to gin and declares it with its documentation
-func (m *Middleware) register(group *gin.RouterGroup, method, relativePath string, chain []gin.HandlerFunc, docs []fuego.RouteOption) {
+func (m *Middleware) register(group *gin.RouterGroup, method, relativePath string, chain []gin.HandlerFunc, docs []fuego.RouteOption, security openapi3.SecurityRequirements) {
 	group.Handle(method, relativePath, chain...)
 	path := joinPaths(group.BasePath(), relativePath)
-	m.declared[routeKey(method, path)] = openapi.Route{Method: method, Path: path, Docs: docs}
+	m.declared[routeKey(method, path)] = openapi.Route{Method: method, Path: path, Docs: docs, Security: security}
 }
 
 func routeKey(method, path string) string {

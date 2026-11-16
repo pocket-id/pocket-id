@@ -55,10 +55,12 @@ type Route struct {
 	Method string
 	Path   string
 	Docs   []fuego.RouteOption
+	// Security lists the alternative credentials that may call the route, and is empty for a public route
+	Security openapi3.SecurityRequirements
 }
 
-// Spec returns the OpenAPI spec of the documented routes as indented JSON
-func Spec(routes []Route) ([]byte, error) {
+// Spec returns the OpenAPI spec of the documented routes as indented JSON, where the security schemes describe every credential the routes accept
+func Spec(routes []Route, securitySchemes openapi3.SecuritySchemes) ([]byte, error) {
 	// The customizer records the Go type of every struct, so the component schemas of request bodies can be traced back to their binding tags
 	types := map[string]reflect.Type{}
 	customize := func(name string, t reflect.Type, tag reflect.StructTag, schema *openapi3.Schema) error {
@@ -80,6 +82,8 @@ func Spec(routes []Route) ([]byte, error) {
 		fuego.WithOpenAPIGeneratorSchemaCustomizer(customize),
 	)
 
+	engine.OpenAPI.Description().Components.SecuritySchemes = securitySchemes
+
 	// Every error has the shape of ErrorDto, so each operation documents it once as its default response
 	errorResponse := option.DefaultResponse("Error", fuego.Response{Type: dto.ErrorDto{}, ContentTypes: []string{"application/json"}})
 
@@ -94,7 +98,11 @@ func Spec(routes []Route) ([]byte, error) {
 
 		// Fuego takes a handler only to name the operation, which every documented route does with its summary
 		path := ginParam.ReplaceAllString(route.Path, "{$1}")
-		r := fuego.Route[any, any, any]{BaseRoute: fuego.NewBaseRoute(route.Method, path, Spec, engine, append(route.Docs, errorResponse)...)}
+		docs := slices.Concat(route.Docs, []fuego.RouteOption{errorResponse})
+		if len(route.Security) > 0 {
+			docs = append(docs, option.Security(route.Security...))
+		}
+		r := fuego.Route[any, any, any]{BaseRoute: fuego.NewBaseRoute(route.Method, path, Spec, engine, docs...)}
 		if err := r.RegisterOpenAPIOperation(engine.OpenAPI); err != nil {
 			return nil, fmt.Errorf("failed to document %s %s: %w", route.Method, route.Path, err)
 		}

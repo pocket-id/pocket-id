@@ -105,11 +105,11 @@ func (r *Router) Handle(method, relativePath string, access Access, handler http
 
 	// Public routes run no authorization at all
 	if access == Public {
-		r.auth.register(r.group, method, relativePath, slices.Concat(r.handlers, []gin.HandlerFunc{handler.Handler}), docs)
+		r.auth.register(r.group, method, relativePath, slices.Concat(r.handlers, []gin.HandlerFunc{handler.Handler}), docs, nil)
 		return
 	}
 
-	r.auth.register(r.group, method, relativePath, r.chain(r.auth.require(access, r.optional), handler.Handler), docs)
+	r.auth.register(r.group, method, relativePath, r.chain(r.auth.require(access, r.optional), handler.Handler), docs, security(access, r.optional))
 }
 
 // Dispatch registers a route that serves several admin operations needing different scopes, such as the MCP endpoint
@@ -120,7 +120,7 @@ func (r *Router) Dispatch(method, relativePath string, handler gin.HandlerFunc) 
 		panic(fmt.Sprintf("dispatch route %s %s must be registered below %s", method, fullPath, AdminPathPrefix))
 	}
 
-	r.auth.register(r.group, method, relativePath, r.chain(r.auth.requireDispatch(), handler), nil)
+	r.auth.register(r.group, method, relativePath, r.chain(r.auth.requireDispatch(), handler), nil, nil)
 }
 
 // chain runs authorization first, then the router's handlers and finally the route's own handler
