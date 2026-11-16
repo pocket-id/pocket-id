@@ -101,7 +101,10 @@ test.describe('Initial User Signup', () => {
 
 	test('Initial Signup - success flow', async ({ page }) => {
 		await cleanupBackend({ skipSeed: true });
-		await page.goto('/setup');
+
+		// A fresh install sends visitors of the landing page to the setup
+		await page.goto('/');
+		await page.waitForURL('/signup/setup');
 		await page.getByLabel('First name').fill('Jane');
 		await page.getByLabel('Last name').fill('Smith');
 		await page.getByLabel('Username').fill('janesmith');
@@ -156,7 +159,7 @@ test.describe('Initial User Signup', () => {
 
 	test('Initial Signup - setup route unavailable after completion', async ({ page }) => {
 		await cleanupBackend();
-		await page.goto('/setup');
+		await page.goto('/signup/setup');
 		await expect(page.getByText('This page doesn’t exist.')).toBeVisible();
 		await expect(page.getByRole('button', { name: 'Create admin account' })).not.toBeVisible();
 	});

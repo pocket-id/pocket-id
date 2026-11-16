@@ -97,6 +97,11 @@ func New(deps Dependencies) (*Module, error) {
 	}, nil
 }
 
+// IsInitialAdminSetupCompleted reports whether any user exists, which closes the initial admin setup
+func (m *Module) IsInitialAdminSetupCompleted(ctx context.Context) (bool, error) {
+	return m.service.IsInitialAdminSetupCompleted(ctx)
+}
+
 // RegisterRoutes mounts the signup and signup-token management endpoints
 // signupRateLimit throttles public self-signup
 func (m *Module) RegisterRoutes(r *authz.Router, signupRateLimit gin.HandlerFunc) {

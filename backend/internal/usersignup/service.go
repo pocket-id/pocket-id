@@ -251,12 +251,9 @@ func (s *Service) IsInitialAdminSetupCompleted(ctx context.Context) (bool, error
 }
 
 func (s *Service) isInitialAdminSetupCompleted(ctx context.Context, db *gorm.DB) (bool, error) {
-	var userCount int64
-	if err := db.WithContext(ctx).Model(&model.User{}).Count(&userCount).Error; err != nil {
-		return false, err
-	}
-
-	return userCount != 0, nil
+	var exists bool
+	err := db.WithContext(ctx).Raw("SELECT EXISTS (SELECT 1 FROM users)").Scan(&exists).Error
+	return exists, err
 }
 
 func (s *Service) ListSignupTokens(ctx context.Context, listRequestOptions utils.ListRequestOptions) ([]SignupToken, utils.PaginationResponse, error) {

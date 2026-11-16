@@ -157,7 +157,7 @@ func registerTools(t *mcp.Tools, svc *services) {
 
 func registerRoutes(r *gin.Engine, svc *services, auth *authz.Middleware, rateLimitServices map[string]*ratelimit.RateLimitService) error {
 
-	err := frontend.RegisterFrontend(r)
+	err := frontend.RegisterFrontend(r, svc.userSignUpModule.IsInitialAdminSetupCompleted)
 	if errors.Is(err, frontend.ErrFrontendNotIncluded) {
 		slog.Warn("Frontend is not included in the build. Skipping frontend registration.")
 	} else if err != nil {
