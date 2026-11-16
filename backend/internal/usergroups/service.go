@@ -172,6 +172,7 @@ func (s *Service) createInternal(ctx context.Context, input dto.UserGroupCreateD
 	group := model.UserGroup{
 		FriendlyName: input.FriendlyName,
 		Name:         input.Name,
+		Notes:        input.Notes,
 	}
 
 	if input.LdapID != "" {
@@ -242,6 +243,11 @@ func (s *Service) updateInternal(ctx context.Context, id string, input dto.UserG
 
 	group.Name = input.Name
 	group.FriendlyName = input.FriendlyName
+
+	// LDAP doesn't know about notes, so a sync keeps the ones admins wrote
+	if !isLdapSync {
+		group.Notes = input.Notes
+	}
 	group.UpdatedAt = new(datatype.DateTime(time.Now()))
 
 	err = tx.

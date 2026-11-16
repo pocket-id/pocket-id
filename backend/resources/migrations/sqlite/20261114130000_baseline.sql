@@ -6,7 +6,7 @@ CREATE TABLE user_groups
     created_at   DATETIME,
     friendly_name TEXT NOT NULL,
     name        TEXT NOT NULL UNIQUE
-, ldap_id TEXT, updated_at DATETIME);
+, ldap_id TEXT, updated_at DATETIME, notes TEXT NOT NULL DEFAULT '');
 
 CREATE TABLE user_groups_users
 (

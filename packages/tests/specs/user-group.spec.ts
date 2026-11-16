@@ -35,10 +35,13 @@ test('Edit user group', async ({ page }) => {
 	await expect(page.getByLabel('Name', { exact: true })).toHaveValue(group.name);
 
 	await page.getByLabel('Name', { exact: true }).fill('developers_updated');
+	await page.getByRole('textbox', { name: 'Notes' }).fill('Everyone who ships code');
 
 	await saveUnsavedChanges(page);
+	await page.reload();
 	await expect(page.getByLabel('Friendly Name')).toHaveValue('Developers updated');
 	await expect(page.getByLabel('Name', { exact: true })).toHaveValue('developers_updated');
+	await expect(page.getByRole('textbox', { name: 'Notes' })).toHaveValue('Everyone who ships code');
 });
 
 test('Update user group members', async ({ page }) => {

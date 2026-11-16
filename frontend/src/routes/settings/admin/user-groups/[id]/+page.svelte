@@ -8,6 +8,7 @@
 	import SettingsSection from '#lib/components/settings-section.svelte';
 	import { Badge } from '@pocket-id/ui/badge';
 	import { Button } from '@pocket-id/ui/button';
+	import { Textarea } from '@pocket-id/ui/textarea';
 	import * as DropdownMenu from '@pocket-id/ui/dropdown-menu';
 	import * as InputGroup from '@pocket-id/ui/input-group';
 	import HashTabs from '#lib/components/hash-tabs.svelte';
@@ -36,7 +37,7 @@
 	import { backNavigate } from '../../users/navigate-back-util';
 	import UserAvatar from '../../users/user-avatar.svelte';
 	import UserStatus from '../../users/user-status.svelte';
-	import { groupNameSchema } from '../group-name-schema';
+	import { groupSchema } from '../group-schema';
 	import PickerDialog from '../picker-dialog.svelte';
 	import { confirmDeleteGroup } from '../user-group-actions';
 
@@ -67,9 +68,10 @@
 			.toSorted((a, b) => a.displayName.localeCompare(b.displayName));
 	});
 
-	const formStore = createForm(groupNameSchema, {
+	const formStore = createForm(groupSchema, {
 		friendlyName: group.friendlyName,
-		name: group.name
+		name: group.name,
+		notes: group.notes
 	});
 	const { inputs } = formStore;
 	trackFormChanges(
@@ -78,6 +80,7 @@
 			const saved = await userGroupService.update(group.id, values);
 			group.friendlyName = saved.friendlyName;
 			group.name = saved.name;
+			group.notes = saved.notes;
 		}
 	);
 
@@ -274,7 +277,7 @@
 			</div>
 		</div>
 
-		<Tabs.Content value="general">
+		<Tabs.Content value="general" class="flex flex-col gap-4">
 			<SettingsCard title={m.names()}>
 				<div class="flex max-w-100 flex-col gap-6 py-4">
 					{#if readOnly}
@@ -295,6 +298,20 @@
 						bind:input={$inputs.name}
 						readonly={readOnly}
 					/>
+				</div>
+			</SettingsCard>
+			<SettingsCard title={m.notes()}>
+				<div class="py-4">
+					<FormInput description={m.client_notes_description()} input={$inputs.notes}>
+						<Textarea
+							aria-label={m.notes()}
+							rows={4}
+							placeholder={m.group_notes_placeholder()}
+							aria-invalid={!!$inputs.notes.error}
+							readonly={readOnly}
+							bind:value={$inputs.notes.value}
+						/>
+					</FormInput>
 				</div>
 			</SettingsCard>
 		</Tabs.Content>

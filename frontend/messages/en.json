@@ -752,6 +752,7 @@
 	"notes": "Notes",
 	"client_notes_description": "Only admins see these notes.",
 	"client_notes_placeholder": "Setup instructions, links to docs or known issues",
+	"group_notes_placeholder": "What the group is for and who should be in it",
 	"opened_when_someone_launches_name_from_my_apps": "Opened from My apps.",
 	"no_callback_urls": "No callback URLs",
 	"no_logout_callback_urls": "No logout callback URLs",

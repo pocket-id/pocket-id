@@ -205,7 +205,8 @@ CREATE TABLE user_groups (
     friendly_name character varying(255) NOT NULL,
     name character varying(255) NOT NULL,
     ldap_id text,
-    updated_at timestamp with time zone
+    updated_at timestamp with time zone,
+    notes text DEFAULT ''::text NOT NULL
 );
 
 CREATE TABLE user_groups_users (

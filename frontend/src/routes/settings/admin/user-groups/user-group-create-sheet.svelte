@@ -10,7 +10,7 @@
 	import { createForm } from '#lib/utils/form-util.ts';
 	import { untrack } from 'svelte';
 	import { toast } from 'svelte-sonner';
-	import { groupNameSchema } from './group-name-schema';
+	import { groupSchema } from './group-schema';
 
 	let { open = $bindable() }: { open: boolean } = $props();
 
@@ -21,7 +21,7 @@
 	// The claim name follows the friendly name until it is edited by hand
 	let nameEdited = false;
 
-	const formStore = createForm(groupNameSchema, { friendlyName: '', name: '' });
+	const formStore = createForm(groupSchema, { friendlyName: '', name: '', notes: '' });
 	const { inputs } = formStore;
 
 	$effect(() => {

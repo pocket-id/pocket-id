@@ -160,6 +160,19 @@ func TestUpdatesGroupWithThousandsOfMembers(t *testing.T) {
 	require.ElementsMatch(t, userIDs, memberIDs)
 }
 
+func TestLdapSyncKeepsGroupNotes(t *testing.T) {
+	db := testutils.NewDatabaseForTest(t)
+	groupService := newService(db, nil, nil, &fakeAuditLogger{}, noPocketIDClients{})
+	group, err := groupService.Create(t.Context(), dto.UserGroupCreateDto{Name: "staff", FriendlyName: "Staff", Notes: "Everyone on payroll"}, auditlogs.Origin{})
+	require.NoError(t, err)
+
+	// LDAP sends no notes, so a sync must not clear the ones an admin wrote
+	group, err = groupService.updateInternal(t.Context(), group.ID, dto.UserGroupCreateDto{Name: "staff", FriendlyName: "All staff"}, true, db, &appconfig.AppConfigModel{})
+	require.NoError(t, err)
+	require.Equal(t, "All staff", group.FriendlyName)
+	require.Equal(t, "Everyone on payroll", group.Notes)
+}
+
 // noPocketIDClients treats every client as one without access to Pocket ID's own API
 type noPocketIDClients struct{}
 

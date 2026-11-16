@@ -65,12 +65,14 @@ type groupIDInput struct {
 type createGroupInput struct {
 	FriendlyName string `json:"friendlyName" jsonschema:"Name shown in Pocket ID"`
 	Name         string `json:"name" jsonschema:"Name apps receive in the groups claim, such as developers"`
+	Notes        string `json:"notes,omitempty" jsonschema:"Notes for admins about the group, such as what it is for, which users never see"`
 }
 
 type updateGroupInput struct {
 	ID           string  `json:"id" jsonschema:"ID of the group"`
 	FriendlyName *string `json:"friendlyName,omitempty" jsonschema:"Name shown in Pocket ID"`
 	Name         *string `json:"name,omitempty" jsonschema:"Name apps receive in the groups claim"`
+	Notes        *string `json:"notes,omitempty" jsonschema:"Notes for admins about the group, such as what it is for, which users never see"`
 }
 
 type groupMembersInput struct {
@@ -91,7 +93,7 @@ func (h *handler) getGroupTool(ctx context.Context, _ mcp.Call, input groupIDInp
 }
 
 func (h *handler) createGroupTool(ctx context.Context, call mcp.Call, input createGroupInput) (any, error) {
-	createDto := dto.UserGroupCreateDto{FriendlyName: input.FriendlyName, Name: input.Name}
+	createDto := dto.UserGroupCreateDto{FriendlyName: input.FriendlyName, Name: input.Name, Notes: input.Notes}
 	if err := httpserver.Validate(&createDto); err != nil {
 		return nil, err
 	}
@@ -117,6 +119,7 @@ func (h *handler) updateGroupTool(ctx context.Context, _ mcp.Call, input updateG
 		}
 		mcp.SetIfPresent(&updateDto.FriendlyName, input.FriendlyName)
 		mcp.SetIfPresent(&updateDto.Name, input.Name)
+		mcp.SetIfPresent(&updateDto.Notes, input.Notes)
 		return updateDto, httpserver.Validate(&updateDto)
 	})
 	if err != nil {
@@ -169,6 +172,7 @@ type groupResult struct {
 	ID                 string                      `json:"id"`
 	FriendlyName       string                      `json:"friendlyName"`
 	Name               string                      `json:"name"`
+	Notes              string                      `json:"notes"`
 	CustomClaims       []dto.CustomClaimDto        `json:"customClaims"`
 	LdapID             *string                     `json:"ldapId"`
 	CreatedAt          datatype.DateTime           `json:"createdAt"`
