@@ -51,6 +51,11 @@ func (r *Router) Public() *PublicRouter {
 	return &PublicRouter{group: r.group, auth: r.auth, handlers: r.handlers}
 }
 
+// Authenticated returns a router for routes that every valid credential may call without holding a scope, for instance details that are harmless to any caller but should not be scraped anonymously
+func (r *Router) Authenticated() *AuthenticatedRouter {
+	return &AuthenticatedRouter{group: r.group, auth: r.auth, handlers: r.handlers}
+}
+
 func (r *Router) GET(relativePath string, scope Scope, handler httpserver.Endpoint, docs ...fuego.RouteOption) {
 	r.Handle(http.MethodGet, relativePath, scope, handler, docs...)
 }
@@ -133,6 +138,23 @@ func (r *PublicRouter) Handle(method, relativePath string, handler httpserver.En
 	}
 
 	r.auth.register(r.group, method, relativePath, slices.Concat(r.handlers, []gin.HandlerFunc{handler.Handler}), slices.Concat(handler.Docs, docs))
+}
+
+// AuthenticatedRouter registers routes that require a valid credential of any kind but no scope
+type AuthenticatedRouter struct {
+	group    *gin.RouterGroup
+	auth     *Middleware
+	handlers []gin.HandlerFunc
+}
+
+func (r *AuthenticatedRouter) GET(relativePath string, handler httpserver.Endpoint, docs ...fuego.RouteOption) {
+	fullPath := joinPaths(r.group.BasePath(), relativePath)
+	if strings.HasPrefix(fullPath, AdminPathPrefix) {
+		panic(fmt.Sprintf("authenticated route GET %s must not be registered below %s", fullPath, AdminPathPrefix))
+	}
+
+	chain := slices.Concat([]gin.HandlerFunc{r.auth.requireAuthenticated()}, r.handlers, []gin.HandlerFunc{handler.Handler})
+	r.auth.register(r.group, http.MethodGet, relativePath, chain, slices.Concat(handler.Docs, docs))
 }
 
 // joinPaths mirrors how gin builds a route's absolute path so declared routes match gin's route table

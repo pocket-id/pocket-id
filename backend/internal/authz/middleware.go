@@ -149,6 +149,26 @@ func (m *Middleware) requireDispatch() gin.HandlerFunc {
 	}
 }
 
+// requireAuthenticated returns the handler of a route that every valid credential may call, whatever scopes it holds
+func (m *Middleware) requireAuthenticated() gin.HandlerFunc {
+	return func(c *gin.Context) {
+		principal, _, err := m.authenticate(c, func(PrincipalKind) bool { return true })
+		if err != nil {
+			c.Abort()
+			_ = c.Error(err)
+			return
+		}
+		if principal == nil {
+			c.Abort()
+			_ = c.Error(apperror.NotSignedIn())
+			return
+		}
+
+		SetPrincipal(c, principal)
+		c.Next()
+	}
+}
+
 // rejectionError tells the caller which credential a route needs when the one it sent was rejected by kind
 func rejectionError(rejectedKind PrincipalKind) error {
 	if rejectedKind&(KindAPIKey|KindStaticAPIKey) != 0 {
