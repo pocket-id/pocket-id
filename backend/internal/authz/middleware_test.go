@@ -59,8 +59,8 @@ type middlewareResult struct {
 	principal Principal
 }
 
-// serve runs one request through a route that requires the scope and reports what the middleware decided
-func serve(t *testing.T, m *Middleware, scope Scope, optional bool, headers map[string]string) middlewareResult {
+// serve runs one request through a route that requires the access and reports what the middleware decided
+func serve(t *testing.T, m *Middleware, access Access, optional bool, headers map[string]string) middlewareResult {
 	t.Helper()
 	gin.SetMode(gin.TestMode)
 
@@ -75,14 +75,14 @@ func serve(t *testing.T, m *Middleware, scope Scope, optional bool, headers map[
 
 	// Routes with an admin scope must live below the admin prefix
 	base := "/api"
-	if definitions[scope].category == CategoryAdmin {
+	if scope, ok := access.(Scope); ok && definitions[scope].category == CategoryAdmin {
 		base = "/api/admin"
 	}
 	r := m.Router(router.Group(base))
 	if optional {
 		r = r.Optional()
 	}
-	r.GET("/route", scope, httpserver.Endpoint{Handler: func(c *gin.Context) {
+	r.GET("/route", access, httpserver.Endpoint{Handler: func(c *gin.Context) {
 		result.principal = PrincipalFrom(c)
 		c.Status(http.StatusNoContent)
 	}})
@@ -312,42 +312,15 @@ func TestAuthenticatedRouteAcceptsAnyCredential(t *testing.T) {
 	staticKey := &fakeAuthenticator{kind: KindStaticAPIKey, header: "X-Static-Key"}
 	m := NewMiddleware(nil, staticKey)
 
-	serveAuthenticated := func(t *testing.T, headers map[string]string) middlewareResult {
-		t.Helper()
-		gin.SetMode(gin.TestMode)
-
-		var result middlewareResult
-		router := gin.New()
-		router.Use(func(c *gin.Context) {
-			c.Next()
-			if len(c.Errors) > 0 {
-				result.err = c.Errors.Last().Err
-			}
-		})
-		m.Router(router.Group("/api")).Authenticated().GET("/version", httpserver.Endpoint{Handler: func(c *gin.Context) {
-			result.principal = PrincipalFrom(c)
-			c.Status(http.StatusNoContent)
-		}})
-
-		req := httptest.NewRequestWithContext(t.Context(), http.MethodGet, "/api/version", nil)
-		for key, value := range headers {
-			req.Header.Set(key, value)
-		}
-		recorder := httptest.NewRecorder()
-		router.ServeHTTP(recorder, req)
-		result.status = recorder.Code
-		return result
-	}
-
 	t.Run("accepts the static API key, which holds no account scope", func(t *testing.T) {
-		result := serveAuthenticated(t, map[string]string{"X-Static-Key": "1"})
+		result := serve(t, m, Authenticated, false, map[string]string{"X-Static-Key": "1"})
 
 		require.Equal(t, http.StatusNoContent, result.status)
 		require.Equal(t, KindStaticAPIKey, result.principal.Kind)
 	})
 
 	t.Run("rejects missing credentials", func(t *testing.T) {
-		result := serveAuthenticated(t, nil)
+		result := serve(t, m, Authenticated, false, nil)
 
 		require.True(t, apperror.IsCode(result.err, apperror.CodeNotSignedIn))
 	})

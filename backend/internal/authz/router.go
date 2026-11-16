@@ -16,8 +16,27 @@ import (
 // AdminPathPrefix is the path below which every route requiring an admin scope lives, and nothing else, so a reverse proxy can keep the admin API private with a single rule
 const AdminPathPrefix = "/api/admin/"
 
-// Router registers routes together with the scope each one requires and their OpenAPI documentation
-// Every route under /api must be registered through a Router or PublicRouter, which a test over the complete route table checks with IsDeclared
+// Access is what a route requires of its caller: a Scope, or Authenticated or Public for routes that check no scope
+type Access interface {
+	access()
+}
+
+func (Scope) access() {}
+
+// routeAccess is the access of a route that checks no scope
+type routeAccess string
+
+func (routeAccess) access() {}
+
+const (
+	// Public routes require no credential at all
+	Public routeAccess = "public"
+	// Authenticated routes accept every valid credential whatever scopes it holds, for details that are harmless to any caller but should not be scraped anonymously
+	Authenticated routeAccess = "authenticated"
+)
+
+// Router registers routes together with the access each one requires and their OpenAPI documentation
+// Every route under /api must be registered through a Router, which a test over the complete route table checks with IsDeclared
 type Router struct {
 	group    *gin.RouterGroup
 	auth     *Middleware
@@ -46,53 +65,51 @@ func (r *Router) Optional() *Router {
 	return &Router{group: r.group, auth: r.auth, optional: true, handlers: r.handlers}
 }
 
-// Public returns a router for routes that require no authentication at all
-func (r *Router) Public() *PublicRouter {
-	return &PublicRouter{group: r.group, auth: r.auth, handlers: r.handlers}
+func (r *Router) GET(relativePath string, access Access, handler httpserver.Endpoint, docs ...fuego.RouteOption) {
+	r.Handle(http.MethodGet, relativePath, access, handler, docs...)
 }
 
-// Authenticated returns a router for routes that every valid credential may call without holding a scope, for instance details that are harmless to any caller but should not be scraped anonymously
-func (r *Router) Authenticated() *AuthenticatedRouter {
-	return &AuthenticatedRouter{group: r.group, auth: r.auth, handlers: r.handlers}
+func (r *Router) POST(relativePath string, access Access, handler httpserver.Endpoint, docs ...fuego.RouteOption) {
+	r.Handle(http.MethodPost, relativePath, access, handler, docs...)
 }
 
-func (r *Router) GET(relativePath string, scope Scope, handler httpserver.Endpoint, docs ...fuego.RouteOption) {
-	r.Handle(http.MethodGet, relativePath, scope, handler, docs...)
+func (r *Router) PUT(relativePath string, access Access, handler httpserver.Endpoint, docs ...fuego.RouteOption) {
+	r.Handle(http.MethodPut, relativePath, access, handler, docs...)
 }
 
-func (r *Router) POST(relativePath string, scope Scope, handler httpserver.Endpoint, docs ...fuego.RouteOption) {
-	r.Handle(http.MethodPost, relativePath, scope, handler, docs...)
+func (r *Router) PATCH(relativePath string, access Access, handler httpserver.Endpoint, docs ...fuego.RouteOption) {
+	r.Handle(http.MethodPatch, relativePath, access, handler, docs...)
 }
 
-func (r *Router) PUT(relativePath string, scope Scope, handler httpserver.Endpoint, docs ...fuego.RouteOption) {
-	r.Handle(http.MethodPut, relativePath, scope, handler, docs...)
+func (r *Router) DELETE(relativePath string, access Access, handler httpserver.Endpoint, docs ...fuego.RouteOption) {
+	r.Handle(http.MethodDelete, relativePath, access, handler, docs...)
 }
 
-func (r *Router) PATCH(relativePath string, scope Scope, handler httpserver.Endpoint, docs ...fuego.RouteOption) {
-	r.Handle(http.MethodPatch, relativePath, scope, handler, docs...)
-}
-
-func (r *Router) DELETE(relativePath string, scope Scope, handler httpserver.Endpoint, docs ...fuego.RouteOption) {
-	r.Handle(http.MethodDelete, relativePath, scope, handler, docs...)
-}
-
-// Handle registers a route that requires the scope, running authorization before every other handler of the route
+// Handle registers a route that requires the access, running authorization before every other handler of the route
 // The docs follow the documentation that the handler's types imply, so they can override it
-func (r *Router) Handle(method, relativePath string, scope Scope, handler httpserver.Endpoint, docs ...fuego.RouteOption) {
+func (r *Router) Handle(method, relativePath string, access Access, handler httpserver.Endpoint, docs ...fuego.RouteOption) {
 	fullPath := joinPaths(r.group.BasePath(), relativePath)
+	docs = slices.Concat(handler.Docs, docs)
 
 	// An unknown scope can never be granted, so it is a programming error just like a duplicate route in gin
-	if !scope.Known() {
+	scope, scoped := access.(Scope)
+	if scoped && !scope.Known() {
 		panic(fmt.Sprintf("route %s %s requires unknown scope %q", method, fullPath, scope))
 	}
 
 	// A route outside the admin prefix that needs an admin scope, or the other way round, would slip past a proxy that blocks the prefix or be blocked by it
-	isAdmin := definitions[scope].category == CategoryAdmin
+	isAdmin := scoped && definitions[scope].category == CategoryAdmin
 	if isAdmin != strings.HasPrefix(fullPath, AdminPathPrefix) {
-		panic(fmt.Sprintf("route %s %s requires scope %q, so it must be registered below %s if and only if that scope is an admin scope", method, fullPath, scope, AdminPathPrefix))
+		panic(fmt.Sprintf("route %s %s requires %q, so it must be registered below %s if and only if that is an admin scope", method, fullPath, access, AdminPathPrefix))
 	}
 
-	r.auth.register(r.group, method, relativePath, r.chain(r.auth.require(scope, r.optional), handler.Handler), slices.Concat(handler.Docs, docs))
+	// Public routes run no authorization at all
+	if access == Public {
+		r.auth.register(r.group, method, relativePath, slices.Concat(r.handlers, []gin.HandlerFunc{handler.Handler}), docs)
+		return
+	}
+
+	r.auth.register(r.group, method, relativePath, r.chain(r.auth.require(access, r.optional), handler.Handler), docs)
 }
 
 // Dispatch registers a route that serves several admin operations needing different scopes, such as the MCP endpoint
@@ -112,49 +129,6 @@ func (r *Router) chain(authorize, handler gin.HandlerFunc) []gin.HandlerFunc {
 	chain = append(chain, authorize)
 	chain = append(chain, r.handlers...)
 	return append(chain, handler)
-}
-
-// PublicRouter registers routes that require no authentication
-// Routing them through here keeps public access an explicit decision instead of a missing middleware
-type PublicRouter struct {
-	group    *gin.RouterGroup
-	auth     *Middleware
-	handlers []gin.HandlerFunc
-}
-
-func (r *PublicRouter) GET(relativePath string, handler httpserver.Endpoint, docs ...fuego.RouteOption) {
-	r.Handle(http.MethodGet, relativePath, handler, docs...)
-}
-
-func (r *PublicRouter) POST(relativePath string, handler httpserver.Endpoint, docs ...fuego.RouteOption) {
-	r.Handle(http.MethodPost, relativePath, handler, docs...)
-}
-
-// Handle registers a public route
-func (r *PublicRouter) Handle(method, relativePath string, handler httpserver.Endpoint, docs ...fuego.RouteOption) {
-	fullPath := joinPaths(r.group.BasePath(), relativePath)
-	if strings.HasPrefix(fullPath, AdminPathPrefix) {
-		panic(fmt.Sprintf("public route %s %s must not be registered below %s", method, fullPath, AdminPathPrefix))
-	}
-
-	r.auth.register(r.group, method, relativePath, slices.Concat(r.handlers, []gin.HandlerFunc{handler.Handler}), slices.Concat(handler.Docs, docs))
-}
-
-// AuthenticatedRouter registers routes that require a valid credential of any kind but no scope
-type AuthenticatedRouter struct {
-	group    *gin.RouterGroup
-	auth     *Middleware
-	handlers []gin.HandlerFunc
-}
-
-func (r *AuthenticatedRouter) GET(relativePath string, handler httpserver.Endpoint, docs ...fuego.RouteOption) {
-	fullPath := joinPaths(r.group.BasePath(), relativePath)
-	if strings.HasPrefix(fullPath, AdminPathPrefix) {
-		panic(fmt.Sprintf("authenticated route GET %s must not be registered below %s", fullPath, AdminPathPrefix))
-	}
-
-	chain := slices.Concat([]gin.HandlerFunc{r.auth.requireAuthenticated()}, r.handlers, []gin.HandlerFunc{handler.Handler})
-	r.auth.register(r.group, http.MethodGet, relativePath, chain, slices.Concat(handler.Docs, docs))
 }
 
 // joinPaths mirrors how gin builds a route's absolute path so declared routes match gin's route table

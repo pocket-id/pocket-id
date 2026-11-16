@@ -74,12 +74,12 @@ func New(deps Dependencies) (*Module, error) {
 
 // RegisterRoutes mounts the public exchange and authenticated verification endpoints
 func (m *Module) RegisterRoutes(r *authz.Router, createRateLimit, exchangeRateLimit, verificationRateLimit gin.HandlerFunc) {
-	r.With(createRateLimit).Public().POST("/device-login/requests", httpserver.JSON(http.StatusCreated, m.handler.createRequest),
+	r.With(createRateLimit).POST("/device-login/requests", authz.Public, httpserver.JSON(http.StatusCreated, m.handler.createRequest),
 		option.Summary("Create device login request"),
 		option.Description("Create a short-lived request that can be approved from another authenticated device"),
 		option.Tags("Device Login"),
 	)
-	r.With(exchangeRateLimit).Public().POST("/device-login/requests/:id/exchange", httpserver.Handle(m.handler.exchangeRequest),
+	r.With(exchangeRateLimit).POST("/device-login/requests/:id/exchange", authz.Public, httpserver.Handle(m.handler.exchangeRequest),
 		option.Summary("Exchange device login request"),
 		option.Description("Wait for a device login decision and create a browser session after it has been approved"),
 		option.Tags("Device Login"),

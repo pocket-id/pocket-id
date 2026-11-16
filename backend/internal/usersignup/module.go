@@ -119,17 +119,17 @@ func (m *Module) RegisterRoutes(r *authz.Router, signupRateLimit gin.HandlerFunc
 		option.Tags("Users"),
 		option.Path("id", "Token ID"),
 	)
-	r.With(signupRateLimit).Public().POST("/signup", httpserver.BodyJSON(http.StatusCreated, m.handler.signup),
+	r.With(signupRateLimit).POST("/signup", authz.Public, httpserver.BodyJSON(http.StatusCreated, m.handler.signup),
 		option.Summary("Sign up"),
 		option.Description("Create a new user account"),
 		option.Tags("Users"),
 	)
-	r.Public().GET("/signup/setup", httpserver.NoContent(m.handler.checkInitialAdminSetupAvailable),
+	r.GET("/signup/setup", authz.Public, httpserver.NoContent(m.handler.checkInitialAdminSetupAvailable),
 		option.Summary("Check initial admin setup"),
 		option.Description("Succeeds while no admin has been set up yet and fails with setup_not_available afterwards"),
 		option.Tags("Users"),
 	)
-	r.Public().POST("/signup/setup", httpserver.BodyJSON(http.StatusOK, m.handler.signUpInitialAdmin),
+	r.POST("/signup/setup", authz.Public, httpserver.BodyJSON(http.StatusOK, m.handler.signUpInitialAdmin),
 		option.Summary("Sign up initial admin user"),
 		option.Description("Sign up and generate setup access token for initial admin user"),
 		option.Tags("Users"),

@@ -36,7 +36,7 @@ import (
 
 // testModule is a module that only builds for the end-to-end tests contain
 type testModule interface {
-	RegisterRoutes(r *authz.PublicRouter)
+	RegisterRoutes(r *authz.Router)
 }
 
 // newTestModule is set by builds for the end-to-end tests
@@ -214,11 +214,11 @@ func registerRoutes(r *gin.Engine, svc *services, auth *authz.Middleware, rateLi
 	svc.mcpModule.RegisterRoutes(baseRouter)
 
 	if svc.testModule != nil {
-		svc.testModule.RegisterRoutes(apiRouter.Public())
+		svc.testModule.RegisterRoutes(apiRouter)
 	}
 
 	// These are not rate-limited.
-	auth.Router(r.Group("/")).Public().GET("/healthz", httpserver.NoContent(func(*gin.Context) error { return nil }),
+	auth.Router(r.Group("/")).GET("/healthz", authz.Public, httpserver.NoContent(func(*gin.Context) error { return nil }),
 		option.Summary("Responds to healthchecks"),
 		option.Description("Responds with a successful status code to healthcheck requests"),
 		option.Tags("Health"),

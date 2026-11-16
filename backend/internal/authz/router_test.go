@@ -30,7 +30,7 @@ func TestIsDeclared(t *testing.T) {
 	api.Group("/api-keys").POST("", AccountAPIKeysCreate, noopEndpoint)
 	api.Group("/admin").Group("/deeper").DELETE("/:id", UsersWrite, noopEndpoint)
 	api.Optional().GET("/optional", AccountSession, noopEndpoint)
-	api.Public().POST("/signup", noopEndpoint)
+	api.POST("/signup", Public, noopEndpoint)
 	api.Use(noop).GET("/with-middleware", AccountRead, noopEndpoint)
 	m.Router(engine.Group("/")).Optional().GET("/authorize", AccountSession, noopEndpoint)
 
@@ -90,7 +90,8 @@ func TestRouterKeepsAdminScopesBelowTheAdminPrefix(t *testing.T) {
 
 	require.Panics(t, func() { r.GET("/users", UsersRead, noopEndpoint) })
 	require.Panics(t, func() { r.GET("/admin/me", AccountRead, noopEndpoint) })
-	require.Panics(t, func() { r.Public().GET("/admin/logo", noopEndpoint) })
+	require.Panics(t, func() { r.GET("/admin/logo", Public, noopEndpoint) })
+	require.Panics(t, func() { r.GET("/admin/version", Authenticated, noopEndpoint) })
 	require.Panics(t, func() { r.Dispatch(http.MethodPost, "/mcp", noop) })
 	require.NotPanics(t, func() { r.Group("/admin").GET("/users", UsersRead, noopEndpoint) })
 }

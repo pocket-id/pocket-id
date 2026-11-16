@@ -26,7 +26,7 @@ type TestEmailSender interface {
 func (s *AppConfigService) RegisterRoutes(r *authz.Router, base *gin.RouterGroup, emailSender TestEmailSender) {
 	acc := &handler{service: s, emailSender: emailSender}
 
-	r.Public().GET("/application-configuration", httpserver.JSON(http.StatusOK, acc.listAppConfigHandler),
+	r.GET("/application-configuration", authz.Public, httpserver.JSON(http.StatusOK, acc.listAppConfigHandler),
 		option.Summary("List public application configurations"),
 		option.Description("Get all public application configurations"),
 		option.Tags("Application Configuration"),

@@ -188,7 +188,7 @@ func (m *Module) RegisterRoutes(r *authz.Router, profilePictureSizeLimit gin.Han
 		option.Path("id", "User ID"),
 	)
 
-	r.Public().GET("/users/:id/profile-picture.png", httpserver.Handle(m.handler.getUserProfilePictureHandler),
+	r.GET("/users/:id/profile-picture.png", authz.Public, httpserver.Handle(m.handler.getUserProfilePictureHandler),
 		option.Summary("Get user profile picture"),
 		option.Description("Retrieve a specific user's profile picture"),
 		option.Tags("Users"),

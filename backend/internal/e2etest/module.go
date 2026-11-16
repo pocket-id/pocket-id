@@ -48,11 +48,11 @@ func New(deps Dependencies) (*Module, error) {
 }
 
 // RegisterRoutes mounts the endpoints the Playwright suite uses to reset the instance and to mint tokens
-func (m *Module) RegisterRoutes(r *authz.PublicRouter) {
-	r.POST("/test/reset", httpserver.Handle(m.handler.resetAndSeedHandler))
-	r.POST("/test/accesstoken", httpserver.Handle(m.handler.signAccessToken))
-	r.POST("/test/refreshtoken", httpserver.Handle(m.handler.signRefreshToken))
+func (m *Module) RegisterRoutes(r *authz.Router) {
+	r.POST("/test/reset", authz.Public, httpserver.Handle(m.handler.resetAndSeedHandler))
+	r.POST("/test/accesstoken", authz.Public, httpserver.Handle(m.handler.signAccessToken))
+	r.POST("/test/refreshtoken", authz.Public, httpserver.Handle(m.handler.signRefreshToken))
 
-	r.GET("/externalidp/jwks.json", httpserver.Handle(m.handler.externalIdPJWKS))
-	r.POST("/externalidp/sign", httpserver.Handle(m.handler.externalIdPSignToken))
+	r.GET("/externalidp/jwks.json", authz.Public, httpserver.Handle(m.handler.externalIdPJWKS))
+	r.POST("/externalidp/sign", authz.Public, httpserver.Handle(m.handler.externalIdPSignToken))
 }

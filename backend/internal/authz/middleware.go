@@ -54,7 +54,7 @@ func (m *Middleware) Router(group *gin.RouterGroup) *Router {
 	return &Router{group: group, auth: m}
 }
 
-// IsDeclared reports whether the route was registered through a Router or PublicRouter, so a test can compare gin's route table against the declarations
+// IsDeclared reports whether the route was registered through a Router, so a test can compare gin's route table against the declarations
 func (m *Middleware) IsDeclared(method, path string) bool {
 	_, ok := m.declared[routeKey(method, path)]
 	return ok
@@ -76,11 +76,18 @@ func routeKey(method, path string) string {
 	return method + " " + path
 }
 
-// require returns the handler that enforces the scope on a route
+// require returns the handler that enforces the access of a route that is not public
 // An optional route lets requests without a usable credential through as anonymous instead of rejecting them
-func (m *Middleware) require(scope Scope, optional bool) gin.HandlerFunc {
+func (m *Middleware) require(access Access, optional bool) gin.HandlerFunc {
+	// Authenticated routes accept every kind of credential and check no scope
+	scope, scoped := access.(Scope)
+	accepts := func(PrincipalKind) bool { return true }
+	if scoped {
+		accepts = scope.GrantableTo
+	}
+
 	return func(c *gin.Context) {
-		principal, rejectedKind, err := m.authenticate(c, scope.GrantableTo)
+		principal, rejectedKind, err := m.authenticate(c, accepts)
 		if err != nil {
 			c.Abort()
 			_ = c.Error(err)
@@ -100,7 +107,7 @@ func (m *Middleware) require(scope Scope, optional bool) gin.HandlerFunc {
 		}
 
 		// A valid credential without the scope is forbidden even on optional routes, so a caller is never silently downgraded to anonymous
-		if !principal.Scopes.Has(scope) {
+		if scoped && !principal.Scopes.Has(scope) {
 			c.Abort()
 			// A scope that is only withheld until the email is verified tells the user how to regain it
 			if principal.WithheldUntilVerified.Has(scope) {
@@ -141,26 +148,6 @@ func (m *Middleware) requireDispatch() gin.HandlerFunc {
 		if !principal.Scopes.hasAdmin() {
 			c.Abort()
 			_ = c.Error(apperror.MissingPermission())
-			return
-		}
-
-		SetPrincipal(c, principal)
-		c.Next()
-	}
-}
-
-// requireAuthenticated returns the handler of a route that every valid credential may call, whatever scopes it holds
-func (m *Middleware) requireAuthenticated() gin.HandlerFunc {
-	return func(c *gin.Context) {
-		principal, _, err := m.authenticate(c, func(PrincipalKind) bool { return true })
-		if err != nil {
-			c.Abort()
-			_ = c.Error(err)
-			return
-		}
-		if principal == nil {
-			c.Abort()
-			_ = c.Error(apperror.NotSignedIn())
 			return
 		}
 

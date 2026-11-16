@@ -89,8 +89,8 @@ func (m *Module) RegisterRoutes(r *authz.Router, loginRateLimit, reauthRateLimit
 	r.GET("/webauthn/register/start", authz.AccountPasskeysEnroll, httpserver.Handle(m.handler.beginRegistration))
 	r.POST("/webauthn/register/finish", authz.AccountPasskeysEnroll, httpserver.Handle(m.handler.verifyRegistration))
 
-	r.Public().GET("/webauthn/login/start", httpserver.Handle(m.handler.beginLogin))
-	r.With(loginRateLimit).Public().POST("/webauthn/login/finish", httpserver.Handle(m.handler.verifyLogin))
+	r.GET("/webauthn/login/start", authz.Public, httpserver.Handle(m.handler.beginLogin))
+	r.With(loginRateLimit).POST("/webauthn/login/finish", authz.Public, httpserver.Handle(m.handler.verifyLogin))
 
 	r.POST("/webauthn/logout", authz.AccountSession, httpserver.Handle(m.handler.logout))
 
@@ -100,7 +100,7 @@ func (m *Module) RegisterRoutes(r *authz.Router, loginRateLimit, reauthRateLimit
 	r.PATCH("/webauthn/credentials/:id", authz.AccountPasskeys, httpserver.Handle(m.handler.updateCredential))
 	r.DELETE("/webauthn/credentials/:id", authz.AccountPasskeys, httpserver.Handle(m.handler.deleteCredential))
 
-	r.Public().GET("/webauthn/authenticator-icons/:aaguid", httpserver.Handle(m.handler.getThemedAuthenticatorIcon))
+	r.GET("/webauthn/authenticator-icons/:aaguid", authz.Public, httpserver.Handle(m.handler.getThemedAuthenticatorIcon))
 }
 
 // ConsumeReauthenticationToken implements the OIDC module's ReauthenticationTokenConsumer interface

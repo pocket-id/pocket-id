@@ -86,13 +86,13 @@ func (m *Module) RegisterRoutes(r *authz.Router, exchangeRateLimit, emailRateLim
 		option.Tags("Users"),
 		option.Path("id", "User ID"),
 	)
-	r.With(exchangeRateLimit).Public().POST("/one-time-access-token", httpserver.BodyJSON(http.StatusOK, m.handler.exchangeToken),
+	r.With(exchangeRateLimit).POST("/one-time-access-token", authz.Public, httpserver.BodyJSON(http.StatusOK, m.handler.exchangeToken),
 		option.Summary("Exchange one-time access token"),
 		option.Description("Exchange a one-time access token for a session token"),
 		option.Tags("Users"),
 		option.QueryBool("remember", "Set to false for a session that ends when the browser closes or after 20 minutes without activity", param.Default(true)),
 	)
-	r.With(emailRateLimit).Public().POST("/one-time-access-email", httpserver.BodyNoContent(m.handler.requestEmailAsUnauthenticatedUser),
+	r.With(emailRateLimit).POST("/one-time-access-email", authz.Public, httpserver.BodyNoContent(m.handler.requestEmailAsUnauthenticatedUser),
 		option.Summary("Request one-time access email"),
 		option.Description("Request a one-time access email for unauthenticated users"),
 		option.Tags("Users"),

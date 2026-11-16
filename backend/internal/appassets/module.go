@@ -43,7 +43,7 @@ func (m *Module) RegisterRoutes(r *authz.Router, uploadLimit gin.HandlerFunc) {
 	// Every asset GET falls back to the bundled default unless asked not to
 	fallback := option.QueryBool("default", "Return the bundled default if no custom one is set", param.Default(true))
 
-	r.Public().GET("/application-assets/logo", httpserver.Handle(m.handler.getLogoHandler),
+	r.GET("/application-assets/logo", authz.Public, httpserver.Handle(m.handler.getLogoHandler),
 		option.Summary("Get logo image"),
 		option.Description("Get the logo image for the application"),
 		option.Tags("Application Assets"),
@@ -51,28 +51,28 @@ func (m *Module) RegisterRoutes(r *authz.Router, uploadLimit gin.HandlerFunc) {
 		fallback,
 		openapi.File("Logo image", imageTypes...),
 	)
-	r.Public().GET("/application-assets/email", httpserver.Handle(m.handler.getEmailLogoHandler),
+	r.GET("/application-assets/email", authz.Public, httpserver.Handle(m.handler.getEmailLogoHandler),
 		option.Summary("Get email logo image"),
 		option.Description("Get the email logo image for use in emails"),
 		option.Tags("Application Assets"),
 		fallback,
 		openapi.File("Email logo image", "image/png", "image/jpeg"),
 	)
-	r.Public().GET("/application-assets/background", httpserver.Handle(m.handler.getBackgroundImageHandler),
+	r.GET("/application-assets/background", authz.Public, httpserver.Handle(m.handler.getBackgroundImageHandler),
 		option.Summary("Get background image"),
 		option.Description("Get the background image for the application"),
 		option.Tags("Application Assets"),
 		fallback,
 		openapi.File("Background image", imageTypes...),
 	)
-	r.Public().GET("/application-assets/favicon", httpserver.Handle(m.handler.getFaviconHandler),
+	r.GET("/application-assets/favicon", authz.Public, httpserver.Handle(m.handler.getFaviconHandler),
 		option.Summary("Get favicon"),
 		option.Description("Get the favicon for the application"),
 		option.Tags("Application Assets"),
 		fallback,
 		openapi.File("Favicon image", "image/svg+xml", "image/png", "image/x-icon"),
 	)
-	r.Public().GET("/application-assets/font", httpserver.Handle(m.handler.getFontHandler),
+	r.GET("/application-assets/font", authz.Public, httpserver.Handle(m.handler.getFontHandler),
 		option.Summary("Get title font"),
 		option.Description("Get the custom font of page and dialog titles"),
 		option.Tags("Application Assets"),

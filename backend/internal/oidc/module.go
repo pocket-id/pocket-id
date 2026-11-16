@@ -220,41 +220,41 @@ func (m *Module) RegisterRoutes(root, api *authz.Router, logoSizeLimit, protectP
 	authorize.GET("/authorize", authz.AccountAuthorize, httpserver.Endpoint{Handler: m.authorizationHandler.authorize})
 	authorize.POST("/authorize", authz.AccountAuthorize, httpserver.Endpoint{Handler: m.authorizationHandler.authorize})
 
-	root.Public().GET("/.well-known/jwks.json", httpserver.Handle(m.discoveryHandler.jwksHandler),
+	root.GET("/.well-known/jwks.json", authz.Public, httpserver.Handle(m.discoveryHandler.jwksHandler),
 		option.Summary("Get JSON Web Key Set (JWKS)"),
 		option.Description("Returns the JSON Web Key Set used for token verification"),
 		option.Tags("Well Known"),
 		openapi.Response[map[string]any](http.StatusOK, "{ \"keys\": []interface{} }"),
 	)
-	root.Public().GET("/.well-known/openid-configuration", httpserver.Handle(m.discoveryHandler.openIDConfigurationHandler),
+	root.GET("/.well-known/openid-configuration", authz.Public, httpserver.Handle(m.discoveryHandler.openIDConfigurationHandler),
 		option.Summary("Get OpenID Connect discovery configuration"),
 		option.Description("Returns the OpenID Connect discovery document with endpoints and capabilities"),
 		option.Tags("Well Known"),
 		openapi.Response[map[string]any](http.StatusOK, "OpenID Connect configuration"),
 	)
-	root.Public().GET("/.well-known/oauth-authorization-server", httpserver.Handle(m.discoveryHandler.oauthAuthorizationServerHandler),
+	root.GET("/.well-known/oauth-authorization-server", authz.Public, httpserver.Handle(m.discoveryHandler.oauthAuthorizationServerHandler),
 		option.Summary("Get OAuth 2.0 authorization server metadata"),
 		option.Description("Returns the RFC 8414 OAuth 2.0 authorization server metadata document with endpoints and capabilities"),
 		option.Tags("Well Known"),
 		openapi.Response[map[string]any](http.StatusOK, "OAuth 2.0 authorization server metadata"),
 	)
 
-	api.Public().GET("/oidc/interactions/:id", httpserver.Endpoint{Handler: m.authorizationHandler.getInteractionSession})
+	api.GET("/oidc/interactions/:id", authz.Public, httpserver.Endpoint{Handler: m.authorizationHandler.getInteractionSession})
 	api.POST("/oidc/interactions/:id/complete", authz.AccountAuthorize, httpserver.Endpoint{Handler: m.authorizationHandler.completeInteraction})
 
-	api.Public().POST("/oidc/par", httpserver.Endpoint{Handler: m.parHandler.pushedAuthorizationRequest})
+	api.POST("/oidc/par", authz.Public, httpserver.Endpoint{Handler: m.parHandler.pushedAuthorizationRequest})
 
-	api.Public().POST("/oidc/token", httpserver.Endpoint{Handler: m.tokenHandler.token})
+	api.POST("/oidc/token", authz.Public, httpserver.Endpoint{Handler: m.tokenHandler.token})
 
-	api.Public().GET("/oidc/userinfo", httpserver.Endpoint{Handler: m.userInfoHandler.userInfo},
+	api.GET("/oidc/userinfo", authz.Public, httpserver.Endpoint{Handler: m.userInfoHandler.userInfo},
 		option.Summary("Get user information"),
 		option.Description("Get user information based on the access token"),
 		option.Tags("OIDC"),
 		openapi.Response[map[string]any](http.StatusOK, "User claims based on requested scopes"),
 	)
-	api.Public().POST("/oidc/userinfo", httpserver.Endpoint{Handler: m.userInfoHandler.userInfo})
+	api.POST("/oidc/userinfo", authz.Public, httpserver.Endpoint{Handler: m.userInfoHandler.userInfo})
 
-	api.Public().POST("/oidc/introspect", httpserver.Endpoint{Handler: m.introspectionHandler.introspectToken},
+	api.POST("/oidc/introspect", authz.Public, httpserver.Endpoint{Handler: m.introspectionHandler.introspectToken},
 		option.Summary("Introspect OIDC tokens"),
 		option.Description("Pass a token to verify if it is considered valid."),
 		option.Tags("OIDC"),
@@ -267,7 +267,7 @@ func (m *Module) RegisterRoutes(root, api *authz.Router, logoSizeLimit, protectP
 	api.Optional().GET("/oidc/end-session/request", authz.AccountSession, httpserver.Endpoint{Handler: m.endSessionHandler.getEndSessionRequest})
 	api.Optional().POST("/oidc/end-session/confirm", authz.AccountSession, httpserver.Endpoint{Handler: m.endSessionHandler.confirmEndSession})
 
-	api.Public().POST("/oidc/device/authorize", httpserver.Endpoint{Handler: m.deviceHandler.authorizeDevice})
+	api.POST("/oidc/device/authorize", authz.Public, httpserver.Endpoint{Handler: m.deviceHandler.authorizeDevice})
 	api.POST("/oidc/device/verify", authz.AccountAuthorize, httpserver.Endpoint{Handler: m.deviceHandler.verifyDeviceCode})
 	api.GET("/oidc/device/info", authz.AccountAuthorize, httpserver.Endpoint{Handler: m.deviceHandler.deviceCodeInfo})
 
@@ -350,7 +350,7 @@ func (m *Module) RegisterRoutes(root, api *authz.Router, logoSizeLimit, protectP
 		option.Path("secretId", "Client secret ID"),
 	)
 
-	api.Public().GET("/oidc/clients/:id/logo", httpserver.Handle(m.clientHandler.getClientLogoHandler),
+	api.GET("/oidc/clients/:id/logo", authz.Public, httpserver.Handle(m.clientHandler.getClientLogoHandler),
 		option.Summary("Get client logo"),
 		option.Description("Get the logo image for an OIDC client"),
 		option.Tags("OIDC"),
