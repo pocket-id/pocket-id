@@ -261,6 +261,40 @@ test('Pick OIDC client logo from the icon library', async ({ page }) => {
 	expect(body.darkLogoUrl).toBe(nextcloud.darkLogoUrl);
 });
 
+test('Icon library keeps the color icon for dark mode unless it blends into the background', async ({
+	page
+}) => {
+	const cdnBaseUrl = 'https://cdn.jsdelivr.net/gh/selfhst/icons@main';
+	const preset = (name: string, reference: string) => ({
+		name,
+		reference,
+		logoUrl: `${cdnBaseUrl}/svg/${reference}.svg`,
+		darkLogoUrl: `${cdnBaseUrl}/svg/${reference}-light.svg`
+	});
+	const blueApp = preset('Blue App', 'blue-app');
+	const blackApp = preset('Black App', 'black-app');
+
+	await page.route('**/api/admin/oidc/logo-presets*', (route) =>
+		route.fulfill({ json: [blueApp, blackApp] })
+	);
+	// The CDN sends the CORS header the picker needs to read the pixels of an icon
+	await page.route(`${cdnBaseUrl}/**`, (route) =>
+		route.fulfill({
+			contentType: 'image/svg+xml',
+			headers: { 'access-control-allow-origin': '*' },
+			body: `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1 1"><rect width="1" height="1" fill="${route.request().url() === blackApp.logoUrl ? '#000' : '#0082c9'}"/></svg>`
+		})
+	);
+
+	await page.goto(`/settings/admin/oidc-clients/${oidcClients.nextcloud.id}`);
+	await page.getByRole('button', { name: 'Choose logo' }).click();
+
+	// The dark half of a tile shows the logo that picking the icon sets for dark mode
+	const darkHalf = (name: string) => page.getByRole('option', { name }).locator('img').nth(1);
+	await expect(darkHalf(blueApp.name)).toHaveAttribute('src', blueApp.logoUrl);
+	await expect(darkHalf(blackApp.name)).toHaveAttribute('src', blackApp.darkLogoUrl);
+});
+
 test('Paste an image URL into the OIDC client logo picker', async ({ page }) => {
 	const oidcClient = oidcClients.nextcloud;
 	const darkLogoUrl = 'https://example.com/nextcloud-dark.svg';
