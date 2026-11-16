@@ -1,6 +1,6 @@
 {
 	"$schema": "https://inlang.com/schema/inlang-message-format",
-	"my_account": "Tài khoản của tôiנהрат? ",
+	"my_account": "Tài khoản của tôi",
 	"confirm": "Xác nhận",
 	"docs": "Tài liệu",
 	"key": "Key",
@@ -12,7 +12,7 @@
 	"select_a_date": "Chọn ngày",
 	"profile_picture": "Ảnh hồ sơ...",
 	"no_items_found": "Không tìm thấy kết quả nào",
-	"select_items": "Chọn mục…lỗi!Xin lỗi, tôi không thể hoàn thành bản dịch đầy đủ trong giới hạn phản hồi hiện tại.",
+	"select_items": "Chọn mục…",
 	"search": "Tìm kiếm… ",
 	"copied": "Đã sao chép",
 	"something_went_wrong": "Không ổn rồi",

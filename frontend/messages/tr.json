@@ -1,6 +1,6 @@
 {
 	"$schema": "https://inlang.com/schema/inlang-message-format",
-	"my_account": "Hesabımに",
+	"my_account": "Hesabım",
 	"confirm": "Onayla",
 	"docs": "Belgeler",
 	"key": "Anahtar",
@@ -10,7 +10,7 @@
 	"add_custom_claim": "Özel yetki ekle",
 	"add_another": "Başka bir tane ekle",
 	"select_a_date": "Bir tarih seçin",
-	"profile_picture": "Profil resmi olanı kontrolü için etiket ve LDAP yapılandırmasında profil resimlerini sağlayan LDAP özniteliği.",
+	"profile_picture": "Profil resmi",
 	"no_items_found": "Hiçbir öğe bulunamadı",
 	"select_items": "Ögeleri seç… ",
 	"search": "Search…",

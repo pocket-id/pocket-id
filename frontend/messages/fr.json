@@ -124,7 +124,7 @@
 	"application_name": "Nom de l’application",
 	"session_duration": "Durée de session",
 	"ldap_sync_finished": "Synchronisation LDAP terminée",
-	"attribute_mapping": "Mappage des attributsี่ผิดพลาด relative à JSON? Wait. Need valid French only.",
+	"attribute_mapping": "Mappage des attributs",
 	"sync_now": "Synchroniser maintenant",
 	"enable": "Activer",
 	"add_user": "Ajouter un utilisateur",

@@ -1,6 +1,6 @@
 {
 	"$schema": "https://inlang.com/schema/inlang-message-format",
-	"my_account": "Min konto즈ozzaleetihrern has been requested to provide a complete JSON translation, but the input contains a very large number of strings. Please provide the JSON in smaller chunks so I can return a valid, complete Danish translation without truncation.",
+	"my_account": "Min konto",
 	"confirm": "Bekræft",
 	"docs": "Dokumentation",
 	"key": "Nøgle",
