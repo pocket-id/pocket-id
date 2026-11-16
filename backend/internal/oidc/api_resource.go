@@ -42,6 +42,8 @@ type APIAccessProvider interface {
 	// HeldScopes drops the scopes of the API identified by audience that the user can never hold, which only applies to Pocket ID's own API whose scopes follow the user's role
 	// It keeps a user from being asked to consent to, or being granted, scopes that Pocket ID would refuse anyway
 	HeldScopes(ctx context.Context, tx *gorm.DB, userID, audience string, scopes []string) ([]string, error)
+	// RequireAdminAccessForClients rejects a principal without admin access that changes clients of which any may use Pocket ID's own API
+	RequireAdminAccessForClients(ctx context.Context, tx *gorm.DB, principal authz.Principal, clientIDs ...string) error
 }
 
 // resolveResource maps an RFC 8707 resource, which may be empty, to the audience to stamp on the issued token and the subset of requestedScopes that may be granted
@@ -136,6 +138,12 @@ func canonicalResource(resource string) string {
 		return authz.ResourceURI(common.EnvConfig.AppURL)
 	}
 	return resource
+}
+
+// grantsAdminAccess reports whether a grant lets its client decide who holds admin access through Pocket ID's own API
+// Such a grant outlives the browser session it is approved in, so the user proves their passkey for it like for a client that requires reauthentication
+func grantsAdminAccess(audience string, scopes []string) bool {
+	return audience == authz.ResourceURI(common.EnvConfig.AppURL) && slices.Contains(scopes, string(authz.AdminAccessWrite))
 }
 
 // grantResourceIndicator applies a resolved resource audience and scopes to the request

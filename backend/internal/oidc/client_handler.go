@@ -20,6 +20,7 @@ import (
 type clientHandler struct {
 	service   *clientService
 	appConfig appconfig.AppConfigResolver
+	apiAccess APIAccessProvider
 }
 
 func (h *clientHandler) getClientHandler(c *gin.Context) (dto.OidcClientWithAllowedUserGroupsDto, error) {

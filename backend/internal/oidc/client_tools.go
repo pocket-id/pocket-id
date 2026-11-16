@@ -52,7 +52,7 @@ type clientIDInput struct {
 
 type createClientInput struct {
 	Name                string   `json:"name" jsonschema:"Name of the app"`
-	Description         string   `json:"description,omitempty"`
+	Notes               string   `json:"notes,omitempty" jsonschema:"Notes for admins about the app, such as how its sign-in is set up, which users never see"`
 	CallbackURLs        []string `json:"callbackURLs,omitempty" jsonschema:"URLs the app may redirect to after sign-in, where * matches any characters"`
 	LogoutCallbackURLs  []string `json:"logoutCallbackURLs,omitempty" jsonschema:"URLs the app may redirect to after sign-out"`
 	IsPublic            bool     `json:"isPublic,omitempty" jsonschema:"Whether the app can't keep a secret, such as a single-page or mobile app. Public clients have no secret and must use PKCE"`
@@ -64,7 +64,7 @@ type createClientInput struct {
 type updateClientInput struct {
 	ID                  string    `json:"id" jsonschema:"ID of the OIDC client"`
 	Name                *string   `json:"name,omitempty"`
-	Description         *string   `json:"description,omitempty"`
+	Notes               *string   `json:"notes,omitempty" jsonschema:"Notes for admins about the app, such as how its sign-in is set up, which users never see"`
 	CallbackURLs        *[]string `json:"callbackURLs,omitempty" jsonschema:"URLs the app may redirect to after sign-in, replacing the current ones"`
 	LogoutCallbackURLs  *[]string `json:"logoutCallbackURLs,omitempty" jsonschema:"URLs the app may redirect to after sign-out, replacing the current ones"`
 	IsPublic            *bool     `json:"isPublic,omitempty"`
@@ -78,7 +78,6 @@ type updateClientInput struct {
 type clientSummary struct {
 	ID                string  `json:"id"`
 	Name              string  `json:"name"`
-	Description       string  `json:"description"`
 	LaunchURL         *string `json:"launchURL"`
 	IsPublic          bool    `json:"isPublic"`
 	IsGroupRestricted bool    `json:"isGroupRestricted"`
@@ -120,7 +119,7 @@ func (h *clientHandler) getClientTool(ctx context.Context, _ mcp.Call, input cli
 func (h *clientHandler) createClientTool(ctx context.Context, call mcp.Call, input createClientInput) (any, error) {
 	createDto := dto.OidcClientCreateDto{OidcClientUpdateDto: dto.OidcClientUpdateDto{
 		Name:               input.Name,
-		Description:        input.Description,
+		Notes:              input.Notes,
 		CallbackURLs:       input.CallbackURLs,
 		LogoutCallbackURLs: input.LogoutCallbackURLs,
 		IsPublic:           input.IsPublic,
@@ -153,6 +152,10 @@ func (h *clientHandler) createClientTool(ctx context.Context, call mcp.Call, inp
 }
 
 func (h *clientHandler) updateClientTool(ctx context.Context, call mcp.Call, input updateClientInput) (any, error) {
+	if err := h.apiAccess.RequireAdminAccessForClients(ctx, nil, call.Principal, input.ID); err != nil {
+		return nil, err
+	}
+
 	// Assign the groups before the restriction takes effect, otherwise turning it on would log their members out of the client
 	if input.AllowedUserGroupIDs != nil && len(*input.AllowedUserGroupIDs) > 0 {
 		_, err := h.service.UpdateAllowedUserGroups(ctx, input.ID, dto.OidcUpdateAllowedUserGroupsDto{UserGroupIDs: *input.AllowedUserGroupIDs}, auditlogs.OriginFromMCP(call))
@@ -168,7 +171,7 @@ func (h *clientHandler) updateClientTool(ctx context.Context, call mcp.Call, inp
 			return updateDto, err
 		}
 		mcp.SetIfPresent(&updateDto.Name, input.Name)
-		mcp.SetIfPresent(&updateDto.Description, input.Description)
+		mcp.SetIfPresent(&updateDto.Notes, input.Notes)
 		mcp.SetIfPresent(&updateDto.CallbackURLs, input.CallbackURLs)
 		mcp.SetIfPresent(&updateDto.LogoutCallbackURLs, input.LogoutCallbackURLs)
 		mcp.SetIfPresent(&updateDto.IsPublic, input.IsPublic)
@@ -189,6 +192,9 @@ func (h *clientHandler) updateClientTool(ctx context.Context, call mcp.Call, inp
 }
 
 func (h *clientHandler) deleteClientTool(ctx context.Context, call mcp.Call, input clientIDInput) (any, error) {
+	if err := h.apiAccess.RequireAdminAccessForClients(ctx, nil, call.Principal, input.ID); err != nil {
+		return nil, err
+	}
 	if err := h.service.DeleteClient(ctx, input.ID, auditlogs.OriginFromMCP(call)); err != nil {
 		return nil, err
 	}

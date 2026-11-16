@@ -19,7 +19,7 @@ func (m *Module) RegisterTools(t *mcp.Tools) {
 		Name:        "create_login_link",
 		Description: "Create a one-time login link for a user, for example so a new user can sign in and add a passkey, or a user who lost their passkey can add a new one. With sendEmail, the link is emailed to the user instead of returned.",
 		Effect:      mcp.Write,
-	}, authz.UsersWrite, m.handler.createLoginLinkTool)
+	}, authz.UsersLoginCodes, m.handler.createLoginLinkTool)
 }
 
 type createLoginLinkInput struct {

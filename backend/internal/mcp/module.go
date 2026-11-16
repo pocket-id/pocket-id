@@ -59,15 +59,22 @@ func New(deps Dependencies) *Module {
 }
 
 func (m *Module) RegisterRoutes(r *authz.Router) {
+	// A 308 keeps the method, the body and the same-origin Authorization header, so clients reach the endpoint through the URL they were given
+	// The resource stays MCPPath, because clients refuse protected resource metadata that names another URL than the one they connect to
 	for _, method := range []string{http.MethodPost, http.MethodGet, http.MethodDelete} {
-		r.Dispatch(method, authz.MCPPath, m.serve)
+		r.Dispatch(method, authz.MCPEndpointPath, m.serve)
+		r.Handle(method, authz.MCPPath, authz.Public, httpserver.Endpoint{Handler: redirectToEndpoint})
 	}
-	r.Public().GET(authz.MCPResourceMetadataPath, httpserver.Endpoint{Handler: protectedResourceMetadata},
+	r.GET(authz.MCPResourceMetadataPath, authz.Public, httpserver.Endpoint{Handler: protectedResourceMetadata},
 		option.Summary("Get OAuth 2.0 protected resource metadata of the MCP endpoint"),
 		option.Description("Returns the RFC 9728 protected resource metadata of Pocket ID's MCP endpoint, which MCP clients use to find the authorization server and the scopes they can request"),
 		option.Tags("Well Known"),
 		openapi.Response[map[string]any](http.StatusOK, "OAuth 2.0 protected resource metadata"),
 	)
+}
+
+func redirectToEndpoint(c *gin.Context) {
+	c.Redirect(http.StatusPermanentRedirect, authz.MCPEndpointPath)
 }
 
 func (m *Module) serve(c *gin.Context) {

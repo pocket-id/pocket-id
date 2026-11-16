@@ -13,6 +13,7 @@ import (
 	"github.com/pocket-id/pocket-id/backend/internal/appconfig"
 	"github.com/pocket-id/pocket-id/backend/internal/apperror"
 	"github.com/pocket-id/pocket-id/backend/internal/auditlogs"
+	"github.com/pocket-id/pocket-id/backend/internal/authz"
 	"github.com/pocket-id/pocket-id/backend/internal/dto"
 	"github.com/pocket-id/pocket-id/backend/internal/model"
 	"github.com/pocket-id/pocket-id/backend/internal/utils"
@@ -20,7 +21,7 @@ import (
 )
 
 func TestGetReturnsUserGroupNotFound(t *testing.T) {
-	groupService := newService(testutils.NewDatabaseForTest(t), nil, nil, &fakeAuditLogger{})
+	groupService := newService(testutils.NewDatabaseForTest(t), nil, nil, &fakeAuditLogger{}, noPocketIDClients{})
 
 	_, err := groupService.Get(t.Context(), "missing-group")
 	require.True(t, apperror.IsCode(err, apperror.CodeNotFound))
@@ -30,7 +31,7 @@ func TestGetReturnsUserGroupNotFound(t *testing.T) {
 }
 
 func TestUserGroupListSearchMatchesFriendlyName(t *testing.T) {
-	groupService := newService(testutils.NewDatabaseForTest(t), nil, nil, &fakeAuditLogger{})
+	groupService := newService(testutils.NewDatabaseForTest(t), nil, nil, &fakeAuditLogger{}, noPocketIDClients{})
 
 	_, err := groupService.Create(t.Context(), dto.UserGroupCreateDto{
 		Name:         "qa_team",
@@ -61,7 +62,7 @@ func TestUserGroupListSearchMatchesFriendlyName(t *testing.T) {
 
 func TestChangeUsersKeepsConcurrentChanges(t *testing.T) {
 	testutils.ForEachDatabase(t, func(t *testing.T, db *gorm.DB) {
-		groupService := newService(db, nil, nil, &fakeAuditLogger{})
+		groupService := newService(db, nil, nil, &fakeAuditLogger{}, noPocketIDClients{})
 		group, err := groupService.Create(t.Context(), dto.UserGroupCreateDto{Name: "family", FriendlyName: "Family"}, auditlogs.Origin{})
 		require.NoError(t, err)
 
@@ -109,7 +110,7 @@ func (f *fakeAuditLogger) Record(_ context.Context, event auditlogs.Event, _ aud
 func TestMembershipAndClientChangesAreRecorded(t *testing.T) {
 	db := testutils.NewDatabaseForTest(t)
 	auditLog := &fakeAuditLogger{}
-	groupService := newService(db, nil, nil, auditLog)
+	groupService := newService(db, nil, nil, auditLog, noPocketIDClients{})
 	leaver := model.User{Username: "leaver"}
 	joiner := model.User{Username: "joiner"}
 	require.NoError(t, db.Create(&leaver).Error)
@@ -133,7 +134,7 @@ func TestMembershipAndClientChangesAreRecorded(t *testing.T) {
 
 func TestUpdatesGroupWithThousandsOfMembers(t *testing.T) {
 	db := testutils.NewDatabaseForTest(t)
-	groupService := newService(db, nil, nil, &fakeAuditLogger{})
+	groupService := newService(db, nil, nil, &fakeAuditLogger{}, noPocketIDClients{})
 	group, err := groupService.Create(t.Context(), dto.UserGroupCreateDto{Name: "staff", FriendlyName: "Staff"}, auditlogs.Origin{})
 	require.NoError(t, err)
 
@@ -157,4 +158,24 @@ func TestUpdatesGroupWithThousandsOfMembers(t *testing.T) {
 	memberIDs, err := groupService.memberIDs(t.Context(), db, group.ID)
 	require.NoError(t, err)
 	require.ElementsMatch(t, userIDs, memberIDs)
+}
+
+func TestLdapSyncKeepsGroupNotes(t *testing.T) {
+	db := testutils.NewDatabaseForTest(t)
+	groupService := newService(db, nil, nil, &fakeAuditLogger{}, noPocketIDClients{})
+	group, err := groupService.Create(t.Context(), dto.UserGroupCreateDto{Name: "staff", FriendlyName: "Staff", Notes: "Everyone on payroll"}, auditlogs.Origin{})
+	require.NoError(t, err)
+
+	// LDAP sends no notes, so a sync must not clear the ones an admin wrote
+	group, err = groupService.updateInternal(t.Context(), group.ID, dto.UserGroupCreateDto{Name: "staff", FriendlyName: "All staff"}, true, db, &appconfig.AppConfigModel{})
+	require.NoError(t, err)
+	require.Equal(t, "All staff", group.FriendlyName)
+	require.Equal(t, "Everyone on payroll", group.Notes)
+}
+
+// noPocketIDClients treats every client as one without access to Pocket ID's own API
+type noPocketIDClients struct{}
+
+func (noPocketIDClients) RequireAdminAccessForClients(context.Context, *gorm.DB, authz.Principal, ...string) error {
+	return nil
 }

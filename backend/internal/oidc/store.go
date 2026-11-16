@@ -211,21 +211,8 @@ func (s *Store) StoreCIMDClient(ctx context.Context, resolved fosite.Client, _ *
 		// No back-channel logout tokens are sent here, which is safe only because CIMD clients cannot register a backchannel_logout_url today
 		// If that URL is ever mapped from the metadata document, resolve the notifications before this delete removes the rows
 		if revokeConsent {
-			err := s.dbFor(ctx).
-				Where("client_id = ?", client.ID).
-				Delete(&model.UserAuthorizedOidcClient{}).
-				Error
-			if err != nil {
-				return fmt.Errorf("failed to revoke consent after metadata change: %w", err)
-			}
-
-			// Users revoke tokens through their consent, so the tokens issued under it must go with it
-			err = s.dbFor(ctx).
-				Where("client_id = ?", client.ID).
-				Delete(&OAuth2Session{}).
-				Error
-			if err != nil {
-				return fmt.Errorf("failed to revoke tokens after metadata change: %w", err)
+			if _, err := s.revokeClientGrants(ctx, client.ID); err != nil {
+				return err
 			}
 		}
 
@@ -255,6 +242,26 @@ func (s *Store) StoreCIMDClient(ctx context.Context, resolved fosite.Client, _ *
 	}
 
 	return stored, nil
+}
+
+// revokeClientGrants deletes every consent users gave to a client together with the tokens issued under it, and returns how many of both it deleted
+// The caller runs it in a transaction so a client never keeps tokens whose consent is gone
+func (s *Store) revokeClientGrants(ctx context.Context, clientID string) (int64, error) {
+	consents := s.dbFor(ctx).
+		Where("client_id = ?", clientID).
+		Delete(&model.UserAuthorizedOidcClient{})
+	if consents.Error != nil {
+		return 0, fmt.Errorf("failed to revoke the consent of the client: %w", consents.Error)
+	}
+
+	// Users revoke tokens through their consent, so the tokens issued under it must go with it
+	tokens := s.dbFor(ctx).
+		Where("client_id = ?", clientID).
+		Delete(&OAuth2Session{})
+	if tokens.Error != nil {
+		return 0, fmt.Errorf("failed to revoke the tokens of the client: %w", tokens.Error)
+	}
+	return consents.RowsAffected + tokens.RowsAffected, nil
 }
 
 // metadataClientChanges returns the names of security-relevant metadata fields that differ between the stored client and a freshly fetched one

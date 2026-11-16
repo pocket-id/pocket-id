@@ -14,7 +14,9 @@ import (
 	"github.com/pocket-id/pocket-id/backend/internal/appconfig"
 	"github.com/pocket-id/pocket-id/backend/internal/apperror"
 	"github.com/pocket-id/pocket-id/backend/internal/auditlogs"
+	"github.com/pocket-id/pocket-id/backend/internal/authz"
 	"github.com/pocket-id/pocket-id/backend/internal/model"
+	"github.com/pocket-id/pocket-id/backend/internal/utils"
 	testutils "github.com/pocket-id/pocket-id/backend/internal/utils/testing"
 )
 
@@ -139,7 +141,7 @@ func TestExchangeTokenSuccess(t *testing.T) {
 	}
 	require.NoError(t, db.Create(&user).Error)
 
-	token, err := StoreToken(t.Context(), svc.actorService, user.ID, time.Minute, nil)
+	token, err := StoreToken(t.Context(), svc.actorService, user.ID, time.Minute, nil, false)
 	require.NoError(t, err)
 
 	dbConfig := appconfig.NewTestConfig(nil)
@@ -154,7 +156,7 @@ func TestExchangeTokenSuccess(t *testing.T) {
 
 	// The token must have been consumed
 	var state TokenState
-	err = host.GetState(t.Context(), TokenActorType, token, &state)
+	err = host.GetState(t.Context(), TokenActorType, utils.CreateSha256Hash(token), &state)
 	require.ErrorIs(t, err, actor.ErrStateNotFound)
 
 	// A sign-in audit log must have been created
@@ -171,8 +173,7 @@ func TestExchangeTokenAcceptsAmbiguousAliases(t *testing.T) {
 	}
 	require.NoError(t, db.Create(&user).Error)
 
-	const token = "a10bc2"
-	require.NoError(t, host.SetState(t.Context(), TokenActorType, token, TokenState{
+	require.NoError(t, host.SetState(t.Context(), TokenActorType, utils.CreateSha256Hash("a10bc2"), TokenState{
 		UserID:    user.ID,
 		ExpiresAt: time.Now().Add(time.Minute),
 	}, &actor.SetStateOpts{TTL: time.Minute}))
@@ -204,7 +205,7 @@ func TestExchangeTokenDeviceMismatch(t *testing.T) {
 	require.NoError(t, db.Create(&user).Error)
 
 	// Store a token that requires a device token
-	token, err := StoreToken(t.Context(), svc.actorService, user.ID, time.Minute, new("device-token"))
+	token, err := StoreToken(t.Context(), svc.actorService, user.ID, time.Minute, new("device-token"), false)
 	require.NoError(t, err)
 
 	dbConfig := appconfig.NewTestConfig(nil)
@@ -214,9 +215,14 @@ func TestExchangeTokenDeviceMismatch(t *testing.T) {
 
 	// The token must not have been consumed on a device-token mismatch
 	var state TokenState
-	err = host.GetState(t.Context(), TokenActorType, token, &state)
+	err = host.GetState(t.Context(), TokenActorType, utils.CreateSha256Hash(token), &state)
 	require.NoError(t, err)
 	require.Equal(t, user.ID, state.UserID)
+
+	// The state store must hold neither the token nor the device token, so reading it doesn't hand out a working login code
+	require.Equal(t, utils.CreateSha256Hash("device-token"), *state.DeviceToken)
+	err = host.GetState(t.Context(), TokenActorType, token, &TokenState{})
+	require.ErrorIs(t, err, actor.ErrStateNotFound)
 }
 
 func TestExchangeTokenRejectsDisabledUser(t *testing.T) {
@@ -231,7 +237,7 @@ func TestExchangeTokenRejectsDisabledUser(t *testing.T) {
 	require.NoError(t, db.Create(&user).Error)
 
 	// Store a one-time access token for the disabled user in the actor state store
-	token, err := StoreToken(t.Context(), svc.actorService, user.ID, time.Minute, nil)
+	token, err := StoreToken(t.Context(), svc.actorService, user.ID, time.Minute, nil, false)
 	require.NoError(t, err)
 
 	dbConfig := appconfig.NewTestConfig(nil)
@@ -243,7 +249,7 @@ func TestExchangeTokenRejectsDisabledUser(t *testing.T) {
 
 	// The token must have been restored (not consumed), since the exchange failed because the user is disabled
 	var state TokenState
-	err = host.GetState(t.Context(), TokenActorType, token, &state)
+	err = host.GetState(t.Context(), TokenActorType, utils.CreateSha256Hash(token), &state)
 	require.NoError(t, err)
 	require.Equal(t, user.ID, state.UserID)
 
@@ -259,4 +265,49 @@ func (f *fakeAuditLogger) CreateSignIn(ctx context.Context, event auditlogs.Even
 
 func (f *fakeAuditLogger) SendSignInNotification(_ context.Context, result auditlogs.SignInResult) {
 	f.notifications = append(f.notifications, result)
+}
+
+func TestLoginCodesForAdminsRequireAdminAccess(t *testing.T) {
+	db := testutils.NewDatabaseForTest(t)
+	svc, _, _ := newServiceForTest(t, db)
+	admin := model.User{Username: "admin", Email: new("admin@example.com"), IsAdmin: true}
+	require.NoError(t, db.Create(&admin).Error)
+	member := model.User{Username: "member"}
+	require.NoError(t, db.Create(&member).Error)
+	loginCodes := auditlogs.Origin{Principal: authz.Principal{Scopes: authz.NewScopeSet(authz.UsersLoginCodes)}}
+	dbConfig := appconfig.NewTestConfig(nil)
+	dbConfig.EmailOneTimeAccessAsAdminEnabled = "true"
+
+	// Neither a link nor an emailed code may be created for an admin
+	_, err := svc.CreateToken(t.Context(), admin.ID, time.Minute, loginCodes)
+	require.True(t, apperror.IsCode(err, apperror.CodeForbidden), err)
+	err = svc.RequestOneTimeAccessEmailAsAdmin(t.Context(), dbConfig, admin.ID, time.Minute, loginCodes)
+	require.True(t, apperror.IsCode(err, apperror.CodeForbidden), err)
+
+	// A code created for a regular user stops working once they become an admin
+	token, err := svc.CreateToken(t.Context(), member.ID, time.Minute, loginCodes)
+	require.NoError(t, err)
+	require.NoError(t, db.Model(&member).Update("is_admin", true).Error)
+	_, _, err = svc.ExchangeToken(t.Context(), dbConfig, token, "", "1.2.3.4", "test-agent", "", false)
+	require.True(t, apperror.IsCode(err, apperror.CodeTokenInvalidOrExpired), err)
+}
+
+func TestLoginCodesForAdminsRequireSudoModeFromSessions(t *testing.T) {
+	db := testutils.NewDatabaseForTest(t)
+	svc, _, _ := newServiceForTest(t, db)
+	admin := model.User{Username: "admin", IsAdmin: true}
+	require.NoError(t, db.Create(&admin).Error)
+	member := model.User{Username: "member"}
+	require.NoError(t, db.Create(&member).Error)
+
+	// Signing in as an admin hands over their access, while a code for a regular user is everyday admin work
+	session := auditlogs.Origin{Principal: authz.Principal{Kind: authz.KindSession, Scopes: authz.NewScopeSet(authz.UsersLoginCodes, authz.AdminAccessWrite)}}
+	_, err := svc.CreateToken(t.Context(), admin.ID, time.Minute, session)
+	require.True(t, apperror.IsCode(err, apperror.CodeSudoRequired), err)
+	_, err = svc.CreateToken(t.Context(), member.ID, time.Minute, session)
+	require.NoError(t, err)
+
+	session.Principal.SudoUntil = time.Now().Add(time.Minute)
+	_, err = svc.CreateToken(t.Context(), admin.ID, time.Minute, session)
+	require.NoError(t, err)
 }

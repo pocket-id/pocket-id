@@ -45,7 +45,7 @@
 		bind:ref
 		data-slot="sheet-content"
 		class={cn(
-			'bg-surface-raised text-fg shadow-overlay transition-motion fixed z-(--z-overlay) flex flex-col overflow-hidden border outline-none',
+			'bg-surface-raised text-fg shadow-overlay transition-motion fixed z-(--z-overlay) flex flex-col overflow-hidden border outline-none [--table-surface:var(--surface-raised)]',
 			'inset-x-0 top-2 bottom-0 rounded-t-lg duration-(--dur-slow) data-closed:translate-y-full data-closed:duration-(--dur-base) data-closed:ease-in starting:translate-y-full',
 			'sm:inset-y-2 sm:right-2 sm:left-auto sm:w-[min(var(--sheet-w),calc(100%-48px))] sm:rounded-lg sm:data-closed:translate-x-(--slide) sm:data-closed:translate-y-0 sm:data-closed:opacity-0 sm:starting:translate-x-(--slide) sm:starting:translate-y-0 sm:starting:opacity-0',
 			className

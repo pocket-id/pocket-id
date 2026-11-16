@@ -32,15 +32,15 @@ func New(deps Dependencies) *Module {
 
 // RegisterRoutes mounts the environment endpoints
 func (m *Module) RegisterRoutes(r *authz.Router) {
-	r.Public().GET("/version/latest", httpserver.JSON(http.StatusOK, m.handler.getLatestVersion),
+	r.GET("/version/latest", authz.Public, httpserver.JSON(http.StatusOK, m.handler.getLatestVersion),
 		option.Summary("Get latest available version of Pocket ID"),
 		option.Tags("Version"),
 	)
-	r.GET("/version/current", authz.AccountRead, httpserver.JSON(http.StatusOK, m.handler.getCurrentVersion),
+	r.GET("/version/current", authz.Authenticated, httpserver.JSON(http.StatusOK, m.handler.getCurrentVersion),
 		option.Summary("Get current deployed version of Pocket ID"),
 		option.Tags("Version"),
 	)
-	r.GET("/storage/sqlite-warning", authz.AccountRead, httpserver.JSON(http.StatusOK, m.handler.getSqliteStorageWarning),
+	r.GET("/storage/sqlite-warning", authz.Authenticated, httpserver.JSON(http.StatusOK, m.handler.getSqliteStorageWarning),
 		option.Summary("Get whether the SQLite storage warning should be shown"),
 		option.Description("Reports whether Pocket ID found its SQLite database on a networked filesystem, which is unsupported and can lead to database corruption"),
 		option.Tags("Storage"),

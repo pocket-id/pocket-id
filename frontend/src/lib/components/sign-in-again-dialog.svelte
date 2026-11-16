@@ -10,7 +10,7 @@
 	import IdentityRow from '#lib/components/identity-row.svelte';
 	import { m } from '#lib/paraglide/messages.js';
 	import WebAuthnService from '#lib/services/webauthn-service.ts';
-	import { signInAgain } from '#lib/stores/sign-in-again-store.svelte.ts';
+	import { signInAgain } from '#lib/stores/request-prompt-store.svelte.ts';
 	import unsavedChangesStore from '#lib/stores/unsaved-changes-store.svelte.ts';
 	import userStore from '#lib/stores/user-store.ts';
 	import { getWebauthnErrorMessage } from '#lib/utils/error-util.ts';
@@ -61,7 +61,7 @@
 
 <!-- Only signing in or leaving for another way closes it, because the page can't do anything without a session -->
 <AlertDialog.Root bind:open={() => signInAgain.open, () => {}}>
-	<AlertDialog.Content class="z-9999 gap-0">
+	<AlertDialog.Content class="z-9999 gap-0" overlayClass="z-9999">
 		<div class="flex flex-col items-center text-center">
 			<AuthTile {success} error={!!failure} />
 			<AlertDialog.Title class="mb-2">

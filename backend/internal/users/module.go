@@ -2,28 +2,33 @@ package users
 
 import (
 	"context"
+	"errors"
+	"fmt"
 	"io"
 	"net/http"
 	"time"
 
 	"github.com/gin-gonic/gin"
 	"github.com/go-fuego/fuego/option"
+	francishost "github.com/italypaleale/francis/host"
 	"gorm.io/gorm"
 
 	"github.com/pocket-id/pocket-id/backend/internal/appconfig"
 	"github.com/pocket-id/pocket-id/backend/internal/auditlogs"
 	"github.com/pocket-id/pocket-id/backend/internal/authz"
 	"github.com/pocket-id/pocket-id/backend/internal/backchannellogout"
+	"github.com/pocket-id/pocket-id/backend/internal/customclaims"
 	"github.com/pocket-id/pocket-id/backend/internal/dto"
 	"github.com/pocket-id/pocket-id/backend/internal/httpserver"
 	"github.com/pocket-id/pocket-id/backend/internal/model"
 	"github.com/pocket-id/pocket-id/backend/internal/openapi"
 	"github.com/pocket-id/pocket-id/backend/internal/storage"
+	"github.com/pocket-id/pocket-id/backend/internal/webauthn"
 )
 
 // CustomClaimUpdater applies the default custom claims to new users
 type CustomClaimUpdater interface {
-	UpdateCustomClaimsForUserInternal(ctx context.Context, userID string, claims []dto.CustomClaimCreateDto, tx *gorm.DB) ([]model.CustomClaim, error)
+	UpdateCustomClaimsForUserInternal(ctx context.Context, userID string, claims []customclaims.CustomClaimCreateDto, tx *gorm.DB) ([]model.CustomClaim, error)
 }
 
 // AppAssetProvider serves the default profile picture an admin may have uploaded
@@ -34,7 +39,7 @@ type AppAssetProvider interface {
 
 // PasskeyManager lists and deletes the passkeys of any user for admins
 type PasskeyManager interface {
-	ListCredentials(ctx context.Context, userID string) ([]model.WebauthnCredential, error)
+	ListCredentials(ctx context.Context, userID string) ([]webauthn.WebauthnCredential, error)
 	DeleteCredential(ctx context.Context, userID, credentialID string, origin auditlogs.Origin) error
 }
 
@@ -72,6 +77,10 @@ type Dependencies struct {
 	EmailVerification EmailVerificationSender
 	OwnAccountLimiter OwnAccountLimiter
 	AuditLog          AuditLogger
+	Actors            francishost.Host
+
+	// CleanupDisabled skips registering the cron job that deletes unused default profile pictures, for example in tests
+	CleanupDisabled bool
 }
 
 type Module struct {
@@ -79,16 +88,36 @@ type Module struct {
 	handler *handler
 }
 
-func New(deps Dependencies) *Module {
+func New(deps Dependencies) (*Module, error) {
+	// Register the cleanup job for the generated default profile pictures
+	if !deps.CleanupDisabled {
+		if deps.Actors == nil {
+			return nil, errors.New("actor host is required for the users cleanup cron job")
+		}
+
+		cj, err := newCleanupJob(deps.DB, deps.FileStorage)
+		if err != nil {
+			return nil, err
+		}
+
+		err = deps.Actors.RegisterBuiltInActor(cj)
+		if err != nil {
+			return nil, fmt.Errorf("error registering users cleanup cron actor %q: %w", cj.ActorType(), err)
+		}
+	}
+
 	service := newService(deps)
 	return &Module{
 		service: service,
 		handler: newHandler(deps.AppConfig, service, deps.WebAuthn),
-	}
+	}, nil
 }
 
 func (m *Module) RegisterRoutes(r *authz.Router, profilePictureSizeLimit gin.HandlerFunc) {
-	r.GET("/users", authz.UsersRead, httpserver.JSON(http.StatusOK, m.handler.listUsersHandler),
+	admin := r.Group("/admin")
+	// Deleting admins or their passkeys could lock every admin out, so these routes also need admin access when the user in the path is an admin
+	protected := admin.With(m.ProtectAdmins("id"))
+	admin.GET("/users", authz.UsersRead, httpserver.JSON(http.StatusOK, m.handler.listUsersHandler),
 		option.Summary("List users"),
 		option.Description("Get a paginated list of users with optional search and sorting"),
 		option.Tags("Users"),
@@ -100,13 +129,13 @@ func (m *Module) RegisterRoutes(r *authz.Router, profilePictureSizeLimit gin.Han
 		option.Description("Retrieve information about the currently authenticated user"),
 		option.Tags("Users"),
 	)
-	r.GET("/users/:id", authz.UsersRead, httpserver.JSON(http.StatusOK, m.handler.getUserHandler),
+	admin.GET("/users/:id", authz.UsersRead, httpserver.JSON(http.StatusOK, m.handler.getUserHandler),
 		option.Summary("Get user by ID"),
 		option.Description("Retrieve detailed information about a specific user"),
 		option.Tags("Users"),
 		option.Path("id", "User ID"),
 	)
-	r.POST("/users", authz.UsersWrite, httpserver.BodyJSON(http.StatusCreated, m.handler.createUserHandler),
+	admin.POST("/users", authz.UsersWrite, httpserver.BodyJSON(http.StatusCreated, m.handler.createUserHandler),
 		option.Summary("Create user"),
 		option.Description("Create a new user"),
 		option.Tags("Users"),
@@ -117,15 +146,15 @@ func (m *Module) RegisterRoutes(r *authz.Router, profilePictureSizeLimit gin.Han
 		option.Tags("Users"),
 		option.Path("id", "User ID"),
 	)
-	r.PUT("/users/:id", authz.UsersWrite, httpserver.UpdateJSON(m.handler.updateUserHandler), updateUserDocs)
-	r.PATCH("/users/:id", authz.UsersWrite, httpserver.UpdateJSON(m.handler.updateUserHandler), updateUserDocs)
-	r.GET("/users/:id/groups", authz.UsersRead, httpserver.JSON(http.StatusOK, m.handler.getUserGroupsHandler),
+	admin.PUT("/users/:id", authz.UsersWrite, httpserver.UpdateJSON(m.handler.updateUserHandler), updateUserDocs)
+	admin.PATCH("/users/:id", authz.UsersWrite, httpserver.UpdateJSON(m.handler.updateUserHandler), updateUserDocs)
+	admin.GET("/users/:id/groups", authz.UsersRead, httpserver.JSON(http.StatusOK, m.handler.getUserGroupsHandler),
 		option.Summary("Get user groups"),
 		option.Description("Retrieve all groups a specific user belongs to"),
 		option.Tags("Users", "User Groups"),
 		option.Path("id", "User ID"),
 	)
-	r.GET("/users/:id/webauthn-credentials", authz.UsersRead, httpserver.JSON(http.StatusOK, m.handler.listUserWebauthnCredentialsHandler),
+	admin.GET("/users/:id/webauthn-credentials", authz.UsersRead, httpserver.JSON(http.StatusOK, m.handler.listUserWebauthnCredentialsHandler),
 		option.Summary("List user passkeys"),
 		option.Description("Retrieve all WebAuthn credentials for a specific user"),
 		option.Tags("Users"),
@@ -138,13 +167,13 @@ func (m *Module) RegisterRoutes(r *authz.Router, profilePictureSizeLimit gin.Han
 	)
 	r.PUT("/users/me", authz.AccountWrite, httpserver.UpdateJSON(m.handler.updateCurrentUserHandler), updateCurrentUserDocs)
 	r.PATCH("/users/me", authz.AccountWrite, httpserver.UpdateJSON(m.handler.updateCurrentUserHandler), updateCurrentUserDocs)
-	r.DELETE("/users/:id", authz.UsersWrite, httpserver.NoContent(m.handler.deleteUserHandler),
+	protected.DELETE("/users/:id", authz.UsersWrite, httpserver.NoContent(m.handler.deleteUserHandler),
 		option.Summary("Delete user"),
 		option.Description("Delete a specific user by ID"),
 		option.Tags("Users"),
 		option.Path("id", "User ID"),
 	)
-	r.DELETE("/users/:id/webauthn-credentials/:credentialId", authz.UsersWrite, httpserver.NoContent(m.handler.deleteUserWebauthnCredentialHandler),
+	protected.DELETE("/users/:id/webauthn-credentials/:credentialId", authz.UsersWrite, httpserver.NoContent(m.handler.deleteUserWebauthnCredentialHandler),
 		option.Summary("Delete user passkey"),
 		option.Description("Delete a specific WebAuthn credential for a user"),
 		option.Tags("Users"),
@@ -152,14 +181,14 @@ func (m *Module) RegisterRoutes(r *authz.Router, profilePictureSizeLimit gin.Han
 		option.Path("credentialId", "Credential ID"),
 	)
 
-	r.PUT("/users/:id/user-groups", authz.UsersWrite, httpserver.BodyJSON(http.StatusOK, m.handler.updateUserGroups),
+	admin.PUT("/users/:id/user-groups", authz.UsersWrite, httpserver.BodyJSON(http.StatusOK, m.handler.updateUserGroups),
 		option.Summary("Update user groups"),
 		option.Description("Update the groups a specific user belongs to"),
 		option.Tags("Users"),
 		option.Path("id", "User ID"),
 	)
 
-	r.Public().GET("/users/:id/profile-picture.png", httpserver.Handle(m.handler.getUserProfilePictureHandler),
+	r.GET("/users/:id/profile-picture.png", authz.Public, httpserver.Handle(m.handler.getUserProfilePictureHandler),
 		option.Summary("Get user profile picture"),
 		option.Description("Retrieve a specific user's profile picture"),
 		option.Tags("Users"),
@@ -167,7 +196,7 @@ func (m *Module) RegisterRoutes(r *authz.Router, profilePictureSizeLimit gin.Han
 		openapi.File("PNG image", "image/png"),
 	)
 
-	r.With(profilePictureSizeLimit).PUT("/users/:id/profile-picture", authz.UsersWrite, httpserver.NoContent(m.handler.updateUserProfilePictureHandler),
+	admin.With(profilePictureSizeLimit).PUT("/users/:id/profile-picture", authz.UsersWrite, httpserver.NoContent(m.handler.updateUserProfilePictureHandler),
 		option.Summary("Update user profile picture"),
 		option.Description("Update a specific user's profile picture"),
 		option.Tags("Users"),
@@ -181,7 +210,7 @@ func (m *Module) RegisterRoutes(r *authz.Router, profilePictureSizeLimit gin.Han
 		openapi.Upload("Profile picture image file (PNG, JPG, or JPEG)"),
 	)
 
-	r.DELETE("/users/:id/profile-picture", authz.UsersWrite, httpserver.NoContent(m.handler.resetUserProfilePictureHandler),
+	admin.DELETE("/users/:id/profile-picture", authz.UsersWrite, httpserver.NoContent(m.handler.resetUserProfilePictureHandler),
 		option.Summary("Reset user profile picture"),
 		option.Description("Reset a specific user's profile picture to the default"),
 		option.Tags("Users"),
@@ -192,6 +221,19 @@ func (m *Module) RegisterRoutes(r *authz.Router, profilePictureSizeLimit gin.Han
 		option.Description("Reset the currently authenticated user's profile picture to the default"),
 		option.Tags("Users"),
 	)
+}
+
+// ProtectAdmins returns a handler for routes that act on the user named by the path parameter, which rejects a principal without admin access when that user is an admin
+func (m *Module) ProtectAdmins(param string) gin.HandlerFunc {
+	return func(c *gin.Context) {
+		err := m.service.requireAdminAccessFor(c.Request.Context(), authz.PrincipalFrom(c), c.Param(param))
+		if err != nil {
+			c.Abort()
+			_ = c.Error(err)
+			return
+		}
+		c.Next()
+	}
 }
 
 // GetUser returns a user with their groups and custom claims

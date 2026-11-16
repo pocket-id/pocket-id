@@ -7,7 +7,7 @@ import (
 
 	"github.com/stretchr/testify/require"
 
-	"github.com/pocket-id/pocket-id/backend/internal/service"
+	"github.com/pocket-id/pocket-id/backend/internal/backup"
 )
 
 func TestEnsureNoActorsBackup(t *testing.T) {
@@ -36,8 +36,8 @@ func TestEnsureNoActorsBackup(t *testing.T) {
 	})
 
 	t.Run("rejects an archive carrying the actor data", func(t *testing.T) {
-		err := ensureNoActorsBackup(buildZip(t, "database.json", service.ActorsBackupFileName))
+		err := ensureNoActorsBackup(buildZip(t, "database.json", backup.ActorsBackupFileName))
 		require.Error(t, err)
-		require.ErrorContains(t, err, service.ActorsBackupFileName)
+		require.ErrorContains(t, err, backup.ActorsBackupFileName)
 	})
 }

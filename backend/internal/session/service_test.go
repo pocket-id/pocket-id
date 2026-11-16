@@ -255,6 +255,71 @@ func TestRemember(t *testing.T) {
 	})
 }
 
+func TestSudo(t *testing.T) {
+	service, _ := newServiceForTest(t)
+	now := time.Now()
+
+	// seed stores a session whose sudo mode started and was last used that long ago
+	seed := func(t *testing.T, sessionID string, started, used time.Duration) {
+		t.Helper()
+		_, err := service.actorService.Invoke(t.Context(), ActorType, "sudo", MethodCreate, Session{
+			ID:            sessionID,
+			LastActiveAt:  now,
+			ExpiresAt:     now.Add(time.Hour),
+			SudoStartedAt: now.Add(-started),
+			SudoUsedAt:    now.Add(-used),
+		})
+		require.NoError(t, err)
+	}
+	sudoUntil := func(t *testing.T, sessionID string) time.Time {
+		t.Helper()
+		sessions, err := service.List(t.Context(), "sudo")
+		require.NoError(t, err)
+		for _, session := range sessions {
+			if session.ID == sessionID {
+				return session.SudoUntil()
+			}
+		}
+		require.Fail(t, "session not found")
+		return time.Time{}
+	}
+
+	t.Run("only a passkey sign-in starts sudo mode", func(t *testing.T) {
+		token, err := service.Create(t.Context(), "sudo", "phr", "", "", time.Hour, true)
+		require.NoError(t, err)
+		_, session, err := service.Validate(t.Context(), token)
+		require.NoError(t, err)
+		require.WithinDuration(t, now.Add(sudoIdleTimeout), session.SudoUntil(), time.Minute)
+
+		token, err = service.Create(t.Context(), "sudo", "otp", "", "", time.Hour, true)
+		require.NoError(t, err)
+		_, session, err = service.Validate(t.Context(), token)
+		require.NoError(t, err)
+		require.False(t, session.SudoUntil().After(now))
+	})
+
+	t.Run("using sudo mode keeps it from ending for being unused", func(t *testing.T) {
+		seed(t, "used", 5*time.Minute, 5*time.Minute)
+		service.KeepSudo(t.Context(), "sudo", "used")
+		require.WithinDuration(t, now.Add(sudoIdleTimeout), sudoUntil(t, "used"), time.Minute)
+	})
+
+	t.Run("sudo mode ends after its maximum duration however much it is used", func(t *testing.T) {
+		seed(t, "long", sudoDuration-time.Minute, time.Minute)
+		service.KeepSudo(t.Context(), "sudo", "long")
+		require.WithinDuration(t, now.Add(time.Minute), sudoUntil(t, "long"), time.Second)
+	})
+
+	t.Run("only proving the passkey again restarts sudo mode that has ended", func(t *testing.T) {
+		seed(t, "ended", 30*time.Minute, sudoIdleTimeout+time.Minute)
+		service.KeepSudo(t.Context(), "sudo", "ended")
+		require.False(t, sudoUntil(t, "ended").After(time.Now()))
+
+		require.NoError(t, service.StartSudo(t.Context(), "sudo", "ended"))
+		require.WithinDuration(t, now.Add(sudoIdleTimeout), sudoUntil(t, "ended"), time.Minute)
+	})
+}
+
 func TestSignOutEverywhere(t *testing.T) {
 	service, ended := newServiceForTest(t)
 

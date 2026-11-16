@@ -4,10 +4,12 @@ package frontend
 
 import (
 	"bytes"
+	"context"
 	"embed"
 	"fmt"
 	"io"
 	"io/fs"
+	"log/slog"
 	"mime"
 	"net/http"
 	"net/url"
@@ -70,7 +72,8 @@ func init() {
 	}
 }
 
-func RegisterFrontend(router *gin.Engine) error {
+// RegisterFrontend serves the SPA and sends visitors of a fresh install from the landing pages straight to the initial admin setup
+func RegisterFrontend(router *gin.Engine, isSetupCompleted func(ctx context.Context) (bool, error)) error {
 	distFS, err := fs.Sub(frontendFS, "dist")
 	if err != nil {
 		return fmt.Errorf("failed to create sub FS: %w", err)
@@ -96,6 +99,17 @@ func RegisterFrontend(router *gin.Engine) error {
 		}
 
 		if isSPARequest(path, distFS) {
+			// Without any user only the initial admin setup is useful, and redirecting here saves the SPA a round trip to find out
+			if path == "" || path == "login" {
+				completed, err := isSetupCompleted(c.Request.Context())
+				if err != nil {
+					slog.WarnContext(c.Request.Context(), "Failed to check whether the initial admin setup is completed", slog.Any("error", err))
+				} else if !completed {
+					c.Redirect(http.StatusFound, "/signup/setup")
+					return
+				}
+			}
+
 			nonce := middleware.GetCSPNonce(c)
 
 			// Do not cache the HTML shell, as it embeds a per-request nonce

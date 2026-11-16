@@ -93,7 +93,7 @@ func New(deps Dependencies) (*Module, error) {
 
 // RegisterRoutes mounts the manual LDAP synchronization endpoint
 func (m *Module) RegisterRoutes(r *authz.Router) {
-	r.POST("/application-configuration/sync-ldap", authz.ConfigWrite, httpserver.NoContent(m.handler.syncLdap),
+	r.POST("/admin/application-configuration/sync-ldap", authz.ConfigWrite, httpserver.NoContent(m.handler.syncLdap),
 		option.Summary("Synchronize LDAP"),
 		option.Description("Manually trigger LDAP synchronization"),
 		option.Tags("Application Configuration"),

@@ -6,6 +6,7 @@
 	import Error from '#lib/components/error.svelte';
 	import NavigationProgress from '#lib/components/navigation-progress.svelte';
 	import SignInAgainDialog from '#lib/components/sign-in-again-dialog.svelte';
+	import SudoDialog from '#lib/components/sudo-dialog.svelte';
 	import { setUiLabels } from '@pocket-id/ui/labels';
 	import { Toaster } from '@pocket-id/ui/sonner';
 	import UnsavedChangesBar from '#lib/components/unsaved-changes-bar.svelte';
@@ -57,5 +58,6 @@
 <NavigationProgress />
 <ConfirmDialog />
 <SignInAgainDialog />
+<SudoDialog />
 <UnsavedChangesBar />
 <ModeWatcher disableTransitions={false} />

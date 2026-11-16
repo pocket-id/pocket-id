@@ -803,7 +803,7 @@ for (const scenario of [
 			test.setTimeout(30000);
 			const client = scenario.client;
 			if (scenario.isPublic) {
-				const response = await request.put(`/api/oidc/clients/${client.id}`, {
+				const response = await request.put(`/api/admin/oidc/clients/${client.id}`, {
 					data: {
 						name: client.name,
 						callbackURLs: [client.callbackUrl],
@@ -909,7 +909,7 @@ test('Device authorization flow forces reauthentication when client requires it'
 	request
 }) => {
 	const client = oidcClients.nextcloud;
-	await request.put(`/api/oidc/clients/${client.id}`, {
+	await request.put(`/api/admin/oidc/clients/${client.id}`, {
 		data: {
 			name: client.name,
 			callbackURLs: [client.callbackUrl],
@@ -925,7 +925,9 @@ test('Device authorization flow forces reauthentication when client requires it'
 	});
 
 	const userCode = await oidcUtil.getUserCode(page, client.id, client.secret);
-	const directVerify = await page.request.post(`/api/oidc/device/verify?code=${userCode}`);
+	const directVerify = await page.request.post(`/api/oidc/device/verify?code=${userCode}`, {
+		data: {}
+	});
 	expect(directVerify.status()).toBe(401);
 
 	let reauthCalled = false;
@@ -1036,7 +1038,7 @@ test('Forces reauthentication when client requires it', async ({ page, request }
 		await route.continue();
 	});
 
-	await request.put(`/api/oidc/clients/${oidcClients.nextcloud.id}`, {
+	await request.put(`/api/admin/oidc/clients/${oidcClients.nextcloud.id}`, {
 		data: {
 			name: oidcClients.nextcloud.name,
 			callbackURLs: [oidcClients.nextcloud.callbackUrl],
@@ -1588,7 +1590,7 @@ test.describe('Pushed Authorization Requests (PAR)', () => {
 
 	test('PAR endpoint accepts public client with PKCE', async ({ page }) => {
 		// The PAR test client is confidential by default, so make it public first.
-		await page.request.put(`/api/oidc/clients/${client.id}`, {
+		await page.request.put(`/api/admin/oidc/clients/${client.id}`, {
 			headers: { 'Content-Type': 'application/json' },
 			data: {
 				name: client.name,
@@ -1631,7 +1633,7 @@ test.describe('Pushed Authorization Requests (PAR)', () => {
 		request
 	}) => {
 		// Enable the PAR requirement on the client
-		await request.put(`/api/oidc/clients/${client.id}`, {
+		await request.put(`/api/admin/oidc/clients/${client.id}`, {
 			headers: { 'Content-Type': 'application/json' },
 			data: {
 				name: client.name,

@@ -7,14 +7,13 @@ import (
 	"log/slog"
 	"time"
 
-	_ "github.com/golang-migrate/migrate/v4/source/file"
-
 	"github.com/italypaleale/francis/components"
 	francishost "github.com/italypaleale/francis/host"
 	"github.com/italypaleale/go-kit/servicerunner"
 	"gorm.io/gorm"
 
 	"github.com/pocket-id/pocket-id/backend/internal/api"
+	"github.com/pocket-id/pocket-id/backend/internal/appassets"
 	"github.com/pocket-id/pocket-id/backend/internal/claimmappingpolicy"
 	"github.com/pocket-id/pocket-id/backend/internal/common"
 	"github.com/pocket-id/pocket-id/backend/internal/instanceid"
@@ -77,14 +76,9 @@ func Bootstrap(ctx context.Context) error {
 	}()
 
 	// Init application assets like images and fonts
-	assetExtensions, err := initApplicationAssets(ctx, fileStorage)
+	appAssetsModule, err := appassets.New(ctx, fileStorage)
 	if err != nil {
-		return fmt.Errorf("failed to initialize application assets: %w", err)
-	}
-
-	err = moveLegacyOidcClientImages(ctx, db, fileStorage)
-	if err != nil {
-		return fmt.Errorf("failed to move OIDC client logos: %w", err)
+		return err
 	}
 
 	// Init built-in claim policy mapping
@@ -120,13 +114,10 @@ func Bootstrap(ctx context.Context) error {
 	services = append(services, actorsRun)
 
 	// Create all services
-	svc, err := initServices(ctx, db, instanceID, actors, httpClient, outboundClients, assetExtensions, fileStorage, rateLimitServices)
+	svc, err := initServices(ctx, db, instanceID, actors, httpClient, outboundClients, appAssetsModule, fileStorage, rateLimitServices)
 	if err != nil {
 		return fmt.Errorf("failed to initialize services: %w", err)
 	}
-
-	// Migrate the pre-actor signup tokens into their actors, once the actor host is ready
-	services = append(services, actorsReady.Await(svc.userSignUpModule.RunSignupTokenMigration))
 
 	// Only the GeoLite provider needs a background database refresher
 	if !common.EnvConfig.AppEnv.IsTest() && svc.geoLiteModule != nil {
@@ -137,7 +128,7 @@ func Bootstrap(ctx context.Context) error {
 	// Init the router
 	// The rate-limit middleware invokes the actor host with each request's own context, so the setup context is intentionally not threaded through the router
 	//nolint:contextcheck
-	router, err := initRouter(db, svc, rateLimitServices)
+	router, err := initRouter(svc, rateLimitServices)
 	if err != nil {
 		return fmt.Errorf("failed to initialize router: %w", err)
 	}

@@ -25,10 +25,11 @@ type Service struct {
 	scimSyncScheduler ScimSyncScheduler
 	backchannelLogout *backchannellogout.Service
 	auditLog          AuditLogger
+	pocketIDClients   PocketIDClients
 }
 
-func newService(db *gorm.DB, scimSyncScheduler ScimSyncScheduler, backchannelLogout *backchannellogout.Service, auditLog AuditLogger) *Service {
-	return &Service{db: db, scimSyncScheduler: scimSyncScheduler, backchannelLogout: backchannelLogout, auditLog: auditLog}
+func newService(db *gorm.DB, scimSyncScheduler ScimSyncScheduler, backchannelLogout *backchannellogout.Service, auditLog AuditLogger, pocketIDClients PocketIDClients) *Service {
+	return &Service{db: db, scimSyncScheduler: scimSyncScheduler, backchannelLogout: backchannelLogout, auditLog: auditLog, pocketIDClients: pocketIDClients}
 }
 
 func (s *Service) List(ctx context.Context, name string, listRequestOptions utils.ListRequestOptions) (groups []model.UserGroup, response utils.PaginationResponse, err error) {
@@ -43,11 +44,11 @@ func (s *Service) List(ctx context.Context, name string, listRequestOptions util
 	}
 
 	// As userCount is not a column we need to manually sort it
-	if listRequestOptions.Sort.Column == "userCount" && utils.IsValidSortDirection(listRequestOptions.Sort.Direction) {
+	if listRequestOptions.Sort.Column == "userCount" {
 		query = query.Select("user_groups.*, COUNT(user_groups_users.user_id)").
 			Joins("LEFT JOIN user_groups_users ON user_groups.id = user_groups_users.user_group_id").
 			Group("user_groups.id").
-			Order("COUNT(user_groups_users.user_id) " + listRequestOptions.Sort.Direction)
+			Order("COUNT(user_groups_users.user_id) " + utils.NormalizeSortDirection(listRequestOptions.Sort.Direction))
 	}
 
 	response, err = utils.PaginateFilterAndSort(listRequestOptions, query, &groups)
@@ -171,6 +172,7 @@ func (s *Service) createInternal(ctx context.Context, input dto.UserGroupCreateD
 	group := model.UserGroup{
 		FriendlyName: input.FriendlyName,
 		Name:         input.Name,
+		Notes:        input.Notes,
 	}
 
 	if input.LdapID != "" {
@@ -241,6 +243,11 @@ func (s *Service) updateInternal(ctx context.Context, id string, input dto.UserG
 
 	group.Name = input.Name
 	group.FriendlyName = input.FriendlyName
+
+	// LDAP doesn't know about notes, so a sync keeps the ones admins wrote
+	if !isLdapSync {
+		group.Notes = input.Notes
+	}
 	group.UpdatedAt = new(datatype.DateTime(time.Now()))
 
 	err = tx.
@@ -451,6 +458,17 @@ func (s *Service) UpdateAllowedOidcClient(ctx context.Context, id string, input 
 	}
 
 	added, removed := utils.Changes(previousClients, clients, func(client model.OidcClient) string { return client.ID })
+
+	// Changing which groups may use a client is a change to that client, which needs admin access when it may use Pocket ID's own API
+	changedClientIDs := make([]string, 0, len(added)+len(removed))
+	for _, client := range slices.Concat(added, removed) {
+		changedClientIDs = append(changedClientIDs, client.ID)
+	}
+	err = s.pocketIDClients.RequireAdminAccessForClients(ctx, tx, origin.Principal, changedClientIDs...)
+	if err != nil {
+		return model.UserGroup{}, err
+	}
+
 	for _, client := range added {
 		s.auditLog.Record(ctx, auditlogs.EventClientGroupAdded, origin, "", auditlogs.Data{"clientID": client.ID, "clientName": client.Name, "groupName": group.FriendlyName}, tx)
 	}

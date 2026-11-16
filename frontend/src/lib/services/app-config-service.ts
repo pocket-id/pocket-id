@@ -16,15 +16,14 @@ import APIService from './api-service';
 
 export default class AppConfigService extends APIService {
 	list = async (showAll = false) => {
-		let url = '/application-configuration';
-		if (showAll) url += '/all';
+		const url = showAll ? '/admin/application-configuration' : '/application-configuration';
 		const { data } = await this.api.get<AppConfigRawResponse>(url);
 		return parseConfigList(data);
 	};
 
 	// The keys an environment variable sets are read-only in the UI
 	listWithEnvOverrides = async () => {
-		const { data } = await this.api.get<AppConfigRawResponse>('/application-configuration/all');
+		const { data } = await this.api.get<AppConfigRawResponse>('/admin/application-configuration');
 		const envOverrides = new Set(
 			data.filter((v) => v.envOverride).map((v) => v.key as keyof AllAppConfig)
 		);
@@ -39,7 +38,10 @@ export default class AppConfigService extends APIService {
 			appConfigConvertedToString[key] =
 				typeof value === 'object' && value !== null ? JSON.stringify(value) : String(value);
 		}
-		const res = await this.api.patch('/application-configuration', appConfigConvertedToString);
+		const res = await this.api.patch(
+			'/admin/application-configuration',
+			appConfigConvertedToString
+		);
 		return parseConfigList(res.data);
 	};
 
@@ -47,21 +49,21 @@ export default class AppConfigService extends APIService {
 		const formData = new FormData();
 		formData.append('file', favicon);
 
-		await this.api.put(`/application-assets/favicon`, formData);
+		await this.api.put(`/admin/application-assets/favicon`, formData);
 	};
 
 	updateLogo = async (logo: File, light = true) => {
 		const formData = new FormData();
 		formData.append('file', logo);
 
-		await this.api.put(`/application-assets/logo`, formData, {
+		await this.api.put(`/admin/application-assets/logo`, formData, {
 			params: { light }
 		});
 		cachedApplicationLogo.bustCache(light);
 	};
 
 	deleteLogo = async (light = true) => {
-		await this.api.delete(`/application-assets/logo`, {
+		await this.api.delete(`/admin/application-assets/logo`, {
 			params: { light }
 		});
 		cachedApplicationLogo.bustCache(light);
@@ -71,7 +73,7 @@ export default class AppConfigService extends APIService {
 		const formData = new FormData();
 		formData.append('file', emailLogo);
 
-		await this.api.put(`/application-assets/email`, formData);
+		await this.api.put(`/admin/application-assets/email`, formData);
 		cachedEmailLogo.bustCache();
 	};
 
@@ -79,7 +81,7 @@ export default class AppConfigService extends APIService {
 		const formData = new FormData();
 		formData.append('file', defaultProfilePicture);
 
-		await this.api.put(`/application-assets/default-profile-picture`, formData);
+		await this.api.put(`/admin/application-assets/default-profile-picture`, formData);
 		cachedDefaultProfilePicture.bustCache();
 	};
 
@@ -87,17 +89,17 @@ export default class AppConfigService extends APIService {
 		const formData = new FormData();
 		formData.append('file', backgroundImage!);
 
-		await this.api.put(`/application-assets/background`, formData);
+		await this.api.put(`/admin/application-assets/background`, formData);
 		cachedBackgroundImage.bustCache();
 	};
 
 	deleteBackgroundImage = async () => {
-		await this.api.delete(`/application-assets/background`);
+		await this.api.delete(`/admin/application-assets/background`);
 		cachedBackgroundImage.bustCache();
 	};
 
 	deleteDefaultProfilePicture = async () => {
-		await this.api.delete('/application-assets/default-profile-picture');
+		await this.api.delete('/admin/application-assets/default-profile-picture');
 		cachedDefaultProfilePicture.bustCache();
 		cachedProfilePicture.bustCache(get(userStore)!.id);
 	};
@@ -106,21 +108,21 @@ export default class AppConfigService extends APIService {
 		const formData = new FormData();
 		formData.append('file', font);
 
-		await this.api.put('/application-assets/font', formData);
+		await this.api.put('/admin/application-assets/font', formData);
 		cachedTitleFont.bustCache();
 	};
 
 	deleteFont = async () => {
-		await this.api.delete('/application-assets/font');
+		await this.api.delete('/admin/application-assets/font');
 		cachedTitleFont.bustCache();
 	};
 
 	sendTestEmail = async () => {
-		await this.api.post('/application-configuration/test-email');
+		await this.api.post('/admin/application-configuration/test-email');
 	};
 
 	syncLdap = async () => {
-		await this.api.post('/application-configuration/sync-ldap');
+		await this.api.post('/admin/application-configuration/sync-ldap');
 	};
 }
 

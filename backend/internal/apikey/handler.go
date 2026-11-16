@@ -64,7 +64,7 @@ func (h *handler) create(c *gin.Context, input apiKeyCreateDto) (apiKeyResponseD
 func (h *handler) update(c *gin.Context, update dto.Update[apiKeyUpdateDto]) (apiKeyDto, error) {
 	principal := authz.PrincipalFrom(c)
 
-	apiKey, err := h.service.UpdateApiKey(c.Request.Context(), principal.UserID, c.Param("id"), grantableScopes(principal.Scopes), update)
+	apiKey, err := h.service.UpdateApiKey(c.Request.Context(), principal, c.Param("id"), grantableScopes(principal.Scopes), update)
 	if err != nil {
 		return apiKeyDto{}, err
 	}

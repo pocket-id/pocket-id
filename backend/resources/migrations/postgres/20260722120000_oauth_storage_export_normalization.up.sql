@@ -1,1 +1,0 @@
--- No-op on PostgreSQL because its OAuth storage types already match the export format

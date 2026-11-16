@@ -105,7 +105,7 @@ func (m *ErrorHandlerMiddleware) Add() gin.HandlerFunc {
 			c.Header("Retry-After", formatRetryAfter(classified.RetryAfter))
 		}
 		// MCP clients follow the challenge to the endpoint's protected resource metadata to find out where to get a token (RFC 9728)
-		if classified.Status == http.StatusUnauthorized && c.Request.URL.Path == authz.MCPPath {
+		if classified.Status == http.StatusUnauthorized && c.Request.URL.Path == authz.MCPEndpointPath {
 			c.Header("WWW-Authenticate", `Bearer resource_metadata="`+common.EnvConfig.AppURL+authz.MCPResourceMetadataPath+`"`)
 		}
 		writeErrorResponse(c, classified, requestID)

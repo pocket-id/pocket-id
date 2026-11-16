@@ -15,6 +15,7 @@ import (
 	"github.com/pocket-id/pocket-id/backend/internal/appconfig"
 	"github.com/pocket-id/pocket-id/backend/internal/apperror"
 	"github.com/pocket-id/pocket-id/backend/internal/auditlogs"
+	"github.com/pocket-id/pocket-id/backend/internal/common"
 	"github.com/pocket-id/pocket-id/backend/internal/dto"
 	"github.com/pocket-id/pocket-id/backend/internal/emailverification"
 	"github.com/pocket-id/pocket-id/backend/internal/model"
@@ -25,6 +26,9 @@ import (
 // authenticationMethodOneTimePassword identifies one-time-password authentication, used for the initial admin setup token
 // It must match the value emitted by the JWT service in the access token's "amr" claim
 const authenticationMethodOneTimePassword = "otp"
+
+// signupTokenPrefixLength is how many leading characters of a signup token are kept in clear text so admins can tell tokens apart
+const signupTokenPrefixLength = 4
 
 // signupVerificationPeriod is how long a self-signed-up account has to verify its email before it is deleted
 const signupVerificationPeriod = emailverification.TokenLifetime
@@ -37,6 +41,7 @@ type Service struct {
 	auditLog          AuditLogger
 	scimSync          ScimSyncScheduler
 	emailVerification EmailVerificationSender
+	emailSender       EmailSender
 }
 
 func newService(deps Dependencies, actorService *actor.Service) *Service {
@@ -48,6 +53,7 @@ func newService(deps Dependencies, actorService *actor.Service) *Service {
 		auditLog:          deps.AuditLog,
 		scimSync:          deps.ScimSync,
 		emailVerification: deps.EmailVerification,
+		emailSender:       deps.EmailSender,
 	}
 }
 
@@ -63,7 +69,7 @@ func (s *Service) SignUp(ctx context.Context, config *appconfig.AppConfigModel, 
 	if tokenProvided {
 		// Consume the signup token by invoking its actor: this atomically validates it and increments its usage count
 		// Note: must invoke outside of a DB transaction, since invoking an actor while a transaction is open would deadlock on SQLite
-		res, err := s.actorService.Invoke(ctx, SignupTokenActorType, signupData.Token, signupTokenMethodConsume, nil)
+		res, err := s.actorService.Invoke(ctx, SignupTokenActorType, utils.CreateSha256Hash(signupData.Token), signupTokenMethodConsume, nil)
 		if err != nil {
 			return model.User{}, "", fmt.Errorf("error invoking signup token actor: %w", err)
 		}
@@ -168,7 +174,7 @@ func (s *Service) releaseSignupToken(parentCtx context.Context, token string) {
 	ctx, cancel := context.WithTimeout(context.WithoutCancel(parentCtx), 10*time.Second)
 	defer cancel()
 
-	_, err := s.actorService.Invoke(ctx, SignupTokenActorType, token, signupTokenMethodRelease, nil)
+	_, err := s.actorService.Invoke(ctx, SignupTokenActorType, utils.CreateSha256Hash(token), signupTokenMethodRelease, nil)
 	if err != nil {
 		slog.ErrorContext(ctx, "Failed to release signup token after a failed signup", slog.Any("error", err))
 	}
@@ -245,12 +251,9 @@ func (s *Service) IsInitialAdminSetupCompleted(ctx context.Context) (bool, error
 }
 
 func (s *Service) isInitialAdminSetupCompleted(ctx context.Context, db *gorm.DB) (bool, error) {
-	var userCount int64
-	if err := db.WithContext(ctx).Model(&model.User{}).Count(&userCount).Error; err != nil {
-		return false, err
-	}
-
-	return userCount != 0, nil
+	var exists bool
+	err := db.WithContext(ctx).Raw("SELECT EXISTS (SELECT 1 FROM users)").Scan(&exists).Error
+	return exists, err
 }
 
 func (s *Service) ListSignupTokens(ctx context.Context, listRequestOptions utils.ListRequestOptions) ([]SignupToken, utils.PaginationResponse, error) {
@@ -268,14 +271,14 @@ func (s *Service) ListSignupTokens(ctx context.Context, listRequestOptions utils
 
 	tokens := make([]SignupToken, len(entries))
 	for i, e := range entries {
-		tokens[i] = signupTokenModelFromState(e.Token, e.State, resolveUserGroups(e.State.UserGroupIDs, groupsByID))
+		tokens[i] = signupTokenModelFromState(e.State, resolveUserGroups(e.State.UserGroupIDs, groupsByID))
 	}
 
 	return paginateSignupTokens(tokens, listRequestOptions)
 }
 
 func (s *Service) DeleteSignupToken(ctx context.Context, tokenID string) error {
-	// Tokens are addressed by their value (the actor ID), while the API deletes them by ID, so we look up the matching token first
+	// Tokens are addressed by their hash (the actor ID), while the API deletes them by ID, so we look up the matching token first
 	entries, err := s.listSignupTokenStates(ctx)
 	if err != nil {
 		return err
@@ -286,7 +289,7 @@ func (s *Service) DeleteSignupToken(ctx context.Context, tokenID string) error {
 			continue
 		}
 
-		_, err = s.actorService.Invoke(ctx, SignupTokenActorType, e.Token, SignupTokenMethodDelete, nil)
+		_, err = s.actorService.Invoke(ctx, SignupTokenActorType, e.ActorID, SignupTokenMethodDelete, nil)
 		if err != nil {
 			return fmt.Errorf("error deleting signup token via actor: %w", err)
 		}
@@ -297,10 +300,10 @@ func (s *Service) DeleteSignupToken(ctx context.Context, tokenID string) error {
 	return nil
 }
 
-// signupTokenEntry pairs a signup token's value (which is its actor ID) with its stored state
+// signupTokenEntry pairs a signup token's actor ID with its stored state
 type signupTokenEntry struct {
-	Token string
-	State SignupTokenState
+	ActorID string
+	State   SignupTokenState
 }
 
 // listSignupTokenStates returns every signup token currently stored in the actor state store.
@@ -331,8 +334,8 @@ func (s *Service) listSignupTokenStates(ctx context.Context) ([]signupTokenEntry
 			}
 
 			entries = append(entries, signupTokenEntry{
-				Token: st.ActorID,
-				State: state,
+				ActorID: st.ActorID,
+				State:   state,
 			})
 		}
 
@@ -346,7 +349,7 @@ func (s *Service) listSignupTokenStates(ctx context.Context) ([]signupTokenEntry
 	return entries, nil
 }
 
-func (s *Service) CreateSignupToken(ctx context.Context, ttl time.Duration, usageLimit int, userGroupIDs []string) (SignupToken, error) {
+func (s *Service) CreateSignupToken(ctx context.Context, ttl time.Duration, usageLimit int, userGroupIDs []string, sentTo string) (SignupToken, error) {
 	// Load the referenced user groups to validate them and to include them in the response
 	var userGroups []model.UserGroup
 	if len(userGroupIDs) > 0 {
@@ -365,7 +368,7 @@ func (s *Service) CreateSignupToken(ctx context.Context, ttl time.Duration, usag
 	}
 
 	// Generate a random token
-	randomString, err := utils.GenerateRandomAlphanumericString(16)
+	token, err := utils.GenerateRandomAlphanumericString(16)
 	if err != nil {
 		return SignupToken{}, err
 	}
@@ -373,20 +376,39 @@ func (s *Service) CreateSignupToken(ctx context.Context, ttl time.Duration, usag
 	now := time.Now().Round(time.Second)
 	state := SignupTokenState{
 		ID:           uuid.NewV4().String(),
+		Prefix:       token[:signupTokenPrefixLength],
 		ExpiresAt:    now.Add(ttl),
 		UsageLimit:   usageLimit,
 		UsageCount:   0,
 		UserGroupIDs: validGroupIDs,
+		SentTo:       sentTo,
 		CreatedAt:    now,
 	}
 
-	// The token's value is the actor's ID
-	_, err = s.actorService.Invoke(ctx, SignupTokenActorType, randomString, SignupTokenMethodCreate, state)
+	_, err = s.actorService.Invoke(ctx, SignupTokenActorType, utils.CreateSha256Hash(token), SignupTokenMethodCreate, state)
 	if err != nil {
 		return SignupToken{}, fmt.Errorf("error creating signup token via actor: %w", err)
 	}
 
-	return signupTokenModelFromState(randomString, state, userGroups), nil
+	// The response is the only place the token appears, since only its hash is stored
+	signupToken := signupTokenModelFromState(state, userGroups)
+	signupToken.Token = token
+	return signupToken, nil
+}
+
+// SendSignupInvitation emails the signup link of a token to the given address
+// It sends in the background like an admin-sent login code, so a failure is only logged
+func (s *Service) SendSignupInvitation(ctx context.Context, dbConfig *appconfig.AppConfigModel, signupToken SignupToken, recipientEmail string, ttl time.Duration) {
+	go func() {
+		// Keep the request's tracing info but not its cancellation, which would stop the delivery when the request ends
+		innerCtx := context.WithoutCancel(ctx)
+
+		signupLink := common.EnvConfig.AppURL + "/st/" + signupToken.Token
+		err := s.emailSender.SendSignupInvitation(innerCtx, dbConfig, recipientEmail, signupLink, utils.DurationToString(ttl))
+		if err != nil {
+			slog.ErrorContext(innerCtx, "Failed to send signup invitation email", slog.Any("error", err), slog.String("address", recipientEmail))
+		}
+	}()
 }
 
 // loadUserGroupsByID loads every user group referenced by the given tokens, keyed by ID.
@@ -440,18 +462,19 @@ func resolveUserGroups(ids []string, byID map[string]model.UserGroup) []model.Us
 	return groups
 }
 
-// signupTokenModelFromState builds the API/model representation of a signup token from its actor ID (the token's value) and stored state.
-func signupTokenModelFromState(token string, state SignupTokenState, groups []model.UserGroup) SignupToken {
+// signupTokenModelFromState builds the API/model representation of a signup token from its stored state.
+func signupTokenModelFromState(state SignupTokenState, groups []model.UserGroup) SignupToken {
 	return SignupToken{
 		Base: model.Base{
 			ID:        state.ID,
 			CreatedAt: datatype.DateTime(state.CreatedAt),
 		},
-		Token:      token,
+		Prefix:     state.Prefix,
 		ExpiresAt:  datatype.DateTime(state.ExpiresAt),
 		UsageLimit: state.UsageLimit,
 		UsageCount: state.UsageCount,
 		UserGroups: groups,
+		SentTo:     state.SentTo,
 	}
 }
 

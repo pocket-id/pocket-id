@@ -22,6 +22,8 @@ const (
 const (
 	UsersRead                     Scope = "users:read"
 	UsersWrite                    Scope = "users:write"
+	UsersLoginCodes               Scope = "users:login-codes"
+	UsersInvite                   Scope = "users:invite"
 	GroupsRead                    Scope = "groups:read"
 	GroupsWrite                   Scope = "groups:write"
 	OidcClientsRead               Scope = "oidc-clients:read"
@@ -33,6 +35,9 @@ const (
 	ConfigRead                    Scope = "config:read"
 	ConfigWrite                   Scope = "config:write"
 	AuditLogsRead                 Scope = "audit-logs:read"
+
+	// AdminAccessWrite guards every change that decides who holds admin access, such as acting on an admin or granting a client access to Pocket ID's own API
+	AdminAccessWrite Scope = "admin-access:write"
 )
 
 // Category groups scopes by whose data they reach
@@ -91,6 +96,8 @@ var catalog = []definition{
 
 	{UsersRead, CategoryAdmin, delegatedOrUserless},
 	{UsersWrite, CategoryAdmin, delegatedOrUserless},
+	{UsersLoginCodes, CategoryAdmin, delegatedOrUserless},
+	{UsersInvite, CategoryAdmin, delegatedOrUserless},
 	{GroupsRead, CategoryAdmin, delegatedOrUserless},
 	{GroupsWrite, CategoryAdmin, delegatedOrUserless},
 	{OidcClientsRead, CategoryAdmin, delegatedOrUserless},
@@ -102,6 +109,7 @@ var catalog = []definition{
 	{ConfigRead, CategoryAdmin, delegatedOrUserless},
 	{ConfigWrite, CategoryAdmin, delegatedOrUserless},
 	{AuditLogsRead, CategoryAdmin, delegatedOrUserless},
+	{AdminAccessWrite, CategoryAdmin, delegatedOrUserless},
 }
 
 var definitions = indexCatalog(catalog)
@@ -154,6 +162,16 @@ func (s ScopeSet) Intersect(other ScopeSet) ScopeSet {
 	return set
 }
 
+// hasAdmin reports whether the set contains any admin scope
+func (s ScopeSet) hasAdmin() bool {
+	for scope := range s {
+		if definitions[scope].category == CategoryAdmin {
+			return true
+		}
+	}
+	return false
+}
+
 // unverifiedScopes are the scopes a user keeps while their email still has to be verified
 var unverifiedScopes = NewScopeSet(AccountRead, AccountWrite, AccountPasskeys, AccountPasskeysEnroll, AccountSession)
 
@@ -164,7 +182,10 @@ func ResourceURI(appURL string) string {
 }
 
 const (
-	MCPPath = "/mcp"
+	// MCPPath is the URL MCP clients connect to and the resource their tokens are issued for
+	// It redirects to MCPEndpointPath, so a proxy that blocks the admin prefix blocks the MCP endpoint too
+	MCPPath         = "/mcp"
+	MCPEndpointPath = AdminPathPrefix + "mcp"
 	// MCPResourceMetadataPath is where the RFC 9728 protected resource metadata of the MCP endpoint is served, which RFC 9728 derives by inserting the well-known prefix before the endpoint's path
 	MCPResourceMetadataPath = "/.well-known/oauth-protected-resource" + MCPPath
 )

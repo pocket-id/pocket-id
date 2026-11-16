@@ -32,7 +32,7 @@ func New(deps Dependencies) *Module {
 
 // RegisterRoutes mounts the logo preset endpoints
 func (m *Module) RegisterRoutes(r *authz.Router) {
-	r.GET("/oidc/logo-presets", authz.OidcClientsRead, httpserver.JSON(http.StatusOK, m.handler.search),
+	r.GET("/admin/oidc/logo-presets", authz.OidcClientsRead, httpserver.JSON(http.StatusOK, m.handler.search),
 		option.Summary("Search logo presets"),
 		option.Description("Search the icon library for logos that can be used for OIDC clients"),
 		option.Tags("OIDC"),

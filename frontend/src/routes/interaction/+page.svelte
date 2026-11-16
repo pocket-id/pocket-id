@@ -39,6 +39,8 @@
 	let signingIn = $state(false);
 	let redirectUrl: string | undefined = $state();
 	let showFallback = $state(false);
+	// Scopes granted on this page stay in view while the browser leaves, so the wide card does not collapse into a small one
+	let granted = $state(false);
 	let failure: { message: string; code?: string; closed: boolean } | undefined = $state();
 	let currentStep = $derived(interactionSession.currentStep);
 	// Every requested scope starts selected so the user only has to deselect the ones they do not want to grant
@@ -59,6 +61,7 @@
 					? 'verify'
 					: (currentStep ?? 'authenticate')
 	);
+	const showScopes = $derived(hasScopes && (view === 'consent' || (view === 'success' && granted)));
 
 	async function useDifferentAccount() {
 		await webauthnService.logout();
@@ -129,6 +132,7 @@
 		}
 
 		if (result.redirectUrl && !skipRedirect) {
+			granted = step === 'consent';
 			redirectUrl = result.redirectUrl;
 			// The way forward becomes a link when the browser has not left after a few seconds
 			setTimeout(() => (showFallback = true), cssMs('--t-redirect-fallback'));
@@ -145,7 +149,7 @@
 	<title>{m.sign_in_to({ name: client.name })}</title>
 </svelte:head>
 
-<SignInWrapper wide={view === 'consent' && hasScopes}>
+<SignInWrapper wide={showScopes}>
 	<AuthorizeTiles {client} success={!!redirectUrl} error={!!failure} onsuccessshown={redirect} />
 
 	{#if view === 'success'}
@@ -215,8 +219,13 @@
 	{/if}
 
 	{#snippet side()}
-		{#if view !== 'success'}
-			{#if view === 'consent' && hasScopes}
+		{#if showScopes && view === 'success'}
+			<!-- The granted scopes only fill the second column, because stacked under the outcome they would read as another question -->
+			<div class="max-lg:hidden">
+				<ScopeList scopes={selectedScopes} scopeInfo={interactionSession.scopeInfo ?? []} />
+			</div>
+		{:else if view !== 'success'}
+			{#if showScopes}
 				<div class="mb-6">
 					<ScopeList
 						scopes={interactionSession.scopes || []}

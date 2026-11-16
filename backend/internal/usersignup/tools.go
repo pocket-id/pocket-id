@@ -19,7 +19,7 @@ func (m *Module) RegisterTools(t *mcp.Tools) {
 		Name:        "create_signup_link",
 		Description: "Create a link that lets people create their own account, even when open sign-up is disabled. Users who sign up through it join the given groups.",
 		Effect:      mcp.Write,
-	}, authz.UsersWrite, m.handler.createSignupLinkTool)
+	}, authz.UsersInvite, m.handler.createSignupLinkTool)
 }
 
 type createSignupLinkInput struct {
@@ -48,7 +48,7 @@ func (h *handler) createSignupLinkTool(ctx context.Context, _ mcp.Call, input cr
 		return nil, err
 	}
 
-	signupToken, err := h.service.CreateSignupToken(ctx, createDto.TTL.Duration, createDto.UsageLimit, createDto.UserGroupIDs)
+	signupToken, err := h.service.CreateSignupToken(ctx, createDto.TTL.Duration, createDto.UsageLimit, createDto.UserGroupIDs, "")
 	if err != nil {
 		return nil, err
 	}

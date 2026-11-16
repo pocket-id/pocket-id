@@ -35,9 +35,9 @@ test.describe('Dashboard shows only clients where user has access', () => {
 
 	test("User can't see a disabled launchable client", async ({ page }) => {
 		const client = await (
-			await page.request.get(`/api/oidc/clients/${oidcClients.immich.id}`)
+			await page.request.get(`/api/admin/oidc/clients/${oidcClients.immich.id}`)
 		).json();
-		const disabled = await page.request.put(`/api/oidc/clients/${client.id}`, {
+		const disabled = await page.request.put(`/api/admin/oidc/clients/${client.id}`, {
 			data: { ...client, disabled: true }
 		});
 		expect(disabled.ok()).toBeTruthy();

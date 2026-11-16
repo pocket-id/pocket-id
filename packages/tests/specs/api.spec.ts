@@ -4,6 +4,7 @@ import { apis, oidcClients } from '../data';
 import { setAppConfigValues } from '../utils/app-config.util';
 import { cleanupBackend } from '../utils/cleanup.util';
 import * as oidcUtil from '../utils/oidc.util';
+import passkeyUtil from '../utils/passkey.util';
 import { saveUnsavedChanges } from '../utils/unsaved-changes.util';
 
 test.beforeEach(async () => await cleanupBackend());
@@ -522,10 +523,10 @@ test('A client calls Pocket ID with an access token for the built-in API', async
 		storageState: { cookies: [], origins: [] },
 		extraHTTPHeaders: { Authorization: `Bearer ${res.access_token}` }
 	});
-	expect((await apiClient.get('/api/users')).status()).toBe(200);
-	expect((await apiClient.post('/api/users', { data: { username: 'not-allowed' } })).status()).toBe(
-		403
-	);
+	expect((await apiClient.get('/api/admin/users')).status()).toBe(200);
+	expect(
+		(await apiClient.post('/api/admin/users', { data: { username: 'not-allowed' } })).status()
+	).toBe(403);
 	await apiClient.dispose();
 });
 
@@ -543,9 +544,9 @@ test('A client calls Pocket ID as itself with the client credentials grant', asy
 	await page.getByRole('dialog').getByRole('button', { name: client.name }).click();
 	const dialog = page.getByRole('dialog');
 	await expect(dialog.getByRole('checkbox', { name: 'As itself: Profile · Read' })).toBeDisabled();
-	await dialog.getByRole('checkbox', { name: 'As itself: Users · Write' }).click();
+	await dialog.getByRole('checkbox', { name: 'As itself: Admin access' }).click();
 	await expect(dialog.getByText('This client can act as an admin')).toBeVisible();
-	await dialog.getByRole('checkbox', { name: 'As itself: Users · Write' }).click();
+	await dialog.getByRole('checkbox', { name: 'As itself: Admin access' }).click();
 	await expect(dialog.getByText('This client can act as an admin')).toHaveCount(0);
 	await dialog.getByRole('checkbox', { name: 'As itself: Users · Read' }).click();
 	await dialog.getByRole('button', { name: 'Save' }).click();
@@ -565,7 +566,7 @@ test('A client calls Pocket ID as itself with the client credentials grant', asy
 		storageState: { cookies: [], origins: [] },
 		extraHTTPHeaders: { Authorization: `Bearer ${res.access_token}` }
 	});
-	expect((await apiClient.get('/api/users')).status()).toBe(200);
+	expect((await apiClient.get('/api/admin/users')).status()).toBe(200);
 	// The client has no account of its own
 	const me = await apiClient.get('/api/users/me');
 	expect(me.status()).toBe(403);
@@ -578,11 +579,11 @@ test('Consent screen warns before an app gets scopes that amount to admin access
 	baseURL
 }) => {
 	const client = oidcClients.immich;
-	const api = await (await page.request.get(`/api/apis/${pocketIdApi.id}`)).json();
+	const api = await (await page.request.get(`/api/admin/apis/${pocketIdApi.id}`)).json();
 	const permissionIds = api.permissions
-		.filter((p: { key: string }) => ['users:read', 'users:write'].includes(p.key))
+		.filter((p: { key: string }) => ['users:read', 'admin-access:write'].includes(p.key))
 		.map((p: { id: string }) => p.id);
-	await page.request.put(`/api/apis/${pocketIdApi.id}/clients/${client.id}`, {
+	await page.request.put(`/api/admin/apis/${pocketIdApi.id}/clients/${client.id}`, {
 		data: {
 			userDelegatedAccess: true,
 			clientAccess: false,
@@ -594,19 +595,22 @@ test('Consent screen warns before an app gets scopes that amount to admin access
 	const params = new URLSearchParams({
 		client_id: client.id,
 		response_type: 'code',
-		scope: 'users:read users:write',
+		scope: 'users:read admin-access:write',
 		resource: `${baseURL}/api`,
 		redirect_uri: client.callbackUrl,
 		state: 'nXx-6Qr-owc1SHBa'
 	});
+	// A grant with admin access outlives the session, so the passkey is confirmed before the consent screen
+	await (await passkeyUtil.init(page)).addPasskey();
 	await page.goto(`/authorize?${params.toString()}`);
+	await page.getByRole('button', { name: 'Continue with passkey' }).click();
 
 	const warning = page.getByText('This app can gain full admin access');
 	await expect(warning).toBeVisible();
 	// Deselecting the scope takes the risk away
 	await page
 		.getByTestId('scopes')
-		.getByRole('checkbox', { name: /^Users · Write/ })
+		.getByRole('checkbox', { name: /^Admin access/ })
 		.click();
 	await expect(warning).toHaveCount(0);
 });

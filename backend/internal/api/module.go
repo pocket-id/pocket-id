@@ -2,11 +2,13 @@ package api
 
 import (
 	"context"
+	"fmt"
 	"net/http"
 
+	"github.com/gin-gonic/gin"
+	"github.com/go-fuego/fuego/option"
 	"gorm.io/gorm"
 
-	"github.com/go-fuego/fuego/option"
 	"github.com/pocket-id/pocket-id/backend/internal/authz"
 	"github.com/pocket-id/pocket-id/backend/internal/dto"
 	"github.com/pocket-id/pocket-id/backend/internal/httpserver"
@@ -49,6 +51,40 @@ func (m *Module) AllowedScopesForAudience(ctx context.Context, tx *gorm.DB, clie
 	return m.service.AllowedScopesForAudience(ctx, tx, clientID, audience, subjectType)
 }
 
+// RequireAdminAccessForClients rejects a principal without admin access that changes clients of which any may use Pocket ID's own API, since their credentials, callback URLs, groups or claims would let it act with the admin scopes granted to them
+// A nil tx reads outside of a transaction
+func (m *Module) RequireAdminAccessForClients(ctx context.Context, tx *gorm.DB, principal authz.Principal, clientIDs ...string) error {
+	if len(clientIDs) == 0 {
+		return nil
+	}
+	if tx == nil {
+		tx = m.service.db
+	}
+
+	var count int64
+	err := tx.WithContext(ctx).Model(&OidcClientAllowedAPI{}).Where("api_id = ? AND oidc_client_id IN ?", BuiltInAPIID, clientIDs).Count(&count).Error
+	if err != nil {
+		return fmt.Errorf("failed to check the clients' access to Pocket ID's API: %w", err)
+	}
+	if count == 0 {
+		return nil
+	}
+	return principal.RequireAdminAccess()
+}
+
+// ProtectPocketIDClients returns a handler for routes that change the client named by the path parameter, which rejects a principal without admin access when that client may use Pocket ID's own API
+func (m *Module) ProtectPocketIDClients(param string) gin.HandlerFunc {
+	return func(c *gin.Context) {
+		err := m.RequireAdminAccessForClients(c.Request.Context(), nil, authz.PrincipalFrom(c), c.Param(param))
+		if err != nil {
+			c.Abort()
+			_ = c.Error(err)
+			return
+		}
+		c.Next()
+	}
+}
+
 // DescribePermissions implements the OIDC module's APIAccessProvider interface
 func (m *Module) DescribePermissions(ctx context.Context, audience string, keys []string) ([]dto.ScopeInfoDto, error) {
 	permissions, err := m.service.DescribePermissions(ctx, audience, keys)
@@ -70,7 +106,9 @@ func (m *Module) DescribePermissions(ctx context.Context, audience string, keys 
 
 // RegisterRoutes mounts the admin CRUD endpoints
 func (m *Module) RegisterRoutes(r *authz.Router) {
-	apis := r.Group("/apis")
+	apis := r.Group("/admin/apis")
+	// Access to Pocket ID's own API carries admin scopes, so changing who holds it also needs admin access
+	protected := apis.With(m.handler.protectBuiltInAPI)
 	apis.GET("", authz.APIsRead, httpserver.JSON(http.StatusOK, m.handler.list),
 		option.Summary("List APIs"),
 		option.Description("Get a paginated list of APIs with optional search and sorting"),
@@ -109,7 +147,7 @@ func (m *Module) RegisterRoutes(r *authz.Router) {
 		option.Tags("APIs"),
 		option.Path("id", "API ID"),
 	)
-	apis.PUT("/:id/cimd-access", authz.APIsWrite, httpserver.BodyJSON(http.StatusOK, m.handler.updateCimdAccess),
+	protected.PUT("/:id/cimd-access", authz.APIsWrite, httpserver.BodyJSON(http.StatusOK, m.handler.updateCimdAccess),
 		option.Summary("Update metadata document client access"),
 		option.Description("Replace which permissions of an API every client registered through a Client ID Metadata Document may request"),
 		option.Tags("APIs"),
@@ -133,14 +171,14 @@ func (m *Module) RegisterRoutes(r *authz.Router) {
 		option.Query("search", "Search term to filter clients by name"),
 		openapi.List[model.OidcClient](),
 	)
-	apis.PUT("/:id/clients/:clientId", authz.APIsWrite, httpserver.BodyJSON(http.StatusOK, m.handler.updateClientAccessForApi),
+	protected.PUT("/:id/clients/:clientId", authz.APIsWrite, httpserver.BodyJSON(http.StatusOK, m.handler.updateClientAccessForApi),
 		option.Summary("Update a client's access to an API"),
 		option.Description("Replace the permissions of this API a single OIDC client may request, leaving its grants on other APIs untouched"),
 		option.Tags("APIs"),
 		option.Path("id", "API ID"),
 		option.Path("clientId", "OIDC Client ID"),
 	)
-	apis.DELETE("/:id/clients/:clientId", authz.APIsWrite, httpserver.NoContent(m.handler.removeClientAccessForApi),
+	protected.DELETE("/:id/clients/:clientId", authz.APIsWrite, httpserver.NoContent(m.handler.removeClientAccessForApi),
 		option.Summary("Revoke a client's access to an API"),
 		option.Description("Remove every permission of this API a single OIDC client was allowed to request"),
 		option.Tags("APIs"),
@@ -148,7 +186,7 @@ func (m *Module) RegisterRoutes(r *authz.Router) {
 		option.Path("clientId", "OIDC Client ID"),
 	)
 
-	access := r.Group("/api-access")
+	access := r.Group("/admin/api-access")
 	access.GET("/:clientId/apis", authz.APIsRead, httpserver.JSON(http.StatusOK, m.handler.listClientApis),
 		option.Summary("List APIs a client may access"),
 		option.Description("Get every API the OIDC client may request tokens for, with its access and permissions split into user-delegated and client (machine-to-machine) access"),

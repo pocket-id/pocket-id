@@ -30,7 +30,7 @@ func TestSpecDocumentsRequestsByTheirBinding(t *testing.T) {
 		{Method: http.MethodPut, Path: "/widgets/:id", Docs: append(docs, UpdateBody[widgetInput]())},
 		{Method: http.MethodPatch, Path: "/widgets/:id", Docs: append(docs, UpdateBody[widgetInput]())},
 		{Method: http.MethodGet, Path: "/widgets/page", Docs: []fuego.RouteOption{Response[widgetPage](http.StatusOK, "")}},
-	})
+	}, nil)
 	require.NoError(t, err)
 	require.NotContains(t, string(raw), `"nullable"`)
 
@@ -72,7 +72,7 @@ type gadget struct {
 }
 
 func TestListDocumentsTheModelsSortColumnsAndFilters(t *testing.T) {
-	raw, err := Spec([]Route{{Method: http.MethodGet, Path: "/gadgets", Docs: []fuego.RouteOption{List[gadget]("ownerCount"), Response[[]gadget](http.StatusOK, "")}}})
+	raw, err := Spec([]Route{{Method: http.MethodGet, Path: "/gadgets", Docs: []fuego.RouteOption{List[gadget]("ownerCount"), Response[[]gadget](http.StatusOK, "")}}}, nil)
 	require.NoError(t, err)
 
 	var spec struct {

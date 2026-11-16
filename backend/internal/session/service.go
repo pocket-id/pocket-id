@@ -21,6 +21,9 @@ import (
 // touchInterval throttles how often a session's last activity is written, so most requests only read the session
 const touchInterval = 5 * time.Minute
 
+// passkeyAuthenticationMethod is how a passkey sign-in is recorded, see the authentication method the webauthn module creates its sessions with
+const passkeyAuthenticationMethod = "phr"
+
 // idleTimeout ends a session the user chose not to keep once it goes unused, so a shared computer does not stay signed in
 // It must stay well above touchInterval, because the recorded last activity can lag behind by up to that interval
 const idleTimeout = 20 * time.Minute
@@ -38,6 +41,7 @@ func newService(actorService *actor.Service, ipLocator iplocation.Resolver, audi
 
 // Create starts a session for the user and returns its token
 // A session that is not remembered also ends after idleTimeout without activity
+// Signing in with a passkey proves it, so only such a session starts in sudo mode
 // It invokes an actor, so it must not be called while a database transaction is open, which would deadlock on SQLite
 func (s *Service) Create(ctx context.Context, userID, authenticationMethod, ipAddress, userAgent string, duration time.Duration, remember bool) (string, error) {
 	sessionID, err := utils.GenerateRandomAlphanumericString(16)
@@ -61,6 +65,11 @@ func (s *Service) Create(ctx context.Context, userID, authenticationMethod, ipAd
 	}
 
 	now := time.Now()
+	var sudoStartedAt time.Time
+	if authenticationMethod == passkeyAuthenticationMethod {
+		sudoStartedAt = now
+	}
+
 	_, err = s.actorService.Invoke(ctx, ActorType, userID, MethodCreate, Session{
 		ID:                   sessionID,
 		TokenHash:            utils.CreateSha256Hash(secret),
@@ -73,6 +82,8 @@ func (s *Service) Create(ctx context.Context, userID, authenticationMethod, ipAd
 		LastActiveAt:         now,
 		ExpiresAt:            now.Add(duration),
 		IdleTimeout:          sessionIdleTimeout,
+		SudoStartedAt:        sudoStartedAt,
+		SudoUsedAt:           sudoStartedAt,
 	})
 	if err != nil {
 		return "", fmt.Errorf("error creating session: %w", err)
@@ -243,6 +254,25 @@ func (s *Service) Remember(ctx context.Context, userID, sessionID string) (Sessi
 		return Session{}, apperror.NotFound("session")
 	}
 	return session, nil
+}
+
+// StartSudo puts a session into sudo mode after its user proved their passkey again
+// It invokes an actor, so it must not be called while a database transaction is open
+func (s *Service) StartSudo(ctx context.Context, userID, sessionID string) error {
+	_, err := s.actorService.Invoke(ctx, ActorType, userID, methodSudo, sudoRequest{SessionID: sessionID, Start: true})
+	if err != nil {
+		return fmt.Errorf("error starting sudo mode: %w", err)
+	}
+	return nil
+}
+
+// KeepSudo records that a request relied on the session's sudo mode, which keeps it from ending for being unused
+// A failed write is only logged, because the request it is recorded for was already handled
+func (s *Service) KeepSudo(ctx context.Context, userID, sessionID string) {
+	_, err := s.actorService.Invoke(ctx, ActorType, userID, methodSudo, sudoRequest{SessionID: sessionID})
+	if err != nil {
+		slog.WarnContext(ctx, "Failed to record the use of sudo mode", slog.Any("error", err))
+	}
 }
 
 func parseToken(token string) (userID, sessionID, secret string, ok bool) {

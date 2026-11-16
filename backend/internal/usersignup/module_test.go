@@ -28,7 +28,7 @@ func (usersReadAuthenticator) Authenticate(*gin.Context) (*authz.Principal, erro
 	return &authz.Principal{Kind: authz.KindAPIKey, UserID: "admin", Scopes: authz.ScopeSet{authz.UsersRead: {}}}, nil
 }
 
-func TestListingSignupTokensRequiresUsersWrite(t *testing.T) {
+func TestListingSignupTokensRequiresUsersInvite(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 
 	var errs []*gin.Error
@@ -37,13 +37,13 @@ func TestListingSignupTokensRequiresUsersWrite(t *testing.T) {
 		c.Next()
 		errs = c.Errors
 	})
-	(&Module{}).RegisterRoutes(authz.NewMiddleware(usersReadAuthenticator{}).Router(router.Group("/api")), nil)
+	(&Module{}).RegisterRoutes(authz.NewMiddleware(nil, usersReadAuthenticator{}).Router(router.Group("/api")), nil)
 
-	request := httptest.NewRequestWithContext(t.Context(), http.MethodGet, "/api/signup-tokens", nil)
+	request := httptest.NewRequestWithContext(t.Context(), http.MethodGet, "/api/admin/signup-tokens", nil)
 	router.ServeHTTP(httptest.NewRecorder(), request)
 
 	require.Len(t, errs, 1)
 	appErr, ok := errors.AsType[*apperror.Error](errs[0].Err)
 	require.True(t, ok)
-	require.Equal(t, string(authz.UsersWrite), appErr.Details()["required_scope"])
+	require.Equal(t, string(authz.UsersInvite), appErr.Details()["required_scope"])
 }

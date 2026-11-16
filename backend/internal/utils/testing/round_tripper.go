@@ -10,8 +10,6 @@ import (
 	"net/http"
 	"strings"
 	"sync"
-
-	_ "github.com/golang-migrate/migrate/v4/source/file"
 )
 
 // MockRoundTripper is a custom http.RoundTripper that returns responses based on the URL

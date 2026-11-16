@@ -44,11 +44,14 @@ cd ../../.. && pnpm test                         # = playwright test in packages
 - **Never edit generated files:** `frontend/src/lib/paraglide/**` (Paraglide i18n output) and
   `backend/frontend/dist/**`. For i18n, only edit `frontend/messages/en.json`; other locales come
   from Crowdin.
-- **Migrations are split by DB.** Raw SQL via golang-migrate in
-  `backend/resources/migrations/{sqlite,postgres}/` — separate files _and_ separate version
-  timelines. Add a matching up/down pair to **both**. Not GORM AutoMigrate. SQLite migrations
-  are not auto-wrapped in a transaction (`NoTxWrap`); wrap multi-statement ones manually
-  (`PRAGMA foreign_keys=OFF; BEGIN; … COMMIT; PRAGMA foreign_keys=ON;`).
+- **Migrations are split by DB.** Raw SQL via goose in
+  `backend/resources/migrations/{sqlite,postgres}/`, one `<version>_<name>.sql` file per migration
+  with a `-- +goose Up` and a `-- +goose Down` section. Add a file with the same version to **both**.
+  Not GORM AutoMigrate. A SQLite migration that rebuilds a table starts with `-- +goose NO TRANSACTION`
+  and wraps its statements manually (`PRAGMA foreign_keys=OFF; BEGIN; … COMMIT; PRAGMA foreign_keys=ON;`).
+  The baseline is the schema v3 started with; a database of an earlier major version is brought there by
+  [pocket-id/upgrade](https://github.com/pocket-id/upgrade), which
+  `backend/internal/bootstrap/upgrade_tool_bootstrap.go` downloads, verifies and runs.
 - **Column types must match across DBs for export/import.** A SQLite export must import into Postgres
   and vice versa, so every column must map to the same `DBExportKind` (`backend/internal/utils/db_util.go`)
   on both: JSON/binary is `JSONB`/`BYTEA` ↔ `BLOB`, timestamps are `TIMESTAMPTZ` ↔ `DATETIME` (never
@@ -61,6 +64,7 @@ cd ../../.. && pnpm test                         # = playwright test in packages
 - **Handlers and API docs:** register JSON handlers through the typed endpoints in `internal/httpserver` (`JSON`, `BodyJSON`, `UpdateJSON`, `NoContent`, `BodyNoContent`), which bind the body, write the response and document both from the handler's types.
   Summaries, tags and parameters are fuego options at the registration on `authz.Router`, where a list route passes `openapi.List[Model]()` to document the pagination, sort columns and filters from the model's `sortable`/`filterable` tags, and only handlers that write files or several kinds of response use `httpserver.Handle` with `openapi` helpers; a route without docs stays out of the spec.
   `go run -tags exclude_frontend ./cmd/openapi` prints the spec the docs site renders, and a new tag must be added to `tags` in `internal/openapi`.
+  A route that requires an admin scope is registered on `r.Group("/admin")` so it lives below `/api/admin/`, which lets a proxy block the admin API with one rule; `authz.Router` panics on an admin route outside that prefix or any other route inside it.
 - Fosite comes from Pocket ID's **fork** `github.com/pocket-id/fosite`, not `github.com/ory/fosite`. It ports upstream fixes from `ory/hydra`.
 
 ## Frontend (SvelteKit)

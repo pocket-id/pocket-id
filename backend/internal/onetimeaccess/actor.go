@@ -12,7 +12,7 @@ import (
 )
 
 // One-time access tokens are stored entirely in the actor state store.
-// Each token is its own actor, whose actor ID is the token value itself.
+// Each token is its own actor, whose actor ID is the SHA-256 hash of the token, so the state store never holds a usable token
 // The state is persisted with a TTL equal to the token's lifetime, so it's purged automatically when the token expires (there's no separate cleanup job).
 
 // TokenActorType is the actor type for the one-time access token actor
@@ -39,15 +39,18 @@ const (
 )
 
 // TokenState is the persisted state of a one-time access token actor.
-// The token value itself is the actor's ID, so it isn't repeated here.
+// The hash of the token is the actor's ID, so it isn't repeated here.
 type TokenState struct {
-	UserID      string
+	UserID string
+	// DeviceToken is the SHA-256 hash of the device token the token is bound to
 	DeviceToken *string
 	ExpiresAt   time.Time
+	ForbidAdmin bool
 }
 
 // tokenConsumeRequest is the payload for the "consume" method
 type tokenConsumeRequest struct {
+	// DeviceToken is the SHA-256 hash of the device token the caller holds
 	DeviceToken string
 }
 

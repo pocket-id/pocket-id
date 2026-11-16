@@ -8,9 +8,9 @@ import (
 
 	"github.com/spf13/cobra"
 
+	"github.com/pocket-id/pocket-id/backend/internal/backup"
 	"github.com/pocket-id/pocket-id/backend/internal/bootstrap"
 	"github.com/pocket-id/pocket-id/backend/internal/common"
-	"github.com/pocket-id/pocket-id/backend/internal/service"
 )
 
 type exportFlags struct {
@@ -61,7 +61,7 @@ func runExport(ctx context.Context, flags exportFlags) error {
 
 	// The actor data lives outside of the Pocket ID schema, so it's exported through Francis
 	// A standalone runtime keeps it in its own store, out of reach from here, and the export service leaves the entry out of the archive when no provider is passed
-	var actorsProvider service.ActorsBackupProvider
+	var actorsProvider backup.ActorsBackupProvider
 	if common.EnvConfig.HasEmbeddedFrancisRuntime() {
 		providerOpts, err := bootstrap.ActorsProviderOptions(db, pg)
 		if err != nil {
@@ -81,7 +81,7 @@ func runExport(ctx context.Context, flags exportFlags) error {
 		printRemoteActorDataNotice("The actor data is NOT included in this export", "back it up separately with: francis runtime backup -f actors.bin")
 	}
 
-	exportService := service.NewExportService(db, storage, actorsProvider)
+	exportService := backup.NewExportService(db, storage, actorsProvider)
 
 	if flags.Path == "-" {
 		err = exportService.ExportToZip(ctx, os.Stdout)

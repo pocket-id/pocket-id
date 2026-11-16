@@ -101,11 +101,6 @@ func NormalizeSortDirection(direction string) string {
 	return d
 }
 
-func IsValidSortDirection(direction string) bool {
-	d := strings.ToLower(strings.TrimSpace(direction))
-	return d == "asc" || d == "desc"
-}
-
 // parseNestedFilters handles ?filters[field][0]=val1&filters[field][1]=val2
 func parseNestedFilters(ctx *gin.Context) map[string][]any {
 	result := make(map[string][]any)

@@ -28,7 +28,7 @@ func New(deps Dependencies) *Module {
 
 // RegisterRoutes mounts the feature endpoints
 func (m *Module) RegisterRoutes(r *authz.Router) {
-	r.GET("/features", authz.AccountRead, httpserver.JSON(http.StatusOK, m.list),
+	r.GET("/features", authz.Authenticated, httpserver.JSON(http.StatusOK, m.list),
 		option.Summary("List optional features"),
 		option.Description("Get whether each optional feature is on and whether anything uses it; a feature in use is always on"),
 		option.Tags("Features"),

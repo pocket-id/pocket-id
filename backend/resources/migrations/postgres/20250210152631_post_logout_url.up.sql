@@ -1,1 +1,0 @@
-ALTER TABLE oidc_clients ADD COLUMN logout_callback_urls JSONB;

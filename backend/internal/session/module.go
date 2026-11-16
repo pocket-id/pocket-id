@@ -7,6 +7,7 @@ import (
 	"net/http"
 	"time"
 
+	"github.com/gin-gonic/gin"
 	"github.com/go-fuego/fuego/option"
 	francishost "github.com/italypaleale/francis/host"
 	"gorm.io/gorm"
@@ -55,7 +56,8 @@ func New(deps Dependencies) (*Module, error) {
 }
 
 // RegisterRoutes mounts the endpoints to review, remember and revoke the caller's own sessions and those of any user
-func (m *Module) RegisterRoutes(r *authz.Router) {
+// protectAdmins guards the routes that revoke another user's sessions, which need admin access when that user is an admin
+func (m *Module) RegisterRoutes(r *authz.Router, protectAdmins gin.HandlerFunc) {
 	r.GET("/sessions", authz.AccountSession, httpserver.JSON(http.StatusOK, m.handler.listOwn),
 		option.Summary("List own sessions"),
 		option.Description("Get the browsers in which the current user is signed in, most recently active first"),
@@ -78,19 +80,20 @@ func (m *Module) RegisterRoutes(r *authz.Router) {
 		option.Tags("Sessions"),
 	)
 
-	r.GET("/users/:id/sessions", authz.UsersRead, httpserver.JSON(http.StatusOK, m.handler.listForUser),
+	admin := r.Group("/admin")
+	admin.GET("/users/:id/sessions", authz.UsersRead, httpserver.JSON(http.StatusOK, m.handler.listForUser),
 		option.Summary("List sessions of a user"),
 		option.Description("Get the browsers in which a user is signed in, most recently active first"),
 		option.Tags("Sessions"),
 		option.Path("id", "User ID"),
 	)
-	r.DELETE("/users/:id/sessions", authz.UsersWrite, httpserver.NoContent(m.handler.revokeAllForUser),
+	admin.With(protectAdmins).DELETE("/users/:id/sessions", authz.UsersWrite, httpserver.NoContent(m.handler.revokeAllForUser),
 		option.Summary("Revoke all sessions of a user"),
 		option.Description("Sign a user out of every session and revoke every grant their apps hold, offline_access ones included"),
 		option.Tags("Sessions"),
 		option.Path("id", "User ID"),
 	)
-	r.DELETE("/users/:id/sessions/:sessionId", authz.UsersWrite, httpserver.NoContent(m.handler.revokeForUser),
+	admin.With(protectAdmins).DELETE("/users/:id/sessions/:sessionId", authz.UsersWrite, httpserver.NoContent(m.handler.revokeForUser),
 		option.Summary("Revoke a session of a user"),
 		option.Description("Sign a user out of one of their sessions"),
 		option.Tags("Sessions"),
@@ -108,6 +111,17 @@ func (m *Module) Create(ctx context.Context, userID, authenticationMethod, ipAdd
 // Validate returns the ID of the user and the active session the token belongs to
 func (m *Module) Validate(ctx context.Context, token string) (string, Session, error) {
 	return m.service.Validate(ctx, token)
+}
+
+// StartSudo puts a session into sudo mode after its user proved their passkey again
+// It invokes an actor, so it must not be called while a database transaction is open
+func (m *Module) StartSudo(ctx context.Context, userID, sessionID string) error {
+	return m.service.StartSudo(ctx, userID, sessionID)
+}
+
+// KeepSudo records that a request relied on the session's sudo mode
+func (m *Module) KeepSudo(ctx context.Context, userID, sessionID string) {
+	m.service.KeepSudo(ctx, userID, sessionID)
 }
 
 // IsActive reports whether the user is still signed in with the session

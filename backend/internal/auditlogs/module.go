@@ -85,7 +85,8 @@ func (m *Module) ReloadBrowserKey(ctx context.Context, instanceID string) error 
 
 // RegisterRoutes mounts the audit-log queries for the caller's own events and for all events
 func (m *Module) RegisterRoutes(r *authz.Router) {
-	r.GET("/audit-logs/all", authz.AuditLogsRead, httpserver.JSON(http.StatusOK, m.handler.listAllAuditLogsHandler),
+	admin := r.Group("/admin")
+	admin.GET("/audit-logs", authz.AuditLogsRead, httpserver.JSON(http.StatusOK, m.handler.listAllAuditLogsHandler),
 		option.Summary("List all audit logs"),
 		option.Description("Get a paginated list of all audit logs (admin only)"),
 		option.Tags("Audit Logs"),
@@ -104,12 +105,12 @@ func (m *Module) RegisterRoutes(r *authz.Router) {
 		option.Query("from", "Only entries created at or after this RFC 3339 time"),
 		option.Query("to", "Only entries created before this RFC 3339 time"),
 	)
-	r.GET("/audit-logs/filters/client-names", authz.AuditLogsRead, httpserver.JSON(http.StatusOK, m.handler.listClientNamesHandler),
+	admin.GET("/audit-logs/filters/client-names", authz.AuditLogsRead, httpserver.JSON(http.StatusOK, m.handler.listClientNamesHandler),
 		option.Summary("List client names"),
 		option.Description("Get a list of all client names for audit log filtering"),
 		option.Tags("Audit Logs"),
 	)
-	r.GET("/audit-logs/filters/users", authz.AuditLogsRead, httpserver.JSON(http.StatusOK, m.handler.listUserNamesWithIdsHandler),
+	admin.GET("/audit-logs/filters/users", authz.AuditLogsRead, httpserver.JSON(http.StatusOK, m.handler.listUserNamesWithIdsHandler),
 		option.Summary("List users with IDs"),
 		option.Description("Get a list of all usernames with their IDs for audit log filtering"),
 		option.Tags("Audit Logs"),

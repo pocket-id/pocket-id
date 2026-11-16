@@ -110,6 +110,15 @@ func (m *Module) SendOneTimeAccessEmail(ctx context.Context, dbConfig *appconfig
 	})
 }
 
+func (m *Module) SendSignupInvitation(ctx context.Context, dbConfig *appconfig.AppConfigModel, recipientEmail, signupLink, expirationString string) error {
+	return send(ctx, m, dbConfig, address{
+		email: recipientEmail,
+	}, signupInvitationTemplate, &signupInvitationTemplateData{
+		SignupLink:       signupLink,
+		ExpirationString: expirationString,
+	})
+}
+
 func (m *Module) SendNewLogin(ctx context.Context, dbConfig *appconfig.AppConfigModel, userFullName, userEmail, ipAddress, country, city, device, method string, dateTime time.Time) error {
 	return send(ctx, m, dbConfig, address{
 		name:  userFullName,

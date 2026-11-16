@@ -90,7 +90,7 @@ test('Edit OIDC client', async ({ page }) => {
 	await page.goto(`/settings/admin/oidc-clients/${oidcClient.id}`);
 
 	await page.getByLabel('Name').fill('Nextcloud updated');
-	await page.getByLabel('Description').fill('Updated description');
+	await page.getByRole('textbox', { name: 'Notes' }).fill('Updated notes');
 	await page.getByTestId('callback-url-1').getByRole('button').click();
 	await page.getByTestId('callback-url-input').fill('http://nextcloud-updated/auth/callback');
 	await page.getByTestId('callback-url-input').press('Enter');
@@ -107,7 +107,7 @@ test('Edit OIDC client', async ({ page }) => {
 // A cleared optional field must reach the server as null, because a merge patch keeps every field it leaves out
 test('Clear the launch URL of an OIDC client', async ({ page }) => {
 	const oidcClient = oidcClients.nextcloud;
-	await page.request.patch(`/api/oidc/clients/${oidcClient.id}`, {
+	await page.request.patch(`/api/admin/oidc/clients/${oidcClient.id}`, {
 		data: { launchURL: oidcClient.launchURL }
 	});
 	await page.goto(`/settings/admin/oidc-clients/${oidcClient.id}`);
@@ -115,7 +115,7 @@ test('Clear the launch URL of an OIDC client', async ({ page }) => {
 	await page.getByLabel('Launch URL').fill('');
 	await saveUnsavedChanges(page);
 
-	const client = await (await page.request.get(`/api/oidc/clients/${oidcClient.id}`)).json();
+	const client = await (await page.request.get(`/api/admin/oidc/clients/${oidcClient.id}`)).json();
 	expect(client.launchURL).toBeNull();
 });
 
@@ -123,7 +123,7 @@ const logoField = (page: Page) => page.getByRole('group', { name: 'Logo', exact:
 
 test('Upload OIDC client logo from the logo picker', async ({ page }) => {
 	const oidcClient = oidcClients.nextcloud;
-	await page.route('**/api/oidc/logo-presets*', (route) => route.fulfill({ json: [] }));
+	await page.route('**/api/admin/oidc/logo-presets*', (route) => route.fulfill({ json: [] }));
 	await page.goto(`/settings/admin/oidc-clients/${oidcClient.id}`);
 
 	const uploadLogo = async (variant: 'light' | 'dark') => {
@@ -160,7 +160,7 @@ test('Upload OIDC client logo from the logo picker', async ({ page }) => {
 
 test('A single OIDC client logo shows in both themes', async ({ page }) => {
 	const oidcClient = oidcClients.immich;
-	await page.route('**/api/oidc/logo-presets*', (route) => route.fulfill({ json: [] }));
+	await page.route('**/api/admin/oidc/logo-presets*', (route) => route.fulfill({ json: [] }));
 	await page.goto(`/settings/admin/oidc-clients/${oidcClient.id}`);
 
 	// Upload only a dark logo while the page is in light mode
@@ -206,7 +206,7 @@ test('Pick OIDC client logo from the icon library', async ({ page }) => {
 	// Stub the icon index and the CDN so the test doesn't depend on jsDelivr
 	// Nextcloud is only found by searching for it, like most icons that aren't at the start of the alphabet
 	const searchTerms: (string | null)[] = [];
-	await page.route('**/api/oidc/logo-presets*', async (route) => {
+	await page.route('**/api/admin/oidc/logo-presets*', async (route) => {
 		const search = new URL(route.request().url()).searchParams.get('search');
 		searchTerms.push(search);
 		await route.fulfill({ json: search?.startsWith('next') ? [nextcloud] : [otherApp] });
@@ -219,7 +219,7 @@ test('Pick OIDC client logo from the icon library', async ({ page }) => {
 	);
 
 	// Answer the save with the stored client so the backend doesn't download the icons
-	await page.route(`**/api/oidc/clients/${oidcClient.id}`, async (route) => {
+	await page.route(`**/api/admin/oidc/clients/${oidcClient.id}`, async (route) => {
 		if (route.request().method() !== 'PATCH') return route.fallback();
 		await route.fulfill({ response: await route.fetch({ method: 'GET' }) });
 	});
@@ -251,7 +251,8 @@ test('Pick OIDC client logo from the icon library', async ({ page }) => {
 	await page.keyboard.press('Escape');
 
 	const updateRequest = page.waitForRequest(
-		(req) => req.method() === 'PATCH' && req.url().endsWith(`/api/oidc/clients/${oidcClient.id}`)
+		(req) =>
+			req.method() === 'PATCH' && req.url().endsWith(`/api/admin/oidc/clients/${oidcClient.id}`)
 	);
 	await saveUnsavedChanges(page);
 
@@ -260,13 +261,47 @@ test('Pick OIDC client logo from the icon library', async ({ page }) => {
 	expect(body.darkLogoUrl).toBe(nextcloud.darkLogoUrl);
 });
 
+test('Icon library keeps the color icon for dark mode unless it blends into the background', async ({
+	page
+}) => {
+	const cdnBaseUrl = 'https://cdn.jsdelivr.net/gh/selfhst/icons@main';
+	const preset = (name: string, reference: string) => ({
+		name,
+		reference,
+		logoUrl: `${cdnBaseUrl}/svg/${reference}.svg`,
+		darkLogoUrl: `${cdnBaseUrl}/svg/${reference}-light.svg`
+	});
+	const blueApp = preset('Blue App', 'blue-app');
+	const blackApp = preset('Black App', 'black-app');
+
+	await page.route('**/api/admin/oidc/logo-presets*', (route) =>
+		route.fulfill({ json: [blueApp, blackApp] })
+	);
+	// The CDN sends the CORS header the picker needs to read the pixels of an icon
+	await page.route(`${cdnBaseUrl}/**`, (route) =>
+		route.fulfill({
+			contentType: 'image/svg+xml',
+			headers: { 'access-control-allow-origin': '*' },
+			body: `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1 1"><rect width="1" height="1" fill="${route.request().url() === blackApp.logoUrl ? '#000' : '#0082c9'}"/></svg>`
+		})
+	);
+
+	await page.goto(`/settings/admin/oidc-clients/${oidcClients.nextcloud.id}`);
+	await page.getByRole('button', { name: 'Choose logo' }).click();
+
+	// The dark half of a tile shows the logo that picking the icon sets for dark mode
+	const darkHalf = (name: string) => page.getByRole('option', { name }).locator('img').nth(1);
+	await expect(darkHalf(blueApp.name)).toHaveAttribute('src', blueApp.logoUrl);
+	await expect(darkHalf(blackApp.name)).toHaveAttribute('src', blackApp.darkLogoUrl);
+});
+
 test('Paste an image URL into the OIDC client logo picker', async ({ page }) => {
 	const oidcClient = oidcClients.nextcloud;
 	const darkLogoUrl = 'https://example.com/nextcloud-dark.svg';
 
 	// Fail the test if a pasted URL is ever sent as an icon search
 	const searchTerms: (string | null)[] = [];
-	await page.route('**/api/oidc/logo-presets*', async (route) => {
+	await page.route('**/api/admin/oidc/logo-presets*', async (route) => {
 		searchTerms.push(new URL(route.request().url()).searchParams.get('search'));
 		await route.fulfill({ json: [] });
 	});
@@ -278,7 +313,7 @@ test('Paste an image URL into the OIDC client logo picker', async ({ page }) => 
 	);
 
 	// Answer the save with the stored client so the backend doesn't download the image
-	await page.route(`**/api/oidc/clients/${oidcClient.id}`, async (route) => {
+	await page.route(`**/api/admin/oidc/clients/${oidcClient.id}`, async (route) => {
 		if (route.request().method() !== 'PATCH') return route.fallback();
 		await route.fulfill({ response: await route.fetch({ method: 'GET' }) });
 	});
@@ -302,7 +337,8 @@ test('Paste an image URL into the OIDC client logo picker', async ({ page }) => 
 	await page.keyboard.press('Escape');
 
 	const updateRequest = page.waitForRequest(
-		(req) => req.method() === 'PATCH' && req.url().endsWith(`/api/oidc/clients/${oidcClient.id}`)
+		(req) =>
+			req.method() === 'PATCH' && req.url().endsWith(`/api/admin/oidc/clients/${oidcClient.id}`)
 	);
 	await saveUnsavedChanges(page);
 
@@ -319,7 +355,7 @@ test('OIDC client logo picker stays fully visible when reopened', async ({ page 
 		logoUrl: `https://example.com/app-${i}.svg`,
 		darkLogoUrl: null
 	}));
-	await page.route('**/api/oidc/logo-presets*', (route) => route.fulfill({ json: presets }));
+	await page.route('**/api/admin/oidc/logo-presets*', (route) => route.fulfill({ json: presets }));
 
 	// A short viewport leaves too little room below the button for the picker
 	const viewportHeight = 760;
@@ -358,7 +394,7 @@ test('Custom icon library hides the selfh.st credit', async ({ page }) => {
 		logoUrl: 'https://example.com/custom-app.svg',
 		darkLogoUrl: null
 	};
-	await page.route('**/api/oidc/logo-presets*', (route) => route.fulfill({ json: [preset] }));
+	await page.route('**/api/admin/oidc/logo-presets*', (route) => route.fulfill({ json: [preset] }));
 
 	await page.goto(`/settings/admin/oidc-clients/${oidcClients.nextcloud.id}`);
 	await page.getByRole('button', { name: 'Choose logo' }).click();
@@ -372,7 +408,7 @@ test('Disabled icon library only accepts image URLs', async ({ page }) => {
 
 	// Fail the test if the picker searches the disabled icon library
 	let searched = false;
-	await page.route('**/api/oidc/logo-presets*', async (route) => {
+	await page.route('**/api/admin/oidc/logo-presets*', async (route) => {
 		searched = true;
 		await route.fulfill({ json: [] });
 	});
@@ -500,7 +536,7 @@ test('Update OIDC client federated credentials', async ({ page }) => {
 	const cardUpdate = page.waitForResponse(
 		(response) =>
 			response.request().method() === 'PATCH' &&
-			response.url().endsWith(`/api/oidc/clients/${client.id}`)
+			response.url().endsWith(`/api/admin/oidc/clients/${client.id}`)
 	);
 	await saveUnsavedChanges(page);
 	expect((await cardUpdate).ok()).toBeTruthy();
@@ -519,12 +555,13 @@ test('Update OIDC client federated credentials', async ({ page }) => {
 
 	// Saving the main client form must preserve credentials managed by the separate card
 	await page.locator('[role="tab"][data-value="general"]').click();
-	const description = page.getByLabel('Description');
-	await description.fill('Updated without replacing federated credentials');
+	await page
+		.getByRole('textbox', { name: 'Notes' })
+		.fill('Updated without replacing federated credentials');
 	const formUpdate = page.waitForResponse(
 		(response) =>
 			response.request().method() === 'PATCH' &&
-			response.url().endsWith(`/api/oidc/clients/${client.id}`)
+			response.url().endsWith(`/api/admin/oidc/clients/${client.id}`)
 	);
 	await saveUnsavedChanges(page);
 	expect((await formUpdate).ok()).toBeTruthy();
@@ -564,7 +601,7 @@ test('Update OIDC client federated credentials with public keys', async ({ page 
 		page.waitForResponse(
 			(response) =>
 				response.request().method() === 'PATCH' &&
-				response.url().endsWith(`/api/oidc/clients/${client.id}`)
+				response.url().endsWith(`/api/admin/oidc/clients/${client.id}`)
 		);
 
 	// A single JWK is imported as one key
@@ -708,7 +745,7 @@ test('Client secrets can be created with an expiration', async ({ page }) => {
 	await expect(page.locator('[data-type="success"]')).toHaveText('New client secret generated');
 
 	const secrets = await page.request
-		.get(`/api/oidc/clients/${oidcClient.id}/secrets`)
+		.get(`/api/admin/oidc/clients/${oidcClient.id}/secrets`)
 		.then((r) => r.json());
 	expect(secrets).toHaveLength(2);
 
@@ -786,10 +823,12 @@ test('Disable and enable OIDC client', async ({ page }) => {
 
 test('Sort and filter OIDC clients by status', async ({ page, request }) => {
 	const disabledClient = oidcClients.immich;
-	const client = await (await request.get(`/api/oidc/clients/${disabledClient.id}`)).json();
+	const client = await (await request.get(`/api/admin/oidc/clients/${disabledClient.id}`)).json();
 	expect(
 		(
-			await request.put(`/api/oidc/clients/${client.id}`, { data: { ...client, disabled: true } })
+			await request.put(`/api/admin/oidc/clients/${client.id}`, {
+				data: { ...client, disabled: true }
+			})
 		).ok()
 	).toBeTruthy();
 
@@ -823,7 +862,7 @@ test('Filter OIDC clients by PAR requirement', async ({ page, request }) => {
 	const parClient = oidcClients.parClient;
 
 	// Enable PAR on the PAR test client
-	await request.put(`/api/oidc/clients/${parClient.id}`, {
+	await request.put(`/api/admin/oidc/clients/${parClient.id}`, {
 		data: {
 			name: parClient.name,
 			callbackURLs: [parClient.callbackUrl],

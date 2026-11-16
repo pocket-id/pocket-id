@@ -3,6 +3,7 @@ package api
 import (
 	"github.com/gin-gonic/gin"
 
+	"github.com/pocket-id/pocket-id/backend/internal/authz"
 	"github.com/pocket-id/pocket-id/backend/internal/dto"
 	"github.com/pocket-id/pocket-id/backend/internal/utils"
 )
@@ -190,4 +191,21 @@ func (h *handler) listClientApis(c *gin.Context) ([]clientApiGrantDto, error) {
 	}
 
 	return items, nil
+}
+
+// protectBuiltInAPI rejects a principal without admin access on routes that change which clients may use the API in the path, when that is Pocket ID's own API
+func (h *handler) protectBuiltInAPI(c *gin.Context) {
+	principal := authz.PrincipalFrom(c)
+
+	// The loaded ID is compared, since Postgres also matches other spellings of the built-in API's ID
+	api, err := h.service.Get(c.Request.Context(), nil, c.Param("id"))
+	if err == nil && api.ID == BuiltInAPIID {
+		err = principal.RequireAdminAccess()
+	}
+	if err != nil {
+		c.Abort()
+		_ = c.Error(err)
+		return
+	}
+	c.Next()
 }

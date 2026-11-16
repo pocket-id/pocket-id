@@ -595,30 +595,6 @@ func TestClientService_downloadAndSaveLogoFromURL(t *testing.T) {
 	})
 }
 
-func TestClientService_CreateClient_withDescription(t *testing.T) {
-	db := testutils.NewDatabaseForTest(t)
-
-	s := &clientService{db: db, auditLog: &fakeAuditLogger{}}
-
-	description := "A test client description"
-	input := dto.OidcClientCreateDto{
-		OidcClientUpdateDto: dto.OidcClientUpdateDto{
-			Name:         "Test Client",
-			Description:  description,
-			CallbackURLs: []string{"https://example.com/callback"},
-		},
-	}
-
-	client, _, err := s.CreateClient(t.Context(), input, auditlogs.Origin{Principal: authz.Principal{UserID: "user-id"}}, true)
-	require.NoError(t, err)
-
-	var fetched model.OidcClient
-	err = db.First(&fetched, "id = ?", client.ID).Error
-	require.NoError(t, err)
-	require.NotEmpty(t, fetched.Description)
-	assert.Equal(t, description, fetched.Description)
-}
-
 func TestClientService_CreateClient_byClientActingForItself(t *testing.T) {
 	db := testutils.NewDatabaseForTest(t)
 	require.NoError(t, db.Exec("PRAGMA foreign_keys = ON").Error)
@@ -632,27 +608,6 @@ func TestClientService_CreateClient_byClientActingForItself(t *testing.T) {
 	var fetched model.OidcClient
 	require.NoError(t, db.First(&fetched, "id = ?", client.ID).Error)
 	assert.Nil(t, fetched.CreatedByID)
-}
-
-func TestClientService_CreateClient_withoutDescription(t *testing.T) {
-	db := testutils.NewDatabaseForTest(t)
-
-	s := &clientService{db: db, auditLog: &fakeAuditLogger{}}
-
-	input := dto.OidcClientCreateDto{
-		OidcClientUpdateDto: dto.OidcClientUpdateDto{
-			Name:         "Test Client",
-			CallbackURLs: []string{"https://example.com/callback"},
-		},
-	}
-
-	client, _, err := s.CreateClient(t.Context(), input, auditlogs.Origin{Principal: authz.Principal{UserID: "user-id"}}, true)
-	require.NoError(t, err)
-
-	var fetched model.OidcClient
-	err = db.First(&fetched, "id = ?", client.ID).Error
-	require.NoError(t, err)
-	assert.Empty(t, fetched.Description)
 }
 
 func TestClientService_CreateClient_initialSecret(t *testing.T) {
@@ -794,7 +749,7 @@ func TestClientService_UpdateClient_concurrentPatches(t *testing.T) {
 		require.NoError(t, db.Create(&client).Error)
 
 		patches := []string{
-			`{"description":"changed"}`,
+			`{"notes":"changed"}`,
 			`{"skipConsent":true}`,
 			`{"launchURL":"https://example.com"}`,
 			`{"pkceEnabled":true}`,
@@ -817,7 +772,7 @@ func TestClientService_UpdateClient_concurrentPatches(t *testing.T) {
 
 		var fetched model.OidcClient
 		require.NoError(t, db.First(&fetched, "id = ?", client.ID).Error)
-		assert.Equal(t, "changed", fetched.Description)
+		assert.Equal(t, "changed", fetched.Notes)
 		assert.True(t, fetched.SkipConsent)
 		require.NotNil(t, fetched.LaunchURL)
 		assert.Equal(t, "https://example.com", *fetched.LaunchURL)
@@ -959,46 +914,6 @@ func TestClientService_CreateClientSecret_preservesFederatedIdentities(t *testin
 	assert.Equal(t, "https://other.example.com", fetched.Credentials.FederatedIdentities[0].Issuer)
 }
 
-func TestClientService_UpdateClient_description(t *testing.T) {
-	db := testutils.NewDatabaseForTest(t)
-
-	s := &clientService{db: db, auditLog: &fakeAuditLogger{}}
-
-	// Create a client without a description
-	client := model.OidcClient{
-		Name:         "Test Client",
-		CallbackURLs: datatype.StringList{"https://example.com/callback"},
-	}
-	err := db.Create(&client).Error
-	require.NoError(t, err)
-
-	// Update with a description
-	description := "Updated description"
-	input := dto.OidcClientUpdateDto{
-		Name:         "Test Client",
-		Description:  description,
-		CallbackURLs: []string{"https://example.com/callback"},
-	}
-
-	_, err = s.UpdateClient(t.Context(), client.ID, dto.Replace(input), auditlogs.Origin{})
-	require.NoError(t, err)
-
-	var fetched model.OidcClient
-	err = db.First(&fetched, "id = ?", client.ID).Error
-	require.NoError(t, err)
-	require.NotEmpty(t, fetched.Description)
-	assert.Equal(t, description, fetched.Description)
-
-	// Update to clear the description
-	input.Description = ""
-	_, err = s.UpdateClient(t.Context(), client.ID, dto.Replace(input), auditlogs.Origin{})
-	require.NoError(t, err)
-
-	err = db.First(&fetched, "id = ?", client.ID).Error
-	require.NoError(t, err)
-	assert.Empty(t, fetched.Description)
-}
-
 func TestClientService_UpdateClient_CIMDPreservesMetadataFields(t *testing.T) {
 	db := testutils.NewDatabaseForTest(t)
 
@@ -1027,7 +942,7 @@ func TestClientService_UpdateClient_CIMDPreservesMetadataFields(t *testing.T) {
 	refreshDuration := int64(7 * 24 * 60)
 	input := dto.OidcClientUpdateDto{
 		Name:                                "Overridden Client",
-		Description:                         "Locally managed description",
+		Notes:                               "Locally managed notes",
 		CallbackURLs:                        []string{"https://override.example.com/callback"},
 		LogoutCallbackURLs:                  []string{"https://override.example.com/logout"},
 		IsPublic:                            false,
@@ -1060,7 +975,7 @@ func TestClientService_UpdateClient_CIMDPreservesMetadataFields(t *testing.T) {
 	assert.Equal(t, client.IsPublic, fetched.IsPublic)
 	assert.Equal(t, client.PkceEnabled, fetched.PkceEnabled)
 	assert.Equal(t, client.Credentials, fetched.Credentials)
-	assert.Equal(t, input.Description, fetched.Description)
+	assert.Equal(t, input.Notes, fetched.Notes)
 	assert.Equal(t, input.RequiresReauthentication, fetched.RequiresReauthentication)
 	assert.Equal(t, input.RequiresPushedAuthorizationRequests, fetched.RequiresPushedAuthorizationRequests)
 	assert.Equal(t, input.SkipConsent, fetched.SkipConsent)
@@ -1087,14 +1002,14 @@ func TestClientService_UpdateClient_CIMDDoesNotOverwriteConcurrentMetadataRefres
 	// Simulate metadata refresh changing a document-owned column after the admin request read its snapshot
 	require.NoError(t, db.Exec(`
 		CREATE TRIGGER refresh_metadata_before_admin_update
-		BEFORE UPDATE OF description ON oidc_clients
+		BEFORE UPDATE OF notes ON oidc_clients
 		BEGIN
 			UPDATE oidc_clients SET name = 'Refreshed metadata name' WHERE id = OLD.id;
 		END;
 	`).Error)
 
 	input := dto.OidcClientUpdateDto{
-		Description: "Locally managed description",
+		Notes: "Locally managed notes",
 	}
 	_, err := s.UpdateClient(t.Context(), client.ID, dto.Replace(input), auditlogs.Origin{})
 	require.NoError(t, err)
@@ -1102,7 +1017,7 @@ func TestClientService_UpdateClient_CIMDDoesNotOverwriteConcurrentMetadataRefres
 	var fetched model.OidcClient
 	require.NoError(t, db.First(&fetched, "id = ?", client.ID).Error)
 	assert.Equal(t, "Refreshed metadata name", fetched.Name)
-	assert.Equal(t, input.Description, fetched.Description)
+	assert.Equal(t, input.Notes, fetched.Notes)
 }
 
 func TestClientService_ListAccessibleOidcClients_requiresExplicitGroupPermission(t *testing.T) {

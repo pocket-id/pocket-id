@@ -24,6 +24,7 @@ import (
 	"github.com/go-webauthn/webauthn/protocol"
 	"github.com/go-webauthn/webauthn/protocol/webauthncbor"
 	"github.com/go-webauthn/webauthn/protocol/webauthncose"
+	gowebauthn "github.com/go-webauthn/webauthn/webauthn"
 	"github.com/google/uuid"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -32,6 +33,7 @@ import (
 	"github.com/pocket-id/pocket-id/backend/internal/appconfig"
 	"github.com/pocket-id/pocket-id/backend/internal/apperror"
 	"github.com/pocket-id/pocket-id/backend/internal/auditlogs"
+	"github.com/pocket-id/pocket-id/backend/internal/authz"
 	"github.com/pocket-id/pocket-id/backend/internal/model"
 	testutils "github.com/pocket-id/pocket-id/backend/internal/utils/testing"
 )
@@ -153,28 +155,47 @@ func TestVerifyRegistrationAttestation(t *testing.T) {
 				WebauthnAuthenticatorAttachment: "any",
 				WebauthnAttestation:             tc.attestation,
 			}
-			registration, err := service.BeginRegistration(t.Context(), dbConfig, user.ID)
+			registration, err := service.BeginRegistration(t.Context(), dbConfig, authz.Principal{UserID: user.ID})
 			require.NoError(t, err)
 
 			response := authenticator.registrationResponse(t, registration.Response.Challenge, tc.format)
-			credential, err := service.VerifyRegistration(t.Context(), dbConfig, registration.SessionID, user.ID, response, "127.0.0.1", "")
+			credential, err := service.VerifyRegistration(t.Context(), dbConfig, registration.SessionID, authz.Principal{UserID: user.ID}, response, "127.0.0.1", "")
 
 			if tc.wantCode != "" {
 				require.Error(t, err)
 				assert.True(t, apperror.IsCode(err, tc.wantCode), "unexpected error: %v", err)
 
 				var count int64
-				require.NoError(t, db.Model(&model.WebauthnCredential{}).Count(&count).Error)
+				require.NoError(t, db.Model(&WebauthnCredential{}).Count(&count).Error)
 				assert.Zero(t, count)
 				return
 			}
 			require.NoError(t, err)
 
-			var stored model.WebauthnCredential
+			var stored WebauthnCredential
 			require.NoError(t, db.First(&stored, "id = ?", credential.ID).Error)
 			assert.Equal(t, tc.wantVerified, stored.AttestationVerified)
 		})
 	}
+}
+
+func TestVerifyAttestationAcceptsUnlistedHardwareRootedFormats(t *testing.T) {
+	service, err := newService(Dependencies{AppURL: "https://example.com"})
+	require.NoError(t, err)
+	provider, err := memory.New(memory.WithMetadata(map[uuid.UUID]*metadata.Entry{}))
+	require.NoError(t, err)
+
+	// go-webauthn has already chained this attestation to Google's hardware roots, which a test can't sign for
+	credential := &gowebauthn.Credential{
+		AttestationType:   string(metadata.BasicFull),
+		AttestationFormat: string(protocol.AttestationFormatAndroidKey),
+		Authenticator:     gowebauthn.Authenticator{AAGUID: slices.Repeat([]byte{0xab}, 16)},
+	}
+
+	require.NoError(t, service.verifyAttestation(t.Context(), provider, credential, ""))
+
+	err = service.verifyAttestation(t.Context(), provider, credential, metadata.FidoCertifiedL1)
+	assert.True(t, apperror.IsCode(err, apperror.CodeAuthenticatorNotCertified), "a certification level needs a metadata entry: %v", err)
 }
 
 func TestFidoMetadataWaitsBeforeRetryingAFailedDownload(t *testing.T) {

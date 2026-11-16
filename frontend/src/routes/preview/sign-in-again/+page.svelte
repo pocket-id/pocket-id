@@ -1,6 +1,6 @@
 <script lang="ts">
 	import UserService from '#lib/services/user-service.ts';
-	import { signInAgain } from '#lib/stores/sign-in-again-store.svelte.ts';
+	import { signInAgain } from '#lib/stores/request-prompt-store.svelte.ts';
 	import userStore from '#lib/stores/user-store.ts';
 	import { getAxiosErrorMessage } from '#lib/utils/error-util.ts';
 	import { Button } from '@pocket-id/ui/button';

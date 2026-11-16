@@ -31,7 +31,7 @@ func TestMissingManagedAPIKeyReturnsNotFound(t *testing.T) {
 	_, _, err = service.RenewApiKey(t.Context(), "user-id", "missing-key", time.Now().Add(time.Hour), 0, auditlogs.Origin{})
 	require.True(t, apperror.IsCode(err, apperror.CodeAPIKeyNotFound))
 
-	_, err = service.UpdateApiKey(t.Context(), "user-id", "missing-key", authz.NewScopeSet(authz.AccountRead), dto.Replace(apiKeyUpdateDto{Name: "key", Scopes: datatype.StringList{"account:read"}}))
+	_, err = service.UpdateApiKey(t.Context(), authz.Principal{UserID: "user-id"}, "missing-key", authz.NewScopeSet(authz.AccountRead), dto.Replace(apiKeyUpdateDto{Name: "key", Scopes: datatype.StringList{"account:read"}}))
 	require.True(t, apperror.IsCode(err, apperror.CodeAPIKeyNotFound))
 }
 
@@ -63,10 +63,10 @@ func TestAPIKeyScopes(t *testing.T) {
 		require.NoError(t, err)
 		require.Equal(t, datatype.StringList{"account:read", "account:write"}, created.Scopes)
 
-		_, err = service.UpdateApiKey(t.Context(), user.ID, created.ID, grantable, dto.Replace(apiKeyUpdateDto{Name: "scoped", Scopes: datatype.StringList{string(authz.UsersWrite)}}))
+		_, err = service.UpdateApiKey(t.Context(), authz.Principal{UserID: user.ID}, created.ID, grantable, dto.Replace(apiKeyUpdateDto{Name: "scoped", Scopes: datatype.StringList{string(authz.UsersWrite)}}))
 		require.True(t, apperror.IsCode(err, apperror.CodeInvalidAPIKeyScope))
 
-		updated, err := service.UpdateApiKey(t.Context(), user.ID, created.ID, grantable, dto.Replace(apiKeyUpdateDto{Name: "renamed", Scopes: datatype.StringList{string(authz.AccountRead)}}))
+		updated, err := service.UpdateApiKey(t.Context(), authz.Principal{UserID: user.ID}, created.ID, grantable, dto.Replace(apiKeyUpdateDto{Name: "renamed", Scopes: datatype.StringList{string(authz.AccountRead)}}))
 		require.NoError(t, err)
 
 		var stored ApiKey
@@ -75,6 +75,31 @@ func TestAPIKeyScopes(t *testing.T) {
 		require.Equal(t, datatype.StringList{"account:read"}, stored.Scopes)
 		require.Equal(t, created.Key, stored.Key)
 		require.Equal(t, updated.Scopes, stored.Scopes)
+	})
+
+	t.Run("a session needs sudo mode for a key that holds admin access", func(t *testing.T) {
+		adminScopes := authz.NewScopeSet(authz.UsersRead, authz.AdminAccessWrite)
+		session := authz.Principal{Kind: authz.KindSession, UserID: user.ID}
+		input := func(name string, scope authz.Scope) apiKeyCreateDto {
+			return apiKeyCreateDto{Name: name, ExpiresAt: datatype.DateTime(time.Now().Add(time.Hour)), Scopes: datatype.StringList{string(scope)}}
+		}
+
+		_, _, err := service.CreateApiKey(t.Context(), user.ID, adminScopes, input("admin", authz.AdminAccessWrite), auditlogs.Origin{Principal: session})
+		require.True(t, apperror.IsCode(err, apperror.CodeSudoRequired), err)
+
+		// A key without admin access can't be widened to it either
+		readOnly, _, err := service.CreateApiKey(t.Context(), user.ID, adminScopes, input("read-only", authz.UsersRead), auditlogs.Origin{Principal: session})
+		require.NoError(t, err)
+		_, err = service.UpdateApiKey(t.Context(), session, readOnly.ID, adminScopes, dto.Replace(apiKeyUpdateDto{Name: "read-only", Scopes: datatype.StringList{string(authz.AdminAccessWrite)}}))
+		require.True(t, apperror.IsCode(err, apperror.CodeSudoRequired), err)
+
+		// Renewing hands out a new token for the key, so it needs sudo mode like creating it
+		session.SudoUntil = time.Now().Add(time.Minute)
+		adminKey, _, err := service.CreateApiKey(t.Context(), user.ID, adminScopes, input("admin", authz.AdminAccessWrite), auditlogs.Origin{Principal: session})
+		require.NoError(t, err)
+		session.SudoUntil = time.Time{}
+		_, _, err = service.RenewApiKey(t.Context(), user.ID, adminKey.ID, time.Now().Add(time.Hour), 0, auditlogs.Origin{Principal: session})
+		require.True(t, apperror.IsCode(err, apperror.CodeSudoRequired), err)
 	})
 }
 

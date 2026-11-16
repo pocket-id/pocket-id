@@ -196,6 +196,9 @@ func (h *handler) deleteUserTool(ctx context.Context, call mcp.Call, input userI
 		return nil, fmt.Errorf("error loading app configuration: %w", err)
 	}
 
+	if err := h.service.requireAdminAccessFor(ctx, call.Principal, input.ID); err != nil {
+		return nil, err
+	}
 	if err := h.service.DeleteUser(ctx, dbConfig, input.ID, false, auditlogs.OriginFromMCP(call)); err != nil {
 		return nil, err
 	}

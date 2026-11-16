@@ -140,9 +140,7 @@ function compareExports(dir1: string, dir2: string): void {
 	const hashes2 = hashAllFiles(dir2);
 
 	const files1 = Object.keys(hashes1).sort();
-	const files2 = Object.keys(hashes2)
-		.sort()
-		.filter((p) => !p.includes('.inited'));
+	const files2 = Object.keys(hashes2).sort();
 	expect(files2).toEqual(files1);
 
 	for (const file of files1) {
@@ -156,17 +154,6 @@ function compareExports(dir1: string, dir2: string): void {
 	// Compare database.json contents
 	const expectedData = loadJSON(path.join(dir1, 'database.json'));
 	const actualData = loadJSON(path.join(dir2, 'database.json'));
-
-	// Legacy exports gain empty session extensions when migrated to the current schema
-	for (const session of expectedData.tables.webauthn_sessions) {
-		session.extensions ??= '{}';
-	}
-
-	// Legacy exports gain the zero AAGUID and an unverified attestation when migrated to the current schema
-	for (const credential of expectedData.tables.webauthn_credentials) {
-		credential.aaguid ??= '00000000-0000-0000-0000-000000000000';
-		credential.attestation_verified ??= false;
-	}
 
 	// The built-in API's audience follows the APP_URL of the stack that produced the export
 	for (const api of expectedData.tables.apis) {
@@ -291,7 +278,7 @@ function validateSpecialFields(obj: any): void {
 					`Expected 'provider' to be either 'postgres' or 'sqlite', got '${value}'`
 				).toBe(true);
 			} else if (key === 'version') {
-				expect(value).toBeGreaterThanOrEqual(20251001000000);
+				expect(value).toBeGreaterThanOrEqual(20261114130000);
 			} else {
 				validateSpecialFields(value);
 			}

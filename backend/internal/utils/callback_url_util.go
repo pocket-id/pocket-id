@@ -5,7 +5,7 @@ import (
 	"log/slog"
 	"net"
 	"net/url"
-	"path"
+	"regexp"
 	"strconv"
 	"strings"
 
@@ -24,9 +24,13 @@ func ValidateCallbackURLPattern(pattern string) error {
 		return err
 	}
 
-	pattern = normalizeToURLPatternStandard(pattern)
+	// The query is matched separately from the rest of the URL, so only the part before it goes through urlpattern
+	pattern, _, err := extractQueryParams(pattern)
+	if err != nil {
+		return err
+	}
 
-	_, err := urlpattern.New(pattern, "", nil)
+	_, err = urlpattern.New(normalizeToURLPatternStandard(pattern), "", nil)
 	return err
 }
 
@@ -228,10 +232,14 @@ func matchCallbackURL(pattern string, inputCallbackURL string) (matches bool, er
 	return true, nil
 }
 
+// urlPatternSyntax lists the characters besides * and : that urlpattern reads as syntax, such as regexp groups and modifiers
+// The only wildcards this package supports are * and **, so these are always escaped to literals
+const urlPatternSyntax = `\(){}+?`
+
 // normalizeToURLPatternStandard converts patterns with single asterisk wildcards and globstar wildcards
 // into a format that can be parsed by the urlpattern package, which uses :param for single segment wildcards
 // and ** for multi-segment wildcards.
-// Additionally, it escapes ":" with a backslash inside IPv6 addresses
+// Additionally, it escapes every other character urlpattern would read as syntax
 func normalizeToURLPatternStandard(pattern string) string {
 	patternBase, patternPath := extractPath(pattern)
 
@@ -244,7 +252,7 @@ func normalizeToURLPatternStandard(pattern string) string {
 	return result.String()
 }
 
-// writeNormalizedBase escapes the colons in the scheme and authority that urlpattern would otherwise read as wildcards
+// writeNormalizedBase escapes the colons and other characters in the scheme and authority that urlpattern would otherwise read as syntax
 func writeNormalizedBase(result *strings.Builder, patternBase string) {
 	// 0 = scheme
 	// 1 = hostname (optionally with username/password) - before IPv6 start (no `[` found)
@@ -289,7 +297,9 @@ func writeNormalizedBase(result *strings.Builder, patternBase string) {
 			}
 		}
 
-		// Write the byte
+		if strings.IndexByte(urlPatternSyntax, patternBase[i]) >= 0 {
+			result.WriteByte('\\')
+		}
 		result.WriteByte(patternBase[i])
 	}
 }
@@ -308,8 +318,8 @@ func writeNormalizedPath(result *strings.Builder, patternPath string) {
 				result.WriteString(strconv.Itoa(i))
 			}
 		} else {
-			// A literal colon in the path would otherwise be read as a ":name" wildcard
-			if patternPath[i] == ':' {
+			// A literal colon or other urlpattern syntax in the path would otherwise widen what the pattern matches
+			if patternPath[i] == ':' || strings.IndexByte(urlPatternSyntax, patternPath[i]) >= 0 {
 				result.WriteByte('\\')
 			}
 			// Add the byte
@@ -377,9 +387,13 @@ func validateQueryParams(patternQuery, inputQuery url.Values) bool {
 			return false
 		}
 
+		// In a query value * matches any run of characters except "/" and everything else is literal
 		for i := range patternValues {
-			matched, err := path.Match(patternValues[i], inputValues[i])
-			if err != nil || !matched {
+			literals := strings.Split(patternValues[i], "*")
+			for j, literal := range literals {
+				literals[j] = regexp.QuoteMeta(literal)
+			}
+			if !regexp.MustCompile("^" + strings.Join(literals, "[^/]*") + "$").MatchString(inputValues[i]) {
 				return false
 			}
 		}

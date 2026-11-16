@@ -1,9 +1,12 @@
 package api
 
 import (
+	"net/http"
+	"net/http/httptest"
 	"strings"
 	"testing"
 
+	"github.com/gin-gonic/gin"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"gorm.io/gorm"
@@ -189,4 +192,50 @@ func TestHeldScopesFollowsTheUsersRole(t *testing.T) {
 	held, err = svc.HeldScopes(t.Context(), nil, user.ID, "https://api.orders.example.com", requested)
 	require.NoError(t, err)
 	assert.Equal(t, requested, held)
+}
+
+func TestChangingAccessToTheBuiltInAPIRequiresAdminAccess(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	db := testutils.NewDatabaseForTest(t)
+	svc := New(Dependencies{DB: db, Issuer: bootstrapTestAppURL}).service
+	require.NoError(t, Bootstrap(t.Context(), db, bootstrapTestAppURL))
+	orders, err := svc.Create(t.Context(), apiCreateDto{Name: "Orders", Resource: "https://orders.example.com"})
+	require.NoError(t, err)
+
+	protect := func(apiID string, scopes ...authz.Scope) error {
+		c, _ := gin.CreateTestContext(httptest.NewRecorder())
+		c.Request = httptest.NewRequestWithContext(t.Context(), http.MethodPut, "/", nil)
+		c.Params = gin.Params{{Key: "id", Value: apiID}}
+		authz.SetPrincipal(c, &authz.Principal{Scopes: authz.NewScopeSet(scopes...)})
+		newHandler(svc).protectBuiltInAPI(c)
+		if last := c.Errors.Last(); last != nil {
+			return last.Err
+		}
+		return nil
+	}
+
+	err = protect(BuiltInAPIID, authz.APIsWrite)
+	require.True(t, apperror.IsCode(err, apperror.CodeForbidden), err)
+	require.NoError(t, protect(BuiltInAPIID, authz.APIsWrite, authz.AdminAccessWrite))
+	require.NoError(t, protect(orders.ID, authz.APIsWrite))
+}
+
+func TestChangingClientsWithPocketIDAccessRequiresAdminAccess(t *testing.T) {
+	db := testutils.NewDatabaseForTest(t)
+	m := New(Dependencies{DB: db, Issuer: bootstrapTestAppURL})
+	require.NoError(t, Bootstrap(t.Context(), db, bootstrapTestAppURL))
+	for _, id := range []string{"automation", "photos"} {
+		require.NoError(t, db.Create(&model.OidcClient{Base: model.Base{ID: id}, Name: id}).Error)
+	}
+
+	// Access as itself counts just like access on behalf of users
+	usersRead := findPermission(loadBuiltInAPI(t, db), string(authz.UsersRead))
+	_, err := m.service.SetAPIClientAccess(t.Context(), BuiltInAPIID, "automation", APIClientGrant{ClientPermissionIDs: []string{usersRead.ID}})
+	require.NoError(t, err)
+
+	clientsWrite := authz.Principal{Scopes: authz.NewScopeSet(authz.OidcClientsWrite)}
+	err = m.RequireAdminAccessForClients(t.Context(), nil, clientsWrite, "photos", "automation")
+	require.True(t, apperror.IsCode(err, apperror.CodeForbidden), err)
+	require.NoError(t, m.RequireAdminAccessForClients(t.Context(), nil, clientsWrite, "photos"))
+	require.NoError(t, m.RequireAdminAccessForClients(t.Context(), nil, authz.Principal{Scopes: authz.NewScopeSet(authz.AdminAccessWrite)}, "automation"))
 }

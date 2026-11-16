@@ -1,1 +1,0 @@
-ALTER TABLE oidc_clients DROP COLUMN logout_callback_urls;

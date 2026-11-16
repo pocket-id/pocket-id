@@ -112,11 +112,11 @@ func (s *clientService) ListClients(ctx context.Context, name string, listReques
 	}
 
 	// Sort the allowed user groups relation by its row count because it is not an OIDC client column
-	if listRequestOptions.Sort.Column == "allowedUserGroups" && utils.IsValidSortDirection(listRequestOptions.Sort.Direction) {
+	if listRequestOptions.Sort.Column == "allowedUserGroups" {
 		query = query.Select("oidc_clients.*, COUNT(oidc_clients_allowed_user_groups.oidc_client_id)").
 			Joins("LEFT JOIN oidc_clients_allowed_user_groups ON oidc_clients.id = oidc_clients_allowed_user_groups.oidc_client_id").
 			Group("oidc_clients.id").
-			Order("COUNT(oidc_clients_allowed_user_groups.oidc_client_id) " + listRequestOptions.Sort.Direction)
+			Order("COUNT(oidc_clients_allowed_user_groups.oidc_client_id) " + utils.NormalizeSortDirection(listRequestOptions.Sort.Direction))
 
 		response, err := utils.Paginate(listRequestOptions.Pagination.Page, listRequestOptions.Pagination.Limit, query, &clients)
 		return clients, response, err
@@ -232,7 +232,7 @@ func (s *clientService) UpdateClient(ctx context.Context, clientID string, updat
 		err = tx.WithContext(ctx).
 			Model(&client).
 			Select(
-				"Description",
+				"Notes",
 				"RequiresReauthentication",
 				"RequiresPushedAuthorizationRequests",
 				"SkipConsent",
@@ -299,7 +299,7 @@ func (s *clientService) UpdateClient(ctx context.Context, clientID string, updat
 func clientChanges(before, after model.OidcClient) string {
 	changed := map[string]bool{
 		"name":                                before.Name != after.Name,
-		"description":                         before.Description != after.Description,
+		"notes":                               before.Notes != after.Notes,
 		"callbackURLs":                        !slices.Equal(before.CallbackURLs, after.CallbackURLs),
 		"logoutCallbackURLs":                  !slices.Equal(before.LogoutCallbackURLs, after.LogoutCallbackURLs),
 		"backchannelLogoutURL":                before.BackchannelLogoutURL != after.BackchannelLogoutURL,
@@ -352,7 +352,7 @@ func checkClaimMappingPolicyExists(ctx context.Context, db *gorm.DB, policyID st
 
 func updateOIDCClientModelFromDto(client *model.OidcClient, input *dto.OidcClientUpdateDto) error {
 	// Update fields that remain locally managed for every client type
-	client.Description = input.Description
+	client.Notes = input.Notes
 	client.RequiresReauthentication = input.RequiresReauthentication
 	client.RequiresPushedAuthorizationRequests = input.RequiresPushedAuthorizationRequests
 	client.SkipConsent = input.SkipConsent
@@ -844,7 +844,7 @@ func (s *clientService) ListAuthorizedClients(ctx context.Context, userID string
 	}
 
 	// The name lives on the joined client, so the generic sorting of the authorization model cannot handle it
-	if listRequestOptions.Sort.Column == "name" && utils.IsValidSortDirection(listRequestOptions.Sort.Direction) {
+	if listRequestOptions.Sort.Column == "name" {
 		query = query.Order("LOWER(oidc_clients.name) " + utils.NormalizeSortDirection(listRequestOptions.Sort.Direction))
 	}
 
@@ -962,7 +962,7 @@ func (s *clientService) ListAccessibleOidcClients(ctx context.Context, userID st
 
 	// Handle custom sorting for lastUsedAt column
 	var response utils.PaginationResponse
-	if listRequestOptions.Sort.Column == "lastUsedAt" && utils.IsValidSortDirection(listRequestOptions.Sort.Direction) {
+	if listRequestOptions.Sort.Column == "lastUsedAt" {
 		// Never used clients share a NULL timestamp, so they are ordered by name to keep pages stable
 		query = query.
 			Joins("LEFT JOIN user_authorized_oidc_clients ON oidc_clients.id = user_authorized_oidc_clients.client_id AND user_authorized_oidc_clients.user_id = ?", userID).
@@ -985,7 +985,6 @@ func (s *clientService) ListAccessibleOidcClients(ctx context.Context, userID st
 			OidcClientMetaDataDto: dto.OidcClientMetaDataDto{
 				ID:          client.ID,
 				Name:        client.Name,
-				Description: client.Description,
 				LaunchURL:   client.LaunchURL,
 				HasLogo:     client.HasLogo(),
 				HasDarkLogo: client.HasDarkLogo(),

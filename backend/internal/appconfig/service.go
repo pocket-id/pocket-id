@@ -13,9 +13,9 @@ import (
 	"github.com/go-playground/validator/v10"
 	"github.com/italypaleale/francis/actor"
 	francishost "github.com/italypaleale/francis/host"
-	"gorm.io/gorm"
 
 	"github.com/pocket-id/pocket-id/backend/internal/apperror"
+	"github.com/pocket-id/pocket-id/backend/internal/authz"
 	"github.com/pocket-id/pocket-id/backend/internal/common"
 	"github.com/pocket-id/pocket-id/backend/internal/dto"
 	"github.com/pocket-id/pocket-id/backend/internal/tracing"
@@ -29,7 +29,7 @@ type AppConfigService struct {
 	envOverrides map[string]string
 }
 
-func NewService(ctx context.Context, actors francishost.Host, db *gorm.DB) (service *AppConfigService, err error) {
+func NewService(ctx context.Context, actors francishost.Host) (service *AppConfigService, err error) {
 	service = &AppConfigService{}
 
 	// Load and validate the properties set in the environment
@@ -49,23 +49,12 @@ func NewService(ctx context.Context, actors francishost.Host, db *gorm.DB) (serv
 	}
 
 	// Note: we need to assign to the "err" variable in this method (for tracing), do not inline this into the "if"
-	ctx, span := tracing.Start(ctx, "pocketid.appconfig.init")
+	_, span := tracing.Start(ctx, "pocketid.appconfig.init")
 	defer tracing.End(span, err)
 
-	// Load the legacy config if any, which we need to send to the actor as bootstrap data
-	legacyCfg, err := LoadLegacyConfig(ctx, db)
-	if err != nil {
-		return nil, fmt.Errorf("error loading legacy config: %w", err)
-	}
-
-	// Register the AppConfig actor
-	// This is a singleton actor and it's bootstrapped with the legacy config if present
-	bootstrapData := &appConfigActorBootstrap{
-		LegacyConfig: legacyCfg,
-	}
+	// Register the AppConfig actor, which is a singleton
 	err = actors.RegisterSingletonActor(
-		AppConfigActorType, newAppConfigActorFactory(db),
-		francishost.WithBootstrapData(bootstrapData),
+		AppConfigActorType, newAppConfigActor,
 		francishost.WithIdleTimeout(-1), // Disable idle timeout for this actor
 	)
 	if err != nil {
@@ -140,7 +129,8 @@ func (s *AppConfigService) GetCIMDURLAllowlist() []string {
 
 // UpdateAppConfig applies an update to the saved configuration and returns the configuration in effect
 // Only the properties whose value changes are sent to the actor, which applies them atomically, so concurrent updates of different properties never undo each other
-func (s *AppConfigService) UpdateAppConfig(ctx context.Context, update dto.Update[dto.AppConfigUpdateDto]) ([]AppConfigVariable, error) {
+// Changing the settings that decide who holds admin access needs the principal to have admin access, see needsAdminAccess
+func (s *AppConfigService) UpdateAppConfig(ctx context.Context, update dto.Update[AppConfigUpdateDto], principal authz.Principal) ([]AppConfigVariable, error) {
 	// If the UI config is disabled, we cannot continue
 	if common.EnvConfig.UiConfigDisabled {
 		return nil, apperror.UIConfigDisabled()
@@ -186,6 +176,18 @@ func (s *AppConfigService) UpdateAppConfig(ctx context.Context, update dto.Updat
 		changes[key] = value
 	}
 
+	// A caller without admin access may change everything except the settings that could hand it admin access
+	for key := range changes {
+		if !needsAdminAccess(key) {
+			continue
+		}
+		err = principal.RequireAdminAccess()
+		if err != nil {
+			return nil, err
+		}
+		break
+	}
+
 	// Apply the changes by invoking the actor
 	cfg, err := s.invokeConfigActor(ctx, "update", changes)
 	if err != nil {
@@ -198,6 +200,12 @@ func (s *AppConfigService) UpdateAppConfig(ctx context.Context, update dto.Updat
 		return nil, err
 	}
 	return cfg.ToAppConfigVariableSlice(true, s.envOverrides), nil
+}
+
+// needsAdminAccess reports whether changing the setting needs admin access
+// LDAP decides who becomes an admin, whoever controls the mail server can read the login codes sent to admins, and the CIMD allowlist decides which clients may ask admins for access to Pocket ID's own API
+func needsAdminAccess(key string) bool {
+	return strings.HasPrefix(key, "ldap") || strings.HasPrefix(key, "smtp") || key == "cimdUrlAllowlist"
 }
 
 // UpdateAppConfigValues updates the provided application configuration values.
@@ -291,28 +299,6 @@ func loadEnvOverrides() (map[string]string, error) {
 		}
 	}
 
-	// TODO: Remove in next major version (v3)
-	// Preserve the old environment setting unless an explicit notification mode replaces it
-	if _, ok := overrides["emailLoginNotificationMode"]; !ok {
-		if enabled := os.Getenv("EMAIL_LOGIN_NOTIFICATION_ENABLED"); enabled != "" {
-			if enabled != "true" && enabled != "false" {
-				return nil, errors.New("EMAIL_LOGIN_NOTIFICATION_ENABLED must be true or false")
-			}
-			overrides["emailLoginNotificationMode"] = string(legacyLoginNotificationMode(AppConfigValue(enabled)))
-		}
-	}
-
-	// TODO: Remove in next major version (v3)
-	// Preserve the old environment setting unless an explicit email verification mode replaces it
-	if _, ok := overrides["emailVerification"]; !ok {
-		if enabled := os.Getenv("EMAIL_VERIFICATION_ENABLED"); enabled != "" {
-			if enabled != "true" && enabled != "false" {
-				return nil, errors.New("EMAIL_VERIFICATION_ENABLED must be true or false")
-			}
-			overrides["emailVerification"] = string(legacyEmailVerification(AppConfigValue(enabled)))
-		}
-	}
-
 	return overrides, nil
 }
 
@@ -336,7 +322,7 @@ func newEnvConfig(overrides map[string]string) (*AppConfigModel, error) {
 // validateEnvConfig applies the HTTP configuration rules and reports failures using environment variable names
 func validateEnvConfig(config *AppConfigModel) error {
 	// Map the resolved model to the canonical update DTO so both configuration paths share validation rules
-	var input dto.AppConfigUpdateDto
+	var input AppConfigUpdateDto
 	err := dto.MapStruct(config, &input)
 	if err != nil {
 		return fmt.Errorf("failed to prepare environment app configuration for validation: %w", err)

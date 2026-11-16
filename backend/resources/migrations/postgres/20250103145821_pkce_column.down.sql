@@ -1,1 +1,0 @@
-ALTER TABLE oidc_clients DROP COLUMN pkce_enabled;

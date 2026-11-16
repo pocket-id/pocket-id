@@ -11,13 +11,26 @@ import (
 	"strings"
 	"time"
 
-	"github.com/pocket-id/pocket-id/backend/internal/model"
-	datatype "github.com/pocket-id/pocket-id/backend/internal/model/types"
 	"gorm.io/gorm"
 	"gorm.io/gorm/clause"
+
+	datatype "github.com/pocket-id/pocket-id/backend/internal/model/types"
 )
 
 var TypeDatabase = "database"
+
+// storageRow is a file stored in the database
+type storageRow struct {
+	Path      string `gorm:"primaryKey"`
+	Data      []byte
+	Size      int64
+	ModTime   datatype.DateTime
+	CreatedAt datatype.DateTime
+}
+
+func (storageRow) TableName() string {
+	return "storage"
+}
 
 type databaseStorage struct {
 	db *gorm.DB
@@ -50,7 +63,7 @@ func (s *databaseStorage) Save(ctx context.Context, relativePath string, data io
 	}
 
 	now := datatype.DateTime(time.Now())
-	storage := model.Storage{
+	storage := storageRow{
 		Path:      relativePath,
 		Data:      b,
 		Size:      int64(len(b)),
@@ -77,7 +90,7 @@ func (s *databaseStorage) Save(ctx context.Context, relativePath string, data io
 func (s *databaseStorage) Open(ctx context.Context, relativePath string) (io.ReadCloser, int64, error) {
 	relativePath = filepath.ToSlash(filepath.Clean(relativePath))
 
-	var storage model.Storage
+	var storage storageRow
 	result := s.db.
 		WithContext(ctx).
 		Where("path = ?", relativePath).
@@ -100,7 +113,7 @@ func (s *databaseStorage) Delete(ctx context.Context, relativePath string) error
 	result := s.db.
 		WithContext(ctx).
 		Where("path = ?", relativePath).
-		Delete(&model.Storage{})
+		Delete(&storageRow{})
 	if result.Error != nil {
 		return fmt.Errorf("failed to delete file from database: %w", result.Error)
 	}
@@ -116,7 +129,7 @@ func (s *databaseStorage) DeleteAll(ctx context.Context, prefix string) error {
 		result := s.db.
 			WithContext(ctx).
 			Where("1 = 1"). // Delete everything
-			Delete(&model.Storage{})
+			Delete(&storageRow{})
 		if result.Error != nil {
 			return fmt.Errorf("failed to delete all files from database: %w", result.Error)
 		}
@@ -130,7 +143,7 @@ func (s *databaseStorage) DeleteAll(ctx context.Context, prefix string) error {
 
 	query := s.db.WithContext(ctx)
 	query = addPathPrefixClause(s.db.Name(), query, prefix)
-	result := query.Delete(&model.Storage{})
+	result := query.Delete(&storageRow{})
 	if result.Error != nil {
 		return fmt.Errorf("failed to delete files with prefix '%s' from database: %w", prefix, result.Error)
 	}
@@ -141,7 +154,7 @@ func (s *databaseStorage) DeleteAll(ctx context.Context, prefix string) error {
 func (s *databaseStorage) List(ctx context.Context, prefix string) ([]ObjectInfo, error) {
 	prefix = filepath.ToSlash(filepath.Clean(prefix))
 
-	var storageItems []model.Storage
+	var storageItems []storageRow
 	query := s.db.WithContext(ctx)
 
 	if !isRootPath(prefix) {
@@ -180,7 +193,7 @@ func (s *databaseStorage) List(ctx context.Context, prefix string) ([]ObjectInfo
 func (s *databaseStorage) Walk(ctx context.Context, root string, fn func(ObjectInfo) error) error {
 	root = filepath.ToSlash(filepath.Clean(root))
 
-	var storageItems []model.Storage
+	var storageItems []storageRow
 	query := s.db.WithContext(ctx)
 
 	if !isRootPath(root) {

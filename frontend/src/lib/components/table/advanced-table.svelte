@@ -458,7 +458,9 @@
 						{/each}
 						{#if hasStickyColumn}
 							<!-- The sticky cell is opaque so scrolled cells pass under it -->
-							<Table.Cell class={cn(stickyCellClass, 'bg-surface py-0')}>
+							<Table.Cell
+								class={cn(stickyCellClass, 'bg-[var(--table-surface,var(--surface))] py-0')}
+							>
 								{#if actions}
 									<ActionsMenu
 										{item}

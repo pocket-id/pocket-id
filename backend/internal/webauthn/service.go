@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"math/big"
+	"net/url"
 	"slices"
 	"time"
 
@@ -30,6 +31,9 @@ import (
 // It must match the value emitted by the JWT service in the access token's "amr" claim
 const authenticationMethodPhishingResistant = "phr"
 
+// enrollmentWindow is how long after a sign-in without a passkey an admin may enrol one without proving an existing passkey
+const enrollmentWindow = 10 * time.Minute
+
 const defaultRPDisplayName = "Pocket ID"
 
 // maxRSAKeyBits bounds passkey RSA keys, because go-webauthn sets no upper limit and verifying with a huge modulus takes minutes
@@ -47,10 +51,15 @@ type Service struct {
 }
 
 func newService(deps Dependencies) (*Service, error) {
+	appURL, err := url.Parse(deps.AppURL)
+	if err != nil {
+		return nil, fmt.Errorf("failed to parse app URL: %w", err)
+	}
+
 	wa, err := gowebauthn.New(&gowebauthn.Config{
 		// Set a default value, it will be set again later
 		RPDisplayName: defaultRPDisplayName,
-		RPID:          utils.GetHostnameFromURL(deps.AppURL),
+		RPID:          appURL.Hostname(),
 		RPOrigins:     []string{deps.AppURL},
 		AuthenticatorSelection: protocol.AuthenticatorSelection{
 			UserVerification: protocol.VerificationRequired,
@@ -85,7 +94,7 @@ func newService(deps Dependencies) (*Service, error) {
 	}, nil
 }
 
-func (s *Service) BeginRegistration(ctx context.Context, dbConfig *appconfig.AppConfigModel, userID string) (*PublicKeyCredentialCreationOptions, error) {
+func (s *Service) BeginRegistration(ctx context.Context, dbConfig *appconfig.AppConfigModel, principal authz.Principal) (*PublicKeyCredentialCreationOptions, error) {
 	s.updateWebAuthnConfig(dbConfig)
 
 	tx := s.db.Begin()
@@ -93,17 +102,18 @@ func (s *Service) BeginRegistration(ctx context.Context, dbConfig *appconfig.App
 		tx.Rollback()
 	}()
 
-	var user model.User
-	err := tx.
-		WithContext(ctx).
-		Preload("Credentials").
-		First(&user, "id = ?", userID).
-		Error
+	user, err := loadPasskeyUser(ctx, tx, principal.UserID)
 	if errors.Is(err, gorm.ErrRecordNotFound) {
 		return nil, apperror.UserNotFound()
 	}
 	if err != nil {
 		return nil, fmt.Errorf("failed to load user: %w", err)
+	}
+
+	// Ask for sudo mode before the browser prompts for the new passkey, so the ceremony isn't wasted on a registration that would be refused
+	err = requireSudoToEnroll(principal, user)
+	if err != nil {
+		return nil, err
 	}
 
 	// Ask for an attestation only when it will be verified, because browsers prompt before sending one
@@ -117,14 +127,14 @@ func (s *Service) BeginRegistration(ctx context.Context, dbConfig *appconfig.App
 	}
 
 	options, session, err := s.webAuthn.BeginRegistration(
-		&user,
+		user,
 		gowebauthn.WithAuthenticatorSelection(protocol.AuthenticatorSelection{
 			AuthenticatorAttachment: authenticatorAttachment(dbConfig),
 			UserVerification:        userVerificationRequirement(dbConfig),
 		}),
 		gowebauthn.WithResidentKeyRequirement(protocol.ResidentKeyRequirementRequired),
 		gowebauthn.WithCredentialParameters(gowebauthn.CredentialParametersPQCRecommendedL3()),
-		gowebauthn.WithExclusions(user.WebAuthnCredentialDescriptors()),
+		gowebauthn.WithExclusions(gowebauthn.Credentials(user.WebAuthnCredentials()).CredentialDescriptors()),
 		gowebauthn.WithExtensions(gowebauthn.WithExtensionCredProps()), // Required for Firefox Android to properly save the key in Google password manager
 		gowebauthn.WithConveyancePreference(conveyance),
 	)
@@ -160,7 +170,7 @@ func (s *Service) BeginRegistration(ctx context.Context, dbConfig *appconfig.App
 	}, nil
 }
 
-func (s *Service) VerifyRegistration(ctx context.Context, dbConfig *appconfig.AppConfigModel, sessionID string, userID string, credentialCreationData *protocol.ParsedCredentialCreationData, ipAddress, userAgent string) (model.WebauthnCredential, error) {
+func (s *Service) VerifyRegistration(ctx context.Context, dbConfig *appconfig.AppConfigModel, sessionID string, principal authz.Principal, credentialCreationData *protocol.ParsedCredentialCreationData, ipAddress, userAgent string) (WebauthnCredential, error) {
 	// Load the FIDO metadata before the transaction starts, because the first load downloads it
 	minCertification, attestationRequired := requiredAttestation(dbConfig)
 	var metadataProvider metadata.Provider
@@ -168,7 +178,7 @@ func (s *Service) VerifyRegistration(ctx context.Context, dbConfig *appconfig.Ap
 		var err error
 		metadataProvider, err = s.fidoMetadata.get()
 		if err != nil {
-			return model.WebauthnCredential{}, apperror.AttestationUnavailable(err)
+			return WebauthnCredential{}, apperror.AttestationUnavailable(err)
 		}
 	}
 
@@ -184,10 +194,10 @@ func (s *Service) VerifyRegistration(ctx context.Context, dbConfig *appconfig.Ap
 		Clauses(clause.Returning{}).
 		Delete(&storedSession, "id = ?", sessionID)
 	if result.Error != nil {
-		return model.WebauthnCredential{}, fmt.Errorf("failed to load WebAuthn session: %w", result.Error)
+		return WebauthnCredential{}, fmt.Errorf("failed to load WebAuthn session: %w", result.Error)
 	}
 	if result.RowsAffected == 0 {
-		return model.WebauthnCredential{}, apperror.InvalidWebAuthnSession()
+		return WebauthnCredential{}, apperror.InvalidWebAuthnSession()
 	}
 
 	session := gowebauthn.SessionData{
@@ -196,45 +206,47 @@ func (s *Service) VerifyRegistration(ctx context.Context, dbConfig *appconfig.Ap
 		CredParams:       storedSession.CredentialParams,
 		UserVerification: protocol.UserVerificationRequirement(storedSession.UserVerification),
 		Extensions:       storedSession.Extensions,
-		UserID:           []byte(userID),
+		UserID:           []byte(principal.UserID),
 	}
 
-	var user model.User
-	err := tx.
-		WithContext(ctx).
-		First(&user, "id = ?", userID).
-		Error
+	user, err := loadPasskeyUser(ctx, tx, principal.UserID)
 	if errors.Is(err, gorm.ErrRecordNotFound) {
-		return model.WebauthnCredential{}, apperror.UserNotFound()
+		return WebauthnCredential{}, apperror.UserNotFound()
 	}
 	if err != nil {
-		return model.WebauthnCredential{}, fmt.Errorf("failed to load user: %w", err)
+		return WebauthnCredential{}, fmt.Errorf("failed to load user: %w", err)
+	}
+
+	// The check when the registration began isn't enough, because the stored challenge isn't bound to the user who requested it, so one that another account began could be finished here
+	err = requireSudoToEnroll(principal, user)
+	if err != nil {
+		return WebauthnCredential{}, err
 	}
 
 	// Self attestation is verified with the new key, so its size has to be checked before the response is verified
 	if hasOversizedPublicKey(credentialCreationData.Response.AttestationObject.AuthData.AttData.CredentialPublicKey) {
-		return model.WebauthnCredential{}, apperror.InvalidWebAuthnResponse(fmt.Errorf("RSA public key is larger than %d bits", maxRSAKeyBits))
+		return WebauthnCredential{}, apperror.InvalidWebAuthnResponse(fmt.Errorf("RSA public key is larger than %d bits", maxRSAKeyBits))
 	}
 
-	credential, err := s.webAuthn.CreateCredential(&user, session, credentialCreationData)
+	credential, err := s.webAuthn.CreateCredential(user, session, credentialCreationData)
 	if err != nil {
-		return model.WebauthnCredential{}, classifyPasskeyError(err, apperror.InvalidWebAuthnResponse)
+		return WebauthnCredential{}, classifyPasskeyError(err, apperror.InvalidWebAuthnResponse)
 	}
 	if err := validateCredentialPolicy(dbConfig, credential); err != nil {
-		return model.WebauthnCredential{}, err
+		return WebauthnCredential{}, err
 	}
 	if attestationRequired {
 		err = s.verifyAttestation(ctx, metadataProvider, credential, minCertification)
 		if err != nil {
-			return model.WebauthnCredential{}, err
+			return WebauthnCredential{}, err
 		}
 	}
 
 	// Determine passkey name using AAGUID and User-Agent
 	passkeyName := s.determinePasskeyName(credential.Authenticator.AAGUID)
-	aaguid := utils.FormatAAGUID(credential.Authenticator.AAGUID)
+	aaguid := formatAAGUID(credential.Authenticator.AAGUID)
 
-	credentialToStore := model.WebauthnCredential{
+	credentialToStore := WebauthnCredential{
 		Name:            passkeyName,
 		CredentialID:    credential.ID,
 		AttestationType: credential.AttestationType,
@@ -252,23 +264,37 @@ func (s *Service) VerifyRegistration(ctx context.Context, dbConfig *appconfig.Ap
 		Create(&credentialToStore).
 		Error
 	if err != nil {
-		return model.WebauthnCredential{}, fmt.Errorf("failed to store WebAuthn credential: %w", err)
+		return WebauthnCredential{}, fmt.Errorf("failed to store WebAuthn credential: %w", err)
 	}
 
 	auditLogData := auditlogs.Data{"credentialID": hex.EncodeToString(credential.ID), "passkeyName": passkeyName}
-	s.auditLog.Create(ctx, auditlogs.EventPasskeyAdded, ipAddress, userAgent, userID, auditLogData, tx)
+	s.auditLog.Create(ctx, auditlogs.EventPasskeyAdded, ipAddress, userAgent, user.ID, auditLogData, tx)
 
 	err = tx.Commit().Error
 	if err != nil {
-		return model.WebauthnCredential{}, fmt.Errorf("failed to commit transaction: %w", err)
+		return WebauthnCredential{}, fmt.Errorf("failed to commit transaction: %w", err)
 	}
 
 	return credentialToStore, nil
 }
 
+// requireSudoToEnroll makes the browser session of an admin prove an existing passkey before another one is added, since a passkey holds all of the admin's access and outlives the session
+// An admin without a passkey has none to prove, which is how the first one is enrolled after the setup
+func requireSudoToEnroll(principal authz.Principal, user *passkeyUser) error {
+	if !user.IsAdmin || len(user.credentials) == 0 {
+		return nil
+	}
+
+	// An admin who lost their passkeys signs in with a login code to enrol a new one, which that sign-in allows for a short while
+	if principal.AuthenticationMethod != authenticationMethodPhishingResistant && time.Since(principal.AuthenticationTime) < enrollmentWindow {
+		return nil
+	}
+	return principal.RequireSudo()
+}
+
 func (s *Service) determinePasskeyName(aaguid []byte) string {
 	// First try to identify by AAGUID using a combination of builtin + MDS
-	authenticatorName := utils.GetAuthenticatorName(utils.FormatAAGUID(aaguid))
+	authenticatorName := getAuthenticatorName(formatAAGUID(aaguid))
 	if authenticatorName != "" {
 		return authenticatorName + " Passkey"
 	}
@@ -334,13 +360,10 @@ func (s *Service) VerifyLogin(ctx context.Context, dbConfig *appconfig.AppConfig
 	}
 	discardUnrequestedFalseAppIDOutput(session.Extensions, credentialAssertionData)
 
-	var user *model.User
+	var user *passkeyUser
 	_, err := s.webAuthn.ValidateDiscoverableLogin(func(_, userHandle []byte) (gowebauthn.User, error) {
-		innerErr := tx.
-			WithContext(ctx).
-			Preload("Credentials").
-			First(&user, "id = ?", string(userHandle)).
-			Error
+		var innerErr error
+		user, innerErr = loadPasskeyUser(ctx, tx, string(userHandle))
 		// Preserve infrastructure failures through go-webauthn's wrapped callback error
 		if innerErr != nil {
 			if !errors.Is(innerErr, gorm.ErrRecordNotFound) {
@@ -382,11 +405,11 @@ func (s *Service) VerifyLogin(ctx context.Context, dbConfig *appconfig.AppConfig
 
 	// Deliver the notification only after the login transaction has committed
 	s.auditLog.SendSignInNotification(ctx, signIn)
-	return *user, model.LoginTokens{SessionToken: token, KnownBrowserToken: signIn.KnownBrowserToken}, nil
+	return user.User, model.LoginTokens{SessionToken: token, KnownBrowserToken: signIn.KnownBrowserToken}, nil
 }
 
-func (s *Service) ListCredentials(ctx context.Context, userID string) ([]model.WebauthnCredential, error) {
-	var credentials []model.WebauthnCredential
+func (s *Service) ListCredentials(ctx context.Context, userID string) ([]WebauthnCredential, error) {
+	var credentials []WebauthnCredential
 	err := s.db.
 		WithContext(ctx).
 		Find(&credentials, "user_id = ?", userID).
@@ -404,7 +427,7 @@ func (s *Service) DeleteCredential(ctx context.Context, userID string, credentia
 		tx.Rollback()
 	}()
 
-	credential := &model.WebauthnCredential{}
+	credential := &WebauthnCredential{}
 	result := tx.
 		WithContext(ctx).
 		Clauses(clause.Returning{}).
@@ -426,20 +449,20 @@ func (s *Service) DeleteCredential(ctx context.Context, userID string, credentia
 	return nil
 }
 
-func (s *Service) UpdateCredential(ctx context.Context, userID, credentialID, name string) (model.WebauthnCredential, error) {
+func (s *Service) UpdateCredential(ctx context.Context, userID, credentialID, name string) (WebauthnCredential, error) {
 	tx := s.db.Begin()
 	defer func() {
 		tx.Rollback()
 	}()
 
-	var credential model.WebauthnCredential
+	var credential WebauthnCredential
 	err := tx.
 		WithContext(ctx).
 		Where("id = ? AND user_id = ?", credentialID, userID).
 		First(&credential).
 		Error
 	if errors.Is(err, gorm.ErrRecordNotFound) {
-		return model.WebauthnCredential{}, apperror.NotFound("Passkey")
+		return WebauthnCredential{}, apperror.NotFound("Passkey")
 	}
 	if err != nil {
 		return credential, err
@@ -517,20 +540,43 @@ var trustedAttestationTypes = []string{
 	string(metadata.AnonCA),
 }
 
+// hardwareRootedFormats are the attestation formats that go-webauthn always chains to the vendor's hardware roots, Google's for Android and Apple's for Apple devices
+var hardwareRootedFormats = []string{
+	string(protocol.AttestationFormatAndroidKey),
+	string(protocol.AttestationFormatApple),
+}
+
 func requiredAttestation(dbConfig *appconfig.AppConfigModel) (minCertification metadata.AuthenticatorStatus, required bool) {
 	minCertification, required = minCertifications[dbConfig.WebauthnAttestation.String()]
 	return minCertification, required
 }
 
 // verifyAttestation proves the authenticator's make and model through the FIDO Metadata Service and checks its certification level
+// Android and Apple devices that the Metadata Service doesn't list are accepted on their hardware attestation alone while no certification level is required
 func (s *Service) verifyAttestation(ctx context.Context, provider metadata.Provider, credential *gowebauthn.Credential, minCertification metadata.AuthenticatorStatus) error {
 	// Synced passkeys send no attestation at all, so they end up here too
 	if !slices.Contains(trustedAttestationTypes, credential.AttestationType) {
 		return apperror.PasskeyAttestationRequired()
 	}
 
+	// Look up the authenticator model, which the Metadata Service lists with its trusted roots and certification history
+	aaguid, err := uuid.FromBytes(credential.Authenticator.AAGUID)
+	if err != nil {
+		return apperror.AuthenticatorNotCertified(err)
+	}
+	entry, err := provider.GetEntry(ctx, aaguid)
+	if err != nil {
+		return apperror.AuthenticatorNotCertified(err)
+	}
+
+	// The attestation of an unlisted Android or Apple device was already chained to its vendor's hardware roots when the credential was created
+	// That proves a genuine device but no certified model, so it can't meet a certification level
+	if entry == nil && minCertification == "" && slices.Contains(hardwareRootedFormats, credential.AttestationFormat) {
+		return nil
+	}
+
 	// Verify the attestation certificate against the roots FIDO publishes for this AAGUID, which also rejects models with a revoked or compromised status
-	err := credential.Verify(provider, s.webAuthn.Config.Attestation, s.webAuthn.Config.Signature)
+	err = credential.Verify(provider, s.webAuthn.Config.Attestation, s.webAuthn.Config.Signature)
 	if err != nil {
 		// go-webauthn leaves the message empty for some metadata failures, such as an untrusted chain, and keeps the reason in DevInfo
 		var protocolError *protocol.Error
@@ -544,14 +590,6 @@ func (s *Service) verifyAttestation(ctx context.Context, provider metadata.Provi
 	}
 
 	// Compare the highest certification in effect today with the required one, because FIDO lists earlier levels and announces upcoming ones in the same history
-	aaguid, err := uuid.FromBytes(credential.Authenticator.AAGUID)
-	if err != nil {
-		return apperror.AuthenticatorNotCertified(err)
-	}
-	entry, err := provider.GetEntry(ctx, aaguid)
-	if err != nil || entry == nil {
-		return apperror.AuthenticatorNotCertified(err)
-	}
 	for _, report := range metadata.EffectiveStatusReports(entry.StatusReports, time.Now()) {
 		if certificationRanks[report.Status] >= certificationRanks[minCertification] {
 			return nil
@@ -598,7 +636,8 @@ func (s *Service) CreateReauthenticationTokenWithSession(ctx context.Context, pr
 	return reauthToken, nil
 }
 
-func (s *Service) CreateReauthenticationTokenWithWebauthn(ctx context.Context, sessionID string, credentialAssertionData *protocol.ParsedCredentialAssertionData) (string, error) {
+// CreateReauthenticationTokenWithWebauthn verifies a passkey of the signed-in user, which also puts their session into sudo mode
+func (s *Service) CreateReauthenticationTokenWithWebauthn(ctx context.Context, sessionID string, principal authz.Principal, credentialAssertionData *protocol.ParsedCredentialAssertionData) (string, error) {
 	tx := s.db.Begin()
 	defer func() {
 		tx.Rollback()
@@ -627,13 +666,10 @@ func (s *Service) CreateReauthenticationTokenWithWebauthn(ctx context.Context, s
 	discardUnrequestedFalseAppIDOutput(session.Extensions, credentialAssertionData)
 
 	// Validate the credential assertion
-	var user *model.User
+	var user *passkeyUser
 	_, err := s.webAuthn.ValidateDiscoverableLogin(func(_, userHandle []byte) (gowebauthn.User, error) {
-		innerErr := tx.
-			WithContext(ctx).
-			Preload("Credentials").
-			First(&user, "id = ?", string(userHandle)).
-			Error
+		var innerErr error
+		user, innerErr = loadPasskeyUser(ctx, tx, string(userHandle))
 		// Preserve infrastructure failures through go-webauthn's wrapped callback error
 		if innerErr != nil {
 			if !errors.Is(innerErr, gorm.ErrRecordNotFound) {
@@ -652,6 +688,11 @@ func (s *Service) CreateReauthenticationTokenWithWebauthn(ctx context.Context, s
 		return "", apperror.WebAuthnAuthenticationFailed(errors.New("WebAuthn response did not resolve to a user"))
 	}
 
+	// The passkey of another account proves nothing about the user of this session
+	if user.ID != principal.UserID {
+		return "", apperror.WebAuthnAuthenticationFailed(errors.New("passkey belongs to another user"))
+	}
+
 	// Create reauthentication token
 	token, err := s.createReauthenticationToken(ctx, tx, user.ID)
 	if err != nil {
@@ -659,6 +700,12 @@ func (s *Service) CreateReauthenticationTokenWithWebauthn(ctx context.Context, s
 	}
 
 	err = tx.Commit().Error
+	if err != nil {
+		return "", err
+	}
+
+	// Sudo mode starts only after the transaction has committed, since it invokes an actor
+	err = s.sessions.StartSudo(ctx, principal.UserID, principal.SessionID)
 	if err != nil {
 		return "", err
 	}
@@ -677,9 +724,24 @@ func hasOversizedPublicKey(publicKey []byte) bool {
 	return ok && new(big.Int).SetBytes(rsaKey.Modulus).BitLen() > maxRSAKeyBits
 }
 
+// loadPasskeyUser loads a user with their passkeys and returns gorm.ErrRecordNotFound if the user doesn't exist
+func loadPasskeyUser(ctx context.Context, tx *gorm.DB, userID string) (*passkeyUser, error) {
+	user := &passkeyUser{}
+	err := tx.WithContext(ctx).First(&user.User, "id = ?", userID).Error
+	if err != nil {
+		return nil, err
+	}
+
+	err = tx.WithContext(ctx).Find(&user.credentials, "user_id = ?", userID).Error
+	if err != nil {
+		return nil, fmt.Errorf("failed to load passkeys: %w", err)
+	}
+	return user, nil
+}
+
 // discardOversizedCredentials drops passkeys registered before RSA keys were bounded, so a sign-in can't be pointed at one of them
-func discardOversizedCredentials(user *model.User) {
-	user.Credentials = slices.DeleteFunc(user.Credentials, func(credential model.WebauthnCredential) bool {
+func discardOversizedCredentials(user *passkeyUser) {
+	user.credentials = slices.DeleteFunc(user.credentials, func(credential WebauthnCredential) bool {
 		return hasOversizedPublicKey(credential.PublicKey)
 	})
 }

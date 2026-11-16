@@ -17,7 +17,7 @@ import (
 func TestUpdateClientToolKeepsFieldsThatWereNotGiven(t *testing.T) {
 	db := testutils.NewDatabaseForTest(t)
 	s := &clientService{db: db, auditLog: &fakeAuditLogger{}}
-	h := clientHandler{service: s}
+	h := clientHandler{service: s, apiAccess: fakeAPIAccess{}}
 
 	launchURL := "https://photos.example.com"
 	client, _, err := s.CreateClient(t.Context(), dto.OidcClientCreateDto{OidcClientUpdateDto: dto.OidcClientUpdateDto{
@@ -78,7 +78,7 @@ func (b *groupRecordingBackchannelLogout) NotifyLostGroupAccess(ctx context.Cont
 func TestUpdateClientToolKeepsMembersOfNewlyAllowedGroupsSignedIn(t *testing.T) {
 	db := testutils.NewDatabaseForTest(t)
 	backchannelLogout := &groupRecordingBackchannelLogout{db: db}
-	h := clientHandler{service: &clientService{db: db, backchannelLogout: backchannelLogout, auditLog: &fakeAuditLogger{}}}
+	h := clientHandler{service: &clientService{db: db, backchannelLogout: backchannelLogout, auditLog: &fakeAuditLogger{}}, apiAccess: fakeAPIAccess{}}
 
 	client := model.OidcClient{Name: "Photos"}
 	require.NoError(t, db.Create(&client).Error)

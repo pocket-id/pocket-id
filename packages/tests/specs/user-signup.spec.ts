@@ -58,10 +58,39 @@ test.describe('Signup Token Creation', () => {
 		await expect(page.getByTestId('signup-token-link')).toContainText('/st/');
 		await page.getByRole('button', { name: 'Done' }).click();
 
-		const row = page.getByRole('dialog', { name: 'Signup tokens' }).getByText('0 of 8 used');
-		await expect(row).toBeVisible();
-		await expect(row).toContainText(userGroups.developers.friendlyName);
-		await expect(row).toContainText(userGroups.designers.friendlyName);
+		// The groups are part of the details a row shows once expanded
+		const row = page
+			.getByRole('dialog', { name: 'Signup tokens' })
+			.getByRole('button', { name: /0 of 8 used/ });
+		await row.click();
+		const details = page.locator(`#${await row.getAttribute('aria-controls')}`);
+		await expect(details).toContainText(userGroups.developers.friendlyName);
+		await expect(details).toContainText(userGroups.designers.friendlyName);
+	});
+
+	test('Send signup link by email', async ({ page }) => {
+		// The link is sent in the background, so SMTP only has to look configured for the form to offer it
+		await setAppConfigValues(page.request, {
+			smtpHost: 'smtp.example.com',
+			smtpPort: '25',
+			smtpFrom: 'noreply@example.com'
+		});
+		await page.goto('/settings/admin/users');
+
+		await page.getByRole('button', { name: 'Signup tokens' }).click();
+		const sheet = page.getByRole('dialog', { name: 'Signup tokens' });
+		await sheet.getByRole('button', { name: 'Create signup token' }).click();
+		await page.getByLabel('Email').fill('friend@example.com');
+		await page.getByRole('button', { name: 'Send signup link' }).click();
+
+		await expect(page.locator('[data-type="success"]')).toHaveText(
+			'Signup link sent to friend@example.com'
+		);
+		const row = sheet.getByRole('button', { name: /friend@example\.com/ });
+		await row.click();
+		const details = page.locator(`#${await row.getAttribute('aria-controls')}`);
+		await expect(details).toContainText('Sent to');
+		await expect(details).toContainText('friend@example.com');
 	});
 });
 
@@ -72,7 +101,10 @@ test.describe('Initial User Signup', () => {
 
 	test('Initial Signup - success flow', async ({ page }) => {
 		await cleanupBackend({ skipSeed: true });
-		await page.goto('/setup');
+
+		// A fresh install sends visitors of the landing page to the setup
+		await page.goto('/');
+		await page.waitForURL('/signup/setup');
 		await page.getByLabel('First name').fill('Jane');
 		await page.getByLabel('Last name').fill('Smith');
 		await page.getByLabel('Username').fill('janesmith');
@@ -118,7 +150,7 @@ test.describe('Initial User Signup', () => {
 		expect(rejectedResponses).toHaveLength(requestCount - 1);
 		await expect(successfulResponses[0].json()).resolves.toMatchObject({ isAdmin: true });
 
-		const usersResponse = await request.get('/api/users');
+		const usersResponse = await request.get('/api/admin/users');
 		expect(usersResponse.status()).toBe(200);
 		const users = await usersResponse.json();
 		expect(users.data).toHaveLength(1);
@@ -127,7 +159,7 @@ test.describe('Initial User Signup', () => {
 
 	test('Initial Signup - setup route unavailable after completion', async ({ page }) => {
 		await cleanupBackend();
-		await page.goto('/setup');
+		await page.goto('/signup/setup');
 		await expect(page.getByText('This page doesn’t exist.')).toBeVisible();
 		await expect(page.getByRole('button', { name: 'Create admin account' })).not.toBeVisible();
 	});

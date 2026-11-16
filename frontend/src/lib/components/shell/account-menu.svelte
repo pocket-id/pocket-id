@@ -114,10 +114,12 @@
 					<IdCard />
 					{m.my_account()}
 				</DropdownMenu.Item>
-				<DropdownMenu.Item onclick={() => (mcpServerOpen = true)}>
-					<Plug />
-					{m.mcp_server()}
-				</DropdownMenu.Item>
+				{#if $userStore.isAdmin}
+					<DropdownMenu.Item onclick={() => (mcpServerOpen = true)}>
+						<Plug />
+						{m.mcp_server()}
+					</DropdownMenu.Item>
+				{/if}
 				{#if variant !== 'avatar'}
 					<DropdownMenu.Sub>
 						<DropdownMenu.SubTrigger>

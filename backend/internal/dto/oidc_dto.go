@@ -9,7 +9,6 @@ import (
 type OidcClientMetaDataDto struct {
 	ID                       string  `json:"id"`
 	Name                     string  `json:"name"`
-	Description              string  `json:"description"`
 	HasLogo                  bool    `json:"hasLogo"`
 	HasDarkLogo              bool    `json:"hasDarkLogo"`
 	LaunchURL                *string `json:"launchURL"`
@@ -19,6 +18,7 @@ type OidcClientMetaDataDto struct {
 
 type OidcClientDto struct {
 	OidcClientMetaDataDto
+	Notes                               string                   `json:"notes"`
 	CallbackURLs                        []string                 `json:"callbackURLs"`
 	LogoutCallbackURLs                  []string                 `json:"logoutCallbackURLs"`
 	BackchannelLogoutURL                string                   `json:"backchannelLogoutURL"`
@@ -53,7 +53,7 @@ type OidcClientWithAllowedGroupsDto struct {
 
 type OidcClientUpdateDto struct {
 	Name                                string                   `json:"name" binding:"required,max=50" unorm:"nfc"`
-	Description                         string                   `json:"description" binding:"omitempty,max=150" unorm:"nfc"`
+	Notes                               string                   `json:"notes" binding:"omitempty,max=5000" unorm:"nfc"`
 	CallbackURLs                        []string                 `json:"callbackURLs" binding:"omitempty,dive,callback_url_pattern"`
 	LogoutCallbackURLs                  []string                 `json:"logoutCallbackURLs" binding:"omitempty,dive,callback_url_pattern"`
 	BackchannelLogoutURL                string                   `json:"backchannelLogoutURL" binding:"omitempty,http_url,backchannel_logout_url"`

@@ -5,6 +5,7 @@ run:
   build-tags:
     - unit
     - exclude_frontend
+    - e2etest
 linters:
   default: none
   enable:
@@ -57,7 +58,6 @@ linters:
       - third_party$
       - builtin$
       - examples$
-      - internal/service/test_service.go
 formatters:
   enable:
     - goimports

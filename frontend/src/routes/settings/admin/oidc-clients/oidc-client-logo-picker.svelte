@@ -10,6 +10,7 @@
 	import type { OidcClientLogoPreset } from '#lib/types/oidc.type.ts';
 	import { debounced } from '#lib/utils/debounce-util.ts';
 	import { getAxiosErrorMessage } from '#lib/utils/error-util.ts';
+	import { readsOnDarkBackground } from '#lib/utils/logo-contrast-util.ts';
 	import { cn } from '@pocket-id/ui/utils';
 	import ImageOffIcon from '~icons/solar/gallery-remove-bold-duotone';
 	import MoonIcon from '~icons/solar/moon-bold-duotone';
@@ -81,7 +82,14 @@
 		const request = ++latestRequest;
 
 		try {
-			const result = await oidcService.searchLogoPresets(query);
+			// The library has a white variant of nearly every icon, which dark mode only uses where the color icon would blend into the background
+			const result = await Promise.all(
+				(await oidcService.searchLogoPresets(query)).map(async (preset) =>
+					preset.darkLogoUrl && (await readsOnDarkBackground(preset.logoUrl))
+						? { ...preset, darkLogoUrl: null }
+						: preset
+				)
+			);
 			// Responses can arrive out of order, so only the newest search may update the results
 			if (request === latestRequest) {
 				presets = result;

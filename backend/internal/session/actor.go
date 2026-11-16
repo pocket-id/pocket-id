@@ -33,7 +33,14 @@ const (
 	methodRevoke    = "revoke"
 	methodRevokeAll = "revokeAll"
 	methodRemember  = "remember"
+	methodSudo      = "sudo"
 )
+
+// sudoDuration ends sudo mode however much it is used, so a passkey is proven again at least this often
+const sudoDuration = 2 * time.Hour
+
+// sudoIdleTimeout ends sudo mode once nothing has relied on it for this long
+const sudoIdleTimeout = 15 * time.Minute
 
 // Session is a browser in which a user is signed in to Pocket ID
 type Session struct {
@@ -50,6 +57,21 @@ type Session struct {
 	ExpiresAt            time.Time
 	// IdleTimeout ends the session once it has gone unused for this long, and is zero for a session that lasts until ExpiresAt
 	IdleTimeout time.Duration
+	// SudoStartedAt and SudoUsedAt are when the user last proved who they are and when a request last relied on that, see SudoUntil
+	SudoStartedAt time.Time
+	SudoUsedAt    time.Time
+}
+
+// SudoUntil is when the session's sudo mode ends unless it is used before then
+// Sudo mode is required for what would turn a hijacked session into lasting access, so the session cookie alone is not enough for it
+// A session that never entered it gets a time in the distant past
+func (s Session) SudoUntil() time.Time {
+	idleEnd := s.SudoUsedAt.Add(sudoIdleTimeout)
+	maxEnd := s.SudoStartedAt.Add(sudoDuration)
+	if maxEnd.Before(idleEnd) {
+		return maxEnd
+	}
+	return idleEnd
 }
 
 // endsAt is when the session stops being valid, which comes before ExpiresAt once a session with an idle timeout goes unused
@@ -83,6 +105,12 @@ type validateResponse struct {
 
 type sessionRequest struct {
 	SessionID string
+}
+
+type sudoRequest struct {
+	SessionID string
+	// Start enters sudo mode, while a request without it only records that sudo mode was used
+	Start bool
 }
 
 type revokeAllRequest struct {
@@ -143,6 +171,12 @@ func (a *sessionsActor) Invoke(ctx context.Context, method string, data actor.En
 			return nil, err
 		}
 		return a.remember(ctx, req.SessionID)
+	case methodSudo:
+		var req sudoRequest
+		if err := decode(data, method, &req); err != nil {
+			return nil, err
+		}
+		return nil, a.sudo(ctx, req)
 	default:
 		return nil, common.ErrUnsupportedActorMethod{Method: method}
 	}
@@ -317,6 +351,28 @@ func (a *sessionsActor) remember(ctx context.Context, sessionID string) (Session
 	session.IdleTimeout = 0
 	state.Sessions[sessionID] = session
 	return session, a.save(ctx, state)
+}
+
+// sudo puts a session into sudo mode or records that its sudo mode was used
+func (a *sessionsActor) sudo(ctx context.Context, req sudoRequest) error {
+	state, err := a.loadForWrite(ctx)
+	if err != nil {
+		return err
+	}
+
+	// A use only counts while sudo mode lasts, so it can't revive one that has ended
+	session, ok := state.Sessions[req.SessionID]
+	now := time.Now()
+	if !ok || (!req.Start && !session.SudoUntil().After(now)) {
+		return nil
+	}
+
+	if req.Start {
+		session.SudoStartedAt = now
+	}
+	session.SudoUsedAt = now
+	state.Sessions[req.SessionID] = session
+	return a.save(ctx, state)
 }
 
 // deleteAlarm cancels the expiry alarm of a revoked session

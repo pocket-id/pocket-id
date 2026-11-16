@@ -26,12 +26,18 @@ type ScimSyncScheduler interface {
 	ScheduleSync(ctx context.Context)
 }
 
+// PocketIDClients tells whether a change to clients reaches one that may use Pocket ID's own API
+type PocketIDClients interface {
+	RequireAdminAccessForClients(ctx context.Context, tx *gorm.DB, principal authz.Principal, clientIDs ...string) error
+}
+
 type Dependencies struct {
 	DB                *gorm.DB
 	AppConfig         appconfig.AppConfigResolver
 	ScimSync          ScimSyncScheduler
 	BackchannelLogout *backchannellogout.Service
 	AuditLog          AuditLogger
+	PocketIDClients   PocketIDClients
 }
 
 type Module struct {
@@ -40,7 +46,7 @@ type Module struct {
 }
 
 func New(deps Dependencies) *Module {
-	service := newService(deps.DB, deps.ScimSync, deps.BackchannelLogout, deps.AuditLog)
+	service := newService(deps.DB, deps.ScimSync, deps.BackchannelLogout, deps.AuditLog, deps.PocketIDClients)
 	return &Module{
 		service: service,
 		handler: newHandler(deps.AppConfig, service),
@@ -48,7 +54,7 @@ func New(deps Dependencies) *Module {
 }
 
 func (m *Module) RegisterRoutes(r *authz.Router) {
-	group := r.Group("/user-groups")
+	group := r.Group("/admin/user-groups")
 	group.GET("", authz.GroupsRead, httpserver.JSON(http.StatusOK, m.handler.list),
 		option.Summary("List user groups"),
 		option.Description("Get a paginated list of user groups with optional search and sorting"),

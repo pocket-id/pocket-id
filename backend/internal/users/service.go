@@ -20,7 +20,9 @@ import (
 	"github.com/pocket-id/pocket-id/backend/internal/appconfig"
 	"github.com/pocket-id/pocket-id/backend/internal/apperror"
 	"github.com/pocket-id/pocket-id/backend/internal/auditlogs"
+	"github.com/pocket-id/pocket-id/backend/internal/authz"
 	"github.com/pocket-id/pocket-id/backend/internal/backchannellogout"
+	"github.com/pocket-id/pocket-id/backend/internal/customclaims"
 	"github.com/pocket-id/pocket-id/backend/internal/dto"
 	"github.com/pocket-id/pocket-id/backend/internal/emailverification"
 	"github.com/pocket-id/pocket-id/backend/internal/model"
@@ -183,6 +185,20 @@ func (s *Service) GetUserGroups(ctx context.Context, userID string) ([]model.Use
 	return user.UserGroups, nil
 }
 
+// requireAdminAccessFor rejects a principal without admin access that acts on an admin, since changing an admin's account would hand over their access
+func (s *Service) requireAdminAccessFor(ctx context.Context, principal authz.Principal, userID string) error {
+	// An unknown user isn't an admin, so the route's handler reports it as not found
+	var isAdmin bool
+	err := s.db.WithContext(ctx).Model(&model.User{}).Select("is_admin").Where("id = ?", userID).Scan(&isAdmin).Error
+	if err != nil {
+		return fmt.Errorf("failed to check whether the user is an admin: %w", err)
+	}
+	if !isAdmin {
+		return nil
+	}
+	return principal.RequireAdminAccess()
+}
+
 func (s *Service) UpdateProfilePicture(ctx context.Context, userID string, file io.ReadSeeker) error {
 	// Validate the user ID to prevent directory traversal
 	_, err := uuid.Parse(userID)
@@ -303,6 +319,12 @@ func (s *Service) deleteUserInternal(ctx context.Context, cfg *appconfig.AppConf
 }
 
 func (s *Service) CreateUser(ctx context.Context, dbConfig *appconfig.AppConfigModel, input dto.UserCreateDto, origin auditlogs.Origin) (model.User, error) {
+	if input.IsAdmin {
+		if err := origin.Principal.RequireAdminAccess(); err != nil {
+			return model.User{}, err
+		}
+	}
+
 	tx := s.db.Begin()
 	defer func() {
 		tx.Rollback()
@@ -481,7 +503,7 @@ func (s *Service) touchUserGroups(ctx context.Context, tx *gorm.DB, ids []string
 }
 
 func (s *Service) applyDefaultCustomClaims(ctx context.Context, user *model.User, tx *gorm.DB, cfg *appconfig.AppConfigModel) error {
-	var claims []dto.CustomClaimCreateDto
+	var claims []customclaims.CustomClaimCreateDto
 	v := cfg.SignupDefaultCustomClaims
 	if v != "" && v != "[]" {
 		err := json.Unmarshal([]byte(v), &claims)
@@ -559,6 +581,15 @@ func (s *Service) UpdateUser(ctx context.Context, cfg *appconfig.AppConfigModel,
 	updatedUser, err := update(locked)
 	if err != nil {
 		return model.User{}, err
+	}
+
+	// Editing an admin or making someone one decides who holds admin access
+	// An admin moving their own email elsewhere counts too, since a login code sent to the new address signs in with all of their access
+	emailChanged := updatedUser.Email != nil && (locked.Email == nil || *locked.Email != *updatedUser.Email)
+	if !isLdapSync && ((!updateOwnUser && (locked.IsAdmin || updatedUser.IsAdmin)) || (updateOwnUser && locked.IsAdmin && emailChanged)) {
+		if err := origin.Principal.RequireAdminAccess(); err != nil {
+			return model.User{}, err
+		}
 	}
 
 	// Only an admin setting the flag can disable a user, so the previous state is only needed to detect that transition

@@ -19,13 +19,11 @@ import (
 	"github.com/pocket-id/pocket-id/backend/internal/utils/cookie"
 )
 
-// #nosec G101 -- this is the name of the header that carries the API key, not a credential
-const apiKeyHeader = "X-API-Key"
-
 // NewAuthorization creates the authorization middleware with every credential Pocket ID accepts
 // A browser session is tried before an API key or OAuth token, so a signed-in browser is never mistaken for an API client
 func NewAuthorization(apiKeyModule *apikey.Module, accessTokenVerifier AccessTokenVerifier, users UserProvider, sessions SessionValidator, appConfig appconfig.AppConfigResolver) *authz.Middleware {
 	return authz.NewMiddleware(
+		sessions,
 		NewSessionAuthenticator(sessions, users, appConfig),
 		NewAPIKeyAuthenticator(apiKeyModule, appConfig),
 		NewOAuthAuthenticator(accessTokenVerifier, users, appConfig),
@@ -49,8 +47,9 @@ func restrictUnverified(ctx context.Context, appConfig appconfig.AppConfigResolv
 	return nil
 }
 
-// SessionValidator resolves a session token to its user and session, which the session module implements
+// SessionValidator resolves a session token to its user and session and keeps its sudo mode alive, which the session module implements
 type SessionValidator interface {
+	authz.SudoKeeper
 	Validate(ctx context.Context, token string) (string, session.Session, error)
 }
 
@@ -102,6 +101,7 @@ func (a *SessionAuthenticator) Authenticate(c *gin.Context) (*authz.Principal, e
 		SessionID:            userSession.ID,
 		AuthenticationMethod: userSession.AuthenticationMethod,
 		AuthenticationTime:   userSession.CreatedAt,
+		SudoUntil:            userSession.SudoUntil(),
 	}
 	err = restrictUnverified(c.Request.Context(), a.appConfig, &user, principal)
 	if err != nil {
@@ -126,11 +126,11 @@ func (a *APIKeyAuthenticator) Kinds() authz.PrincipalKind {
 }
 
 func (a *APIKeyAuthenticator) Present(c *gin.Context) bool {
-	return c.GetHeader(apiKeyHeader) != ""
+	return c.GetHeader(authz.APIKeyHeader) != ""
 }
 
 func (a *APIKeyAuthenticator) Authenticate(c *gin.Context) (*authz.Principal, error) {
-	key, err := a.apiKeyModule.ValidateApiKey(c.Request.Context(), c.GetHeader(apiKeyHeader))
+	key, err := a.apiKeyModule.ValidateApiKey(c.Request.Context(), c.GetHeader(authz.APIKeyHeader))
 	if err != nil {
 		return nil, apperror.NotSignedIn()
 	}

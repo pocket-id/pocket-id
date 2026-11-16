@@ -8,13 +8,12 @@ import (
 	"time"
 
 	"github.com/italypaleale/francis/actor"
-	"gorm.io/gorm"
 
 	"github.com/pocket-id/pocket-id/backend/internal/common"
 )
 
 // The AppConfig singleton actor maintains the dynamic configuration for the Pocket ID cluster
-// Instances of Pocket ID should bootstrap the AppConfig's actor upon startup to ensure the config is loaded (and migrated if needed)
+// Instances of Pocket ID should bootstrap the AppConfig's actor upon startup to ensure the config is loaded
 // After startup, Peek can be used for read-only operations such as retrieving the config or listing it
 
 // AppConfigActorType is the actor type for the AppConfig actor
@@ -24,23 +23,10 @@ const AppConfigActorType = "AppConfig"
 type appConfigActor struct {
 	log    *slog.Logger
 	client actor.Client[*AppConfigModel]
-	db     *gorm.DB
-}
-
-// appConfigActorBootstrap is the type for the payload of the init method
-type appConfigActorBootstrap struct {
-	LegacyConfig map[string]string
-}
-
-// newAppConfigActorFactory returns the actor.Factory for the AppConfig actor
-func newAppConfigActorFactory(db *gorm.DB) actor.Factory {
-	return func(actorID string, service *actor.Service) actor.Actor {
-		return newAppConfigActor(actorID, service, db)
-	}
 }
 
 // newAppConfigActor allocates a new AppConfig actor
-func newAppConfigActor(actorID string, service *actor.Service, db *gorm.DB) actor.Actor {
+func newAppConfigActor(actorID string, service *actor.Service) actor.Actor {
 	log := slog.
 		With(
 			slog.String("scope", "actor"),
@@ -53,50 +39,25 @@ func newAppConfigActor(actorID string, service *actor.Service, db *gorm.DB) acto
 	return &appConfigActor{
 		log:    log,
 		client: actor.NewActorClient[*AppConfigModel](AppConfigActorType, actorID, service),
-		db:     db,
 	}
 }
 
 // Bootstrap implements actor.ActorBootstrapper for the singleton actor
-func (a *appConfigActor) Bootstrap(parentCtx context.Context, data actor.Envelope) error {
+func (a *appConfigActor) Bootstrap(parentCtx context.Context, _ actor.Envelope) error {
 	// Load the actor state
 	ctx, cancel := context.WithTimeout(parentCtx, 10*time.Second)
 	defer cancel()
-	state, err := a.client.GetState(ctx)
+	state, err := a.getState(ctx)
 	if err != nil {
-		return fmt.Errorf("error retrieving actor state: %w", err)
+		return err
 	}
 
-	// Upgrade existing state with defaults added by newer Pocket ID versions, and encrypt the secrets saved before they were encrypted
+	// Initialize a new state, or add the defaults of newer Pocket ID versions to an existing one
 	save := true
-	if state != nil {
-		hasPlaintextSecrets := state.hasPlaintextSecrets()
-		state, err = state.decryptSecrets()
-		if err != nil {
-			return fmt.Errorf("error decrypting actor state: %w", err)
-		}
-		save = state.applyDefaults() || hasPlaintextSecrets
-	}
-
-	// Check if a new state should be initialized from legacy configuration
-	if state == nil && data != nil {
-		payload := appConfigActorBootstrap{}
-		err = data.Decode(&payload)
-		if err != nil {
-			return fmt.Errorf("request body is not valid for method 'init': %w", err)
-		}
-
-		if len(payload.LegacyConfig) > 0 {
-			state, err = fromLegacyConfig(payload.LegacyConfig)
-			if err != nil {
-				return fmt.Errorf("request body is not valid for method 'init': LegacyConfig property could not be parsed: %w", err)
-			}
-		}
-	}
-
-	// Initialize a new state with defaults when no legacy configuration exists
 	if state == nil {
 		state = getDefaultConfig()
+	} else {
+		save = state.applyDefaults()
 	}
 
 	// Persist new and upgraded state eagerly so every later activation sees the complete model
@@ -107,13 +68,6 @@ func (a *appConfigActor) Bootstrap(parentCtx context.Context, data actor.Envelop
 		if err != nil {
 			return err
 		}
-	}
-
-	// The legacy config is not needed anymore once the state is saved, and it holds the secrets in plaintext
-	// Failing to delete it does not affect the config, so the next activation just tries again
-	err = deleteLegacyConfig(parentCtx, a.db)
-	if err != nil {
-		a.log.WarnContext(parentCtx, "Failed to delete the legacy config", slog.Any("error", err))
 	}
 
 	return nil

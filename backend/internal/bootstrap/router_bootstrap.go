@@ -17,6 +17,7 @@ import (
 	"github.com/fsnotify/fsnotify"
 	sloggin "github.com/gin-contrib/slog"
 	"github.com/gin-gonic/gin"
+	"github.com/go-fuego/fuego/option"
 	"github.com/italypaleale/francis/builtin/ratelimit"
 	"github.com/italypaleale/go-kit/servicerunner"
 	"go.opentelemetry.io/contrib/instrumentation/github.com/gin-gonic/gin/otelgin"
@@ -26,23 +27,28 @@ import (
 	"github.com/pocket-id/pocket-id/backend/frontend"
 	"github.com/pocket-id/pocket-id/backend/internal/authz"
 	"github.com/pocket-id/pocket-id/backend/internal/common"
-	"github.com/pocket-id/pocket-id/backend/internal/controller"
+	"github.com/pocket-id/pocket-id/backend/internal/httpserver"
 	"github.com/pocket-id/pocket-id/backend/internal/mcp"
 	"github.com/pocket-id/pocket-id/backend/internal/middleware"
 	"github.com/pocket-id/pocket-id/backend/internal/tracing"
 	"github.com/pocket-id/pocket-id/backend/internal/utils/systemd"
 )
 
-// This is used to register additional controllers for tests
-var registerTestControllers []func(apiRouter *authz.Router, db *gorm.DB, svc *services)
+// testModule is a module that only builds for the end-to-end tests contain
+type testModule interface {
+	RegisterRoutes(r *authz.Router)
+}
 
-func initRouter(db *gorm.DB, svc *services, rateLimitServices map[string]*ratelimit.RateLimitService) (servicerunner.Service, error) {
+// newTestModule is set by builds for the end-to-end tests
+var newTestModule func(db *gorm.DB, svc *services) (testModule, error)
+
+func initRouter(svc *services, rateLimitServices map[string]*ratelimit.RateLimitService) (servicerunner.Service, error) {
 	r, err := initEngine()
 	if err != nil {
 		return nil, err
 	}
 	auth := middleware.NewAuthorization(svc.apiKeyModule, svc.oidcModule, svc.usersModule, svc.sessionModule, svc.appConfigService)
-	err = registerRoutes(r, db, svc, auth, rateLimitServices)
+	err = registerRoutes(r, svc, auth, rateLimitServices)
 	if err != nil {
 		return nil, err
 	}
@@ -119,8 +125,7 @@ func shouldTraceRequest(r *http.Request) bool {
 	switch {
 	case strings.HasPrefix(p, "/api/"),
 		strings.HasPrefix(p, "/.well-known/"),
-		p == "/authorize",
-		p == authz.MCPPath:
+		p == "/authorize":
 		return true
 	default:
 		return false
@@ -150,9 +155,9 @@ func registerTools(t *mcp.Tools, svc *services) {
 	svc.auditLogsModule.RegisterTools(t)
 }
 
-func registerRoutes(r *gin.Engine, db *gorm.DB, svc *services, auth *authz.Middleware, rateLimitServices map[string]*ratelimit.RateLimitService) error {
+func registerRoutes(r *gin.Engine, svc *services, auth *authz.Middleware, rateLimitServices map[string]*ratelimit.RateLimitService) error {
 
-	err := frontend.RegisterFrontend(r)
+	err := frontend.RegisterFrontend(r, svc.userSignUpModule.IsInitialAdminSetupCompleted)
 	if errors.Is(err, frontend.ErrFrontendNotIncluded) {
 		slog.Warn("Frontend is not included in the build. Skipping frontend registration.")
 	} else if err != nil {
@@ -173,8 +178,10 @@ func registerRoutes(r *gin.Engine, db *gorm.DB, svc *services, auth *authz.Middl
 	apiRouter := auth.Router(apiGroup)
 	baseRouter := auth.Router(baseGroup)
 
+	protectAdmins := svc.usersModule.ProtectAdmins("id")
+
 	svc.apiKeyModule.RegisterRoutes(apiRouter)
-	svc.sessionModule.RegisterRoutes(apiRouter)
+	svc.sessionModule.RegisterRoutes(apiRouter, protectAdmins)
 	svc.webauthnModule.RegisterRoutes(apiRouter,
 		rateLimitMiddleware.Add(middleware.RateLimitWebauthnLogin),
 		rateLimitMiddleware.Add(middleware.RateLimitWebauthnReauthenticate),
@@ -186,13 +193,13 @@ func registerRoutes(r *gin.Engine, db *gorm.DB, svc *services, auth *authz.Middl
 	)
 	svc.usersModule.RegisterRoutes(apiRouter, fileSizeLimitMiddleware.Add(10<<20))
 	svc.claimMappingPolicyModule.RegisterRoutes(apiRouter)
-	controller.NewAppConfigController(apiRouter, svc.appConfigService, svc.emailModule)
+	svc.appConfigService.RegisterRoutes(apiRouter, baseGroup, svc.emailModule)
 	svc.ldapSyncModule.RegisterRoutes(apiRouter)
-	controller.NewAppAssetsController(apiRouter, fileSizeLimitMiddleware, svc.appAssetsService)
+	svc.appAssetsModule.RegisterRoutes(apiRouter, fileSizeLimitMiddleware.Add(10<<20))
 	svc.auditLogsModule.RegisterRoutes(apiRouter)
 	svc.userGroupsModule.RegisterRoutes(apiRouter)
 	svc.apiModule.RegisterRoutes(apiRouter)
-	controller.NewCustomClaimController(apiRouter, svc.customClaimService)
+	svc.customClaimsModule.RegisterRoutes(apiRouter)
 	svc.environmentModule.RegisterRoutes(apiRouter)
 	svc.logoPresetModule.RegisterRoutes(apiRouter)
 	svc.featureModule.RegisterRoutes(apiRouter)
@@ -203,31 +210,25 @@ func registerRoutes(r *gin.Engine, db *gorm.DB, svc *services, auth *authz.Middl
 		rateLimitMiddleware.Add(middleware.RateLimitOneTimeAccessEmail),
 	)
 	svc.emailVerificationModule.RegisterRoutes(apiRouter, rateLimitMiddleware.Add(middleware.RateLimitVerifyEmail))
-	svc.oidcModule.RegisterRoutes(baseRouter, apiRouter, fileSizeLimitMiddleware.Add(2<<20))
+	svc.oidcModule.RegisterRoutes(baseRouter, apiRouter, fileSizeLimitMiddleware.Add(2<<20), svc.apiModule.ProtectPocketIDClients("id"))
 	svc.mcpModule.RegisterRoutes(baseRouter)
 
-	registerTestRoutes(apiRouter, db, svc)
-
-	controller.NewWebManifestController(baseGroup, svc.appConfigService)
+	if svc.testModule != nil {
+		svc.testModule.RegisterRoutes(apiRouter)
+	}
 
 	// These are not rate-limited.
-	controller.NewHealthzController(auth.Router(r.Group("/")).Public())
+	auth.Router(r.Group("/")).GET("/healthz", authz.Public, httpserver.NoContent(func(*gin.Context) error { return nil }),
+		option.Summary("Responds to healthchecks"),
+		option.Description("Responds with a successful status code to healthcheck requests"),
+		option.Tags("Health"),
+	)
 
 	// Receives OTLP trace payloads from the browser SPA (POST /internal/telemetry/traces) and forwards them to the collector, when trace export is enabled.
 	// Outside /api, so it's unauthenticated and not traced, but it is rate-limited.
 	tracing.NewTelemetryController(r, rateLimitMiddleware.Add(middleware.RateLimitInternal))
 
 	return nil
-}
-
-func registerTestRoutes(apiRouter *authz.Router, db *gorm.DB, svc *services) {
-	if common.EnvConfig.AppEnv.IsProduction() {
-		return
-	}
-
-	for _, f := range registerTestControllers {
-		f(apiRouter, db, svc)
-	}
 }
 
 func initServer(r *gin.Engine) (*serverConfig, error) {

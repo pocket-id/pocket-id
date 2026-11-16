@@ -293,6 +293,10 @@ func ReauthenticationRequiredWithCause(cause error) *Error {
 	return Wrap(cause, CodeReauthenticationRequired, http.StatusUnauthorized, "Reauthentication is required")
 }
 
+func SudoRequired() *Error {
+	return New(CodeSudoRequired, http.StatusForbidden, "Confirm your identity with your passkey to continue")
+}
+
 func OpenSignupDisabled() *Error {
 	return New(CodeOpenSignupDisabled, http.StatusForbidden, "Open user signup is not enabled")
 }

@@ -15,12 +15,12 @@ import (
 	"github.com/pocket-id/pocket-id/backend/internal/auditlogs"
 	"github.com/pocket-id/pocket-id/backend/internal/authz"
 	"github.com/pocket-id/pocket-id/backend/internal/httpserver"
-	"github.com/pocket-id/pocket-id/backend/internal/model"
 )
 
 type SessionStore interface {
 	Create(ctx context.Context, userID, authenticationMethod, ipAddress, userAgent string, duration time.Duration, remember bool) (string, error)
 	Revoke(ctx context.Context, userID, sessionID string, origin auditlogs.Origin) error
+	StartSudo(ctx context.Context, userID, sessionID string) error
 }
 
 type AuditLogger interface {
@@ -89,8 +89,8 @@ func (m *Module) RegisterRoutes(r *authz.Router, loginRateLimit, reauthRateLimit
 	r.GET("/webauthn/register/start", authz.AccountPasskeysEnroll, httpserver.Handle(m.handler.beginRegistration))
 	r.POST("/webauthn/register/finish", authz.AccountPasskeysEnroll, httpserver.Handle(m.handler.verifyRegistration))
 
-	r.Public().GET("/webauthn/login/start", httpserver.Handle(m.handler.beginLogin))
-	r.With(loginRateLimit).Public().POST("/webauthn/login/finish", httpserver.Handle(m.handler.verifyLogin))
+	r.GET("/webauthn/login/start", authz.Public, httpserver.Handle(m.handler.beginLogin))
+	r.With(loginRateLimit).POST("/webauthn/login/finish", authz.Public, httpserver.Handle(m.handler.verifyLogin))
 
 	r.POST("/webauthn/logout", authz.AccountSession, httpserver.Handle(m.handler.logout))
 
@@ -100,7 +100,7 @@ func (m *Module) RegisterRoutes(r *authz.Router, loginRateLimit, reauthRateLimit
 	r.PATCH("/webauthn/credentials/:id", authz.AccountPasskeys, httpserver.Handle(m.handler.updateCredential))
 	r.DELETE("/webauthn/credentials/:id", authz.AccountPasskeys, httpserver.Handle(m.handler.deleteCredential))
 
-	r.Public().GET("/webauthn/authenticator-icons/:aaguid", httpserver.Handle(m.handler.getThemedAuthenticatorIcon))
+	r.GET("/webauthn/authenticator-icons/:aaguid", authz.Public, httpserver.Handle(m.handler.getThemedAuthenticatorIcon))
 }
 
 // ConsumeReauthenticationToken implements the OIDC module's ReauthenticationTokenConsumer interface
@@ -109,13 +109,13 @@ func (m *Module) ConsumeReauthenticationToken(ctx context.Context, tx *gorm.DB, 
 }
 
 // ListCredentials returns the passkeys registered for the given user
-// It is consumed by the user controller for the admin "manage passkeys" view
-func (m *Module) ListCredentials(ctx context.Context, userID string) ([]model.WebauthnCredential, error) {
+// It is consumed by the users module for the admin "manage passkeys" view
+func (m *Module) ListCredentials(ctx context.Context, userID string) ([]WebauthnCredential, error) {
 	return m.service.ListCredentials(ctx, userID)
 }
 
 // DeleteCredential removes a passkey, optionally on behalf of an admin or a client acting for another user
-// It is consumed by the user controller for the admin "manage passkeys" view
+// It is consumed by the users module for the admin "manage passkeys" view
 func (m *Module) DeleteCredential(ctx context.Context, userID, credentialID string, origin auditlogs.Origin) error {
 	return m.service.DeleteCredential(ctx, userID, credentialID, origin)
 }

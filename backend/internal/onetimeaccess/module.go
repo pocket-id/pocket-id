@@ -73,25 +73,26 @@ func New(deps Dependencies) (*Module, error) {
 // RegisterRoutes mounts the one-time access token endpoints
 // The rate limiters throttle the public exchange and email endpoints
 func (m *Module) RegisterRoutes(r *authz.Router, exchangeRateLimit, emailRateLimit gin.HandlerFunc) {
-	r.POST("/users/:id/one-time-access-token", authz.UsersWrite, httpserver.BodyJSON(http.StatusCreated, m.handler.createTokenForUser),
+	admin := r.Group("/admin")
+	admin.POST("/users/:id/one-time-access-token", authz.UsersLoginCodes, httpserver.BodyJSON(http.StatusCreated, m.handler.createTokenForUser),
 		option.Summary("Create one-time access token for user (admin)"),
 		option.Description("Generate a one-time access token for a specific user (admin only)"),
 		option.Tags("Users"),
 		option.Path("id", "User ID"),
 	)
-	r.POST("/users/:id/one-time-access-email", authz.UsersWrite, httpserver.BodyNoContent(m.handler.requestEmailAsAdmin),
+	admin.POST("/users/:id/one-time-access-email", authz.UsersLoginCodes, httpserver.BodyNoContent(m.handler.requestEmailAsAdmin),
 		option.Summary("Request one-time access email (admin)"),
 		option.Description("Request a one-time access email for a specific user (admin only)"),
 		option.Tags("Users"),
 		option.Path("id", "User ID"),
 	)
-	r.With(exchangeRateLimit).Public().POST("/one-time-access-token", httpserver.BodyJSON(http.StatusOK, m.handler.exchangeToken),
+	r.With(exchangeRateLimit).POST("/one-time-access-token", authz.Public, httpserver.BodyJSON(http.StatusOK, m.handler.exchangeToken),
 		option.Summary("Exchange one-time access token"),
 		option.Description("Exchange a one-time access token for a session token"),
 		option.Tags("Users"),
 		option.QueryBool("remember", "Set to false for a session that ends when the browser closes or after 20 minutes without activity", param.Default(true)),
 	)
-	r.With(emailRateLimit).Public().POST("/one-time-access-email", httpserver.BodyNoContent(m.handler.requestEmailAsUnauthenticatedUser),
+	r.With(emailRateLimit).POST("/one-time-access-email", authz.Public, httpserver.BodyNoContent(m.handler.requestEmailAsUnauthenticatedUser),
 		option.Summary("Request one-time access email"),
 		option.Description("Request a one-time access email for unauthenticated users"),
 		option.Tags("Users"),

@@ -5,9 +5,11 @@ import (
 
 	"github.com/pocket-id/pocket-id/backend/internal/api"
 	"github.com/pocket-id/pocket-id/backend/internal/apikey"
+	"github.com/pocket-id/pocket-id/backend/internal/appassets"
 	"github.com/pocket-id/pocket-id/backend/internal/auditlogs"
 	"github.com/pocket-id/pocket-id/backend/internal/authz"
 	"github.com/pocket-id/pocket-id/backend/internal/claimmappingpolicy"
+	"github.com/pocket-id/pocket-id/backend/internal/customclaims"
 	"github.com/pocket-id/pocket-id/backend/internal/devicelogin"
 	"github.com/pocket-id/pocket-id/backend/internal/emailverification"
 	"github.com/pocket-id/pocket-id/backend/internal/environment"
@@ -33,7 +35,7 @@ func OpenAPISpec() ([]byte, error) {
 	if err != nil {
 		return nil, err
 	}
-	return openapi.Spec(auth.Routes())
+	return openapi.Spec(auth.Routes(), authz.SecuritySchemes())
 }
 
 // routeTable registers every route on a new engine
@@ -42,8 +44,10 @@ func routeTable() (*gin.Engine, *authz.Middleware, error) {
 	// Gin's debug mode prints every route to stdout, where cmd/openapi writes the spec
 	gin.SetMode(gin.TestMode)
 
+	// appConfigService stays nil, which works because its RegisterRoutes never dereferences its receiver
 	svc := &services{
 		apiKeyModule:             &apikey.Module{},
+		appAssetsModule:          &appassets.Module{},
 		auditLogsModule:          &auditlogs.Module{},
 		deviceLoginModule:        &devicelogin.Module{},
 		ldapSyncModule:           &ldapsync.Module{},
@@ -56,6 +60,7 @@ func routeTable() (*gin.Engine, *authz.Middleware, error) {
 		emailVerificationModule:  &emailverification.Module{},
 		apiModule:                &api.Module{},
 		claimMappingPolicyModule: &claimmappingpolicy.Module{},
+		customClaimsModule:       &customclaims.Module{},
 		environmentModule:        &environment.Module{},
 		logoPresetModule:         &logopreset.Module{},
 		featureModule:            &feature.Module{},
@@ -66,7 +71,7 @@ func routeTable() (*gin.Engine, *authz.Middleware, error) {
 
 	engine := gin.New()
 	auth := middleware.NewAuthorization(nil, nil, nil, nil, nil)
-	if err := registerRoutes(engine, nil, svc, auth, nil); err != nil {
+	if err := registerRoutes(engine, svc, auth, nil); err != nil {
 		return nil, nil, err
 	}
 	return engine, auth, nil
