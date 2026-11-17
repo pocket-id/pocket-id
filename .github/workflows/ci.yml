@@ -281,17 +281,53 @@ jobs:
         with:
           persist-credentials: false
 
+      - name: Set up Depot CLI
+        uses: depot/setup-action@91bc8495a33ebfc504ffc89e5674379ccf23c29c # v1.7.2
+        with:
+          configure-docker: true
+
+      - name: Resolve Francis runtime image
+        id: francis-image
+        working-directory: ./packages/tests/setup
+        run: |
+          # Read the version of Francis from backend/go.mod and use that runtime
+          VERSION=$(./francis-version.sh)
+          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+          echo "image=ghcr.io/italypaleale/francis:$VERSION" >> "$GITHUB_OUTPUT"
+          echo "key=francis-$VERSION" >> "$GITHUB_OUTPUT"
+
+      - name: Start building Docker images
+        working-directory: ./packages/tests/setup
+        run: |
+          DOCKER_COMPOSE_FILE=docker-compose.yml
+          if [ "${{ matrix.francis }}" = "remote" ]; then
+            DOCKER_COMPOSE_FILE=docker-compose-francis.yml
+          elif [ "${{ matrix.db }}" = "postgres" ]; then
+            DOCKER_COMPOSE_FILE=docker-compose-postgres.yml
+          elif [ "${{ matrix.storage }}" = "s3" ]; then
+            DOCKER_COMPOSE_FILE=docker-compose-s3.yml
+          fi
+          echo "DOCKER_COMPOSE_FILE=$DOCKER_COMPOSE_FILE" >> "$GITHUB_ENV"
+
+          cat > .env <<EOF
+          FILE_BACKEND=${{ matrix.storage }}
+          FRANCIS_VERSION=${{ steps.francis-image.outputs.version }}
+          EOF
+
+          # Build in the background so the remaining setup steps run while Depot builds the images
+          # The exit code goes to a file because the step that waits for the build can't wait on a process it didn't start
+          {
+            status=0
+            docker compose -f "$DOCKER_COMPOSE_FILE" build || status=$?
+            echo "$status" > /tmp/docker-build.status
+          } > /tmp/docker-build.log 2>&1 &
+
       - name: Setup Vite+
         uses: voidzero-dev/setup-vp@cab1ab9eaff52d4857875f4f2c016e36af8f2c76 # v1.22.0
         with:
           node-version-file: .node-version
           cache: true
           run-install: false
-
-      - name: Set up Depot CLI
-        uses: depot/setup-action@91bc8495a33ebfc504ffc89e5674379ccf23c29c # v1.7.2
-        with:
-          configure-docker: true
 
       - name: Cache Playwright Browsers
         uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
@@ -346,15 +382,6 @@ jobs:
         if: matrix.storage == 's3' && steps.s3-cache.outputs.cache-hit == 'true'
         run: docker load < /tmp/localstack-s3-image.tar
 
-      - name: Resolve Francis runtime image
-        id: francis-image
-        working-directory: ./packages/tests/setup
-        run: |
-          # Read the version of Francis from backend/go.mod and use that runtime
-          VERSION=$(./francis-version.sh)
-          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
-          echo "image=ghcr.io/italypaleale/francis:$VERSION" >> "$GITHUB_OUTPUT"
-          echo "key=francis-$VERSION" >> "$GITHUB_OUTPUT"
       - name: Cache Francis runtime Docker image
         if: matrix.francis == 'remote'
         uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
@@ -381,45 +408,45 @@ jobs:
       - name: Run Docker containers
         working-directory: ./packages/tests/setup
         run: |
-          DOCKER_COMPOSE_FILE=docker-compose.yml
+          # Wait for the image build started before the other setup steps
+          timeout 600 sh -c 'until [ -s /tmp/docker-build.status ]; do sleep 1; done'
+          cat /tmp/docker-build.log
+          status=$(cat /tmp/docker-build.status)
+          [ "$status" = 0 ] || exit "$status"
 
-          cat > .env <<EOF
-          FILE_BACKEND=${{ matrix.storage }}
-          FRANCIS_VERSION=${{ steps.francis-image.outputs.version }}
-          EOF
-
-          if [ "${{ matrix.francis }}" = "remote" ]; then
-            DOCKER_COMPOSE_FILE=docker-compose-francis.yml
-          elif [ "${{ matrix.db }}" = "postgres" ]; then
-            DOCKER_COMPOSE_FILE=docker-compose-postgres.yml
-          elif [ "${{ matrix.storage }}" = "s3" ]; then
-            DOCKER_COMPOSE_FILE=docker-compose-s3.yml
-          fi
-
-          docker compose -f "$DOCKER_COMPOSE_FILE" build
-
+          # Start the shards in parallel, since each one waits for its dependencies to become healthy
+          pids=()
           for shard in $(seq "$E2E_SHARDS"); do
-            export COMPOSE_PROJECT_NAME="e2e-$shard" APP_PORT=$((1510 + shard)) SCIM_PORT=$((18200 + shard))
-            docker compose -f "$DOCKER_COMPOSE_FILE" up -d --no-build
+            (
+              export COMPOSE_PROJECT_NAME="e2e-$shard" APP_PORT=$((1510 + shard)) SCIM_PORT=$((18200 + shard))
+              docker compose -f "$DOCKER_COMPOSE_FILE" up -d --no-build
 
-            {
-              LOG_FILE="/tmp/backend-$shard.log"
-              while true; do
-                CID=$(docker compose -f "$DOCKER_COMPOSE_FILE" ps -q pocket-id)
-                if [ -n "$CID" ]; then
-                  echo "[$(date)] Attaching logs for $CID" >> "$LOG_FILE"
-                  docker logs -f --since=0 "$CID" >> "$LOG_FILE" 2>&1
-                else
-                  echo "[$(date)] Container not yet running…" >> "$LOG_FILE"
-                fi
-                sleep 1
-              done
-            } &
+              # The log followers write only to files, as an inherited stdout would keep the step open after the script ends
+              {
+                while true; do
+                  CID=$(docker compose -f "$DOCKER_COMPOSE_FILE" ps -q pocket-id)
+                  if [ -n "$CID" ]; then
+                    echo "[$(date)] Attaching logs for $CID"
+                    docker logs -f --since=0 "$CID"
+                  else
+                    echo "[$(date)] Container not yet running…"
+                  fi
+                  sleep 1
+                done
+              } >> "/tmp/backend-$shard.log" 2>&1 &
 
-            if [ "${{ matrix.francis }}" = "remote" ]; then
-              docker compose -f "$DOCKER_COMPOSE_FILE" logs -f --no-log-prefix francis-runtime > "/tmp/francis-runtime-$shard.log" 2>&1 &
-            fi
+              if [ "${{ matrix.francis }}" = "remote" ]; then
+                docker compose -f "$DOCKER_COMPOSE_FILE" logs -f --no-log-prefix francis-runtime > "/tmp/francis-runtime-$shard.log" 2>&1 &
+              fi
+            ) &
+            pids+=($!)
           done
+
+          status=0
+          for pid in "${pids[@]}"; do
+            wait "$pid" || status=1
+          done
+          exit "$status"
 
       - name: Run Playwright tests
         working-directory: ./packages/tests
