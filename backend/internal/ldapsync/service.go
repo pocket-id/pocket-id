@@ -20,6 +20,7 @@ import (
 	"uuid"
 
 	"github.com/go-ldap/ldap/v3"
+	"github.com/go-playground/validator/v10"
 	"golang.org/x/text/unicode/norm"
 	"gorm.io/gorm"
 
@@ -57,9 +58,15 @@ type ldapDesiredUser struct {
 }
 
 type ldapDesiredGroup struct {
-	ldapID          string
-	input           dto.UserGroupCreateDto
-	memberUsernames []string
+	ldapID        string
+	input         dto.UserGroupCreateDto
+	memberLdapIDs []string
+}
+
+// ldapUserIndex maps a user's DN and username in LDAP to its LDAP ID, for resolving group members
+type ldapUserIndex struct {
+	byDN       map[string]string
+	byUsername map[string]string
 }
 
 type ldapDesiredState struct {
@@ -186,13 +193,13 @@ func (s *Service) SyncAll(ctx context.Context, dbConfig *appconfig.AppConfigMode
 
 func (s *Service) fetchDesiredState(ctx context.Context, client ldapClient, dbConfig *appconfig.AppConfigModel) (ldapDesiredState, error) {
 	// Fetch users first so we can use their DNs when resolving group members
-	users, userIDs, usernamesByDN, err := s.fetchUsersFromLDAP(ctx, client, dbConfig)
+	users, userIDs, userIndex, err := s.fetchUsersFromLDAP(ctx, client, dbConfig)
 	if err != nil {
 		return ldapDesiredState{}, err
 	}
 
 	// Then fetch groups to complete the desired LDAP state snapshot
-	groups, groupIDs, err := s.fetchGroupsFromLDAP(ctx, client, usernamesByDN, dbConfig)
+	groups, groupIDs, err := s.fetchGroupsFromLDAP(ctx, client, userIndex, dbConfig)
 	if err != nil {
 		return ldapDesiredState{}, err
 	}
@@ -215,24 +222,24 @@ func (s *Service) applyAdminGroupMembership(desiredUsers []ldapDesiredUser, desi
 		return
 	}
 
-	adminUsernames := make(map[string]struct{})
+	adminLdapIDs := make(map[string]struct{})
 	for _, group := range desiredGroups {
 		if group.input.Name != string(dbConfig.LdapAdminGroupName) {
 			continue
 		}
 
-		for _, username := range group.memberUsernames {
-			adminUsernames[username] = struct{}{}
+		for _, ldapID := range group.memberLdapIDs {
+			adminLdapIDs[ldapID] = struct{}{}
 		}
 	}
 
 	for i := range desiredUsers {
-		_, isAdmin := adminUsernames[desiredUsers[i].input.Username]
+		_, isAdmin := adminLdapIDs[desiredUsers[i].ldapID]
 		desiredUsers[i].input.IsAdmin = desiredUsers[i].input.IsAdmin || isAdmin
 	}
 }
 
-func (s *Service) fetchGroupsFromLDAP(ctx context.Context, client ldapClient, usernamesByDN map[string]string, dbConfig *appconfig.AppConfigModel) (desiredGroups []ldapDesiredGroup, ldapGroupIDs map[string]struct{}, err error) {
+func (s *Service) fetchGroupsFromLDAP(ctx context.Context, client ldapClient, userIndex ldapUserIndex, dbConfig *appconfig.AppConfigModel) (desiredGroups []ldapDesiredGroup, ldapGroupIDs map[string]struct{}, err error) {
 	// Query LDAP for all groups we want to manage
 	searchAttrs := []string{
 		dbConfig.LdapAttributeGroupName.String(),
@@ -270,14 +277,18 @@ func (s *Service) fetchGroupsFromLDAP(ctx context.Context, client ldapClient, us
 
 		// Get group members and add to the correct Group
 		groupMembers := value.GetAttributeValues(dbConfig.LdapAttributeGroupMember.String())
-		memberUsernames := make([]string, 0, len(groupMembers))
+		memberLdapIDs := make([]string, 0, len(groupMembers))
 		for _, member := range groupMembers {
-			username := s.resolveGroupMemberUsername(ctx, client, member, usernamesByDN, dbConfig.LdapAttributeUserUsername.String())
-			if username == "" {
+			// Members are matched by LDAP ID, as a username can be taken by another account or fall back to its stored value
+			memberLdapID, exists := userIndex.byDN[normalizeLDAPDN(member)]
+			if !exists {
+				memberLdapID = userIndex.byUsername[s.resolveGroupMemberUsername(ctx, client, member, dbConfig.LdapAttributeUserUsername.String())]
+			}
+			if memberLdapID == "" {
 				continue
 			}
 
-			memberUsernames = append(memberUsernames, username)
+			memberLdapIDs = append(memberLdapIDs, memberLdapID)
 		}
 
 		syncGroup := dto.UserGroupCreateDto{
@@ -294,16 +305,16 @@ func (s *Service) fetchGroupsFromLDAP(ctx context.Context, client ldapClient, us
 		}
 
 		desiredGroups = append(desiredGroups, ldapDesiredGroup{
-			ldapID:          ldapID,
-			input:           syncGroup,
-			memberUsernames: memberUsernames,
+			ldapID:        ldapID,
+			input:         syncGroup,
+			memberLdapIDs: memberLdapIDs,
 		})
 	}
 
 	return desiredGroups, ldapGroupIDs, nil
 }
 
-func (s *Service) fetchUsersFromLDAP(ctx context.Context, client ldapClient, dbConfig *appconfig.AppConfigModel) (desiredUsers []ldapDesiredUser, ldapUserIDs map[string]struct{}, usernamesByDN map[string]string, err error) {
+func (s *Service) fetchUsersFromLDAP(ctx context.Context, client ldapClient, dbConfig *appconfig.AppConfigModel) (desiredUsers []ldapDesiredUser, ldapUserIDs map[string]struct{}, userIndex ldapUserIndex, err error) {
 	// Query LDAP for all users we want to manage
 	searchAttrs := []string{
 		"sn",
@@ -329,20 +340,18 @@ func (s *Service) fetchUsersFromLDAP(ctx context.Context, client ldapClient, dbC
 
 	result, err := client.Search(searchReq)
 	if err != nil {
-		return nil, nil, nil, fmt.Errorf("failed to query LDAP users: %w", err)
+		return nil, nil, ldapUserIndex{}, fmt.Errorf("failed to query LDAP users: %w", err)
 	}
 
-	// Build the in-memory desired state for users and a DN lookup for group membership resolution
+	// Build the in-memory desired state for users and the lookups for group membership resolution
 	ldapUserIDs = make(map[string]struct{}, len(result.Entries))
-	usernamesByDN = make(map[string]string, len(result.Entries))
+	userIndex = ldapUserIndex{
+		byDN:       make(map[string]string, len(result.Entries)),
+		byUsername: make(map[string]string, len(result.Entries)),
+	}
 	desiredUsers = make([]ldapDesiredUser, 0, len(result.Entries))
 
 	for _, value := range result.Entries {
-		username := norm.NFC.String(value.GetAttributeValue(dbConfig.LdapAttributeUserUsername.String()))
-		if normalizedDN := normalizeLDAPDN(value.DN); normalizedDN != "" && username != "" {
-			usernamesByDN[normalizedDN] = username
-		}
-
 		ldapID := convertLdapIdToString(value.GetAttributeValue(dbConfig.LdapAttributeUserUniqueIdentifier.String()))
 
 		// Skip users without a valid LDAP ID
@@ -352,6 +361,18 @@ func (s *Service) fetchUsersFromLDAP(ctx context.Context, client ldapClient, dbC
 		}
 
 		ldapUserIDs[ldapID] = struct{}{}
+
+		if normalizedDN := normalizeLDAPDN(value.DN); normalizedDN != "" {
+			userIndex.byDN[normalizedDN] = ldapID
+		}
+
+		// A username that several LDAP users share maps to none of them, so a group member given by that username can't be attributed to the wrong user
+		username := norm.NFC.String(value.GetAttributeValue(dbConfig.LdapAttributeUserUsername.String()))
+		if existing, exists := userIndex.byUsername[username]; exists && existing != ldapID {
+			userIndex.byUsername[username] = ""
+		} else if username != "" {
+			userIndex.byUsername[username] = ldapID
+		}
 
 		newUser := dto.UserCreateDto{
 			Username:      value.GetAttributeValue(dbConfig.LdapAttributeUserUsername.String()),
@@ -372,18 +393,6 @@ func (s *Service) fetchUsersFromLDAP(ctx context.Context, client ldapClient, dbC
 
 		dto.Normalize(&newUser)
 
-		err = newUser.Validate()
-		if err != nil {
-			slog.WarnContext(ctx, "LDAP user object is not valid", slog.Any("error", err))
-			continue
-		}
-
-		// Saving a user without an email fails when emails are required, which would abort the whole sync
-		if dbConfig.RequireUserEmail.IsTrue() && newUser.Email == nil {
-			slog.WarnContext(ctx, "Skipping LDAP user without an email address because emails are required", slog.String("username", newUser.Username))
-			continue
-		}
-
 		desiredUsers = append(desiredUsers, ldapDesiredUser{
 			ldapID:  ldapID,
 			input:   newUser,
@@ -391,18 +400,12 @@ func (s *Service) fetchUsersFromLDAP(ctx context.Context, client ldapClient, dbC
 		})
 	}
 
-	return desiredUsers, ldapUserIDs, usernamesByDN, nil
+	return desiredUsers, ldapUserIDs, userIndex, nil
 }
 
-func (s *Service) resolveGroupMemberUsername(ctx context.Context, client ldapClient, member string, usernamesByDN map[string]string, usernameAttr string) string {
-	// First try the DN cache we built while loading users
-	username, exists := usernamesByDN[normalizeLDAPDN(member)]
-	if exists && username != "" {
-		return username
-	}
-
-	// Then try to extract the username directly from the DN
-	username = getDNProperty(usernameAttr, member)
+func (s *Service) resolveGroupMemberUsername(ctx context.Context, client ldapClient, member string, usernameAttr string) string {
+	// First try to extract the username directly from the DN
+	username := getDNProperty(usernameAttr, member)
 	if username != "" {
 		return norm.NFC.String(username)
 	}
@@ -447,7 +450,7 @@ func (s *Service) reconcileGroups(ctx context.Context, tx *gorm.DB, desiredGroup
 		return nil, fmt.Errorf("failed to fetch groups from database: %w", err)
 	}
 
-	_, _, ldapUsersByUsername, err := s.loadLDAPUsersInDB(ctx, tx)
+	_, ldapUsersByID, err := s.loadLDAPUsersInDB(ctx, tx)
 	if err != nil {
 		return nil, fmt.Errorf("failed to fetch users from database: %w", err)
 	}
@@ -486,11 +489,11 @@ func (s *Service) reconcileGroups(ctx context.Context, tx *gorm.DB, desiredGroup
 
 	// Apply creates and updates to match the desired LDAP group state
 	for _, desiredGroup := range desiredGroups {
-		memberUserIDs := make([]string, 0, len(desiredGroup.memberUsernames))
-		for _, username := range desiredGroup.memberUsernames {
-			databaseUser, exists := ldapUsersByUsername[username]
+		memberUserIDs := make([]string, 0, len(desiredGroup.memberLdapIDs))
+		for _, ldapID := range desiredGroup.memberLdapIDs {
+			databaseUser, exists := ldapUsersByID[ldapID]
 			if !exists {
-				// The user collides with a non-LDAP user or was skipped during user sync, so we ignore it
+				// The user was skipped during user sync, so we ignore it
 				continue
 			}
 
@@ -575,7 +578,7 @@ func (s *Service) reconcileUsers(ctx context.Context, tx *gorm.DB, desiredUsers 
 	notifyLogout = func() {}
 
 	// Load the current LDAP-managed state from the database
-	ldapUsersInDB, ldapUsersByID, _, err := s.loadLDAPUsersInDB(ctx, tx)
+	ldapUsersInDB, ldapUsersByID, err := s.loadLDAPUsersInDB(ctx, tx)
 	if err != nil {
 		return nil, nil, nil, fmt.Errorf("failed to fetch users from database: %w", err)
 	}
@@ -585,6 +588,18 @@ func (s *Service) reconcileUsers(ctx context.Context, tx *gorm.DB, desiredUsers 
 
 	for _, desiredUser := range desiredUsers {
 		databaseUser := ldapUsersByID[desiredUser.ldapID]
+
+		// Keep the stored value of each attribute the database would reject, so one bad attribute doesn't stop the rest of the user, including the admin flag, from syncing
+		input, err := keepRejectedFields(ctx, tx, desiredUser.input, databaseUser, dbConfig.RequireUserEmail.IsTrue())
+		if err != nil {
+			return nil, nil, nil, fmt.Errorf("failed to check LDAP user '%s': %w", desiredUser.input.Username, err)
+		}
+
+		// Skip a new user without a usable username or a required email, as there is no stored value to fall back to and creating it would fail and abort the whole sync
+		if databaseUser.ID == "" && (input.Username == "" || (dbConfig.RequireUserEmail.IsTrue() && input.Email == nil)) {
+			slog.WarnContext(ctx, "Skipping new LDAP user without a usable username or a required email address", slog.String("username", desiredUser.input.Username))
+			continue
+		}
 
 		// If a user is found (even if disabled), enable them since they're now back in LDAP.
 		if databaseUser.ID != "" && databaseUser.Disabled {
@@ -604,30 +619,26 @@ func (s *Service) reconcileUsers(ctx context.Context, tx *gorm.DB, desiredUsers 
 
 		userID := databaseUser.ID
 		if databaseUser.ID == "" {
-			createdUser, err := s.users.CreateUserInternal(ctx, dbConfig, desiredUser.input, true, tx)
-			if apperror.IsCode(err, apperror.CodeAlreadyInUse) {
-				slog.Warn("Skipping creating LDAP user", slog.String("username", desiredUser.input.Username), slog.Any("error", err))
-				continue
-			} else if err != nil {
-				return nil, nil, nil, fmt.Errorf("error creating user '%s': %w", desiredUser.input.Username, err)
+			createdUser, err := s.users.CreateUserInternal(ctx, dbConfig, input, true, tx)
+			if err != nil {
+				return nil, nil, nil, fmt.Errorf("error creating user '%s': %w", input.Username, err)
 			}
 
 			userID = createdUser.ID
 			ldapUsersByID[desiredUser.ldapID] = createdUser
 		} else {
-			_, err = s.users.UpdateUserInternal(ctx, dbConfig, databaseUser.ID, desiredUser.input, false, true, tx)
-			if apperror.IsCode(err, apperror.CodeAlreadyInUse) {
-				slog.Warn("Skipping updating LDAP user", slog.String("username", desiredUser.input.Username), slog.Any("error", err))
-				continue
-			} else if err != nil {
-				return nil, nil, nil, fmt.Errorf("error updating user '%s': %w", desiredUser.input.Username, err)
+			// Keep the map current, as a later entry with the same LDAP ID falls back to the values saved here
+			updatedUser, err := s.users.UpdateUserInternal(ctx, dbConfig, databaseUser.ID, input, false, true, tx)
+			if err != nil {
+				return nil, nil, nil, fmt.Errorf("error updating user '%s': %w", input.Username, err)
 			}
+			ldapUsersByID[desiredUser.ldapID] = updatedUser
 		}
 
 		if desiredUser.picture != "" {
 			savePictures = append(savePictures, savePicture{
 				userID:   userID,
-				username: desiredUser.input.Username,
+				username: input.Username,
 				picture:  desiredUser.picture,
 			})
 		}
@@ -684,6 +695,67 @@ func (s *Service) reconcileUsers(ctx context.Context, tx *gorm.DB, desiredUsers 
 	return savePictures, deleteFiles, notifyLogout, nil
 }
 
+// keepRejectedFields replaces each attribute that is invalid, missing while required or already used by another user with the user's stored value, which is empty for a new user
+func keepRejectedFields(ctx context.Context, tx *gorm.DB, input dto.UserCreateDto, stored model.User, requireEmail bool) (dto.UserCreateDto, error) {
+	// Fall back for every attribute that fails validation
+	var validationErrs validator.ValidationErrors
+	err := input.Validate()
+	if err != nil && !errors.As(err, &validationErrs) {
+		return input, err
+	}
+
+	for _, fieldErr := range validationErrs {
+		slog.WarnContext(ctx, "Keeping the stored value of an invalid LDAP user attribute", slog.String("username", input.Username), slog.String("field", fieldErr.Field()), slog.Any("error", fieldErr))
+
+		switch fieldErr.StructField() {
+		case "Username":
+			input.Username = stored.Username
+		case "Email":
+			input.Email = stored.Email
+		case "FirstName":
+			input.FirstName = stored.FirstName
+		case "LastName":
+			input.LastName = stored.LastName
+		case "DisplayName":
+			input.DisplayName = stored.DisplayName
+		}
+	}
+
+	// Fall back for a username or email that another user already uses
+	// Checking up front keeps the transaction usable, as Postgres aborts it on a unique constraint violation
+	others := tx.WithContext(ctx).Model(&model.User{})
+	if stored.ID != "" {
+		others = others.Where("id != ?", stored.ID)
+	}
+	others = others.Session(&gorm.Session{})
+
+	var usernameTaken, emailTaken int64
+	err = others.Where("username = ?", input.Username).Count(&usernameTaken).Error
+	if err != nil {
+		return input, err
+	}
+	err = others.Where("email = ?", input.Email).Count(&emailTaken).Error
+	if err != nil {
+		return input, err
+	}
+
+	if usernameTaken > 0 {
+		slog.WarnContext(ctx, "Keeping the stored username of an LDAP user because another user already uses it", slog.String("username", input.Username))
+		input.Username = stored.Username
+	}
+	if emailTaken > 0 {
+		slog.WarnContext(ctx, "Keeping the stored email of an LDAP user because another user already uses it", slog.String("username", input.Username))
+		input.Email = stored.Email
+	}
+
+	// When emails are required, a user whose email was removed in LDAP keeps the stored one
+	if requireEmail && input.Email == nil {
+		input.Email = stored.Email
+	}
+
+	return input, nil
+}
+
 // isDeprovisioned reports whether an LDAP-managed user is no longer present in the directory and is therefore disabled or deleted by this sync
 func isDeprovisioned(user model.User, ldapUserIDs map[string]struct{}) bool {
 	if user.LdapID == nil {
@@ -694,26 +766,23 @@ func isDeprovisioned(user model.User, ldapUserIDs map[string]struct{}) bool {
 	return !exists
 }
 
-func (s *Service) loadLDAPUsersInDB(ctx context.Context, tx *gorm.DB) (users []model.User, byLdapID map[string]model.User, byUsername map[string]model.User, err error) {
-	// Load all LDAP-managed users and index them by LDAP ID and by username
+func (s *Service) loadLDAPUsersInDB(ctx context.Context, tx *gorm.DB) (users []model.User, byLdapID map[string]model.User, err error) {
+	// Load all LDAP-managed users and index them by LDAP ID
 	err = tx.
 		WithContext(ctx).
-		Select("id, username, ldap_id, disabled").
 		Where("ldap_id IS NOT NULL").
 		Find(&users).
 		Error
 	if err != nil {
-		return nil, nil, nil, err
+		return nil, nil, err
 	}
 
 	byLdapID = make(map[string]model.User, len(users))
-	byUsername = make(map[string]model.User, len(users))
 	for _, user := range users {
 		byLdapID[*user.LdapID] = user
-		byUsername[user.Username] = user
 	}
 
-	return users, byLdapID, byUsername, nil
+	return users, byLdapID, nil
 }
 
 func (s *Service) loadLDAPGroupsInDB(ctx context.Context, tx *gorm.DB) ([]model.UserGroup, map[string]model.UserGroup, error) {

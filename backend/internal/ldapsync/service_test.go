@@ -5,6 +5,7 @@ import (
 	"context"
 	"net/http"
 	"net/http/httptest"
+	"strings"
 	"testing"
 	"time"
 
@@ -579,6 +580,178 @@ func TestLdapServiceSyncAllSetsAdminFromGroupMembership(t *testing.T) {
 			assert.ElementsMatch(t, []string{"testadmin"}, usernames(group.Users))
 		})
 	}
+}
+
+func TestLdapServiceSyncAllKeepsStoredValueOfRejectedAttributes(t *testing.T) {
+	service, db := newTestLdapService(t, newFakeLDAPClient(
+		ldapSearchResult(
+			ldapEntry("uid=taken,ou=people,dc=example,dc=com", map[string][]string{
+				"entryUUID": {"u-alice"},
+				"uid":       {"taken"},
+				"mail":      {"alice.new@example.com"},
+				"givenName": {strings.Repeat("a", 51)},
+				"sn":        {"Changed"},
+			}),
+			ldapEntry("uid=bob,ou=people,dc=example,dc=com", map[string][]string{
+				"entryUUID": {"u-bob"},
+				"uid":       {"bob"},
+				"mail":      {"taken@example.com"},
+				"givenName": {"Bobby"},
+				"sn":        {"Brown"},
+			}),
+		),
+		ldapSearchResult(
+			ldapEntry("cn=admins,ou=groups,dc=example,dc=com", map[string][]string{
+				"entryUUID": {"g-admins"},
+				"cn":        {"admins"},
+				"member":    {"uid=bob,ou=people,dc=example,dc=com"},
+			}),
+		),
+	))
+
+	// Both were synced as admins, then Alice was removed from the admin group while her new username is taken and her first name is too long, and Bob got a taken email
+	require.NoError(t, db.Create(&model.User{Username: "taken", Email: new("taken@example.com")}).Error)
+	aliceLdapID, bobLdapID := "u-alice", "u-bob"
+	require.NoError(t, db.Create(&model.User{Username: "alice", Email: new("alice@example.com"), FirstName: "Alice", LastName: "Jones", IsAdmin: true, LdapID: &aliceLdapID}).Error)
+	require.NoError(t, db.Create(&model.User{Username: "bob", Email: new("bob@example.com"), FirstName: "Bob", LastName: "Brown", IsAdmin: true, LdapID: &bobLdapID}).Error)
+
+	err := service.SyncAll(t.Context(), defaultTestLDAPAppConfig())
+	require.NoError(t, err)
+
+	var alice model.User
+	require.NoError(t, db.First(&alice, "ldap_id = ?", aliceLdapID).Error)
+	assert.Equal(t, "alice", alice.Username)
+	assert.Equal(t, "Alice", alice.FirstName)
+	assert.Equal(t, "Changed", alice.LastName)
+	assert.Equal(t, new("alice.new@example.com"), alice.Email)
+	assert.False(t, alice.IsAdmin)
+	assert.False(t, alice.Disabled)
+
+	var bob model.User
+	require.NoError(t, db.First(&bob, "ldap_id = ?", bobLdapID).Error)
+	assert.Equal(t, new("bob@example.com"), bob.Email)
+	assert.Equal(t, "Bobby", bob.FirstName)
+	assert.True(t, bob.IsAdmin)
+
+	var admins model.UserGroup
+	require.NoError(t, db.Preload("Users").First(&admins, "ldap_id = ?", "g-admins").Error)
+	assert.Equal(t, []string{"bob"}, usernames(admins.Users))
+}
+
+func TestLdapServiceSyncAllUpdatesUserWithoutEmailWhenEmailIsRequired(t *testing.T) {
+	service, db := newTestLdapService(t, newFakeLDAPClient(
+		ldapSearchResult(
+			ldapEntry("uid=testadmin,ou=people,dc=example,dc=com", map[string][]string{
+				"entryUUID": {"u-testadmin"},
+				"uid":       {"testadmin"},
+				"givenName": {"Changed"},
+				"sn":        {"Admin"},
+			}),
+		),
+		ldapSearchResult(),
+	))
+
+	// The admin never had an email and was removed from the admin group after emails became required
+	ldapID := "u-testadmin"
+	require.NoError(t, db.Create(&model.User{Username: "testadmin", FirstName: "Test", IsAdmin: true, LdapID: &ldapID}).Error)
+
+	config := defaultTestLDAPAppConfig()
+	config.RequireUserEmail = "true"
+
+	err := service.SyncAll(t.Context(), config)
+	require.NoError(t, err)
+
+	var user model.User
+	require.NoError(t, db.First(&user, "ldap_id = ?", ldapID).Error)
+	assert.Equal(t, "Changed", user.FirstName)
+	assert.Nil(t, user.Email)
+	assert.False(t, user.IsAdmin)
+	assert.False(t, user.Disabled)
+}
+
+func TestLdapServiceSyncAllMatchesGroupMembersByLdapIDWhenUsernameCollides(t *testing.T) {
+	service, db := newTestLdapService(t, newFakeLDAPClient(
+		ldapSearchResult(
+			ldapEntry("cn=alice,ou=people,dc=example,dc=com", map[string][]string{
+				"entryUUID": {"u-alice"},
+				"uid":       {"bob"},
+				"mail":      {"alice@example.com"},
+			}),
+			ldapEntry("cn=bob,ou=people,dc=example,dc=com", map[string][]string{
+				"entryUUID": {"u-bob"},
+				"uid":       {"bob"},
+				"mail":      {"bob@example.com"},
+			}),
+		),
+		ldapSearchResult(
+			ldapEntry("cn=team,ou=groups,dc=example,dc=com", map[string][]string{
+				"entryUUID": {"g-team"},
+				"cn":        {"team"},
+				"member":    {"cn=alice,ou=people,dc=example,dc=com"},
+			}),
+			ldapEntry("cn=admins,ou=groups,dc=example,dc=com", map[string][]string{
+				"entryUUID": {"g-admins"},
+				"cn":        {"admins"},
+				"member":    {"cn=bob,ou=people,dc=example,dc=com"},
+			}),
+		),
+	))
+
+	// Alice's username was changed in LDAP to the one Bob already has, so she keeps her stored username
+	aliceLdapID, bobLdapID := "u-alice", "u-bob"
+	require.NoError(t, db.Create(&model.User{Username: "alice", Email: new("alice@example.com"), LdapID: &aliceLdapID}).Error)
+	require.NoError(t, db.Create(&model.User{Username: "bob", Email: new("bob@example.com"), LdapID: &bobLdapID}).Error)
+
+	err := service.SyncAll(t.Context(), defaultTestLDAPAppConfig())
+	require.NoError(t, err)
+
+	var alice, bob model.User
+	require.NoError(t, db.First(&alice, "ldap_id = ?", aliceLdapID).Error)
+	require.NoError(t, db.First(&bob, "ldap_id = ?", bobLdapID).Error)
+	assert.Equal(t, "alice", alice.Username)
+	assert.False(t, alice.IsAdmin)
+	assert.True(t, bob.IsAdmin)
+
+	var team model.UserGroup
+	require.NoError(t, db.Preload("Users").First(&team, "ldap_id = ?", "g-team").Error)
+	assert.Equal(t, []string{"alice"}, usernames(team.Users))
+}
+
+func TestLdapServiceSyncAllFallsBackToValuesSavedEarlierInTheSameRun(t *testing.T) {
+	service, db := newTestLdapService(t, newFakeLDAPClient(
+		ldapSearchResult(
+			ldapEntry("uid=new,ou=people,dc=example,dc=com", map[string][]string{
+				"entryUUID": {"u-alice"},
+				"uid":       {"new"},
+				"mail":      {"alice@example.com"},
+			}),
+			ldapEntry("uid=old,ou=people,dc=example,dc=com", map[string][]string{
+				"entryUUID": {"u-bob"},
+				"uid":       {"old"},
+				"mail":      {"bob@example.com"},
+			}),
+			ldapEntry("uid=alice,ou=people,dc=example,dc=com", map[string][]string{
+				"entryUUID": {"u-alice"},
+				"uid":       {strings.Repeat("a", 51)},
+				"mail":      {"alice@example.com"},
+			}),
+		),
+		ldapSearchResult(),
+	))
+
+	// Alice is renamed from old to new, Bob takes old, and a duplicate entry of Alice with an invalid username must fall back to new
+	aliceLdapID, bobLdapID := "u-alice", "u-bob"
+	require.NoError(t, db.Create(&model.User{Username: "old", Email: new("alice@example.com"), LdapID: &aliceLdapID}).Error)
+	require.NoError(t, db.Create(&model.User{Username: "bob", Email: new("bob@example.com"), LdapID: &bobLdapID}).Error)
+
+	err := service.SyncAll(t.Context(), defaultTestLDAPAppConfig())
+	require.NoError(t, err)
+
+	var alice, bob model.User
+	require.NoError(t, db.First(&alice, "ldap_id = ?", aliceLdapID).Error)
+	require.NoError(t, db.First(&bob, "ldap_id = ?", bobLdapID).Error)
+	assert.Equal(t, "new", alice.Username)
+	assert.Equal(t, "old", bob.Username)
 }
 
 func TestLoadGroupMembers(t *testing.T) {

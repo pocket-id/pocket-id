@@ -715,7 +715,8 @@ func canEditProfile(cfg *appconfig.AppConfigModel, user *model.User, updateOwnUs
 
 // updateUserInternal updates a user within an existing transaction
 func (s *Service) updateUserInternal(ctx context.Context, cfg *appconfig.AppConfigModel, userID string, updatedUser dto.UserCreateDto, updateOwnUser bool, isLdapSync bool, origin auditlogs.Origin, tx *gorm.DB) (model.User, error) {
-	if cfg.RequireUserEmail.IsTrue() && updatedUser.Email == nil {
+	// The LDAP sync keeps the stored email when the directory has none, so it only saves a user without an email that never had one
+	if cfg.RequireUserEmail.IsTrue() && updatedUser.Email == nil && !isLdapSync {
 		return model.User{}, apperror.MissingField("email")
 	}
 
