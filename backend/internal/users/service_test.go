@@ -122,7 +122,8 @@ func TestCanEditOwnProfilePicture(t *testing.T) {
 	assert.False(t, canEditOwnProfilePicture(cfg("false", "true"), ldapUser))
 	assert.False(t, canEditOwnProfilePicture(cfg("true", "false"), ldapUser))
 	assert.True(t, canEditOwnProfilePicture(cfg("true", "true"), ldapUser))
-	assert.True(t, canEditOwnProfilePicture(cfg("false", "false"), &model.User{}))
+	assert.False(t, canEditOwnProfilePicture(cfg("false", "false"), &model.User{}))
+	assert.True(t, canEditOwnProfilePicture(cfg("false", "true"), &model.User{}))
 }
 
 func TestCreateUserBumpsGroupUpdatedAt(t *testing.T) {

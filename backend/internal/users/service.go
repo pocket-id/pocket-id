@@ -714,10 +714,10 @@ func canEditProfile(cfg *appconfig.AppConfigModel, user *model.User, updateOwnUs
 }
 
 // canEditOwnProfilePicture reports whether a user may change their own profile picture
-// The directory provides an LDAP user's picture unless the override is enabled, and then only users who may edit their own account can change it
+// Only users who may edit their own account can change it, and the directory provides an LDAP user's picture unless the override is enabled
 func canEditOwnProfilePicture(cfg *appconfig.AppConfigModel, user *model.User) bool {
 	isLdapUser := user.LdapID != nil && cfg.LdapEnabled.IsTrue()
-	return !isLdapUser || (cfg.LdapAllowProfilePictureOverride.IsTrue() && cfg.AllowOwnAccountEdit.IsTrue())
+	return cfg.AllowOwnAccountEdit.IsTrue() && (!isLdapUser || cfg.LdapAllowProfilePictureOverride.IsTrue())
 }
 
 // updateUserInternal updates a user within an existing transaction

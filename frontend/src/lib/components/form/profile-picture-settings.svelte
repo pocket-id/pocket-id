@@ -35,11 +35,12 @@
 	} = $props();
 
 	const readOnly = $derived.by(() => {
-		if (!isLdapUser || !$appConfigStore.ldapEnabled) return false;
-		// The directory provides the picture unless the override lets Pocket ID keep its own
-		if (!$appConfigStore.ldapAllowProfilePictureOverride) return true;
-		// With the override, people may only change their own picture if they can edit their own account
-		return ownAccount && !$appConfigStore.allowOwnAccountEdit;
+		// People may only change their own picture if they can edit their own account
+		if (ownAccount && !$appConfigStore.allowOwnAccountEdit) return true;
+		// The directory provides an LDAP user's picture unless the override lets Pocket ID keep its own
+		return (
+			isLdapUser && $appConfigStore.ldapEnabled && !$appConfigStore.ldapAllowProfilePictureOverride
+		);
 	});
 	const labelId = $props.id();
 

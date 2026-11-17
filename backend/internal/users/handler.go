@@ -276,7 +276,7 @@ func (h *handler) requireOwnProfilePictureEdit(c *gin.Context, userID string) er
 	}
 
 	if !canEditOwnProfilePicture(dbConfig, &user) {
-		return apperror.LdapUserUpdate()
+		return apperror.MissingPermission()
 	}
 	return nil
 }
