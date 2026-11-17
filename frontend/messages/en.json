@@ -605,7 +605,7 @@
 	"config_keep_removed_ldap_users": "Keep people removed from LDAP",
 	"config_keep_removed_ldap_users_description": "They’re disabled instead of deleted.",
 	"ldap_allow_profile_picture_override": "Allow profile picture override",
-	"ldap_allow_profile_picture_override_description": "When enabled, users can set their own profile picture and the LDAP sync will not overwrite it.",
+	"ldap_allow_profile_picture_override_description": "LDAP won’t overwrite pictures set in Pocket ID. People can only change their own if self-service account editing is on.",
 	"config_pocket_id_field": "Pocket ID field",
 	"config_ldap_attribute": "LDAP attribute",
 	"config_notes": "Notes",

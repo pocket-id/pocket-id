@@ -18,6 +18,7 @@
 	let {
 		userId,
 		isLdapUser = false,
+		ownAccount = false,
 		layout = 'row',
 		class: className,
 		resetCallback,
@@ -25,6 +26,7 @@
 	}: {
 		userId: string;
 		isLdapUser?: boolean;
+		ownAccount?: boolean;
 		// The avatar layout is only the picture, sized by `class`, with its actions in a menu on a badge
 		layout?: 'row' | 'avatar';
 		class?: string;
@@ -32,9 +34,12 @@
 		updateCallback: (image: File) => Promise<void>;
 	} = $props();
 
-	// LDAP users cannot change their own picture while LDAP manages it, unless the override is enabled
+	// The directory provides an LDAP user's picture unless the override is enabled, and then only users who may edit their own account can change it
 	const managedByLdap = $derived(
-		isLdapUser && $appConfigStore.ldapEnabled && !$appConfigStore.ldapAllowProfilePictureOverride
+		isLdapUser &&
+			$appConfigStore.ldapEnabled &&
+			(!$appConfigStore.ldapAllowProfilePictureOverride ||
+				(ownAccount && !$appConfigStore.allowOwnAccountEdit))
 	);
 	const labelId = $props.id();
 

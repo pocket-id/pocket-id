@@ -112,6 +112,19 @@ func TestProfilePictureUpdatesRejectMissingUser(t *testing.T) {
 	require.True(t, apperror.IsCode(err, apperror.CodeUserNotFound))
 }
 
+func TestCanEditOwnProfilePicture(t *testing.T) {
+	ldapID := "ldap-id"
+	ldapUser := &model.User{LdapID: &ldapID}
+	cfg := func(override, ownEdit appconfig.AppConfigValue) *appconfig.AppConfigModel {
+		return &appconfig.AppConfigModel{LdapEnabled: "true", LdapAllowProfilePictureOverride: override, AllowOwnAccountEdit: ownEdit}
+	}
+
+	assert.False(t, canEditOwnProfilePicture(cfg("false", "true"), ldapUser))
+	assert.False(t, canEditOwnProfilePicture(cfg("true", "false"), ldapUser))
+	assert.True(t, canEditOwnProfilePicture(cfg("true", "true"), ldapUser))
+	assert.True(t, canEditOwnProfilePicture(cfg("false", "false"), &model.User{}))
+}
+
 func TestCreateUserBumpsGroupUpdatedAt(t *testing.T) {
 	config := &appconfig.AppConfigModel{RequireUserEmail: "false"}
 	userService := newTestUserService(t)

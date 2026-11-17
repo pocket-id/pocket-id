@@ -8,6 +8,7 @@ import (
 	"github.com/gin-gonic/gin"
 
 	"github.com/pocket-id/pocket-id/backend/internal/appconfig"
+	"github.com/pocket-id/pocket-id/backend/internal/apperror"
 	"github.com/pocket-id/pocket-id/backend/internal/auditlogs"
 	"github.com/pocket-id/pocket-id/backend/internal/authz"
 	"github.com/pocket-id/pocket-id/backend/internal/dto"
@@ -193,6 +194,10 @@ func (h *handler) updateUserProfilePictureHandler(c *gin.Context) error {
 
 func (h *handler) updateCurrentUserProfilePictureHandler(c *gin.Context) error {
 	userID := authz.PrincipalFrom(c).UserID
+	if err := h.requireOwnProfilePictureEdit(c, userID); err != nil {
+		return err
+	}
+
 	fileHeader, err := httpserver.FormFile(c, "file")
 	if err != nil {
 		return err
@@ -252,6 +257,26 @@ func (h *handler) resetUserProfilePictureHandler(c *gin.Context) error {
 
 func (h *handler) resetCurrentUserProfilePictureHandler(c *gin.Context) error {
 	userID := authz.PrincipalFrom(c).UserID
+	if err := h.requireOwnProfilePictureEdit(c, userID); err != nil {
+		return err
+	}
 
 	return h.service.ResetProfilePicture(c.Request.Context(), userID)
+}
+
+func (h *handler) requireOwnProfilePictureEdit(c *gin.Context, userID string) error {
+	dbConfig, err := h.appConfig.GetConfig(c.Request.Context())
+	if err != nil {
+		return fmt.Errorf("error loading app configuration: %w", err)
+	}
+
+	user, err := h.service.GetUser(c.Request.Context(), userID)
+	if err != nil {
+		return err
+	}
+
+	if !canEditOwnProfilePicture(dbConfig, &user) {
+		return apperror.LdapUserUpdate()
+	}
+	return nil
 }
