@@ -13,8 +13,8 @@ func TestMatch(t *testing.T) {
 	}{
 		{preference: "de-CH", want: new("de")},
 		{preference: "pt_BR", want: new("pt-BR")},
-		{preference: "nb-NO", want: new("no")},
-		{preference: "no", want: new("no")},
+		{preference: "nb-NO", want: new("nb")},
+		{preference: "no", want: new("nb")},
 		{preference: "zh-Hant-HK", want: new("zh-TW")},
 		{preference: "fr, en;q=0.8", want: new("fr")},
 		{preference: "xx", want: nil},

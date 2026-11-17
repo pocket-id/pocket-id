@@ -6,7 +6,7 @@ import (
 )
 
 // locales are the languages of the UI, as the frontend stores them for users, and must match the locales in frontend/project.inlang/settings.json
-var locales = []string{"ca", "cs", "da", "de", "en", "es", "et", "fi", "fr", "hu", "it", "ja", "ko", "lv", "nl", "no", "pl", "pt", "pt-BR", "ru", "sv", "tr", "uk", "vi", "zh-CN", "zh-TW"}
+var locales = []string{"ca", "cs", "da", "de", "en", "es", "et", "fi", "fr", "hu", "it", "ja", "ko", "lv", "nb", "nl", "pl", "pt", "pt-BR", "ru", "sv", "tr", "uk", "vi", "zh-CN", "zh-TW"}
 
 var matcher = newMatcher()
 
@@ -14,11 +14,6 @@ func newMatcher() language.Matcher {
 	tags := make([]language.Tag, len(locales))
 	for i, locale := range locales {
 		tags[i] = language.MustParse(locale)
-
-		// Pocket ID stores Norwegian Bokmål as "no", but the matcher sends "nb" to Danish unless Bokmål is listed under its own code
-		if locale == "no" {
-			tags[i] = language.MustParse("nb")
-		}
 	}
 	return language.NewMatcher(tags)
 }
