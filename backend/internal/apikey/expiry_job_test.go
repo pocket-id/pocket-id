@@ -27,7 +27,7 @@ type expiryJobTestSender struct {
 	keyNames []string
 }
 
-func (s *expiryJobTestSender) SendAPIKeyExpiringSoon(_ context.Context, _ *appconfig.AppConfigModel, _, _, _, apiKeyName string, _ time.Time) error {
+func (s *expiryJobTestSender) SendAPIKeyExpiringSoon(_ context.Context, _ *appconfig.AppConfigModel, _, _ string, _ *string, _, apiKeyName string, _ time.Time) error {
 	s.keyNames = append(s.keyNames, apiKeyName)
 	return nil
 }

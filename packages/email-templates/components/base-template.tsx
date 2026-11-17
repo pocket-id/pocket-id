@@ -12,17 +12,18 @@ export const BaseTemplate = ({
 	logoURL,
 	appName,
 	appURL,
+	locale,
 	preview,
 	children
 }: BaseTemplateProps) => (
-	<Html lang="en">
+	<Html lang={locale}>
 		<Head>
 			<meta name="color-scheme" content="light" />
 			<meta name="supported-color-schemes" content="light" />
 			<style dangerouslySetInnerHTML={{ __html: headCss(appURL) }} />
 		</Head>
 		{preview && <Preview>{preview}</Preview>}
-		<Body style={bodyStyle}>
+		<Body lang={locale} style={bodyStyle}>
 			<Container style={containerStyle}>
 				<Section>
 					<Row>

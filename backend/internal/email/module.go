@@ -17,6 +17,7 @@ import (
 
 	"github.com/pocket-id/pocket-id/backend/internal/appconfig"
 	"github.com/pocket-id/pocket-id/backend/internal/apperror"
+	"github.com/pocket-id/pocket-id/backend/internal/authz"
 	"github.com/pocket-id/pocket-id/backend/internal/common"
 	"github.com/pocket-id/pocket-id/backend/internal/model"
 	"github.com/pocket-id/pocket-id/backend/resources"
@@ -26,14 +27,16 @@ type Module struct {
 	db            *gorm.DB
 	htmlTemplates map[string]*htemplate.Template
 	textTemplates map[string]*ttemplate.Template
+	localizers    map[string]*localizer
 }
 
 type template[V any] struct {
 	path  string
-	title func(data *templateData[V]) string
+	title func(data *templateData[V]) (string, error)
 }
 
 type templateData[V any] struct {
+	*localizer
 	AppName string
 	LogoURL string
 	AppURL  string
@@ -41,8 +44,9 @@ type templateData[V any] struct {
 }
 
 type address struct {
-	name  string
-	email string
+	name   string
+	email  string
+	locale *string
 }
 
 func New(db *gorm.DB) (*Module, error) {
@@ -57,10 +61,16 @@ func New(db *gorm.DB) (*Module, error) {
 		return nil, fmt.Errorf("prepare text templates: %w", err)
 	}
 
+	localizers, err := loadLocalizers(resources.FS, "i18n/email")
+	if err != nil {
+		return nil, fmt.Errorf("load email messages: %w", err)
+	}
+
 	return &Module{
 		db:            db,
 		htmlTemplates: htmlTemplates,
 		textTemplates: textTemplates,
+		localizers:    localizers,
 	}, nil
 }
 
@@ -83,46 +93,52 @@ func (m *Module) SendTestEmail(ctx context.Context, dbConfig *appconfig.AppConfi
 	}
 
 	return send(ctx, m, dbConfig, address{
-		name:  user.FullName(),
-		email: *user.Email,
+		name:   user.FullName(),
+		email:  *user.Email,
+		locale: user.Locale,
 	}, testTemplate, nil)
 }
 
-func (m *Module) SendEmailVerification(ctx context.Context, dbConfig *appconfig.AppConfigModel, userFullName, userEmail, verificationLink string) error {
+func (m *Module) SendEmailVerification(ctx context.Context, dbConfig *appconfig.AppConfigModel, userFullName, userEmail string, userLocale *string, verificationLink string) error {
 	return send(ctx, m, dbConfig, address{
-		name:  userFullName,
-		email: userEmail,
+		name:   userFullName,
+		email:  userEmail,
+		locale: userLocale,
 	}, emailVerificationTemplate, &emailVerificationTemplateData{
 		UserFullName:     userFullName,
 		VerificationLink: verificationLink,
 	})
 }
 
-func (m *Module) SendOneTimeAccessEmail(ctx context.Context, dbConfig *appconfig.AppConfigModel, userFullName, userEmail, code, loginLink, loginLinkWithCode, expirationString string) error {
+func (m *Module) SendOneTimeAccessEmail(ctx context.Context, dbConfig *appconfig.AppConfigModel, userFullName, userEmail string, userLocale *string, code, loginLink, loginLinkWithCode string, expiration time.Duration) error {
 	return send(ctx, m, dbConfig, address{
-		name:  userFullName,
-		email: userEmail,
+		name:   userFullName,
+		email:  userEmail,
+		locale: userLocale,
 	}, oneTimeAccessTemplate, &oneTimeAccessTemplateData{
 		Code:              code,
 		LoginLink:         loginLink,
 		LoginLinkWithCode: loginLinkWithCode,
-		ExpirationString:  expirationString,
+		Expiration:        expiration,
 	})
 }
 
-func (m *Module) SendSignupInvitation(ctx context.Context, dbConfig *appconfig.AppConfigModel, recipientEmail, signupLink, expirationString string) error {
+// SendSignupInvitation sends in the language of the admin who invites, as the recipient has no account to take a language from
+func (m *Module) SendSignupInvitation(ctx context.Context, dbConfig *appconfig.AppConfigModel, recipientEmail, signupLink string, expiration time.Duration) error {
 	return send(ctx, m, dbConfig, address{
 		email: recipientEmail,
 	}, signupInvitationTemplate, &signupInvitationTemplateData{
-		SignupLink:       signupLink,
-		ExpirationString: expirationString,
+		SignupLink: signupLink,
+		Expiration: expiration,
 	})
 }
 
-func (m *Module) SendNewLogin(ctx context.Context, dbConfig *appconfig.AppConfigModel, userFullName, userEmail, ipAddress, country, city, device, method string, dateTime time.Time) error {
+// SendNewLogin takes the sign-in method as the key of its message
+func (m *Module) SendNewLogin(ctx context.Context, dbConfig *appconfig.AppConfigModel, userFullName, userEmail string, userLocale *string, ipAddress, country, city, device, method string, dateTime time.Time) error {
 	return send(ctx, m, dbConfig, address{
-		name:  userFullName,
-		email: userEmail,
+		name:   userFullName,
+		email:  userEmail,
+		locale: userLocale,
 	}, newLoginTemplate, &newLoginTemplateData{
 		IPAddress: ipAddress,
 		Country:   country,
@@ -133,10 +149,11 @@ func (m *Module) SendNewLogin(ctx context.Context, dbConfig *appconfig.AppConfig
 	})
 }
 
-func (m *Module) SendAPIKeyExpiringSoon(ctx context.Context, dbConfig *appconfig.AppConfigModel, userFullName, userEmail, firstName, apiKeyName string, expiresAt time.Time) error {
+func (m *Module) SendAPIKeyExpiringSoon(ctx context.Context, dbConfig *appconfig.AppConfigModel, userFullName, userEmail string, userLocale *string, firstName, apiKeyName string, expiresAt time.Time) error {
 	return send(ctx, m, dbConfig, address{
-		name:  userFullName,
-		email: userEmail,
+		name:   userFullName,
+		email:  userEmail,
+		locale: userLocale,
 	}, apiKeyExpiringSoonTemplate, &apiKeyExpiringSoonTemplateData{
 		Name:       firstName,
 		ApiKeyName: apiKeyName,
@@ -145,15 +162,36 @@ func (m *Module) SendAPIKeyExpiringSoon(ctx context.Context, dbConfig *appconfig
 }
 
 func send[V any](ctx context.Context, module *Module, dbConfig *appconfig.AppConfigModel, recipient address, tmpl template[V], data *V) error {
+	// Write in the recipient's language, else in that of the user whose request caused the email, such as the admin who sent a login code, else in the base language
+	locale := recipient.locale
+	if actorID := authz.PrincipalFromContext(ctx).UserID; locale == nil && actorID != "" {
+		err := module.db.WithContext(ctx).Model(&model.User{}).Select("locale").Where("id = ?", actorID).Scan(&locale).Error
+		if err != nil {
+			return fmt.Errorf("load the language of the user who caused the email: %w", err)
+		}
+	}
+	loc := module.localizers[baseLocale]
+	if locale != nil {
+		localeLoc, ok := module.localizers[*locale]
+		if ok {
+			loc = localeLoc
+		}
+	}
+
 	// Combine application metadata with message-specific data before rendering both MIME alternatives
 	templateData := &templateData[V]{
-		AppName: dbConfig.AppName.String(),
-		LogoURL: common.EnvConfig.AppURL + "/api/application-assets/email",
-		AppURL:  common.EnvConfig.AppURL,
-		Data:    data,
+		localizer: loc,
+		AppName:   dbConfig.AppName.String(),
+		LogoURL:   common.EnvConfig.AppURL + "/api/application-assets/email",
+		AppURL:    common.EnvConfig.AppURL,
+		Data:      data,
 	}
 
 	// Render the complete message before opening an SMTP connection so template failures never produce partial deliveries
+	subject, err := tmpl.title(templateData)
+	if err != nil {
+		return fmt.Errorf("prepare email subject for '%s': %w", tmpl.path, err)
+	}
 	text, html, err := renderBody(module, tmpl, templateData)
 	if err != nil {
 		return fmt.Errorf("prepare email body for '%s': %w", tmpl.path, err)
@@ -169,7 +207,7 @@ func send[V any](ctx context.Context, module *Module, dbConfig *appconfig.AppCon
 	err = emailerService.SendEmail(ctx, emailer.EmailAddress{
 		Name:    recipient.name,
 		Address: recipient.email,
-	}, tmpl.title(templateData), emailer.SendEmailMessage{
+	}, subject, emailer.SendEmailMessage{
 		Text: text,
 		HTML: html,
 	})

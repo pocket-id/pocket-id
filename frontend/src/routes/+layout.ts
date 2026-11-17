@@ -1,6 +1,7 @@
 import AppConfigService from '#lib/services/app-config-service.ts';
 import UserService from '#lib/services/user-service.ts';
 import { m } from '#lib/paraglide/messages.js';
+import { getLocale } from '#lib/paraglide/runtime.js';
 import appConfigStore from '#lib/stores/application-configuration-store.ts';
 import userStore from '#lib/stores/user-store.ts';
 import { getAxiosErrorMessage, getAxiosErrorRequestId } from '#lib/utils/error-util.ts';
@@ -37,6 +38,14 @@ export const load: LayoutLoad = async ({ url }) => {
 	}
 
 	if (user) {
+		// Save the language the UI shows for a user who never picked one, so the emails they get use it too
+		// A failure is harmless, as the next visit tries again
+		if (!user.locale) {
+			user.locale = getLocale();
+			userService.updateCurrent({ locale: user.locale }).catch((e) => {
+				console.warn('Failed to save the language of the user:', e);
+			});
+		}
 		await userStore.setUser(user);
 	}
 

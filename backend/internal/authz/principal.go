@@ -1,6 +1,7 @@
 package authz
 
 import (
+	"context"
 	"sync/atomic"
 	"time"
 
@@ -10,6 +11,8 @@ import (
 )
 
 const principalContextKey = "authz.principal"
+
+type principalCtxKey struct{}
 
 // Principal is the authenticated caller of a request together with the scopes it holds
 type Principal struct {
@@ -96,8 +99,23 @@ func PrincipalFrom(c *gin.Context) Principal {
 	return Principal{}
 }
 
-// SetPrincipal attaches the principal to the request
+// SetPrincipal attaches the principal to the request, also to its context for code that only gets a context.Context
 // The middleware calls it after authorizing a request, and tests use it to call handlers directly
 func SetPrincipal(c *gin.Context, principal *Principal) {
 	c.Set(principalContextKey, principal)
+	c.Request = c.Request.WithContext(ContextWithPrincipal(c.Request.Context(), principal))
+}
+
+// ContextWithPrincipal returns a context that carries the principal
+func ContextWithPrincipal(ctx context.Context, principal *Principal) context.Context {
+	return context.WithValue(ctx, principalCtxKey{}, principal)
+}
+
+// PrincipalFromContext returns the principal of the request a context comes from, or the zero Principal outside of an authorized request
+func PrincipalFromContext(ctx context.Context) Principal {
+	principal, ok := ctx.Value(principalCtxKey{}).(*Principal)
+	if !ok || principal == nil {
+		return Principal{}
+	}
+	return *principal
 }

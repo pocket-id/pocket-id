@@ -1,10 +1,10 @@
-{{define "root"}}YOU'RE INVITED
+{{define "root"}}{{.T "signup_invitation_title"}}
 
-Create your account on {{.AppName}} with the link below. It expires in {{.Data.ExpirationString}}.
+{{.T "signup_invitation_description" "appName" (.AppName) "expiration" (.Duration .Data.Expiration)}}
 
-Create account {{.Data.SignupLink}}
+{{.T "signup_invitation_button"}} {{.Data.SignupLink}}
 
-If the button doesn't work, open this link:
+{{.T "link_fallback"}}
 {{.Data.SignupLink}}
 
-If you weren't expecting this invitation, you can ignore this email.{{end}}
+{{.T "signup_invitation_ignore"}}{{end}}

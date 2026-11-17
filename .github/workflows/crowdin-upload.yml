@@ -5,6 +5,7 @@ on:
     branches: [main]
     paths:
       - frontend/messages/en.json
+      - backend/resources/i18n/email/en.json
       - crowdin.yml
   workflow_dispatch:
 

@@ -9,7 +9,7 @@ interface OneTimeAccessData {
 	code: string;
 	loginLink: string;
 	buttonCodeLink: string;
-	expirationString: string;
+	expiration: string;
 }
 
 interface OneTimeAccessEmailProps extends SharedProps {
@@ -17,18 +17,26 @@ interface OneTimeAccessEmailProps extends SharedProps {
 }
 
 export const OneTimeAccessEmail = ({ data, ...props }: OneTimeAccessEmailProps) => (
-	<BaseTemplate {...props} preview={`Your ${props.appName} login code is ${data.code}`}>
-		<CardHeader title="Your login code">
-			Enter this code to sign in to {props.appName}. It expires in {data.expirationString}.
+	<BaseTemplate
+		{...props}
+		preview={props.t('one_time_access_preview', { appName: props.appName, code: data.code })}
+	>
+		<CardHeader title={props.t('one_time_access_title')}>
+			{props.t('one_time_access_description', {
+				appName: props.appName,
+				expiration: data.expiration
+			})}
 		</CardHeader>
 
 		<CodeBox code={data.code} />
 
-		<Button href={data.buttonCodeLink}>Sign in</Button>
+		<Button href={data.buttonCodeLink}>{props.t('one_time_access_button')}</Button>
 
+		{/* The link shows the URL itself, so the plain-text version prints it only once */}
 		<Muted>
-			Or open <MutedLink href={data.loginLink}>{data.loginLink}</MutedLink> and enter the code
-			manually. If you didn't ask for this code, you can ignore this email.
+			{props.t('one_time_access_manual', {}, 0)}
+			<MutedLink href={data.loginLink}>{data.loginLink}</MutedLink>
+			{props.t('one_time_access_manual', {}, 2)}
 		</Muted>
 	</BaseTemplate>
 );
@@ -41,7 +49,7 @@ OneTimeAccessEmail.TemplateProps = {
 		code: '{{.Data.Code}}',
 		loginLink: '{{.Data.LoginLink}}',
 		buttonCodeLink: '{{.Data.LoginLinkWithCode}}',
-		expirationString: '{{.Data.ExpirationString}}'
+		expiration: '{{.Duration .Data.Expiration}}'
 	}
 };
 
@@ -51,6 +59,6 @@ OneTimeAccessEmail.PreviewProps = {
 		code: '123456',
 		loginLink: 'https://id.example.com/lc',
 		buttonCodeLink: 'https://id.example.com/lc/123456',
-		expirationString: '15 minutes'
+		expiration: '15 minutes'
 	}
 };

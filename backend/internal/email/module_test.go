@@ -5,7 +5,10 @@ package email
 import (
 	"bufio"
 	"context"
+	"errors"
 	"io"
+	"mime"
+	"mime/multipart"
 	"net"
 	"net/mail"
 	"net/url"
@@ -18,6 +21,7 @@ import (
 
 	"github.com/pocket-id/pocket-id/backend/internal/appconfig"
 	"github.com/pocket-id/pocket-id/backend/internal/apperror"
+	"github.com/pocket-id/pocket-id/backend/internal/authz"
 	"github.com/pocket-id/pocket-id/backend/internal/model"
 	testutils "github.com/pocket-id/pocket-id/backend/internal/utils/testing"
 )
@@ -61,7 +65,7 @@ func TestModuleSendsEveryEmailType(t *testing.T) {
 			name:          "test email",
 			subject:       "Test email",
 			recipientName: "Test User",
-			bodyContains:  []string{"TEST EMAIL", "Your email setup is working correctly!"},
+			bodyContains:  []string{"Test email", "Your email setup is working correctly!"},
 			send: func(ctx context.Context, config *appconfig.AppConfigModel) error {
 				return module.SendTestEmail(ctx, config, user.ID)
 			},
@@ -70,44 +74,44 @@ func TestModuleSendsEveryEmailType(t *testing.T) {
 			name:          "email verification",
 			subject:       "Verify your Pocket ID Test email address",
 			recipientName: "Test User",
-			bodyContains:  []string{"VERIFY YOUR EMAIL ADDRESS", "Hello Test User", "https://id.example.test/verify-token"},
+			bodyContains:  []string{"Verify your email address", "Hello Test User", "https://id.example.test/verify-token"},
 			send: func(ctx context.Context, config *appconfig.AppConfigModel) error {
-				return module.SendEmailVerification(ctx, config, user.FullName(), userEmail, "https://id.example.test/verify-token")
+				return module.SendEmailVerification(ctx, config, user.FullName(), userEmail, nil, "https://id.example.test/verify-token")
 			},
 		},
 		{
 			name:          "one-time access",
 			subject:       "Login Code",
 			recipientName: "Test User",
-			bodyContains:  []string{"YOUR LOGIN CODE", "123456", "https://id.example.test/lc/123456", "15 minutes"},
+			bodyContains:  []string{"Your login code", "123456", "https://id.example.test/lc/123456", "15 minutes"},
 			send: func(ctx context.Context, config *appconfig.AppConfigModel) error {
-				return module.SendOneTimeAccessEmail(ctx, config, user.FullName(), userEmail, "123456", "https://id.example.test/lc", "https://id.example.test/lc/123456", "15 minutes")
+				return module.SendOneTimeAccessEmail(ctx, config, user.FullName(), userEmail, nil, "123456", "https://id.example.test/lc", "https://id.example.test/lc/123456", 15*time.Minute)
 			},
 		},
 		{
 			name:         "signup invitation",
 			subject:      "You're invited to Pocket ID Test",
-			bodyContains: []string{"YOU'RE INVITED", "https://id.example.test/st/abcdefgh12345678", "1 day"},
+			bodyContains: []string{"You're invited", "https://id.example.test/st/abcdefgh12345678", "1 day"},
 			send: func(ctx context.Context, config *appconfig.AppConfigModel) error {
-				return module.SendSignupInvitation(ctx, config, userEmail, "https://id.example.test/st/abcdefgh12345678", "1 day")
+				return module.SendSignupInvitation(ctx, config, userEmail, "https://id.example.test/st/abcdefgh12345678", 24*time.Hour)
 			},
 		},
 		{
 			name:          "new login",
 			subject:       "New device login with Pocket ID Test",
 			recipientName: "Test User",
-			bodyContains:  []string{"NEW SIGN-IN DETECTED", "Zurich, Switzerland", "192.0.2.10", "Firefox on Linux", "Sign-in method", "One-time code", "January 2, 2030 at 3:04 PM UTC"},
+			bodyContains:  []string{"New sign-in detected", "Zurich, Switzerland", "192.0.2.10", "Firefox on Linux", "Sign-in method", "One-time code", "January 2, 2030 at 3:04 pm UTC"},
 			send: func(ctx context.Context, config *appconfig.AppConfigModel) error {
-				return module.SendNewLogin(ctx, config, user.FullName(), userEmail, "192.0.2.10", "Switzerland", "Zurich", "Firefox on Linux", "One-time code", eventTime)
+				return module.SendNewLogin(ctx, config, user.FullName(), userEmail, nil, "192.0.2.10", "Switzerland", "Zurich", "Firefox on Linux", "sign_in_method_one_time_code", eventTime)
 			},
 		},
 		{
 			name:          "API key expiration",
 			subject:       `API Key "Automation" Expiring Soon`,
 			recipientName: "Test User",
-			bodyContains:  []string{"API KEY EXPIRING SOON", "Hello Test", "Automation", "2030-01-02 15:04:05 UTC"},
+			bodyContains:  []string{"API key expiring soon", "Hello Test", "Automation", "January 2, 2030 at 3:04 pm UTC"},
 			send: func(ctx context.Context, config *appconfig.AppConfigModel) error {
-				return module.SendAPIKeyExpiringSoon(ctx, config, user.FullName(), userEmail, user.FirstName, "Automation", eventTime)
+				return module.SendAPIKeyExpiringSoon(ctx, config, user.FullName(), userEmail, nil, user.FirstName, "Automation", eventTime)
 			},
 		},
 	}
@@ -140,10 +144,65 @@ func TestModuleSendsEveryEmailType(t *testing.T) {
 			assert.Contains(t, session.message, "Content-Type: multipart/alternative; boundary=")
 			assert.Contains(t, session.message, "Content-Type: text/plain; charset=UTF-8")
 			assert.Contains(t, session.message, "Content-Type: text/html; charset=UTF-8")
+			body := decodedBody(t, message)
 			for _, expected := range test.bodyContains {
-				assert.Contains(t, session.message, expected)
+				assert.Contains(t, body, expected)
 			}
 		})
+	}
+}
+
+func TestModuleSendsInRecipientLanguage(t *testing.T) {
+	db := testutils.NewDatabaseForTest(t)
+	userEmail := "recipient@example.test"
+	user := model.User{Base: model.Base{ID: "email-recipient"}, Username: "email-recipient", Email: &userEmail, Locale: new("de")}
+	require.NoError(t, db.Create(&user).Error)
+
+	module, err := New(db)
+	require.NoError(t, err)
+	module.localizers, err = loadLocalizers(testCatalogs, ".")
+	require.NoError(t, err)
+
+	server := newSMTPTestServer(t)
+	require.NoError(t, module.SendTestEmail(t.Context(), newSMTPTestConfig(t, server.address()), user.ID))
+
+	session, err := server.wait()
+	require.NoError(t, err)
+	message, err := mail.ReadMessage(strings.NewReader(session.message))
+	require.NoError(t, err)
+	assert.Equal(t, "Test-E-Mail", message.Header.Get("Subject"))
+	body := decodedBody(t, message)
+	assert.Contains(t, body, `lang="de"`)
+	assert.Contains(t, body, "Your email setup is working correctly!")
+
+	// An invitee has no account, so the invitation takes the language of the user whose request sends it
+	server = newSMTPTestServer(t)
+	ctx := authz.ContextWithPrincipal(t.Context(), &authz.Principal{UserID: user.ID})
+	require.NoError(t, module.SendSignupInvitation(ctx, newSMTPTestConfig(t, server.address()), "invitee@example.test", "https://id.example.test/st/abc", time.Hour))
+
+	session, err = server.wait()
+	require.NoError(t, err)
+	message, err = mail.ReadMessage(strings.NewReader(session.message))
+	require.NoError(t, err)
+	assert.Contains(t, decodedBody(t, message), `lang="de"`)
+}
+
+// decodedBody joins the decoded text and HTML parts, so assertions don't depend on where quoted-printable breaks lines
+func decodedBody(t *testing.T, message *mail.Message) string {
+	t.Helper()
+	_, params, err := mime.ParseMediaType(message.Header.Get("Content-Type"))
+	require.NoError(t, err)
+
+	var body strings.Builder
+	reader := multipart.NewReader(message.Body, params["boundary"])
+	for {
+		part, err := reader.NextPart()
+		if errors.Is(err, io.EOF) {
+			return body.String()
+		}
+		require.NoError(t, err)
+		_, err = io.Copy(&body, part)
+		require.NoError(t, err)
 	}
 }
 
@@ -392,8 +451,9 @@ func TestNewLoginRendersSignInMethodInBothTemplates(t *testing.T) {
 	module, err := New(nil)
 	require.NoError(t, err)
 	text, html, err := renderBody(module, newLoginTemplate, &templateData[newLoginTemplateData]{
-		AppName: "Pocket ID", AppURL: "https://id.example.test", LogoURL: "https://id.example.test/logo.png",
-		Data: &newLoginTemplateData{IPAddress: "192.0.2.1", Device: "Firefox on Linux", Method: "One-time code", DateTime: time.Now()},
+		localizer: module.localizers[baseLocale],
+		AppName:   "Pocket ID", AppURL: "https://id.example.test", LogoURL: "https://id.example.test/logo.png",
+		Data: &newLoginTemplateData{IPAddress: "192.0.2.1", Device: "Firefox on Linux", Method: "sign_in_method_one_time_code", DateTime: time.Now()},
 	})
 	require.NoError(t, err)
 	for _, body := range []string{text, html} {

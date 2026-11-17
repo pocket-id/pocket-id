@@ -6,7 +6,7 @@ import { type SharedProps, sharedPreviewProps, sharedTemplateProps } from '../pr
 
 interface SignupInvitationData {
 	signupLink: string;
-	expirationString: string;
+	expiration: string;
 }
 
 interface SignupInvitationProps extends SharedProps {
@@ -14,21 +14,26 @@ interface SignupInvitationProps extends SharedProps {
 }
 
 export const SignupInvitation = ({ data, ...props }: SignupInvitationProps) => (
-	<BaseTemplate {...props} preview={`You're invited to create an account on ${props.appName}`}>
-		<CardHeader title="You're invited">
-			Create your account on {props.appName} with the link below. It expires in{' '}
-			{data.expirationString}.
+	<BaseTemplate
+		{...props}
+		preview={props.t('signup_invitation_preview', { appName: props.appName })}
+	>
+		<CardHeader title={props.t('signup_invitation_title')}>
+			{props.t('signup_invitation_description', {
+				appName: props.appName,
+				expiration: data.expiration
+			})}
 		</CardHeader>
 
-		<Button href={data.signupLink}>Create account</Button>
+		<Button href={data.signupLink}>{props.t('signup_invitation_button')}</Button>
 
 		<Muted>
-			If the button doesn't work, open this link:
+			{props.t('link_fallback')}
 			<br />
 			<MutedLink href={data.signupLink}>{data.signupLink}</MutedLink>
 		</Muted>
 
-		<Muted>If you weren't expecting this invitation, you can ignore this email.</Muted>
+		<Muted>{props.t('signup_invitation_ignore')}</Muted>
 	</BaseTemplate>
 );
 
@@ -38,7 +43,7 @@ SignupInvitation.TemplateProps = {
 	...sharedTemplateProps,
 	data: {
 		signupLink: '{{.Data.SignupLink}}',
-		expirationString: '{{.Data.ExpirationString}}'
+		expiration: '{{.Duration .Data.Expiration}}'
 	}
 };
 
@@ -46,6 +51,6 @@ SignupInvitation.PreviewProps = {
 	...sharedPreviewProps,
 	data: {
 		signupLink: 'https://id.example.com/st/abcdefgh12345678',
-		expirationString: '1 day'
+		expiration: '1 day'
 	}
 };

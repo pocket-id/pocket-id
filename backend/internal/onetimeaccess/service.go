@@ -136,10 +136,11 @@ func (s *Service) requestOneTimeAccessEmailInternal(ctx context.Context, userID,
 			dbConfig,
 			user.FullName(),
 			*user.Email,
+			user.Locale,
 			oneTimeAccessToken,
 			link,
 			linkWithCode,
-			utils.DurationToString(ttl),
+			ttl,
 		)
 		if innerErr != nil {
 			slog.ErrorContext(innerCtx, "Failed to send one-time access token email", slog.Any("error", innerErr), slog.String("address", *user.Email))

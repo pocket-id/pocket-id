@@ -12,7 +12,7 @@ import (
 )
 
 type APIKeyExpiryEmailSender interface {
-	SendAPIKeyExpiringSoon(ctx context.Context, dbConfig *appconfig.AppConfigModel, userFullName, userEmail, firstName, apiKeyName string, expiresAt time.Time) error
+	SendAPIKeyExpiringSoon(ctx context.Context, dbConfig *appconfig.AppConfigModel, userFullName, userEmail string, userLocale *string, firstName, apiKeyName string, expiresAt time.Time) error
 }
 
 type expiryJob struct {
@@ -72,6 +72,7 @@ func (j *expiryJob) checkAndNotifyExpiringAPIKeys(ctx context.Context) error {
 			dbConfig,
 			key.User.FullName(),
 			*key.User.Email,
+			key.User.Locale,
 			key.User.FirstName,
 			key.Name,
 			key.ExpiresAt.ToTime(),

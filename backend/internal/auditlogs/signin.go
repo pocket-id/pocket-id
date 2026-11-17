@@ -138,6 +138,7 @@ func (s *service) SendSignInNotification(ctx context.Context, result SignInResul
 			dbConfig,
 			user.FullName(),
 			*user.Email,
+			user.Locale,
 			ipAddress,
 			entry.Country,
 			entry.City,
@@ -152,17 +153,17 @@ func (s *service) SendSignInNotification(ctx context.Context, result SignInResul
 	}()
 }
 
-// signInMethod describes the successful login rather than the credential used to approve another device
+// signInMethod returns the email message key that describes the successful login rather than the credential used to approve another device
 func signInMethod(event Event) string {
 	switch event { //nolint:exhaustive // Other audit events are not sign-ins
 	case EventSignIn:
-		return "Passkey"
+		return "sign_in_method_passkey"
 	case EventOneTimeAccessTokenSignIn:
-		return "One-time code"
+		return "sign_in_method_one_time_code"
 	case EventRemoteSignIn:
-		return "Another device (QR code)"
+		return "sign_in_method_another_device"
 	default:
-		return "Unknown"
+		return "unknown"
 	}
 }
 

@@ -93,6 +93,7 @@ func (s *Service) SignUp(ctx context.Context, config *appconfig.AppConfigModel, 
 		FirstName:     signupData.FirstName,
 		LastName:      signupData.LastName,
 		DisplayName:   strings.TrimSpace(signupData.FirstName + " " + signupData.LastName),
+		Locale:        signupData.Locale,
 		UserGroupIds:  userGroupIDs,
 		EmailVerified: config.EmailsVerified.IsTrue(),
 	}
@@ -208,6 +209,7 @@ func (s *Service) SignUpInitialAdmin(ctx context.Context, config *appconfig.AppC
 		DisplayName: strings.TrimSpace(signUpData.FirstName + " " + signUpData.LastName),
 		Username:    signUpData.Username,
 		Email:       signUpData.Email,
+		Locale:      signUpData.Locale,
 		IsAdmin:     true,
 	}
 
@@ -404,7 +406,7 @@ func (s *Service) SendSignupInvitation(ctx context.Context, dbConfig *appconfig.
 		innerCtx := context.WithoutCancel(ctx)
 
 		signupLink := common.EnvConfig.AppURL + "/st/" + signupToken.Token
-		err := s.emailSender.SendSignupInvitation(innerCtx, dbConfig, recipientEmail, signupLink, utils.DurationToString(ttl))
+		err := s.emailSender.SendSignupInvitation(innerCtx, dbConfig, recipientEmail, signupLink, ttl)
 		if err != nil {
 			slog.ErrorContext(innerCtx, "Failed to send signup invitation email", slog.Any("error", err), slog.String("address", recipientEmail))
 		}

@@ -15,7 +15,13 @@ function getTemplateName(filename: string): string {
 async function buildTemplateFile(Component: any, templateName: string, isPlainText: boolean) {
 	const rendered = await render(
 		Component(Component.TemplateProps),
-		isPlainText ? { plainText: true } : {}
+		// Headings keep their case, as uppercasing would break the template actions inside them
+		isPlainText
+			? {
+					plainText: true,
+					htmlToTextOptions: { selectors: [{ selector: 'h1', options: { uppercase: false } }] }
+				}
+			: {}
 	);
 
 	// Normalize quotes

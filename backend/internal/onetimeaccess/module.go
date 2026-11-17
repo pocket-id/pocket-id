@@ -21,7 +21,7 @@ import (
 
 // EmailSender sends the one-time access email
 type EmailSender interface {
-	SendOneTimeAccessEmail(ctx context.Context, dbConfig *appconfig.AppConfigModel, userFullName, userEmail, code, loginLink, loginLinkWithCode, expirationString string) error
+	SendOneTimeAccessEmail(ctx context.Context, dbConfig *appconfig.AppConfigModel, userFullName, userEmail string, userLocale *string, code, loginLink, loginLinkWithCode string, expiration time.Duration) error
 }
 
 type SessionCreator interface {

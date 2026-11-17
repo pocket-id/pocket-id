@@ -44,6 +44,8 @@ cd ../../.. && pnpm test                         # = playwright test in packages
 - **Never edit generated files:** `frontend/src/lib/paraglide/**` (Paraglide i18n output) and
   `backend/frontend/dist/**`. For i18n, only edit `frontend/messages/en.json`; other locales come
   from Crowdin.
+- **Emails are translated at send time.** Their text lives in `backend/resources/i18n/email/en.json` (other locales from Crowdin) and the React Email sources only reference keys through `t()`, so after changing a `.tsx` run `pnpm build` in `packages/email-templates` and commit the generated `.tmpl` files.
+  An email uses the recipient's `users.locale`, else that of the admin who caused it, else English; a new UI language also needs an entry in `locales` in `backend/internal/i18n/i18n.go` and in `dateLocales` in `backend/internal/email/localizer.go`.
 - **Migrations are split by DB.** Raw SQL via goose in
   `backend/resources/migrations/{sqlite,postgres}/`, one `<version>_<name>.sql` file per migration
   with a `-- +goose Up` and a `-- +goose Down` section. Add a file with the same version to **both**.

@@ -3,8 +3,8 @@ import CardHeader from '../components/card-header';
 import { type SharedProps, sharedPreviewProps, sharedTemplateProps } from '../props';
 
 export const TestEmail = (props: SharedProps) => (
-	<BaseTemplate {...props} preview="Your email setup is working correctly">
-		<CardHeader title="Test email">Your email setup is working correctly!</CardHeader>
+	<BaseTemplate {...props} preview={props.t('test_description')}>
+		<CardHeader title={props.t('test_title')}>{props.t('test_description')}</CardHeader>
 	</BaseTemplate>
 );
 

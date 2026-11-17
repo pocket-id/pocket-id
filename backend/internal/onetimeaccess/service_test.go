@@ -52,7 +52,7 @@ func (f fakeUserProvider) GetUser(ctx context.Context, userID string) (model.Use
 
 type fakeEmailSender struct{}
 
-func (fakeEmailSender) SendOneTimeAccessEmail(_ context.Context, _ *appconfig.AppConfigModel, _, _, _, _, _, _ string) error {
+func (fakeEmailSender) SendOneTimeAccessEmail(_ context.Context, _ *appconfig.AppConfigModel, _, _ string, _ *string, _, _, _ string, _ time.Duration) error {
 	return nil
 }
 

@@ -34,7 +34,7 @@ type UserCreator interface {
 
 // EmailSender sends a signup link to the address an admin invites
 type EmailSender interface {
-	SendSignupInvitation(ctx context.Context, dbConfig *appconfig.AppConfigModel, recipientEmail, signupLink, expirationString string) error
+	SendSignupInvitation(ctx context.Context, dbConfig *appconfig.AppConfigModel, recipientEmail, signupLink string, expiration time.Duration) error
 }
 
 type EmailVerificationSender interface {

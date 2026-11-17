@@ -17,26 +17,27 @@ interface NewSignInEmailProps extends SharedProps {
 }
 
 export const NewSignInEmail = ({ data, ...props }: NewSignInEmailProps) => (
-	<BaseTemplate {...props} preview={`A new sign-in to your ${props.appName} account was detected`}>
-		<CardHeader title="New sign-in detected">
-			Your {props.appName} account was accessed from a new IP address or browser. If this was you,
-			there's nothing to do.
+	<BaseTemplate {...props} preview={props.t('new_sign_in_preview', { appName: props.appName })}>
+		<CardHeader title={props.t('new_sign_in_title')}>
+			{props.t('new_sign_in_description', { appName: props.appName })}
 		</CardHeader>
 
 		<DetailsList
 			items={[
-				{ label: 'Approximate location', value: data.location },
-				{ label: 'IP address', value: data.ipAddress },
-				{ label: 'Device', value: data.device },
-				{ label: 'Sign-in method', value: data.method },
-				{ label: 'Time', value: data.dateTime }
+				{ label: props.t('new_sign_in_location'), value: data.location },
+				{ label: props.t('new_sign_in_ip_address'), value: data.ipAddress },
+				{ label: props.t('new_sign_in_device'), value: data.device },
+				{ label: props.t('new_sign_in_method'), value: data.method },
+				{ label: props.t('new_sign_in_time'), value: data.dateTime }
 			]}
 		/>
 
 		<Muted>
-			Don't recognize this? Review the passkeys in your{' '}
-			<MutedLink href={`${props.appURL}/settings/account`}>account settings</MutedLink> and remove
-			any you don't know.
+			{props.t('new_sign_in_review', {}, 0)}
+			<MutedLink href={`${props.appURL}/settings/account`}>
+				{props.t('new_sign_in_review', {}, 1)}
+			</MutedLink>
+			{props.t('new_sign_in_review', {}, 2)}
 		</Muted>
 	</BaseTemplate>
 );
@@ -47,11 +48,11 @@ NewSignInEmail.TemplateProps = {
 	...sharedTemplateProps,
 	data: {
 		location:
-			'{{if and .Data.City .Data.Country}}{{.Data.City}}, {{.Data.Country}}{{else if .Data.Country}}{{.Data.Country}}{{else}}Unknown{{end}}',
+			'{{if and .Data.City .Data.Country}}{{.Data.City}}, {{.Data.Country}}{{else if .Data.Country}}{{.Data.Country}}{{else}}{{.T "unknown"}}{{end}}',
 		ipAddress: '{{.Data.IPAddress}}',
 		device: '{{.Data.Device}}',
-		method: '{{.Data.Method}}',
-		dateTime: '{{.Data.DateTime.Format "January 2, 2006 at 3:04 PM MST"}}'
+		method: '{{.T .Data.Method}}',
+		dateTime: '{{.DateTime .Data.DateTime}}'
 	}
 };
 

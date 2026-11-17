@@ -1,11 +1,11 @@
-{{define "root"}}API KEY EXPIRING SOON
+{{define "root"}}{{.T "api_key_expiring_title"}}
 
-Hello {{.Data.Name}}, one of your API keys expires soon. Anything that uses it will stop working once it expires.
+{{.T "api_key_expiring_description" "name" (.Data.Name)}}
 
-API key
+{{.T "api_key_expiring_name"}}
 {{.Data.ApiKeyName}}
 
-Expires
-{{.Data.ExpiresAt.Format "2006-01-02 15:04:05 MST"}}
+{{.T "api_key_expiring_expires"}}
+{{.DateTime .Data.ExpiresAt}}
 
-Renew API key {{.AppURL}}/settings/account{{end}}
+{{.T "api_key_expiring_button"}} {{.AppURL}}/settings/account{{end}}

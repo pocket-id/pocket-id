@@ -8,43 +8,43 @@ import (
 
 var newLoginTemplate = template[newLoginTemplateData]{
 	path: "login-with-new-device",
-	title: func(data *templateData[newLoginTemplateData]) string {
-		return "New device login with " + data.AppName
+	title: func(data *templateData[newLoginTemplateData]) (string, error) {
+		return data.T("new_sign_in_subject", "appName", data.AppName)
 	},
 }
 
 var oneTimeAccessTemplate = template[oneTimeAccessTemplateData]{
 	path: "one-time-access",
-	title: func(_ *templateData[oneTimeAccessTemplateData]) string {
-		return "Login Code"
+	title: func(data *templateData[oneTimeAccessTemplateData]) (string, error) {
+		return data.T("one_time_access_subject")
 	},
 }
 
 var signupInvitationTemplate = template[signupInvitationTemplateData]{
 	path: "signup-invitation",
-	title: func(data *templateData[signupInvitationTemplateData]) string {
-		return "You're invited to " + data.AppName
+	title: func(data *templateData[signupInvitationTemplateData]) (string, error) {
+		return data.T("signup_invitation_subject", "appName", data.AppName)
 	},
 }
 
 var testTemplate = template[struct{}]{
 	path: "test",
-	title: func(_ *templateData[struct{}]) string {
-		return "Test email"
+	title: func(data *templateData[struct{}]) (string, error) {
+		return data.T("test_title")
 	},
 }
 
 var apiKeyExpiringSoonTemplate = template[apiKeyExpiringSoonTemplateData]{
 	path: "api-key-expiring-soon",
-	title: func(data *templateData[apiKeyExpiringSoonTemplateData]) string {
-		return `API Key "` + data.Data.ApiKeyName + `" Expiring Soon`
+	title: func(data *templateData[apiKeyExpiringSoonTemplateData]) (string, error) {
+		return data.T("api_key_expiring_subject", "apiKeyName", data.Data.ApiKeyName)
 	},
 }
 
 var emailVerificationTemplate = template[emailVerificationTemplateData]{
 	path: "email-verification",
-	title: func(data *templateData[emailVerificationTemplateData]) string {
-		return "Verify your " + data.AppName + " email address"
+	title: func(data *templateData[emailVerificationTemplateData]) (string, error) {
+		return data.T("email_verification_subject", "appName", data.AppName)
 	},
 }
 
@@ -61,12 +61,12 @@ type oneTimeAccessTemplateData struct {
 	Code              string
 	LoginLink         string
 	LoginLinkWithCode string
-	ExpirationString  string
+	Expiration        time.Duration
 }
 
 type signupInvitationTemplateData struct {
-	SignupLink       string
-	ExpirationString string
+	SignupLink string
+	Expiration time.Duration
 }
 
 type apiKeyExpiringSoonTemplateData struct {

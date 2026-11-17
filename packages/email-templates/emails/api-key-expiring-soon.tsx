@@ -15,20 +15,25 @@ interface ApiKeyExpiringEmailProps extends SharedProps {
 }
 
 export const ApiKeyExpiringEmail = ({ data, ...props }: ApiKeyExpiringEmailProps) => (
-	<BaseTemplate {...props} preview={`Your API key ${data.apiKeyName} expires on ${data.expiresAt}`}>
-		<CardHeader title="API key expiring soon">
-			Hello {data.name}, one of your API keys expires soon. Anything that uses it will stop working
-			once it expires.
+	<BaseTemplate
+		{...props}
+		preview={props.t('api_key_expiring_preview', {
+			apiKeyName: data.apiKeyName,
+			expiresAt: data.expiresAt
+		})}
+	>
+		<CardHeader title={props.t('api_key_expiring_title')}>
+			{props.t('api_key_expiring_description', { name: data.name })}
 		</CardHeader>
 
 		<DetailsList
 			items={[
-				{ label: 'API key', value: data.apiKeyName },
-				{ label: 'Expires', value: data.expiresAt }
+				{ label: props.t('api_key_expiring_name'), value: data.apiKeyName },
+				{ label: props.t('api_key_expiring_expires'), value: data.expiresAt }
 			]}
 		/>
 
-		<Button href={`${props.appURL}/settings/account`}>Renew API key</Button>
+		<Button href={`${props.appURL}/settings/account`}>{props.t('api_key_expiring_button')}</Button>
 	</BaseTemplate>
 );
 
@@ -39,7 +44,7 @@ ApiKeyExpiringEmail.TemplateProps = {
 	data: {
 		name: '{{.Data.Name}}',
 		apiKeyName: '{{.Data.ApiKeyName}}',
-		expiresAt: '{{.Data.ExpiresAt.Format "2006-01-02 15:04:05 MST"}}'
+		expiresAt: '{{.DateTime .Data.ExpiresAt}}'
 	}
 };
 
@@ -48,6 +53,6 @@ ApiKeyExpiringEmail.PreviewProps = {
 	data: {
 		name: 'Elias',
 		apiKeyName: 'CI deploy key',
-		expiresAt: '2026-01-30 12:00:00 UTC'
+		expiresAt: 'January 30, 2026 at 12:00 PM UTC'
 	}
 };

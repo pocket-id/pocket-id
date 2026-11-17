@@ -14,16 +14,21 @@ interface EmailVerificationProps extends SharedProps {
 }
 
 export const EmailVerification = ({ data, ...props }: EmailVerificationProps) => (
-	<BaseTemplate {...props} preview={`Confirm the email address for your ${props.appName} account`}>
-		<CardHeader title="Verify your email address">
-			Hello {data.userFullName}, confirm that this is the email address for your {props.appName}{' '}
-			account. The link expires in 24 hours.
+	<BaseTemplate
+		{...props}
+		preview={props.t('email_verification_preview', { appName: props.appName })}
+	>
+		<CardHeader title={props.t('email_verification_title')}>
+			{props.t('email_verification_description', {
+				name: data.userFullName,
+				appName: props.appName
+			})}
 		</CardHeader>
 
-		<Button href={data.verificationLink}>Verify email address</Button>
+		<Button href={data.verificationLink}>{props.t('email_verification_button')}</Button>
 
 		<Muted>
-			If the button doesn't work, open this link:
+			{props.t('link_fallback')}
 			<br />
 			<MutedLink href={data.verificationLink}>{data.verificationLink}</MutedLink>
 		</Muted>

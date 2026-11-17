@@ -46,9 +46,14 @@ test('Clear the last name of the account', async ({ page }) => {
 test('Failed account update remains dirty and can be retried', async ({ page }) => {
 	await page.goto('/settings/account');
 
+	// Only the save of the form fails, not the request that stores the browser language in the background
 	let failedUpdates = 0;
 	await page.route('**/api/users/me', async (route) => {
-		if (route.request().method() !== 'PATCH' || failedUpdates > 0) {
+		if (
+			route.request().method() !== 'PATCH' ||
+			!route.request().postDataJSON()?.displayName ||
+			failedUpdates > 0
+		) {
 			await route.fallback();
 			return;
 		}

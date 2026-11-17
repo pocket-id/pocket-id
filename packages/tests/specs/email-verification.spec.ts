@@ -1,33 +1,14 @@
-import base, { expect, type APIRequestContext } from '@playwright/test';
+import { expect, type APIRequestContext } from '@playwright/test';
 import { emailVerificationTokens, oidcClients, users } from '../data';
 import { setAppConfigValues } from '../utils/app-config.util';
 import authUtil from '../utils/auth.util';
 import { cleanupBackend } from '../utils/cleanup.util';
-import { startSmtpSink, verificationLinkPath, type SmtpSink } from '../utils/smtp.util';
+import { smtpSinkConfig, test, verificationLinkPath } from '../utils/smtp.util';
 import { saveUnsavedChanges } from '../utils/unsaved-changes.util';
-
-const smtpSinkPort = 18125;
-
-const test = base.extend<{ smtp: SmtpSink }>({
-	smtp: async ({}, use) => {
-		const sink = await startSmtpSink(smtpSinkPort);
-		try {
-			await use(sink);
-		} finally {
-			await sink.close();
-		}
-	}
-});
 
 // Requires email verification and points Pocket ID at the SMTP sink, so the verification links can be followed
 async function requireEmailVerificationWithSmtp(request: APIRequestContext) {
-	await setAppConfigValues(request, {
-		emailVerification: 'required',
-		smtpHost: 'host.docker.internal',
-		smtpPort: String(smtpSinkPort),
-		smtpFrom: 'pocket-id@test.com',
-		smtpTls: 'none'
-	});
+	await setAppConfigValues(request, { emailVerification: 'required', ...smtpSinkConfig });
 }
 
 // Builds the query of an authorization code request for the Nextcloud client

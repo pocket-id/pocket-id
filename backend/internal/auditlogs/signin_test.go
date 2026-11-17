@@ -108,7 +108,7 @@ func (c notificationConfig) GetConfig(context.Context) (*appconfig.AppConfigMode
 type loginNotification struct{ recipient, ip, method string }
 type loginNotificationSender struct{ sent chan loginNotification }
 
-func (s loginNotificationSender) SendNewLogin(_ context.Context, _ *appconfig.AppConfigModel, _, email, ip, _, _, _, method string, _ time.Time) error {
+func (s loginNotificationSender) SendNewLogin(_ context.Context, _ *appconfig.AppConfigModel, _, email string, _ *string, ip, _, _, _, method string, _ time.Time) error {
 	s.sent <- loginNotification{recipient: email, ip: ip, method: method}
 	return nil
 }
@@ -118,9 +118,9 @@ func TestSignInNotificationsForEveryMethod(t *testing.T) {
 		event  Event
 		method string
 	}{
-		{EventSignIn, "Passkey"},
-		{EventOneTimeAccessTokenSignIn, "One-time code"},
-		{EventRemoteSignIn, "Another device (QR code)"},
+		{EventSignIn, "sign_in_method_passkey"},
+		{EventOneTimeAccessTokenSignIn, "sign_in_method_one_time_code"},
+		{EventRemoteSignIn, "sign_in_method_another_device"},
 	} {
 		t.Run(tt.method, func(t *testing.T) {
 			db := testutils.NewDatabaseForTest(t)

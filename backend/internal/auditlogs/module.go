@@ -22,7 +22,7 @@ import (
 )
 
 type NewLoginEmailSender interface {
-	SendNewLogin(ctx context.Context, dbConfig *appconfig.AppConfigModel, userFullName, userEmail, ipAddress, country, city, device, method string, dateTime time.Time) error
+	SendNewLogin(ctx context.Context, dbConfig *appconfig.AppConfigModel, userFullName, userEmail string, userLocale *string, ipAddress, country, city, device, method string, dateTime time.Time) error
 }
 
 type Dependencies struct {

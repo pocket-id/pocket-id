@@ -6,6 +6,7 @@
 	import SignupForm from '#lib/components/signup/signup-form.svelte';
 	import { Button } from '@pocket-id/ui/button';
 	import { m } from '#lib/paraglide/messages.js';
+	import { getLocale } from '#lib/paraglide/runtime.js';
 	import UserService from '#lib/services/user-service.ts';
 	import appConfigStore from '#lib/stores/application-configuration-store.ts';
 	import userStore from '#lib/stores/user-store.ts';
@@ -24,7 +25,9 @@
 
 	async function handleSignup(userData: UserSignUp) {
 		error = undefined;
-		const result = await tryCatch(userService.signup({ ...userData, token: data.token }));
+		const result = await tryCatch(
+			userService.signup({ ...userData, locale: getLocale(), token: data.token })
+		);
 
 		if (result.error) {
 			error = getAxiosErrorMessage(result.error);

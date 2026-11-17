@@ -6,3 +6,5 @@ preserve_hierarchy: true
 files:
   - source: /frontend/messages/en.json
     translation: /%original_path%/%two_letters_code%.json
+  - source: /backend/resources/i18n/email/en.json
+    translation: /%original_path%/%two_letters_code%.json
