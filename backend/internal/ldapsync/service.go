@@ -27,6 +27,7 @@ import (
 	"github.com/pocket-id/pocket-id/backend/internal/appconfig"
 	"github.com/pocket-id/pocket-id/backend/internal/apperror"
 	"github.com/pocket-id/pocket-id/backend/internal/dto"
+	"github.com/pocket-id/pocket-id/backend/internal/i18n"
 	"github.com/pocket-id/pocket-id/backend/internal/model"
 	"github.com/pocket-id/pocket-id/backend/internal/storage"
 	"github.com/pocket-id/pocket-id/backend/internal/utils"
@@ -326,6 +327,7 @@ func (s *Service) fetchUsersFromLDAP(ctx context.Context, client ldapClient, dbC
 		dbConfig.LdapAttributeUserLastName.String(),
 		dbConfig.LdapAttributeUserProfilePicture.String(),
 		dbConfig.LdapAttributeUserDisplayName.String(),
+		dbConfig.LdapAttributeUserLanguage.String(),
 	}
 
 	// Filters must start and finish with ()!
@@ -381,6 +383,7 @@ func (s *Service) fetchUsersFromLDAP(ctx context.Context, client ldapClient, dbC
 			FirstName:     value.GetAttributeValue(dbConfig.LdapAttributeUserFirstName.String()),
 			LastName:      value.GetAttributeValue(dbConfig.LdapAttributeUserLastName.String()),
 			DisplayName:   value.GetAttributeValue(dbConfig.LdapAttributeUserDisplayName.String()),
+			Locale:        i18n.Match(value.GetAttributeValue(dbConfig.LdapAttributeUserLanguage.String())),
 			// Admin status is computed after groups are loaded so it can use the
 			// configured group member attribute instead of a hard-coded memberOf.
 			IsAdmin: false,
@@ -593,6 +596,11 @@ func (s *Service) reconcileUsers(ctx context.Context, tx *gorm.DB, desiredUsers 
 		input, err := keepRejectedFields(ctx, tx, desiredUser.input, databaseUser, dbConfig.RequireUserEmail.IsTrue())
 		if err != nil {
 			return nil, nil, nil, fmt.Errorf("failed to check LDAP user '%s': %w", desiredUser.input.Username, err)
+		}
+
+		// A language saved in Pocket ID wins, so the directory's only fills in a missing one and never undoes the user's own pick
+		if databaseUser.Locale != nil {
+			input.Locale = databaseUser.Locale
 		}
 
 		// Skip a new user without a usable username or a required email, as there is no stored value to fall back to and creating it would fail and abort the whole sync

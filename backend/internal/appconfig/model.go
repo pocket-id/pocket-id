@@ -67,6 +67,7 @@ type AppConfigModel struct {
 	LdapAttributeUserLastName          AppConfigValue `json:"ldapAttributeUserLastName" env:"LDAP_ATTRIBUTE_USER_LAST_NAME"`
 	LdapAttributeUserDisplayName       AppConfigValue `json:"ldapAttributeUserDisplayName" env:"LDAP_ATTRIBUTE_USER_DISPLAY_NAME"`
 	LdapAttributeUserProfilePicture    AppConfigValue `json:"ldapAttributeUserProfilePicture" env:"LDAP_ATTRIBUTE_USER_PROFILE_PICTURE"`
+	LdapAttributeUserLanguage          AppConfigValue `json:"ldapAttributeUserLanguage" env:"LDAP_ATTRIBUTE_USER_LANGUAGE"`
 	LdapAttributeGroupMember           AppConfigValue `json:"ldapAttributeGroupMember" env:"LDAP_ATTRIBUTE_GROUP_MEMBER"`
 	LdapAttributeGroupUniqueIdentifier AppConfigValue `json:"ldapAttributeGroupUniqueIdentifier" env:"LDAP_ATTRIBUTE_GROUP_UNIQUE_IDENTIFIER"`
 	LdapAttributeGroupName             AppConfigValue `json:"ldapAttributeGroupName" env:"LDAP_ATTRIBUTE_GROUP_NAME"`
@@ -175,6 +176,7 @@ func getDefaultConfig() *AppConfigModel {
 		LdapAttributeUserLastName:          "",
 		LdapAttributeUserDisplayName:       "cn",
 		LdapAttributeUserProfilePicture:    "",
+		LdapAttributeUserLanguage:          "preferredLanguage",
 		LdapAttributeGroupMember:           "member",
 		LdapAttributeGroupUniqueIdentifier: "",
 		LdapAttributeGroupName:             "",

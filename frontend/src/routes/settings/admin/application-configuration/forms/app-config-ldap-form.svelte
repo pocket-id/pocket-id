@@ -56,6 +56,7 @@
 		ldapAttributeUserLastName: z.string().optional(),
 		ldapAttributeUserDisplayName: z.string().optional(),
 		ldapAttributeUserProfilePicture: z.string().optional(),
+		ldapAttributeUserLanguage: z.string().optional(),
 		ldapAttributeGroupMember: z.string().optional(),
 		ldapAttributeGroupUniqueIdentifier: z.string().min(1),
 		ldapAttributeGroupName: z.string().min(1),
@@ -103,6 +104,12 @@
 			label: m.profile_picture(),
 			placeholder: 'jpegPhoto',
 			note: m.config_note_picture()
+		},
+		{
+			key: 'ldapAttributeUserLanguage',
+			label: m.language(),
+			placeholder: 'preferredLanguage',
+			note: m.config_note_language()
 		},
 		{ key: 'ldapAttributeGroupMember', label: m.config_map_group_members(), placeholder: 'member' },
 		{

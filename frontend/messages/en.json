@@ -615,6 +615,7 @@
 	"config_note_required": "Required.",
 	"config_note_required_never_change": "Required. Must never change.",
 	"config_note_picture": "A URL, binary or base64 image.",
+	"config_note_language": "Only used until the user picks a language in Pocket ID.",
 	"config_note_group_name": "Required. The attribute in the group’s DN.",
 	"config_note_admin_group": "Members become Pocket ID admins.",
 	"config_endpoints": "Endpoints",

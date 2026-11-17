@@ -638,6 +638,49 @@ func TestLdapServiceSyncAllKeepsStoredValueOfRejectedAttributes(t *testing.T) {
 	assert.Equal(t, []string{"bob"}, usernames(admins.Users))
 }
 
+func TestLdapServiceSyncAllTakesLanguageFromDirectoryOnlyWhenNoneIsSaved(t *testing.T) {
+	service, db := newTestLdapService(t, newFakeLDAPClient(
+		ldapSearchResult(
+			ldapEntry("uid=alice,ou=people,dc=example,dc=com", map[string][]string{
+				"entryUUID":         {"u-alice"},
+				"uid":               {"alice"},
+				"mail":              {"alice@example.com"},
+				"givenName":         {"Changed"},
+				"preferredLanguage": {"fr-CH"},
+			}),
+			ldapEntry("uid=bob,ou=people,dc=example,dc=com", map[string][]string{
+				"entryUUID":         {"u-bob"},
+				"uid":               {"bob"},
+				"mail":              {"bob@example.com"},
+				"givenName":         {"Bob"},
+				"preferredLanguage": {"de-AT"},
+			}),
+			ldapEntry("uid=carol,ou=people,dc=example,dc=com", map[string][]string{
+				"entryUUID": {"u-carol"},
+				"uid":       {"carol"},
+				"mail":      {"carol@example.com"},
+				"givenName": {"Carol"},
+			}),
+		),
+		ldapSearchResult(),
+	))
+
+	// Alice picked German in Pocket ID, Bob has no saved language and Carol is new
+	require.NoError(t, db.Create(&model.User{Username: "alice", Email: new("alice@example.com"), FirstName: "Alice", Locale: new("de"), LdapID: new("u-alice")}).Error)
+	require.NoError(t, db.Create(&model.User{Username: "bob", Email: new("bob@example.com"), FirstName: "Bob", LdapID: new("u-bob")}).Error)
+
+	err := service.SyncAll(t.Context(), defaultTestLDAPAppConfig())
+	require.NoError(t, err)
+
+	locales := map[string]*string{}
+	var users []model.User
+	require.NoError(t, db.Find(&users).Error)
+	for _, user := range users {
+		locales[user.Username] = user.Locale
+	}
+	assert.Equal(t, map[string]*string{"alice": new("de"), "bob": new("de"), "carol": nil}, locales)
+}
+
 func TestLdapServiceSyncAllUpdatesUserWithoutEmailWhenEmailIsRequired(t *testing.T) {
 	service, db := newTestLdapService(t, newFakeLDAPClient(
 		ldapSearchResult(
@@ -837,6 +880,7 @@ func defaultTestLDAPAppConfig() *appconfig.AppConfigModel {
 		LdapAttributeUserLastName:          "sn",
 		LdapAttributeUserDisplayName:       "displayName",
 		LdapAttributeUserProfilePicture:    "jpegPhoto",
+		LdapAttributeUserLanguage:          "preferredLanguage",
 		LdapAttributeGroupMember:           "member",
 		LdapAttributeGroupUniqueIdentifier: "entryUUID",
 		LdapAttributeGroupName:             "cn",
