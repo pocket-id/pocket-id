@@ -34,13 +34,13 @@
 		updateCallback: (image: File) => Promise<void>;
 	} = $props();
 
-	// The directory provides an LDAP user's picture unless the override is enabled, and then only users who may edit their own account can change it
-	const managedByLdap = $derived(
-		isLdapUser &&
-			$appConfigStore.ldapEnabled &&
-			(!$appConfigStore.ldapAllowProfilePictureOverride ||
-				(ownAccount && !$appConfigStore.allowOwnAccountEdit))
-	);
+	const readOnly = $derived.by(() => {
+		if (!isLdapUser || !$appConfigStore.ldapEnabled) return false;
+		// The directory provides the picture unless the override lets Pocket ID keep its own
+		if (!$appConfigStore.ldapAllowProfilePictureOverride) return true;
+		// With the override, people may only change their own picture if they can edit their own account
+		return ownAccount && !$appConfigStore.allowOwnAccountEdit;
+	});
 	const labelId = $props.id();
 
 	let fileInput = $state<HTMLInputElement>();
@@ -104,7 +104,7 @@
 {#if layout === 'avatar'}
 	<div class={cn('relative size-24 shrink-0', className)}>
 		{@render picture()}
-		{#if !managedByLdap}
+		{#if !readOnly}
 			<DropdownMenu.Root>
 				<DropdownMenu.Trigger
 					disabled={isLoading}
@@ -134,10 +134,10 @@
 		<div class="flex min-w-0 flex-1 basis-48 flex-col gap-0.5">
 			<span id={labelId} class="text-heading text-fg">{m.profile_picture()}</span>
 			<p class="text-caption text-fg-muted">
-				{managedByLdap ? m.profile_picture_from_directory() : m.profile_picture_formats()}
+				{readOnly ? m.profile_picture_from_directory() : m.profile_picture_formats()}
 			</p>
 		</div>
-		{#if !managedByLdap}
+		{#if !readOnly}
 			<div class="flex items-center gap-1">
 				<Button
 					variant="secondary"
@@ -171,7 +171,7 @@
 	</div>
 {/if}
 
-{#if !managedByLdap}
+{#if !readOnly}
 	<input
 		bind:this={fileInput}
 		type="file"
