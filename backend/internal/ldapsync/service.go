@@ -643,7 +643,9 @@ func (s *Service) reconcileUsers(ctx context.Context, tx *gorm.DB, desiredUsers 
 			ldapUsersByID[desiredUser.ldapID] = updatedUser
 		}
 
-		if desiredUser.picture != "" {
+		// Collect the picture to save after the transaction commits
+		// When the profile picture override is enabled, users manage their own picture, so the LDAP sync must not overwrite it
+		if desiredUser.picture != "" && !dbConfig.LdapAllowProfilePictureOverride.IsTrue() {
 			savePictures = append(savePictures, savePicture{
 				userID:   userID,
 				username: input.Username,

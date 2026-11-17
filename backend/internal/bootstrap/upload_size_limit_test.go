@@ -29,7 +29,7 @@ func TestImageUploadRoutesLimitRequestSize(t *testing.T) {
 
 	db := testutils.NewDatabaseForTest(t)
 
-	usersModule, err := users.New(users.Dependencies{DB: db, CleanupDisabled: true})
+	usersModule, err := users.New(users.Dependencies{DB: db, AppConfig: appconfig.StaticResolver{}, CleanupDisabled: true})
 	require.NoError(t, err)
 	apiKeyModule, err := apikey.New(apikey.Dependencies{DB: db, CleanupDisabled: true})
 	require.NoError(t, err)

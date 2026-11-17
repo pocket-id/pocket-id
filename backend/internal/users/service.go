@@ -713,6 +713,13 @@ func canEditProfile(cfg *appconfig.AppConfigModel, user *model.User, updateOwnUs
 	return !isLdapUser && (!updateOwnUser || cfg.AllowOwnAccountEdit.IsTrue())
 }
 
+// canEditOwnProfilePicture reports whether a user may change their own profile picture
+// The directory provides an LDAP user's picture unless the override is enabled, and then only users who may edit their own account can change it
+func canEditOwnProfilePicture(cfg *appconfig.AppConfigModel, user *model.User) bool {
+	isLdapUser := user.LdapID != nil && cfg.LdapEnabled.IsTrue()
+	return !isLdapUser || (cfg.LdapAllowProfilePictureOverride.IsTrue() && cfg.AllowOwnAccountEdit.IsTrue())
+}
+
 // updateUserInternal updates a user within an existing transaction
 func (s *Service) updateUserInternal(ctx context.Context, cfg *appconfig.AppConfigModel, userID string, updatedUser dto.UserCreateDto, updateOwnUser bool, isLdapSync bool, origin auditlogs.Origin, tx *gorm.DB) (model.User, error) {
 	// The LDAP sync keeps the stored email when the directory has none, so it only saves a user without an email that never had one

@@ -111,6 +111,7 @@
 		<ProfilePictureSettings
 			userId={data.account.id}
 			isLdapUser={!!data.account.ldapId}
+			ownAccount
 			layout="avatar"
 			class="size-20"
 			updateCallback={updateProfilePicture}
