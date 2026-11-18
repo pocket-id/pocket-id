@@ -9,6 +9,7 @@ export type Session = {
 	city: string;
 	authenticationMethod: string;
 	current: boolean;
+	deviceBound: boolean;
 	createdAt: string;
 	lastActiveAt: string;
 	expiresAt: string;

@@ -80,6 +80,10 @@ func (m *Module) RegisterRoutes(r *authz.Router, protectAdmins gin.HandlerFunc) 
 		option.Tags("Sessions"),
 	)
 
+	// The DBSC endpoints are only called by the browser itself, so they stay out of the API docs
+	r.POST("/sessions/current/binding", authz.AccountSession, httpserver.Handle(m.handler.bind))
+	r.POST("/sessions/binding/refresh", authz.Public, httpserver.Handle(m.handler.refreshBinding))
+
 	admin := r.Group("/admin")
 	admin.GET("/users/:id/sessions", authz.UsersRead, httpserver.JSON(http.StatusOK, m.handler.listForUser),
 		option.Summary("List sessions of a user"),

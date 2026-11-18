@@ -8,6 +8,7 @@ import (
 
 	"github.com/pocket-id/pocket-id/backend/internal/apperror"
 	"github.com/pocket-id/pocket-id/backend/internal/authz"
+	"github.com/pocket-id/pocket-id/backend/internal/session"
 )
 
 // CrossOriginProtectionMiddleware rejects state-changing browser requests that come from another origin to prevent CSRF
@@ -58,7 +59,9 @@ func isCrossOriginAllowedPath(path string) bool {
 		"/api/oidc/device/authorize",
 		// The MCP endpoint never accepts the session cookie, so there is nothing to forge, and browser MCP clients have to reach it anonymously to get its 401 challenge
 		authz.MCPPath,
-		authz.MCPEndpointPath:
+		authz.MCPEndpointPath,
+		// The DBSC refresh endpoint trusts no cookie, and rejecting a refresh would make the browser drop the device-bound session
+		session.BindingRefreshPath:
 		return true
 	default:
 		return false

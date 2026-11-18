@@ -1329,6 +1329,7 @@
 	"sign_in_method_login_code": "Login code",
 	"sign_in_method_account_creation": "Account creation",
 	"user_agent": "User agent",
+	"device_bound": "Device-bound",
 	"devices": "Devices",
 	"user_has_no_sessions": "{name} isn’t signed in anywhere.",
 	"sign_out_everywhere": "Sign out everywhere",

@@ -17,6 +17,7 @@ type sessionDto struct {
 	City                 string    `json:"city"`
 	AuthenticationMethod string    `json:"authenticationMethod"`
 	Current              bool      `json:"current"`
+	DeviceBound          bool      `json:"deviceBound"`
 	CreatedAt            time.Time `json:"createdAt"`
 	LastActiveAt         time.Time `json:"lastActiveAt"`
 	ExpiresAt            time.Time `json:"expiresAt"`
@@ -45,6 +46,7 @@ func toSessionDtos(sessions []Session, currentSessionID string) []sessionDto {
 			City:                 session.City,
 			AuthenticationMethod: session.AuthenticationMethod,
 			Current:              session.ID == currentSessionID,
+			DeviceBound:          session.BindingSecret != "",
 			CreatedAt:            session.CreatedAt,
 			LastActiveAt:         session.LastActiveAt,
 			ExpiresAt:            session.endsAt(),

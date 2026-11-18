@@ -17,6 +17,7 @@ import (
 	"github.com/pocket-id/pocket-id/backend/internal/authz"
 	"github.com/pocket-id/pocket-id/backend/internal/dto"
 	"github.com/pocket-id/pocket-id/backend/internal/httpserver"
+	"github.com/pocket-id/pocket-id/backend/internal/session"
 	"github.com/pocket-id/pocket-id/backend/internal/utils"
 	"github.com/pocket-id/pocket-id/backend/internal/utils/cookie"
 )
@@ -125,6 +126,7 @@ func (h *handler) verifyLogin(c *gin.Context) error {
 	}
 
 	cookie.AddSignInSessionTokenCookie(c, dbConfig.SessionDuration.AsDurationMinutes(), remember, tokens.SessionToken)
+	session.AnnounceBinding(c, tokens.SessionToken)
 	if tokens.KnownBrowserToken != "" {
 		cookie.AddKnownBrowserCookie(c, tokens.KnownBrowserToken, int(auditlogs.KnownBrowserLifetime.Seconds()))
 	}

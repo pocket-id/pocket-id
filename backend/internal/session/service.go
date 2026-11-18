@@ -275,6 +275,69 @@ func (s *Service) KeepSudo(ctx context.Context, userID, sessionID string) {
 	}
 }
 
+// Bind binds a session that is not bound yet to the public key of the browser's device key, and returns the challenge the browser signs on its first refresh
+// It returns false when the session has ended or is already bound
+func (s *Service) Bind(ctx context.Context, userID, sessionID string, key []byte) (string, bool, error) {
+	challenge, err := utils.GenerateRandomAlphanumericString(32)
+	if err != nil {
+		return "", false, err
+	}
+
+	envelope, err := s.actorService.Invoke(ctx, ActorType, userID, methodBind, bindRequest{SessionID: sessionID, Key: key, Challenge: challenge})
+	if err != nil {
+		return "", false, fmt.Errorf("error binding session: %w", err)
+	}
+	var bound bool
+	err = envelope.Decode(&bound)
+	if err != nil {
+		return "", false, fmt.Errorf("error decoding session binding response: %w", err)
+	}
+	return challenge, bound, nil
+}
+
+// RefreshBinding moves a bound session to a new challenge after its browser signed challenge with the device key, and returns the session
+// It returns false with the session on its current challenge when challenge was used meanwhile, and the zero Session when the session has ended
+func (s *Service) RefreshBinding(ctx context.Context, userID, sessionID, challenge string) (Session, bool, error) {
+	nextChallenge, err := utils.GenerateRandomAlphanumericString(32)
+	if err != nil {
+		return Session{}, false, err
+	}
+	secret, err := utils.GenerateRandomAlphanumericString(32)
+	if err != nil {
+		return Session{}, false, err
+	}
+
+	envelope, err := s.actorService.Invoke(ctx, ActorType, userID, methodRefreshBinding, refreshBindingRequest{
+		SessionID:     sessionID,
+		Challenge:     challenge,
+		NextChallenge: nextChallenge,
+		Secret:        secret,
+	})
+	if err != nil {
+		return Session{}, false, fmt.Errorf("error refreshing session binding: %w", err)
+	}
+	var session Session
+	err = envelope.Decode(&session)
+	if err != nil {
+		return Session{}, false, fmt.Errorf("error decoding session binding refresh response: %w", err)
+	}
+	return session, session.BindingChallenge == nextChallenge, nil
+}
+
+// find returns the user's active session with the ID, or the zero Session when there is none
+func (s *Service) find(ctx context.Context, userID, sessionID string) (Session, error) {
+	sessions, err := listSessions(ctx, s.actorService, userID)
+	if err != nil {
+		return Session{}, err
+	}
+	for _, session := range sessions {
+		if session.ID == sessionID {
+			return session, nil
+		}
+	}
+	return Session{}, nil
+}
+
 func parseToken(token string) (userID, sessionID, secret string, ok bool) {
 	parts := strings.Split(token, ".")
 	if len(parts) != 3 || parts[0] == "" || parts[1] == "" || parts[2] == "" {

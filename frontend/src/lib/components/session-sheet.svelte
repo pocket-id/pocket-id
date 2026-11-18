@@ -43,6 +43,7 @@
 						{/if}
 					</dd>
 				</div>
+				{@render detailItem(m.device_bound(), session.deviceBound ? m.yes() : m.no())}
 				<div class="flex min-w-0 flex-col gap-0.5 sm:col-span-2">
 					<dt class="text-caption text-fg-muted">{m.user_agent()}</dt>
 					<dd class="text-mono-s font-mono wrap-anywhere">{session.userAgent || m.unknown()}</dd>

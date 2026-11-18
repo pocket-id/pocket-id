@@ -10,6 +10,7 @@ import (
 	"github.com/pocket-id/pocket-id/backend/internal/apperror"
 	"github.com/pocket-id/pocket-id/backend/internal/auditlogs"
 	"github.com/pocket-id/pocket-id/backend/internal/dto"
+	"github.com/pocket-id/pocket-id/backend/internal/session"
 	"github.com/pocket-id/pocket-id/backend/internal/utils/cookie"
 )
 
@@ -100,6 +101,7 @@ func (h *handler) exchangeToken(c *gin.Context, input exchangeTokenDto) (dto.Use
 	}
 
 	cookie.AddSignInSessionTokenCookie(c, cfg.SessionDuration.AsDurationMinutes(), remember, tokens.SessionToken)
+	session.AnnounceBinding(c, tokens.SessionToken)
 	if tokens.KnownBrowserToken != "" {
 		cookie.AddKnownBrowserCookie(c, tokens.KnownBrowserToken, int(auditlogs.KnownBrowserLifetime.Seconds()))
 	}

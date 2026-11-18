@@ -85,6 +85,12 @@ func (a *SessionAuthenticator) Authenticate(c *gin.Context) (*authz.Principal, e
 		return nil, err
 	}
 
+	// A device-bound session also needs the binding cookie only the browser holding the device key can renew
+	bindingCookie, _ := c.Cookie(cookie.SessionBindingCookieName(userSession.ID))
+	if !userSession.BindingSatisfiedBy(bindingCookie) {
+		return nil, apperror.NotSignedIn()
+	}
+
 	// Load the user so disabling an account, changing its admin flag or its email verification takes effect right away
 	user, err := a.users.GetUser(c, userID)
 	if err != nil {

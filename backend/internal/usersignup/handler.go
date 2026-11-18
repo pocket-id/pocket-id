@@ -9,6 +9,7 @@ import (
 	"github.com/pocket-id/pocket-id/backend/internal/appconfig"
 	"github.com/pocket-id/pocket-id/backend/internal/apperror"
 	"github.com/pocket-id/pocket-id/backend/internal/dto"
+	"github.com/pocket-id/pocket-id/backend/internal/session"
 	"github.com/pocket-id/pocket-id/backend/internal/utils"
 	"github.com/pocket-id/pocket-id/backend/internal/utils/cookie"
 )
@@ -55,6 +56,7 @@ func (h *handler) signUpInitialAdmin(c *gin.Context, input signUpDto) (dto.UserD
 
 	maxAge := int(config.SessionDuration.AsDurationMinutes().Seconds())
 	cookie.AddSessionTokenCookie(c, maxAge, token)
+	session.AnnounceBinding(c, token)
 
 	return userDto, nil
 }
@@ -127,6 +129,7 @@ func (h *handler) signup(c *gin.Context, input signUpDto) (dto.UserDto, error) {
 
 	maxAge := int(config.SessionDuration.AsDurationMinutes().Seconds())
 	cookie.AddSessionTokenCookie(c, maxAge, sessionToken)
+	session.AnnounceBinding(c, sessionToken)
 
 	var userDto dto.UserDto
 	err = dto.MapStruct(user, &userDto)

@@ -23,3 +23,8 @@ func init() {
 		ReauthenticationTokenCookieName = "reauthentication_token"
 	}
 }
+
+// SessionBindingCookieName is the name of the short-lived cookie that proves the browser of a device-bound session still holds its device key
+func SessionBindingCookieName(sessionID string) string {
+	return "__Host-session_binding_" + sessionID
+}

@@ -2,9 +2,13 @@ package middleware
 
 import (
 	"context"
+	"crypto/ecdsa"
+	"crypto/elliptic"
+	"crypto/rand"
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
+	"regexp"
 	"testing"
 	"time"
 
@@ -189,6 +193,100 @@ func TestAuthorizationWithRealCredentials(t *testing.T) {
 			require.Equal(t, test.errorCode, body["code"])
 		})
 	}
+}
+
+func TestDeviceBoundSession(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+
+	originalEnvConfig := common.EnvConfig
+	defer func() {
+		common.EnvConfig = originalEnvConfig
+	}()
+	common.EnvConfig.AppURL = "https://test.example.com"
+	common.EnvConfig.EncryptionKey = []byte("0123456789abcdef0123456789abcdef")
+
+	db := testutils.NewDatabaseForTest(t)
+	usersModule, err := users.New(users.Dependencies{DB: db, CleanupDisabled: true})
+	require.NoError(t, err)
+	user := createUserForAuthorizationTest(t, db, "bound-user", false, false, true)
+
+	var sessions *session.Module
+	testutils.NewActorHostForTest(t, func(t *testing.T, h *local.Host) {
+		sessions, err = session.New(session.Dependencies{Actors: h, IPLocator: noIPLocation{}, AuditLog: nopAuditLogger{}, EndNotifier: noEndNotifier{}})
+		require.NoError(t, err)
+	})
+
+	// Mount the session routes, which include the DBSC endpoints, next to a route that requires a signed-in user
+	router := gin.New()
+	router.Use(NewErrorHandlerMiddleware().Add())
+	apiRouter := NewAuthorization(nil, fakeAccessTokenVerifier{}, usersModule, sessions, appconfig.StaticResolver{Config: appconfig.NewTestConfig(nil)}).Router(router.Group("/api"))
+	sessions.RegisterRoutes(apiRouter, func(c *gin.Context) { c.Next() })
+	apiRouter.GET("/account", authz.AccountRead, httpserver.Endpoint{Handler: func(c *gin.Context) {
+		c.String(http.StatusOK, authz.PrincipalFrom(c).UserID)
+	}})
+
+	serve := func(method, path, token string, headers map[string]string, cookies ...*http.Cookie) *httptest.ResponseRecorder {
+		req := httptest.NewRequestWithContext(t.Context(), method, path, nil)
+		req.AddCookie(&http.Cookie{Name: cookie.SessionTokenCookieName, Value: token, Secure: true, HttpOnly: true, SameSite: http.SameSiteLaxMode})
+		for _, c := range cookies {
+			req.AddCookie(c)
+		}
+		for name, value := range headers {
+			req.Header.Set(name, value)
+		}
+		recorder := httptest.NewRecorder()
+		router.ServeHTTP(recorder, req)
+		return recorder
+	}
+
+	// bind signs a user in and binds the session like a browser with DBSC does, and returns the token and the binding cookie
+	bind := func(t *testing.T) (string, *http.Cookie) {
+		token, err := sessions.Create(t.Context(), user.ID, "phr", "", "", time.Hour, true)
+		require.NoError(t, err)
+		deviceKey, err := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
+		require.NoError(t, err)
+
+		// Register the device key with the challenge of the sign-in response
+		announcement := httptest.NewRecorder()
+		c, _ := gin.CreateTestContext(announcement)
+		session.AnnounceBinding(c, token)
+		registration := regexp.MustCompile(`challenge="([^"]+)"`).FindStringSubmatch(announcement.Header().Get("Secure-Session-Registration"))
+		require.NotNil(t, registration)
+		recorder := serve(http.MethodPost, "/api/sessions/current/binding", token, map[string]string{"Secure-Session-Response": testutils.DBSCProof(t, deviceKey, registration[1], deviceKey)})
+		require.Equal(t, http.StatusOK, recorder.Code, recorder.Body.String())
+
+		// Refresh with the challenge registration returned, which issues the first binding cookie without any session cookie
+		challenge := regexp.MustCompile(`^"([^"]+)";id="([^"]+)"$`).FindStringSubmatch(recorder.Header().Get("Secure-Session-Challenge"))
+		require.NotNil(t, challenge)
+		req := httptest.NewRequestWithContext(t.Context(), http.MethodPost, session.BindingRefreshPath, nil)
+		req.Header.Set("Sec-Secure-Session-Id", challenge[2])
+		req.Header.Set("Secure-Session-Response", testutils.DBSCProof(t, deviceKey, challenge[1], nil))
+		recorder = httptest.NewRecorder()
+		router.ServeHTTP(recorder, req)
+		require.Equal(t, http.StatusOK, recorder.Code, recorder.Body.String())
+		cookies := recorder.Result().Cookies()
+		require.Len(t, cookies, 1)
+		return token, cookies[0]
+	}
+
+	token, bindingCookie := bind(t)
+	otherToken, otherBindingCookie := bind(t)
+
+	t.Run("accepts a bound session with its binding cookie", func(t *testing.T) {
+		recorder := serve(http.MethodGet, "/api/account", token, nil, bindingCookie)
+		require.Equal(t, http.StatusOK, recorder.Code, recorder.Body.String())
+		require.Equal(t, user.ID, recorder.Body.String())
+	})
+
+	t.Run("rejects a bound session without its binding cookie", func(t *testing.T) {
+		recorder := serve(http.MethodGet, "/api/account", token, nil)
+		require.Equal(t, http.StatusUnauthorized, recorder.Code)
+	})
+
+	t.Run("rejects a bound session with the binding cookie of another session", func(t *testing.T) {
+		recorder := serve(http.MethodGet, "/api/account", otherToken, nil, &http.Cookie{Name: otherBindingCookie.Name, Value: bindingCookie.Value, Secure: true, HttpOnly: true, SameSite: http.SameSiteLaxMode})
+		require.Equal(t, http.StatusUnauthorized, recorder.Code)
+	})
 }
 
 type nopAuditLogger struct{}

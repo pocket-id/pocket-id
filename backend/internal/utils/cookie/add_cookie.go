@@ -7,6 +7,9 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
+// RootCookieAttributes are the attributes addCookie gives a cookie with the path /, written like in a Set-Cookie header
+const RootCookieAttributes = "Path=/; Secure; HttpOnly; SameSite=Lax"
+
 func AddSessionTokenCookie(c *gin.Context, maxAgeInSeconds int, token string) {
 	addCookie(c, SessionTokenCookieName, token, maxAgeInSeconds, "/")
 }
@@ -41,6 +44,10 @@ func AddDeviceLoginTokenCookie(c *gin.Context, requestID, deviceToken string) {
 
 func AddReauthenticationTokenCookie(c *gin.Context, reauthenticationToken string) {
 	addCookie(c, ReauthenticationTokenCookieName, reauthenticationToken, int(3*time.Minute.Seconds()), "/")
+}
+
+func AddSessionBindingCookie(c *gin.Context, sessionID, value string, maxAgeInSeconds int) {
+	addCookie(c, SessionBindingCookieName(sessionID), value, maxAgeInSeconds, "/")
 }
 
 func addCookie(c *gin.Context, name, value string, maxAge int, path string) {

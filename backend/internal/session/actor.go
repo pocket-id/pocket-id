@@ -34,6 +34,9 @@ const (
 	methodRevokeAll = "revokeAll"
 	methodRemember  = "remember"
 	methodSudo      = "sudo"
+
+	methodBind           = "bind"
+	methodRefreshBinding = "refreshBinding"
 )
 
 // sudoDuration ends sudo mode however much it is used, so a passkey is proven again at least this often
@@ -60,6 +63,12 @@ type Session struct {
 	// SudoStartedAt and SudoUsedAt are when the user last proved who they are and when a request last relied on that, see SudoUntil
 	SudoStartedAt time.Time
 	SudoUsedAt    time.Time
+	// BindingKey is the public JWK of the device key the browser bound the session to with DBSC, and empty while the session is not bound
+	BindingKey []byte
+	// BindingChallenge is the challenge the browser has to sign with the device key on its next refresh
+	BindingChallenge string
+	// BindingSecret signs the session's binding cookies and is set on the first refresh, from which on the session requires a binding cookie
+	BindingSecret string
 }
 
 // SudoUntil is when the session's sudo mode ends unless it is used before then
@@ -111,6 +120,20 @@ type sudoRequest struct {
 	SessionID string
 	// Start enters sudo mode, while a request without it only records that sudo mode was used
 	Start bool
+}
+
+type bindRequest struct {
+	SessionID string
+	Key       []byte
+	Challenge string
+}
+
+type refreshBindingRequest struct {
+	SessionID string
+	// Challenge is the challenge the browser signed, which must still be the session's current one, so a proof is accepted only once
+	Challenge     string
+	NextChallenge string
+	Secret        string
 }
 
 type revokeAllRequest struct {
@@ -177,6 +200,18 @@ func (a *sessionsActor) Invoke(ctx context.Context, method string, data actor.En
 			return nil, err
 		}
 		return nil, a.sudo(ctx, req)
+	case methodBind:
+		var req bindRequest
+		if err := decode(data, method, &req); err != nil {
+			return nil, err
+		}
+		return a.bind(ctx, req)
+	case methodRefreshBinding:
+		var req refreshBindingRequest
+		if err := decode(data, method, &req); err != nil {
+			return nil, err
+		}
+		return a.refreshBinding(ctx, req)
 	default:
 		return nil, common.ErrUnsupportedActorMethod{Method: method}
 	}
@@ -373,6 +408,47 @@ func (a *sessionsActor) sudo(ctx context.Context, req sudoRequest) error {
 	session.SudoUsedAt = now
 	state.Sessions[req.SessionID] = session
 	return a.save(ctx, state)
+}
+
+// bind stores the device key of a session that is not bound yet, and reports whether it did
+func (a *sessionsActor) bind(ctx context.Context, req bindRequest) (bool, error) {
+	state, err := a.loadForWrite(ctx)
+	if err != nil {
+		return false, err
+	}
+
+	// A bound session keeps its key, so whoever holds the session token can't replace the browser's key with their own
+	session, ok := state.Sessions[req.SessionID]
+	if !ok || len(session.BindingKey) > 0 {
+		return false, nil
+	}
+
+	session.BindingKey = req.Key
+	session.BindingChallenge = req.Challenge
+	state.Sessions[req.SessionID] = session
+	return true, a.save(ctx, state)
+}
+
+// refreshBinding moves a bound session to its next challenge if the browser signed the current one, and returns the session
+// It returns the zero Session when the session does not exist
+func (a *sessionsActor) refreshBinding(ctx context.Context, req refreshBindingRequest) (Session, error) {
+	state, err := a.loadForWrite(ctx)
+	if err != nil {
+		return Session{}, err
+	}
+
+	// Another refresh may have used the challenge since it was verified, and the caller then sees the session still on another challenge
+	session, ok := state.Sessions[req.SessionID]
+	if !ok || session.BindingChallenge != req.Challenge {
+		return session, nil
+	}
+
+	session.BindingChallenge = req.NextChallenge
+	if session.BindingSecret == "" {
+		session.BindingSecret = req.Secret
+	}
+	state.Sessions[req.SessionID] = session
+	return session, a.save(ctx, state)
 }
 
 // deleteAlarm cancels the expiry alarm of a revoked session
