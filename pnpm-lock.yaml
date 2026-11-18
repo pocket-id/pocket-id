@@ -26,9 +26,6 @@ importers:
 
   frontend:
     dependencies:
-      '@inlang/paraglide-js-svelte':
-        specifier: ^1.0.3
-        version: 1.0.5(@inlang/paraglide-js@2.29.3(@voidzero-dev/vite-plus-core@1.6.0(@types/node@25.9.9)(esbuild@0.28.2)(jiti@2.7.0)(tsx@4.23.15)(typescript@6.0.3)(yaml@2.9.0))(typescript@6.0.3))(svelte@5.57.3(@typescript-eslint/types@8.70.0))
       '@opentelemetry/api':
         specifier: ^1.9.1
         version: 1.10.0
@@ -75,12 +72,12 @@ importers:
       '@inlang/paraglide-js':
         specifier: ^2.18.0
         version: 2.29.3(@voidzero-dev/vite-plus-core@1.6.0(@types/node@25.9.9)(esbuild@0.28.2)(jiti@2.7.0)(tsx@4.23.15)(typescript@6.0.3)(yaml@2.9.0))(typescript@6.0.3)
+      '@inlang/plugin-icu1':
+        specifier: 1.3.8
+        version: 1.3.8
       '@inlang/plugin-m-function-matcher':
         specifier: ^2.2.6
         version: 2.4.3(@typescript-eslint/types@8.70.0)
-      '@inlang/plugin-message-format':
-        specifier: ^4.4.0
-        version: 4.6.0
       '@internationalized/date':
         specifier: ^3.12.1
         version: 3.12.4
@@ -729,12 +726,6 @@ packages:
     cpu: [x64]
     os: [win32]
 
-  '@inlang/paraglide-js-svelte@1.0.5':
-    resolution: {integrity: sha512-QBIlMX/I/IzsWJLx5O0Xt/aBhQs0cnifozswLxBt1IYGANUyfT7Seiu29jZ1OOHHyfrfa1g4AviO3nXsbrKsYw==}
-    peerDependencies:
-      '@inlang/paraglide-js': '>=2.11.0 <4'
-      svelte: ^5.0.0
-
   '@inlang/paraglide-js@2.29.3':
     resolution: {integrity: sha512-aI9gT7zGTpr/l8tZM7OXHrgGruZ6jcu2iIqIw8QXKOGOY4akF3u1cIK6EBsttBm+DHI0FGiwCl8xVUjz7kDZHg==}
     hasBin: true
@@ -750,11 +741,11 @@ packages:
       vite:
         optional: true
 
+  '@inlang/plugin-icu1@1.3.8':
+    resolution: {integrity: sha512-P2VdqZm9YjIHW9p4zyxr/MlIB3rtoeL4JBvuT0KhypSZavKKcytlmGV0cl8blC5fkU588Qcdesi+2iyl9zp2Lw==}
+
   '@inlang/plugin-m-function-matcher@2.4.3':
     resolution: {integrity: sha512-0jlW4nZ1RDCFqLRZ1FO/dwvV7uhyuHLEzr7vudmCHqt3Qil5/mfCO5i5cvvls120lpoybmdbpwWy/Dvu5SMMGQ==}
-
-  '@inlang/plugin-message-format@4.6.0':
-    resolution: {integrity: sha512-DK2GZvypDygLchnUaFK/RdCIm2baiRlQftOiesGNKDtjNqioqWHnnu0zg6NKNlo3kD42h5xlRCke7zEjBFzZrg==}
 
   '@inlang/recommend-sherlock@0.2.1':
     resolution: {integrity: sha512-ckv8HvHy/iTqaVAEKrr+gnl+p3XFNwe5D2+6w6wJk2ORV2XkcRkKOJ/XsTUJbPSiyi4PI+p+T3bqbmNx/rDUlg==}
@@ -788,6 +779,9 @@ packages:
 
   '@lix-js/sdk@0.20.1':
     resolution: {integrity: sha512-oscOFP8Cr1My6Wh2KVYC9+aJ1mHs+d7vnD+7PPJaA4L+Y1FR37Sm99SrFGfvUizaj/XtRi2GlDF2IOFt9iXMNQ==}
+
+  '@messageformat/parser@5.2.0':
+    resolution: {integrity: sha512-sc3hNZ0JtC32GhL5nUgPbh2ilcwji4G+Vmj/vhMd8hZaH//NDOvkfwKK1mFnRWG5h2DpksN8xr/HB5/+vMg3iw==}
 
   '@napi-rs/wasm-runtime@1.2.4':
     resolution: {integrity: sha512-AJxoUD2/15ESHbvpcyjU274nsAPLuOtPHCk0vKJM5pj//Fg/B1FXNWjPnXTT9PymCYYiHo4zPj0ZomXBKhoy7g==}
@@ -2719,6 +2713,9 @@ packages:
     peerDependencies:
       svelte: ^5.27.0
 
+  moo@0.5.3:
+    resolution: {integrity: sha512-m2fmM2dDm7GZQsY7KK2cme8agi+AAljILjQnof7p1ZMDe6dQ4bdnSMx0cPppudoeNv5hEFQirN6u+O4fDE0IWA==}
+
   mri@1.2.0:
     resolution: {integrity: sha512-tzzskb3bG8LvYGFF/mDTpq3jpI6Q9wc3LEmBaghu+DdCssd1FakN7Bc0hVNmEyGq1bq3RgfkCb3cmQLpNPOroA==}
     engines: {node: '>=4'}
@@ -3839,11 +3836,6 @@ snapshots:
   '@img/sharp-win32-x64@0.35.5':
     optional: true
 
-  '@inlang/paraglide-js-svelte@1.0.5(@inlang/paraglide-js@2.29.3(@voidzero-dev/vite-plus-core@1.6.0(@types/node@25.9.9)(esbuild@0.28.2)(jiti@2.7.0)(tsx@4.23.15)(typescript@6.0.3)(yaml@2.9.0))(typescript@6.0.3))(svelte@5.57.3(@typescript-eslint/types@8.70.0))':
-    dependencies:
-      '@inlang/paraglide-js': 2.29.3(@voidzero-dev/vite-plus-core@1.6.0(@types/node@25.9.9)(esbuild@0.28.2)(jiti@2.7.0)(tsx@4.23.15)(typescript@6.0.3)(yaml@2.9.0))(typescript@6.0.3)
-      svelte: 5.57.3(@typescript-eslint/types@8.70.0)
-
   '@inlang/paraglide-js@2.29.3(@voidzero-dev/vite-plus-core@1.6.0(@types/node@25.9.9)(esbuild@0.28.2)(jiti@2.7.0)(tsx@4.23.15)(typescript@6.0.3)(yaml@2.9.0))(typescript@6.0.3)':
     dependencies:
       '@inlang/recommend-sherlock': 0.2.1
@@ -3860,6 +3852,12 @@ snapshots:
       typescript: 6.0.3
       vite: '@voidzero-dev/vite-plus-core@1.6.0(@types/node@25.9.9)(esbuild@0.28.2)(jiti@2.7.0)(tsx@4.23.15)(typescript@6.0.3)(yaml@2.9.0)'
 
+  '@inlang/plugin-icu1@1.3.8':
+    dependencies:
+      '@inlang/sdk': 4.2.0
+      '@messageformat/parser': 5.2.0
+      '@sinclair/typebox': 0.31.30
+
   '@inlang/plugin-m-function-matcher@2.4.3(@typescript-eslint/types@8.70.0)':
     dependencies:
       '@babel/parser': 7.29.8
@@ -3867,11 +3865,6 @@ snapshots:
       svelte: 5.57.3(@typescript-eslint/types@8.70.0)
     transitivePeerDependencies:
       - '@typescript-eslint/types'
-
-  '@inlang/plugin-message-format@4.6.0':
-    dependencies:
-      '@inlang/sdk': 4.2.0
-      '@sinclair/typebox': 0.31.30
 
   '@inlang/recommend-sherlock@0.2.1':
     dependencies:
@@ -3919,6 +3912,10 @@ snapshots:
       '@bytecodealliance/jco-transpile': 0.13.0
       binaryen: 130.0.0
       fflate: 0.8.3
+
+  '@messageformat/parser@5.2.0':
+    dependencies:
+      moo: 0.5.3
 
   '@napi-rs/wasm-runtime@1.2.4(@emnapi/core@1.11.1)(@emnapi/runtime@1.11.1)':
     dependencies:
@@ -5343,6 +5340,8 @@ snapshots:
       runed: 0.25.0(svelte@5.57.3(@typescript-eslint/types@8.70.0))
       svelte: 5.57.3(@typescript-eslint/types@8.70.0)
       svelte-toolbelt: 0.7.1(svelte@5.57.3(@typescript-eslint/types@8.70.0))
+
+  moo@0.5.3: {}
 
   mri@1.2.0: {}
 

@@ -57,11 +57,7 @@
 
 	const readOnly = $derived(!!group.ldapId && $appConfigStore.ldapEnabled);
 	const openClients = $derived(data.clients.filter((c) => !c.isGroupRestricted));
-	const memberCountLabel = $derived(
-		group.users.length === 1
-			? m.members_count_one()
-			: m.members_count({ count: group.users.length })
-	);
+	const memberCountLabel = $derived(m.members_count({ count: group.users.length }));
 	const filteredMembers = $derived.by(() => {
 		const query = memberSearch.trim().toLowerCase();
 		return group.users
@@ -486,11 +482,6 @@
 	}}
 	exclude={group.allowedOidcClients.map((c) => c.id)}
 	row={ClientRow}
-	confirmLabel={(n) =>
-		n === 0
-			? m.allow_clients()
-			: n === 1
-				? m.allow_one_client()
-				: m.allow_count_clients({ count: n })}
+	confirmLabel={(n) => (n === 0 ? m.allow_clients() : m.allow_count_clients({ count: n }))}
 	onConfirm={allowClients}
 />

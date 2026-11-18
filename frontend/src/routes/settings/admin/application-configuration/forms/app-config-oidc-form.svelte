@@ -104,7 +104,10 @@
 							keepAtLeastOne
 						/>
 						<Field.Description>
-							<FormattedMessage message={m.config_cimd_allowlist_description} />
+							<FormattedMessage
+								message={m.config_cimd_allowlist_description}
+								links={{ link: 'https://pocket-id.org/docs/advanced/callback-url-wildcards' }}
+							/>
 						</Field.Description>
 					</Field.Field>
 				</fieldset>

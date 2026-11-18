@@ -2,11 +2,7 @@
 	import { m } from '#lib/paraglide/messages.js';
 
 	export const groupsConfirmLabel = (count: number) =>
-		count === 0
-			? m.add_to_groups()
-			: count === 1
-				? m.add_to_one_group()
-				: m.add_to_count_groups({ count });
+		count === 0 ? m.add_to_groups() : m.add_to_count_groups({ count });
 </script>
 
 <script lang="ts" generics="T extends { id: string }">

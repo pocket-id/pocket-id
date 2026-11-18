@@ -89,7 +89,7 @@
 		{#if item.ldapId && $appConfigStore.ldapEnabled}<Badge>{m.ldap()}</Badge>{/if}
 	</div>
 	<span class="text-caption text-fg-muted block truncate ps-9 sm:hidden">
-		{item.userCount === 1 ? m.members_count_one() : m.members_count({ count: item.userCount })}
+		{m.members_count({ count: item.userCount })}
 	</span>
 {/snippet}
 

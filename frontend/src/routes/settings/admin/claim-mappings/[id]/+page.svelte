@@ -472,9 +472,7 @@
 				{#if unassignedCount > 0}
 					<p class="text-caption text-fg-muted mt-3 flex items-start gap-1.5">
 						<InfoIcon class="mt-[3px] size-3 shrink-0" />
-						{unassignedCount === 1
-							? m.default_policy_also_applies_one()
-							: m.default_policy_also_applies({ count: unassignedCount })}
+						{m.default_policy_also_applies({ count: unassignedCount })}
 					</p>
 				{/if}
 			</SettingsSection>

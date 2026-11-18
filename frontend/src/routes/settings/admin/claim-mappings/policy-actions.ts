@@ -57,9 +57,7 @@ export async function confirmDeletePolicy(policy: PolicyRef, onDeleted: () => un
 	const consequence =
 		assigned === 0
 			? m.delete_unused_policy_consequence()
-			: assigned === 1
-				? m.delete_policy_consequence_one()
-				: m.delete_policy_consequence({ count: assigned });
+			: m.delete_policy_consequence({ count: assigned });
 
 	openConfirmDialog({
 		title: m.delete_name_question({ name: policy.name }),

@@ -18,7 +18,6 @@
 		"format:check": "vp fmt --check"
 	},
 	"dependencies": {
-		"@inlang/paraglide-js-svelte": "^1.0.3",
 		"@opentelemetry/api": "^1.9.1",
 		"@opentelemetry/exporter-trace-otlp-http": "^0.301.0",
 		"@opentelemetry/resources": "^2.8.0",
@@ -36,8 +35,8 @@
 	"devDependencies": {
 		"@iconify-json/solar": "^1.2.13",
 		"@inlang/paraglide-js": "^2.18.0",
+		"@inlang/plugin-icu1": "1.3.8",
 		"@inlang/plugin-m-function-matcher": "^2.2.6",
-		"@inlang/plugin-message-format": "^4.4.0",
 		"@internationalized/date": "^3.12.1",
 		"@sveltejs/adapter-static": "^4.0.0",
 		"@sveltejs/kit": "^3.0.0",

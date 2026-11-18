@@ -15,13 +15,7 @@
 	});
 
 	const countLabel = $derived(
-		count === undefined
-			? ''
-			: count === 0
-				? m.no_api_keys()
-				: count === 1
-					? m.api_keys_count_one()
-					: m.api_keys_count({ count })
+		count === undefined ? '' : count === 0 ? m.no_api_keys() : m.api_keys_count({ count })
 	);
 </script>
 

@@ -257,7 +257,10 @@
 </script>
 
 {#snippet callbackUrlDescription()}
-	<FormattedMessage message={m.callback_url_description} />
+	<FormattedMessage
+		message={m.callback_url_description}
+		links={{ link: 'https://pocket-id.org/docs/advanced/callback-url-wildcards' }}
+	/>
 {/snippet}
 
 {#snippet switchRow(

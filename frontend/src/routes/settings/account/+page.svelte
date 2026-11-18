@@ -171,7 +171,10 @@
 		<Tabs.Content value="preferences" class="*:first:-mt-4">
 			<SettingRow title={m.language()} icon={LanguagesIcon}>
 				{#snippet description()}
-					<FormattedMessage message={m.language_crowdin_description} />
+					<FormattedMessage
+						message={m.language_crowdin_description}
+						links={{ link: 'https://crowdin.com/project/pocket-id' }}
+					/>
 				{/snippet}
 				{#snippet control(props)}
 					<LocalePicker {...props} />

@@ -45,6 +45,8 @@ cd ../../.. && pnpm test                         # = playwright test in packages
 - **Never edit generated files:** `frontend/src/lib/paraglide/**` (Paraglide i18n output) and
   `backend/frontend/dist/**`. For i18n, only edit `frontend/messages/en.json`; other locales come
   from Crowdin.
+- **UI messages are ICU MessageFormat** (inlang ICU1 plugin), so a count is one message with `{count, plural, one {# user} other {# users}}` instead of a `_one` key or a `count === 1` branch, and a straight `'` before `{` starts a quoted literal (use `’`).
+  Bold text and links are tags rendered by `formatted-message.svelte`: `<b>{name}</b>` and a link tag named after a key of its `links` prop (`<license>CC BY 4.0</license>` with `links={{ license: url }}`), so URLs stay out of the message.
 - **Emails are translated at send time.** Their text lives in `backend/resources/i18n/email/en.json` (other locales from Crowdin) and the React Email sources only reference keys through `t()`, so after changing a `.tsx` run `pnpm build` in `packages/email-templates` and commit the generated `.tmpl` files.
   An email uses the recipient's `users.locale`, else that of the admin who caused it, else English; a new UI language also needs an entry in `locales` in `backend/internal/i18n/i18n.go` and in `dateLocales` in `backend/internal/email/localizer.go`.
 - **Migrations are split by DB.** Raw SQL via goose in

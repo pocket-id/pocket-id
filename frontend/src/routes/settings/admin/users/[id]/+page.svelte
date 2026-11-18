@@ -102,7 +102,7 @@
 	<OidcClientAvatar id={group.id} name={group.friendlyName} hasLogo={false} size={24} />
 	<span class="text-control text-fg min-w-0 flex-1 truncate font-medium">{group.friendlyName}</span>
 	<span class="text-caption text-fg-muted">
-		{group.userCount === 1 ? m.members_count_one() : m.members_count({ count: group.userCount })}
+		{m.members_count({ count: group.userCount })}
 	</span>
 {/snippet}
 

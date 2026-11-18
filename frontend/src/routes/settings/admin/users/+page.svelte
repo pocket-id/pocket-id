@@ -105,7 +105,7 @@
 
 	const countLine = $derived.by(() => {
 		if (scope === 'all' && !search.trim()) {
-			return counts.all === 1 ? m.users_count_one() : m.users_count({ count: counts.all });
+			return m.users_count({ count: counts.all });
 		}
 		return m.count_of_users({ count: shownCount, total: counts.all });
 	});
@@ -232,7 +232,7 @@
 	<OidcClientAvatar id={group.id} name={group.friendlyName} hasLogo={false} size={24} />
 	<span class="text-control text-fg min-w-0 flex-1 truncate font-medium">{group.friendlyName}</span>
 	<span class="text-caption text-fg-muted">
-		{group.userCount === 1 ? m.members_count_one() : m.members_count({ count: group.userCount })}
+		{m.members_count({ count: group.userCount })}
 	</span>
 {/snippet}
 
@@ -264,9 +264,7 @@
 	>
 		{#if selectedIds.length > 0}
 			<span class="text-control text-fg font-medium tabular-nums" aria-live="polite">
-				{selectedIds.length === 1
-					? m.count_selected_one()
-					: m.count_selected({ count: selectedIds.length })}
+				{m.count_selected({ count: selectedIds.length })}
 			</span>
 			<Button variant="ghost" size="sm" class="text-fg-muted" onclick={() => (selectedIds = [])}>
 				{m.clear_selection()}

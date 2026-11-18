@@ -174,9 +174,7 @@
 			<Badge variant="warning">{m.no_one_can_sign_in()}</Badge>
 		{:else if client.isGroupRestricted}
 			<Badge variant="muted">
-				{client.allowedUserGroupIds.length === 1
-					? m.limited_to_one_group()
-					: m.limited_to_count_groups({ count: client.allowedUserGroupIds.length })}
+				{m.limited_to_count_groups({ count: client.allowedUserGroupIds.length })}
 			</Badge>
 		{/if}
 	{/snippet}

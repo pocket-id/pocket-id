@@ -39,11 +39,7 @@
 	const showingStatus = $derived(!!status);
 	const showingActions = $derived(unsavedChanges.hasChanges);
 	const barOpen = $derived(showingActions || showingStatus);
-	const pendingText = $derived(
-		unsavedChanges.dirtyCount === 1
-			? m.one_unsaved_change()
-			: m.count_unsaved_changes({ count: unsavedChanges.dirtyCount })
-	);
+	const pendingText = $derived(m.count_unsaved_changes({ count: unsavedChanges.dirtyCount }));
 	const announcement = $derived(
 		status?.message ??
 			(blocked ? m.save_or_discard_before_leaving() : showingActions ? pendingText : '')

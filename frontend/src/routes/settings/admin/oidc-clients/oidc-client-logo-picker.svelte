@@ -383,7 +383,13 @@
 					<!-- A custom icon library isn't necessarily selfh.st's collection, so the credit only applies to the default one while its icons are shown -->
 					{#if iconLibrary === 'default' && showIconGrid}
 						<p class="text-fg-muted text-micro border-t px-3 py-2">
-							<FormattedMessage message={m.icons_provided_by_selfhst} />
+							<FormattedMessage
+								message={m.icons_provided_by_selfhst}
+								links={{
+									icons: 'https://selfh.st/icons',
+									license: 'https://creativecommons.org/licenses/by/4.0/'
+								}}
+							/>
 						</p>
 					{/if}
 				</Popover.Content>
