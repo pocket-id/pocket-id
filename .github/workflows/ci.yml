@@ -455,7 +455,7 @@ jobs:
           for shard in $(seq "$E2E_SHARDS"); do
             (
               export E2E_SHARD="$shard" COMPOSE_PROJECT_NAME="e2e-$shard" APP_PORT=$((1510 + shard)) SCIM_PORT=$((18200 + shard))
-              export APP_URL="http://localhost:$APP_PORT" SCIM_SERVICE_PROVIDER_URL="http://localhost:$SCIM_PORT/v2" SCIM_SERVICE_PROVIDER_URL_INTERNAL=http://scim-test-server:8080/v2
+              export APP_URL="https://localhost:$APP_PORT" SCIM_SERVICE_PROVIDER_URL="http://localhost:$SCIM_PORT/v2" SCIM_SERVICE_PROVIDER_URL_INTERNAL=http://scim-test-server:8080/v2
               vp exec playwright test --shard="$shard/$E2E_SHARDS" > "/tmp/playwright-$shard.log" 2>&1
             ) &
             pids+=($!)

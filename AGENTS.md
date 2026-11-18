@@ -28,7 +28,8 @@ pnpm lint         # vp check — oxlint + oxfmt check via Vite+ (note: not enfor
 pnpm format       # vp fmt — REQUIRED before opening a PR
 ```
 
-End-to-end (needs Docker; the stack serves the app on `:1511`, so a dev backend on `:1411` can keep running):
+End-to-end (needs Docker; the stack serves the app on `https://localhost:1511`, so a dev backend on `:1411` can keep running).
+It uses the self-signed certificate in `packages/tests/setup/tls`, which `playwright.config.ts` trusts for Chromium and Node, and runs the full Chromium build with Device Bound Session Credentials enabled:
 
 ```sh
 cd packages/tests/setup && docker compose up -d --build   # rebuild after ANY code change, or you test stale code

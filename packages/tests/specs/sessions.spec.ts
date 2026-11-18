@@ -18,7 +18,7 @@ for (const { choice, persistent, remember } of [
 		const page = await context.newPage();
 		// A cookie without an expiry is dropped when the browser closes
 		const expectSessionCookie = async () => {
-			const cookie = (await context.cookies()).find((c) => c.name === 'session_token');
+			const cookie = (await context.cookies()).find((c) => c.name === '__Host-session_token');
 			expect(cookie!.expires > 0).toBe(persistent);
 		};
 

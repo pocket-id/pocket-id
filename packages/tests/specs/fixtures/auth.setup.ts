@@ -9,9 +9,10 @@ setup('authenticate', async ({ page }) => {
 
 	await page.context().addCookies([
 		{
-			name: 'session_token',
+			name: '__Host-session_token',
 			value: sessionToken,
 			url: playwrightConfig.use!.baseURL,
+			secure: true,
 			httpOnly: true,
 			sameSite: 'Lax'
 		}
