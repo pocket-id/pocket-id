@@ -8,8 +8,8 @@ test.beforeEach(async () => await cleanupBackend());
 
 for (const { choice, persistent, remember } of [
 	{ choice: 'Stay signed in', persistent: true, remember: true },
-	{ choice: "Don't stay signed in", persistent: false, remember: true },
-	{ choice: "Don't stay signed in", persistent: false, remember: false }
+	{ choice: 'Don’t stay signed in', persistent: false, remember: true },
+	{ choice: 'Don’t stay signed in', persistent: false, remember: false }
 ]) {
 	test(`Ask whether to stay signed in: ${choice}, ${remember ? 'remembered' : 'asked again'}`, async ({
 		browser
@@ -27,7 +27,7 @@ for (const { choice, persistent, remember } of [
 		await page.getByRole('button', { name: 'Sign in with passkey' }).click();
 
 		await expect(page.getByRole('heading', { name: 'Stay signed in?' })).toBeVisible();
-		const dontAskAgain = page.getByRole('checkbox', { name: "Don't ask again in this browser" });
+		const dontAskAgain = page.getByRole('checkbox', { name: 'Don’t ask again in this browser' });
 		await expect(dontAskAgain).toBeChecked();
 		if (!remember) await dontAskAgain.click();
 		await page.getByRole('button', { name: choice, exact: true }).click();

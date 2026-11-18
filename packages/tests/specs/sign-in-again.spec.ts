@@ -18,7 +18,7 @@ async function endSessionWithUnsavedChanges(page: Page, passkey: 'tim' | 'craig'
 	await page.getByRole('button', { name: 'Save', exact: true }).click();
 
 	const dialog = page.getByRole('alertdialog');
-	await expect(dialog.getByText("You've been signed out")).toBeVisible();
+	await expect(dialog.getByText('You’ve been signed out')).toBeVisible();
 	await expect(dialog.getByText(users.tim.email)).toBeVisible();
 	return dialog;
 }
