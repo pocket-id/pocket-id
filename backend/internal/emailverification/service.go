@@ -22,7 +22,7 @@ import (
 const TokenLifetime = 24 * time.Hour
 
 type EmailSender interface {
-	SendEmailVerification(ctx context.Context, dbConfig *appconfig.AppConfigModel, userFullName, userEmail string, userLocale *string, verificationLink string) error
+	SendEmailVerification(ctx context.Context, dbConfig *appconfig.AppConfigModel, userFullName, userEmail string, userLocale *string, verificationLink string, expiration time.Duration) error
 }
 
 // SendLimiter limits how many verification emails one key, the user's ID, may trigger
@@ -182,6 +182,7 @@ func (s *Service) issue(ctx context.Context, dbConfig *appconfig.AppConfigModel,
 		state.Email,
 		user.Locale,
 		s.appURL+"/verify-email?token="+token,
+		TokenLifetime,
 	)
 	if err != nil {
 		// If the email delivery fails, discard the token in the actor to avoid leaving a valid token in the system

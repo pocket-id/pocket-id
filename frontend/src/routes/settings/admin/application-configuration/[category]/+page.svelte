@@ -83,7 +83,7 @@
 		{
 			id: 'appearance',
 			label: m.appearance(),
-			intro: () => `How ${appName} looks for everyone. Changes apply when you save.`
+			intro: () => m.config_appearance_intro({ appName })
 		}
 	]);
 

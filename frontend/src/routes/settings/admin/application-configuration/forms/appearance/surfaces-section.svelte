@@ -30,7 +30,7 @@
 		{
 			value: MONOCHROME,
 			color: derivedPrimary({ ...appearance.value, primary: null }, current).fill,
-			label: 'Monochrome'
+			label: m.appearance_monochrome()
 		},
 		...primaryColors.map((hex) => ({ value: hex, color: hex, label: hex }))
 	]);
@@ -75,12 +75,12 @@
 			<label
 				class={cn('swatch text-fg-muted hover:text-fg cursor-pointer', custom && 'checked')}
 				style:background={custom ? value : undefined}
-				title="Custom color"
+				title={m.appearance_custom_color()}
 			>
 				<input
 					type="color"
 					class="sr-only"
-					aria-label="Custom {label.toLowerCase()} color"
+					aria-label={m.appearance_role_custom_color({ role: label })}
 					value={custom ? value : options[0].color}
 					oninput={(e) => set(e.currentTarget.value)}
 				/>
@@ -90,12 +90,14 @@
 	</div>
 {/snippet}
 
-<PreviewSection title="Colors" class={className} {disabled}>
+<PreviewSection title={m.appearance_colors()} class={className} {disabled}>
 	<div class="roles flex flex-col gap-6">
 		{#each surfaceRoles as role (role.value)}
 			{@render colorRow(
 				role.value,
-				role.value === 'sidebar' && appearance.value.layout === 'top-bar' ? 'Top Bar' : role.label,
+				role.value === 'sidebar' && appearance.value.layout === 'top-bar'
+					? m.appearance_role_top_bar()
+					: role.label(),
 				undefined,
 				surfaces[role.value],
 				greys(role.value),
@@ -105,8 +107,8 @@
 		<div class="flex flex-col gap-2">
 			{@render colorRow(
 				'primary',
-				'Primary',
-				'Buttons and active states',
+				m.appearance_primary(),
+				m.appearance_primary_description(),
 				appearance.value.primary ?? MONOCHROME,
 				primarySwatches,
 				(v) => (appearance.value.primary = v === MONOCHROME ? null : v)

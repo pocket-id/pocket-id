@@ -81,12 +81,12 @@
 	<!-- The tab row above already divides, so the first section starts without a hairline or top padding -->
 	<div class="grid gap-x-14 lg:grid-cols-[minmax(0,9fr)_minmax(0,11fr)]">
 		<PreviewSection
-			title="Layout"
+			title={m.appearance_layout()}
 			class="pt-0 shadow-none lg:col-start-1 lg:row-start-1"
 			{disabled}
 		>
 			<RadioGroup.Root
-				aria-label="Layout"
+				aria-label={m.appearance_layout()}
 				class="flex flex-col gap-2"
 				bind:value={() => appearance.value.layout, (v) => (appearance.value.layout = v as Layout)}
 			>
@@ -97,7 +97,7 @@
 					>
 						{#snippet children({ checked })}
 							<AppearancePreview layout={layout.value} class="w-24 shrink-0" />
-							<span class="text-control min-w-0 flex-1 font-medium">{layout.label}</span>
+							<span class="text-control min-w-0 flex-1 font-medium">{layout.label()}</span>
 							<CheckIcon
 								class={cn(
 									'text-primary-control size-5 shrink-0 transition-opacity',
@@ -131,9 +131,9 @@
 		<SurfacesSection class="max-lg:shadow-none lg:col-start-1 lg:row-start-2" {disabled} />
 	</div>
 
-	<PreviewSection title="Typography" preview={typePreview} {disabled}>
+	<PreviewSection title={m.appearance_typography()} preview={typePreview} {disabled}>
 		<div class="flex flex-col gap-3">
-			<p id="{uid}-font" class="text-control text-fg font-medium">Title font</p>
+			<p id="{uid}-font" class="text-control text-fg font-medium">{m.appearance_title_font()}</p>
 			<!-- The upload card always takes the last column, so every card is as wide as the ones below -->
 			<div class="grid grid-cols-3 gap-2">
 				<RadioGroup.Root
@@ -152,7 +152,7 @@
 							<span class="text-[34px] leading-none" style:font-family={fontFamily(option.value)}
 								>Aa</span
 							>
-							{@const name = option.value === 'custom' ? customFont?.name : option.label}
+							{@const name = option.label ?? customFont?.name}
 							<span class="text-caption text-fg-muted w-full truncate" title={name}>{name}</span>
 						</RadioGroup.Item>
 					{/each}
@@ -168,14 +168,14 @@
 					/>
 					<UploadIcon class="size-5" />
 					<span class="text-caption text-fg font-medium"
-						>{customFont ? 'Upload another' : 'Upload a font'}</span
+						>{customFont ? m.appearance_upload_another_font() : m.appearance_upload_font()}</span
 					>
 				</label>
 			</div>
 		</div>
 
 		<div class="flex flex-col gap-3">
-			<p id="{uid}-size" class="text-control text-fg font-medium">Text size</p>
+			<p id="{uid}-size" class="text-control text-fg font-medium">{m.appearance_text_size()}</p>
 			<RadioGroup.Root
 				aria-labelledby="{uid}-size"
 				orientation="horizontal"
@@ -194,16 +194,16 @@
 							class="flex h-6 items-end leading-none"
 							style:font-size="{size.value + 6}px">Aa</span
 						>
-						<span class="text-control font-medium">{size.label}</span>
+						<span class="text-control font-medium">{size.label()}</span>
 					</RadioGroup.Item>
 				{/each}
 			</RadioGroup.Root>
 		</div>
 	</PreviewSection>
 
-	<PreviewSection title="Corner radius" preview={radiusPreview} {disabled}>
+	<PreviewSection title={m.appearance_corner_radius()} preview={radiusPreview} {disabled}>
 		<RadioGroup.Root
-			aria-label="Corner radius"
+			aria-label={m.appearance_corner_radius()}
 			orientation="horizontal"
 			class="grid grid-cols-5 gap-2"
 			bind:value={
@@ -220,7 +220,9 @@
 						class="border-fg size-8 border-t-2 border-l-2"
 						style:border-top-left-radius="{option.value * 16}px"
 					></span>
-					<span class="text-caption text-fg-muted w-full truncate text-center">{option.label}</span>
+					<span class="text-caption text-fg-muted w-full truncate text-center"
+						>{option.label()}</span
+					>
 				</RadioGroup.Item>
 			{/each}
 		</RadioGroup.Root>
@@ -233,13 +235,10 @@
 	<div
 		class="bg-surface border-border w-full max-w-md rounded-xl border p-6 shadow-[0_1px_2px_rgb(0_0_0/0.04)]"
 	>
-		<h3 class="font-display text-display-m text-fg">Sign-in methods</h3>
-		<p class="text-body text-fg-muted mt-2">
-			Passkeys let people sign in with a fingerprint, their face or a screen lock, so there is
-			nothing to remember and nothing to phish.
-		</p>
+		<h3 class="font-display text-display-m text-fg">{m.appearance_sample_sign_in_methods()}</h3>
+		<p class="text-body text-fg-muted mt-2">{m.appearance_sample_sign_in_methods_description()}</p>
 		<div class="mt-4 flex flex-col">
-			{#each [{ title: 'Passkeys', text: 'Two registered, last used today on a MacBook.' }, { title: 'Login codes', text: 'One-time codes for people who lost their device.' }] as row (row.title)}
+			{#each [{ title: m.passkeys(), text: m.appearance_sample_passkeys_status() }, { title: m.appearance_sample_login_codes(), text: m.appearance_sample_login_codes_description() }] as row (row.title)}
 				<div
 					class="flex flex-col gap-0.5 py-3 shadow-[inset_0_-1px_0_var(--border)] last:shadow-none"
 				>
@@ -256,17 +255,17 @@
 		class="bg-surface border-border flex w-full max-w-sm flex-col gap-4 rounded-xl border p-5 shadow-[0_1px_2px_rgb(0_0_0/0.04)]"
 	>
 		<div class="flex items-center justify-between gap-3">
-			<p class="text-heading text-fg">Invite a user</p>
-			<Badge>Admin</Badge>
+			<p class="text-heading text-fg">{m.appearance_sample_invite_user()}</p>
+			<Badge>{m.admin()}</Badge>
 		</div>
-		<Input aria-label="Email" value="alex@example.com" />
+		<Input aria-label={m.email()} value="alex@example.com" />
 		<div class="text-control text-fg flex items-center gap-3">
-			<Switch checked aria-label="Send an invite email" />
-			Send an invite email
+			<Switch checked aria-label={m.appearance_sample_send_invite_email()} />
+			{m.appearance_sample_send_invite_email()}
 		</div>
 		<div class="flex justify-end gap-2">
-			<Button variant="ghost">Cancel</Button>
-			<Button>Send invite</Button>
+			<Button variant="ghost">{m.cancel()}</Button>
+			<Button>{m.appearance_sample_send_invite()}</Button>
 		</div>
 	</div>
 {/snippet}

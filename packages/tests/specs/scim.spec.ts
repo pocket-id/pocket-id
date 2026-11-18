@@ -170,7 +170,7 @@ test.describe('SCIM Sync', () => {
 
 		await page.getByRole('radio', { name: 'All users' }).click();
 		await page.getByRole('alertdialog').getByRole('button', { name: 'Allow all users' }).click();
-		await expect(page.getByText('Who can sign in updated', { exact: true })).toBeVisible();
+		await expect(page.getByText('Sign-in access updated', { exact: true })).toBeVisible();
 
 		await syncScimServiceProvider(page);
 

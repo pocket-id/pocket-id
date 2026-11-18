@@ -314,7 +314,7 @@
 			<p class="text-caption text-fg-muted flex items-start gap-1.5">
 				<InfoIcon class="mt-[3px] size-3 shrink-0" />
 				{m.signup_link_consequence()}
-				{m.copy_key_now_before_closing()}
+				{m.copy_link_now_before_closing()}
 			</p>
 		{/if}
 		{#snippet footer()}

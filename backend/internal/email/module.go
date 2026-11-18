@@ -99,7 +99,7 @@ func (m *Module) SendTestEmail(ctx context.Context, dbConfig *appconfig.AppConfi
 	}, testTemplate, nil)
 }
 
-func (m *Module) SendEmailVerification(ctx context.Context, dbConfig *appconfig.AppConfigModel, userFullName, userEmail string, userLocale *string, verificationLink string) error {
+func (m *Module) SendEmailVerification(ctx context.Context, dbConfig *appconfig.AppConfigModel, userFullName, userEmail string, userLocale *string, verificationLink string, expiration time.Duration) error {
 	return send(ctx, m, dbConfig, address{
 		name:   userFullName,
 		email:  userEmail,
@@ -107,6 +107,7 @@ func (m *Module) SendEmailVerification(ctx context.Context, dbConfig *appconfig.
 	}, emailVerificationTemplate, &emailVerificationTemplateData{
 		UserFullName:     userFullName,
 		VerificationLink: verificationLink,
+		Expiration:       expiration,
 	})
 }
 

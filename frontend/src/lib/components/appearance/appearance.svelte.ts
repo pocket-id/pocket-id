@@ -47,16 +47,16 @@ export const defaultAppearance: Appearance = {
 	radius: 1.25
 };
 
-export const layouts: { value: Layout; label: string }[] = [
-	{ value: 'backdrop', label: 'Backdrop' },
-	{ value: 'classic', label: 'Classic' },
-	{ value: 'top-bar', label: 'Top Bar' }
+export const layouts: { value: Layout; label: () => string }[] = [
+	{ value: 'backdrop', label: m.appearance_layout_backdrop },
+	{ value: 'classic', label: m.appearance_layout_classic },
+	{ value: 'top-bar', label: m.appearance_layout_top_bar }
 ];
 
-export const surfaceRoles: { value: SurfaceRole; label: string }[] = [
-	{ value: 'background', label: 'Background' },
-	{ value: 'sidebar', label: 'Sidebar' },
-	{ value: 'surface', label: 'Surface' }
+export const surfaceRoles: { value: SurfaceRole; label: () => string }[] = [
+	{ value: 'background', label: m.appearance_role_background },
+	{ value: 'sidebar', label: m.appearance_role_sidebar },
+	{ value: 'surface', label: m.appearance_role_surface }
 ];
 
 export const swatches: Record<Mode, Record<SurfaceRole, string[]>> = {
@@ -75,24 +75,25 @@ export const swatches: Record<Mode, Record<SurfaceRole, string[]>> = {
 // Teal, blue, violet and berry at about the same lightness, each at least 30 degrees of hue away from the error, warning and success colors
 export const primaryColors = ['#0f766e', '#2563eb', '#7c3aed', '#b5338a'];
 
-export const fonts: { value: Font['kind']; label: string; family: string }[] = [
+// The custom option has no label because its tile names the uploaded font
+export const fonts: { value: Font['kind']; label?: string; family: string }[] = [
 	{ value: 'serif', label: 'Young Serif', family: "'Young Serif', serif" },
 	// Specimens on the page show the draft, so the custom option names the draft's font
-	{ value: 'custom', label: 'Custom', family: "'Appearance Draft', 'Young Serif', serif" }
+	{ value: 'custom', family: "'Appearance Draft', 'Young Serif', serif" }
 ];
 
-export const textSizes: { value: number; label: string }[] = [
-	{ value: 15, label: 'Small' },
-	{ value: 16, label: 'Default' },
-	{ value: 17, label: 'Large' }
+export const textSizes: { value: number; label: () => string }[] = [
+	{ value: 15, label: m.appearance_text_size_small },
+	{ value: 16, label: m.appearance_text_size_default },
+	{ value: 17, label: m.appearance_text_size_large }
 ];
 
-export const radii: { value: number; label: string }[] = [
-	{ value: 0, label: 'Square' },
-	{ value: 0.5, label: 'Subtle' },
-	{ value: 1, label: 'Medium' },
-	{ value: 1.25, label: 'Round' },
-	{ value: 1.5, label: 'Rounder' }
+export const radii: { value: number; label: () => string }[] = [
+	{ value: 0, label: m.appearance_radius_square },
+	{ value: 0.5, label: m.appearance_radius_subtle },
+	{ value: 1, label: m.appearance_radius_medium },
+	{ value: 1.25, label: m.appearance_radius_round },
+	{ value: 1.5, label: m.appearance_radius_rounder }
 ];
 
 export type BrandImageKey =

@@ -56,17 +56,12 @@
 		<Button class={authPrimaryClass} href="/login">{m.auth_go_to_sign_in()}</Button>
 	{:else}
 		<AuthHeading
-			title={data.token ? invite : m.auth_create_your_account({ appName: $appConfigStore.appName })}
+			title={data.token
+				? m.auth_invited_to_app({ appName: $appConfigStore.appName })
+				: m.auth_create_your_account({ appName: $appConfigStore.appName })}
 		>
 			{error ?? m.auth_signup_description()}
 		</AuthHeading>
 		<SignupForm callback={handleSignup} submitLabel={m.auth_create_account()} />
 	{/if}
 </SignInWrapper>
-
-{#snippet invite()}
-	<span class="text-control text-fg-muted block font-sans font-normal tracking-normal">
-		{m.auth_invited_to()}
-	</span>
-	<span class="block">{$appConfigStore.appName}</span>
-{/snippet}

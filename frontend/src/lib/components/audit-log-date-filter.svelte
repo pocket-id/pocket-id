@@ -66,7 +66,7 @@
 		aria-label={m.facet_filter_label({ name: m.date(), value: label })}
 		class="hover:bg-fill-hover aria-expanded:bg-fill-selected focus-visible:outline-ring text-control flex h-7 shrink-0 items-center gap-1 rounded-xs pr-1.5 pl-2 whitespace-nowrap transition-colors duration-(--dur-fast) focus-visible:outline-2 focus-visible:outline-offset-2"
 	>
-		<span class="text-fg-muted">{m.date()}:</span>
+		<span class="text-fg-muted">{m.filter_name_label({ name: m.date() })}</span>
 		<span class={selected === 'any' ? 'text-fg-muted' : 'text-fg font-medium'}>{label}</span>
 		<span class="text-fg-muted">({zone})</span>
 		<ChevronDown class="text-fg-muted size-3" />

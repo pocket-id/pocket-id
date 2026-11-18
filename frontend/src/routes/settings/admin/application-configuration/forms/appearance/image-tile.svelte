@@ -81,13 +81,17 @@
 		<span class="text-control text-fg line-clamp-2 min-w-0 flex-1 pt-0.5 font-medium">{name}</span>
 		{#if pending !== undefined}
 			<span class="text-caption text-fg-muted"
-				>{pending ? 'New' : image.canReset ? 'Default' : 'Removed'}</span
+				>{pending
+					? m.appearance_image_new()
+					: image.canReset
+						? m.appearance_image_default()
+						: m.appearance_image_removed()}</span
 			>
 		{/if}
 		<DropdownMenu.Root>
 			<DropdownMenu.Trigger
 				{disabled}
-				aria-label="Change {image.name()}"
+				aria-label={m.appearance_change_image({ name: image.name() })}
 				class="text-fg-muted hover:text-fg hover:bg-fill-hover focus-visible:outline-ring grid size-7 place-items-center rounded-sm transition-colors focus-visible:outline-2 disabled:pointer-events-none disabled:opacity-45"
 			>
 				<DotsIcon class="size-4" />
@@ -112,7 +116,7 @@
 				{#if pending !== undefined}
 					<DropdownMenu.Item onSelect={() => appearance.setImage(image.key, undefined)}>
 						<RestartIcon />
-						Undo
+						{m.undo()}
 					</DropdownMenu.Item>
 				{/if}
 			</DropdownMenu.Content>
@@ -120,7 +124,7 @@
 		<input
 			bind:this={input}
 			type="file"
-			aria-label="Replace {image.name()}"
+			aria-label={m.appearance_replace_image({ name: image.name() })}
 			class="hidden"
 			accept={image.accept}
 			onchange={onFileChange}

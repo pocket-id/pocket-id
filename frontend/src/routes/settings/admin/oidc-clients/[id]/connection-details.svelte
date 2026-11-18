@@ -28,11 +28,15 @@
 		...(showEndpoints
 			? [
 					{
-						label: m.authorization(),
+						label: m.authorization_endpoint(),
 						value: configuration.authorization_endpoint,
 						copyLabel: m.copy_authorization_url()
 					},
-					{ label: m.token(), value: configuration.token_endpoint, copyLabel: m.copy_token_url() },
+					{
+						label: m.token_endpoint(),
+						value: configuration.token_endpoint,
+						copyLabel: m.copy_token_url()
+					},
 					{
 						label: m.userinfo(),
 						value: configuration.userinfo_endpoint,

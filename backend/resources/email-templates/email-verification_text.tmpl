@@ -1,6 +1,6 @@
 {{define "root"}}{{.T "email_verification_title"}}
 
-{{.T "email_verification_description" "name" (.Data.UserFullName) "appName" (.AppName)}}
+{{.T "email_verification_description" "name" (.Data.UserFullName) "appName" (.AppName) "expiration" (.Duration .Data.Expiration)}}
 
 {{.T "email_verification_button"}} {{.Data.VerificationLink}}
 

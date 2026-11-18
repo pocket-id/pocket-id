@@ -62,7 +62,7 @@
 					<ChevronLeftIcon />
 				</Button>
 				<span class="text-caption text-fg-muted tabular-nums">
-					{m.count_of_total({ count: tasks.indexOf(current) + 1, total: tasks.length })}
+					{m.step_of_total({ count: tasks.indexOf(current) + 1, total: tasks.length })}
 				</span>
 				<Button variant="ghost" size="icon-xs" aria-label={m.next()} onclick={() => step(1)}>
 					<ChevronRightIcon />

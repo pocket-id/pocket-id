@@ -37,3 +37,14 @@ export async function setLocaleForLibraries(locale: Locale = getLocale()) {
 		console.warn(`Failed to load date-fns locale for ${locale}:`, dateFnsResult.reason);
 	}
 }
+
+// Lists are joined the way the current language joins them, e.g. "A, B and C" or "A、B和C"
+export function formatList(items: string[]) {
+	return new Intl.ListFormat(getLocale(), { type: 'conjunction' }).format(items);
+}
+
+// Long lists name the first few and let the last entry count the rest, so a note stays short
+export function formatNames(names: string[], limit: number, rest: (count: number) => string) {
+	if (names.length <= limit) return formatList(names);
+	return formatList([...names.slice(0, limit - 1), rest(names.length - limit + 1)]);
+}

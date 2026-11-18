@@ -426,7 +426,7 @@
 				{#if searchStatus === 'searching'}
 					<p class="text-control text-fg-muted px-2 py-2">{m.palette_searching()}</p>
 				{:else if searchStatus === 'failed'}
-					<p class="text-control text-fg-muted px-2 py-2">{m.palette_search_failed()}</p>
+					<p class="text-control text-fg-muted px-2 py-2">{m.search_failed()}</p>
 				{:else if searchStatus === 'done' && !sections.length}
 					<p class="text-control text-fg-muted px-2 py-2">
 						{m.palette_no_results({ query: query.trim() })}

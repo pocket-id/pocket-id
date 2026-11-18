@@ -17,7 +17,10 @@ export function sessionSignInMethod(session: Session) {
 			return m.passkey();
 		case 'otp':
 			return m.sign_in_method_login_code();
-		default:
+		// Signing up starts the first session without any authentication method
+		case '':
 			return m.sign_in_method_account_creation();
+		default:
+			return m.unknown();
 	}
 }

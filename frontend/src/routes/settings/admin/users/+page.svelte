@@ -75,7 +75,7 @@
 			[
 				['all', m.all()],
 				['admins', m.admins()],
-				['disabled', m.disabled()],
+				['disabled', m.user_disabled()],
 				['unverified', m.unverified()]
 			] as const
 		).filter(([value]) => value !== 'unverified' || verificationOn)
@@ -113,7 +113,7 @@
 	// Phones hide every column but the first, so its third line carries what they would have shown
 	function phoneMeta(user: User) {
 		const status = user.disabled
-			? m.disabled()
+			? m.user_disabled()
 			: !user.emailVerified && verificationOn
 				? m.unverified()
 				: undefined;
@@ -205,7 +205,7 @@
 {/snippet}
 
 {#snippet RoleCell({ item }: { item: User })}
-	{#if item.isAdmin}{m.admin()}{:else}<span class="text-fg-muted">{m.user()}</span>{/if}
+	{#if item.isAdmin}{m.admin()}{:else}<span class="text-fg-muted">{m.role_user()}</span>{/if}
 {/snippet}
 
 {#snippet StatusCell({ item }: { item: User })}
@@ -264,7 +264,9 @@
 	>
 		{#if selectedIds.length > 0}
 			<span class="text-control text-fg font-medium tabular-nums" aria-live="polite">
-				{m.count_selected({ count: selectedIds.length })}
+				{selectedIds.length === 1
+					? m.count_selected_one()
+					: m.count_selected({ count: selectedIds.length })}
 			</span>
 			<Button variant="ghost" size="sm" class="text-fg-muted" onclick={() => (selectedIds = [])}>
 				{m.clear_selection()}
@@ -335,7 +337,7 @@
 						tableRef?.refresh();
 					}}
 				>
-					<Tabs.List aria-label={m.user_scopes()}>
+					<Tabs.List aria-label={m.user_filters()}>
 						{#each scopes as [value, label] (value)}
 							<Tabs.Trigger {value}>
 								{label}

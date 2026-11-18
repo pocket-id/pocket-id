@@ -7,6 +7,7 @@ import { type SharedProps, sharedPreviewProps, sharedTemplateProps } from '../pr
 interface EmailVerificationData {
 	userFullName: string;
 	verificationLink: string;
+	expiration: string;
 }
 
 interface EmailVerificationProps extends SharedProps {
@@ -21,7 +22,8 @@ export const EmailVerification = ({ data, ...props }: EmailVerificationProps) =>
 		<CardHeader title={props.t('email_verification_title')}>
 			{props.t('email_verification_description', {
 				name: data.userFullName,
-				appName: props.appName
+				appName: props.appName,
+				expiration: data.expiration
 			})}
 		</CardHeader>
 
@@ -41,7 +43,8 @@ EmailVerification.TemplateProps = {
 	...sharedTemplateProps,
 	data: {
 		userFullName: '{{.Data.UserFullName}}',
-		verificationLink: '{{.Data.VerificationLink}}'
+		verificationLink: '{{.Data.VerificationLink}}',
+		expiration: '{{.Duration .Data.Expiration}}'
 	}
 };
 
@@ -49,6 +52,7 @@ EmailVerification.PreviewProps = {
 	...sharedPreviewProps,
 	data: {
 		userFullName: 'Tim Cook',
-		verificationLink: 'https://id.example.com/user/verify-email?code=abcdefg12345'
+		verificationLink: 'https://id.example.com/user/verify-email?code=abcdefg12345',
+		expiration: '1 day'
 	}
 };

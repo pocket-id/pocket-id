@@ -32,7 +32,7 @@ type sentVerificationEmail struct {
 	verificationLink string
 }
 
-func (s *testEmailSender) SendEmailVerification(_ context.Context, _ *appconfig.AppConfigModel, userFullName, userEmail string, _ *string, verificationLink string) error {
+func (s *testEmailSender) SendEmailVerification(_ context.Context, _ *appconfig.AppConfigModel, userFullName, userEmail string, _ *string, verificationLink string, _ time.Duration) error {
 	if s.err != nil {
 		return s.err
 	}

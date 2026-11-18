@@ -81,8 +81,9 @@
 			{/if}
 		</p>
 		<p class="text-caption text-fg-muted">
-			{m.added_on()}
-			{new Date(passkey.createdAt).toLocaleDateString(getLocale(), { dateStyle: 'medium' })}
+			{m.added_on_date({
+				date: new Date(passkey.createdAt).toLocaleDateString(getLocale(), { dateStyle: 'medium' })
+			})}
 		</p>
 	</div>
 	{#if onRename}

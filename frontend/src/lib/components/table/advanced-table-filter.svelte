@@ -43,7 +43,7 @@
 </script>
 
 {#snippet triggerLabel()}
-	<span class="text-fg-muted">{title}:</span>
+	<span class="text-fg-muted">{m.filter_name_label({ name: title })}</span>
 	<span class={selected ? 'text-fg font-medium' : 'text-fg-muted'}>{valueLabel}</span>
 {/snippet}
 

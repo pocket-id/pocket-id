@@ -42,7 +42,7 @@
 		{@render children()}
 	</div>
 	<RadioGroup.Root
-		aria-label="Preview mode"
+		aria-label={m.appearance_preview_mode()}
 		orientation="horizontal"
 		class="bg-surface-raised/90 border-border shadow-thumb absolute right-3 bottom-3 flex items-center gap-0.5 rounded-full border p-0.5 backdrop-blur-sm"
 		bind:value={() => previewMode.current, (v) => (previewMode.current = v as 'light' | 'dark')}

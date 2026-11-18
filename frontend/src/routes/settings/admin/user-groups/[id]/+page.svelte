@@ -13,6 +13,7 @@
 	import * as InputGroup from '@pocket-id/ui/input-group';
 	import HashTabs from '#lib/components/hash-tabs.svelte';
 	import * as Tabs from '@pocket-id/ui/tabs';
+	import { formatNames } from '#lib/utils/locale.util.ts';
 	import { m } from '#lib/paraglide/messages.js';
 	import CustomClaimService from '#lib/services/custom-claim-service.ts';
 	import UserGroupService from '#lib/services/user-group-service.ts';
@@ -162,14 +163,7 @@
 		toast.success(m.group_id_copied());
 	}
 
-	// Long lists name the first few and count the rest, so the note stays short
-	const joinNames = (names: string[]) =>
-		names.length > 4
-			? m.names_and_last({
-					names: names.slice(0, 3).join(', '),
-					last: m.count_more({ count: names.length - 3 })
-				})
-			: m.names_and_last({ names: names.slice(0, -1).join(', '), last: names.at(-1)! });
+	const joinNames = (names: string[]) => formatNames(names, 4, (count) => m.count_more({ count }));
 </script>
 
 <svelte:head>

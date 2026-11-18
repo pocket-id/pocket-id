@@ -242,7 +242,7 @@
 	{#if active}
 		<div class="mb-6 flex flex-col gap-5" out:fade={{ duration: cssMs('--dur-fast') }}>
 			<div class="flex flex-col items-start gap-1.5">
-				<p class="text-caption text-fg-muted">{m.device_login_open_on_that_device()}</p>
+				<p class="text-caption text-fg-muted">{m.device_login_open_this_address()}</p>
 				<button
 					type="button"
 					class="hover:text-fg-muted text-title flex max-w-full items-center gap-2 text-left font-medium transition-colors"
@@ -254,7 +254,7 @@
 				</button>
 			</div>
 			<div class="flex flex-col items-start gap-1.5">
-				<p class="text-caption text-fg-muted">{m.device_login_and_enter()}</p>
+				<p class="text-caption text-fg-muted">{m.device_login_enter_this_code()}</p>
 				<button
 					type="button"
 					class="hover:text-fg-muted flex items-center gap-3 font-mono text-3xl font-medium tracking-[0.12em] transition-colors"

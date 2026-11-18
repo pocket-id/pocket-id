@@ -50,7 +50,7 @@
 		try {
 			await oidcService.updateClient(client.id, { isGroupRestricted: true });
 			client.isGroupRestricted = true;
-			toast.success(m.who_can_sign_in_updated());
+			toast.success(m.sign_in_access_updated());
 		} catch (e) {
 			axiosErrorToast(e);
 		}
@@ -70,7 +70,7 @@
 						client.allowedUserGroupIds = [];
 						allowedUserGroups.markSaved();
 						client.isGroupRestricted = false;
-						toast.success(m.who_can_sign_in_updated());
+						toast.success(m.sign_in_access_updated());
 					} catch (e) {
 						axiosErrorToast(e);
 					}

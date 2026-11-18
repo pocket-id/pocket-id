@@ -64,7 +64,7 @@ export async function confirmDeletePolicy(policy: PolicyRef, onDeleted: () => un
 	openConfirmDialog({
 		title: m.delete_name_question({ name: policy.name }),
 		message: policy.isDefault
-			? `${consequence} ${m.built_in_policy_becomes_the_default()}`
+			? m.consequence_and_built_in_policy_becomes_default({ consequence })
 			: consequence,
 		confirm: {
 			label: m.delete_policy(),

@@ -43,7 +43,7 @@
 	const appName = $derived($appConfigStore.appName);
 
 	const tlsOptions = [
-		{ value: 'none' as const, label: m.none() },
+		{ value: 'none' as const, label: m.smtp_tls_none() },
 		{ value: 'starttls' as const, label: 'StartTLS' },
 		{ value: 'tls' as const, label: 'TLS' }
 	];

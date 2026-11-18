@@ -6,6 +6,7 @@
 		brandImages
 	} from '#lib/components/appearance/appearance.svelte.ts';
 	import Logo from '#lib/components/logo.svelte';
+	import { m } from '#lib/paraglide/messages.js';
 	import appConfigStore from '#lib/stores/application-configuration-store.ts';
 	import CloseIcon from '~icons/solar/close-linear';
 	import type { Snippet } from 'svelte';
@@ -60,10 +61,8 @@
 				'h-8 max-w-32 self-start object-contain',
 				emailFallback
 			)}
-			<span class="text-heading text-black">Your sign-in code</span>
-			<span class="text-caption"
-				>Enter this code to sign in to {appName}. It expires in 15 minutes.</span
-			>
+			<span class="text-heading text-black">{m.appearance_sample_sign_in_code()}</span>
+			<span class="text-caption">{m.appearance_sample_sign_in_code_description({ appName })}</span>
 			<span
 				class="w-fit rounded-sm bg-black/5 px-3 py-1.5 font-mono text-[17px] tracking-[0.2em] text-black"
 			>
@@ -97,7 +96,7 @@
 {/snippet}
 
 {#key appearance.imagesKey}
-	<PreviewSection title="Branding" preview={brandingPreview}>
+	<PreviewSection title={m.appearance_branding()} preview={brandingPreview}>
 		<fieldset class="min-w-0" disabled={$appConfigStore.uiConfigDisabled}>
 			<div class="grid grid-cols-2 gap-x-3 gap-y-5 sm:grid-cols-3">
 				{#each brandImages as image (image.key)}

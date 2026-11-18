@@ -78,7 +78,7 @@
 		{:else if failure}
 			{failure.closed ? m.auth_passkey_prompt_closed() : failure.message}
 		{:else}
-			{m.auth_add_passkey_description({ appName: $appConfigStore.appName })}
+			{m.auth_add_passkey_description()}
 		{/if}
 	</AuthHeading>
 	{#if !success}

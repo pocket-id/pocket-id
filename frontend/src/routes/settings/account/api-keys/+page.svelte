@@ -68,7 +68,9 @@
 	// Phones only show the key column, so its expiry and last use move into a line under the name
 	function phoneMeta(key: ApiKey) {
 		const expiry = expiryStatus(key)?.label ?? m.expires_date({ date: formatDate(key.expiresAt) });
-		const lastUsed = key.lastUsedAt ? `${m.last_used()} ${formatDate(key.lastUsedAt)}` : undefined;
+		const lastUsed = key.lastUsedAt
+			? m.last_used_date({ date: formatDate(key.lastUsedAt) })
+			: undefined;
 		return [expiry, lastUsed].filter(Boolean).join(' · ');
 	}
 
@@ -81,7 +83,7 @@
 	const refresh = () => tableRef?.refresh();
 
 	const columns: AdvancedTableColumn<ApiKey>[] = [
-		{ label: m.key(), column: 'name', sortable: true, cell: KeyCell },
+		{ label: m.api_key(), column: 'name', sortable: true, cell: KeyCell },
 		{
 			label: m.permissions(),
 			column: 'scopes',
@@ -169,7 +171,7 @@
 	{#if item.lastUsedAt}
 		<span class="tabular-nums">{formatDate(item.lastUsedAt)}</span>
 	{:else}
-		<span class="text-fg-muted">{m.never()}</span>
+		<span class="text-fg-muted">{m.never_used()}</span>
 	{/if}
 {/snippet}
 
@@ -196,7 +198,7 @@
 
 	{#if empty}
 		<EmptyList
-			columns={[m.key(), m.expires()]}
+			columns={[m.api_key(), m.expires()]}
 			title={m.create_your_first_api_key()}
 			avatar={false}
 		>

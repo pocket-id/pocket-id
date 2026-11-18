@@ -11,5 +11,5 @@
 		<InfoIcon class="mt-[3px] size-3.5 shrink-0" />
 		{m.copy_it_now_you_wont_see_it_again()}
 	</p>
-	<CopyField {label} {value} {testId} copyLabel={m.copy_label({ label: label.toLowerCase() })} />
+	<CopyField {label} {value} {testId} copyLabel={m.copy_client_secret()} />
 </div>

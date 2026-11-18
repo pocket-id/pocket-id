@@ -160,7 +160,7 @@
 			case 'cli':
 				return m.audit_actor_cli();
 			case 'system':
-				return m.system();
+				return m.audit_actor_system();
 		}
 	}
 
@@ -291,10 +291,11 @@
 							: undefined}
 					{@const actor = actorName(log)}
 					{@const via = credentialVia(log)}
-					{@const performedBy = [actor, via].filter(Boolean).join(' ')}
+					{@const performedBy =
+						actor && via ? m.audit_actor_via({ name: actor, via }) : actor || via}
 					{@const actedBy = selfAction
 						? via
-						: actor && [m.audit_by({ name: actor }), via].filter(Boolean).join(' ')}
+						: actor && (via ? m.audit_by_via({ name: actor, via }) : m.audit_by({ name: actor }))}
 					{@const objectName =
 						log.data?.groupName ||
 						log.data?.apiKeyName ||

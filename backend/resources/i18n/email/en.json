@@ -16,10 +16,10 @@
 	"email_verification_subject": "Verify your {appName} email address",
 	"email_verification_preview": "Confirm the email address for your {appName} account",
 	"email_verification_title": "Verify your email address",
-	"email_verification_description": "Hello {name}, confirm that this is the email address for your {appName} account. The link expires in 24 hours.",
+	"email_verification_description": "Hello {name}, confirm that this is the email address for your {appName} account. The link expires in {expiration}.",
 	"email_verification_button": "Verify email address",
 
-	"one_time_access_subject": "Login Code",
+	"one_time_access_subject": "Your {appName} login code",
 	"one_time_access_preview": "Your {appName} login code is {code}",
 	"one_time_access_title": "Your login code",
 	"one_time_access_description": "Enter this code to sign in to {appName}. It expires in {expiration}.",
@@ -33,7 +33,7 @@
 	"signup_invitation_button": "Create account",
 	"signup_invitation_ignore": "If you weren't expecting this invitation, you can ignore this email.",
 
-	"new_sign_in_subject": "New device login with {appName}",
+	"new_sign_in_subject": "New sign-in to your {appName} account",
 	"new_sign_in_preview": "A new sign-in to your {appName} account was detected",
 	"new_sign_in_title": "New sign-in detected",
 	"new_sign_in_description": "Your {appName} account was accessed from a new IP address or browser. If this was you, there's nothing to do.",
@@ -47,7 +47,7 @@
 	"sign_in_method_one_time_code": "One-time code",
 	"sign_in_method_another_device": "Another device (QR code)",
 
-	"api_key_expiring_subject": "API Key \"{apiKeyName}\" Expiring Soon",
+	"api_key_expiring_subject": "Your API key {apiKeyName} expires soon",
 	"api_key_expiring_preview": "Your API key {apiKeyName} expires on {expiresAt}",
 	"api_key_expiring_title": "API key expiring soon",
 	"api_key_expiring_description": "Hello {name}, one of your API keys expires soon. Anything that uses it will stop working once it expires.",

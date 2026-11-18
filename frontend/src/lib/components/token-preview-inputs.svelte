@@ -56,7 +56,7 @@
 		<Field.Field>
 			<Field.Label>{m.scopes()}</Field.Label>
 			<MultiSelect
-				placeholder={m.none()}
+				placeholder={m.no_scopes_selected()}
 				items={['openid', 'email', 'profile', 'groups', ...customScopes].map((scope) => ({
 					value: scope,
 					label: scope

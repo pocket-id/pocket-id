@@ -50,7 +50,7 @@
 	// Levels keep their column across rows, so a resource with one scope lines up under Read or Write
 	function levelsOf(resource: ScopeResource) {
 		const levels: { value: ScopeLevel; label: string; column: string }[] = [
-			{ value: 'none', label: m.none(), column: 'col-start-1' }
+			{ value: 'none', label: m.permission_level_none(), column: 'col-start-1' }
 		];
 		if (resource.read) levels.push({ value: 'read', label: m.read(), column: 'col-start-2' });
 		if (resource.write) {

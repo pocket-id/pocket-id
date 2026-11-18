@@ -41,7 +41,11 @@
 						{title}
 					</span>
 					{#if changedCount > 0}
-						<Badge>{m.count_changed({ count: changedCount })}</Badge>
+						<Badge
+							>{changedCount === 1
+								? m.count_changed_one()
+								: m.count_changed({ count: changedCount })}</Badge
+						>
 					{/if}
 					<span aria-hidden="true" class="bg-border h-px flex-1"></span>
 					<ChevronDownIcon

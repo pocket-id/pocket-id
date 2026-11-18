@@ -72,7 +72,7 @@ test.describe('Login code by email', () => {
 		// The email is sent in the background
 		await expect.poll(() => smtp.emails.length).toBe(1);
 		const email = lastEmailTo(smtp, users.tim.email);
-		expect(email.subject).toBe('Login Code');
+		expect(email.subject).toBe('Your Pocket ID login code');
 		expect(email.body).toContain('<html dir="ltr" lang="en">');
 		expect(email.body).toContain('Your login code');
 

@@ -15,7 +15,9 @@ export function confirmDeleteGroup(
 		message:
 			group.memberCount === 0
 				? m.delete_empty_group_consequence()
-				: m.delete_group_consequence({ count: group.memberCount }),
+				: group.memberCount === 1
+					? m.delete_group_consequence_one()
+					: m.delete_group_consequence({ count: group.memberCount }),
 		confirm: {
 			label: m.delete_group(),
 			destructive: true,

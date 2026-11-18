@@ -286,7 +286,7 @@
 		</ActionPanel>
 	{:else if view === 'consent' && client}
 		<AuthHeading title={client.name}>
-			{@render status(m.auth_wants_to_use_account_on_device({ appName: $appConfigStore.appName }))}
+			{@render status(m.auth_use_account_on_another_device({ appName: $appConfigStore.appName }))}
 		</AuthHeading>
 		<TrustLine {client} />
 		<div class="mb-6">

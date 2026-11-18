@@ -177,11 +177,11 @@
 			{#if failure}
 				{failure.closed ? m.auth_passkey_prompt_closed() : failure.message}
 			{:else if view === 'select_account'}
-				{m.auth_to_continue_to({ name: clientName })}
+				{m.auth_continue_with_chosen_account({ name: clientName })}
 			{:else if view === 'reauthenticate'}
 				{m.auth_confirm_with_passkey({ name: clientName })}
 			{:else}
-				{m.auth_wants_to_sign_you_in({ appName: $appConfigStore.appName })}
+				{m.auth_sign_in_with_your_account({ appName: $appConfigStore.appName })}
 			{/if}
 		</AuthHeading>
 

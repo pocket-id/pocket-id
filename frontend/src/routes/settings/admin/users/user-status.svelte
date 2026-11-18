@@ -8,7 +8,7 @@
 </script>
 
 {#if user.disabled}
-	<Badge variant="destructive">{m.disabled()}</Badge>
+	<Badge variant="destructive">{m.user_disabled()}</Badge>
 {:else if !user.emailVerified && $appConfigStore.emailVerification !== 'disabled'}
 	<Badge variant="warning">{m.unverified()}</Badge>
 {/if}

@@ -12,6 +12,7 @@
 	import { Switch } from '@pocket-id/ui/switch';
 	import HashTabs from '#lib/components/hash-tabs.svelte';
 	import * as Tabs from '@pocket-id/ui/tabs';
+	import { formatList } from '#lib/utils/locale.util.ts';
 	import { m } from '#lib/paraglide/messages.js';
 	import OidcClaimMappingPolicyService from '#lib/services/oidc-claim-mapping-policy-service.ts';
 	import {
@@ -264,10 +265,7 @@
 		<span
 			class="flex gap-1"
 			aria-label={m.included_in_tokens({
-				tokens: marks
-					.filter((mark) => mark.on)
-					.map((mark) => mark.label)
-					.join(', ')
+				tokens: formatList(marks.filter((mark) => mark.on).map((mark) => mark.label))
 			})}
 		>
 			{#each marks as mark (mark.label)}

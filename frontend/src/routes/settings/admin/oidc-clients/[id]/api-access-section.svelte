@@ -96,23 +96,16 @@
 			...entry.userDelegatedPermissionIds,
 			...entry.cimdGrantedPermissionIds
 		]).size;
-		const parts = [
-			m.on_behalf_of_people_summary({
-				access: accessSummary(
-					entry.userDelegatedAccess || entry.cimdGrantedAccess,
-					delegated,
-					total
-				)
-			})
-		];
-		if (!client.isPublic) {
-			parts.push(
-				m.as_itself_summary({
-					access: accessSummary(entry.clientAccess, entry.clientPermissionIds.length, total)
-				})
-			);
-		}
-		return parts.join(' · ');
+		const people = accessSummary(
+			entry.userDelegatedAccess || entry.cimdGrantedAccess,
+			delegated,
+			total
+		);
+		if (client.isPublic) return m.on_behalf_of_people_summary({ access: people });
+		return m.api_client_access_summary({
+			people,
+			itself: accessSummary(entry.clientAccess, entry.clientPermissionIds.length, total)
+		});
 	}
 </script>
 

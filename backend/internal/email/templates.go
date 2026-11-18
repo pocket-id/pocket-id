@@ -16,7 +16,7 @@ var newLoginTemplate = template[newLoginTemplateData]{
 var oneTimeAccessTemplate = template[oneTimeAccessTemplateData]{
 	path: "one-time-access",
 	title: func(data *templateData[oneTimeAccessTemplateData]) (string, error) {
-		return data.T("one_time_access_subject")
+		return data.T("one_time_access_subject", "appName", data.AppName)
 	},
 }
 
@@ -78,6 +78,7 @@ type apiKeyExpiringSoonTemplateData struct {
 type emailVerificationTemplateData struct {
 	UserFullName     string
 	VerificationLink string
+	Expiration       time.Duration
 }
 
 var templatePaths = []string{

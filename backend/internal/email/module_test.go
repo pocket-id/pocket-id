@@ -74,14 +74,14 @@ func TestModuleSendsEveryEmailType(t *testing.T) {
 			name:          "email verification",
 			subject:       "Verify your Pocket ID Test email address",
 			recipientName: "Test User",
-			bodyContains:  []string{"Verify your email address", "Hello Test User", "https://id.example.test/verify-token"},
+			bodyContains:  []string{"Verify your email address", "Hello Test User", "The link expires in 1 day", "https://id.example.test/verify-token"},
 			send: func(ctx context.Context, config *appconfig.AppConfigModel) error {
-				return module.SendEmailVerification(ctx, config, user.FullName(), userEmail, nil, "https://id.example.test/verify-token")
+				return module.SendEmailVerification(ctx, config, user.FullName(), userEmail, nil, "https://id.example.test/verify-token", 24*time.Hour)
 			},
 		},
 		{
 			name:          "one-time access",
-			subject:       "Login Code",
+			subject:       "Your Pocket ID Test login code",
 			recipientName: "Test User",
 			bodyContains:  []string{"Your login code", "123456", "https://id.example.test/lc/123456", "15 minutes"},
 			send: func(ctx context.Context, config *appconfig.AppConfigModel) error {
@@ -98,7 +98,7 @@ func TestModuleSendsEveryEmailType(t *testing.T) {
 		},
 		{
 			name:          "new login",
-			subject:       "New device login with Pocket ID Test",
+			subject:       "New sign-in to your Pocket ID Test account",
 			recipientName: "Test User",
 			bodyContains:  []string{"New sign-in detected", "Zurich, Switzerland", "192.0.2.10", "Firefox on Linux", "Sign-in method", "One-time code", "January 2, 2030 at 3:04 pm UTC"},
 			send: func(ctx context.Context, config *appconfig.AppConfigModel) error {
@@ -107,7 +107,7 @@ func TestModuleSendsEveryEmailType(t *testing.T) {
 		},
 		{
 			name:          "API key expiration",
-			subject:       `API Key "Automation" Expiring Soon`,
+			subject:       "Your API key Automation expires soon",
 			recipientName: "Test User",
 			bodyContains:  []string{"API key expiring soon", "Hello Test", "Automation", "January 2, 2030 at 3:04 pm UTC"},
 			send: func(ctx context.Context, config *appconfig.AppConfigModel) error {
