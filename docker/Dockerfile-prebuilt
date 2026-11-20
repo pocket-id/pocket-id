@@ -1,7 +1,7 @@
 # This Dockerfile embeds a pre-built binary for the given Linux architecture
 # Binaries are supplied by GoReleaser.
 
-FROM alpine:3.24.3
+FROM gcr.io/distroless/static-debian13:nonroot
 
 # TARGETARCH can be "amd64" or "arm64"
 ARG TARGETARCH
@@ -9,16 +9,17 @@ ARG TARGETVARIANT
 
 WORKDIR /app
 
-RUN apk add --no-cache su-exec
-
 COPY linux/${TARGETARCH}/${TARGETVARIANT}/pocket-id /app/pocket-id
-COPY ./scripts/docker /app/docker
 COPY ./.tmp/frontend.cdx.json /usr/share/doc/pocket-id/frontend.cdx.json
+
+USER 65532:65532
+
+WORKDIR /app/data
+WORKDIR /app
 
 EXPOSE 1411
 ENV APP_ENV=production
 
 HEALTHCHECK --interval=90s --timeout=5s --start-period=10s --retries=3 CMD [ "/app/pocket-id", "healthcheck" ]
 
-ENTRYPOINT ["/app/docker/entrypoint.sh"]
 CMD ["/app/pocket-id"]

@@ -2,6 +2,8 @@ package bootstrap
 
 import (
 	"net/url"
+	"os"
+	"path/filepath"
 	"strings"
 	"testing"
 	"time"
@@ -117,6 +119,34 @@ func TestAddSqliteDatetimeParams(t *testing.T) {
 
 	t.Run("returns an empty connection string untouched", func(t *testing.T) {
 		assert.Empty(t, addSqliteDatetimeParams(""))
+	})
+}
+
+func TestCheckSqliteDirWritable(t *testing.T) {
+	t.Run("writable folder", func(t *testing.T) {
+		dir := t.TempDir()
+		require.NoError(t, checkSqliteDirWritable(filepath.Join(dir, "pocket-id.db")))
+
+		// The probe file must not be left behind
+		entries, err := os.ReadDir(dir)
+		require.NoError(t, err)
+		assert.Empty(t, entries)
+	})
+
+	t.Run("read-only folder", func(t *testing.T) {
+		if os.Getuid() == 0 {
+			t.Skip("root can write to any folder")
+		}
+
+		dir := t.TempDir()
+		require.NoError(t, os.Chmod(dir, 0o500))
+		t.Cleanup(func() {
+			_ = os.Chmod(dir, 0o700)
+		})
+
+		err := checkSqliteDirWritable(filepath.Join(dir, "pocket-id.db"))
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), dir)
 	})
 }
 

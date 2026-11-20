@@ -143,21 +143,20 @@ dockers_v2:
     disable: '{{ if index .Env "BUILD_NEXT" }}true{{ end }}'
     sbom: true
     extra_files:
-      - scripts/docker
       - .tmp/frontend.cdx.json
 
-  - id: pocket-id-distroless
+  - id: pocket-id-debian
     ids:
       - pocket-id
-    dockerfile: docker/Dockerfile-distroless
+    dockerfile: docker/Dockerfile-prebuilt-debian
     images:
       - "pocketid/pocket-id"
       - "ghcr.io/{{ .Env.GITHUB_REPOSITORY_OWNER }}/pocket-id"
     tags:
-      - "{{ .Tag }}-distroless"
-      - "v{{ .Major }}-distroless"
-      - "v{{ .Major }}.{{ .Minor }}-distroless"
-      - "latest-distroless"
+      - "{{ .Tag }}-debian"
+      - "v{{ .Major }}-debian"
+      - "v{{ .Major }}.{{ .Minor }}-debian"
+      - "latest-debian"
     platforms:
       - linux/amd64
       - linux/arm64
@@ -201,18 +200,17 @@ dockers_v2:
     disable: '{{ if not (index .Env "BUILD_NEXT") }}true{{ end }}'
     sbom: true
     extra_files:
-      - scripts/docker
       - .tmp/frontend.cdx.json
 
-  - id: pocket-id-next-distroless
+  - id: pocket-id-next-debian
     ids:
       - pocket-id-next
-    dockerfile: docker/Dockerfile-distroless
+    dockerfile: docker/Dockerfile-prebuilt-debian
     images:
       - "pocketid/pocket-id"
       - "ghcr.io/{{ .Env.GITHUB_REPOSITORY_OWNER }}/pocket-id"
     tags:
-      - "{{ .Env.BUILD_NEXT }}-distroless"
+      - "{{ .Env.BUILD_NEXT }}-debian"
     platforms:
       - linux/amd64
       - linux/arm64
