@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"reflect"
 	"time"
 
 	"github.com/gin-gonic/gin"
@@ -119,9 +120,10 @@ func (m *Module) RegisterRoutes(r *authz.Router, profilePictureSizeLimit gin.Han
 	protected := admin.With(m.ProtectAdmins("id"))
 	admin.GET("/users", authz.UsersRead, httpserver.JSON(http.StatusOK, m.handler.listUsersHandler),
 		option.Summary("List users"),
-		option.Description("Get a paginated list of users with optional search and sorting"),
+		option.Description("Get a paginated list of users with optional search, membership filtering and sorting"),
 		option.Tags("Users"),
 		option.Query("search", "Search term to filter users"),
+		option.QueryArray("filters[userGroups]", "Match membership in any selected user group", reflect.String),
 		openapi.List[model.User](),
 	)
 	r.GET("/users/me", authz.AccountRead, httpserver.JSON(http.StatusOK, m.handler.getCurrentUserHandler),
