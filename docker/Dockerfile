@@ -6,7 +6,7 @@
 ARG BUILD_TAGS=""
 
 # Stage 1: Build Frontend
-FROM --platform=$BUILDPLATFORM ghcr.io/voidzero-dev/vite-plus:1.6.0 AS frontend-builder
+FROM --platform=$BUILDPLATFORM ghcr.io/voidzero-dev/vite-plus:1.7.0 AS frontend-builder
 ENV CI=true
 WORKDIR /app
 
@@ -48,7 +48,7 @@ RUN --mount=type=cache,target=/go/pkg/mod \
     .
 
 # Stage 3: Production Image
-FROM alpine:3.24.3
+FROM alpine:3.24.4
 WORKDIR /app
 
 RUN apk add --no-cache su-exec
