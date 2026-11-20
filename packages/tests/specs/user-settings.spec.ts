@@ -381,3 +381,39 @@ test('Reorder table columns in the column picker', async ({ page }) => {
 	await page.getByRole('button', { name: 'Reset' }).click();
 	await expect.poll(headerNames).toEqual(['User', 'Username', 'Role', 'Status']);
 });
+
+test('Create user keeps default groups and sends the selection atomically', async ({ page }) => {
+	await setAppConfigValues(page.request, {
+		signupDefaultUserGroupIDs: JSON.stringify([userGroups.developers.id])
+	});
+	const user = users.steve;
+	await page.goto('/settings/admin/users');
+	await page.getByRole('button', { name: 'Add user', exact: true }).click();
+	const dialog = page.getByRole('dialog');
+	const groupPicker = dialog.getByLabel('Groups', { exact: true });
+	await expect(groupPicker).toContainText(userGroups.developers.friendlyName);
+	await page.getByLabel('First name').fill(user.firstname);
+	await page.getByLabel('Last name').fill(user.lastname);
+	await page.getByLabel('Email').fill(user.email);
+	await page.getByLabel('Username').fill(user.username);
+	await groupPicker.click();
+	await page.getByRole('option', { name: userGroups.designers.friendlyName, exact: true }).click();
+	await groupPicker.click();
+	const created = page.waitForResponse(
+		(r) => r.url().endsWith('/api/users') && r.request().method() === 'POST'
+	);
+	await dialog.getByRole('button', { name: 'Add user', exact: true }).click();
+	const response = await created;
+	expect(response.request().postDataJSON().userGroupIds.sort()).toEqual(
+		[userGroups.developers.id, userGroups.designers.id].sort()
+	);
+	const saved = await response.json();
+	expect(saved.userGroups.map((g: { id: string }) => g.id).sort()).toEqual(
+		[userGroups.developers.id, userGroups.designers.id].sort()
+	);
+	await expect(dialog).not.toBeVisible();
+	await page.goto('/settings/admin/users');
+	await page.getByRole('button', { name: 'Add user', exact: true }).click();
+	await expect(groupPicker).toContainText(userGroups.developers.friendlyName);
+	await expect(groupPicker).not.toContainText(userGroups.designers.friendlyName);
+});
