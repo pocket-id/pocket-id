@@ -4,6 +4,7 @@ import (
 	"net/url"
 	"os"
 	"path/filepath"
+	"runtime"
 	"strings"
 	"testing"
 	"time"
@@ -134,6 +135,9 @@ func TestCheckSqliteDirWritable(t *testing.T) {
 	})
 
 	t.Run("read-only folder", func(t *testing.T) {
+		if runtime.GOOS == "windows" {
+			t.Skip("Windows ignores the permission bits of folders")
+		}
 		if os.Getuid() == 0 {
 			t.Skip("root can write to any folder")
 		}
