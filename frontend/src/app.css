@@ -42,6 +42,12 @@ html.theme-switching *::after {
 	view-transition-name: settings-content;
 }
 
+/* Pages keep the scrollbar's space when they don't scroll, so switching between a short and a long tab doesn't shift the layout */
+/* Only the shell reserves it, because the full-bleed sign-in photo would leave an empty strip in the gutter */
+html:has(.settings-content) {
+	scrollbar-gutter: stable;
+}
+
 /* The shell stays live during page transitions because Firefox and Safari drop backdrop-filter from snapshots, which would unblur the backdrop layout's sidebar */
 :root {
 	view-transition-name: none;
