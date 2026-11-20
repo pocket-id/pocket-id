@@ -1,7 +1,8 @@
 # This Dockerfile embeds a pre-built binary for the given Linux architecture
 # Binaries are supplied by GoReleaser.
+# It behaves like the default distroless image but is based on Debian, with a shell and apt for debugging
 
-FROM gcr.io/distroless/static-debian13:nonroot
+FROM debian:13.7-slim
 
 # TARGETARCH can be "amd64" or "arm64"
 ARG TARGETARCH
@@ -9,8 +10,19 @@ ARG TARGETVARIANT
 
 WORKDIR /app
 
+RUN apt-get update && \
+  apt-get install -y --no-install-recommends ca-certificates && \
+  rm -rf /var/lib/apt/lists/* && \
+  groupadd -g 65532 pocket-id && \
+  useradd -u 65532 -g pocket-id -M -d /app -s /bin/sh pocket-id
+
 COPY linux/${TARGETARCH}/${TARGETVARIANT}/pocket-id /app/pocket-id
 COPY ./.tmp/frontend.cdx.json /usr/share/doc/pocket-id/frontend.cdx.json
+
+USER 65532:65532
+
+WORKDIR /app/data
+WORKDIR /app
 
 EXPOSE 1411
 ENV APP_ENV=production

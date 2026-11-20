@@ -6,6 +6,8 @@ import (
 	"fmt"
 	"log/slog"
 	"net/url"
+	"os"
+	"path/filepath"
 	"strings"
 	"time"
 
@@ -70,6 +72,12 @@ func ConnectDatabase(ctx context.Context) (db *gorm.DB, pg *pgxpool.Pool, err er
 			ConnString: addSqliteDatetimeParams(common.EnvConfig.DbConnectionString),
 			Logger:     slog.Default(),
 		})
+		if err != nil {
+			return nil, nil, err
+		}
+
+		// SQLite only reports "unable to open database file" when it can't write to the database folder, which a container user that doesn't own the mounted folder easily runs into
+		err = checkSqliteDirWritable(common.EnvConfig.DbConnectionString)
 		if err != nil {
 			return nil, nil, err
 		}
@@ -158,6 +166,24 @@ func ConnectDatabase(ctx context.Context) (db *gorm.DB, pg *pgxpool.Pool, err er
 	}
 
 	return nil, nil, err
+}
+
+// checkSqliteDirWritable returns an error naming the user Pocket ID runs as when it can't create files in the folder of the SQLite database
+func checkSqliteDirWritable(connString string) error {
+	_, dbPath, isMemoryDB, _, err := sqlitekit.ParseConnectionString(connString, slog.New(slog.DiscardHandler))
+	if err != nil || isMemoryDB {
+		return err
+	}
+
+	// Creating a file is the only reliable check, since permission bits don't account for read-only mounts or ACLs
+	dir := filepath.Dir(dbPath)
+	f, err := os.CreateTemp(dir, ".write-check-*")
+	if err != nil {
+		return fmt.Errorf("the SQLite database folder %s isn't writable by user %d:%d, so change its owner to that user or run Pocket ID as the folder's owner: %w", dir, os.Getuid(), os.Getgid(), err)
+	}
+	_ = f.Close()
+	_ = os.Remove(f.Name())
+	return nil
 }
 
 // sqlInstrumentOptions returns the instrumentation applied to the database connection, shared by both providers
