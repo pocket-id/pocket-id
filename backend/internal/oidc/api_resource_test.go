@@ -148,7 +148,7 @@ func TestResolveResourceIssuesMCPTokensForPocketIDAPI(t *testing.T) {
 		"https://id.example.com/api": {"users:read"},
 	})
 
-	audience, granted, err := resolveResource(t.Context(), nil, provider, "client-1", "https://id.example.com/mcp", []string{"users:read"}, SubjectTypeUser, nil)
+	audience, granted, err := resolveResource(t.Context(), nil, provider, "client-1", "https://id.example.com/api/admin/mcp", []string{"users:read"}, SubjectTypeUser, nil)
 	require.NoError(t, err)
 	assert.Equal(t, "https://id.example.com/api", audience, "the API's bearer check and refresh grants only know the API's own audience")
 	assert.Equal(t, []string{"users:read"}, granted)

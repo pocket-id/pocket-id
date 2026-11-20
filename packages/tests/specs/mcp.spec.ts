@@ -14,7 +14,7 @@ const initialize = {
 };
 
 async function rpc(api: APIRequestContext, method: string, params?: object) {
-	const response = await api.post('/mcp', {
+	const response = await api.post('/api/admin/mcp', {
 		headers: { Accept: 'application/json, text/event-stream' },
 		data: { jsonrpc: '2.0', id: 2, method, params }
 	});
@@ -36,7 +36,7 @@ test.describe('MCP server', () => {
 			storageState: { cookies: [], origins: [] }
 		});
 
-		const response = await api.post('/mcp', {
+		const response = await api.post('/api/admin/mcp', {
 			headers: { Accept: 'application/json, text/event-stream' },
 			data: initialize
 		});
@@ -44,9 +44,9 @@ test.describe('MCP server', () => {
 		const challenge = response.headers()['www-authenticate'];
 		const metadataURL = challenge.match(/resource_metadata="([^"]+)"/)![1];
 
-		// MCP clients refuse metadata whose resource isn't the URL they connect to, even though /mcp redirects below the admin prefix
+		// MCP clients refuse metadata whose resource isn't the URL they connect to
 		const metadata = await (await api.get(metadataURL)).json();
-		expect(metadata.resource).toBe(`${baseURL}/mcp`);
+		expect(metadata.resource).toBe(`${baseURL}/api/admin/mcp`);
 		expect(metadata.authorization_servers).toEqual([baseURL]);
 		expect(metadata.scopes_supported).toContain('users:read');
 

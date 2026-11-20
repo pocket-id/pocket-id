@@ -8,7 +8,7 @@
 
 	let { open = $bindable() }: { open: boolean } = $props();
 
-	const mcpServerUrl = `${page.url.origin}/mcp`;
+	const mcpServerUrl = `${page.url.origin}/api/admin/mcp`;
 </script>
 
 <Dialog.Root bind:open>

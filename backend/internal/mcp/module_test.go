@@ -112,7 +112,7 @@ func TestProtectedResourceMetadata(t *testing.T) {
 	require.NoError(t, json.Unmarshal(recorder.Body.Bytes(), &doc))
 
 	// MCP clients such as the Go SDK refuse metadata whose resource isn't the endpoint's URL
-	require.Equal(t, "https://id.example.com/mcp", doc.Resource)
+	require.Equal(t, "https://id.example.com/api/admin/mcp", doc.Resource)
 	require.Equal(t, []string{"https://id.example.com"}, doc.AuthorizationServers)
 	require.Contains(t, doc.ScopesSupported, string(authz.UsersRead))
 	require.Contains(t, doc.ScopesSupported, "offline_access")

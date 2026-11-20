@@ -183,9 +183,8 @@ func ResourceURI(appURL string) string {
 
 const (
 	// MCPPath is the URL MCP clients connect to and the resource their tokens are issued for
-	// It redirects to MCPEndpointPath, so a proxy that blocks the admin prefix blocks the MCP endpoint too
-	MCPPath         = "/mcp"
-	MCPEndpointPath = AdminPathPrefix + "mcp"
+	// It lives below the admin prefix, so a proxy that blocks the admin API blocks the MCP endpoint too
+	MCPPath = AdminPathPrefix + "mcp"
 	// MCPResourceMetadataPath is where the RFC 9728 protected resource metadata of the MCP endpoint is served, which RFC 9728 derives by inserting the well-known prefix before the endpoint's path
 	MCPResourceMetadataPath = "/.well-known/oauth-protected-resource" + MCPPath
 )

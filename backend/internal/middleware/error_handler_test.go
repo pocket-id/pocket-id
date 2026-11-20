@@ -330,7 +330,7 @@ func TestErrorHandlerMiddlewareChallengesUnauthenticatedMCPRequests(t *testing.T
 
 		require.Equal(t, http.StatusUnauthorized, recorder.Code)
 		if challenged {
-			require.Equal(t, `Bearer resource_metadata="https://id.example.com/.well-known/oauth-protected-resource/mcp"`, recorder.Header().Get("WWW-Authenticate"), path)
+			require.Equal(t, `Bearer resource_metadata="https://id.example.com/.well-known/oauth-protected-resource/api/admin/mcp"`, recorder.Header().Get("WWW-Authenticate"), path)
 		} else {
 			require.Empty(t, recorder.Header().Get("WWW-Authenticate"), path)
 		}

@@ -80,12 +80,12 @@ func TestCorsMiddlewareLetsBrowserMCPClientsReadTheChallenge(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 	router := gin.New()
 	router.Use(NewCorsMiddleware().Add())
-	router.POST("/mcp", func(c *gin.Context) {
+	router.POST("/api/admin/mcp", func(c *gin.Context) {
 		c.Status(http.StatusUnauthorized)
 	})
 
 	// The first request of an MCP client carries no token yet
-	req := httptest.NewRequestWithContext(t.Context(), http.MethodPost, "/mcp", http.NoBody)
+	req := httptest.NewRequestWithContext(t.Context(), http.MethodPost, "/api/admin/mcp", http.NoBody)
 	w := httptest.NewRecorder()
 	router.ServeHTTP(w, req)
 

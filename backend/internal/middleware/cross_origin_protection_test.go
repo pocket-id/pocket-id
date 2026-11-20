@@ -26,7 +26,7 @@ func newCrossOriginProtectionTestRouter() *gin.Engine {
 	router.POST("/api/oidc/end-session", ok)
 	router.POST("/api/oidc/par", ok)
 	router.POST("/api/oidc/device/authorize", ok)
-	router.POST("/mcp", ok)
+	router.POST("/api/admin/mcp", ok)
 
 	return router
 }
@@ -63,7 +63,7 @@ func TestCrossOriginProtectionMiddleware(t *testing.T) {
 		{"non-browser client", http.MethodPost, "/api/oidc/device/verify", nil, http.StatusOK},
 
 		// Browser MCP clients start without a token to get the endpoint's 401 challenge
-		{"cross-site anonymous MCP request", http.MethodPost, "/mcp", map[string]string{"Sec-Fetch-Site": "cross-site", "Origin": "https://assistant.test"}, http.StatusOK},
+		{"cross-site anonymous MCP request", http.MethodPost, "/api/admin/mcp", map[string]string{"Sec-Fetch-Site": "cross-site", "Origin": "https://assistant.test"}, http.StatusOK},
 
 		// Safe methods are never checked
 		{"cross-site get", http.MethodGet, "/api/oidc/device/verify", map[string]string{"Sec-Fetch-Site": "cross-site"}, http.StatusOK},
