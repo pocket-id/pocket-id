@@ -1,7 +1,7 @@
 # This Dockerfile embeds a pre-built binary for the given Linux architecture
 # Binaries are supplied by GoReleaser.
 
-FROM gcr.io/distroless/static-debian13:nonroot
+FROM gcr.io/distroless/static-debian13:nonroot@sha256:aafe993665bf6200db38a02c11a9351e782a84b6a45e7f33b6695638c88e3931
 
 # TARGETARCH can be "amd64" or "arm64"
 ARG TARGETARCH
