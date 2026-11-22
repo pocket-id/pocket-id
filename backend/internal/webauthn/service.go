@@ -135,7 +135,10 @@ func (s *Service) BeginRegistration(ctx context.Context, dbConfig *appconfig.App
 		gowebauthn.WithResidentKeyRequirement(protocol.ResidentKeyRequirementRequired),
 		gowebauthn.WithCredentialParameters(gowebauthn.CredentialParametersPQCRecommendedL3()),
 		gowebauthn.WithExclusions(gowebauthn.Credentials(user.WebAuthnCredentials()).CredentialDescriptors()),
-		gowebauthn.WithExtensions(gowebauthn.WithExtensionCredProps()), // Required for Firefox Android to properly save the key in Google password manager
+		gowebauthn.WithExtensions(
+			gowebauthn.WithExtensionCredProps(), // Required for Firefox Android to properly save the key in Google password manager
+			gowebauthn.WithExtensionPRFSupport(),
+		),
 		gowebauthn.WithConveyancePreference(conveyance),
 	)
 	if err != nil {

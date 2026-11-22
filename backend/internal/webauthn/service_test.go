@@ -152,8 +152,10 @@ func TestBeginCeremoniesUseRequestConfig(t *testing.T) {
 			var session WebauthnSession
 			require.NoError(t, db.First(&session, "id = ?", registration.SessionID).Error)
 			assert.Contains(t, session.Extensions.Requested, protocol.ExtensionCredProps)
+			assert.Contains(t, session.Extensions.Requested, protocol.ExtensionPRF)
 			outputs := protocol.AuthenticationExtensionsClientOutputs{
 				CredProps: &protocol.CredentialPropertiesOutput{RK: new(true)},
+				PRF:       &protocol.PRFOutputs{Enabled: new(true)},
 			}
 			require.NoError(t, outputs.Verify(session.Extensions, protocol.CreateCeremony, protocol.UnsolicitedOutputPolicyReject))
 
