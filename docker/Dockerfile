@@ -48,21 +48,19 @@ RUN --mount=type=cache,target=/go/pkg/mod \
     .
 
 # Stage 3: Production Image
-FROM alpine:3.24.4
+FROM gcr.io/distroless/static-debian13:nonroot@sha256:aafe993665bf6200db38a02c11a9351e782a84b6a45e7f33b6695638c88e3931
 WORKDIR /app
 
-RUN apk add --no-cache su-exec
-
 COPY --from=backend-builder /build/pocket-id /app/pocket-id
-COPY ./scripts/docker /app/docker
 
-RUN chmod +x /app/pocket-id && \
-  find /app/docker -name "*.sh" -exec chmod +x {} \;
+USER 65532:65532
+
+WORKDIR /app/data
+WORKDIR /app
 
 EXPOSE 1411
 ENV APP_ENV=production
 
 HEALTHCHECK --interval=90s --timeout=5s --start-period=10s --retries=3 CMD [ "/app/pocket-id", "healthcheck" ]
 
-ENTRYPOINT ["sh", "/app/docker/entrypoint.sh"]
 CMD ["/app/pocket-id"]

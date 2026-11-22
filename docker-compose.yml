@@ -1,12 +1,12 @@
 services:
   pocket-id:
-    image: pocketid/pocket-id:v2 # or ghcr.io/pocket-id/pocket-id:v2
+    image: pocketid/pocket-id:v3 # or ghcr.io/pocket-id/pocket-id:v3
     restart: unless-stopped
     env_file: .env
     ports:
       - 1411:1411
     volumes:
-      - "./data:/app/data"
+      - "pocket-id-data:/app/data"
     # Optional healthcheck
     healthcheck:
       test: [ "CMD", "/app/pocket-id", "healthcheck" ]
@@ -14,3 +14,6 @@ services:
       timeout: 5s
       retries: 2
       start_period: 10s
+
+volumes:
+  pocket-id-data:
