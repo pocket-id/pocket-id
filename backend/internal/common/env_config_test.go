@@ -86,12 +86,13 @@ func TestParseEnvConfig(t *testing.T) {
 	})
 
 	t.Run("should derive both SQLite files from the folder and keep its query parameters", func(t *testing.T) {
+		// The file is joined with the separator of the OS, which SQLite accepts on Windows too
 		config := EnvConfigSchema{DbConnectionString: "file:/app/data?_pragma=busy_timeout(5000)"}
-		assert.Equal(t, "file:/app/data/pocket-id.db?_pragma=busy_timeout(5000)", config.SqliteConnString("pocket-id.db"))
-		assert.Equal(t, "file:/app/data/francis.db?_pragma=busy_timeout(5000)", config.SqliteConnString("francis.db"))
+		assert.Equal(t, "file:"+filepath.Join("/app/data", "pocket-id.db")+"?_pragma=busy_timeout(5000)", config.SqliteConnString("pocket-id.db"))
+		assert.Equal(t, "file:"+filepath.Join("/app/data", "francis.db")+"?_pragma=busy_timeout(5000)", config.SqliteConnString("francis.db"))
 
 		config.DbConnectionString = "data"
-		assert.Equal(t, "file:data/francis.db", config.SqliteConnString("francis.db"))
+		assert.Equal(t, "file:"+filepath.Join("data", "francis.db"), config.SqliteConnString("francis.db"))
 	})
 
 	t.Run("should fail with invalid APP_URL", func(t *testing.T) {
