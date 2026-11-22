@@ -27,7 +27,7 @@ require (
 	github.com/go-webauthn/x v0.3.1
 	github.com/google/uuid v1.6.0
 	github.com/italypaleale/francis v0.2.2
-	github.com/italypaleale/go-kit v1.7.3
+	github.com/italypaleale/go-kit v1.7.4
 	github.com/italypaleale/go-sql-utils v0.3.13
 	github.com/jackc/pgx/v5 v5.13.0
 	github.com/jinzhu/copier v0.4.0
@@ -44,7 +44,7 @@ require (
 	github.com/pires/go-proxyproto v0.16.0
 	github.com/pocket-id/fosite v1.6.0
 	github.com/pressly/goose/v3 v3.30.1
-	github.com/quic-go/quic-go v0.64.1
+	github.com/quic-go/quic-go v0.65.0
 	github.com/spf13/cobra v1.10.2
 	github.com/stretchr/testify v1.12.1
 	go.opentelemetry.io/contrib/bridges/otelslog v0.21.0
