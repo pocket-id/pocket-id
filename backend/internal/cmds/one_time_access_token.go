@@ -58,7 +58,7 @@ var oneTimeAccessTokenCmd = &cobra.Command{
 
 		// One-time access tokens live in the actor state store, which is reached differently depending on where the actor runtime runs
 		// The CLI never runs the full actor host: with an embedded runtime it writes to Pocket ID's database directly, and with a standalone one it joins the cluster as a client for just long enough to write the token
-		token, err := storeOneTimeAccessToken(cmd.Context(), db, pg, instanceID, user.ID)
+		token, err := storeOneTimeAccessToken(cmd.Context(), pg, instanceID, user.ID)
 		if err != nil {
 			return fmt.Errorf("failed to create access token: %w", err)
 		}
@@ -73,7 +73,7 @@ var oneTimeAccessTokenCmd = &cobra.Command{
 }
 
 // storeOneTimeAccessToken persists a one-time access token valid for one hour, through whichever actor runtime this deployment uses, and returns the token
-func storeOneTimeAccessToken(ctx context.Context, db *gorm.DB, pg *pgxpool.Pool, instanceID string, userID string) (string, error) {
+func storeOneTimeAccessToken(ctx context.Context, pg *pgxpool.Pool, instanceID string, userID string) (string, error) {
 	// A standalone Francis runtime owns the actor state, so the token is written through a short-lived client connection to it
 	if !common.EnvConfig.HasEmbeddedFrancisRuntime() {
 		var token string
@@ -92,9 +92,8 @@ func storeOneTimeAccessToken(ctx context.Context, db *gorm.DB, pg *pgxpool.Pool,
 		return token, nil
 	}
 
-	// With the embedded runtime the actor state lives in Pocket ID's own database, which a minimal state store writes to without running an actor host
+	// With the embedded runtime the actor state lives in Pocket ID's own database, or francis.db on SQLite, which a minimal state store writes to without running an actor host
 	actorStore, err := bootstrap.NewActorStateStore(bootstrap.NewActorsOpts{
-		DB:         db,
 		Postgres:   pg,
 		EnvConfig:  &common.EnvConfig,
 		InstanceID: instanceID,

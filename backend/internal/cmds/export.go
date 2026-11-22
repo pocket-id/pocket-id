@@ -63,12 +63,7 @@ func runExport(ctx context.Context, flags exportFlags) error {
 	// A standalone runtime keeps it in its own store, out of reach from here, and the export service leaves the entry out of the archive when no provider is passed
 	var actorsProvider backup.ActorsBackupProvider
 	if common.EnvConfig.HasEmbeddedFrancisRuntime() {
-		providerOpts, err := bootstrap.ActorsProviderOptions(db, pg)
-		if err != nil {
-			return err
-		}
-
-		provider, err := bootstrap.NewActorsBackupProvider(ctx, providerOpts)
+		provider, err := bootstrap.NewActorsBackupProvider(ctx, bootstrap.ActorsProviderOptions(pg))
 		if err != nil {
 			return fmt.Errorf("failed to initialize the actor host's data provider: %w", err)
 		}

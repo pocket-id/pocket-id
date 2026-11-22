@@ -8,6 +8,7 @@ import (
 	"net"
 	"net/url"
 	"os"
+	"path/filepath"
 	"reflect"
 	"strconv"
 	"strings"
@@ -40,7 +41,7 @@ const (
 	DbProviderSqlite        DbProvider = "sqlite"
 	DbProviderPostgres      DbProvider = "postgres"
 	MaxMindGeoLiteCityUrl   string     = "https://download.maxmind.com/app/geoip_download?edition_id=GeoLite2-City&license_key=%s&suffix=tar.gz"
-	defaultSqliteConnString string     = "data/pocket-id.db"
+	defaultSqliteConnString string     = "data"
 	defaultFsUploadPath     string     = "data/uploads"
 	AppUrl                  string     = "http://localhost:1411"
 
@@ -255,7 +256,10 @@ func ValidateEnvConfig(config *EnvConfigSchema) error {
 	}
 
 	// Prepare the DB config
-	prepareDbConfig(config)
+	err = prepareDbConfig(config)
+	if err != nil {
+		return err
+	}
 
 	// Resolve where the Francis actor runtime lives, which decides whether Pocket ID starts an embedded one
 	err = prepareFrancisConfig(config)
@@ -303,16 +307,48 @@ func ValidateEnvConfig(config *EnvConfigSchema) error {
 	return nil
 }
 
-func prepareDbConfig(config *EnvConfigSchema) {
+// prepareDbConfig picks the database provider from the connection string, which for SQLite names the folder of the database files
+func prepareDbConfig(config *EnvConfigSchema) error {
 	switch {
 	case config.DbConnectionString == "":
 		config.DbProvider = DbProviderSqlite
 		config.DbConnectionString = defaultSqliteConnString
 	case strings.HasPrefix(config.DbConnectionString, "postgres://") || strings.HasPrefix(config.DbConnectionString, "postgresql://"):
 		config.DbProvider = DbProviderPostgres
+		return nil
 	default:
 		config.DbProvider = DbProviderSqlite
 	}
+
+	// Before v3 the value named the database file, which would otherwise quietly start an empty installation in a folder of that name
+	dir := config.SqliteFolder()
+	info, err := os.Stat(dir)
+	isFile := err == nil && info.Mode().IsRegular()
+	switch strings.ToLower(filepath.Ext(dir)) {
+	case ".db", ".sqlite", ".sqlite3":
+		isFile = true
+	}
+	if isFile {
+		return fmt.Errorf("DB_CONNECTION_STRING must be the folder of the SQLite databases instead of a database file: set it to '%s' and make sure the database file in it is named pocket-id.db", filepath.Dir(dir))
+	}
+	return nil
+}
+
+// SqliteFolder returns the folder of the SQLite database files, which DB_CONNECTION_STRING names along with optional query parameters
+func (c *EnvConfigSchema) SqliteFolder() string {
+	dir, _, _ := strings.Cut(strings.TrimPrefix(c.DbConnectionString, "file:"), "?")
+	return dir
+}
+
+// SqliteConnString returns the connection string of one SQLite database file in the folder DB_CONNECTION_STRING names, with the query parameters set there
+// Pocket ID keeps its data in pocket-id.db and the embedded Francis runtime in francis.db, so neither blocks the other's writes
+func (c *EnvConfigSchema) SqliteConnString(file string) string {
+	_, query, _ := strings.Cut(c.DbConnectionString, "?")
+	connString := "file:" + filepath.Join(c.SqliteFolder(), file)
+	if query != "" {
+		connString += "?" + query
+	}
+	return connString
 }
 
 // prepareFrancisConfig resolves FRANCIS_HOST into the list of standalone runtime addresses Pocket ID connects to

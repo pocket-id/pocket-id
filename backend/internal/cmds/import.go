@@ -107,10 +107,7 @@ func runImport(ctx context.Context, flags importFlags) error {
 	var providerOpts components.ProviderOptions
 	if embeddedRuntime {
 		// The cluster admin talks to the same database as the actor host, so build its provider options the same way the host does
-		providerOpts, err = bootstrap.ActorsProviderOptions(db, pg)
-		if err != nil {
-			return err
-		}
+		providerOpts = bootstrap.ActorsProviderOptions(pg)
 
 		release, lost, err := acquireExclusiveAccess(ctx, providerOpts, flags.ForcefullyAcquireLock)
 		if err != nil {
@@ -213,7 +210,11 @@ func askForConfirmation() (bool, error) {
 	fmt.Println("WARNING: This feature is experimental and may not work correctly. Please create a backup before proceeding and report any issues you encounter.")
 	fmt.Println()
 	fmt.Println("WARNING: Import will erase all existing data at the following locations:")
-	fmt.Printf("Database:      %s\n", absolutePathOrOriginal(common.EnvConfig.DbConnectionString))
+	if common.EnvConfig.DbProvider == common.DbProviderSqlite {
+		fmt.Printf("Database:      %s\n", absolutePathOrOriginal(common.EnvConfig.SqliteFolder()))
+	} else {
+		fmt.Printf("Database:      %s\n", common.EnvConfig.DbConnectionString)
+	}
 	fmt.Printf("Uploads Path:  %s\n", absolutePathOrOriginal(common.EnvConfig.UploadPath))
 
 	ok, err := promptForConfirmation("Do you want to continue?")

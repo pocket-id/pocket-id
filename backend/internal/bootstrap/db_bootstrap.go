@@ -68,8 +68,9 @@ func ConnectDatabase(ctx context.Context) (db *gorm.DB, pg *pgxpool.Pool, err er
 
 		// The connector validates the connection string and performs the filesystem setup SQLite needs: it creates the database and temporary directories
 		// It also warns when the database lives on a networked filesystem, which is unsupported
+		connString := common.EnvConfig.SqliteConnString("pocket-id.db")
 		connector, err := sqlitekit.NewConnector(sqlitekit.ConnectOpts{
-			ConnString: addSqliteDatetimeParams(common.EnvConfig.DbConnectionString),
+			ConnString: addSqliteDatetimeParams(connString),
 			Logger:     slog.Default(),
 		})
 		if err != nil {
@@ -77,7 +78,7 @@ func ConnectDatabase(ctx context.Context) (db *gorm.DB, pg *pgxpool.Pool, err er
 		}
 
 		// SQLite only reports "unable to open database file" when it can't write to the database folder, which a container user that doesn't own the mounted folder easily runs into
-		err = checkSqliteDirWritable(common.EnvConfig.DbConnectionString)
+		err = checkSqliteDirWritable(connString)
 		if err != nil {
 			return nil, nil, err
 		}

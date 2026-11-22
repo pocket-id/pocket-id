@@ -18,7 +18,7 @@ func TestFailedExportKeepsPreviousArchive(t *testing.T) {
 
 	dir := t.TempDir()
 	common.EnvConfig.DbProvider = common.DbProviderSqlite
-	common.EnvConfig.DbConnectionString = "file:" + filepath.Join(dir, "pocket-id.db")
+	common.EnvConfig.DbConnectionString = dir
 	common.EnvConfig.FileBackend = storage.TypeDatabase
 	common.EnvConfig.EncryptionKey = []byte("test-encryption-key-characters-long")
 
