@@ -6,6 +6,7 @@ import (
 
 	"github.com/lestrrat-go/jwx/v4/jwa"
 	"github.com/pocket-id/fosite"
+	fositejwt "github.com/pocket-id/fosite/token/jwt"
 	"github.com/stretchr/testify/require"
 	"gorm.io/gorm"
 
@@ -269,41 +270,15 @@ func TestClaimsServiceAppliesSigningAlgToIDTokenHeader(t *testing.T) {
 	}
 }
 
-// TestClaimsServiceGetClaimMappingPolicyByClientID verifies that a client without an assigned
-// policy falls back to the default one, while an assigned policy takes precedence over it.
-func TestClaimsServiceGetClaimMappingPolicyByClientID(t *testing.T) {
-	db := testutils.NewDatabaseForTest(t)
-	require.NoError(t, claimmappingpolicy.Bootstrap(t.Context(), db))
-	service := newClaimsService(db, nil, "", nil, appconfig.StaticResolver{})
+func TestClaimsServiceReleasesSessionIDInBothTokens(t *testing.T) {
+	service := newClaimsService(nil, nil, "", nil, appconfig.StaticResolver{})
+	session := NewEmptySession()
+	session.SessionID = "browser-session"
+	src := &userClaimsSource{user: model.User{Base: model.Base{ID: "sid-user"}}}
 
-	customPolicy := claimmappingpolicy.OidcClaimMappingPolicy{
-		Base:          model.Base{ID: "custom-policy"},
-		Name:          "Custom Policy",
-		ClaimMappings: claimmappingpolicy.OidcClaimMappings{{ClaimName: "user_id", SourceType: claimmappingpolicy.MappingSourceUserField, SourceValue: string(claimmappingpolicy.UserFieldID)}},
-	}
-	require.NoError(t, db.Create(&customPolicy).Error)
-
-	require.NoError(t, db.Create(&model.OidcClient{Base: model.Base{ID: "client-default"}, Name: "Default Client"}).Error)
-	require.NoError(t, db.Create(&model.OidcClient{Base: model.Base{ID: "client-custom"}, Name: "Custom Client", ClaimMappingPolicyId: new(customPolicy.ID)}).Error)
-
-	t.Run("falls back to the default policy", func(t *testing.T) {
-		policy, err := service.GetClaimMappingPolicyByClientID(t.Context(), "client-default")
-		require.NoError(t, err)
-		require.Equal(t, defaultClaimMappingPolicyId, policy.ID)
-		require.True(t, policy.IsDefault)
-	})
-
-	t.Run("assigned policy wins over the default", func(t *testing.T) {
-		policy, err := service.GetClaimMappingPolicyByClientID(t.Context(), "client-custom")
-		require.NoError(t, err)
-		require.Equal(t, customPolicy.ID, policy.ID)
-	})
-
-	t.Run("unknown client falls back to the default policy", func(t *testing.T) {
-		policy, err := service.GetClaimMappingPolicyByClientID(t.Context(), "missing-client")
-		require.NoError(t, err)
-		require.Equal(t, defaultClaimMappingPolicyId, policy.ID)
-	})
+	require.NoError(t, service.applyTokenClaims(session, fosite.Arguments{"openid"}, src))
+	require.Equal(t, "browser-session", session.IDTokenClaims().Extra["sid"])
+	require.Equal(t, "browser-session", session.GetJWTClaims().(*fositejwt.JWTClaims).Extra["sid"])
 }
 
 func TestClaimsServicePreviewClaimMappingsIgnoresTheDefaultPolicy(t *testing.T) {

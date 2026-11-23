@@ -1,7 +1,7 @@
 <script lang="ts">
-	import Input from '#lib/components/ui/input/input.svelte';
-	import * as Popover from '#lib/components/ui/popover/index.js';
-	import { cn } from '#lib/utils/style.ts';
+	import { Input } from '@pocket-id/ui/input';
+	import * as Popover from '@pocket-id/ui/popover';
+	import { cn } from '@pocket-id/ui/utils';
 
 	let {
 		value = $bindable(''),
@@ -85,7 +85,7 @@
 	<Popover.Root open={isOpen}>
 		<Popover.Trigger tabindex={-1} class="h-0 w-full" aria-hidden />
 		<Popover.Content
-			class="bg-popover/72 border-fg/6 dark:border-fg/10 gap-0! p-1 backdrop-blur-[40px] backdrop-saturate-150"
+			class="bg-surface-raised/72 border-fg/6 dark:border-fg/10 gap-0! p-1 backdrop-blur-[40px] backdrop-saturate-150"
 			sameWidth
 			sideOffset={5}
 			trapFocus={false}

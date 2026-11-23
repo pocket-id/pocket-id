@@ -1,6 +1,0 @@
-PRAGMA foreign_keys=OFF;
-BEGIN;
-ALTER TABLE users
-ADD COLUMN disabled NUMERIC DEFAULT FALSE NOT NULL;
-COMMIT;
-PRAGMA foreign_keys=ON;

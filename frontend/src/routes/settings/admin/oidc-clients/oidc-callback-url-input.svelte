@@ -1,10 +1,10 @@
 <script lang="ts">
-	import * as Field from '#lib/components/ui/field/index.ts';
-	import { Button } from '#lib/components/ui/button/index.ts';
-	import { Input } from '#lib/components/ui/input/index.ts';
+	import * as Field from '@pocket-id/ui/field';
+	import { Button } from '@pocket-id/ui/button';
+	import { Input } from '@pocket-id/ui/input';
 	import { m } from '#lib/paraglide/messages.js';
 	import { callbackUrlSchema } from '#lib/utils/zod-util.ts';
-	import { LucideTrash2 } from '@lucide/svelte';
+	import Trash2Icon from '~icons/solar/trash-bin-minimalistic-bold';
 	import { tick, type Snippet } from 'svelte';
 	import ChangedMarker from './changed-marker.svelte';
 
@@ -129,7 +129,7 @@
 						aria-label={m.remove_url({ identifier: url })}
 						onclick={() => remove(i)}
 					>
-						<LucideTrash2 />
+						<Trash2Icon />
 					</Button>
 				{/if}
 			</li>

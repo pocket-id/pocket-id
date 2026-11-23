@@ -2,22 +2,20 @@
 	import { m } from '#lib/paraglide/messages.js';
 
 	export const groupsConfirmLabel = (count: number) =>
-		count === 0
-			? m.add_to_groups()
-			: count === 1
-				? m.add_to_one_group()
-				: m.add_to_count_groups({ count });
+		count === 0 ? m.add_to_groups() : m.add_to_count_groups({ count });
 </script>
 
 <script lang="ts" generics="T extends { id: string }">
-	import { Button } from '#lib/components/ui/button/index.ts';
-	import { Checkbox } from '#lib/components/ui/checkbox/index.ts';
-	import * as Dialog from '#lib/components/ui/dialog/index.ts';
-	import * as InputGroup from '#lib/components/ui/input-group/index.ts';
-	import { Skeleton } from '#lib/components/ui/skeleton/index.ts';
+	import { Button } from '@pocket-id/ui/button';
+	import { Checkbox } from '@pocket-id/ui/checkbox';
+	import * as Dialog from '@pocket-id/ui/dialog';
+	import * as InputGroup from '@pocket-id/ui/input-group';
+	import { ScrollArea } from '@pocket-id/ui/scroll-area';
+	import { Skeleton } from '@pocket-id/ui/skeleton';
 	import { debounced } from '#lib/utils/debounce-util.ts';
 	import { axiosErrorToast } from '#lib/utils/error-util.ts';
-	import { LucideSearch } from '@lucide/svelte';
+	import { createRangeSelect } from '#lib/utils/range-select-util.ts';
+	import SearchIcon from '~icons/solar/magnifier-linear';
 	import { untrack, type Snippet } from 'svelte';
 
 	let {
@@ -49,6 +47,7 @@
 	// Taken when the dialog opens, so a parent that updates them after confirming does not change the dialog while it fades out
 	let shownTitle = $state('');
 	let excluded = $state<string[]>([]);
+	let selectRange = createRangeSelect();
 
 	const visible = $derived(items?.filter((item) => !excluded.includes(item.id)));
 
@@ -69,6 +68,7 @@
 			excluded = exclude;
 			search = '';
 			selected = [];
+			selectRange = createRangeSelect();
 			items = undefined;
 			refresh();
 		});
@@ -105,12 +105,13 @@
 				type="search"
 				oninput={() => onSearch()}
 			/>
-			<InputGroup.Addon><LucideSearch /></InputGroup.Addon>
+			<InputGroup.Addon><SearchIcon /></InputGroup.Addon>
 		</InputGroup.Root>
-		<div
+		<ScrollArea
 			role="group"
 			aria-label={shownTitle}
-			class="max-h-90 min-h-(--row-2line) overflow-y-auto rounded-md border"
+			class="rounded-md border"
+			viewportClass="max-h-90 min-h-(--row-2line)"
 		>
 			{#if !visible}
 				{#each [0, 1, 2] as i (i)}
@@ -141,18 +142,28 @@
 				</div>
 			{:else}
 				{#each visible as item (item.id)}
+					<!-- Chrome drops a label's click when a shift-click extends the text selection, so the rows are not selectable -->
 					<label
-						class="hover:bg-fill-row-hover has-focus-visible:bg-fill-row-hover flex min-h-(--row-2line) cursor-pointer items-center gap-3 border-b px-4 py-2 transition-colors duration-(--dur-fast) last:border-b-0"
+						class="hover:bg-fill-row-hover has-focus-visible:bg-fill-row-hover flex min-h-(--row-2line) cursor-pointer items-center gap-3 border-b px-4 py-2 transition-colors duration-(--dur-fast) select-none last:border-b-0"
 					>
 						<Checkbox
 							checked={selected.includes(item.id)}
+							onclick={(e) => {
+								const range = selectRange(
+									e,
+									visible.map((i) => i.id),
+									selected,
+									item.id
+								);
+								if (range) selected = range;
+							}}
 							onCheckedChange={(checked) => toggle(item.id, checked)}
 						/>
 						{@render row(item)}
 					</label>
 				{/each}
 			{/if}
-		</div>
+		</ScrollArea>
 		<Dialog.Footer>
 			<Button variant="ghost" disabled={busy} onclick={() => (open = false)}>{m.cancel()}</Button>
 			<Button disabled={selected.length === 0} isLoading={busy} onclick={confirm}>

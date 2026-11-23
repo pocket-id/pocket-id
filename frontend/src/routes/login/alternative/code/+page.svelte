@@ -13,22 +13,24 @@
 	import CodeLine from '#lib/components/auth/code-line.svelte';
 	import FormattedMessage from '#lib/components/formatted-message.svelte';
 	import SignInWrapper from '#lib/components/login-wrapper.svelte';
-	import { Button } from '#lib/components/ui/button/index.ts';
-	import { Input } from '#lib/components/ui/input/index.ts';
-	import { Label } from '#lib/components/ui/label/index.ts';
+	import { Button } from '@pocket-id/ui/button';
+	import { Input } from '@pocket-id/ui/input';
+	import { Label } from '@pocket-id/ui/label';
 	import { m } from '#lib/paraglide/messages.js';
 	import UserService from '#lib/services/user-service.ts';
 	import appConfigStore from '#lib/stores/application-configuration-store.ts';
+	import { keepSignedIn } from '#lib/stores/keep-signed-in-store.svelte.ts';
 	import userStore from '#lib/stores/user-store.js';
 	import { getAxiosErrorCode, getAxiosErrorMessage } from '#lib/utils/error-util.ts';
 	import { preventDefault } from '#lib/utils/event-util.ts';
+	import { cssMs } from '#lib/utils/style.ts';
 	import { onMount, tick, untrack } from 'svelte';
+	import { fade } from 'svelte/transition';
 
 	let { data } = $props();
 
 	const SHORT = 6;
 	const LONG = 12;
-	const emailCodes = $appConfigStore.emailOneTimeAccessAsUnauthenticated !== 'disabled';
 	const userService = new UserService();
 
 	const sentTo = data.code ? '' : emailedLoginCode.sentTo;
@@ -36,7 +38,8 @@
 		data.redirect === '/settings' ? '' : `?redirect=${encodeURIComponent(data.redirect)}`;
 
 	let code = $state(data.code ?? '');
-	let long = $state(!sentTo && (code ? code.length > SHORT : !emailCodes));
+	// A code the user just requested by email is always short, any other code can have either length
+	const long = !sentTo;
 	let resendIn = $state(30);
 	let resending = $state(false);
 	let checking = $state(false);
@@ -44,7 +47,7 @@
 	let error: { message: string; invalid: boolean } | undefined = $state();
 
 	const token = $derived(code.replace(/[\s-]/g, ''));
-	const complete = $derived(token.length >= (long ? LONG : SHORT));
+	const complete = $derived(token.length === SHORT || (long && token.length === LONG));
 
 	// Typing again clears the last outcome
 	$effect(() => {
@@ -58,6 +61,7 @@
 		error = undefined;
 		try {
 			const user = await userService.exchangeOneTimeAccessToken(token);
+			await keepSignedIn.ask();
 			await userStore.setUser(user);
 			success = true;
 			await successHold();
@@ -70,15 +74,6 @@
 			error = { message: invalid ? m.auth_code_did_not_work() : getAxiosErrorMessage(e), invalid };
 		}
 		checking = false;
-	}
-
-	// The last outcome belonged to the other format, and the new field takes over the typing
-	async function switchFormat() {
-		long = !long;
-		error = undefined;
-		if (token.length > (long ? LONG : SHORT)) code = '';
-		await tick();
-		document.getElementById('login-code')?.focus();
 	}
 
 	// Resend code becomes available once the countdown under the primary runs out
@@ -101,8 +96,9 @@
 		document.getElementById('login-code')?.focus();
 	}
 
+	// A signed-in browser only switches accounts on a click, so a crafted link can't sign it into someone else's account
 	onMount(() => {
-		if (code) signIn();
+		if (code && !$userStore) signIn();
 	});
 </script>
 
@@ -128,75 +124,70 @@
 					inputs={{ email: sentTo, appName: $appConfigStore.appName }}
 				/>
 			</span>
-		{:else if long}
-			{m.auth_login_code_long_description()}
 		{:else}
-			{m.auth_login_code_short_description()}
+			{m.auth_login_code_description()}
 		{/if}
 	</AuthHeading>
-	<form
-		onsubmit={preventDefault(signIn)}
-		class="flex flex-col transition-opacity duration-(--dur-fast)"
-		class:opacity-0={success}
-		inert={success}
-	>
-		<Label for="login-code" class="mb-2">{m.auth_login_code()}</Label>
-		{#if long}
-			<Input
-				id="login-code"
-				bind:value={code}
-				class="h-(--h-xl) font-mono tracking-[0.12em]"
-				autocomplete="one-time-code"
-				autocapitalize="off"
-				spellcheck={false}
-				readonly={checking}
-				aria-invalid={error?.invalid || undefined}
-				aria-describedby="login-code-line"
-				autofocus
-			/>
-		{:else}
-			<CodeGroup
-				id="login-code"
-				groups={[3, 3]}
-				bind:value={code}
-				invalid={error?.invalid}
-				readonly={checking}
-				onComplete={signIn}
-				autocomplete="one-time-code"
-				autofocus
-				aria-describedby="login-code-line"
-			/>
-		{/if}
-		<CodeLine id="login-code-line" tone={checking ? 'checking' : error ? 'error' : undefined}>
-			{#if checking}
-				{m.auth_checking_code()}
-			{:else if error}
-				{error.message}
-			{:else if long}
-				{m.auth_spaces_and_dashes_are_ignored()}
+	{#if !success}
+		<form
+			onsubmit={preventDefault(signIn)}
+			class="flex flex-col"
+			out:fade={{ duration: cssMs('--dur-fast') }}
+		>
+			<Label for="login-code" class="mb-2">{m.auth_login_code()}</Label>
+			{#if long}
+				<Input
+					id="login-code"
+					bind:value={code}
+					class="h-(--h-xl) font-mono tracking-[0.12em]"
+					autocomplete="one-time-code"
+					autocapitalize="off"
+					spellcheck={false}
+					readonly={checking}
+					aria-invalid={error?.invalid || undefined}
+					aria-describedby="login-code-line"
+					autofocus
+				/>
+			{:else}
+				<CodeGroup
+					id="login-code"
+					groups={[3, 3]}
+					bind:value={code}
+					invalid={error?.invalid}
+					readonly={checking}
+					onComplete={signIn}
+					autocomplete="one-time-code"
+					autofocus
+					aria-describedby="login-code-line"
+				/>
 			{/if}
-		</CodeLine>
-		<div class="mt-6 flex flex-col items-center gap-3">
-			<Button type="submit" class={authPrimaryClass} disabled={!complete}>
-				{m.sign_in()}
-			</Button>
-			{#if sentTo}
-				{#if resendIn > 0}
-					<p class="text-control text-fg-muted flex h-(--h-xl) items-center tabular-nums">
-						{m.auth_resend_code_in({
-							time: `${Math.floor(resendIn / 60)}:${String(resendIn % 60).padStart(2, '0')}`
-						})}
-					</p>
-				{:else}
-					<Button variant="link" class={authQuietClass} isLoading={resending} onclick={resend}>
-						{m.auth_resend_code()}
-					</Button>
+			<CodeLine id="login-code-line" tone={checking ? 'checking' : error ? 'error' : undefined}>
+				{#if checking}
+					{m.auth_checking_code()}
+				{:else if error}
+					{error.message}
+				{:else if long}
+					{m.auth_spaces_and_dashes_are_ignored()}
 				{/if}
-			{:else if emailCodes}
-				<Button variant="link" class={authQuietClass} disabled={checking} onclick={switchFormat}>
-					{long ? m.auth_i_have_a_6_character_code() : m.auth_i_have_a_12_character_code()}
+			</CodeLine>
+			<div class="mt-6 flex flex-col items-center gap-3">
+				<Button type="submit" class={authPrimaryClass} disabled={!complete}>
+					{m.sign_in()}
 				</Button>
-			{/if}
-		</div>
-	</form>
+				{#if sentTo}
+					{#if resendIn > 0}
+						<p class="text-control text-fg-muted flex h-(--h-xl) items-center tabular-nums">
+							{m.auth_resend_code_in({
+								time: `${Math.floor(resendIn / 60)}:${String(resendIn % 60).padStart(2, '0')}`
+							})}
+						</p>
+					{:else}
+						<Button variant="link" class={authQuietClass} isLoading={resending} onclick={resend}>
+							{m.auth_resend_code()}
+						</Button>
+					{/if}
+				{/if}
+			</div>
+		</form>
+	{/if}
 </SignInWrapper>

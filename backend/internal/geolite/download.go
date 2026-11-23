@@ -9,6 +9,7 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"net/url"
 	"os"
 	"path"
 	"path/filepath"
@@ -39,6 +40,11 @@ func downloadDatabase(ctx context.Context, httpClient *http.Client, downloadURL 
 
 	res, err := httpClient.Do(req)
 	if err != nil {
+		// The *url.Error quotes the request URL, which may carry the license key, so only its cause is kept
+		var urlErr *url.Error
+		if errors.As(err, &urlErr) {
+			err = urlErr.Err
+		}
 		return fmt.Errorf("failed to download database: %w", err)
 	}
 	defer res.Body.Close()

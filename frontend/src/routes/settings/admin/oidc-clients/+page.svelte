@@ -5,9 +5,9 @@
 	import EmptyList from '#lib/components/empty-list.svelte';
 	import PageHeader from '#lib/components/page-header.svelte';
 	import AdvancedTable from '#lib/components/table/advanced-table.svelte';
-	import { Badge } from '#lib/components/ui/badge/index.ts';
-	import { Button } from '#lib/components/ui/button/index.ts';
-	import * as Tooltip from '#lib/components/ui/tooltip/index.ts';
+	import { Badge } from '@pocket-id/ui/badge';
+	import { Button } from '@pocket-id/ui/button';
+	import * as Tooltip from '@pocket-id/ui/tooltip';
 	import { m } from '#lib/paraglide/messages.js';
 	import OIDCService from '#lib/services/oidc-service.ts';
 	import appConfigStore from '#lib/stores/application-configuration-store.ts';
@@ -19,12 +19,15 @@
 	import type { OidcClientWithAllowedGroups } from '#lib/types/oidc.type.ts';
 	import { encodeClientIdParam } from '#lib/utils/client-id-util.ts';
 	import { openOnCreateParam } from '#lib/utils/create-param-util.ts';
-	import { LucideArrowRight, LucideArrowUpRight, LucidePlus } from '@lucide/svelte';
+	import ArrowRightIcon from '~icons/solar/arrow-right-linear';
+	import ArrowUpRightIcon from '~icons/solar/arrow-right-up-linear';
+	import PlusIcon from '~icons/solar/add-circle-bold';
 	import OidcClientCreateSheet from './oidc-client-create-sheet.svelte';
 	import {
 		copyClientIdAction,
 		deleteClientAction,
 		refreshClientAction,
+		toggleClientDisabledAction,
 		typeLabel
 	} from './oidc-client-actions';
 
@@ -45,6 +48,7 @@
 	}
 
 	const refresh = () => tableRef?.refresh();
+	const registrationVisible = $derived(tableRef?.isColumnVisible('clientType'));
 	const detailHref = (client: OidcClientWithAllowedGroups) =>
 		`/settings/admin/oidc-clients/${encodeClientIdParam(client.id)}`;
 
@@ -62,7 +66,7 @@
 	}
 
 	const columns: AdvancedTableColumn<OidcClientWithAllowedGroups>[] = $derived([
-		{ label: m.client(), column: 'name', sortable: true, cell: ClientCell },
+		{ label: m.name(), column: 'name', sortable: true, cell: ClientCell },
 		{
 			label: m.who_can_sign_in(),
 			column: 'isGroupRestricted',
@@ -73,6 +77,17 @@
 			]
 		},
 		{ label: m.type(), key: 'type', value: typeLabel, hideBelow: 760 },
+		{
+			label: m.status(),
+			column: 'disabled',
+			sortable: true,
+			cell: StatusCell,
+			hideBelow: 520,
+			filterableValues: [
+				{ label: m.active(), value: false },
+				{ label: m.disabled(), value: true }
+			]
+		},
 		...(data.features?.cimd.enabled
 			? ([
 					{
@@ -109,6 +124,7 @@
 			value: (client) => onOff(client.requiresPushedAuthorizationRequests),
 			filterableValues: onOffValues
 		},
+		{ label: m.client_id(), key: 'id', hidden: true, cell: IdCell },
 		{ label: m.launch_url(), key: 'launchURL', hidden: true, cell: LaunchUrlCell },
 		{
 			label: m.callback_urls(),
@@ -122,11 +138,12 @@
 		{
 			label: m.open(),
 			primary: true,
-			icon: LucideArrowRight,
+			icon: ArrowRightIcon,
 			onClick: (client) => goto(detailHref(client))
 		},
 		copyClientIdAction(),
 		refreshClientAction(client, refresh),
+		toggleClientDisabledAction(client, refresh),
 		deleteClientAction(refresh)
 	];
 </script>
@@ -146,11 +163,14 @@
 					onclick={(e) => e.stopPropagation()}>{item.name}</a
 				>
 				{#if item.clientType === 'cimd'}
-					<Badge variant="outline">{m.metadata_document()}</Badge>
+					<!-- Phones show only the client column, so the badge stays there even when Registration is shown -->
+					<Badge variant="outline" class={registrationVisible ? 'sm:hidden' : undefined}>
+						{m.metadata_document()}
+					</Badge>
 				{/if}
 			</span>
-			<span class="text-caption text-fg-muted truncate font-mono">{item.id}</span>
 			<span class="text-caption text-fg-muted truncate sm:hidden">
+				{#if item.disabled}{m.disabled()} ·{/if}
 				{#if item.isGroupRestricted && item.allowedUserGroups.length === 0}
 					<Badge variant="warning" class="text-caption text-fg-muted before:size-1.5">
 						{accessLabel(item)}
@@ -162,6 +182,14 @@
 			</span>
 		</div>
 	</div>
+{/snippet}
+
+{#snippet StatusCell({ item }: { item: OidcClientWithAllowedGroups })}
+	{#if item.disabled}
+		<Badge variant="destructive">{m.disabled()}</Badge>
+	{:else}
+		{m.active()}
+	{/if}
 {/snippet}
 
 {#snippet AccessCell({ item }: { item: OidcClientWithAllowedGroups })}
@@ -190,6 +218,10 @@
 	{/if}
 {/snippet}
 
+{#snippet IdCell({ item }: { item: OidcClientWithAllowedGroups })}
+	<span class="text-caption block max-w-60 truncate font-mono" title={item.id}>{item.id}</span>
+{/snippet}
+
 {#snippet LaunchUrlCell({ item }: { item: OidcClientWithAllowedGroups })}
 	{#if item.launchURL}
 		<span class="text-caption block max-w-60 truncate font-mono" title={item.launchURL}>
@@ -210,7 +242,7 @@
 		{#snippet actions()}
 			{#if !empty}
 				<Button onclick={() => (createOpen = true)}>
-					<LucidePlus />
+					<PlusIcon />
 					{m.add_oidc_client()}
 				</Button>
 			{/if}
@@ -218,18 +250,18 @@
 	</PageHeader>
 
 	{#if empty}
-		<EmptyList columns={[m.client(), m.who_can_sign_in()]} title={m.add_your_first_oidc_client()}>
+		<EmptyList columns={[m.name(), m.who_can_sign_in()]} title={m.add_your_first_oidc_client()}>
 			{#snippet description()}
 				{m.oidc_clients_page_description({ appName: $appConfigStore.appName })}
 			{/snippet}
 			{#snippet action()}
 				<Button onclick={() => (createOpen = true)}>
-					<LucidePlus />
+					<PlusIcon />
 					{m.add_oidc_client()}
 				</Button>
 				<Button variant="link" class="gap-1" href={connectDocsUrl} target="_blank" rel="noreferrer">
 					{m.docs()}
-					<LucideArrowUpRight />
+					<ArrowUpRightIcon />
 				</Button>
 			{/snippet}
 		</EmptyList>

@@ -1,12 +1,15 @@
 package cmds
 
 import (
+	"strings"
 	"testing"
 	"time"
 
+	"github.com/italypaleale/francis/actor"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
+	"github.com/pocket-id/pocket-id/backend/internal/appconfig"
 	"github.com/pocket-id/pocket-id/backend/internal/common"
 	"github.com/pocket-id/pocket-id/backend/internal/instanceid"
 	datatype "github.com/pocket-id/pocket-id/backend/internal/model/types"
@@ -69,11 +72,19 @@ func TestEncryptionKeyRotate(t *testing.T) {
 	).Error
 	require.NoError(t, err)
 
+	encSmtpPassword, err := datatype.EncryptEncryptedStringWithKey(oldEncKey, []byte("smtp-secret"))
+	require.NoError(t, err)
+	actorStore := testingutils.NewActorHostForTest(t, nil)
+	err = actorStore.SetState(t.Context(), appconfig.AppConfigActorType, actor.SingletonActorID, &appconfig.AppConfigModel{
+		SmtpPassword: appconfig.AppConfigValue("encrypted:" + encSmtpPassword),
+	}, nil)
+	require.NoError(t, err)
+
 	flags := encryptionKeyRotateFlags{
 		NewKey: string(newKey),
 		Yes:    true,
 	}
-	err = encryptionKeyRotate(t.Context(), flags, db, instanceID, envConfig)
+	err = encryptionKeyRotate(t.Context(), flags, db, actorStore, instanceID, envConfig)
 	require.NoError(t, err)
 
 	newKek, err := jwkutils.LoadKeyEncryptionKey(&common.EnvConfigSchema{EncryptionKey: newKey}, instanceID)
@@ -119,4 +130,13 @@ func TestEncryptionKeyRotate(t *testing.T) {
 	decBytes, err := datatype.DecryptEncryptedStringWithKey(newEncKey, storedToken)
 	require.NoError(t, err)
 	assert.Equal(t, "scim-token-123", string(decBytes))
+
+	var appConfig appconfig.AppConfigModel
+	err = actorStore.GetState(t.Context(), appconfig.AppConfigActorType, actor.SingletonActorID, &appConfig)
+	require.NoError(t, err)
+	encSmtpPassword, ok := strings.CutPrefix(appConfig.SmtpPassword.String(), "encrypted:")
+	require.True(t, ok)
+	decBytes, err = datatype.DecryptEncryptedStringWithKey(newEncKey, encSmtpPassword)
+	require.NoError(t, err)
+	assert.Equal(t, "smtp-secret", string(decBytes))
 }

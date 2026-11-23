@@ -1,0 +1,1072 @@
+//go:build e2etest
+
+package e2etest
+
+import (
+	"context"
+	"crypto/ecdsa"
+	"crypto/elliptic"
+	"crypto/rand"
+	"encoding/base64"
+	"fmt"
+	"log/slog"
+	"path"
+	"time"
+	"uuid"
+
+	"github.com/go-webauthn/webauthn/protocol"
+	"github.com/italypaleale/francis/actor"
+	francishost "github.com/italypaleale/francis/host"
+	"github.com/lestrrat-go/jwx/v4/jwa"
+	"github.com/lestrrat-go/jwx/v4/jwk"
+	"github.com/lestrrat-go/jwx/v4/jwt"
+	"github.com/pocket-id/fosite"
+	"github.com/pocket-id/fosite/compose"
+	fositejwt "github.com/pocket-id/fosite/token/jwt"
+	"gorm.io/gorm"
+
+	"github.com/pocket-id/pocket-id/backend/internal/api"
+	"github.com/pocket-id/pocket-id/backend/internal/apikey"
+	"github.com/pocket-id/pocket-id/backend/internal/appconfig"
+	"github.com/pocket-id/pocket-id/backend/internal/authz"
+	"github.com/pocket-id/pocket-id/backend/internal/claimmappingpolicy"
+	"github.com/pocket-id/pocket-id/backend/internal/common"
+	"github.com/pocket-id/pocket-id/backend/internal/dto"
+	"github.com/pocket-id/pocket-id/backend/internal/emailverification"
+	"github.com/pocket-id/pocket-id/backend/internal/model"
+	datatype "github.com/pocket-id/pocket-id/backend/internal/model/types"
+	"github.com/pocket-id/pocket-id/backend/internal/oidc"
+	"github.com/pocket-id/pocket-id/backend/internal/onetimeaccess"
+	"github.com/pocket-id/pocket-id/backend/internal/session"
+	"github.com/pocket-id/pocket-id/backend/internal/signingkey"
+	"github.com/pocket-id/pocket-id/backend/internal/storage"
+	"github.com/pocket-id/pocket-id/backend/internal/usersignup"
+	"github.com/pocket-id/pocket-id/backend/internal/utils"
+	jwkutils "github.com/pocket-id/pocket-id/backend/internal/utils/jwk"
+	"github.com/pocket-id/pocket-id/backend/internal/webauthn"
+	"github.com/pocket-id/pocket-id/backend/resources"
+)
+
+// LdapSyncer runs a full LDAP synchronization
+type LdapSyncer interface {
+	SyncAll(ctx context.Context, dbConfig *appconfig.AppConfigModel) error
+}
+
+// BrowserKeyReloader reloads the key that signs known-browser cookies
+type BrowserKeyReloader interface {
+	ReloadBrowserKey(ctx context.Context, instanceID string) error
+}
+
+type Service struct {
+	db               *gorm.DB
+	actors           francishost.Host
+	signingKey       *signingkey.Key
+	browserKey       BrowserKeyReloader
+	appConfigService *appconfig.AppConfigService
+	ldapSyncer       LdapSyncer
+	fileStorage      storage.FileStorage
+	externalIdPKey   jwk.Key
+}
+
+//nolint:gosec // G101 false positive: fixtures the E2E tests share, not credentials
+const (
+	e2eRefreshTokenUserID              = "f4b89dc2-62fb-46bf-9f5f-c34f4eafe93e"
+	e2eRefreshTokenClientID            = "3654a746-35d4-4321-ac61-0bdcff2b4055"
+	e2eRefreshTokenValidFixtureToken   = "ou87UDg249r1StBLYkMEqy9TXDbV5HmGuDpMcZDo"
+	e2eRefreshTokenExpiredFixtureToken = "X4vqwtRyCUaq51UafHea4Fsg8Km6CAns6vp3tuX4"
+	e2eEmailVerificationUserID         = "1cd19686-f9a6-43f4-a41f-14a0bf5b4036"
+	e2eEmailVerificationUserEmail      = "craig.federighi@test.com"
+	e2eEmailVerificationToken          = "2FZFSoupBdHyqIL65bWTsgCgHIhxlXup"
+	e2eSessionID                       = "e2e-session-tim"
+	e2eSessionSecret                   = "Tq4mV8cY2nB6xR1wK9pL3sD7fG5hJ0zA"
+
+	// authenticationMethodPhishingResistant is how a passkey sign-in is recorded
+	authenticationMethodPhishingResistant = "phr"
+)
+
+const (
+	accessTokenDuration  = time.Duration(model.DefaultAccessTokenDurationMinutes) * time.Minute
+	refreshTokenDuration = time.Duration(model.DefaultRefreshTokenDurationMinutes) * time.Minute
+)
+
+// Initializes the "external IdP"
+// This creates a new "issuing authority" containing a public JWKS
+// It also stores the private key internally that will be used to issue JWTs
+func (s *Service) initExternalIdP() error {
+	// Generate a new ECDSA key
+	rawKey, err := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
+	if err != nil {
+		return fmt.Errorf("failed to generate private key: %w", err)
+	}
+
+	s.externalIdPKey, err = jwkutils.ImportRawKey(rawKey, jwa.ES256().String(), "")
+	if err != nil {
+		return fmt.Errorf("failed to import private key: %w", err)
+	}
+
+	return nil
+}
+
+// seededClientCredentials returns credentials holding a single client secret with the given value, which E2E tests use to authenticate as the client
+func seededClientCredentials(secretID string, value string) model.OidcClientCredentials {
+	return model.OidcClientCredentials{
+		Secrets: seededClientSecrets(secretID, value),
+	}
+}
+
+// seededClientSecrets returns a single never-expiring client secret with the given value
+func seededClientSecrets(secretID string, value string) []model.OidcClientSecret {
+	return []model.OidcClientSecret{
+		{
+			ID:        secretID,
+			Algorithm: model.OidcClientSecretHashSHA256,
+			Hash:      utils.CreateSha256Hash(value),
+			Prefix:    value[:model.OidcClientSecretPrefixLength],
+			CreatedAt: datatype.DateTime(time.Now()),
+		},
+	}
+}
+
+//nolint:gocognit
+func (s *Service) SeedDatabase(baseURL string) error {
+	err := s.db.Transaction(func(tx *gorm.DB) error {
+		users := []model.User{
+			{
+				Base: model.Base{
+					ID: "f4b89dc2-62fb-46bf-9f5f-c34f4eafe93e",
+				},
+				Username:      "tim",
+				Email:         new("tim.cook@test.com"),
+				EmailVerified: true,
+				FirstName:     "Tim",
+				LastName:      "Cook",
+				DisplayName:   "Tim Cook",
+				IsAdmin:       true,
+			},
+			{
+				Base: model.Base{
+					ID: "1cd19686-f9a6-43f4-a41f-14a0bf5b4036",
+				},
+				Username:      "craig",
+				Email:         new("craig.federighi@test.com"),
+				EmailVerified: false,
+				FirstName:     "Craig",
+				LastName:      "Federighi",
+				DisplayName:   "Craig Federighi",
+				IsAdmin:       false,
+			},
+			{
+				Base: model.Base{
+					ID: "d9256384-98ad-49a7-bc58-99ad0b4dc23c",
+				},
+				Username:    "eddy",
+				Email:       new("eddy.cue@test.com"),
+				FirstName:   "Eddy",
+				LastName:    "Cue",
+				DisplayName: "Eddy Cue",
+				IsAdmin:     false,
+			},
+		}
+		for _, user := range users {
+			if err := tx.Create(&user).Error; err != nil {
+				return err
+			}
+		}
+
+		userGroups := []model.UserGroup{
+			{
+				Base: model.Base{
+					ID: "c7ae7c01-28a3-4f3c-9572-1ee734ea8368",
+				},
+				Name:         "developers",
+				FriendlyName: "Developers",
+				Users:        []model.User{users[0], users[1]},
+			},
+			{
+				Base: model.Base{
+					ID: "adab18bf-f89d-4087-9ee1-70ff15b48211",
+				},
+				Name:         "designers",
+				FriendlyName: "Designers",
+				Users:        []model.User{users[0]},
+			},
+		}
+		for _, group := range userGroups {
+			if err := tx.Create(&group).Error; err != nil {
+				return err
+			}
+		}
+
+		// The built-in claim mapping policy and API are seeded at boot, so they have to be recreated after the database reset
+		if err := claimmappingpolicy.Bootstrap(context.Background(), tx); err != nil {
+			return err
+		}
+		if err := api.Bootstrap(context.Background(), tx, common.EnvConfig.AppURL); err != nil {
+			return err
+		}
+
+		oidcClients := []model.OidcClient{
+			{
+				Base: model.Base{
+					ID: "3654a746-35d4-4321-ac61-0bdcff2b4055",
+				},
+				Name:                 "Nextcloud",
+				Notes:                "Nextcloud reads its OIDC settings from the user_oidc app",
+				LaunchURL:            new("https://nextcloud.local"),
+				Credentials:          seededClientCredentials("2f1b8f1a-1d3e-4f0c-9c1a-000000000001", "w2mUeZISmEvIDMEDvpY0PnxQIpj1m3zY"),
+				CallbackURLs:         datatype.StringList{"http://nextcloud.localhost/auth/callback"},
+				LogoutCallbackURLs:   datatype.StringList{"http://nextcloud.localhost/auth/logout/callback"},
+				BackchannelLogoutURL: "http://host.docker.internal:18124/nextcloud",
+				ImageType:            new("png"),
+				CreatedByID:          new(users[0].ID),
+			},
+			{
+				Base: model.Base{
+					ID: "606c7782-f2b1-49e5-8ea9-26eb1b06d018",
+				},
+				Name:              "Immich",
+				LaunchURL:         new("https://immich.local"),
+				Credentials:       seededClientCredentials("2f1b8f1a-1d3e-4f0c-9c1a-000000000002", "PYjrE9u4v9GVqXKi52eur0eb2Ci4kc0x"),
+				CallbackURLs:      datatype.StringList{"http://immich.localhost/auth/callback"},
+				CreatedByID:       new(users[1].ID),
+				IsGroupRestricted: true,
+				AllowedUserGroups: []model.UserGroup{
+					userGroups[1],
+				},
+			},
+			{
+				Base: model.Base{
+					ID: "7c21a609-96b5-4011-9900-272b8d31a9d1",
+				},
+				Name:                 "Tailscale",
+				Credentials:          seededClientCredentials("2f1b8f1a-1d3e-4f0c-9c1a-000000000003", "n4VfQeXlTzA6yKpWbR9uJcMdSx2qH0Lo"),
+				CallbackURLs:         datatype.StringList{"http://tailscale.localhost/auth/callback"},
+				LogoutCallbackURLs:   datatype.StringList{"http://tailscale.localhost/auth/logout/callback"},
+				BackchannelLogoutURL: "http://host.docker.internal:18124/tailscale",
+				IsGroupRestricted:    true,
+				CreatedByID:          new(users[0].ID),
+				AllowedUserGroups: []model.UserGroup{
+					userGroups[0],
+				},
+			},
+			{
+				Base: model.Base{
+					ID: "c48232ff-ff65-45ed-ae96-7afa8a9b443b",
+				},
+				Name:              "Federated",
+				CallbackURLs:      datatype.StringList{"http://federated.localhost/auth/callback"},
+				CreatedByID:       new(users[1].ID),
+				AllowedUserGroups: []model.UserGroup{},
+				Credentials: model.OidcClientCredentials{
+					Secrets: seededClientSecrets("2f1b8f1a-1d3e-4f0c-9c1a-000000000004", "PYjrE9u4v9GVqXKi52eur0eb2Ci4kc0x"),
+					FederatedIdentities: []model.OidcClientFederatedIdentity{
+						{
+							Issuer:   "https://external-idp.local",
+							Audience: "api://PocketID",
+							Subject:  "c48232ff-ff65-45ed-ae96-7afa8a9b443b",
+							JWKS:     baseURL + "/api/externalidp/jwks.json",
+						},
+					},
+				},
+			},
+			{
+				Base: model.Base{
+					ID: "c46d2090-37a0-4f2b-8748-6aa53b0c1afa",
+				},
+				Name:              "SCIM Client",
+				Credentials:       seededClientCredentials("2f1b8f1a-1d3e-4f0c-9c1a-000000000005", "nQbiuMRG7FpdK2EnDd5MBivWQeKFXohn"),
+				CallbackURLs:      datatype.StringList{"http://scimclient.localhost/auth/callback"},
+				CreatedByID:       new(users[0].ID),
+				IsGroupRestricted: true,
+				AllowedUserGroups: []model.UserGroup{
+					userGroups[0],
+					userGroups[1],
+				},
+			},
+			{
+				Base: model.Base{
+					ID: "a1b2c3d4-e5f6-7890-abcd-ef0000000001",
+				},
+				Name:         "PAR Test Client",
+				Credentials:  seededClientCredentials("2f1b8f1a-1d3e-4f0c-9c1a-000000000006", "w2mUeZISmEvIDMEDvpY0PnxQIpj1m3zY"),
+				CallbackURLs: datatype.StringList{"http://par-client.localhost/auth/callback"},
+				CreatedByID:  new(users[0].ID),
+			},
+			{
+				Base: model.Base{
+					ID: "e1f2a3b4-c5d6-7890-abcd-ef0000000002",
+				},
+				Name:         "Skip Consent Client",
+				Credentials:  seededClientCredentials("2f1b8f1a-1d3e-4f0c-9c1a-000000000007", "w2mUeZISmEvIDMEDvpY0PnxQIpj1m3zY"),
+				CallbackURLs: datatype.StringList{"http://skip-consent.localhost/auth/callback"},
+				CreatedByID:  new(users[0].ID),
+				// Trusted client that bypasses the consent screen by default
+				SkipConsent: true,
+			},
+		}
+		for _, client := range oidcClients {
+			if err := tx.Create(&client).Error; err != nil {
+				return err
+			}
+		}
+
+		farFuture := datatype.DateTime(time.Date(2099, 1, 1, 0, 0, 0, 0, time.UTC))
+		oauth2Session := oidc.OAuth2Session{
+			Base: model.Base{
+				ID: "551ab785-c830-47d3-8a07-60c9f3bb4859",
+			},
+			Kind:                 "access_token",
+			Key:                  "cross-database-test-session",
+			RequestID:            "cross-database-test-request",
+			ClientID:             oidcClients[0].ID,
+			AccessTokenSignature: "",
+			Active:               true,
+			RequestData:          `{"client_id":"3654a746-35d4-4321-ac61-0bdcff2b4055","session":{"subject":"f4b89dc2-62fb-46bf-9f5f-c34f4eafe93e","id_token_claims":{"jti":"cross-database-test-id-token-jti"}}}`,
+			ExpiresAt:            &farFuture,
+		}
+		if err := tx.Create(&oauth2Session).Error; err != nil {
+			return err
+		}
+
+		if err := tx.Table("oauth2_jtis").Create(map[string]any{
+			"id":         "bd0c8bf2-66ec-487a-9dd5-7d9d78d73543",
+			"created_at": datatype.DateTime(time.Now()),
+			"jti":        "cross-database-test-jti",
+			"expires_at": farFuture,
+		}).Error; err != nil {
+			return err
+		}
+
+		interactionSession := oidc.InteractionSession{
+			Base: model.Base{
+				ID: "aaf5dd23-cd1f-4748-a2aa-baa6af94d800",
+			},
+			Scopes:          datatype.StringList{"openid"},
+			ClientID:        oidcClients[0].ID,
+			UserID:          new(users[0].ID),
+			ConsentRequired: true,
+			RequestedAt:     farFuture,
+			Parameters: oidc.InteractionSessionParameters{
+				"client_id": oidcClients[0].ID,
+			},
+		}
+		if err := tx.Create(&interactionSession).Error; err != nil {
+			return err
+		}
+
+		reauthenticationToken := webauthn.ReauthenticationToken{
+			Base: model.Base{
+				ID: "71839ace-d978-4e6f-8fb1-b8648a21031b",
+			},
+			Token:     "cross-database-reauthentication-token",
+			ExpiresAt: farFuture,
+			UserID:    users[0].ID,
+		}
+		if err := tx.Create(&reauthenticationToken).Error; err != nil {
+			return err
+		}
+
+		userAuthorizedClients := []model.UserAuthorizedOidcClient{
+			{
+				Scope:      datatype.StringList{"openid", "profile", "email"},
+				UserID:     users[0].ID,
+				ClientID:   oidcClients[0].ID,
+				LastUsedAt: datatype.DateTime(time.Date(2025, 8, 1, 13, 0, 0, 0, time.UTC)),
+			},
+			{
+				Scope:      datatype.StringList{"openid", "profile", "email"},
+				UserID:     users[0].ID,
+				ClientID:   oidcClients[2].ID,
+				LastUsedAt: datatype.DateTime(time.Date(2025, 8, 10, 14, 0, 0, 0, time.UTC)),
+			},
+			{
+				Scope:      datatype.StringList{"openid", "profile", "email"},
+				UserID:     users[1].ID,
+				ClientID:   oidcClients[3].ID,
+				LastUsedAt: datatype.DateTime(time.Date(2025, 8, 12, 12, 0, 0, 0, time.UTC)),
+			},
+			{
+				Scope:      datatype.StringList{"openid", "profile", "email"},
+				UserID:     users[0].ID,
+				ClientID:   oidcClients[5].ID,
+				LastUsedAt: datatype.DateTime(time.Date(2024, 1, 1, 0, 0, 0, 0, time.UTC)),
+			},
+		}
+		for _, userAuthorizedClient := range userAuthorizedClients {
+			if err := tx.Create(&userAuthorizedClient).Error; err != nil {
+				return err
+			}
+		}
+
+		ordersAPI := api.API{
+			Base: model.Base{
+				ID: "f6a8b3c1-2d4e-4a6b-8c9d-0e1f2a3b4c5d",
+			},
+			Name:     "Orders API",
+			Audience: "https://api.orders.test",
+		}
+		if err := tx.Create(&ordersAPI).Error; err != nil {
+			return err
+		}
+
+		apiPermissions := []api.Permission{
+			{
+				Base: model.Base{
+					ID: "1a2b3c4d-5e6f-4a7b-8c9d-0e1f2a3b4c5d",
+				},
+				APIID:       ordersAPI.ID,
+				Key:         "read:orders",
+				Name:        "Read orders",
+				Description: new("Read order data"),
+			},
+			{
+				Base: model.Base{
+					ID: "2b3c4d5e-6f7a-4b8c-9d0e-1f2a3b4c5d6e",
+				},
+				APIID:       ordersAPI.ID,
+				Key:         "write:orders",
+				Name:        "Write orders",
+				Description: new("Create and modify orders"),
+			},
+		}
+		for _, permission := range apiPermissions {
+			if err := tx.Create(&permission).Error; err != nil {
+				return err
+			}
+		}
+
+		// Immich may reach the Orders API for both subject types, which is what the permission grants below build on
+		allowedAPIs := []api.OidcClientAllowedAPI{
+			{
+				OidcClientID: oidcClients[1].ID,
+				APIID:        ordersAPI.ID,
+				SubjectType:  oidc.SubjectTypeUser,
+			},
+			{
+				OidcClientID: oidcClients[1].ID,
+				APIID:        ordersAPI.ID,
+				SubjectType:  oidc.SubjectTypeClient,
+			},
+		}
+		for _, allowed := range allowedAPIs {
+			if err := tx.Create(&allowed).Error; err != nil {
+				return err
+			}
+		}
+
+		// Immich is allowed to request read:orders on behalf of users and to obtain write:orders for itself via the client credentials grant
+		allowedAPIPermissions := []api.OidcClientAllowedAPIPermission{
+			{
+				OidcClientID:    oidcClients[1].ID,
+				APIPermissionID: apiPermissions[0].ID,
+				SubjectType:     oidc.SubjectTypeUser,
+			},
+			{
+				OidcClientID:    oidcClients[1].ID,
+				APIPermissionID: apiPermissions[1].ID,
+				SubjectType:     oidc.SubjectTypeClient,
+			},
+		}
+		for _, allowed := range allowedAPIPermissions {
+			if err := tx.Create(&allowed).Error; err != nil {
+				return err
+			}
+		}
+
+		// To generate a new key pair, run the following command:
+		// openssl genpkey -algorithm EC -pkeyopt ec_paramgen_curve:P-256 | \
+		// openssl pkcs8 -topk8 -nocrypt | tee >(openssl pkey -pubout)
+
+		publicKeyPasskey1, _ := base64.StdEncoding.DecodeString("pQMmIAEhWCDBw6jkpXXr0pHrtAQetxiR5cTcILG/YGDCdKrhVhNDHCJYIIu12YrF6B7Frwl3AUqEpdrYEwj3Fo3XkGgvrBIJEUmGAQI=")
+		publicKeyPasskey2, _ := base64.StdEncoding.DecodeString("pSJYIPmc+FlEB0neERqqscxKckGF8yq1AYrANiloshAUAouHAQIDJiABIVggj4qA0PrZzg8Co1C27nyUbzrp8Ewjr7eOlGI2LfrzmbI=")
+		webauthnCredentials := []webauthn.WebauthnCredential{
+			{
+				Name:            "Passkey 1",
+				CredentialID:    []byte("test-credential-tim"),
+				PublicKey:       publicKeyPasskey1,
+				AttestationType: "none",
+				Transport:       webauthn.AuthenticatorTransportList{protocol.Internal},
+				UserID:          users[0].ID,
+			},
+			{
+				Name:            "Passkey 2",
+				CredentialID:    []byte("test-credential-craig"),
+				PublicKey:       publicKeyPasskey2,
+				AttestationType: "none",
+				Transport:       webauthn.AuthenticatorTransportList{protocol.Internal},
+				UserID:          users[1].ID,
+			},
+		}
+		for _, credential := range webauthnCredentials {
+			if err := tx.Create(&credential).Error; err != nil {
+				return err
+			}
+		}
+
+		webauthnSession := webauthn.WebauthnSession{
+			Challenge:        "challenge",
+			ExpiresAt:        datatype.DateTime(time.Now().Add(1 * time.Hour)),
+			UserVerification: "preferred",
+			CredentialParams: webauthn.CredentialParameters{
+				{Type: "public-key", Algorithm: -7},
+				{Type: "public-key", Algorithm: -257},
+			},
+		}
+		if err := tx.Create(&webauthnSession).Error; err != nil {
+			return err
+		}
+
+		apiKeys := []apikey.ApiKey{
+			{
+				Base: model.Base{
+					ID: "5f1fa856-c164-4295-961e-175a0d22d725",
+				},
+				Name:      "Test API Key",
+				Key:       "6c34966f57ef2bb7857649aff0e7ab3ad67af93c846342ced3f5a07be8706c20",
+				UserID:    users[0].ID,
+				ExpiresAt: datatype.DateTime(time.Now().Add(30 * 24 * time.Hour)),
+				Scopes:    apikey.AllScopes(),
+			},
+			{
+				Base: model.Base{
+					ID: "98900330-7a7b-48fe-881b-2cc6ad049976",
+				},
+				Name:      "Expired API Key",
+				Key:       "141ff8ac9db640ba93630099de83d0ead8e7ac673e3a7d31b4fd7ff2252e6389",
+				UserID:    users[0].ID,
+				ExpiresAt: datatype.DateTime(time.Now().Add(-20 * 24 * time.Hour)),
+				Scopes:    apikey.AllScopes(),
+			},
+		}
+		for _, apiKey := range apiKeys {
+			if err := tx.Create(&apiKey).Error; err != nil {
+				return err
+			}
+		}
+
+		keyValues := []model.KV{
+			{
+				Key: jwkutils.PrivateKeyDBKey,
+				// {"alg":"RS256","d":"mvMDWSdPPvcum0c0iEHE2gbqtV2NKMmLwrl9E6K7g8lTV95SePLnW_bwyMPV7EGp7PQk3l17I5XRhFjze7GqTnFIOgKzMianPs7jv2ELtBMGK0xOPATgu1iGb70xZ6vcvuEfRyY3dJ0zr4jpUdVuXwKmx9rK4IdZn2dFCKfvSuspqIpz11RhF1ALrqDLkxGVv7ZwNh0_VhJZU9hcjG5l6xc7rQEKpPRkZp0IdjkGS8Z0FskoVaiRIWAbZuiVFB9WCW8k1czC4HQTPLpII01bUQx2ludbm0UlXRgVU9ptUUbU7GAImQqTOW8LfPGklEvcgzlIlR_oqw4P9yBxLi-yMQ","dp":"pvNCSnnhbo8Igw9psPR-DicxFnkXlu_ix4gpy6efTrxA-z1VDFDioJ814vKQNioYDzpyAP1gfMPhRkvG_q0hRZsJah3Sb9dfA-WkhSWY7lURQP4yIBTMU0PF_rEATuS7lRciYk1SOx5fqXZd3m_LP0vpBC4Ujlq6NAq6CIjCnms","dq":"TtUVGCCkPNgfOLmkYXu7dxxUCV5kB01-xAEK2OY0n0pG8vfDophH4_D_ZC7nvJ8J9uDhs_3JStexq1lIvaWtG99RNTChIEDzpdn6GH9yaVcb_eB4uJjrNm64FhF8PGCCwxA-xMCZMaARKwhMB2_IOMkxUbWboL3gnhJ2rDO_QO0","e":"AQAB","kid":"8uHDw3M6rf8","kty":"RSA","n":"yaeEL0VKoPBXIAaWXsUgmu05lAvEIIdJn0FX9lHh4JE5UY9B83C5sCNdhs9iSWzpeP11EVjWp8i3Yv2CF7c7u50BXnVBGtxpZpFC-585UXacoJ0chUmarL9GRFJcM1nPHBTFu68aRrn1rIKNHUkNaaxFo0NFGl_4EDDTO8HwawTjwkPoQlRzeByhlvGPVvwgB3Fn93B8QJ_cZhXKxJvjjrC_8Pk76heC_ntEMru71Ix77BoC3j2TuyiN7m9RNBW8BU5q6lKoIdvIeZfTFLzi37iufyfvMrJTixp9zhNB1NxlLCeOZl2MXegtiGqd2H3cbAyqoOiv9ihUWTfXj7SxJw","p":"_Yylc9e07CKdqNRD2EosMC2mrhrEa9j5oY_l00Qyy4-jmCA59Q9viyqvveRo0U7cRvFA5BWgWN6GGLh1DG3X-QBqVr0dnk3uzbobb55RYUXyPLuBZI2q6w2oasbiDwPdY7KpkVv_H-bpITQlyDvO8hhucA6rUV7F6KTQVz8M3Ms","q":"y5p3hch-7jJ21TkAhp_Vk1fLCAuD4tbErwQs2of9ja8sB4iJOs5Wn6HD3P7Mc8Plye7qaLHvzc8I5g0tPKWvC0DPd_FLPXiWwMVAzee3NUX_oGeJNOQp11y1w_KqdO9qZqHSEPZ3NcFL_SZMFgggxhM1uzRiPzsVN0lnD_6prZU","qi":"2Grt6uXHm61ji3xSdkBWNtUnj19vS1-7rFJp5SoYztVQVThf_W52BAiXKBdYZDRVoItC_VS2NvAOjeJjhYO_xQ_q3hK7MdtuXfEPpLnyXKkmWo3lrJ26wbeF6l05LexCkI7ShsOuSt-dsyaTJTszuKDIA6YOfWvfo3aVZmlWRaI","use":"sig"}
+				Value: new("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"),
+			},
+			{
+				Key: jwkutils.SessionKeyDBKey,
+				// {"alg":"HS256","k":"5un_Rh6BPDVwGwRWPC_-w-HvT4BuUq5vYE4a2z4IL1k","kid":"YC7IX6YEFJc","kty":"oct","use":"sig"}
+				Value: new("6puTIBpn0u2Y8FJQ9C4gxuzORTgMmac9Tz9B2epw212hlaepET06ca/CPnwdirCNNg/tLG1wXd2MNSEMgZAnl1cPkF9hPabrRW+SUYpFDLu4yE9w5uc6ns//9pphedK5vS190oXcE7FaWBoso789JuQ0yoicNEnjAAjBWExnp0dXXufmXzUZSnKQ"),
+			},
+		}
+
+		for _, kv := range keyValues {
+			if err := tx.Create(&kv).Error; err != nil {
+				return err
+			}
+		}
+
+		return nil
+	})
+
+	if err != nil {
+		return err
+	}
+
+	// Actor-backed token fixtures are seeded separately from the database transaction to avoid invoking actors while SQLite holds a transaction
+	err = s.seedOneTimeAccessTokens(context.Background())
+	if err != nil {
+		return fmt.Errorf("failed to seed one-time access tokens: %w", err)
+	}
+
+	err = s.seedSignupTokens(context.Background())
+	if err != nil {
+		return fmt.Errorf("failed to seed signup tokens: %w", err)
+	}
+
+	err = s.seedEmailVerificationToken(context.Background())
+	if err != nil {
+		return fmt.Errorf("failed to seed email verification token: %w", err)
+	}
+
+	err = s.seedSession(context.Background())
+	if err != nil {
+		return fmt.Errorf("failed to seed session: %w", err)
+	}
+
+	return nil
+}
+
+// seedSession restores the browser session the E2E tests share, since a test that signs out revokes it for every later test
+func (s *Service) seedSession(ctx context.Context) error {
+	now := time.Now()
+	_, err := s.actors.Service().Invoke(ctx, session.ActorType, e2eRefreshTokenUserID, session.MethodCreate, session.Session{
+		ID:                   e2eSessionID,
+		TokenHash:            utils.CreateSha256Hash(e2eSessionSecret),
+		AuthenticationMethod: authenticationMethodPhishingResistant,
+		CreatedAt:            now,
+		LastActiveAt:         now,
+		ExpiresAt:            now.Add(24 * time.Hour),
+		SudoStartedAt:        now,
+		SudoUsedAt:           now,
+	})
+	return err
+}
+
+// seedEmailVerificationToken replaces the outstanding verification state so every E2E reset starts from the same valid token
+func (s *Service) seedEmailVerificationToken(ctx context.Context) error {
+	state := emailverification.State{
+		TokenHash: utils.CreateSha256Hash(e2eEmailVerificationToken),
+		Email:     e2eEmailVerificationUserEmail,
+		ExpiresAt: time.Now().Add(24 * time.Hour).Round(time.Second),
+	}
+
+	_, err := s.actors.Service().Invoke(ctx, emailverification.ActorType, e2eEmailVerificationUserID, emailverification.MethodIssue, state)
+	return err
+}
+
+// seedSignupTokens seeds the signup tokens used by E2E tests into the signup token singleton actor.
+// The already-expired fixture token is intentionally not seeded, since the actor would purge it right away via its cleanup alarm.
+func (s *Service) seedSignupTokens(ctx context.Context) error {
+	now := time.Now().Round(time.Second)
+	tokens := map[string]usersignup.SignupTokenState{
+		"VALID1234567890A": {
+			ID:           "a1b2c3d4-e5f6-7890-abcd-ef1234567890",
+			ExpiresAt:    now.Add(24 * time.Hour),
+			UsageLimit:   1,
+			UsageCount:   0,
+			UserGroupIDs: []string{"c7ae7c01-28a3-4f3c-9572-1ee734ea8368"},
+			CreatedAt:    now,
+		},
+		"PARTIAL567890ABC": {
+			ID:         "dc3c9c96-714e-48eb-926e-2d7c7858e6cf",
+			ExpiresAt:  now.Add(7 * 24 * time.Hour),
+			UsageLimit: 5,
+			UsageCount: 2,
+			CreatedAt:  now,
+		},
+		"FULLYUSED567890C": {
+			ID:         "f1b1678b-7720-4d8b-8f91-1dbff1e2d02b",
+			ExpiresAt:  now.Add(24 * time.Hour),
+			UsageLimit: 1,
+			UsageCount: 1, // Usage limit reached
+			CreatedAt:  now,
+		},
+	}
+
+	// The actor state store isn't wiped by ResetDatabase, so remove any signup token left over from a previous test first
+	err := s.deleteAllSignupTokens(ctx)
+	if err != nil {
+		return err
+	}
+
+	// Each signup token is its own actor, whose actor ID is the token's hash
+	for token, state := range tokens {
+		state.Prefix = token[:4]
+		_, err = s.actors.Service().Invoke(ctx, usersignup.SignupTokenActorType, utils.CreateSha256Hash(token), usersignup.SignupTokenMethodCreate, state)
+		if err != nil {
+			return fmt.Errorf("failed to seed signup token %q: %w", token, err)
+		}
+	}
+
+	return nil
+}
+
+// deleteAllSignupTokens removes every signup token currently stored in the actor state store
+func (s *Service) deleteAllSignupTokens(ctx context.Context) error {
+	var after string
+	for {
+		res, err := s.actors.Service().ListStates(ctx, usersignup.SignupTokenActorType, &actor.ListStatesOpts{After: after})
+		if err != nil {
+			return fmt.Errorf("failed to list signup tokens: %w", err)
+		}
+
+		for _, st := range res.States {
+			_, err = s.actors.Service().Invoke(ctx, usersignup.SignupTokenActorType, st.ActorID, usersignup.SignupTokenMethodDelete, nil)
+			if err != nil {
+				return fmt.Errorf("failed to delete signup token %q: %w", st.ActorID, err)
+			}
+		}
+
+		// An empty cursor means we've just read the last page
+		after = res.AfterID()
+		if after == "" {
+			return nil
+		}
+	}
+}
+
+// seedOneTimeAccessTokens seeds the one-time access tokens used by E2E tests into the actor state store.
+// Expired tokens are intentionally not seeded: with actor-backed storage an expired token is simply one that has no state, which the exchange flow already reports as invalid/expired.
+func (s *Service) seedOneTimeAccessTokens(ctx context.Context) error {
+	tokens := []struct {
+		token string
+		ttl   time.Duration
+	}{
+		{token: "HPe6k6u1DRRV", ttl: time.Hour}, //nolint:gosec // G101 false positive: a fixture the E2E tests share, not a credential
+		{token: "0ne-t1me-t0ken", ttl: time.Hour},
+	}
+
+	for _, t := range tokens {
+		state := onetimeaccess.TokenState{
+			UserID:    e2eRefreshTokenUserID,
+			ExpiresAt: time.Now().Add(t.ttl).Round(time.Second),
+		}
+		// Seed through the actor's "restore" method, which sets the state, rather than writing the state directly
+		// If an actor for this token is still active from a previous test, for example one whose token was already consumed, invoking it refreshes its in-memory cache too, whereas a direct state write would leave that cache stale
+		_, err := s.actors.Service().Invoke(ctx, onetimeaccess.TokenActorType, utils.CreateSha256Hash(t.token), onetimeaccess.TokenMethodRestore, state)
+		if err != nil {
+			return fmt.Errorf("failed to seed one-time access token %q: %w", t.token, err)
+		}
+	}
+
+	return nil
+}
+
+func (s *Service) ResetDatabase() error {
+	return s.db.Transaction(func(tx *gorm.DB) (err error) {
+		var tables []string
+
+		// The "francis_" tables belong to the actor host and must be preserved: wiping them out from under the running host breaks it
+		switch common.EnvConfig.DbProvider {
+		case common.DbProviderSqlite:
+			// Query to get all tables for SQLite
+			err = tx.
+				Raw(`SELECT name
+					FROM sqlite_master
+					WHERE type='table'
+						AND name NOT LIKE 'sqlite_%'
+						AND name NOT LIKE 'francis_%'
+						AND name NOT LIKE 'goose_%'`).
+				Scan(&tables).
+				Error
+			if err != nil {
+				return fmt.Errorf("error loading table list: %w", err)
+			}
+		case common.DbProviderPostgres:
+			// Query to get all tables for PostgreSQL
+			err = tx.
+				Raw(`SELECT tablename
+					FROM pg_tables
+					WHERE schemaname = 'public'
+						AND tablename NOT LIKE 'francis_%'
+						AND tablename NOT LIKE 'goose_%'`).
+				Scan(&tables).
+				Error
+			if err != nil {
+				return fmt.Errorf("error loading table list: %w", err)
+			}
+		default:
+			return fmt.Errorf("unsupported database provider: %s", common.EnvConfig.DbProvider)
+		}
+
+		// Delete all rows from all tables
+		for _, table := range tables {
+			err = tx.Exec("DELETE FROM " + table).Error
+			if err != nil {
+				return fmt.Errorf("error deleting from table '%s': %w", table, err)
+			}
+		}
+
+		return nil
+	})
+}
+
+func (s *Service) ResetApplicationAssets(ctx context.Context) error {
+	err := s.fileStorage.DeleteAll(ctx, "/")
+	if err != nil {
+		slog.ErrorContext(ctx, "Error removing uploads", slog.Any("error", err))
+		return err
+	}
+
+	files, err := resources.FS.ReadDir("images")
+	if err != nil {
+		return err
+	}
+
+	for _, file := range files {
+		if file.IsDir() {
+			continue
+		}
+		srcFilePath := path.Join("images", file.Name())
+		srcFile, err := resources.FS.Open(srcFilePath)
+		if err != nil {
+			return err
+		}
+		err = s.fileStorage.Save(ctx, path.Join("application-assets", file.Name()), srcFile)
+		if err != nil {
+			srcFile.Close()
+			return err
+		}
+		srcFile.Close()
+	}
+
+	return nil
+}
+
+func (s *Service) ResetAppConfig(ctx context.Context) error {
+	// Reset all application configuration values through the singleton actor
+	_, err := s.appConfigService.UpdateAppConfig(ctx, dto.Replace(appconfig.AppConfigUpdateDto{}), authz.Principal{Scopes: authz.NewScopeSet(authz.AdminAccessWrite)})
+	if err != nil {
+		return err
+	}
+
+	// Manually set the instance ID used to derive the JWK encryption key, so the seeded JWK can be decrypted
+	// Persist the fixed test value so it survives an export/import round-trip
+	const testInstanceID = "test-instance-id"
+	err = s.db.WithContext(ctx).
+		Exec(
+			`INSERT INTO kv (key, value) VALUES ('instance_id', ?) ON CONFLICT (key) DO UPDATE SET value = excluded.value`,
+			testInstanceID,
+		).
+		Error
+	if err != nil {
+		return err
+	}
+
+	// The keys are encrypted with a key derived from the instance ID, so they're reloaded for the new one
+	err = s.signingKey.Reload(ctx, testInstanceID)
+	if err != nil {
+		return err
+	}
+	return s.browserKey.ReloadBrowserKey(ctx, testInstanceID)
+}
+
+// SyncLdap triggers an LDAP synchronization
+func (s *Service) SyncLdap(ctx context.Context) error {
+	dbConfig, err := s.appConfigService.GetConfig(ctx)
+	if err != nil {
+		return fmt.Errorf("error loading app configuration: %w", err)
+	}
+	return s.ldapSyncer.SyncAll(ctx, dbConfig)
+}
+
+// SetLdapTestConfig updates the LDAP configuration used by the end-to-end test server
+func (s *Service) SetLdapTestConfig(ctx context.Context) error {
+	err := s.appConfigService.UpdateAppConfigValues(ctx,
+		"ldapUrl", "ldap://lldap:3890",
+		"ldapBindDn", "uid=admin,ou=people,dc=pocket-id,dc=org",
+		"ldapBindPassword", "admin_password",
+		"ldapBase", "dc=pocket-id,dc=org",
+		"ldapUserSearchFilter", "(objectClass=person)",
+		"ldapUserGroupSearchFilter", "(objectClass=groupOfNames)",
+		"ldapSkipCertVerify", "true",
+		"ldapAttributeUserUniqueIdentifier", "uuid",
+		"ldapAttributeUserUsername", "uid",
+		"ldapAttributeUserEmail", "mail",
+		"ldapAttributeUserFirstName", "givenName",
+		"ldapAttributeUserLastName", "sn",
+		"ldapAttributeGroupUniqueIdentifier", "uuid",
+		"ldapAttributeGroupName", "uid",
+		"ldapAttributeGroupMember", "member",
+		"ldapAdminGroupName", "admin_group",
+		"ldapSoftDeleteUsers", "true",
+		"ldapEnabled", "true",
+	)
+	if err != nil {
+		return fmt.Errorf("failed to set LDAP test config: %w", err)
+	}
+
+	return nil
+}
+
+func (s *Service) SignRefreshToken(ctx context.Context, userID, clientID, fixtureRefreshToken string) (string, error) {
+	globalSecret, err := oidc.DeriveGlobalSecret(common.EnvConfig.EncryptionKey)
+	if err != nil {
+		return "", err
+	}
+	strategy := compose.NewOAuth2HMACStrategy(&fosite.Config{
+		GlobalSecret:         globalSecret,
+		RefreshTokenLifespan: refreshTokenDuration,
+	})
+
+	token, signature, err := strategy.GenerateRefreshToken(ctx, nil)
+	if err != nil {
+		return "", err
+	}
+
+	// The e2e API always returns a newly generated fosite token
+	// The legacy fixture token only selects whether to seed the matching stored session as valid or expired
+	session, ok := seededRefreshTokenSession(userID, clientID, fixtureRefreshToken)
+	if !ok {
+		return token, nil
+	}
+	session.Signature = signature
+
+	if err := s.seedFositeTokenSession(ctx, session); err != nil {
+		return "", err
+	}
+
+	return token, nil
+}
+
+func seededRefreshTokenSession(userID string, clientID string, fixtureRefreshToken string) (fositeTokenSession, bool) {
+	expired, ok := seededRefreshTokenFixture(userID, clientID, fixtureRefreshToken)
+	if !ok {
+		return fositeTokenSession{}, false
+	}
+
+	expiresAt := time.Now().UTC().Add(24 * time.Hour)
+	if expired {
+		expiresAt = time.Now().UTC().Add(-24 * time.Hour)
+	}
+
+	return fositeTokenSession{
+		Kind:                 "refresh_token",
+		RequestID:            "e2e-refresh-" + utils.CreateSha256Hash(fixtureRefreshToken),
+		UserID:               userID,
+		ClientID:             clientID,
+		AuthenticationMethod: authenticationMethodPhishingResistant,
+		Scopes:               []string{"openid", "profile", "email"},
+		TokenType:            fosite.RefreshToken,
+		ExpiresAt:            expiresAt,
+	}, true
+}
+
+func seededRefreshTokenFixture(userID string, clientID string, fixtureRefreshToken string) (expired bool, ok bool) {
+	if userID != e2eRefreshTokenUserID || clientID != e2eRefreshTokenClientID {
+		return false, false
+	}
+
+	switch fixtureRefreshToken {
+	case e2eRefreshTokenValidFixtureToken:
+		return false, true
+	case e2eRefreshTokenExpiredFixtureToken:
+		return true, true
+	default:
+		return false, false
+	}
+}
+
+func (s *Service) SignAccessToken(ctx context.Context, userID, clientID string, expired bool) (string, error) {
+	fositeConfig := &fosite.Config{
+		AccessTokenLifespan: accessTokenDuration,
+		AccessTokenIssuer:   common.EnvConfig.AppURL,
+	}
+	keyGetter := func(context.Context) (interface{}, error) {
+		return oidc.SigningKeyFromSigner(s.signingKey)
+	}
+	strategy := oidc.NewAccessTokenStrategy(compose.NewOAuth2RFC9068JWTStrategy(keyGetter, fositeConfig), common.EnvConfig.AppURL)
+
+	expiresAt := time.Now().UTC().Add(accessTokenDuration)
+	if expired {
+		expiresAt = time.Now().UTC().Add(-time.Minute)
+	}
+
+	session := fositeTokenSession{
+		Kind:                 "access_token",
+		RequestID:            "e2e-access-" + uuid.NewV4().String(),
+		UserID:               userID,
+		ClientID:             clientID,
+		AuthenticationMethod: authenticationMethodPhishingResistant,
+		Scopes:               []string{"openid", "profile", "email"},
+		TokenType:            fosite.AccessToken,
+		ExpiresAt:            expiresAt,
+	}
+
+	request := s.newFositeTokenRequest(session)
+	token, signature, err := strategy.GenerateAccessToken(ctx, request)
+	if err != nil {
+		return "", err
+	}
+
+	session.Signature = signature
+	err = s.seedFositeTokenSession(ctx, session)
+	if err != nil {
+		return "", err
+	}
+
+	return token, nil
+}
+
+type fositeTokenSession struct {
+	Kind                 string
+	Signature            string
+	RequestID            string
+	UserID               string
+	ClientID             string
+	AuthenticationMethod string
+	Scopes               []string
+	TokenType            fosite.TokenType
+	ExpiresAt            time.Time
+}
+
+func (s *Service) seedFositeTokenSession(ctx context.Context, session fositeTokenSession) error {
+	request := s.newFositeTokenRequest(session)
+
+	store := oidc.
+		NewStore(s.db, nil).
+		WithIssuer(common.EnvConfig.AppURL)
+	switch session.Kind {
+	case "access_token":
+		return store.CreateAccessTokenSession(ctx, session.Signature, request)
+	case "refresh_token":
+		return store.CreateRefreshTokenSession(ctx, session.Signature, "", request)
+	default:
+		return fmt.Errorf("unsupported token session kind %q", session.Kind)
+	}
+}
+
+func (s *Service) newFositeTokenRequest(session fositeTokenSession) *fosite.Request {
+	requestedAt := time.Now().UTC()
+
+	oidcSession := &oidc.Session{
+		Subject:              session.UserID,
+		AuthenticationMethod: session.AuthenticationMethod,
+		Claims: &fositejwt.IDTokenClaims{
+			RequestedAt: requestedAt,
+			AuthTime:    requestedAt,
+			Subject:     session.UserID,
+			Issuer:      common.EnvConfig.AppURL,
+		},
+	}
+	oidcSession.SetExpiresAt(session.TokenType, session.ExpiresAt)
+
+	request := fosite.NewRequest()
+	request.ID = session.RequestID
+	request.RequestedAt = requestedAt
+	request.Client = oidc.Client{OidcClient: model.OidcClient{Base: model.Base{ID: session.ClientID}}}
+	request.RequestedScope = session.Scopes
+	request.GrantedScope = session.Scopes
+	request.RequestedAudience = fosite.Arguments{session.ClientID}
+	request.GrantedAudience = fosite.Arguments{session.ClientID}
+	request.Session = oidcSession
+
+	return request
+}
+
+// GetExternalIdPJWKS returns the JWKS for the "external IdP"
+func (s *Service) GetExternalIdPJWKS() (jwk.Set, error) {
+	pubKey, err := s.externalIdPKey.PublicKey()
+	if err != nil {
+		return nil, fmt.Errorf("failed to get public key: %w", err)
+	}
+
+	set := jwk.NewSet()
+	err = set.AddKey(pubKey)
+	if err != nil {
+		return nil, fmt.Errorf("failed to add public key to set: %w", err)
+	}
+
+	return set, nil
+}
+
+func (s *Service) SignExternalIdPToken(iss, sub, aud string) (string, error) {
+	now := time.Now()
+	token, err := jwt.NewBuilder().
+		Subject(sub).
+		Expiration(now.Add(time.Hour)).
+		IssuedAt(now).
+		JwtID(uuid.NewV4().String()).
+		Issuer(iss).
+		Audience([]string{aud}).
+		Build()
+	if err != nil {
+		return "", fmt.Errorf("failed to build token: %w", err)
+	}
+
+	alg, _ := s.externalIdPKey.Algorithm()
+	signed, err := jwt.Sign(token, jwt.WithKey(alg, s.externalIdPKey))
+	if err != nil {
+		return "", fmt.Errorf("failed to sign token: %w", err)
+	}
+
+	return string(signed), nil
+}

@@ -1,12 +1,13 @@
 <script lang="ts">
 	import DocsLink from '#lib/components/docs-link.svelte';
-	import SettingsSection from '#lib/components/settings-section.svelte';
-	import { Button } from '#lib/components/ui/button/index.ts';
+	import SettingsCard from '#lib/components/settings-card.svelte';
+	import { Button } from '@pocket-id/ui/button';
 	import { m } from '#lib/paraglide/messages.js';
 	import type { OidcClient, OidcClientFederatedIdentity } from '#lib/types/oidc.type.ts';
 	import { createForm } from '#lib/utils/form-util.ts';
 	import { trackFormChanges } from '#lib/utils/unsaved-changes-util.svelte.ts';
-	import { LucideLock, LucidePlus } from '@lucide/svelte';
+	import LockIcon from '~icons/solar/lock-bold-duotone';
+	import PlusIcon from '~icons/solar/add-circle-bold';
 	import { z } from 'zod/v4';
 	import FederatedIdentitiesInput from '../federated-identities-input.svelte';
 
@@ -64,7 +65,7 @@
 	}
 </script>
 
-<SettingsSection title={m.federated_client_credentials()}>
+<SettingsCard title={m.federated_client_credentials()}>
 	{#snippet description()}
 		{m.federated_credentials_section_description({ name: client.name })}
 		<DocsLink href="https://pocket-id.org/docs/guides/oidc-client-authentication" />
@@ -72,15 +73,15 @@
 	{#snippet action()}
 		{#if !isCIMDClient && $inputs.federatedIdentities.value.length > 0}
 			<Button variant="secondary" size="sm" onclick={addFederatedIdentity}>
-				<LucidePlus />
+				<PlusIcon />
 				{m.add_credential()}
 			</Button>
 		{/if}
 	{/snippet}
-	<div class="mt-2 flex flex-col gap-4" data-testid="federated-credentials">
+	<div class="flex flex-col gap-4 py-4" data-testid="federated-credentials">
 		{#if isCIMDClient}
 			<p class="text-caption text-fg-muted flex items-center gap-1.5">
-				<LucideLock class="size-3" />
+				<LockIcon class="size-3" />
 				{m.managed_by_the_clients_metadata_document()}
 			</p>
 		{/if}
@@ -93,4 +94,4 @@
 			onAdd={addFederatedIdentity}
 		/>
 	</div>
-</SettingsSection>
+</SettingsCard>

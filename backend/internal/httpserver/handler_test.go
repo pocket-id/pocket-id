@@ -18,7 +18,7 @@ func TestHandleAttachesAndAbortsOnError(t *testing.T) {
 
 	Handle(func(*gin.Context) error {
 		return expected
-	})(c)
+	}).Handler(c)
 
 	require.True(t, c.IsAborted())
 	require.Len(t, c.Errors, 1)
@@ -31,7 +31,7 @@ func TestHandleIgnoresCanceledRequests(t *testing.T) {
 
 	Handle(func(*gin.Context) error {
 		return context.Canceled
-	})(c)
+	}).Handler(c)
 
 	require.True(t, c.IsAborted())
 	require.Empty(t, c.Errors)
@@ -43,7 +43,7 @@ func TestHandleRecoversPanicsWithStack(t *testing.T) {
 
 	Handle(func(*gin.Context) error {
 		panic("private panic details")
-	})(c)
+	}).Handler(c)
 
 	require.True(t, c.IsAborted())
 	require.Len(t, c.Errors, 1)
@@ -58,7 +58,7 @@ func TestHandlePreservesAbortHandlerPanic(t *testing.T) {
 	require.PanicsWithValue(t, http.ErrAbortHandler, func() {
 		Handle(func(*gin.Context) error {
 			panic(http.ErrAbortHandler)
-		})(c)
+		}).Handler(c)
 	})
 	require.Empty(t, c.Errors)
 }

@@ -8,22 +8,7 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-	"github.com/vmihailenco/msgpack/v5"
-
-	"github.com/pocket-id/pocket-id/backend/internal/dto"
 )
-
-// dtoWithMarkerValues returns a DTO where every field is set to a unique, non-empty marker derived from its "json" key, so we can assert each value lands in the right place.
-func dtoWithMarkerValues() dto.AppConfigUpdateDto {
-	var input dto.AppConfigUpdateDto
-	rv := reflect.ValueOf(&input).Elem()
-	rt := rv.Type()
-	for i := range rt.NumField() {
-		key, _, _ := strings.Cut(rt.Field(i).Tag.Get("json"), ",")
-		rv.Field(i).SetString("marker-" + key)
-	}
-	return input
-}
 
 func TestAppConfigModel_FieldTags(t *testing.T) {
 	modelType := reflect.TypeFor[AppConfigModel]()
@@ -55,7 +40,7 @@ func TestAppConfigModel_TypeTagsHaveDTOValidation(t *testing.T) {
 		"int":  "integer_string",
 	}
 
-	dtoType := reflect.TypeFor[dto.AppConfigUpdateDto]()
+	dtoType := reflect.TypeFor[AppConfigUpdateDto]()
 	dtoBindings := make(map[string][]string, dtoType.NumField())
 	for i := range dtoType.NumField() {
 		field := dtoType.Field(i)
@@ -81,88 +66,6 @@ func TestAppConfigModel_TypeTagsHaveDTOValidation(t *testing.T) {
 			require.Contains(t, bindings, expectedValidator)
 		})
 	}
-}
-
-func TestAppConfigModel_Replace(t *testing.T) {
-	t.Run("populates every property from the DTO", func(t *testing.T) {
-		input := dtoWithMarkerValues()
-
-		var m AppConfigModel
-		m.Replace(input)
-
-		// Each model property must hold the marker built from its own "json" key.
-		// This also asserts that the model and the DTO share the same set of keys.
-		rv := reflect.ValueOf(&m).Elem()
-		rt := rv.Type()
-		for i := range rt.NumField() {
-			key, _, _ := strings.Cut(rt.Field(i).Tag.Get("json"), ",")
-			assert.Equalf(t, "marker-"+key, rv.Field(i).String(), "property %s (key %q)", rt.Field(i).Name, key)
-		}
-	})
-
-	t.Run("empty values fall back to their default", func(t *testing.T) {
-		defaults := getDefaultConfig()
-
-		// Start from all-markers, then blank out a few properties whose default is non-empty
-		input := dtoWithMarkerValues()
-		input.AppName = ""
-		input.SessionDuration = ""
-		input.SmtpTls = ""
-		input.LdapUserSearchFilter = ""
-
-		var m AppConfigModel
-		m.Replace(input)
-
-		// Blanked properties are reset to their default
-		assert.Equal(t, defaults.AppName, m.AppName)
-		assert.Equal(t, defaults.SessionDuration, m.SessionDuration)
-		assert.Equal(t, defaults.SmtpTls, m.SmtpTls)
-		assert.Equal(t, defaults.LdapUserSearchFilter, m.LdapUserSearchFilter)
-
-		// A property that was provided keeps the provided value
-		assert.Equal(t, AppConfigValue("marker-homePageUrl"), m.HomePageURL)
-	})
-
-	t.Run("an empty DTO resets every property to its default", func(t *testing.T) {
-		// Pre-populate with junk to prove Replace overwrites existing state
-		m := AppConfigModel{
-			AppName:     "Custom Name",
-			LdapEnabled: "true",
-			SmtpHost:    "smtp.example.com",
-		}
-
-		m.Replace(dto.AppConfigUpdateDto{})
-
-		assert.Equal(t, *getDefaultConfig(), m)
-	})
-
-	t.Run("provided values overwrite existing non-default values", func(t *testing.T) {
-		m := getDefaultConfig()
-		m.AppName = "Old Name"
-		m.LdapEnabled = "true"
-
-		input := dto.AppConfigUpdateDto{}
-		input.AppName = "New Name"
-
-		m.Replace(input)
-
-		// Explicitly provided value wins
-		assert.Equal(t, AppConfigValue("New Name"), m.AppName)
-		// Everything else in the DTO was empty, so it is reset to the default
-		assert.Equal(t, getDefaultConfig().LdapEnabled, m.LdapEnabled)
-	})
-
-	t.Run("stores raw string values without type coercion", func(t *testing.T) {
-		input := dto.AppConfigUpdateDto{}
-		input.SessionDuration = "120" // int-tagged property
-		input.LdapEnabled = "true"    // bool-tagged property
-
-		var m AppConfigModel
-		m.Replace(input)
-
-		assert.Equal(t, AppConfigValue("120"), m.SessionDuration)
-		assert.Equal(t, AppConfigValue("true"), m.LdapEnabled)
-	})
 }
 
 func TestAppConfigModel_ApplyDefaults(t *testing.T) {
@@ -260,7 +163,7 @@ func TestAppConfigModel_Update(t *testing.T) {
 	t.Run("an empty value resets the property to its default", func(t *testing.T) {
 		m := getDefaultConfig()
 		m.SmtpTls = "tls"         // default is "none"
-		m.SessionDuration = "120" // default is "60"
+		m.SessionDuration = "120" // default is "1440"
 
 		err := m.Update(map[string]string{"smtpTls": "", "sessionDuration": ""})
 		require.NoError(t, err)
@@ -272,11 +175,11 @@ func TestAppConfigModel_Update(t *testing.T) {
 	t.Run("stores raw string values without type coercion", func(t *testing.T) {
 		m := getDefaultConfig()
 
-		err := m.Update(map[string]string{"sessionDuration": "120", "disableAnimations": "true"})
+		err := m.Update(map[string]string{"sessionDuration": "120", "allowOwnAccountEdit": "false"})
 		require.NoError(t, err)
 
 		assert.Equal(t, AppConfigValue("120"), m.SessionDuration)
-		assert.Equal(t, AppConfigValue("true"), m.DisableAnimations)
+		assert.Equal(t, AppConfigValue("false"), m.AllowOwnAccountEdit)
 	})
 
 	t.Run("an empty map is a no-op", func(t *testing.T) {
@@ -299,112 +202,5 @@ func TestAppConfigModel_Update(t *testing.T) {
 		notFound, ok := errors.AsType[AppConfigKeyNotFoundError](err)
 		require.True(t, ok)
 		assert.Equal(t, "thisKeyDoesNotExist", notFound.field)
-	})
-}
-
-func TestAppConfigModel_DecodeMsgpack(t *testing.T) {
-	t.Run("maps the legacy toggles to modes", func(t *testing.T) {
-		tests := map[string]struct {
-			notification      AppConfigValue
-			emailVerification AppConfigValue
-		}{
-			"true":  {LoginNotificationBrowserRecognition, EmailVerificationOptional},
-			"false": {LoginNotificationDisabled, EmailVerificationDisabled},
-		}
-		for enabled, expected := range tests {
-			data, err := msgpack.Marshal(map[string]string{
-				"AppName":                       "Legacy App",
-				"EmailLoginNotificationEnabled": enabled,
-				"EmailVerificationEnabled":      enabled,
-			})
-			require.NoError(t, err)
-
-			var m AppConfigModel
-			err = msgpack.Unmarshal(data, &m)
-			require.NoError(t, err)
-
-			assert.Equal(t, AppConfigValue("Legacy App"), m.AppName)
-			assert.Equal(t, expected.notification, m.EmailLoginNotificationMode)
-			assert.Equal(t, expected.emailVerification, m.EmailVerification)
-		}
-	})
-
-	t.Run("stored modes win over the legacy toggles", func(t *testing.T) {
-		data, err := msgpack.Marshal(map[string]string{
-			"EmailLoginNotificationMode":    LoginNotificationAlways,
-			"EmailLoginNotificationEnabled": "false",
-			"EmailVerification":             EmailVerificationRequired,
-			"EmailVerificationEnabled":      "false",
-		})
-		require.NoError(t, err)
-
-		var m AppConfigModel
-		err = msgpack.Unmarshal(data, &m)
-		require.NoError(t, err)
-
-		assert.Equal(t, AppConfigValue(LoginNotificationAlways), m.EmailLoginNotificationMode)
-		assert.Equal(t, AppConfigValue(EmailVerificationRequired), m.EmailVerification)
-	})
-
-	t.Run("maps the legacy accent color to a color theme", func(t *testing.T) {
-		tests := map[string]AppConfigValue{
-			"default":            "mono",
-			"oklch(0.6 0.2 240)": "mist",
-			"oklch(0.63 0.2 15)": "custom:oklch(0.63 0.2 15)",
-		}
-		for accent, expected := range tests {
-			data, err := msgpack.Marshal(map[string]string{"AccentColor": accent})
-			require.NoError(t, err)
-
-			var m AppConfigModel
-			err = msgpack.Unmarshal(data, &m)
-			require.NoError(t, err)
-
-			assert.Equal(t, expected, m.ColorTheme)
-		}
-	})
-
-	t.Run("an explicit color theme wins over the legacy accent color", func(t *testing.T) {
-		data, err := msgpack.Marshal(map[string]string{"ColorTheme": "sage", "AccentColor": "default"})
-		require.NoError(t, err)
-
-		var m AppConfigModel
-		err = msgpack.Unmarshal(data, &m)
-		require.NoError(t, err)
-
-		assert.Equal(t, AppConfigValue("sage"), m.ColorTheme)
-	})
-
-	t.Run("maps the legacy email login code toggle to a mode that keeps admins allowed", func(t *testing.T) {
-		tests := map[string]AppConfigValue{
-			"true":  EmailOneTimeAccessAsUnauthenticatedAll,
-			"false": EmailOneTimeAccessAsUnauthenticatedDisabled,
-		}
-		for enabled, expected := range tests {
-			data, err := msgpack.Marshal(map[string]string{
-				"EmailOneTimeAccessAsUnauthenticatedEnabled": enabled,
-			})
-			require.NoError(t, err)
-
-			var m AppConfigModel
-			err = msgpack.Unmarshal(data, &m)
-			require.NoError(t, err)
-
-			assert.Equal(t, expected, m.EmailOneTimeAccessAsUnauthenticated)
-		}
-	})
-
-	t.Run("an explicit email login code mode wins over the legacy toggle", func(t *testing.T) {
-		data, err := msgpack.Marshal(map[string]string{
-			"EmailOneTimeAccessAsUnauthenticated":        EmailOneTimeAccessAsUnauthenticatedNonAdmins,
-			"EmailOneTimeAccessAsUnauthenticatedEnabled": "true",
-		})
-		require.NoError(t, err)
-
-		var m AppConfigModel
-		err = msgpack.Unmarshal(data, &m)
-		require.NoError(t, err)
-
-		assert.Equal(t, AppConfigValue(EmailOneTimeAccessAsUnauthenticatedNonAdmins), m.EmailOneTimeAccessAsUnauthenticated)
 	})
 }

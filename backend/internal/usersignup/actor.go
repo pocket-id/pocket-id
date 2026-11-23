@@ -13,7 +13,7 @@ import (
 )
 
 // Signup tokens are stored entirely in the actor state store.
-// Each token is its own actor, whose actor ID is the token value itself.
+// Each token is its own actor, whose actor ID is the SHA-256 hash of the token, so the state store never holds a usable token
 // The state is persisted with a TTL equal to the token's lifetime, so it's purged automatically when the token expires (there's no separate cleanup job and no expiration alarm).
 // Listing tokens uses ListStates, which only returns states that haven't expired yet.
 
@@ -29,7 +29,6 @@ const (
 	// SignupTokenMethodDelete removes a signup token
 	SignupTokenMethodDelete = "delete"
 
-	signupTokenMethodMigrate = "migrate"
 	signupTokenMethodConsume = "consume"
 	signupTokenMethodRelease = "release"
 )
@@ -47,20 +46,25 @@ const (
 )
 
 // SignupTokenState is the persisted state of a signup token actor.
-// The token value itself is the actor's ID, so it isn't repeated here.
+// The hash of the token is the actor's ID, so it isn't repeated here.
 type SignupTokenState struct {
-	ID           string
+	ID string
+	// Prefix is the start of the token, kept in clear text so admins can tell tokens apart
+	Prefix       string
 	UsageLimit   int
 	UsageCount   int
 	UserGroupIDs []string
 	CreatedAt    time.Time
 	ExpiresAt    time.Time
+	SentTo       string
 }
 
 // signupTokenConsumeResponse is the response of the "consume" method
 type signupTokenConsumeResponse struct {
 	Status signupTokenConsumeStatus
-	// UserGroupIDs is set only when Status is "ok", and contains the groups the new user should join
+	// ID and UserGroupIDs are set only when Status is "ok"
+	// ID is the token's non-secret identifier and UserGroupIDs are the groups the new user should join
+	ID           string
 	UserGroupIDs []string
 }
 
@@ -86,9 +90,7 @@ func NewSignupTokenActor(actorID string, service *actor.Service) actor.Actor {
 func (a *signupTokenActor) Invoke(parentCtx context.Context, method string, data actor.Envelope) (any, error) {
 	switch method {
 	case SignupTokenMethodCreate:
-		return nil, a.create(parentCtx, data, false)
-	case signupTokenMethodMigrate:
-		return nil, a.create(parentCtx, data, true)
+		return nil, a.create(parentCtx, data)
 	case signupTokenMethodConsume:
 		return a.consume(parentCtx)
 	case signupTokenMethodRelease:
@@ -101,8 +103,7 @@ func (a *signupTokenActor) Invoke(parentCtx context.Context, method string, data
 }
 
 // create stores the token's state.
-// When onlyIfMissing is true the write is skipped if the actor already has state: this is used by the one-time migration of the pre-actor tokens, so a token that has already been migrated is never reset.
-func (a *signupTokenActor) create(parentCtx context.Context, data actor.Envelope, onlyIfMissing bool) error {
+func (a *signupTokenActor) create(parentCtx context.Context, data actor.Envelope) error {
 	if data == nil {
 		return fmt.Errorf("request body is empty for method '%s'", SignupTokenMethodCreate)
 	}
@@ -111,20 +112,6 @@ func (a *signupTokenActor) create(parentCtx context.Context, data actor.Envelope
 	err := data.Decode(&state)
 	if err != nil {
 		return fmt.Errorf("request body is not valid for method '%s': %w", SignupTokenMethodCreate, err)
-	}
-
-	if onlyIfMissing {
-		ctx, cancel := context.WithTimeout(parentCtx, 10*time.Second)
-		defer cancel()
-		current, err := a.client.GetState(ctx)
-		if err != nil {
-			return fmt.Errorf("error retrieving actor state: %w", err)
-		}
-
-		// An empty ID means there's no state yet
-		if current.ID != "" {
-			return nil
-		}
 	}
 
 	return a.setState(parentCtx, state)
@@ -161,6 +148,7 @@ func (a *signupTokenActor) consume(parentCtx context.Context) (signupTokenConsum
 
 	return signupTokenConsumeResponse{
 		Status:       signupTokenConsumeOK,
+		ID:           state.ID,
 		UserGroupIDs: state.UserGroupIDs,
 	}, nil
 }

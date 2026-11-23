@@ -6,10 +6,11 @@ import (
 	"fmt"
 	"log/slog"
 	"net/url"
+	"os"
+	"path/filepath"
 	"strings"
 	"time"
 
-	_ "github.com/golang-migrate/migrate/v4/source/github"
 	sqlinstrument "github.com/italypaleale/go-sql-utils/instrument"
 	postgresinstrument "github.com/italypaleale/go-sql-utils/instrument/postgres"
 	sqliteinstrument "github.com/italypaleale/go-sql-utils/instrument/sqlite"
@@ -24,7 +25,6 @@ import (
 
 	"github.com/pocket-id/pocket-id/backend/internal/common"
 	"github.com/pocket-id/pocket-id/backend/internal/utils"
-	sqliteutil "github.com/pocket-id/pocket-id/backend/internal/utils/sqlite"
 )
 
 // Records whether the SQLite database was found on a networked filesystem
@@ -41,8 +41,14 @@ func NewDatabase(ctx context.Context) (db *gorm.DB, pg *pgxpool.Pool, err error)
 		return nil, nil, fmt.Errorf("failed to get sql.DB: %w", err)
 	}
 
+	// A database of Pocket ID v1 or v2 is upgraded by a separate tool before the migrations of v3 can run
+	err = upgradeLegacyDatabase(ctx, sqlDb)
+	if err != nil {
+		return nil, nil, err
+	}
+
 	// Run migrations
-	err = utils.MigrateDatabase(ctx, sqlDb)
+	err = utils.MigrateDatabase(ctx, sqlDb, common.EnvConfig.DbProvider)
 	if err != nil {
 		return nil, nil, fmt.Errorf("failed to run migrations: %w", err)
 	}
@@ -60,14 +66,18 @@ func ConnectDatabase(ctx context.Context) (db *gorm.DB, pg *pgxpool.Pool, err er
 			return nil, nil, errors.New("missing required env var 'DB_CONNECTION_STRING' for SQLite database")
 		}
 
-		sqliteutil.RegisterSqliteFunctions()
-
 		// The connector validates the connection string and performs the filesystem setup SQLite needs: it creates the database and temporary directories
 		// It also warns when the database lives on a networked filesystem, which is unsupported
 		connector, err := sqlitekit.NewConnector(sqlitekit.ConnectOpts{
 			ConnString: addSqliteDatetimeParams(common.EnvConfig.DbConnectionString),
 			Logger:     slog.Default(),
 		})
+		if err != nil {
+			return nil, nil, err
+		}
+
+		// SQLite only reports "unable to open database file" when it can't write to the database folder, which a container user that doesn't own the mounted folder easily runs into
+		err = checkSqliteDirWritable(common.EnvConfig.DbConnectionString)
 		if err != nil {
 			return nil, nil, err
 		}
@@ -156,6 +166,24 @@ func ConnectDatabase(ctx context.Context) (db *gorm.DB, pg *pgxpool.Pool, err er
 	}
 
 	return nil, nil, err
+}
+
+// checkSqliteDirWritable returns an error naming the user Pocket ID runs as when it can't create files in the folder of the SQLite database
+func checkSqliteDirWritable(connString string) error {
+	_, dbPath, isMemoryDB, _, err := sqlitekit.ParseConnectionString(connString, slog.New(slog.DiscardHandler))
+	if err != nil || isMemoryDB {
+		return err
+	}
+
+	// Creating a file is the only reliable check, since permission bits don't account for read-only mounts or ACLs
+	dir := filepath.Dir(dbPath)
+	f, err := os.CreateTemp(dir, ".write-check-*")
+	if err != nil {
+		return fmt.Errorf("the SQLite database folder %s isn't writable by user %d:%d, so change its owner to that user or run Pocket ID as the folder's owner: %w", dir, os.Getuid(), os.Getgid(), err)
+	}
+	_ = f.Close()
+	_ = os.Remove(f.Name())
+	return nil
 }
 
 // sqlInstrumentOptions returns the instrumentation applied to the database connection, shared by both providers

@@ -1,135 +1,68 @@
 package webauthn
 
 import (
+	"bytes"
 	"errors"
-	"fmt"
 	"testing"
 	"time"
 
+	"github.com/go-webauthn/webauthn/metadata"
+	"github.com/go-webauthn/webauthn/metadata/providers/memory"
 	"github.com/go-webauthn/webauthn/protocol"
+	"github.com/go-webauthn/webauthn/protocol/webauthncbor"
+	"github.com/go-webauthn/webauthn/protocol/webauthncose"
 	gowebauthn "github.com/go-webauthn/webauthn/webauthn"
-	"github.com/lestrrat-go/jwx/v4/jwt"
+	"github.com/google/uuid"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
 	"github.com/pocket-id/pocket-id/backend/internal/appconfig"
 	"github.com/pocket-id/pocket-id/backend/internal/apperror"
-	"github.com/pocket-id/pocket-id/backend/internal/common"
+	"github.com/pocket-id/pocket-id/backend/internal/auditlogs"
+	"github.com/pocket-id/pocket-id/backend/internal/authz"
 	"github.com/pocket-id/pocket-id/backend/internal/model"
 	datatype "github.com/pocket-id/pocket-id/backend/internal/model/types"
 	"github.com/pocket-id/pocket-id/backend/internal/utils"
 	testutils "github.com/pocket-id/pocket-id/backend/internal/utils/testing"
 )
 
-// fakeSigner is an in-memory TokenService that mints opaque tokens carrying a subject,
-// an issued-at time and an optional authentication method, without any real signing
-type fakeSigner struct {
-	tokens  map[string]jwt.Token
-	counter int
-}
-
-func newFakeSigner() *fakeSigner {
-	return &fakeSigner{tokens: map[string]jwt.Token{}}
-}
-
-func (s *fakeSigner) GenerateAccessToken(user model.User, authenticationMethod string, _ time.Duration) (string, error) {
-	builder := jwt.NewBuilder().
-		Subject(user.ID).
-		IssuedAt(time.Now())
-	if authenticationMethod != "" {
-		builder = builder.Claim(common.AuthenticationMethodsClaim, []string{authenticationMethod})
+func TestCreateReauthenticationTokenWithSession(t *testing.T) {
+	db := testutils.NewDatabaseForTest(t)
+	user := model.User{
+		Base:     model.Base{ID: "reauth-user"},
+		Username: "reauth-user",
 	}
-	token, err := builder.Build()
-	if err != nil {
-		return "", err
+	require.NoError(t, db.Create(&user).Error)
+	service := &Service{db: db}
+
+	tests := []struct {
+		name                 string
+		authenticationMethod string
+		authenticatedAgo     time.Duration
+		wantToken            bool
+	}{
+		{name: "fresh passkey sign-in", authenticationMethod: authenticationMethodPhishingResistant, wantToken: true},
+		{name: "passkey sign-in older than a minute", authenticationMethod: authenticationMethodPhishingResistant, authenticatedAgo: 2 * time.Minute},
+		{name: "fresh login code sign-in", authenticationMethod: "otp"},
+		{name: "fresh sign-in without an authentication method"},
 	}
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			reauthenticationToken, err := service.CreateReauthenticationTokenWithSession(t.Context(), authz.Principal{
+				UserID:               user.ID,
+				AuthenticationMethod: test.authenticationMethod,
+				AuthenticationTime:   time.Now().Add(-test.authenticatedAgo),
+			})
 
-	s.counter++
-	raw := fmt.Sprintf("fake-access-token-%d", s.counter)
-	s.tokens[raw] = token
-	return raw, nil
-}
-
-func (s *fakeSigner) VerifyAccessToken(tokenString string) (jwt.Token, error) {
-	token, ok := s.tokens[tokenString]
-	if !ok {
-		return nil, errors.New("invalid token")
+			if test.wantToken {
+				require.NoError(t, err)
+				assert.NotEmpty(t, reauthenticationToken)
+				return
+			}
+			assert.Empty(t, reauthenticationToken)
+			assert.True(t, apperror.IsCode(err, apperror.CodeReauthenticationRequired))
+		})
 	}
-	return token, nil
-}
-
-func (s *fakeSigner) GetAuthenticationMethod(token jwt.Token) (string, error) {
-	if !token.Has(common.AuthenticationMethodsClaim) {
-		return "", nil
-	}
-	methods, err := jwt.Get[[]string](token, common.AuthenticationMethodsClaim)
-	if err != nil {
-		return "", err
-	}
-	if len(methods) == 0 {
-		return "", nil
-	}
-	return methods[0], nil
-}
-
-func TestCreateReauthenticationTokenWithAccessToken(t *testing.T) {
-	setupService := func(t *testing.T) (*Service, *fakeSigner, model.User) {
-		t.Helper()
-
-		db := testutils.NewDatabaseForTest(t)
-		user := model.User{
-			Base:     model.Base{ID: "reauth-user"},
-			Username: "reauth-user",
-		}
-		require.NoError(t, db.Create(&user).Error)
-
-		signer := newFakeSigner()
-		return &Service{db: db, signer: signer}, signer, user
-	}
-
-	t.Run("accepts a fresh access token from WebAuthn login", func(t *testing.T) {
-		service, signer, user := setupService(t)
-		accessToken, err := signer.GenerateAccessToken(user, authenticationMethodPhishingResistant, time.Hour)
-		require.NoError(t, err)
-
-		reauthenticationToken, err := service.CreateReauthenticationTokenWithAccessToken(t.Context(), accessToken)
-
-		require.NoError(t, err)
-		assert.NotEmpty(t, reauthenticationToken)
-	})
-
-	t.Run("rejects a fresh access token from one-time access login", func(t *testing.T) {
-		service, signer, user := setupService(t)
-		accessToken, err := signer.GenerateAccessToken(user, "otp", time.Hour)
-		require.NoError(t, err)
-
-		reauthenticationToken, err := service.CreateReauthenticationTokenWithAccessToken(t.Context(), accessToken)
-
-		assert.Empty(t, reauthenticationToken)
-		require.Error(t, err)
-		assert.True(t, apperror.IsCode(err, apperror.CodeReauthenticationRequired))
-	})
-
-	t.Run("rejects a fresh access token without an authentication method", func(t *testing.T) {
-		service, signer, user := setupService(t)
-		accessToken, err := signer.GenerateAccessToken(user, "", time.Hour)
-		require.NoError(t, err)
-
-		reauthenticationToken, err := service.CreateReauthenticationTokenWithAccessToken(t.Context(), accessToken)
-
-		assert.Empty(t, reauthenticationToken)
-		require.Error(t, err)
-		assert.True(t, apperror.IsCode(err, apperror.CodeReauthenticationRequired))
-	})
-
-	t.Run("classifies an invalid access token as missing reauthentication", func(t *testing.T) {
-		service, _, _ := setupService(t)
-
-		reauthenticationToken, err := service.CreateReauthenticationTokenWithAccessToken(t.Context(), "invalid")
-
-		assert.Empty(t, reauthenticationToken)
-		require.True(t, apperror.IsCode(err, apperror.CodeReauthenticationRequired))
-	})
 }
 
 func TestWebAuthnDisplayNameUsesRequestConfig(t *testing.T) {
@@ -149,22 +82,28 @@ func TestBeginCeremoniesUseRequestConfig(t *testing.T) {
 		name                 string
 		userVerification     appconfig.AppConfigValue
 		authenticator        appconfig.AppConfigValue
+		attestation          appconfig.AppConfigValue
 		wantUserVerification protocol.UserVerificationRequirement
 		wantAuthenticator    protocol.AuthenticatorAttachment
+		wantAttestation      protocol.ConveyancePreference
 	}{
 		{
 			name:                 "required verification with any authenticator",
 			userVerification:     "required",
 			authenticator:        "any",
+			attestation:          "none",
 			wantUserVerification: protocol.VerificationRequired,
 			wantAuthenticator:    "",
+			wantAttestation:      "",
 		},
 		{
-			name:                 "required verification with a platform authenticator",
+			name:                 "required verification with a verified platform authenticator",
 			userVerification:     "required",
 			authenticator:        "platform",
+			attestation:          "verified",
 			wantUserVerification: protocol.VerificationRequired,
 			wantAuthenticator:    protocol.Platform,
+			wantAttestation:      protocol.PreferDirectAttestation,
 		},
 		{
 			name:                 "preferred verification with a cross-platform authenticator",
@@ -190,14 +129,21 @@ func TestBeginCeremoniesUseRequestConfig(t *testing.T) {
 			})
 			require.NoError(t, err)
 
+			// Loaded metadata keeps the preload from downloading the real blob
+			provider, err := memory.New(memory.WithMetadata(map[uuid.UUID]*metadata.Entry{}))
+			require.NoError(t, err)
+			service.fidoMetadata = &fidoMetadata{provider: provider, refreshAt: time.Now().Add(time.Hour)}
+
 			dbConfig := &appconfig.AppConfigModel{
 				AppName:                         "Configured App",
 				WebauthnUserVerification:        tc.userVerification,
 				WebauthnAuthenticatorAttachment: tc.authenticator,
+				WebauthnAttestation:             tc.attestation,
 			}
 
-			registration, err := service.BeginRegistration(t.Context(), dbConfig, user.ID)
+			registration, err := service.BeginRegistration(t.Context(), dbConfig, authz.Principal{UserID: user.ID})
 			require.NoError(t, err)
+			assert.Equal(t, tc.wantAttestation, registration.Response.Attestation)
 			assert.Equal(t, tc.wantUserVerification, registration.Response.AuthenticatorSelection.UserVerification)
 			assert.Equal(t, tc.wantAuthenticator, registration.Response.AuthenticatorSelection.AuthenticatorAttachment)
 			assert.Equal(t, protocol.ResidentKeyRequirementRequired, registration.Response.AuthenticatorSelection.ResidentKey)
@@ -206,8 +152,10 @@ func TestBeginCeremoniesUseRequestConfig(t *testing.T) {
 			var session WebauthnSession
 			require.NoError(t, db.First(&session, "id = ?", registration.SessionID).Error)
 			assert.Contains(t, session.Extensions.Requested, protocol.ExtensionCredProps)
+			assert.Contains(t, session.Extensions.Requested, protocol.ExtensionPRF)
 			outputs := protocol.AuthenticationExtensionsClientOutputs{
 				CredProps: &protocol.CredentialPropertiesOutput{RK: new(true)},
+				PRF:       &protocol.PRFOutputs{Enabled: new(true)},
 			}
 			require.NoError(t, outputs.Verify(session.Extensions, protocol.CreateCeremony, protocol.UnsolicitedOutputPolicyReject))
 
@@ -230,6 +178,22 @@ func TestSyncedPasskeyPolicy(t *testing.T) {
 
 	credential.Flags.BackupEligible = false
 	require.NoError(t, validateCredentialPolicy(&appconfig.AppConfigModel{WebauthnAllowSyncedPasskeys: "false"}, credential))
+}
+
+func TestAuthenticatorAttachmentPolicy(t *testing.T) {
+	credential := &gowebauthn.Credential{
+		Authenticator: gowebauthn.Authenticator{Attachment: protocol.Platform},
+	}
+
+	require.NoError(t, validateCredentialPolicy(&appconfig.AppConfigModel{WebauthnAuthenticatorAttachment: "any"}, credential))
+	require.NoError(t, validateCredentialPolicy(&appconfig.AppConfigModel{WebauthnAuthenticatorAttachment: "platform"}, credential))
+
+	err := validateCredentialPolicy(&appconfig.AppConfigModel{WebauthnAuthenticatorAttachment: "cross-platform"}, credential)
+	require.True(t, apperror.IsCode(err, apperror.CodeAuthenticatorAttachmentNotAllowed))
+
+	credential.Authenticator.Attachment = ""
+	err = validateCredentialPolicy(&appconfig.AppConfigModel{WebauthnAuthenticatorAttachment: "cross-platform"}, credential)
+	require.True(t, apperror.IsCode(err, apperror.CodeAuthenticatorAttachmentNotAllowed), "a missing attachment must not bypass the policy")
 }
 
 func TestClassifyPasskeyErrorRecognizesMissingUserVerification(t *testing.T) {
@@ -330,13 +294,13 @@ func TestWebAuthnManagementOperationsReturnSpecificNotFoundErrors(t *testing.T) 
 	})
 	require.NoError(t, err)
 
-	_, err = service.BeginRegistration(t.Context(), &appconfig.AppConfigModel{}, "missing-user")
+	_, err = service.BeginRegistration(t.Context(), &appconfig.AppConfigModel{}, authz.Principal{UserID: "missing-user"})
 	require.True(t, apperror.IsCode(err, apperror.CodeUserNotFound))
 
 	_, err = service.UpdateCredential(t.Context(), "missing-user", "missing-passkey", "New name")
 	require.True(t, apperror.IsCode(err, apperror.CodeNotFound))
 
-	err = service.DeleteCredential(t.Context(), "missing-user", "missing-passkey", "", "", "")
+	err = service.DeleteCredential(t.Context(), "missing-user", "missing-passkey", auditlogs.Origin{})
 	require.True(t, apperror.IsCode(err, apperror.CodeNotFound))
 }
 
@@ -362,7 +326,7 @@ func TestCeremoniesRejectSessionThatDoesNotExist(t *testing.T) {
 	t.Run("registration rejects an unknown session", func(t *testing.T) {
 		service := setupService(t)
 
-		_, err := service.VerifyRegistration(t.Context(), &appconfig.AppConfigModel{}, "does-not-exist", userID, nil, "127.0.0.1")
+		_, err := service.VerifyRegistration(t.Context(), &appconfig.AppConfigModel{}, "does-not-exist", authz.Principal{UserID: userID}, nil, "127.0.0.1", "")
 
 		require.Error(t, err)
 		assert.True(t, apperror.IsCode(err, apperror.CodeInvalidWebAuthnSession))
@@ -371,7 +335,7 @@ func TestCeremoniesRejectSessionThatDoesNotExist(t *testing.T) {
 	t.Run("login rejects an unknown session", func(t *testing.T) {
 		service := setupService(t)
 
-		_, token, err := service.VerifyLogin(t.Context(), &appconfig.AppConfigModel{}, "does-not-exist", nil, "127.0.0.1", "test-agent", "")
+		_, token, err := service.VerifyLogin(t.Context(), &appconfig.AppConfigModel{}, "does-not-exist", nil, "127.0.0.1", "test-agent", "", true)
 
 		assert.Empty(t, token)
 		require.Error(t, err)
@@ -381,7 +345,7 @@ func TestCeremoniesRejectSessionThatDoesNotExist(t *testing.T) {
 	t.Run("reauthentication rejects an unknown session", func(t *testing.T) {
 		service := setupService(t)
 
-		token, err := service.CreateReauthenticationTokenWithWebauthn(t.Context(), "does-not-exist", nil)
+		token, err := service.CreateReauthenticationTokenWithWebauthn(t.Context(), "does-not-exist", authz.Principal{}, nil)
 
 		assert.Empty(t, token)
 		require.Error(t, err)
@@ -400,7 +364,7 @@ func TestCeremoniesRejectSessionThatDoesNotExist(t *testing.T) {
 		}
 		require.NoError(t, service.db.Create(&expiredSession).Error)
 
-		token, err := service.CreateReauthenticationTokenWithWebauthn(t.Context(), expiredSession.ID, nil)
+		token, err := service.CreateReauthenticationTokenWithWebauthn(t.Context(), expiredSession.ID, authz.Principal{}, nil)
 
 		assert.Empty(t, token)
 		require.Error(t, err)
@@ -448,7 +412,7 @@ func TestUpdateCredentialKeepsAAGUID(t *testing.T) {
 		Username: userID,
 	}).Error)
 
-	credential := model.WebauthnCredential{
+	credential := WebauthnCredential{
 		Name:         "Original name",
 		CredentialID: []byte("test-credential"),
 		PublicKey:    []byte("test-public-key"),
@@ -464,8 +428,43 @@ func TestUpdateCredentialKeepsAAGUID(t *testing.T) {
 	assert.Equal(t, "New name", updated.Name)
 	assert.Equal(t, aaguid, updated.AAGUID)
 
-	var stored model.WebauthnCredential
+	var stored WebauthnCredential
 	require.NoError(t, db.First(&stored, "id = ?", credential.ID).Error)
 	assert.Equal(t, "New name", stored.Name)
 	assert.Equal(t, aaguid, stored.AAGUID)
+}
+
+func TestHasOversizedPublicKey(t *testing.T) {
+	rsaKey := func(bits int) []byte {
+		key, err := webauthncbor.Marshal(webauthncose.RSAPublicKeyData{
+			PublicKeyData: webauthncose.PublicKeyData{KeyType: int64(webauthncose.RSAKey), Algorithm: int64(webauthncose.AlgRS256)},
+			Modulus:       bytes.Repeat([]byte{0xff}, bits/8),
+			Exponent:      []byte{1, 0, 1},
+		})
+		require.NoError(t, err)
+		return key
+	}
+
+	assert.False(t, hasOversizedPublicKey(rsaKey(maxRSAKeyBits)))
+	assert.True(t, hasOversizedPublicKey(rsaKey(maxRSAKeyBits+8)))
+}
+
+func TestRequireSudoToEnroll(t *testing.T) {
+	session := authz.Principal{Kind: authz.KindSession}
+	passkeys := []WebauthnCredential{{}}
+
+	// Another passkey of an admin holds all of their access, so the session has to prove an existing one first
+	err := requireSudoToEnroll(session, &passkeyUser{User: model.User{IsAdmin: true}, credentials: passkeys})
+	require.True(t, apperror.IsCode(err, apperror.CodeSudoRequired), err)
+
+	// An admin who has no passkey yet has none to prove, and other users hold no admin access
+	require.NoError(t, requireSudoToEnroll(session, &passkeyUser{User: model.User{IsAdmin: true}}))
+	require.NoError(t, requireSudoToEnroll(session, &passkeyUser{credentials: passkeys}))
+
+	// A login code lets an admin replace lost passkeys, but only right after signing in with it
+	loginCode := authz.Principal{Kind: authz.KindSession, AuthenticationMethod: "otp", AuthenticationTime: time.Now()}
+	require.NoError(t, requireSudoToEnroll(loginCode, &passkeyUser{User: model.User{IsAdmin: true}, credentials: passkeys}))
+	loginCode.AuthenticationTime = time.Now().Add(-enrollmentWindow)
+	err = requireSudoToEnroll(loginCode, &passkeyUser{User: model.User{IsAdmin: true}, credentials: passkeys})
+	require.True(t, apperror.IsCode(err, apperror.CodeSudoRequired), err)
 }

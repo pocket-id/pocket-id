@@ -13,12 +13,6 @@ import (
 	"github.com/pocket-id/pocket-id/backend/internal/utils/cookie"
 )
 
-type verifyDeviceCodeRequest struct {
-	// Scopes are the scopes the user approved on the consent screen
-	// Omitting them approves every requested scope
-	Scopes []string `json:"scopes"`
-}
-
 type deviceHandler struct {
 	provider      fosite.OAuth2Provider
 	deviceService *deviceService
@@ -55,9 +49,10 @@ func (h *deviceHandler) verifyDeviceCode(c *gin.Context) {
 		return
 	}
 
-	// The body is optional so callers that send no scope selection approve every requested scope
+	// Require a JSON body so a forged same-origin POST that carries only the user code cannot approve every requested scope with the victim's session
+	// The device page always sends one, and an empty object still approves every requested scope
 	var request verifyDeviceCodeRequest
-	if err := httpserver.BindOptionalJSON(c, &request); err != nil {
+	if err := httpserver.BindJSON(c, &request); err != nil {
 		_ = c.Error(err)
 		return
 	}

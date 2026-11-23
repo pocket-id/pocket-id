@@ -1,17 +1,21 @@
 <script lang="ts">
 	import FormattedMessage from '#lib/components/formatted-message.svelte';
 	import { monogram } from '#lib/components/oidc-client-avatar.svelte';
-	import { Button } from '#lib/components/ui/button/index.ts';
-	import * as Command from '#lib/components/ui/command/index.ts';
-	import * as Popover from '#lib/components/ui/popover/index.ts';
+	import { Button } from '@pocket-id/ui/button';
+	import * as Command from '@pocket-id/ui/command';
+	import * as Popover from '@pocket-id/ui/popover';
 	import { m } from '#lib/paraglide/messages.js';
 	import OidcService from '#lib/services/oidc-service.ts';
 	import type { AppConfig } from '#lib/types/application-configuration.type.ts';
 	import type { OidcClientLogoPreset } from '#lib/types/oidc.type.ts';
 	import { debounced } from '#lib/utils/debounce-util.ts';
 	import { getAxiosErrorMessage } from '#lib/utils/error-util.ts';
-	import { cn } from '#lib/utils/style.ts';
-	import { LucideImageOff, LucideMoon, LucideSun, LucideUpload } from '@lucide/svelte';
+	import { readsOnDarkBackground } from '#lib/utils/logo-contrast-util.ts';
+	import { cn } from '@pocket-id/ui/utils';
+	import ImageOffIcon from '~icons/solar/gallery-remove-bold-duotone';
+	import MoonIcon from '~icons/solar/moon-bold-duotone';
+	import SunIcon from '~icons/solar/sun-bold-duotone';
+	import UploadIcon from '~icons/solar/upload-bold';
 	import { Command as CommandPrimitive } from 'bits-ui';
 	import { SvelteSet } from 'svelte/reactivity';
 
@@ -78,7 +82,14 @@
 		const request = ++latestRequest;
 
 		try {
-			const result = await oidcService.searchLogoPresets(query);
+			// The library has a white variant of nearly every icon, which dark mode only uses where the color icon would blend into the background
+			const result = await Promise.all(
+				(await oidcService.searchLogoPresets(query)).map(async (preset) =>
+					preset.darkLogoUrl && (await readsOnDarkBackground(preset.logoUrl))
+						? { ...preset, darkLogoUrl: null }
+						: preset
+				)
+			);
 			// Responses can arrive out of order, so only the newest search may update the results
 			if (request === latestRequest) {
 				presets = result;
@@ -211,9 +222,9 @@
 		{#if src}
 			<img {src} alt="" class="size-7 object-contain" loading="lazy" />
 		{:else if light}
-			<LucideSun class="size-4" />
+			<SunIcon class="size-4" />
 		{:else}
-			<LucideMoon class="size-4" />
+			<MoonIcon class="size-4" />
 		{/if}
 	</span>
 {/snippet}
@@ -228,7 +239,7 @@
 		aria-label={light ? m.upload_light_logo() : m.upload_dark_logo()}
 		onclick={() => (light ? lightFileInput : darkFileInput)?.click()}
 	>
-		<LucideUpload class="size-4" />
+		<UploadIcon class="size-4" />
 		{light ? m.light() : m.dark()}
 	</button>
 {/snippet}
@@ -245,7 +256,7 @@
 		onclick={() => selectUrl(url, light)}
 	>
 		{#if brokenLogos.has(url)}
-			<LucideImageOff class="size-4" />
+			<ImageOffIcon class="size-4" />
 		{:else}
 			<img src={url} alt="" class="size-6 object-contain" onerror={() => brokenLogos.add(url)} />
 		{/if}
@@ -295,7 +306,7 @@
 				<Popover.Trigger bind:ref={triggerRef}>
 					{#snippet child({ props })}
 						<Button {...props} variant="secondary" size="sm">
-							<LucideUpload />
+							<UploadIcon />
 							{m.choose_logo()}
 						</Button>
 					{/snippet}
@@ -372,7 +383,13 @@
 					<!-- A custom icon library isn't necessarily selfh.st's collection, so the credit only applies to the default one while its icons are shown -->
 					{#if iconLibrary === 'default' && showIconGrid}
 						<p class="text-fg-muted text-micro border-t px-3 py-2">
-							<FormattedMessage message={m.icons_provided_by_selfhst} />
+							<FormattedMessage
+								message={m.icons_provided_by_selfhst}
+								links={{
+									icons: 'https://selfh.st/icons',
+									license: 'https://creativecommons.org/licenses/by/4.0/'
+								}}
+							/>
 						</p>
 					{/if}
 				</Popover.Content>

@@ -1,9 +1,10 @@
 <script lang="ts">
-	import { Button } from '#lib/components/ui/button/index.ts';
-	import { Input } from '#lib/components/ui/input/index.ts';
+	import { Button } from '@pocket-id/ui/button';
+	import { Input } from '@pocket-id/ui/input';
 	import { m } from '#lib/paraglide/messages.js';
 	import type { ApiPermissionInput } from '#lib/types/api.type.ts';
-	import { LucidePlus, LucideX } from '@lucide/svelte';
+	import PlusIcon from '~icons/solar/add-circle-bold';
+	import XIcon from '~icons/solar/close-linear';
 	import { tick } from 'svelte';
 
 	let { permissions = $bindable() }: { permissions: ApiPermissionInput[] } = $props();
@@ -27,7 +28,7 @@
 			<div class="text-control text-fg-muted flex min-h-(--row-2line) items-center gap-3 px-4">
 				{m.no_permissions()}
 				<Button variant="ghost" size="sm" onclick={add}>
-					<LucidePlus />
+					<PlusIcon />
 					{m.add_permission()}
 				</Button>
 			</div>
@@ -70,13 +71,13 @@
 						aria-label={m.remove_permission_name({ name: permission.key || String(i + 1) })}
 						onclick={() => (permissions = permissions.filter((_, index) => index !== i))}
 					>
-						<LucideX />
+						<XIcon />
 					</Button>
 				</div>
 			{/each}
 			<div class="px-2 py-1.5">
 				<Button variant="ghost" size="sm" disabled={permissions.length >= limit} onclick={add}>
-					<LucidePlus />
+					<PlusIcon />
 					{m.add_another()}
 				</Button>
 			</div>

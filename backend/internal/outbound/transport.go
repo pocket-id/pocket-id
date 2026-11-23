@@ -7,6 +7,8 @@ import (
 	"net/netip"
 	"syscall"
 	"time"
+
+	"github.com/pocket-id/fosite"
 )
 
 type BlockedError struct {
@@ -16,6 +18,11 @@ type BlockedError struct {
 
 func (e *BlockedError) Error() string {
 	return fmt.Sprintf("connection to %s is blocked because it is a private or reserved address; allow it with %s", e.Addr, e.Purpose.EnvVar())
+}
+
+// Is tells Fosite that a blocked client metadata document was refused, so the client is answered as invalid instead of temporarily unreachable
+func (e *BlockedError) Is(target error) bool {
+	return target == fosite.ErrCIMDFetchRefused
 }
 
 // guardedTransport routes each request through a dialer that refuses disallowed addresses

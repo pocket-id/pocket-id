@@ -15,6 +15,11 @@ type ApiKey struct {
 	ExpiresAt           datatype.DateTime  `sortable:"true"`
 	LastUsedAt          *datatype.DateTime `sortable:"true"`
 	ExpirationEmailSent bool
+	Scopes              datatype.StringList
+
+	// PreviousKey is the hash of the token a rotation replaced, which keeps working until PreviousKeyExpiresAt
+	PreviousKey          *string
+	PreviousKeyExpiresAt *datatype.DateTime
 
 	UserID string
 	User   model.User

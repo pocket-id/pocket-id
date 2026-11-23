@@ -1,1 +1,0 @@
-DELETE FROM app_config_variables WHERE value = '';

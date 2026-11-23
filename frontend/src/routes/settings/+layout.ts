@@ -6,7 +6,7 @@ import type { AppVersionInformation } from '#lib/types/application-configuration
 import { redirect } from '@sveltejs/kit';
 import type { LayoutLoad } from './$types';
 
-export const load: LayoutLoad = async ({ url, parent, untrack, depends }) => {
+export const load: LayoutLoad = async ({ url, depends }) => {
 	depends('app:features');
 
 	const versionService = new VersionService();
@@ -19,8 +19,7 @@ export const load: LayoutLoad = async ({ url, parent, untrack, depends }) => {
 		versionService.getNewestVersion().catch(() => null),
 		storageService.getSqliteStorageWarning().catch(() => false),
 		webauthnService.listCredentials(),
-		// A tracked parent() would rerun this load on every navigation, because the root load reads the pathname
-		untrack(() => parent()).then(({ user }) => (user?.isAdmin ? new FeatureService().list() : null))
+		new FeatureService().list()
 	]);
 
 	// If newestVersion is empty, it means the check is disabled or failed.

@@ -1,3 +1,0 @@
-ALTER TABLE users DROP COLUMN display_name;
-
-ALTER TABLE users ALTER COLUMN username TYPE TEXT;

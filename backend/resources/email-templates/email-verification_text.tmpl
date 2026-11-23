@@ -1,10 +1,8 @@
-{{define "root"}}VERIFY YOUR EMAIL ADDRESS
+{{define "root"}}{{.T "email_verification_title"}}
 
-Hello {{.Data.UserFullName}},
+{{.T "email_verification_description" "name" (.Data.UserFullName) "appName" (.AppName) "expiration" (.Duration .Data.Expiration)}}
 
-Click the button below to confirm the email address for your {{.AppName}} account. This link expires in 24 hours.
+{{.T "email_verification_button"}} {{.Data.VerificationLink}}
 
-Verify email address {{.Data.VerificationLink}}
-
-Or if you don't like clicking buttons, open this link:
+{{.T "link_fallback"}}
 {{.Data.VerificationLink}}{{end}}

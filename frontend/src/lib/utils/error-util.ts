@@ -15,12 +15,17 @@ const codeMessages: Record<string, () => string> = {
 	rate_limited: () => m.please_try_again(),
 	not_signed_in: () => m.please_try_to_sign_in_again(),
 	reauthentication_required: () => m.please_try_to_sign_in_again(),
+	sudo_required: () => m.sudo_description(),
 	invalid_webauthn_session: () => m.passkey_request_expired(),
 	invalid_webauthn_response: () => m.passkey_response_invalid(),
 	webauthn_authentication_failed: () => m.passkey_verification_failed(),
 	passkey_user_verification_required: () => m.passkey_user_verification_required(),
 	synced_passkey_not_allowed: () => m.synced_passkeys_not_allowed(),
-	device_login_expired: () => m.device_login_request_expired(),
+	authenticator_attachment_not_allowed: () => m.passkey_type_not_allowed(),
+	passkey_attestation_required: () => m.passkey_attestation_required(),
+	authenticator_not_certified: () => m.authenticator_not_certified(),
+	attestation_unavailable: () => m.passkey_verification_unavailable(),
+	device_login_expired: () => m.device_login_expired(),
 	email_verification_required: () => m.email_verification_required_error(),
 	email_change_not_started: () => m.email_change_not_started()
 };
@@ -84,12 +89,12 @@ export function getWebauthnErrorMessage(e: unknown) {
 		ERROR_AUTHENTICATOR_MISSING_DISCOVERABLE_CREDENTIAL_SUPPORT:
 			m.authenticator_does_not_support_discoverable_credentials(),
 		ERROR_AUTHENTICATOR_MISSING_RESIDENT_KEY_SUPPORT:
-			m.authenticator_does_not_support_resident_keys(),
+			m.authenticator_does_not_support_discoverable_credentials(),
 		ERROR_AUTHENTICATOR_PREVIOUSLY_REGISTERED: m.passkey_was_previously_registered(),
 		ERROR_AUTHENTICATOR_NO_SUPPORTED_PUBKEYCREDPARAMS_ALG:
 			m.authenticator_does_not_support_any_of_the_requested_algorithms(),
-		ERROR_INVALID_DOMAIN: `${m.webauthn_error_invalid_domain()} ${m.contact_administrator_to_fix()}`,
-		ERROR_INVALID_RP_ID: `${m.webauthn_error_invalid_rp_id()} ${m.contact_administrator_to_fix()}`,
+		ERROR_INVALID_DOMAIN: m.passkeys_invalid_domain(),
+		ERROR_INVALID_RP_ID: m.passkeys_invalid_rp_id(),
 		NotSupportedError: m.webauthn_not_supported_by_browser(),
 		NotAllowedError: m.webauthn_operation_not_allowed_or_timed_out()
 	};

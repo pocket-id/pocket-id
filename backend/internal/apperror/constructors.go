@@ -43,10 +43,6 @@ func TokenInvalidOrExpired() *Error {
 	return New(CodeTokenInvalidOrExpired, http.StatusUnauthorized, "Token is invalid or expired")
 }
 
-func DeviceCodeInvalid() *Error {
-	return New(CodeDeviceCodeInvalid, http.StatusUnauthorized, "One-time access code must be used on the device it was generated for")
-}
-
 func TokenInvalid() *Error {
 	return New(CodeInvalidToken, http.StatusUnauthorized, "Token is invalid")
 }
@@ -76,6 +72,11 @@ func UnsupportedFileType(expected string) *Error {
 
 	return New(CodeFileTypeNotSupported, http.StatusUnsupportedMediaType, "File must be of type "+expected).
 		WithDetail("expected_file_type", expected)
+}
+
+func UnsupportedPatchType(accepted string) *Error {
+	return New(CodePatchTypeNotSupported, http.StatusUnsupportedMediaType, "PATCH body must be of type "+accepted).
+		WithDetail("accepted_patch_types", accepted)
 }
 
 func FileTooLarge(maxSize string) *Error {
@@ -135,6 +136,22 @@ func SyncedPasskeyNotAllowed() *Error {
 	return New(CodeSyncedPasskeyNotAllowed, http.StatusBadRequest, "Synced passkeys are not allowed")
 }
 
+func AuthenticatorAttachmentNotAllowed() *Error {
+	return New(CodeAuthenticatorAttachmentNotAllowed, http.StatusBadRequest, "This type of passkey is not allowed")
+}
+
+func PasskeyAttestationRequired() *Error {
+	return New(CodePasskeyAttestationRequired, http.StatusBadRequest, "Only passkeys on a verified authenticator are allowed")
+}
+
+func AuthenticatorNotCertified(cause error) *Error {
+	return Wrap(cause, CodeAuthenticatorNotCertified, http.StatusBadRequest, "This authenticator is not allowed")
+}
+
+func AttestationUnavailable(cause error) *Error {
+	return Wrap(cause, CodeAttestationUnavailable, http.StatusServiceUnavailable, "Passkeys can't be verified right now")
+}
+
 func ReservedClaim(key string) *Error {
 	return New(CodeReservedClaim, http.StatusBadRequest, fmt.Sprintf("Claim %s is reserved and can't be used", key)).
 		WithDetail("key", key).
@@ -169,6 +186,10 @@ func LdapUserGroupUpdate() *Error {
 
 func BuiltInClaimMappingPolicyReadOnly(message string) *Error {
 	return New(CodeBuiltInClaimMappingPolicyReadOnly, http.StatusForbidden, message)
+}
+
+func BuiltInAPIReadOnly(message string) *Error {
+	return New(CodeBuiltInAPIReadOnly, http.StatusForbidden, message)
 }
 
 func OidcAccessDenied() *Error {
@@ -220,10 +241,6 @@ func APIKeyNotFound() *Error {
 	return New(CodeAPIKeyNotFound, http.StatusNotFound, "API key not found")
 }
 
-func APIKeyNotExpired() *Error {
-	return New(CodeAPIKeyNotExpired, http.StatusConflict, "API key is not expired yet")
-}
-
 func InvalidAPIKeyExpiration() *Error {
 	return New(CodeInvalidAPIKeyExpiration, http.StatusBadRequest, "API key expiration time must be in the future").WithFields([]FieldError{{
 		Field:   "expiresAt",
@@ -232,8 +249,24 @@ func InvalidAPIKeyExpiration() *Error {
 	}})
 }
 
+func InvalidAPIKeyScope(scope string) *Error {
+	return New(CodeInvalidAPIKeyScope, http.StatusBadRequest, "API key cannot be granted the scope "+scope).WithFields([]FieldError{{
+		Field:   "scopes",
+		Code:    "invalid_value",
+		Message: "contains a scope you cannot grant",
+	}})
+}
+
 func APIKeyAuthNotAllowed() *Error {
 	return New(CodeAPIKeyAuthNotAllowed, http.StatusForbidden, "API key authentication is not allowed for this endpoint")
+}
+
+func OAuthTokenAuthNotAllowed() *Error {
+	return New(CodeOAuthTokenAuthNotAllowed, http.StatusForbidden, "OAuth access tokens are not allowed for this endpoint")
+}
+
+func ClientTokenAuthNotAllowed() *Error {
+	return New(CodeClientTokenAuthNotAllowed, http.StatusForbidden, "This endpoint acts on a user account, so it doesn't accept tokens a client obtained for itself")
 }
 
 func UserDisabled() *Error {
@@ -258,6 +291,10 @@ func ReauthenticationRequired() *Error {
 
 func ReauthenticationRequiredWithCause(cause error) *Error {
 	return Wrap(cause, CodeReauthenticationRequired, http.StatusUnauthorized, "Reauthentication is required")
+}
+
+func SudoRequired() *Error {
+	return New(CodeSudoRequired, http.StatusForbidden, "Confirm your identity with your passkey to continue")
 }
 
 func OpenSignupDisabled() *Error {
@@ -297,6 +334,10 @@ func LogoPresetsUnavailable(cause error) *Error {
 	return Wrap(cause, CodeLogoPresetsUnavailable, http.StatusBadGateway, "Logo presets could not be loaded")
 }
 
+func DocsUnavailable(cause error) *Error {
+	return Wrap(cause, CodeDocsUnavailable, http.StatusBadGateway, "The documentation could not be loaded, search https://pocket-id.org/docs instead")
+}
+
 func InvalidLogoURL(cause error) *Error {
 	return Wrap(cause, CodeValidationFailed, http.StatusBadRequest, "Logo URL is not allowed").WithFields([]FieldError{{
 		Field:   "logoUrl",
@@ -309,12 +350,20 @@ func OidcPARRequired() *Error {
 	return New(CodeOidcPARRequired, http.StatusBadRequest, "This client requires pushed authorization requests")
 }
 
+func OidcClientDisabled() *Error {
+	return New(CodeOidcClientDisabled, http.StatusForbidden, "This app has been disabled by an administrator")
+}
+
 func InvalidEmailVerificationToken() *Error {
 	return New(CodeEmailVerificationTokenInvalid, http.StatusBadRequest, "Email verification token is invalid")
 }
 
 func EmailVerificationRequired() *Error {
 	return New(CodeEmailVerificationRequired, http.StatusForbidden, "You must verify your email address before you can access this service.")
+}
+
+func EmailVerificationDisabled() *Error {
+	return New(CodeEmailVerificationDisabled, http.StatusForbidden, "Email verification is disabled")
 }
 
 func EmailChangeNotStarted(cause error) *Error {

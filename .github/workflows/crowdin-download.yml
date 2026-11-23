@@ -43,7 +43,7 @@ jobs:
           persist-credentials: false
 
       - name: Download translations
-        uses: crowdin/github-action@959dc74ac104447731cba99a016f85d0ae719788 # v3.5.0
+        uses: crowdin/github-action@d651c77756acbe11a31d77a6fb79d8a239e1e05a # v3.6.0
         with:
           upload_sources: false
           upload_translations: false
@@ -77,7 +77,7 @@ jobs:
           gh auth setup-git
 
           # Only commit when Crowdin returned different translations
-          git add frontend/messages/*.json
+          git add frontend/messages/*.json backend/resources/i18n/email/*.json
           if git diff --cached --quiet; then
             echo "Translations are already up to date." >> "$GITHUB_STEP_SUMMARY"
           else

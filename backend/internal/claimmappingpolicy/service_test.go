@@ -72,7 +72,7 @@ func TestListClaimMappingPolicyNotEmpty(t *testing.T) {
 func TestCreateClaimMappingPolicy(t *testing.T) {
 	service := newTestService(t)
 
-	dto := OidcClaimMappingPolicyDto{
+	policyInput := OidcClaimMappingPolicyDto{
 		OidcClaimMappingPolicyMetadataDto: OidcClaimMappingPolicyMetadataDto{
 			Name:      "Test Policy",
 			IsDefault: false,
@@ -97,7 +97,7 @@ func TestCreateClaimMappingPolicy(t *testing.T) {
 		},
 	}
 
-	result, err := service.CreateClaimMappingPolicy(context.Background(), dto)
+	result, err := service.CreateClaimMappingPolicy(context.Background(), policyInput)
 	require.NoError(t, err)
 	assert.NotEmpty(t, result.ID)
 	assert.Equal(t, "Test Policy", result.Name)
@@ -116,7 +116,7 @@ func TestCreateClaimMappingPolicyWithDefault(t *testing.T) {
 	service := newTestService(t)
 
 	// Create a default policy
-	dto := OidcClaimMappingPolicyDto{
+	policyInput := OidcClaimMappingPolicyDto{
 		OidcClaimMappingPolicyMetadataDto: OidcClaimMappingPolicyMetadataDto{
 			Name:      "Default Policy",
 			IsDefault: true,
@@ -131,7 +131,7 @@ func TestCreateClaimMappingPolicyWithDefault(t *testing.T) {
 		},
 	}
 
-	result, err := service.CreateClaimMappingPolicy(context.Background(), dto)
+	result, err := service.CreateClaimMappingPolicy(context.Background(), policyInput)
 	require.NoError(t, err)
 	assert.True(t, result.IsDefault)
 
@@ -226,7 +226,7 @@ func TestUpdateClaimMappingPolicy(t *testing.T) {
 		ClaimMappings: mappings,
 	}
 	// Create initial policy
-	dto := OidcClaimMappingPolicyDto{
+	policyInput := OidcClaimMappingPolicyDto{
 		OidcClaimMappingPolicyMetadataDto: OidcClaimMappingPolicyMetadataDto{
 			Name:      "Initial Policy",
 			IsDefault: false,
@@ -240,10 +240,10 @@ func TestUpdateClaimMappingPolicy(t *testing.T) {
 			},
 		},
 	}
-	result, err := service.CreateClaimMappingPolicy(context.Background(), dto)
+	result, err := service.CreateClaimMappingPolicy(context.Background(), policyInput)
 	require.NoError(t, err)
 
-	updated, err := service.UpdateClaimMappingPolicy(context.Background(), result.ID, updateDto)
+	updated, err := service.UpdateClaimMappingPolicy(context.Background(), result.ID, dto.Replace(updateDto))
 	require.NoError(t, err)
 	assert.Equal(t, "Updated Policy", updated.Name)
 	assert.Len(t, updated.ClaimMappings, 2)
@@ -309,7 +309,7 @@ func TestUpdateClaimMappingPolicySetAsDefault(t *testing.T) {
 		},
 	}
 
-	_, err = service.UpdateClaimMappingPolicy(context.Background(), result1.ID, updateDto)
+	_, err = service.UpdateClaimMappingPolicy(context.Background(), result1.ID, dto.Replace(updateDto))
 	require.NoError(t, err)
 
 	// Verify policy 1 is now default
@@ -327,7 +327,7 @@ func TestDeleteClaimMappingPolicy(t *testing.T) {
 	service := newTestService(t)
 
 	// Create a non-default policy
-	dto := OidcClaimMappingPolicyDto{
+	policyInput := OidcClaimMappingPolicyDto{
 		OidcClaimMappingPolicyMetadataDto: OidcClaimMappingPolicyMetadataDto{
 			Name:      "To Delete",
 			IsDefault: false,
@@ -341,7 +341,7 @@ func TestDeleteClaimMappingPolicy(t *testing.T) {
 			},
 		},
 	}
-	result, err := service.CreateClaimMappingPolicy(context.Background(), dto)
+	result, err := service.CreateClaimMappingPolicy(context.Background(), policyInput)
 	require.NoError(t, err)
 
 	// Delete it
@@ -359,7 +359,7 @@ func TestDeleteDefaultClaimMappingPolicyFallsBackToBuiltIn(t *testing.T) {
 	require.NoError(t, Bootstrap(t.Context(), service.db))
 
 	// Create a default policy, which takes the default flag over from the built-in one
-	dto := OidcClaimMappingPolicyDto{
+	policyInput := OidcClaimMappingPolicyDto{
 		OidcClaimMappingPolicyMetadataDto: OidcClaimMappingPolicyMetadataDto{
 			Name:      "Default Policy",
 			IsDefault: true,
@@ -373,7 +373,7 @@ func TestDeleteDefaultClaimMappingPolicyFallsBackToBuiltIn(t *testing.T) {
 			},
 		},
 	}
-	result, err := service.CreateClaimMappingPolicy(context.Background(), dto)
+	result, err := service.CreateClaimMappingPolicy(context.Background(), policyInput)
 	require.NoError(t, err)
 
 	// Delete it
@@ -410,7 +410,7 @@ func TestUpdateClaimMappingPolicyUnsetDefaultFallsBackToBuiltIn(t *testing.T) {
 
 	// Unset the default flag on the custom policy
 	input.IsDefault = false
-	_, err = service.UpdateClaimMappingPolicy(context.Background(), created.ID, input)
+	_, err = service.UpdateClaimMappingPolicy(context.Background(), created.ID, dto.Replace(input))
 	require.NoError(t, err)
 
 	custom, err := service.GetClaimMappingPolicy(context.Background(), created.ID)
@@ -442,7 +442,7 @@ func TestUpdateBuiltInClaimMappingPolicyOnlyAllowsDefaultFlag(t *testing.T) {
 		input := builtInPolicyDto(t, service)
 		input.Name = "Renamed"
 
-		_, err := service.UpdateClaimMappingPolicy(context.Background(), BuiltInClaimMappingPolicyID, input)
+		_, err := service.UpdateClaimMappingPolicy(context.Background(), BuiltInClaimMappingPolicyID, dto.Replace(input))
 		var appErr *apperror.Error
 		require.ErrorAs(t, err, &appErr)
 		assert.Equal(t, apperror.CodeBuiltInClaimMappingPolicyReadOnly, appErr.Code())
@@ -452,7 +452,7 @@ func TestUpdateBuiltInClaimMappingPolicyOnlyAllowsDefaultFlag(t *testing.T) {
 		input := builtInPolicyDto(t, service)
 		input.ClaimMappings = input.ClaimMappings[:1]
 
-		_, err := service.UpdateClaimMappingPolicy(context.Background(), BuiltInClaimMappingPolicyID, input)
+		_, err := service.UpdateClaimMappingPolicy(context.Background(), BuiltInClaimMappingPolicyID, dto.Replace(input))
 		var appErr *apperror.Error
 		require.ErrorAs(t, err, &appErr)
 		assert.Equal(t, apperror.CodeBuiltInClaimMappingPolicyReadOnly, appErr.Code())
@@ -466,7 +466,7 @@ func TestUpdateBuiltInClaimMappingPolicyOnlyAllowsDefaultFlag(t *testing.T) {
 		input := builtInPolicyDto(t, service)
 		input.IsDefault = false
 
-		_, err := service.UpdateClaimMappingPolicy(context.Background(), BuiltInClaimMappingPolicyID, input)
+		_, err := service.UpdateClaimMappingPolicy(context.Background(), BuiltInClaimMappingPolicyID, dto.Replace(input))
 		var appErr *apperror.Error
 		require.ErrorAs(t, err, &appErr)
 		assert.Equal(t, apperror.CodeBuiltInClaimMappingPolicyReadOnly, appErr.Code())
@@ -683,7 +683,7 @@ func TestListClaimMappingPolicyWithData(t *testing.T) {
 
 	// Create multiple policies
 	for i := 0; i < 5; i++ {
-		dto := OidcClaimMappingPolicyDto{
+		policyInput := OidcClaimMappingPolicyDto{
 			OidcClaimMappingPolicyMetadataDto: OidcClaimMappingPolicyMetadataDto{
 				Name:      "Policy " + string(rune('A'+i)),
 				IsDefault: i == 0,
@@ -697,7 +697,7 @@ func TestListClaimMappingPolicyWithData(t *testing.T) {
 				},
 			},
 		}
-		_, err := service.CreateClaimMappingPolicy(context.Background(), dto)
+		_, err := service.CreateClaimMappingPolicy(context.Background(), policyInput)
 		require.NoError(t, err)
 	}
 

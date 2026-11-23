@@ -6,6 +6,8 @@ owner = "pocket-id"
 repo = "pocket-id"
 
 [git]
+# The UI package's ui-v tags must not count as Pocket ID releases
+tag_pattern = "^v[0-9]"
 conventional_commits = true
 filter_unconventional = true
 commit_preprocessors = [{ pattern = '\((\w+\s)?#([0-9]+)\)', replace = "" }]
@@ -32,7 +34,7 @@ body = """
 ### {{ entry.group | title }}
 {% for commit in entry.commits %}
   - {{ commit.message | trim }} \
-    {%- if commit.remote.pr_number %} ([#{{ commit.remote.pr_number }}]({{ self::remote_url() }}/pull/{{ commit.remote.pr_number }}) by @{{ commit.remote.pr_author | default(value=commit.remote.username) | default(value=commit.author.name) }}){%- else %} ([{{ commit.id | truncate(length=7, end="") }}]({{ self::remote_url() }}/commit/{{ commit.id }}) by @{{ commit.remote.username | default(value=commit.author.name) }}){%- endif -%}
+    {%- if commit.remote.pr_number %} ([#{{ commit.remote.pr_number }}]({{ self::remote_url() }}/pull/{{ commit.remote.pr_number }}) by @{{ commit.remote.pr_author | default(value=commit.remote.username) | default(value=commit.author.name) }}){%- else %} ([{{ commit.id | truncate(length=7, end="") }}]({{ self::remote_url() }}/commit/{{ commit.id }}) by {% if commit.remote.username %}@{{ commit.remote.username }}{% else %}{{ commit.author.name }}{% endif %}){%- endif -%}
 {% endfor %}
 {% endfor %}
 {% if version -%}

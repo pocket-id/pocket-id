@@ -111,6 +111,39 @@ func TestClientPreviewBuilderIgnoresUnknownScopes(t *testing.T) {
 	require.ElementsMatch(t, []string{"openid"}, stringSliceClaim(t, preview.AccessToken["scp"]))
 }
 
+func TestClientPreviewBuilderReleasesCustomScopeClaims(t *testing.T) {
+	db := testutils.NewDatabaseForTest(t)
+	require.NoError(t, claimmappingpolicy.Bootstrap(t.Context(), db))
+	signerKey, err := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
+	require.NoError(t, err)
+
+	// #nosec G101
+	provider, err := newProvider(NewStore(db, nil), nil, testTokenSigner{key: signerKey}, Config{
+		BaseURL:      "https://issuer.example.com",
+		TokenBaseURL: "https://issuer.example.com",
+		Secret:       []byte("test-secret"),
+	}, nil)
+	require.NoError(t, err)
+
+	require.NoError(t, db.Create(&claimmappingpolicy.CustomScope{Key: "kuber", Name: "Kubernetes", Description: "Your cluster"}).Error)
+	policy := claimmappingpolicy.OidcClaimMappingPolicy{
+		Base: model.Base{ID: "kubernetes-policy"},
+		Name: "Kubernetes",
+		ClaimMappings: claimmappingpolicy.OidcClaimMappings{
+			{ClaimName: "cluster", SourceType: claimmappingpolicy.MappingSourceStatic, SourceValue: "prod", Scope: []string{"kuber"}, IDToken: true},
+		},
+	}
+	require.NoError(t, db.Create(&policy).Error)
+	client := model.OidcClient{Base: model.Base{ID: "test-client"}, Name: "Test Client", ClaimMappingPolicyId: &policy.ID}
+	require.NoError(t, db.Create(&client).Error)
+	require.NoError(t, db.Create(&model.User{Base: model.Base{ID: "test-user"}, Username: "test-user"}).Error)
+
+	builder := newClientPreviewBuilder(newClaimsService(db, nil, "https://issuer.example.com", nil, appconfig.StaticResolver{}), provider.tokenStrategies)
+	preview, err := builder.BuildClientPreview(t.Context(), client, "test-user", []string{"openid", "kuber"}, "")
+	require.NoError(t, err)
+	require.Equal(t, "prod", preview.IDToken["cluster"])
+}
+
 func TestClientPreviewBuilderWithoutOpenIDScope(t *testing.T) {
 	db := testutils.NewDatabaseForTest(t)
 	require.NoError(t, claimmappingpolicy.Bootstrap(t.Context(), db))

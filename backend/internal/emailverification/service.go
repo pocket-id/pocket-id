@@ -12,6 +12,7 @@ import (
 
 	"github.com/pocket-id/pocket-id/backend/internal/appconfig"
 	"github.com/pocket-id/pocket-id/backend/internal/apperror"
+	"github.com/pocket-id/pocket-id/backend/internal/auditlogs"
 	"github.com/pocket-id/pocket-id/backend/internal/model"
 	datatype "github.com/pocket-id/pocket-id/backend/internal/model/types"
 	"github.com/pocket-id/pocket-id/backend/internal/utils"
@@ -21,7 +22,12 @@ import (
 const TokenLifetime = 24 * time.Hour
 
 type EmailSender interface {
-	SendEmailVerification(ctx context.Context, dbConfig *appconfig.AppConfigModel, userFullName, userEmail, verificationLink string) error
+	SendEmailVerification(ctx context.Context, dbConfig *appconfig.AppConfigModel, userFullName, userEmail string, userLocale *string, verificationLink string, expiration time.Duration) error
+}
+
+// SendLimiter limits how many verification emails one key, the user's ID, may trigger
+type SendLimiter interface {
+	Allow(ctx context.Context, key string) (allowed bool, retryAfter time.Duration, err error)
 }
 
 // ScimSyncScheduler schedules a SCIM sync after a confirmed email change replaced a user's address
@@ -34,15 +40,19 @@ type Service struct {
 	actors      *actor.Service
 	emailSender EmailSender
 	scimSync    ScimSyncScheduler
+	sendLimiter SendLimiter
+	auditLog    AuditLogger
 	appURL      string
 }
 
-func newService(db *gorm.DB, actors *actor.Service, emailSender EmailSender, scimSync ScimSyncScheduler, appURL string) *Service {
+func newService(db *gorm.DB, actors *actor.Service, emailSender EmailSender, scimSync ScimSyncScheduler, sendLimiter SendLimiter, auditLog AuditLogger, appURL string) *Service {
 	return &Service{
 		db:          db,
 		actors:      actors,
 		emailSender: emailSender,
 		scimSync:    scimSync,
+		sendLimiter: sendLimiter,
+		auditLog:    auditLog,
 		appURL:      appURL,
 	}
 }
@@ -62,6 +72,10 @@ func (s *Service) loadUser(ctx context.Context, userID string) (model.User, erro
 
 // Send emails a verification link for the user's current email
 func (s *Service) Send(ctx context.Context, dbConfig *appconfig.AppConfigModel, userID string) error {
+	if dbConfig.EmailVerification.String() == appconfig.EmailVerificationDisabled {
+		return apperror.EmailVerificationDisabled()
+	}
+
 	user, err := s.loadUser(ctx, userID)
 	if err != nil {
 		return err
@@ -70,11 +84,17 @@ func (s *Service) Send(ctx context.Context, dbConfig *appconfig.AppConfigModel, 
 		return apperror.UserEmailNotSet()
 	}
 
+	err = s.AllowSend(ctx, userID)
+	if err != nil {
+		return err
+	}
+
 	return s.issue(ctx, dbConfig, user, State{Email: *user.Email})
 }
 
 // RequestEmailChange emails a verification link to a new address, which replaces the user's current email once the link is used
 // Until then the current email stays in effect, so a mistyped address never restricts the account
+// It doesn't consume a send itself, the caller calls AllowSend first, so a throttled change can be rejected before anything is saved
 func (s *Service) RequestEmailChange(ctx context.Context, dbConfig *appconfig.AppConfigModel, userID, newEmail string) error {
 	user, err := s.loadUser(ctx, userID)
 	if err != nil {
@@ -85,6 +105,26 @@ func (s *Service) RequestEmailChange(ctx context.Context, dbConfig *appconfig.Ap
 	}
 
 	return s.issue(ctx, dbConfig, user, State{Email: newEmail, ReplacesEmail: *user.Email})
+}
+
+// AllowSend consumes one of the user's verification emails, so a single account can't flood an inbox with links
+// The limit is per user rather than per IP, so profile edits that send no email are never throttled
+func (s *Service) AllowSend(ctx context.Context, userID string) error {
+	if s.sendLimiter == nil {
+		return nil
+	}
+
+	allowed, retryAfter, err := s.sendLimiter.Allow(ctx, userID)
+	if err != nil {
+		// Fail open like the rate-limit middleware, so a limiter error does not block verification
+		slog.WarnContext(ctx, "Rate limiter unavailable, allowing verification email", slog.String("userID", userID), slog.Any("error", err))
+		return nil
+	}
+	if !allowed {
+		return apperror.TooManyRequests().WithRetryAfter(retryAfter)
+	}
+
+	return nil
 }
 
 // PendingEmailChange returns the email change the user still has to confirm, or nil if there is none
@@ -140,7 +180,9 @@ func (s *Service) issue(ctx context.Context, dbConfig *appconfig.AppConfigModel,
 		dbConfig,
 		user.FullName(),
 		state.Email,
+		user.Locale,
 		s.appURL+"/verify-email?token="+token,
+		TokenLifetime,
 	)
 	if err != nil {
 		// If the email delivery fails, discard the token in the actor to avoid leaving a valid token in the system
@@ -151,7 +193,7 @@ func (s *Service) issue(ctx context.Context, dbConfig *appconfig.AppConfigModel,
 	return nil
 }
 
-func (s *Service) Verify(ctx context.Context, userID, token string) error {
+func (s *Service) Verify(ctx context.Context, userID, token string, origin auditlogs.Origin) error {
 	// Consume the token in the email verification actor for this user
 	response, err := s.actors.Invoke(ctx, ActorType, userID, methodConsume, tokenRequest{
 		TokenHash: utils.CreateSha256Hash(token),
@@ -208,8 +250,14 @@ func (s *Service) Verify(ctx context.Context, userID, token string) error {
 		return apperror.InvalidEmailVerificationToken()
 	}
 
+	if !isEmailChange {
+		s.auditLog.Record(ctx, auditlogs.EventEmailVerified, origin, userID, auditlogs.Data{"email": result.State.Email}, nil)
+		return nil
+	}
+	s.auditLog.Record(ctx, auditlogs.EventEmailChanged, origin, userID, auditlogs.Data{"email": result.State.Email, "previousEmail": result.State.ReplacesEmail}, nil)
+
 	// Service providers have to learn about the new address
-	if isEmailChange && s.scimSync != nil {
+	if s.scimSync != nil {
 		s.scimSync.ScheduleSync(ctx)
 	}
 

@@ -5,22 +5,18 @@
 package testing
 
 import (
+	"context"
 	"crypto/rand"
-	"errors"
+	"database/sql"
 	"log/slog"
 	"net/url"
 	"os"
 	"path/filepath"
 	"strings"
+	"sync"
 	"testing"
 	"time"
 
-	_ "github.com/golang-migrate/migrate/v4/source/file"
-
-	"github.com/golang-migrate/migrate/v4"
-	postgresMigrate "github.com/golang-migrate/migrate/v4/database/postgres"
-	sqliteMigrate "github.com/golang-migrate/migrate/v4/database/sqlite3"
-	"github.com/golang-migrate/migrate/v4/source/iofs"
 	sqlitekit "github.com/italypaleale/go-sql-utils/sqlite"
 	"github.com/libtnb/sqlite"
 	"github.com/stretchr/testify/require"
@@ -28,14 +24,9 @@ import (
 	"gorm.io/gorm"
 	"gorm.io/gorm/logger"
 
+	"github.com/pocket-id/pocket-id/backend/internal/common"
 	"github.com/pocket-id/pocket-id/backend/internal/utils"
-	sqliteutil "github.com/pocket-id/pocket-id/backend/internal/utils/sqlite"
-	"github.com/pocket-id/pocket-id/backend/resources"
 )
-
-func init() {
-	sqliteutil.RegisterSqliteFunctions()
-}
 
 // NewDatabaseForTest returns a new instance of GORM connected to an in-memory SQLite database.
 // Each database connection is unique for the test.
@@ -43,20 +34,58 @@ func init() {
 // Note: the in-memory database is limited to a single connection, so it cannot be used to test concurrent access: use NewConcurrentDatabaseForTest for that.
 func NewDatabaseForTest(t *testing.T) *gorm.DB {
 	t.Helper()
+
+	template, err := migratedSQLiteTemplate()
+	require.NoError(t, err, "Failed to build the migrated template database")
+
 	db := openInMemoryTestDB(t)
-	runMigrations(t, db, 0, nil)
+	sqlDB, err := db.DB()
+	require.NoError(t, err, "Failed to get sql.DB")
+	conn, err := sqlDB.Conn(t.Context())
+	require.NoError(t, err, "Failed to acquire connection")
+	defer conn.Close()
+
+	// Load the migrated schema into this test's database
+	err = conn.Raw(func(driverConn any) error {
+		return driverConn.(interface{ Deserialize(buf []byte) error }).Deserialize(template)
+	})
+	require.NoError(t, err, "Failed to load the migrated template database")
+
+	// Foreign key enforcement is a connection setting, so it isn't part of the template
+	_, err = conn.ExecContext(t.Context(), "PRAGMA foreign_keys = OFF;")
+	require.NoError(t, err, "Failed to disable foreign keys")
+
 	return db
 }
 
-// NewDatabaseForTestWithMigrationSeed behaves like NewDatabaseForTest, but pauses the migrations right after the migration whose version is stopAfterVersion has been applied.
-// It then invokes seed, so the test can insert data into the intermediate schema, before applying the remaining migrations.
-// This is meant to test data migrations, which operate on data that already exists in the database.
-func NewDatabaseForTestWithMigrationSeed(t *testing.T, stopAfterVersion uint, seed func(t *testing.T, db *gorm.DB)) *gorm.DB {
-	t.Helper()
-	db := openInMemoryTestDB(t)
-	runMigrations(t, db, stopAfterVersion, seed)
-	return db
-}
+// migratedSQLiteTemplate returns a serialized SQLite database with all migrations applied
+// It's built once per test binary because running every migration for each test is slow, especially under the race detector
+var migratedSQLiteTemplate = sync.OnceValues(func() ([]byte, error) {
+	db, err := sql.Open(sqlite.DriverName, "file:pocket-id-migration-template?mode=memory")
+	if err != nil {
+		return nil, err
+	}
+	defer db.Close()
+	db.SetMaxOpenConns(1)
+
+	err = utils.MigrateDatabase(context.Background(), db, common.DbProviderSqlite)
+	if err != nil {
+		return nil, err
+	}
+
+	conn, err := db.Conn(context.Background())
+	if err != nil {
+		return nil, err
+	}
+	defer conn.Close()
+
+	var template []byte
+	err = conn.Raw(func(driverConn any) error {
+		template, err = driverConn.(interface{ Serialize() ([]byte, error) }).Serialize()
+		return err
+	})
+	return template, err
+})
 
 // NewConcurrentDatabaseForTest returns a new instance of GORM connected to a temporary file-based SQLite database
 // Unlike NewDatabaseForTest, which forces a single connection to an in-memory database, this one can be used to test concurrent access to the database.
@@ -64,8 +93,34 @@ func NewDatabaseForTestWithMigrationSeed(t *testing.T, stopAfterVersion uint, se
 func NewConcurrentDatabaseForTest(t *testing.T) *gorm.DB {
 	t.Helper()
 	db := openFileTestDB(t)
-	runMigrations(t, db, 0, nil)
+	sqlDB, err := db.DB()
+	require.NoError(t, err, "Failed to get sql.DB")
+
+	err = utils.MigrateDatabase(t.Context(), sqlDB, common.DbProviderSqlite)
+	require.NoError(t, err, "Failed to perform migrations")
+	_, err = sqlDB.ExecContext(t.Context(), "PRAGMA foreign_keys = OFF;")
+	require.NoError(t, err, "Failed to disable foreign keys")
+
 	return db
+}
+
+// ForEachDatabase runs the test on SQLite and, when a test server is configured, on Postgres, for code that relies on engine specific SQL such as upserts
+func ForEachDatabase(t *testing.T, test func(t *testing.T, db *gorm.DB)) {
+	t.Run("sqlite", func(t *testing.T) {
+		test(t, NewDatabaseForTest(t))
+	})
+	t.Run("postgres", func(t *testing.T) {
+		db := NewPostgresDatabaseForTest(t)
+
+		// Column types such as DateTime pick their encoding from the configured provider
+		previousProvider := common.EnvConfig.DbProvider
+		common.EnvConfig.DbProvider = common.DbProviderPostgres
+		t.Cleanup(func() {
+			common.EnvConfig.DbProvider = previousProvider
+		})
+
+		test(t, db)
+	})
 }
 
 // NewPostgresDatabaseForTest returns a new instance of GORM connected to a fresh Postgres database with all Postgres migrations applied.
@@ -108,17 +163,8 @@ func NewPostgresDatabaseForTest(t *testing.T) *gorm.DB {
 		require.NoError(t, sqlDB.Close(), "Failed to close the Postgres test database")
 	})
 
-	// Apply the embedded Postgres migrations
-	conn, err := sqlDB.Conn(t.Context())
-	require.NoError(t, err, "Failed to acquire migration connection")
-	defer conn.Close()
-	driver, err := postgresMigrate.WithConnection(t.Context(), conn, &postgresMigrate.Config{})
-	require.NoError(t, err, "Failed to create migration driver")
-	source, err := iofs.New(resources.FS, "migrations/postgres")
-	require.NoError(t, err, "Failed to create embedded migration source")
-	m, err := migrate.NewWithInstance("iofs", source, "pocket-id", driver)
-	require.NoError(t, err, "Failed to create migration instance")
-	require.NoError(t, m.Up(), "Failed to perform migrations")
+	err = utils.MigrateDatabase(t.Context(), sqlDB, common.DbProviderPostgres)
+	require.NoError(t, err, "Failed to perform migrations")
 
 	return db
 }
@@ -169,41 +215,6 @@ func openFileTestDB(t *testing.T) *gorm.DB {
 	})
 
 	return db
-}
-
-// runMigrations applies the embedded SQLite migrations to db.
-// If seed is not nil, migrations are first applied up to and including stopAfterVersion, then seed is invoked so the test can insert data into the intermediate schema, before the remaining migrations are applied.
-func runMigrations(t *testing.T, db *gorm.DB, stopAfterVersion uint, seed func(t *testing.T, db *gorm.DB)) {
-	t.Helper()
-
-	sqlDB, err := db.DB()
-	require.NoError(t, err, "Failed to get sql.DB")
-
-	// Perform migrations with the embedded migrations
-	driver, err := sqliteMigrate.WithInstance(sqlDB, &sqliteMigrate.Config{
-		NoTxWrap: true,
-	})
-	require.NoError(t, err, "Failed to create migration driver")
-	source, err := iofs.New(resources.FS, "migrations/sqlite")
-	require.NoError(t, err, "Failed to create embedded migration source")
-	m, err := migrate.NewWithInstance("iofs", source, "pocket-id", driver)
-	require.NoError(t, err, "Failed to create migration instance")
-
-	// If the test wants to seed data partway through the migrations, apply migrations up to and including stopAfterVersion first, then let it seed
-	if seed != nil {
-		err = m.Migrate(stopAfterVersion)
-		require.NoErrorf(t, err, "Failed to perform migrations up to version %d", stopAfterVersion)
-		seed(t, db)
-	}
-
-	// Apply all the remaining migrations
-	// ErrNoChange means we were already at the latest version, which is not an error here
-	err = m.Up()
-	if !errors.Is(err, migrate.ErrNoChange) {
-		require.NoError(t, err, "Failed to perform migrations")
-	}
-	_, err = sqlDB.Exec("PRAGMA foreign_keys = OFF;")
-	require.NoError(t, err, "Failed to disable foreign keys")
 }
 
 // newTestGormConfig returns the GORM configuration shared by the test databases, wiring the logger to the test's output.

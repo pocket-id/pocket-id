@@ -26,6 +26,16 @@ type UserDto struct {
 	EmailVerificationDeadline *datatype.DateTime `json:"emailVerificationDeadline,omitempty"`
 }
 
+// UserSummaryDto is a user in a list, without the claims and groups that only loading the user itself returns
+type UserSummaryDto struct {
+	ID          string  `json:"id"`
+	Username    string  `json:"username"`
+	Email       *string `json:"email"`
+	DisplayName string  `json:"displayName"`
+	IsAdmin     bool    `json:"isAdmin"`
+	Disabled    bool    `json:"disabled"`
+}
+
 type UserCreateDto struct {
 	ID            string   `json:"id" binding:"omitempty,uuid"`
 	Username      string   `json:"username" binding:"required,username,min=1,max=50" unorm:"nfc"`

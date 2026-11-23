@@ -1,0 +1,10 @@
+{{define "root"}}{{.T "signup_invitation_title"}}
+
+{{.T "signup_invitation_description" "appName" (.AppName) "expiration" (.Duration .Data.Expiration)}}
+
+{{.T "signup_invitation_button"}} {{.Data.SignupLink}}
+
+{{.T "link_fallback"}}
+{{.Data.SignupLink}}
+
+{{.T "signup_invitation_ignore"}}{{end}}

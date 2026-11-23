@@ -1,3 +1,4 @@
+import { keepSignedIn } from '#lib/stores/keep-signed-in-store.svelte.ts';
 import userStore from '#lib/stores/user-store.ts';
 import type { ListRequestOptions, Paginated } from '#lib/types/list-request.type.ts';
 import type { Passkey } from '#lib/types/passkey.type.ts';
@@ -10,18 +11,18 @@ import type {
 	UserCreate,
 	UserSignUp
 } from '#lib/types/user.type.ts';
-import { cachedProfilePicture } from '#lib/utils/cached-image-util.ts';
+import { cachedProfilePicture } from '#lib/utils/cached-asset-util.ts';
 import { get } from 'svelte/store';
 import APIService from './api-service';
 
 export default class UserService extends APIService {
 	list = async (options?: ListRequestOptions) => {
-		const res = await this.api.get('/users', { params: options });
+		const res = await this.api.get('/admin/users', { params: options });
 		return res.data as Paginated<User>;
 	};
 
 	get = async (id: string) => {
-		const res = await this.api.get(`/users/${id}`);
+		const res = await this.api.get(`/admin/users/${id}`);
 		return res.data as User;
 	};
 
@@ -31,42 +32,42 @@ export default class UserService extends APIService {
 	};
 
 	create = async (user: UserCreate) => {
-		const res = await this.api.post('/users', user);
+		const res = await this.api.post('/admin/users', user);
 		return res.data as User;
 	};
 
 	getUserGroups = async (userId: string) => {
-		const res = await this.api.get(`/users/${userId}/groups`);
+		const res = await this.api.get(`/admin/users/${userId}/groups`);
 		return res.data as UserGroup[];
 	};
 
 	listUserPasskeys = async (userId: string) => {
-		const res = await this.api.get(`/users/${userId}/webauthn-credentials`);
+		const res = await this.api.get(`/admin/users/${userId}/webauthn-credentials`);
 		return res.data as Passkey[];
 	};
 
-	update = async (id: string, user: UserCreate) => {
-		const res = await this.api.put(`/users/${id}`, user);
+	update = async (id: string, user: Partial<UserCreate>) => {
+		const res = await this.api.patch(`/admin/users/${id}`, user);
 		return res.data as User;
 	};
 
-	updateCurrent = async (user: AccountUpdate) => {
-		const res = await this.api.put('/users/me', user);
+	updateCurrent = async (user: Partial<AccountUpdate>) => {
+		const res = await this.api.patch('/users/me', user);
 		return res.data as User;
 	};
 
 	remove = async (id: string) => {
-		await this.api.delete(`/users/${id}`);
+		await this.api.delete(`/admin/users/${id}`);
 	};
 
 	removeUserPasskey = async (userId: string, passkeyId: string) => {
-		await this.api.delete(`/users/${userId}/webauthn-credentials/${passkeyId}`);
+		await this.api.delete(`/admin/users/${userId}/webauthn-credentials/${passkeyId}`);
 	};
 
 	updateProfilePicture = async (userId: string, image: File) => {
 		const formData = new FormData();
 		formData.append('file', image!);
-		await this.api.put(`/users/${userId}/profile-picture`, formData);
+		await this.api.put(`/admin/users/${userId}/profile-picture`, formData);
 		cachedProfilePicture.bustCache(userId);
 	};
 
@@ -83,26 +84,38 @@ export default class UserService extends APIService {
 	};
 
 	resetProfilePicture = async (userId: string) => {
-		await this.api.delete(`/users/${userId}/profile-picture`);
+		await this.api.delete(`/admin/users/${userId}/profile-picture`);
 		cachedProfilePicture.bustCache(userId);
 	};
 
 	createOneTimeAccessToken = async (userId: string, ttl?: string | number) => {
-		const res = await this.api.post(`/users/${userId}/one-time-access-token`, { ttl });
+		const res = await this.api.post(`/admin/users/${userId}/one-time-access-token`, { ttl });
 		return res.data.token;
 	};
 
 	createSignupToken = async (
 		ttl: string | number,
 		usageLimit: number,
-		userGroupIds: string[] = []
+		userGroupIds: string[] = [],
+		email?: string
 	) => {
-		const res = await this.api.post(`/signup-tokens`, { ttl, usageLimit, userGroupIds });
-		return res.data.token;
+		const res = await this.api.post(`/admin/signup-tokens`, {
+			ttl,
+			usageLimit,
+			userGroupIds,
+			email
+		});
+		return res.data as SignupToken;
 	};
 
 	exchangeOneTimeAccessToken = async (token: string) => {
-		const res = await this.api.post(`/one-time-access-token/${token}`);
+		const res = await this.api.post(
+			'/one-time-access-token',
+			{ token },
+			{
+				params: { remember: keepSignedIn.current }
+			}
+		);
 		return res.data as User;
 	};
 
@@ -111,11 +124,11 @@ export default class UserService extends APIService {
 	};
 
 	requestOneTimeAccessEmailAsAdmin = async (userId: string, ttl: string | number) => {
-		await this.api.post(`/users/${userId}/one-time-access-email`, { ttl });
+		await this.api.post(`/admin/users/${userId}/one-time-access-email`, { ttl });
 	};
 
 	updateUserGroups = async (id: string, userGroupIds: string[]) => {
-		const res = await this.api.put(`/users/${id}/user-groups`, { userGroupIds });
+		const res = await this.api.put(`/admin/users/${id}/user-groups`, { userGroupIds });
 		return res.data as User;
 	};
 
@@ -134,12 +147,12 @@ export default class UserService extends APIService {
 	};
 
 	listSignupTokens = async (options?: ListRequestOptions) => {
-		const res = await this.api.get('/signup-tokens', { params: options });
+		const res = await this.api.get('/admin/signup-tokens', { params: options });
 		return res.data as Paginated<SignupToken>;
 	};
 
 	deleteSignupToken = async (tokenId: string) => {
-		await this.api.delete(`/signup-tokens/${tokenId}`);
+		await this.api.delete(`/admin/signup-tokens/${tokenId}`);
 	};
 
 	sendEmailVerification = async () => {

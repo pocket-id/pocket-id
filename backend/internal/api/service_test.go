@@ -7,6 +7,8 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/pocket-id/pocket-id/backend/internal/apperror"
+	"github.com/pocket-id/pocket-id/backend/internal/claimmappingpolicy"
+	"github.com/pocket-id/pocket-id/backend/internal/dto"
 	"github.com/pocket-id/pocket-id/backend/internal/model"
 	"github.com/pocket-id/pocket-id/backend/internal/oidc"
 	"github.com/pocket-id/pocket-id/backend/internal/utils"
@@ -56,7 +58,7 @@ func TestAPICrudAndPermissionDiff(t *testing.T) {
 	require.NoError(t, db.Model(&OidcClientAllowedAPIPermission{}).Where("api_permission_id = ?", readPerm.ID).Count(&grantCount).Error)
 	assert.Equal(t, int64(0), grantCount)
 
-	renamed, err := svc.Update(t.Context(), created.ID, apiUpdateDto{Name: "Orders"})
+	renamed, err := svc.Update(t.Context(), created.ID, dto.Replace(apiUpdateDto{Name: "Orders"}))
 	require.NoError(t, err)
 	assert.Equal(t, "Orders", renamed.Name)
 	require.NotNil(t, renamed.UpdatedAt)
@@ -288,6 +290,20 @@ func TestUpdatePermissionsRejectsReservedKeys(t *testing.T) {
 	}
 }
 
+func TestUpdatePermissionsRejectsCustomScopeKeys(t *testing.T) {
+	db := testutils.NewDatabaseForTest(t)
+	svc := New(Dependencies{DB: db}).service
+	require.NoError(t, db.Create(&claimmappingpolicy.CustomScope{Key: "kuber", Name: "Kubernetes role", Description: "Your Kubernetes role"}).Error)
+
+	orders, err := svc.Create(t.Context(), apiCreateDto{Name: "Orders", Resource: "https://api.orders.example.com"})
+	require.NoError(t, err)
+
+	_, err = svc.UpdatePermissions(t.Context(), orders.ID, apiPermissionsUpdateDto{Permissions: []apiPermissionInputDto{
+		{Key: "kuber", Name: "Kubernetes"},
+	}})
+	require.True(t, apperror.IsCode(err, apperror.CodeValidationFailed))
+}
+
 func TestUpdatePermissionsRejectsDuplicateKeys(t *testing.T) {
 	db := testutils.NewDatabaseForTest(t)
 	svc := New(Dependencies{DB: db}).service
@@ -350,13 +366,13 @@ func TestPermissionsAreReturnedByKey(t *testing.T) {
 	assert.Equal(t, []string{"alpha", "beta", "delta", "epsilon", "gamma"}, keys)
 }
 
-func TestCreateRejectsIssuerResource(t *testing.T) {
+func TestCreateRejectsReservedResources(t *testing.T) {
 	db := testutils.NewDatabaseForTest(t)
 	const issuer = "https://id.example.com"
 	svc := New(Dependencies{DB: db, Issuer: issuer}).service
 
-	// The issuer itself, a trailing-slash variant, and a different-cased variant are all reserved
-	for _, resource := range []string{issuer, issuer + "/", "https://ID.example.com"} {
+	// The issuer and the built-in API's resource are reserved, including trailing-slash and different-cased variants
+	for _, resource := range []string{issuer, issuer + "/", "https://ID.example.com", issuer + "/api", issuer + "/api/", "https://ID.example.com/API"} {
 		_, err := svc.Create(t.Context(), apiCreateDto{Name: "Reserved", Resource: resource})
 		require.Error(t, err, "resource %q must be rejected", resource)
 		require.True(t, apperror.IsCode(err, apperror.CodeValidationFailed))
@@ -669,4 +685,9 @@ func findPermission(api API, key string) *Permission {
 		}
 	}
 	return nil
+}
+
+// A PATCH fills the update DTO from the current API, so every field must be fillable or the omitted ones would be reset
+func TestUpdateDTOIsFilledFromAPI(t *testing.T) {
+	require.Empty(t, testutils.UnmappedFields(API{}, apiUpdateDto{}))
 }

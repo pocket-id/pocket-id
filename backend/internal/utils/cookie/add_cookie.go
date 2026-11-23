@@ -7,8 +7,26 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
-func AddAccessTokenCookie(c *gin.Context, maxAgeInSeconds int, token string) {
-	addCookie(c, AccessTokenCookieName, token, maxAgeInSeconds, "/")
+// RootCookieAttributes are the attributes addCookie gives a cookie with the path /, written like in a Set-Cookie header
+const RootCookieAttributes = "Path=/; Secure; HttpOnly; SameSite=Lax"
+
+func AddSessionTokenCookie(c *gin.Context, maxAgeInSeconds int, token string) {
+	addCookie(c, SessionTokenCookieName, token, maxAgeInSeconds, "/")
+}
+
+// RememberSignIn reports whether a sign-in should outlast the browser, which it does unless the request has remember=false
+func RememberSignIn(c *gin.Context) bool {
+	return c.Query("remember") != "false"
+}
+
+// AddSignInSessionTokenCookie sets the session cookie of a sign-in
+// A sign-in that is not remembered gets a cookie without Max-Age, which the browser drops when it closes
+func AddSignInSessionTokenCookie(c *gin.Context, sessionDuration time.Duration, remember bool, token string) {
+	maxAge := 0
+	if remember {
+		maxAge = int(sessionDuration.Seconds())
+	}
+	AddSessionTokenCookie(c, maxAge, token)
 }
 
 func AddSessionIdCookie(c *gin.Context, maxAgeInSeconds int, sessionID string) {
@@ -26,6 +44,10 @@ func AddDeviceLoginTokenCookie(c *gin.Context, requestID, deviceToken string) {
 
 func AddReauthenticationTokenCookie(c *gin.Context, reauthenticationToken string) {
 	addCookie(c, ReauthenticationTokenCookieName, reauthenticationToken, int(3*time.Minute.Seconds()), "/")
+}
+
+func AddSessionBindingCookie(c *gin.Context, sessionID, value string, maxAgeInSeconds int) {
+	addCookie(c, SessionBindingCookieName(sessionID), value, maxAgeInSeconds, "/")
 }
 
 func addCookie(c *gin.Context, name, value string, maxAge int, path string) {

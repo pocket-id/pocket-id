@@ -22,6 +22,7 @@ func (m *CspMiddleware) Add() gin.HandlerFunc {
 		nonce := utils.GenerateCSPNonce()
 		utils.SetCSPNonce(c, nonce)
 		c.Writer.Header().Set("Content-Security-Policy", utils.BuildCSP(nonce))
+		c.Writer.Header().Set("X-Content-Type-Options", "nosniff")
 
 		c.Next()
 	}

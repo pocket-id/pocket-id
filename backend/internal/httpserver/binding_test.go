@@ -9,9 +9,10 @@ import (
 	"testing"
 
 	"github.com/gin-gonic/gin"
-	"github.com/pocket-id/pocket-id/backend/internal/apperror"
 	"github.com/stretchr/testify/require"
 	"golang.org/x/text/unicode/norm"
+
+	"github.com/pocket-id/pocket-id/backend/internal/apperror"
 )
 
 func TestBindJSONClassifiesMalformedBody(t *testing.T) {
@@ -95,6 +96,36 @@ func TestBindJSONAcceptsStructuredJSONContentType(t *testing.T) {
 
 	require.NoError(t, err)
 	require.Equal(t, "admin", input.Name)
+}
+
+func TestBindUpdateAcceptsOnlyMergePatchTypes(t *testing.T) {
+	for _, test := range []struct {
+		contentType string
+		accepted    bool
+	}{
+		{contentType: "application/merge-patch+json", accepted: true},
+		{contentType: "application/json; charset=utf-8", accepted: true},
+		{contentType: "application/json-patch+json", accepted: false},
+		{contentType: "text/plain", accepted: false},
+	} {
+		t.Run(test.contentType, func(t *testing.T) {
+			gin.SetMode(gin.TestMode)
+			c, _ := gin.CreateTestContext(httptest.NewRecorder())
+			c.Request = httptest.NewRequestWithContext(t.Context(), http.MethodPatch, "/", strings.NewReader(`{"name":"changed"}`))
+			c.Request.Header.Set("Content-Type", test.contentType)
+
+			_, err := BindUpdate[struct {
+				Name string `json:"name"`
+			}](c)
+
+			require.Equal(t, "application/merge-patch+json, application/json", c.Writer.Header().Get("Accept-Patch"))
+			if test.accepted {
+				require.NoError(t, err)
+			} else {
+				require.True(t, apperror.IsCode(err, apperror.CodePatchTypeNotSupported))
+			}
+		})
+	}
 }
 
 func TestBindOptionalJSONDoesNotRelyOnContentLength(t *testing.T) {

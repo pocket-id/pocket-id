@@ -1,7 +1,7 @@
 <script lang="ts">
 	import MultiSelect from '#lib/components/form/multi-select.svelte';
 	import SearchableSelect from '#lib/components/form/searchable-select.svelte';
-	import * as Field from '#lib/components/ui/field/index.ts';
+	import * as Field from '@pocket-id/ui/field';
 	import { m } from '#lib/paraglide/messages.js';
 	import UserService from '#lib/services/user-service.ts';
 	import type { User } from '#lib/types/user.type.ts';
@@ -9,13 +9,16 @@
 
 	let {
 		userId = $bindable(),
-		scopes = $bindable()
+		scopes = $bindable(),
+		customScopes = []
 	}: {
 		userId: string;
 		scopes: string[];
+		customScopes?: string[];
 	} = $props();
 
 	const userService = new UserService();
+	const userInputId = $props.id();
 
 	let users = $state<User[]>([]);
 	let isUserSearchLoading = $state(false);
@@ -40,8 +43,9 @@
 <div class="@container">
 	<div class="grid gap-4 @md:grid-cols-2">
 		<Field.Field>
-			<Field.Label>{m.person()}</Field.Label>
+			<Field.Label for={userInputId}>{m.person()}</Field.Label>
 			<SearchableSelect
+				id={userInputId}
 				selectText={m.select_user()}
 				isLoading={isUserSearchLoading}
 				items={users.map((user) => ({ value: user.id, label: user.displayName || user.username }))}
@@ -52,8 +56,8 @@
 		<Field.Field>
 			<Field.Label>{m.scopes()}</Field.Label>
 			<MultiSelect
-				placeholder={m.none()}
-				items={['openid', 'email', 'profile', 'groups'].map((scope) => ({
+				placeholder={m.no_scopes_selected()}
+				items={['openid', 'email', 'profile', 'groups', ...customScopes].map((scope) => ({
 					value: scope,
 					label: scope
 				}))}

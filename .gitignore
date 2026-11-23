@@ -10,11 +10,12 @@ node_modules
 # Output
 .output
 .vercel
-/frontend/.svelte-kit
+.svelte-kit
 /frontend/build
+/packages/ui/dist
 /backend/bin
 pocket-id
-/tests/test-results/*.json
+/packages/tests/test-results/*.json
 .tmp/
 
 # OS
@@ -42,8 +43,9 @@ vite.config.ts.timestamp-*
 
 # Application specific
 data
-/tests/.auth
-/tests/.report
+/packages/tests/.auth
+/packages/tests/.report
+/packages/tests/.blob
 /backend/GeoLite2-City.mmdb
 /backend/frontend/dist
 

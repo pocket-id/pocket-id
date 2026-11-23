@@ -9,7 +9,6 @@ import (
 type OidcClientMetaDataDto struct {
 	ID                       string  `json:"id"`
 	Name                     string  `json:"name"`
-	Description              string  `json:"description"`
 	HasLogo                  bool    `json:"hasLogo"`
 	HasDarkLogo              bool    `json:"hasDarkLogo"`
 	LaunchURL                *string `json:"launchURL"`
@@ -19,6 +18,7 @@ type OidcClientMetaDataDto struct {
 
 type OidcClientDto struct {
 	OidcClientMetaDataDto
+	Notes                               string                   `json:"notes"`
 	CallbackURLs                        []string                 `json:"callbackURLs"`
 	LogoutCallbackURLs                  []string                 `json:"logoutCallbackURLs"`
 	BackchannelLogoutURL                string                   `json:"backchannelLogoutURL"`
@@ -32,6 +32,7 @@ type OidcClientDto struct {
 	AccessTokenDurationMinutes          int64                    `json:"accessTokenDurationMinutes"`
 	RefreshTokenDurationMinutes         int64                    `json:"refreshTokenDurationMinutes"`
 	ClaimMappingPolicyId                string                   `json:"claimMappingPolicyId"`
+	Disabled                            bool                     `json:"disabled"`
 }
 
 type OidcClientWithAllowedUserGroupsDto struct {
@@ -52,7 +53,7 @@ type OidcClientWithAllowedGroupsDto struct {
 
 type OidcClientUpdateDto struct {
 	Name                                string                   `json:"name" binding:"required,max=50" unorm:"nfc"`
-	Description                         string                   `json:"description" binding:"omitempty,max=150" unorm:"nfc"`
+	Notes                               string                   `json:"notes" binding:"omitempty,max=5000" unorm:"nfc"`
 	CallbackURLs                        []string                 `json:"callbackURLs" binding:"omitempty,dive,callback_url_pattern"`
 	LogoutCallbackURLs                  []string                 `json:"logoutCallbackURLs" binding:"omitempty,dive,callback_url_pattern"`
 	BackchannelLogoutURL                string                   `json:"backchannelLogoutURL" binding:"omitempty,http_url,backchannel_logout_url"`
@@ -71,6 +72,7 @@ type OidcClientUpdateDto struct {
 	AccessTokenDurationMinutes          int64                    `json:"accessTokenDurationMinutes" binding:"omitempty,token_duration"`
 	RefreshTokenDurationMinutes         int64                    `json:"refreshTokenDurationMinutes" binding:"omitempty,token_duration"`
 	ClaimMappingPolicyId                string                   `json:"claimMappingPolicyId"`
+	Disabled                            bool                     `json:"disabled"`
 }
 
 type OidcClientCreateDto struct {
@@ -113,7 +115,7 @@ type OidcClientFederatedIdentityDto struct {
 	Subject          string            `json:"subject,omitempty"`
 	Audience         string            `json:"audience,omitempty"`
 	JWKS             string            `json:"jwks,omitempty"`
-	PublicKeys       []json.RawMessage `json:"publicKeys,omitempty" swaggertype:"array,object"`
+	PublicKeys       []json.RawMessage `json:"publicKeys,omitempty"`
 	ReplayProtection bool              `json:"replayProtection"`
 }
 
@@ -122,10 +124,10 @@ type OidcUpdateAllowedUserGroupsDto struct {
 }
 
 type OidcLogoutDto struct {
-	IdTokenHint           string `form:"id_token_hint"`
-	ClientId              string `form:"client_id"`
-	PostLogoutRedirectUri string `form:"post_logout_redirect_uri"`
-	State                 string `form:"state"`
+	IdTokenHint           string `form:"id_token_hint" json:"idTokenHint"`
+	ClientId              string `form:"client_id" json:"clientId"`
+	PostLogoutRedirectUri string `form:"post_logout_redirect_uri" json:"postLogoutRedirectUri"`
+	State                 string `form:"state" json:"state"`
 }
 
 type OidcDeviceAuthorizationResponseDto struct {
@@ -141,6 +143,7 @@ type ScopeInfoDto struct {
 	Key         string `json:"key"`
 	Name        string `json:"name"`
 	Description string `json:"description,omitempty"`
+	BuiltIn     bool   `json:"builtIn"`
 }
 
 type DeviceCodeInfoDto struct {

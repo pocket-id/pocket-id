@@ -16,8 +16,8 @@
 		"ja",
 		"ko",
 		"lv",
+		"nb",
 		"nl",
-		"no",
 		"pl",
 		"pt",
 		"pt-BR",
@@ -30,10 +30,10 @@
 		"zh-TW"
 	],
 	"modules": [
-		"./node_modules/@inlang/plugin-message-format/dist/index.js",
+		"./node_modules/@inlang/plugin-icu1/dist/index.js",
 		"./node_modules/@inlang/plugin-m-function-matcher/dist/index.js"
 	],
-	"plugin.inlang.messageFormat": {
+	"plugin.inlang.icu-messageformat-1": {
 		"pathPattern": "./messages/{locale}.json"
 	}
 }

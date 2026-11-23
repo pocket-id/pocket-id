@@ -9,8 +9,10 @@ import (
 	"fmt"
 	"io"
 	"io/fs"
+	"log/slog"
 	"mime"
 	"net/http"
+	"net/url"
 	"path"
 	"strconv"
 	"strings"
@@ -39,11 +41,10 @@ var precompressedExtensions = map[string]struct{}{
 }
 
 // This function, created by the init() method, writes to "w" the index.html page, populating the nonce
-var writeIndexFn func(w io.Writer, nonce string, noMotion bool) error
+var writeIndexFn func(w io.Writer, nonce string) error
 
 func init() {
 	const scriptTag = "<script>"
-	const htmlTag = `<html lang="en">`
 
 	// Read the index.html from the bundle
 	index, iErr := fs.ReadFile(frontendFS, "dist/index.html")
@@ -51,27 +52,28 @@ func init() {
 		panic(fmt.Errorf("failed to read index.html: %w", iErr))
 	}
 
-	writeIndexFn = func(w io.Writer, nonce string, noMotion bool) (err error) {
-		page := index
+	writeIndexFn = func(w io.Writer, nonce string) (err error) {
+		// If there's no nonce, write the index as-is
+		if nonce == "" {
+			_, err = w.Write(index)
+			return err
+		}
 
 		// Add nonce to all <script> tags
 		// We replace "<script" with `<script nonce="..."` everywhere it appears
-		if nonce != "" {
-			page = bytes.ReplaceAll(page, []byte(scriptTag), []byte(`<script nonce="`+nonce+`">`))
-		}
+		modified := bytes.ReplaceAll(
+			index,
+			[]byte(scriptTag),
+			[]byte(`<script nonce="`+nonce+`">`),
+		)
 
-		// Disable animations must hold from the first paint, so the served page carries it instead of waiting for the config request
-		if noMotion {
-			page = bytes.Replace(page, []byte(htmlTag), []byte(`<html lang="en" class="no-motion">`), 1)
-		}
-
-		_, err = w.Write(page)
+		_, err = w.Write(modified)
 		return err
 	}
 }
 
-// RegisterFrontend serves the SPA; animationsDisabled reports the Disable animations setting for each page load
-func RegisterFrontend(router *gin.Engine, animationsDisabled func(ctx context.Context) bool) error {
+// RegisterFrontend serves the SPA and sends visitors of a fresh install from the landing pages straight to the initial admin setup
+func RegisterFrontend(router *gin.Engine, isSetupCompleted func(ctx context.Context) (bool, error)) error {
 	distFS, err := fs.Sub(frontendFS, "dist")
 	if err != nil {
 		return fmt.Errorf("failed to create sub FS: %w", err)
@@ -85,7 +87,9 @@ func RegisterFrontend(router *gin.Engine, animationsDisabled func(ctx context.Co
 		path := strings.TrimPrefix(c.Request.URL.Path, "/")
 
 		if strings.HasSuffix(path, "/") {
-			c.Redirect(http.StatusMovedPermanently, strings.TrimRight(c.Request.URL.String(), "/"))
+			// The target is built from the path, because the serialized request URL turns "//example.com/" into a redirect to another host
+			target := url.URL{Path: "/" + strings.Trim(path, "/"), RawQuery: c.Request.URL.RawQuery}
+			c.Redirect(http.StatusMovedPermanently, target.String())
 			return
 		}
 
@@ -95,13 +99,24 @@ func RegisterFrontend(router *gin.Engine, animationsDisabled func(ctx context.Co
 		}
 
 		if isSPARequest(path, distFS) {
+			// Without any user only the initial admin setup is useful, and redirecting here saves the SPA a round trip to find out
+			if path == "" || path == "login" {
+				completed, err := isSetupCompleted(c.Request.Context())
+				if err != nil {
+					slog.WarnContext(c.Request.Context(), "Failed to check whether the initial admin setup is completed", slog.Any("error", err))
+				} else if !completed {
+					c.Redirect(http.StatusFound, "/signup/setup")
+					return
+				}
+			}
+
 			nonce := middleware.GetCSPNonce(c)
 
 			// Do not cache the HTML shell, as it embeds a per-request nonce
 			c.Header("Content-Type", "text/html; charset=utf-8")
 			c.Header("Cache-Control", "no-store")
 			c.Status(http.StatusOK)
-			err = writeIndexFn(c.Writer, nonce, animationsDisabled(c.Request.Context()))
+			err = writeIndexFn(c.Writer, nonce)
 			if err != nil {
 				_ = c.Error(fmt.Errorf("failed to write index.html file: %w", err))
 			}

@@ -1,8 +1,9 @@
 <script lang="ts">
-	import { Button } from '#lib/components/ui/button/index.ts';
-	import * as Dialog from '#lib/components/ui/dialog/index.ts';
+	import { Button } from '@pocket-id/ui/button';
+	import * as Dialog from '@pocket-id/ui/dialog';
 	import { m } from '#lib/paraglide/messages.js';
-	import { LucideZoomIn, LucideZoomOut } from '@lucide/svelte';
+	import ZoomInIcon from '~icons/solar/magnifier-zoom-in-linear';
+	import ZoomOutIcon from '~icons/solar/magnifier-zoom-out-linear';
 
 	let {
 		file = $bindable(),
@@ -162,7 +163,7 @@
 				disabled={zoom <= 1}
 				onclick={() => setZoom(zoom - 0.25)}
 			>
-				<LucideZoomOut />
+				<ZoomOutIcon />
 			</Button>
 			<input
 				type="range"
@@ -180,7 +181,7 @@
 				disabled={zoom >= MAX_ZOOM}
 				onclick={() => setZoom(zoom + 0.25)}
 			>
-				<LucideZoomIn />
+				<ZoomInIcon />
 			</Button>
 		</div>
 

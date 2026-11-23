@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { LucideBraces } from '@lucide/svelte';
+	import BracesIcon from '~icons/solar/code-bold-duotone';
 
 	let { size }: { size: 24 | 40 } = $props();
 </script>
@@ -10,5 +10,5 @@
 	style:width="{size}px"
 	style:height="{size}px"
 >
-	<LucideBraces style="width: {Math.round(size * 0.45)}px; height: {Math.round(size * 0.45)}px" />
+	<BracesIcon style="width: {Math.round(size * 0.45)}px; height: {Math.round(size * 0.45)}px" />
 </span>

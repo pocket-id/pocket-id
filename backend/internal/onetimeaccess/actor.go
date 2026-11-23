@@ -12,7 +12,7 @@ import (
 )
 
 // One-time access tokens are stored entirely in the actor state store.
-// Each token is its own actor, whose actor ID is the token value itself.
+// Each token is its own actor, whose actor ID is the SHA-256 hash of the token, so the state store never holds a usable token
 // The state is persisted with a TTL equal to the token's lifetime, so it's purged automatically when the token expires (there's no separate cleanup job).
 
 // TokenActorType is the actor type for the one-time access token actor
@@ -34,22 +34,23 @@ type tokenConsumeStatus string
 const (
 	// tokenConsumeOK indicates the token was valid and has been consumed
 	tokenConsumeOK tokenConsumeStatus = "ok"
-	// tokenConsumeNotFound indicates the token doesn't exist (or has expired)
+	// tokenConsumeNotFound indicates the token doesn't exist, has expired or requires a different device token
 	tokenConsumeNotFound tokenConsumeStatus = "not_found"
-	// tokenConsumeDeviceMismatch indicates the provided device token doesn't match
-	tokenConsumeDeviceMismatch tokenConsumeStatus = "device_mismatch"
 )
 
 // TokenState is the persisted state of a one-time access token actor.
-// The token value itself is the actor's ID, so it isn't repeated here.
+// The hash of the token is the actor's ID, so it isn't repeated here.
 type TokenState struct {
-	UserID      string
+	UserID string
+	// DeviceToken is the SHA-256 hash of the device token the token is bound to
 	DeviceToken *string
 	ExpiresAt   time.Time
+	ForbidAdmin bool
 }
 
 // tokenConsumeRequest is the payload for the "consume" method
 type tokenConsumeRequest struct {
+	// DeviceToken is the SHA-256 hash of the device token the caller holds
 	DeviceToken string
 }
 
@@ -115,10 +116,11 @@ func (a *tokenActor) consume(parentCtx context.Context, data actor.Envelope) (to
 	}
 
 	// If the token requires a device token, it must match
-	// A mismatch leaves the token untouched, mirroring the pre-actor behavior
+	// A mismatch leaves the token untouched and is reported like an unknown token
+	// A distinct answer would confirm a guessed code to callers that don't hold its device token, letting them guess against many requested codes at once
 	if state.DeviceToken != nil && req.DeviceToken != *state.DeviceToken {
 		return tokenConsumeResponse{
-			Status: tokenConsumeDeviceMismatch,
+			Status: tokenConsumeNotFound,
 		}, nil
 	}
 

@@ -1,13 +1,14 @@
 <script lang="ts">
 	import { openConfirmDialog } from '#lib/components/confirm-dialog/index.ts';
+	import EnvOverrideLock from '#lib/components/env-override-lock.svelte';
 	import FormInput from '#lib/components/form/form-input.svelte';
 	import SettingRow from '#lib/components/setting-row.svelte';
-	import SettingsSection from '#lib/components/settings-section.svelte';
-	import { Badge } from '#lib/components/ui/badge/index.ts';
-	import { Button } from '#lib/components/ui/button/index.ts';
-	import * as Field from '#lib/components/ui/field/index.ts';
-	import { Input } from '#lib/components/ui/input/index.ts';
-	import { Switch } from '#lib/components/ui/switch/index.ts';
+	import SettingsCard from '#lib/components/settings-card.svelte';
+	import { Badge } from '@pocket-id/ui/badge';
+	import { Button } from '@pocket-id/ui/button';
+	import * as Field from '@pocket-id/ui/field';
+	import { Input } from '@pocket-id/ui/input';
+	import { Switch } from '@pocket-id/ui/switch';
 	import { m } from '#lib/paraglide/messages.js';
 	import AppConfigService from '#lib/services/app-config-service.ts';
 	import appConfigStore from '#lib/stores/application-configuration-store.ts';
@@ -15,16 +16,22 @@
 	import { axiosErrorToast, getAxiosErrorMessage } from '#lib/utils/error-util.ts';
 	import { createForm, pickSchemaValues } from '#lib/utils/form-util.ts';
 	import { trackFormChanges } from '#lib/utils/unsaved-changes-util.svelte.ts';
-	import { LucideBan, LucideRefreshCw, LucideShieldOff, LucideUserX } from '@lucide/svelte';
+	import BanIcon from '~icons/solar/forbidden-circle-bold';
+	import ImageIcon from '~icons/solar/gallery-bold-duotone';
+	import RefreshCwIcon from '~icons/solar/refresh-bold';
+	import ShieldOffIcon from '~icons/solar/shield-cross-bold-duotone';
+	import UserXIcon from '~icons/solar/user-block-rounded-bold-duotone';
 	import { tick } from 'svelte';
 	import { toast } from 'svelte-sonner';
 	import { z } from 'zod/v4';
 
 	let {
 		callback,
-		appConfig
+		appConfig,
+		envOverrides
 	}: {
 		appConfig: AllAppConfig;
+		envOverrides: Set<keyof AllAppConfig>;
 		callback: (appConfig: Partial<AllAppConfig>) => Promise<void>;
 	} = $props();
 
@@ -50,18 +57,23 @@
 		ldapAttributeUserLastName: z.string().optional(),
 		ldapAttributeUserDisplayName: z.string().optional(),
 		ldapAttributeUserProfilePicture: z.string().optional(),
+		ldapAttributeUserLanguage: z.string().optional(),
 		ldapAttributeGroupMember: z.string().optional(),
 		ldapAttributeGroupUniqueIdentifier: z.string().min(1),
 		ldapAttributeGroupName: z.string().min(1),
 		ldapAdminGroupName: z.string().optional(),
-		ldapSoftDeleteUsers: z.boolean()
+		ldapSoftDeleteUsers: z.boolean(),
+		ldapAllowProfilePictureOverride: z.boolean()
 	});
 
 	const formStore = createForm(formSchema, pickSchemaValues(formSchema, appConfig));
 	const inputs = formStore.inputs;
 
 	const mapping: {
-		key: Exclude<keyof z.infer<typeof formSchema>, 'ldapSkipCertVerify' | 'ldapSoftDeleteUsers'>;
+		key: Exclude<
+			keyof z.infer<typeof formSchema>,
+			'ldapSkipCertVerify' | 'ldapSoftDeleteUsers' | 'ldapAllowProfilePictureOverride'
+		>;
 		label: string;
 		placeholder: string;
 		note?: string;
@@ -97,6 +109,12 @@
 			label: m.profile_picture(),
 			placeholder: 'jpegPhoto',
 			note: m.config_note_picture()
+		},
+		{
+			key: 'ldapAttributeUserLanguage',
+			label: m.language(),
+			placeholder: 'preferredLanguage',
+			note: m.config_note_language()
 		},
 		{ key: 'ldapAttributeGroupMember', label: m.config_map_group_members(), placeholder: 'member' },
 		{
@@ -180,7 +198,7 @@
 			confirm: {
 				label: m.config_disable_ldap_confirm(),
 				destructive: true,
-				icon: LucideBan,
+				icon: BanIcon,
 				action: async () => {
 					await callback({ ldapEnabled: false });
 					ldapEnabled = false;
@@ -192,8 +210,8 @@
 	}
 </script>
 
-<div class="flex min-w-0 flex-col gap-10">
-	<SettingsSection title={m.status()}>
+<div class="flex min-w-0 flex-col gap-4">
+	<SettingsCard title={m.status()}>
 		<div class="flex min-h-13 flex-wrap items-center gap-x-4 gap-y-3 py-3">
 			<div class="flex min-w-0 flex-1 basis-64 flex-col gap-0.5" aria-live="polite">
 				{#if syncing}
@@ -210,13 +228,15 @@
 			<div class="flex flex-wrap items-center gap-2">
 				{#if ldapEnabled}
 					<Button size="sm" variant="secondary" isLoading={syncing} onclick={onSync}>
-						<LucideRefreshCw />
+						<RefreshCwIcon />
 						{m.sync_now()}
 					</Button>
 					<Button
 						size="sm"
 						variant="ghost"
-						disabled={$appConfigStore.uiConfigDisabled || syncing}
+						disabled={$appConfigStore.uiConfigDisabled ||
+							envOverrides.has('ldapEnabled') ||
+							syncing}
 						onclick={onDisable}
 					>
 						{m.config_disable_ldap()}
@@ -225,33 +245,35 @@
 					<Button
 						size="sm"
 						variant="secondary"
-						disabled={$appConfigStore.uiConfigDisabled}
+						disabled={$appConfigStore.uiConfigDisabled || envOverrides.has('ldapEnabled')}
 						onclick={onEnable}
 					>
 						{m.config_enable_ldap()}
 					</Button>
 				{/if}
+				{#if envOverrides.has('ldapEnabled')}
+					<EnvOverrideLock />
+				{/if}
 			</div>
 		</div>
-	</SettingsSection>
+	</SettingsCard>
 
 	<fieldset class="contents" disabled={$appConfigStore.uiConfigDisabled}>
-		<SettingsSection
-			title={m.config_connection()}
-			description={m.config_connection_description({ appName })}
-		>
+		<SettingsCard title={m.config_connection()}>
 			<div class="flex flex-col gap-4 py-4 shadow-[inset_0_-1px_0_var(--border)]">
 				<FormInput
 					class="max-w-[400px]"
 					inputClass="font-mono"
 					label={m.config_server_url()}
 					placeholder="ldaps://ldap.example.com:636"
+					envOverride={envOverrides.has('ldapUrl')}
 					bind:input={$inputs.ldapUrl}
 				/>
 				<FormInput
 					inputClass="font-mono"
 					label={m.config_bind_dn()}
 					placeholder="cn=pocketid,ou=services,dc=example,dc=com"
+					envOverride={envOverrides.has('ldapBindDn')}
 					bind:input={$inputs.ldapBindDn}
 				/>
 				<FormInput
@@ -259,60 +281,70 @@
 					inputClass="font-mono"
 					label={m.config_bind_password()}
 					type="password"
+					envOverride={envOverrides.has('ldapBindPassword')}
 					bind:input={$inputs.ldapBindPassword}
 				/>
 				<FormInput
 					inputClass="font-mono"
 					label={m.config_base_dn()}
 					placeholder="dc=example,dc=com"
+					envOverride={envOverrides.has('ldapBase')}
 					bind:input={$inputs.ldapBase}
 				/>
 			</div>
 			<SettingRow
 				title={m.skip_certificate_verification()}
 				description={m.config_self_signed_only()}
-				icon={LucideShieldOff}
+				icon={ShieldOffIcon}
+				envOverride={envOverrides.has('ldapSkipCertVerify')}
 			>
 				{#snippet control(props)}
 					<Switch {...props} bind:checked={$inputs.ldapSkipCertVerify.value} />
 				{/snippet}
 			</SettingRow>
-		</SettingsSection>
+		</SettingsCard>
 
-		<SettingsSection
-			title={m.config_search()}
-			description={m.config_search_description({ appName })}
-		>
+		<SettingsCard title={m.config_search()}>
 			<div class="flex flex-col gap-4 py-4 shadow-[inset_0_-1px_0_var(--border)]">
 				<FormInput
 					inputClass="font-mono"
 					label={m.config_user_search_filter()}
 					placeholder="(objectClass=person)"
+					envOverride={envOverrides.has('ldapUserSearchFilter')}
 					bind:input={$inputs.ldapUserSearchFilter}
 				/>
 				<FormInput
 					inputClass="font-mono"
 					label={m.config_group_search_filter()}
 					placeholder="(objectClass=groupOfNames)"
+					envOverride={envOverrides.has('ldapUserGroupSearchFilter')}
 					bind:input={$inputs.ldapUserGroupSearchFilter}
 				/>
 			</div>
 			<SettingRow
 				title={m.config_keep_removed_ldap_users()}
 				description={m.config_keep_removed_ldap_users_description()}
-				icon={LucideUserX}
+				icon={UserXIcon}
+				envOverride={envOverrides.has('ldapSoftDeleteUsers')}
 			>
 				{#snippet control(props)}
 					<Switch {...props} bind:checked={$inputs.ldapSoftDeleteUsers.value} />
 				{/snippet}
 			</SettingRow>
-		</SettingsSection>
-
-		<SettingsSection title={m.attribute_mapping()}>
-			<!-- On phones each mapping becomes a block of label, input and note inside one box -->
-			<table
-				class="text-control mt-2 w-full table-fixed max-sm:block max-sm:rounded-md max-sm:shadow-[inset_0_0_0_1px_var(--border)]"
+			<SettingRow
+				title={m.ldap_allow_profile_picture_override()}
+				description={m.ldap_allow_profile_picture_override_description()}
+				icon={ImageIcon}
 			>
+				{#snippet control(props)}
+					<Switch {...props} bind:checked={$inputs.ldapAllowProfilePictureOverride.value} />
+				{/snippet}
+			</SettingRow>
+		</SettingsCard>
+
+		<SettingsCard title={m.attribute_mapping()}>
+			<!-- On phones each mapping becomes a block of label, input and note -->
+			<table class="text-control my-2 w-full table-fixed max-sm:block">
 				<thead class="text-caption text-fg-muted text-start max-sm:sr-only">
 					<tr>
 						<th scope="col" class="w-40 py-2 pe-3 text-start font-semibold">
@@ -327,14 +359,20 @@
 				<tbody class="max-sm:block">
 					{#each mapping as row (row.key)}
 						{@const input = $inputs[row.key]!}
+						{@const envOverride = envOverrides.has(row.key)}
 						<tr
-							class="shadow-[inset_0_-1px_0_var(--border)] last:shadow-none max-sm:flex max-sm:flex-col max-sm:gap-1.5 max-sm:p-3"
+							class="shadow-[inset_0_-1px_0_var(--border)] last:shadow-none max-sm:flex max-sm:flex-col max-sm:gap-1.5 max-sm:py-3"
 						>
 							<th
 								scope="row"
 								class="py-1.5 pe-3 text-start font-normal max-sm:p-0 max-sm:font-medium"
 							>
-								<label for="ldap-map-{row.key}">{row.label}</label>
+								<span class="inline-flex items-center gap-1">
+									<label for="ldap-map-{row.key}">{row.label}</label>
+									{#if envOverride}
+										<EnvOverrideLock />
+									{/if}
+								</span>
 							</th>
 							<td class="py-1.5 pe-3 max-sm:p-0">
 								<Input
@@ -345,6 +383,7 @@
 									aria-describedby={input.error || row.note
 										? `ldap-map-${row.key}-note`
 										: undefined}
+									disabled={envOverride}
 									bind:value={
 										() => input.value as string | undefined,
 										(value) => {
@@ -365,6 +404,6 @@
 					{/each}
 				</tbody>
 			</table>
-		</SettingsSection>
+		</SettingsCard>
 	</fieldset>
 </div>

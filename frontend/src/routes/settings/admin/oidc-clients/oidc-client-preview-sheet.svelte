@@ -1,17 +1,19 @@
 <script lang="ts">
 	import CopyButton from '#lib/components/copy-button.svelte';
 	import TokenPreviewInputs from '#lib/components/token-preview-inputs.svelte';
-	import { Badge } from '#lib/components/ui/badge/index.ts';
-	import * as Sheet from '#lib/components/ui/sheet/index.ts';
-	import { Skeleton } from '#lib/components/ui/skeleton/index.ts';
-	import * as Tabs from '#lib/components/ui/tabs/index.ts';
+	import { Badge } from '@pocket-id/ui/badge';
+	import * as Sheet from '@pocket-id/ui/sheet';
+	import { Skeleton } from '@pocket-id/ui/skeleton';
+	import * as Tabs from '@pocket-id/ui/tabs';
 	import { m } from '#lib/paraglide/messages.js';
 	import { getLocale } from '#lib/paraglide/runtime.js';
+	import OidcClaimMappingPolicyService from '#lib/services/oidc-claim-mapping-policy-service.ts';
 	import OidcService from '#lib/services/oidc-service.ts';
 	import type { OidcClient } from '#lib/types/oidc.type.ts';
 	import { getAxiosErrorMessage } from '#lib/utils/error-util.ts';
-	import { cn } from '#lib/utils/style.ts';
-	import { LucideBraces, LucideList } from '@lucide/svelte';
+	import { cn } from '@pocket-id/ui/utils';
+	import BracesIcon from '~icons/solar/code-bold-duotone';
+	import ListIcon from '~icons/solar/list-bold-duotone';
 
 	type Claims = Record<string, unknown>;
 
@@ -24,6 +26,7 @@
 	} = $props();
 
 	const oidcService = new OidcService();
+	const policyService = new OidcClaimMappingPolicyService();
 
 	// Claims holding a Unix timestamp, which are shown with a readable date next to them
 	const TIMESTAMP_CLAIMS = new Set(['exp', 'iat', 'nbf', 'auth_time', 'updated_at']);
@@ -77,6 +80,12 @@
 			: null;
 	}
 
+	// Every custom scope is offered, and the preview drops the ones the app's policy doesn't release claims with, like a real authorization
+	let customScopes = $state<string[]>([]);
+	$effect(() => {
+		if (open) policyService.listCustomScopeKeys().then((keys) => (customScopes = keys));
+	});
+
 	// Reload the preview whenever the selected user or the scopes change
 	$effect(() => {
 		if (open && userId) {
@@ -122,7 +131,7 @@
 
 <Sheet.Root bind:open>
 	<Sheet.Content title={m.data_preview()}>
-		<TokenPreviewInputs bind:userId bind:scopes />
+		<TokenPreviewInputs bind:userId bind:scopes {customScopes} />
 
 		<div class="flex min-h-0 flex-col gap-3">
 			<Tabs.Root bind:value={activeTab}>
@@ -136,11 +145,11 @@
 				<Tabs.Root bind:value={view}>
 					<Tabs.List aria-label={m.view()}>
 						<Tabs.Trigger value="claims" class="gap-1.5">
-							<LucideList />
+							<ListIcon />
 							{m.claims()}
 						</Tabs.Trigger>
 						<Tabs.Trigger value="json" class="gap-1.5">
-							<LucideBraces />
+							<BracesIcon />
 							JSON
 						</Tabs.Trigger>
 					</Tabs.List>

@@ -7,7 +7,9 @@ the binary for production). This file lists what isn't obvious from reading the 
 
 - `backend/` — Go module (gin, GORM, [ory/fosite fork](#backend-go)). Its own toolchain, not part of the repository.
 - `frontend/` — SvelteKit 5 SPA. Builds into `backend/frontend/dist` and is embedded via `go:embed`.
-- `tests/` — Playwright end-to-end tests (drives a Dockerized full stack).
+- `packages/ui/` — `@pocket-id/ui` on npm: the bits-ui based primitives, design tokens and fonts, shared with other Pocket ID projects. The frontend consumes its source via `workspace:*`, so edits apply without a build step. `release.yml` publishes it with every Pocket ID release that includes commits to it, under its own version derived from those commits and tracked by `ui-v*` tags.
+- `packages/tests/` — Playwright end-to-end tests (drives a Dockerized full stack).
+- `packages/email-templates/` — React Email templates, built into `backend/resources/email-templates`.
 
 ## Build / test / lint
 
@@ -21,18 +23,19 @@ POCKET_ID_TEST_POSTGRES_URL='postgres://postgres:postgres@localhost:55432/postgr
 golangci-lint run  # lint (config: backend/.golangci.yml - includes build tags)
 
 # frontend/  (or root)
-pnpm check        # svelte-check — the ONLY frontend type gate (no unit tests exist)
+pnpm check        # svelte-check on packages/ui and frontend — the ONLY frontend type gate (no unit tests exist)
 pnpm lint         # vp check — oxlint + oxfmt check via Vite+ (note: not enforced by CI)
 pnpm format       # vp fmt — REQUIRED before opening a PR
 ```
 
-End-to-end (needs Docker; **stop any local backend on `:1411` first** — see gotchas):
+End-to-end (needs Docker; the stack serves the app on `https://localhost:1511`, so a dev backend on `:1411` can keep running).
+It uses the self-signed certificate in `packages/tests/setup/tls`, which `playwright.config.ts` trusts for Chromium and Node, and runs the full Chromium build with Device Bound Session Credentials enabled:
 
 ```sh
-cd tests/setup && docker compose up -d --build   # rebuild after ANY code change, or you test stale code
+cd packages/tests/setup && docker compose up -d --build   # rebuild after ANY code change, or you test stale code
 # docker-compose-francis.yml runs the same suite against a standalone Francis runtime instead of the embedded one
-# It needs FRANCIS_VERSION in tests/setup/.env: echo "FRANCIS_VERSION=$(./francis-version.sh)" > .env
-cd ../.. && pnpm test                            # = playwright test in tests/
+# It needs FRANCIS_VERSION in packages/tests/setup/.env: echo "FRANCIS_VERSION=$(./francis-version.sh)" > .env
+cd ../../.. && pnpm test                         # = playwright test in packages/tests/
 ```
 
 ## Critical gotchas
@@ -42,11 +45,18 @@ cd ../.. && pnpm test                            # = playwright test in tests/
 - **Never edit generated files:** `frontend/src/lib/paraglide/**` (Paraglide i18n output) and
   `backend/frontend/dist/**`. For i18n, only edit `frontend/messages/en.json`; other locales come
   from Crowdin.
-- **Migrations are split by DB.** Raw SQL via golang-migrate in
-  `backend/resources/migrations/{sqlite,postgres}/` — separate files _and_ separate version
-  timelines. Add a matching up/down pair to **both**. Not GORM AutoMigrate. SQLite migrations
-  are not auto-wrapped in a transaction (`NoTxWrap`); wrap multi-statement ones manually
-  (`PRAGMA foreign_keys=OFF; BEGIN; … COMMIT; PRAGMA foreign_keys=ON;`).
+- **UI messages are ICU MessageFormat** (inlang ICU1 plugin), so a count is one message with `{count, plural, one {# user} other {# users}}` instead of a `_one` key or a `count === 1` branch, and a straight `'` before `{` starts a quoted literal (use `’`).
+  Bold text and links are tags rendered by `formatted-message.svelte`: `<b>{name}</b>` and a link tag named after a key of its `links` prop (`<license>CC BY 4.0</license>` with `links={{ license: url }}`), so URLs stay out of the message.
+- **Emails are translated at send time.** Their text lives in `backend/resources/i18n/email/en.json` (other locales from Crowdin) and the React Email sources only reference keys through `t()`, so after changing a `.tsx` run `pnpm build` in `packages/email-templates` and commit the generated `.tmpl` files.
+  An email uses the recipient's `users.locale`, else that of the admin who caused it, else English; a new UI language also needs an entry in `locales` in `backend/internal/i18n/i18n.go` and in `dateLocales` in `backend/internal/email/localizer.go`.
+- **Migrations are split by DB.** Raw SQL via goose in
+  `backend/resources/migrations/{sqlite,postgres}/`, one `<version>_<name>.sql` file per migration
+  with a `-- +goose Up` and a `-- +goose Down` section. Add a file with the same version to **both**.
+  Not GORM AutoMigrate. A SQLite migration that rebuilds a table starts with `-- +goose NO TRANSACTION`
+  and wraps its statements manually (`PRAGMA foreign_keys=OFF; BEGIN; … COMMIT; PRAGMA foreign_keys=ON;`).
+  The baseline is the schema v3 started with; a database of an earlier major version is brought there by
+  [pocket-id/upgrade](https://github.com/pocket-id/upgrade), which
+  `backend/internal/bootstrap/upgrade_tool_bootstrap.go` downloads, verifies and runs.
 - **Column types must match across DBs for export/import.** A SQLite export must import into Postgres
   and vice versa, so every column must map to the same `DBExportKind` (`backend/internal/utils/db_util.go`)
   on both: JSON/binary is `JSONB`/`BYTEA` ↔ `BLOB`, timestamps are `TIMESTAMPTZ` ↔ `DATETIME` (never
@@ -56,6 +66,10 @@ cd ../.. && pnpm test                            # = playwright test in tests/
 
 - **Config:** global `common.EnvConfig` (caarlos0/env); any secret var supports a `*_FILE` variant.
 - **Logging:** stdlib `log/slog` only (bridged to OpenTelemetry). No zerolog/logrus in app code.
+- **Handlers and API docs:** register JSON handlers through the typed endpoints in `internal/httpserver` (`JSON`, `BodyJSON`, `UpdateJSON`, `NoContent`, `BodyNoContent`), which bind the body, write the response and document both from the handler's types.
+  Summaries, tags and parameters are fuego options at the registration on `authz.Router`, where a list route passes `openapi.List[Model]()` to document the pagination, sort columns and filters from the model's `sortable`/`filterable` tags, and only handlers that write files or several kinds of response use `httpserver.Handle` with `openapi` helpers; a route without docs stays out of the spec.
+  `go run -tags exclude_frontend ./cmd/openapi` prints the spec the docs site renders, and a new tag must be added to `tags` in `internal/openapi`.
+  A route that requires an admin scope is registered on `r.Group("/admin")` so it lives below `/api/admin/`, which lets a proxy block the admin API with one rule; `authz.Router` panics on an admin route outside that prefix or any other route inside it.
 - Fosite comes from Pocket ID's **fork** `github.com/pocket-id/fosite`, not `github.com/ory/fosite`. It ports upstream fixes from `ory/hydra`.
 
 ## Frontend (SvelteKit)
@@ -64,6 +78,16 @@ cd ../.. && pnpm test                            # = playwright test in tests/
   modifiers are gone — use `preventDefault` from `#lib/utils/event-util.ts` (`onsubmit={preventDefault(fn)}`).
 - **Forms:** use the custom `createForm(schema, initial)` from `#lib/utils/form-util.ts` with
   `form-input.svelte` — match the surrounding file. Import zod as `import { z } from 'zod/v4'`.
+- **UI primitives live in `packages/ui`**, imported as `@pocket-id/ui/<component>` and `cn` from `@pocket-id/ui/utils`.
+  Single components are named exports (`import { Button } from '@pocket-id/ui/button'`), compound ones are namespaces with unprefixed parts (`import * as Dialog from '@pocket-id/ui/dialog'`, then `Dialog.Content`).
+  They must stay app-agnostic because Astro and other SvelteKit apps use them: no Paraglide, `$app/*`, `mode-watcher` or Pocket ID services.
+  The few strings they render come from `setUiLabels` in the root layout; app behavior goes in a wrapper under `frontend/src/lib/components` (e.g. `hash-tabs.svelte`).
+- **Icons are Solar**, bundled at build time by `unplugin-icons` (`import TrashIcon from '~icons/solar/trash-bin-minimalistic-bold'`), never Lucide, in `packages/ui` too, so its consumers need the plugin.
+  Bold for actions (buttons, menu items and the "…" that opens them, command palette commands, confirm dialogs), Bold Duotone for icons that stand for something (nav items, features, setting rows, devices, claims, states), Linear for controls (close, chevrons, arrows, checkmarks, search, sidebar toggles).
+- **Groups of settings are cards, lists stay open.** On settings pages a group of fields or setting rows goes in `settings-card.svelte`, also when it is the only group on its tab.
+  A list that fills a tab (members, groups, passkeys, devices, clients, permissions, custom claims) goes in `settings-section.svelte`, as open rows with hairlines like the index tables and My account.
+  Never mix both on one tab, and never put a card in a dialog or sheet.
+  Inside a card every block brings its own `py-4`, like `setting-row.svelte` does, and a list inside a card has no border of its own.
 
 ## Coding Style Guidelines
 

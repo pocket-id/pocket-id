@@ -47,7 +47,7 @@ type OidcClient struct {
 	Base
 
 	Name                                string `sortable:"case-insensitive"`
-	Description                         string
+	Notes                               string
 	CallbackURLs                        datatype.StringList
 	LogoutCallbackURLs                  datatype.StringList
 	BackchannelLogoutURL                string
@@ -58,6 +58,7 @@ type OidcClient struct {
 	RequiresReauthentication            bool `sortable:"true" filterable:"true"`
 	RequiresPushedAuthorizationRequests bool `sortable:"true" filterable:"true"`
 	SkipConsent                         bool `sortable:"true" filterable:"true"`
+	Disabled                            bool `sortable:"true" filterable:"true"`
 	Credentials                         OidcClientCredentials
 	LaunchURL                           *string
 	IsGroupRestricted                   bool           `sortable:"true" filterable:"true"`

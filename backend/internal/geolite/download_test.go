@@ -2,6 +2,7 @@ package geolite
 
 import (
 	"bytes"
+	"errors"
 	"io"
 	"net/http"
 	"os"
@@ -118,6 +119,18 @@ func TestDownloadDatabase(t *testing.T) {
 		err := downloadDatabase(t.Context(), httpClient, "https://example.com/download?license_key=%s", "secret-key", filepath.Join(t.TempDir(), "db.mmdb"))
 		require.NoError(t, err)
 		require.Equal(t, "https://example.com/download?license_key=secret-key", requestedURL)
+	})
+
+	t.Run("failed request doesn't leak the license key", func(t *testing.T) {
+		httpClient := &http.Client{
+			Transport: roundTripperFunc(func(req *http.Request) (*http.Response, error) {
+				return nil, errors.New("connection refused")
+			}),
+		}
+
+		err := downloadDatabase(t.Context(), httpClient, "https://example.com/download?license_key=%s", "secret-key", filepath.Join(t.TempDir(), "db.mmdb"))
+		require.ErrorContains(t, err, "connection refused")
+		require.NotContains(t, err.Error(), "secret-key")
 	})
 
 	t.Run("non-200 response", func(t *testing.T) {

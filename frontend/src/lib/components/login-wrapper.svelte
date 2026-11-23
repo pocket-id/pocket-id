@@ -7,31 +7,40 @@
 
 <script lang="ts">
 	import { beforeNavigate, onNavigate } from '$app/navigation';
-	import { Button } from '#lib/components/ui/button/index.ts';
+	import StaySignedInStep from '#lib/components/auth/stay-signed-in-step.svelte';
+	import { Button } from '@pocket-id/ui/button';
+	import { ScrollArea } from '@pocket-id/ui/scroll-area';
 	import { m } from '#lib/paraglide/messages.js';
 	import { appReveal } from '#lib/stores/app-reveal-store.svelte.ts';
-	import { cachedBackgroundImage } from '#lib/utils/cached-image-util.ts';
-	import { cn, cssMs, cssVar } from '#lib/utils/style.ts';
-	import { LucideChevronLeft } from '@lucide/svelte';
+	import { keepSignedIn } from '#lib/stores/keep-signed-in-store.svelte.ts';
+	import { cachedBackgroundImage } from '#lib/utils/cached-asset-util.ts';
+	import { cn } from '@pocket-id/ui/utils';
+	import { cssMs, cssVar } from '#lib/utils/style.ts';
+	import ChevronLeftIcon from '~icons/solar/alt-arrow-left-linear';
 	import type { Snippet } from 'svelte';
 	import { prefersReducedMotion } from 'svelte/motion';
 	import { MediaQuery } from 'svelte/reactivity';
 
 	let {
 		children,
-		back,
-		wide = false,
-		columns = true
+		side,
+		back: backHref,
+		wide = false
 	}: {
 		children: Snippet;
+		// Follows the children on narrow steps and fills the second column of a wide one, next to the children that stay in view while it scrolls
+		side?: Snippet;
 		back?: string;
-		// Steps with scopes or technical details grow the desktop card to two columns
+		// Steps with scopes or technical details grow the desktop card
 		wide?: boolean;
-		// A wide step with choices that need the whole width keeps one column
-		columns?: boolean;
 	} = $props();
 
-	const isDesktop = new MediaQuery('(min-width: 1024px)');
+	// Going back from the question would leave a sign-in that already happened
+	const back = $derived(keepSignedIn.asking ? undefined : backHref);
+
+	const isCard = new MediaQuery('(min-width: 640px)');
+	// Matches the lg breakpoint where a wide card splits into two columns
+	const isTwoColumn = new MediaQuery('(min-width: 1024px)');
 	const photo = $derived(backgroundImageExists !== false);
 
 	let card = $state<HTMLDivElement>();
@@ -108,7 +117,7 @@
 		// An interrupted animation continues from where the card is drawn right now
 		// The new layout already applies here, so the sheet is drawn at its previous layout shifted by the running translate
 		let drawn: DOMRect | undefined;
-		if (resizing && last && !isDesktop.current) {
+		if (resizing && last && !isCard.current) {
 			const dy = parseFloat(getComputedStyle(card).translate.split(' ')[1] ?? '0');
 			drawn = new DOMRect(last.rect.x, last.rect.y + dy, last.rect.width, last.rect.height);
 		} else if (resizing) {
@@ -129,11 +138,9 @@
 		const windowResized = last && (last.width !== innerWidth || last.height !== innerHeight);
 		const to = card.getBoundingClientRect();
 		last = { rect: to, width: innerWidth, height: innerHeight };
-		const reducedMotion =
-			document.documentElement.classList.contains('no-motion') || prefersReducedMotion.current;
-		if (!from || windowResized || reducedMotion) return;
+		if (!from || windowResized || prefersReducedMotion.current) return;
 
-		if (isDesktop.current) growCard(card, column, from, to, entering || to.width > from.width);
+		if (isCard.current) growCard(card, column, from, to, entering || to.width > from.width);
 		else if (photo) slideSheet(card, column, from.top - to.top, entering);
 		else if (entering) fadeIn(column, 0);
 	}
@@ -205,18 +212,18 @@
 
 <svelte:window bind:innerHeight onresize={updateContentBelow} />
 
-<!-- Beside a tablet sheet the photo strip ends above the page, so the rest holds the photo's placeholder fill instead of the bare page -->
+<!-- The placeholder fill holds the photo's place until it loads -->
 <div
-	class={cn('lg:bg-sidebar fixed inset-0 isolate overflow-hidden', photo && 'max-lg:bg-fill-muted')}
+	class={cn('sm:bg-sidebar fixed inset-0 isolate overflow-hidden', photo && 'max-sm:bg-fill-muted')}
 >
 	{#if photo}
-		<!-- On phones the photo fills the strip above the sheet and follows its top edge, on desktop it is the backdrop behind the card -->
+		<!-- On phones the photo fills the strip above the full-width sheet and follows its top edge, on wider screens it is the backdrop behind the card -->
 		<!-- Its height only transitions while the sheet slides, so a page that opens without a slide does not zoom the photo -->
 		<img
 			src={cachedBackgroundImage.getUrl()}
 			alt=""
 			class={cn(
-				'pointer-events-none absolute inset-x-0 top-0 -z-1 h-(--strip) w-full object-cover opacity-0 transition-opacity duration-(--dur-slow) ease-in-out lg:h-full',
+				'pointer-events-none absolute inset-x-0 top-0 -z-1 h-(--strip) w-full object-cover opacity-0 transition-opacity duration-(--dur-slow) ease-in-out sm:h-full',
 				resizing && 'transition-[opacity,height]',
 				photoLoaded && 'opacity-100'
 			)}
@@ -230,13 +237,13 @@
 		bind:this={card}
 		class={cn(
 			'grid grid-rows-[minmax(0,1fr)]',
-			'lg:bg-surface lg:inset-ring-border lg:absolute lg:inset-0 lg:m-auto lg:h-fit lg:max-h-[calc(100%-64px)] lg:w-[min(520px,100%-64px)] lg:overflow-hidden lg:rounded-2xl lg:inset-ring',
-			photo && 'lg:shadow-overlay',
+			'sm:bg-surface sm:inset-ring-border sm:absolute sm:inset-0 sm:m-auto sm:h-fit sm:max-h-[calc(100%-64px)] sm:w-[min(520px,100%-64px)] sm:overflow-hidden sm:rounded-2xl sm:inset-ring',
+			photo && 'sm:shadow-overlay',
 			wide && 'lg:w-[min(1040px,100%-64px)]',
 			photo
-				? 'max-lg:bg-surface max-lg:shadow-overlay max-lg:after:bg-surface max-lg:absolute max-lg:inset-x-0 max-lg:bottom-0 max-lg:mx-auto max-lg:max-h-full max-lg:w-[calc(var(--col-auth)+48px)] max-lg:max-w-full max-lg:rounded-t-md max-lg:after:absolute max-lg:after:inset-x-0 max-lg:after:top-full max-lg:after:h-dvh max-sm:w-full'
-				: 'max-lg:h-full',
-			photo && fullHeight && 'max-lg:rounded-none'
+				? 'max-sm:bg-surface max-sm:shadow-overlay max-sm:after:bg-surface max-sm:absolute max-sm:inset-x-0 max-sm:bottom-0 max-sm:max-h-full max-sm:rounded-t-md max-sm:after:absolute max-sm:after:inset-x-0 max-sm:after:top-full max-sm:after:h-dvh'
+				: 'max-sm:h-full',
+			photo && fullHeight && 'max-sm:rounded-none'
 		)}
 	>
 		<!-- The scroll padding keeps keyboard focus clear of the sticky action panel on phones, sized for its two buttons and a footnote of up to two lines -->
@@ -244,9 +251,9 @@
 		<div
 			bind:this={column}
 			class={cn(
-				'group/sheet flex min-h-0 flex-col overflow-y-auto max-lg:px-(--sheet-x) max-lg:pb-(--sheet-b) max-lg:has-data-action-panel:scroll-pb-[calc(176px+var(--sheet-b))] lg:px-12',
+				'group/sheet flex min-h-0 flex-col overflow-y-auto max-sm:px-(--sheet-x) max-sm:pb-(--sheet-b) max-sm:has-data-action-panel:scroll-pb-[calc(176px+var(--sheet-b))] sm:px-12',
 				photo
-					? '[--sheet-b:calc(24px+env(safe-area-inset-bottom))] [--sheet-x:24px] max-[360px]:[--sheet-x:16px] max-lg:pt-6'
+					? '[--sheet-b:calc(24px+env(safe-area-inset-bottom))] [--sheet-x:24px] max-[360px]:[--sheet-x:16px] max-sm:pt-6'
 					: '[--sheet-b:24px] [--sheet-x:max(16px,calc((100vw_-_var(--col-auth))/2))]'
 			)}
 			data-content-below={contentBelow || undefined}
@@ -254,40 +261,69 @@
 		>
 			<div
 				class={cn(
-					'mx-auto flex w-full shrink-0 items-center lg:min-h-14 lg:pt-4',
+					'mx-auto flex w-full shrink-0 items-center sm:min-h-14 sm:pt-4',
 					photo
-						? 'max-lg:-mt-3 max-lg:min-h-11'
-						: 'max-lg:min-h-17 max-lg:max-w-(--col-auth) max-lg:pt-6',
-					photo && !back && 'max-lg:hidden',
-					!wide && 'lg:max-w-(--col-auth)'
+						? 'max-sm:-mt-3 max-sm:min-h-11'
+						: 'max-sm:min-h-17 max-sm:max-w-(--col-auth) max-sm:pt-6',
+					photo && !back && 'max-sm:hidden',
+					!wide && 'sm:max-w-(--col-auth)'
 				)}
 			>
 				{#if back}
-					<Button variant="link" href={back} class="text-body -ml-1 gap-1">
-						<LucideChevronLeft />
+					<Button
+						variant="link"
+						href={back}
+						class="text-body text-fg-muted hover:text-fg -ml-1 gap-1"
+					>
+						<ChevronLeftIcon />
 						{m.back()}
 					</Button>
 				{/if}
 			</div>
 
-			<main class="flex flex-[1_0_auto] items-center justify-center lg:pt-4 lg:pb-8">
+			<!-- In two columns the stack shrinks with the card so the side column scrolls on its own instead of the whole card -->
+			<main
+				class={cn(
+					'flex flex-[1_0_auto] items-center justify-center sm:pt-4 sm:pb-8',
+					wide && side && 'lg:min-h-0 lg:shrink'
+				)}
+			>
 				<div
 					bind:this={stack}
 					class={cn(
 						'flex w-full flex-col',
-						photo ? 'lg:max-w-(--col-auth)' : 'max-w-(--col-auth)',
+						photo ? 'sm:max-w-(--col-auth)' : 'max-w-(--col-auth)',
 						wide && 'lg:max-w-none',
 						wide &&
-							columns &&
-							'lg:block lg:columns-2 lg:gap-x-24 lg:[column-rule:1px_solid_var(--border)] lg:*:break-inside-avoid'
+							side &&
+							'lg:before:bg-border lg:relative lg:grid lg:h-full lg:grid-cols-2 lg:grid-rows-[minmax(0,1fr)] lg:gap-x-24 lg:before:absolute lg:before:inset-y-0 lg:before:left-1/2 lg:before:w-px'
 					)}
 				>
-					{@render children()}
+					<!-- Every sign-in page asks in its own card, so the question sits here instead of in each page -->
+					{#if keepSignedIn.asking}
+						<StaySignedInStep />
+					{:else if side}
+						<!-- The columns dissolve outside the wide layout, so the phone action panel still sticks to the whole sheet -->
+						<div class={cn('contents', wide && 'lg:flex lg:flex-col')}>
+							{@render children()}
+						</div>
+						{#if wide && isTwoColumn.current}
+							<!-- The padding gives focus rings room inside the scroll clip and puts the scrollbar beside the content instead of over it -->
+							<ScrollArea class="-m-1 -mr-4" viewportClass="p-1 pr-4">
+								{@render side()}
+							</ScrollArea>
+						{:else}
+							{@render side()}
+						{/if}
+					{:else}
+						{@render children()}
+					{/if}
 				</div>
 			</main>
 
 			<!-- Balances the top bar so the stack stays centered in the desktop card -->
-			<div class="shrink-0 max-lg:hidden lg:min-h-12 lg:pb-4"></div>
+			<!-- On short windows it gives way before the card has to scroll -->
+			<div class="max-sm:hidden sm:h-16 sm:min-h-4"></div>
 		</div>
 	</div>
 

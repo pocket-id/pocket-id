@@ -3,13 +3,16 @@
 	import OidcClientAvatar from '#lib/components/oidc-client-avatar.svelte';
 	import PageHeader from '#lib/components/page-header.svelte';
 	import SettingRow from '#lib/components/setting-row.svelte';
+	import SettingsCard from '#lib/components/settings-card.svelte';
 	import SettingsSection from '#lib/components/settings-section.svelte';
-	import * as Alert from '#lib/components/ui/alert/index.ts';
-	import { Badge } from '#lib/components/ui/badge/index.ts';
-	import { Button } from '#lib/components/ui/button/index.ts';
-	import * as DropdownMenu from '#lib/components/ui/dropdown-menu/index.ts';
-	import { Switch } from '#lib/components/ui/switch/index.ts';
-	import * as Tabs from '#lib/components/ui/tabs/index.ts';
+	import * as Alert from '@pocket-id/ui/alert';
+	import { Badge } from '@pocket-id/ui/badge';
+	import { Button } from '@pocket-id/ui/button';
+	import * as DropdownMenu from '@pocket-id/ui/dropdown-menu';
+	import { Switch } from '@pocket-id/ui/switch';
+	import HashTabs from '#lib/components/hash-tabs.svelte';
+	import * as Tabs from '@pocket-id/ui/tabs';
+	import { formatList } from '#lib/utils/locale.util.ts';
 	import { m } from '#lib/paraglide/messages.js';
 	import OidcClaimMappingPolicyService from '#lib/services/oidc-claim-mapping-policy-service.ts';
 	import {
@@ -22,28 +25,15 @@
 	import { axiosErrorToast } from '#lib/utils/error-util.ts';
 	import { createForm, deepCopy, deepEqual } from '#lib/utils/form-util.ts';
 	import { trackUnsavedSection } from '#lib/utils/unsaved-changes-util.svelte.ts';
-	import {
-		LucideArrowLeft,
-		LucideAtSign,
-		LucideBadgeCheck,
-		LucideChevronRight,
-		LucideCopy,
-		LucideEllipsis,
-		LucideFingerprint,
-		LucideImage,
-		LucideInfo,
-		LucideLanguages,
-		LucideMail,
-		LucidePlus,
-		LucideQuote,
-		LucideStar,
-		LucideTag,
-		LucideTrash2,
-		LucideUserRound,
-		LucideUsersRound,
-		LucideX
-	} from '@lucide/svelte';
-	import type { Component } from 'svelte';
+	import ArrowLeftIcon from '~icons/solar/arrow-left-linear';
+	import ChevronRightIcon from '~icons/solar/alt-arrow-right-linear';
+	import CopyIcon from '~icons/solar/copy-bold';
+	import EllipsisIcon from '~icons/solar/menu-dots-bold';
+	import InfoIcon from '~icons/solar/info-circle-bold-duotone';
+	import PlusIcon from '~icons/solar/add-circle-bold';
+	import StarIcon from '~icons/solar/star-bold';
+	import Trash2Icon from '~icons/solar/trash-bin-minimalistic-bold';
+	import XIcon from '~icons/solar/close-linear';
 	import { toast } from 'svelte-sonner';
 	import { z } from 'zod/v4';
 	import PickerDialog from '../../user-groups/picker-dialog.svelte';
@@ -71,20 +61,6 @@
 	const policyService = new OidcClaimMappingPolicyService();
 	const backNavigation = backNavigate('/settings/admin/claim-mappings');
 	const builtIn = policy.id === builtInClaimMappingPolicyId;
-
-	const USER_FIELD_ICONS: Record<OidcUserField, Component> = {
-		id: LucideFingerprint,
-		email: LucideMail,
-		email_verified: LucideBadgeCheck,
-		first_name: LucideUserRound,
-		last_name: LucideUserRound,
-		full_name: LucideUserRound,
-		display_name: LucideUserRound,
-		username: LucideAtSign,
-		locale: LucideLanguages,
-		picture: LucideImage,
-		groups: LucideUsersRound
-	};
 
 	let nextKey = 0;
 	const withKeys = (mappings: OidcClaimMappingDto[]) =>
@@ -209,7 +185,6 @@
 		if (mapping.sourceType === 'user_field') {
 			const field = mapping.sourceValue as OidcUserField;
 			return {
-				icon: USER_FIELD_ICONS[field],
 				label: userFieldLabel(field),
 				kind: m.user_field(),
 				mono: false
@@ -218,19 +193,20 @@
 		if (mapping.sourceType === 'custom_claim') {
 			const all = mapping.sourceValue === '*';
 			return {
-				icon: LucideTag,
 				label: all ? m.every_custom_claim() : mapping.sourceValue,
 				kind: m.custom_claim(),
 				mono: !all
 			};
 		}
 		return {
-			icon: LucideQuote,
 			label: JSON.stringify(mapping.sourceValue),
 			kind: m.fixed_value(),
 			mono: true
 		};
 	}
+
+	const stackedField =
+		'min-w-0 @max-2xl:grid @max-2xl:grid-cols-[7.5rem_minmax(0,1fr)] @max-2xl:items-baseline @max-2xl:gap-x-3';
 
 	const tokenMarks = (mapping: OidcClaimMappingDto) => [
 		{ on: mapping.idToken, short: m.id_token_short(), label: m.id_token() },
@@ -247,6 +223,10 @@
 	<span class="text-fg-muted tabular-nums">{n}</span>
 {/snippet}
 
+{#snippet stackedLabel(label: string)}
+	<span class="text-caption text-fg-muted @2xl:hidden">{label}</span>
+{/snippet}
+
 {#snippet mappingCells(mapping: OidcClaimMappingDto)}
 	{@const source = sourceOf(mapping)}
 	{@const marks = tokenMarks(mapping)}
@@ -257,48 +237,49 @@
 			<span class="text-mono text-fg font-mono font-medium wrap-anywhere">{mapping.claimName}</span>
 		{/if}
 	</span>
-	<span aria-hidden="true" class="text-fg-subtle hidden md:grid"
-		><LucideArrowLeft class="size-3.5" /></span
+	<span aria-hidden="true" class="text-fg-subtle hidden @2xl:grid"
+		><ArrowLeftIcon class="size-3.5" /></span
 	>
-	<span class="flex min-w-0 items-center gap-2">
+	<!-- Stacked rows lose the column headers, so each value carries its own label there -->
+	<span class={stackedField}>
+		{@render stackedLabel(m.value_from())}
 		<span
-			aria-hidden="true"
-			class="bg-fill-muted text-fg-muted grid size-7 shrink-0 place-items-center rounded-sm"
+			class="flex min-w-0 flex-col @max-2xl:flex-row @max-2xl:flex-wrap @max-2xl:items-baseline @max-2xl:gap-x-1.5"
 		>
-			<source.icon class="size-3.5" />
-		</span>
-		<span class="flex min-w-0 flex-col">
 			<span class={['wrap-anywhere', source.mono ? 'text-mono-s font-mono' : 'text-control']}
 				>{source.label}</span
 			>
 			<span class="text-caption text-fg-muted">{source.kind}</span>
 		</span>
 	</span>
-	<span class="flex flex-wrap gap-1">
-		{#each mapping.scope as scope (scope)}
-			<Badge variant="mono">{scope}</Badge>
-		{/each}
+	<span class={stackedField}>
+		{@render stackedLabel(m.released_with())}
+		<span class="flex flex-wrap gap-1">
+			{#each mapping.scope as scope (scope)}
+				<Badge variant="mono">{scope}</Badge>
+			{/each}
+		</span>
 	</span>
-	<span
-		class="flex gap-1"
-		aria-label={m.included_in_tokens({
-			tokens: marks
-				.filter((mark) => mark.on)
-				.map((mark) => mark.label)
-				.join(', ')
-		})}
-	>
-		{#each marks as mark (mark.label)}
-			<span
-				aria-hidden="true"
-				class={[
-					'text-micro rounded-xs px-1.5 leading-4.5 font-medium',
-					mark.on
-						? 'bg-fill-selected text-fg'
-						: 'text-fg-subtle opacity-70 shadow-[inset_0_0_0_1px_var(--border)]'
-				]}>{mark.short}</span
-			>
-		{/each}
+	<span class={stackedField}>
+		{@render stackedLabel(m.included_in())}
+		<span
+			class="flex gap-1"
+			aria-label={m.included_in_tokens({
+				tokens: formatList(marks.filter((mark) => mark.on).map((mark) => mark.label))
+			})}
+		>
+			{#each marks as mark (mark.label)}
+				<span
+					aria-hidden="true"
+					class={[
+						'text-micro rounded-xs px-1.5 leading-4.5 font-medium',
+						mark.on
+							? 'bg-fill-selected text-fg'
+							: 'text-fg-subtle opacity-70 shadow-[inset_0_0_0_1px_var(--border)]'
+					]}>{mark.short}</span
+				>
+			{/each}
+		</span>
 	</span>
 {/snippet}
 
@@ -319,20 +300,20 @@
 		{/snippet}
 		{#snippet actions()}
 			<Button variant="secondary" onclick={() => duplicatePolicy(policy)}>
-				<LucideCopy />
+				<CopyIcon />
 				{m.duplicate()}
 			</Button>
 			<DropdownMenu.Root>
 				<DropdownMenu.Trigger>
 					{#snippet child({ props })}
 						<Button {...props} variant="outline" size="icon" aria-label={m.more_actions()}>
-							<LucideEllipsis />
+							<EllipsisIcon />
 						</Button>
 					{/snippet}
 				</DropdownMenu.Trigger>
 				<DropdownMenu.Content align="end">
 					<DropdownMenu.Item disabled={policy.isDefault} onclick={makeDefault}>
-						<LucideStar />
+						<StarIcon />
 						{m.make_default()}
 					</DropdownMenu.Item>
 					<DropdownMenu.Separator />
@@ -341,7 +322,7 @@
 						disabled={builtIn}
 						onclick={() => confirmDeletePolicy(policy, backNavigation.leave)}
 					>
-						<LucideTrash2 />
+						<Trash2Icon />
 						{builtIn ? m.built_in_policy_cant_be_deleted() : m.delete_policy_ellipsis()}
 					</DropdownMenu.Item>
 				</DropdownMenu.Content>
@@ -349,7 +330,7 @@
 		{/snippet}
 	</PageHeader>
 
-	<Tabs.Root bind:value={tab} useHash class="gap-10">
+	<HashTabs bind:value={tab} class="gap-8">
 		<div class="flex shadow-[inset_0_-1px_0_var(--border)]">
 			<div class="scroll-fade-x min-w-0 [scrollbar-width:none] overflow-x-auto">
 				<Tabs.List variant="line" class="shadow-none max-sm:gap-4" aria-label={m.policy_sections()}>
@@ -365,7 +346,7 @@
 				<div class="flex min-w-0 flex-col gap-4">
 					{#if builtIn}
 						<Alert.Root variant="info">
-							<LucideInfo />
+							<InfoIcon />
 							<Alert.Title>{m.built_in_policy_cant_be_changed()}</Alert.Title>
 							<Alert.Description>
 								{m.built_in_policy_cant_be_changed_description()}
@@ -373,10 +354,10 @@
 						</Alert.Root>
 					{/if}
 
-					<div class="overflow-hidden rounded-md border">
+					<div class="@container overflow-hidden rounded-md border">
 						<div
 							aria-hidden="true"
-							class="text-caption text-fg-muted hidden grid-cols-[minmax(160px,1.2fr)_16px_minmax(140px,1.3fr)_minmax(0,1fr)_156px_16px] gap-x-3 border-b px-4 py-2.5 font-medium md:grid"
+							class="text-caption text-fg-muted hidden grid-cols-[minmax(160px,1.2fr)_16px_minmax(140px,1.3fr)_minmax(0,1fr)_156px_16px] gap-x-3 border-b px-4 py-2.5 font-medium @2xl:grid"
 						>
 							<span>{m.claim()}</span>
 							<span></span>
@@ -387,7 +368,7 @@
 						<div role="list" aria-label={m.claims()} onpointerleave={() => (highlighted = null)}>
 							{#each draft as mapping (mapping.key)}
 								{@const rowClass =
-									'grid w-full min-h-(--row) grid-cols-[minmax(0,1fr)_16px] items-center gap-x-3 gap-y-1.5 px-4 py-2.5 text-start md:grid-cols-[minmax(160px,1.2fr)_16px_minmax(140px,1.3fr)_minmax(0,1fr)_156px_16px] max-md:[&>*:not(:first-child,:last-child)]:col-start-1'}
+									'grid w-full min-h-(--row) items-center gap-x-3 gap-y-1.5 px-4 py-2.5 text-start @2xl:grid-cols-[minmax(160px,1.2fr)_16px_minmax(140px,1.3fr)_minmax(0,1fr)_156px_16px]'}
 								<div
 									role="listitem"
 									class="border-b last:border-b-0"
@@ -401,6 +382,7 @@
 											type="button"
 											class={[
 												rowClass,
+												'grid-cols-[minmax(0,1fr)_16px] @max-2xl:[&>*:not(:first-child,:last-child)]:col-start-1',
 												'hover:bg-fill-row-hover focus-visible:outline-ring cursor-pointer focus-visible:outline-2 focus-visible:-outline-offset-2'
 											]}
 											aria-label={m.edit_name({
@@ -411,9 +393,9 @@
 											{@render mappingCells(mapping)}
 											<span
 												aria-hidden="true"
-												class="text-fg-subtle col-start-2 row-start-1 grid md:col-start-auto md:row-start-auto"
+												class="text-fg-subtle col-start-2 row-start-1 grid @2xl:col-start-auto @2xl:row-start-auto"
 											>
-												<LucideChevronRight class="size-4" />
+												<ChevronRightIcon class="size-4" />
 											</span>
 										</button>
 									{/if}
@@ -426,7 +408,7 @@
 									{m.policy_releases_no_claims()}
 									{#if !builtIn}
 										<Button variant="ghost" size="sm" onclick={() => openSheet(null)}>
-											<LucidePlus />
+											<PlusIcon />
 											{m.add_claim()}
 										</Button>
 									{/if}
@@ -436,7 +418,7 @@
 						{#if !builtIn && draft.length}
 							<div class="border-t px-3 py-2">
 								<Button variant="ghost" size="sm" onclick={() => openSheet(null)}>
-									<LucidePlus />
+									<PlusIcon />
 									{m.add_claim()}
 								</Button>
 							</div>
@@ -444,7 +426,7 @@
 					</div>
 				</div>
 
-				<ClaimsPreview mappings={stripKeys(draft)} {highlighted} />
+				<ClaimsPreview mappings={stripKeys(draft)} {highlighted} customScopes={data.customScopes} />
 			</div>
 		</Tabs.Content>
 
@@ -452,7 +434,7 @@
 			<SettingsSection title={m.assigned_clients()} description={m.assigned_clients_description()}>
 				{#snippet action()}
 					<Button variant="secondary" size="sm" onclick={() => (clientPickerOpen = true)}>
-						<LucidePlus />
+						<PlusIcon />
 						{m.assign_clients_ellipsis()}
 					</Button>
 				{/snippet}
@@ -476,7 +458,7 @@
 								aria-label={m.unassign_name({ name: client.name })}
 								onclick={() => unassignClient(client)}
 							>
-								<LucideX />
+								<XIcon />
 							</Button>
 						</li>
 					{:else}
@@ -489,50 +471,45 @@
 				</ul>
 				{#if unassignedCount > 0}
 					<p class="text-caption text-fg-muted mt-3 flex items-start gap-1.5">
-						<LucideInfo class="mt-[3px] size-3 shrink-0" />
-						{unassignedCount === 1
-							? m.default_policy_also_applies_one()
-							: m.default_policy_also_applies({ count: unassignedCount })}
+						<InfoIcon class="mt-[3px] size-3 shrink-0" />
+						{m.default_policy_also_applies({ count: unassignedCount })}
 					</p>
 				{/if}
 			</SettingsSection>
 		</Tabs.Content>
 
 		<Tabs.Content value="settings">
-			<SettingsSection title={m.policy()}>
-				<div class="flex flex-col gap-6 pt-4">
+			<SettingsCard title={m.policy()}>
+				<div class="py-4 shadow-[inset_0_-1px_0_var(--border)]">
 					<FormInput
 						class="max-w-100"
 						label={m.name()}
-						description={builtIn ? m.built_in_policy_keeps_its_name() : m.policy_name_helper()}
+						description={builtIn ? m.built_in_policy_keeps_its_name() : undefined}
 						autocomplete="off"
 						readonly={builtIn}
 						bind:input={$inputs.name}
 					/>
-					<SettingRow
-						title={m.default_policy()}
-						description={policy.isDefault
-							? m.default_policy_on_description()
-							: m.default_policy_off_description()}
-					>
-						{#snippet control(props)}
-							<Switch
-								{...props}
-								disabled={policy.isDefault}
-								bind:checked={$inputs.isDefault.value}
-							/>
-						{/snippet}
-					</SettingRow>
 				</div>
-			</SettingsSection>
+				<SettingRow
+					title={m.default_policy()}
+					description={policy.isDefault
+						? m.default_policy_on_description()
+						: m.default_policy_off_description()}
+				>
+					{#snippet control(props)}
+						<Switch {...props} disabled={policy.isDefault} bind:checked={$inputs.isDefault.value} />
+					{/snippet}
+				</SettingRow>
+			</SettingsCard>
 		</Tabs.Content>
-	</Tabs.Root>
+	</HashTabs>
 </div>
 
 <ClaimSheet
 	bind:open={sheetOpen}
 	mapping={editing}
 	others={draft.filter((d) => d.key !== editing?.key)}
+	customScopes={data.customScopes}
 	onSave={saveMapping}
 	onRemove={removeMapping}
 />

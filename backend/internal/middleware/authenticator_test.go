@@ -1,28 +1,41 @@
 package middleware
 
 import (
+	"context"
+	"crypto/ecdsa"
+	"crypto/elliptic"
+	"crypto/rand"
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
+	"regexp"
 	"testing"
 	"time"
 
 	"github.com/gin-gonic/gin"
+	"github.com/italypaleale/francis/host/local"
+	"github.com/pocket-id/fosite"
 	"github.com/stretchr/testify/require"
 	"gorm.io/gorm"
 
 	"github.com/pocket-id/pocket-id/backend/internal/apikey"
 	"github.com/pocket-id/pocket-id/backend/internal/appconfig"
+	"github.com/pocket-id/pocket-id/backend/internal/auditlogs"
 	"github.com/pocket-id/pocket-id/backend/internal/authz"
 	"github.com/pocket-id/pocket-id/backend/internal/common"
-	"github.com/pocket-id/pocket-id/backend/internal/instanceid"
+	"github.com/pocket-id/pocket-id/backend/internal/httpserver"
 	"github.com/pocket-id/pocket-id/backend/internal/model"
 	datatype "github.com/pocket-id/pocket-id/backend/internal/model/types"
-	"github.com/pocket-id/pocket-id/backend/internal/service"
+	"github.com/pocket-id/pocket-id/backend/internal/oidc"
+	"github.com/pocket-id/pocket-id/backend/internal/session"
+	"github.com/pocket-id/pocket-id/backend/internal/users"
 	"github.com/pocket-id/pocket-id/backend/internal/utils"
 	"github.com/pocket-id/pocket-id/backend/internal/utils/cookie"
 	testutils "github.com/pocket-id/pocket-id/backend/internal/utils/testing"
 )
+
+// #nosec G101
+const staticAPIKey = "static-raw-api-key"
 
 func TestAuthorizationWithRealCredentials(t *testing.T) {
 	gin.SetMode(gin.TestMode)
@@ -36,14 +49,9 @@ func TestAuthorizationWithRealCredentials(t *testing.T) {
 
 	db := testutils.NewDatabaseForTest(t)
 
-	instanceID, err := instanceid.Load(t.Context(), db)
+	usersModule, err := users.New(users.Dependencies{DB: db, CleanupDisabled: true})
 	require.NoError(t, err)
-
-	jwtService, err := service.NewJwtService(t.Context(), db, instanceID)
-	require.NoError(t, err)
-
-	userService := service.NewUserService(db, jwtService, nil, nil, nil, nil, nil, nil)
-	apiKeyModule, err := apikey.New(t.Context(), apikey.Dependencies{DB: db, CleanupDisabled: true})
+	apiKeyModule, err := apikey.New(apikey.Dependencies{DB: db, StaticApiKey: staticAPIKey, CleanupDisabled: true})
 	require.NoError(t, err)
 
 	// Create one credential of each kind for a regular user, an admin and a disabled user
@@ -54,15 +62,26 @@ func TestAuthorizationWithRealCredentials(t *testing.T) {
 	unverified := createUserForAuthorizationTest(t, db, "auth-unverified", false, false, false)
 	unverifiedAdmin := createUserForAuthorizationTest(t, db, "auth-unverified-admin", true, false, false)
 
-	userSession, err := jwtService.GenerateAccessToken(user, "", time.Hour)
+	var sessions *session.Module
+	testutils.NewActorHostForTest(t, func(t *testing.T, h *local.Host) {
+		sessions, err = session.New(session.Dependencies{Actors: h, IPLocator: noIPLocation{}, AuditLog: nopAuditLogger{}, EndNotifier: noEndNotifier{}})
+		require.NoError(t, err)
+	})
+	userSession, err := sessions.Create(t.Context(), user.ID, "", "", "", time.Hour, true)
 	require.NoError(t, err)
-	unverifiedSession, err := jwtService.GenerateAccessToken(unverified, "", time.Hour)
+	unverifiedSession, err := sessions.Create(t.Context(), unverified.ID, "", "", "", time.Hour, true)
 	require.NoError(t, err)
-	userAPIKey := createAPIKeyForAuthorizationTest(t, db, user, "user-raw-api-key")
-	adminAPIKey := createAPIKeyForAuthorizationTest(t, db, admin, "admin-raw-api-key")
-	disabledAPIKey := createAPIKeyForAuthorizationTest(t, db, disabled, "disabled-raw-api-key")
-	unverifiedAPIKey := createAPIKeyForAuthorizationTest(t, db, unverified, "unverified-raw-api-key")
-	unverifiedAdminAPIKey := createAPIKeyForAuthorizationTest(t, db, unverifiedAdmin, "unverified-admin-raw-api-key")
+	revokedSession, err := sessions.Create(t.Context(), user.ID, "", "", "", time.Hour, true)
+	require.NoError(t, err)
+	_, revoked, err := sessions.Validate(t.Context(), revokedSession)
+	require.NoError(t, err)
+	require.NoError(t, sessions.Revoke(t.Context(), user.ID, revoked.ID, auditlogs.Origin{}))
+	userAPIKey := createAPIKeyForAuthorizationTest(t, db, user, "user-raw-api-key", apikey.AllScopes())
+	adminAPIKey := createAPIKeyForAuthorizationTest(t, db, admin, "admin-raw-api-key", apikey.AllScopes())
+	adminAccountOnlyAPIKey := createAPIKeyForAuthorizationTest(t, db, admin, "admin-account-only-raw-api-key", datatype.StringList{string(authz.AccountRead)})
+	disabledAPIKey := createAPIKeyForAuthorizationTest(t, db, disabled, "disabled-raw-api-key", apikey.AllScopes())
+	unverifiedAPIKey := createAPIKeyForAuthorizationTest(t, db, unverified, "unverified-raw-api-key", apikey.AllScopes())
+	unverifiedAdminAPIKey := createAPIKeyForAuthorizationTest(t, db, unverifiedAdmin, "unverified-admin-raw-api-key", apikey.AllScopes())
 
 	// Mount one route per kind of requirement
 	// Email verification is required, so unverified regular users only keep the scopes needed to verify their email
@@ -70,15 +89,33 @@ func TestAuthorizationWithRealCredentials(t *testing.T) {
 	cfg.EmailVerification = appconfig.EmailVerificationRequired
 	router := gin.New()
 	router.Use(NewErrorHandlerMiddleware().Add())
-	apiRouter := NewAuthorization(apiKeyModule, userService, jwtService, appconfig.StaticResolver{Config: cfg}).Router(router.Group("/api"))
-	ok := func(c *gin.Context) {
-		c.String(http.StatusOK, authz.PrincipalFrom(c).UserID)
+	resource := authz.ResourceURI(common.EnvConfig.AppURL)
+	accessTokens := fakeAccessTokenVerifier{
+		"admin-token":          oauthAccessRequest(admin.ID, fosite.Arguments{resource}, string(authz.UsersRead)),
+		"admin-account-token":  oauthAccessRequest(admin.ID, fosite.Arguments{resource}, string(authz.AccountRead)),
+		"user-admin-token":     oauthAccessRequest(user.ID, fosite.Arguments{resource}, string(authz.UsersRead)),
+		"disabled-token":       oauthAccessRequest(disabled.ID, fosite.Arguments{resource}, string(authz.UsersRead)),
+		"session-scope-token":  oauthAccessRequest(admin.ID, fosite.Arguments{resource}, string(authz.AccountSession)),
+		"custom-api-token":     oauthAccessRequest(admin.ID, fosite.Arguments{"https://api.example.com", common.EnvConfig.AppURL}, "openid", string(authz.UsersRead)),
+		"unverified-api-token": oauthAccessRequest(unverified.ID, fosite.Arguments{resource}, string(authz.AccountRead), string(authz.AccountApps)),
+		"machine-token":        oauthAccessRequest(oidc.ClientSubject(oauthTestClientID), fosite.Arguments{resource}, string(authz.UsersRead), string(authz.AccountRead)),
 	}
+	groupRestrictedToken := oauthAccessRequest(admin.ID, fosite.Arguments{resource}, string(authz.UsersRead)).(*fosite.AccessRequest)
+	groupRestrictedToken.Client = oidc.Client{OidcClient: model.OidcClient{
+		Base:              model.Base{ID: oauthTestClientID},
+		IsGroupRestricted: true,
+		AllowedUserGroups: []model.UserGroup{{Base: model.Base{ID: "group-without-the-admin"}}},
+	}}
+	accessTokens["group-restricted-token"] = groupRestrictedToken
+	apiRouter := NewAuthorization(apiKeyModule, accessTokens, usersModule, sessions, appconfig.StaticResolver{Config: cfg}).Router(router.Group("/api"))
+	ok := httpserver.Endpoint{Handler: func(c *gin.Context) {
+		c.String(http.StatusOK, authz.PrincipalFrom(c).UserID)
+	}}
 	apiRouter.GET("/session-only", authz.AccountSession, ok)
 	apiRouter.GET("/account", authz.AccountRead, ok)
 	apiRouter.GET("/apps", authz.AccountApps, ok)
 	apiRouter.GET("/authorize", authz.AccountAuthorize, ok)
-	apiRouter.GET("/admin", authz.UsersRead, ok)
+	apiRouter.GET("/admin/users", authz.UsersRead, ok)
 
 	tests := []struct {
 		name          string
@@ -90,24 +127,42 @@ func TestAuthorizationWithRealCredentials(t *testing.T) {
 		userID        string
 		errorCode     string
 	}{
-		{name: "session on session-only route", path: "/api/session-only", authorization: "Bearer " + userSession, status: http.StatusOK, userID: user.ID},
+		{name: "session on session-only route", path: "/api/session-only", sessionCookie: userSession, status: http.StatusOK, userID: user.ID},
 		{name: "API key on session-only route", path: "/api/session-only", apiKey: adminAPIKey, status: http.StatusForbidden, errorCode: "api_key_auth_not_allowed"},
 		{name: "API key on account route", path: "/api/account", apiKey: userAPIKey, status: http.StatusOK, userID: user.ID},
-		{name: "regular user session on admin route", path: "/api/admin", authorization: "Bearer " + userSession, status: http.StatusForbidden, errorCode: "forbidden"},
-		{name: "regular user API key on admin route", path: "/api/admin", apiKey: userAPIKey, status: http.StatusForbidden, errorCode: "forbidden"},
-		{name: "admin API key on admin route", path: "/api/admin", apiKey: adminAPIKey, status: http.StatusOK, userID: admin.ID},
-		{name: "invalid session cookie falls back to API key", path: "/api/admin", sessionCookie: "not-a-jwt", apiKey: adminAPIKey, status: http.StatusOK, userID: admin.ID},
+		{name: "regular user session on admin route", path: "/api/admin/users", sessionCookie: userSession, status: http.StatusForbidden, errorCode: "forbidden"},
+		{name: "regular user API key that stores admin scopes on admin route", path: "/api/admin/users", apiKey: userAPIKey, status: http.StatusForbidden, errorCode: "forbidden"},
+		{name: "admin API key on admin route", path: "/api/admin/users", apiKey: adminAPIKey, status: http.StatusOK, userID: admin.ID},
+		{name: "admin API key without the route's scope", path: "/api/admin/users", apiKey: adminAccountOnlyAPIKey, status: http.StatusForbidden, errorCode: "forbidden"},
+		{name: "admin API key with the route's scope", path: "/api/account", apiKey: adminAccountOnlyAPIKey, status: http.StatusOK, userID: admin.ID},
+		{name: "static API key on admin route", path: "/api/admin/users", apiKey: staticAPIKey, status: http.StatusOK},
+		{name: "static API key on account route", path: "/api/account", apiKey: staticAPIKey, status: http.StatusForbidden, errorCode: "api_key_auth_not_allowed"},
+		{name: "revoked session", path: "/api/account", sessionCookie: revokedSession, status: http.StatusUnauthorized, errorCode: "not_signed_in"},
+		{name: "session token in the Authorization header", path: "/api/account", authorization: "Bearer " + userSession, status: http.StatusUnauthorized, errorCode: "not_signed_in"},
+		{name: "invalid session cookie falls back to API key", path: "/api/admin/users", sessionCookie: "not-a-jwt", apiKey: adminAPIKey, status: http.StatusOK, userID: admin.ID},
 		{name: "disabled user's API key", path: "/api/account", apiKey: disabledAPIKey, status: http.StatusForbidden, errorCode: "user_disabled"},
-		{name: "verified user session on apps route", path: "/api/apps", authorization: "Bearer " + userSession, status: http.StatusOK, userID: user.ID},
-		{name: "unverified user session on session-only route", path: "/api/session-only", authorization: "Bearer " + unverifiedSession, status: http.StatusOK, userID: unverified.ID},
-		{name: "unverified user session on account route", path: "/api/account", authorization: "Bearer " + unverifiedSession, status: http.StatusOK, userID: unverified.ID},
-		{name: "unverified user session on apps route", path: "/api/apps", authorization: "Bearer " + unverifiedSession, status: http.StatusForbidden, errorCode: "email_verification_required"},
-		{name: "unverified user session on authorize route", path: "/api/authorize", authorization: "Bearer " + unverifiedSession, status: http.StatusForbidden, errorCode: "email_verification_required"},
-		{name: "verified user session on authorize route", path: "/api/authorize", authorization: "Bearer " + userSession, status: http.StatusOK, userID: user.ID},
+		{name: "verified user session on apps route", path: "/api/apps", sessionCookie: userSession, status: http.StatusOK, userID: user.ID},
+		{name: "unverified user session on session-only route", path: "/api/session-only", sessionCookie: unverifiedSession, status: http.StatusOK, userID: unverified.ID},
+		{name: "unverified user session on account route", path: "/api/account", sessionCookie: unverifiedSession, status: http.StatusOK, userID: unverified.ID},
+		{name: "unverified user session on apps route", path: "/api/apps", sessionCookie: unverifiedSession, status: http.StatusForbidden, errorCode: "email_verification_required"},
+		{name: "unverified user session on authorize route", path: "/api/authorize", sessionCookie: unverifiedSession, status: http.StatusForbidden, errorCode: "email_verification_required"},
+		{name: "verified user session on authorize route", path: "/api/authorize", sessionCookie: userSession, status: http.StatusOK, userID: user.ID},
 		{name: "unverified user API key on account route", path: "/api/account", apiKey: unverifiedAPIKey, status: http.StatusOK, userID: unverified.ID},
 		{name: "unverified user API key on apps route", path: "/api/apps", apiKey: unverifiedAPIKey, status: http.StatusForbidden, errorCode: "email_verification_required"},
-		{name: "unverified admin API key on admin route", path: "/api/admin", apiKey: unverifiedAdminAPIKey, status: http.StatusOK, userID: unverifiedAdmin.ID},
+		{name: "unverified admin API key on admin route", path: "/api/admin/users", apiKey: unverifiedAdminAPIKey, status: http.StatusOK, userID: unverifiedAdmin.ID},
 		{name: "unknown API key", path: "/api/account", apiKey: "unknown", status: http.StatusUnauthorized, errorCode: "not_signed_in"},
+		{name: "admin OAuth token on admin route", path: "/api/admin/users", authorization: "Bearer admin-token", status: http.StatusOK, userID: admin.ID},
+		{name: "admin OAuth token without the route's scope", path: "/api/admin/users", authorization: "Bearer admin-account-token", status: http.StatusForbidden, errorCode: "forbidden"},
+		{name: "regular user OAuth token that carries an admin scope", path: "/api/admin/users", authorization: "Bearer user-admin-token", status: http.StatusForbidden, errorCode: "forbidden"},
+		{name: "disabled user's OAuth token", path: "/api/admin/users", authorization: "Bearer disabled-token", status: http.StatusForbidden, errorCode: "user_disabled"},
+		{name: "OAuth token of a client the user lost group access to", path: "/api/admin/users", authorization: "Bearer group-restricted-token", status: http.StatusUnauthorized, errorCode: "not_signed_in"},
+		{name: "OAuth token on session-only route", path: "/api/session-only", authorization: "Bearer session-scope-token", status: http.StatusForbidden, errorCode: "oauth_token_auth_not_allowed"},
+		{name: "custom API token with a colliding scope key", path: "/api/admin/users", authorization: "Bearer custom-api-token", status: http.StatusUnauthorized, errorCode: "not_signed_in"},
+		{name: "unverified user OAuth token on apps route", path: "/api/apps", authorization: "Bearer unverified-api-token", status: http.StatusForbidden, errorCode: "email_verification_required"},
+		{name: "unknown OAuth token", path: "/api/account", authorization: "Bearer unknown", status: http.StatusUnauthorized, errorCode: "not_signed_in"},
+		{name: "client acting as itself on admin route", path: "/api/admin/users", authorization: "Bearer machine-token", status: http.StatusOK, userID: ""},
+		{name: "client acting as itself on account route", path: "/api/account", authorization: "Bearer machine-token", status: http.StatusForbidden, errorCode: "client_token_auth_not_allowed"},
+		{name: "client acting as itself on session-only route", path: "/api/session-only", authorization: "Bearer machine-token", status: http.StatusForbidden, errorCode: "oauth_token_auth_not_allowed"},
 		{name: "no credentials", path: "/api/account", status: http.StatusUnauthorized, errorCode: "not_signed_in"},
 	}
 
@@ -118,7 +173,7 @@ func TestAuthorizationWithRealCredentials(t *testing.T) {
 				req.Header.Set("Authorization", test.authorization)
 			}
 			if test.sessionCookie != "" {
-				req.AddCookie(&http.Cookie{Name: cookie.AccessTokenCookieName, Value: test.sessionCookie, Secure: true, HttpOnly: true, SameSite: http.SameSiteLaxMode})
+				req.AddCookie(&http.Cookie{Name: cookie.SessionTokenCookieName, Value: test.sessionCookie, Secure: true, HttpOnly: true, SameSite: http.SameSiteLaxMode})
 			}
 			if test.apiKey != "" {
 				req.Header.Set("X-API-Key", test.apiKey)
@@ -138,6 +193,148 @@ func TestAuthorizationWithRealCredentials(t *testing.T) {
 			require.Equal(t, test.errorCode, body["code"])
 		})
 	}
+}
+
+func TestDeviceBoundSession(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+
+	originalEnvConfig := common.EnvConfig
+	defer func() {
+		common.EnvConfig = originalEnvConfig
+	}()
+	common.EnvConfig.AppURL = "https://test.example.com"
+	common.EnvConfig.EncryptionKey = []byte("0123456789abcdef0123456789abcdef")
+
+	db := testutils.NewDatabaseForTest(t)
+	usersModule, err := users.New(users.Dependencies{DB: db, CleanupDisabled: true})
+	require.NoError(t, err)
+	user := createUserForAuthorizationTest(t, db, "bound-user", false, false, true)
+
+	var sessions *session.Module
+	testutils.NewActorHostForTest(t, func(t *testing.T, h *local.Host) {
+		sessions, err = session.New(session.Dependencies{Actors: h, IPLocator: noIPLocation{}, AuditLog: nopAuditLogger{}, EndNotifier: noEndNotifier{}})
+		require.NoError(t, err)
+	})
+
+	// Mount the session routes, which include the DBSC endpoints, next to a route that requires a signed-in user
+	router := gin.New()
+	router.Use(NewErrorHandlerMiddleware().Add())
+	apiRouter := NewAuthorization(nil, fakeAccessTokenVerifier{}, usersModule, sessions, appconfig.StaticResolver{Config: appconfig.NewTestConfig(nil)}).Router(router.Group("/api"))
+	sessions.RegisterRoutes(apiRouter, func(c *gin.Context) { c.Next() })
+	apiRouter.GET("/account", authz.AccountRead, httpserver.Endpoint{Handler: func(c *gin.Context) {
+		c.String(http.StatusOK, authz.PrincipalFrom(c).UserID)
+	}})
+
+	serve := func(method, path, token string, headers map[string]string, cookies ...*http.Cookie) *httptest.ResponseRecorder {
+		req := httptest.NewRequestWithContext(t.Context(), method, path, nil)
+		req.AddCookie(&http.Cookie{Name: cookie.SessionTokenCookieName, Value: token, Secure: true, HttpOnly: true, SameSite: http.SameSiteLaxMode})
+		for _, c := range cookies {
+			req.AddCookie(c)
+		}
+		for name, value := range headers {
+			req.Header.Set(name, value)
+		}
+		recorder := httptest.NewRecorder()
+		router.ServeHTTP(recorder, req)
+		return recorder
+	}
+
+	// bind signs a user in and binds the session like a browser with DBSC does, and returns the token and the binding cookie
+	bind := func(t *testing.T) (string, *http.Cookie) {
+		token, err := sessions.Create(t.Context(), user.ID, "phr", "", "", time.Hour, true)
+		require.NoError(t, err)
+		deviceKey, err := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
+		require.NoError(t, err)
+
+		// Register the device key with the challenge of the sign-in response
+		announcement := httptest.NewRecorder()
+		c, _ := gin.CreateTestContext(announcement)
+		session.AnnounceBinding(c, token)
+		registration := regexp.MustCompile(`challenge="([^"]+)"`).FindStringSubmatch(announcement.Header().Get("Secure-Session-Registration"))
+		require.NotNil(t, registration)
+		recorder := serve(http.MethodPost, "/api/sessions/current/binding", token, map[string]string{"Secure-Session-Response": testutils.DBSCProof(t, deviceKey, registration[1], deviceKey)})
+		require.Equal(t, http.StatusOK, recorder.Code, recorder.Body.String())
+
+		// Refresh with the challenge registration returned, which issues the first binding cookie without any session cookie
+		challenge := regexp.MustCompile(`^"([^"]+)";id="([^"]+)"$`).FindStringSubmatch(recorder.Header().Get("Secure-Session-Challenge"))
+		require.NotNil(t, challenge)
+		req := httptest.NewRequestWithContext(t.Context(), http.MethodPost, session.BindingRefreshPath, nil)
+		req.Header.Set("Sec-Secure-Session-Id", challenge[2])
+		req.Header.Set("Secure-Session-Response", testutils.DBSCProof(t, deviceKey, challenge[1], nil))
+		recorder = httptest.NewRecorder()
+		router.ServeHTTP(recorder, req)
+		require.Equal(t, http.StatusOK, recorder.Code, recorder.Body.String())
+		cookies := recorder.Result().Cookies()
+		require.Len(t, cookies, 1)
+		return token, cookies[0]
+	}
+
+	token, bindingCookie := bind(t)
+	otherToken, otherBindingCookie := bind(t)
+
+	t.Run("accepts a bound session with its binding cookie", func(t *testing.T) {
+		recorder := serve(http.MethodGet, "/api/account", token, nil, bindingCookie)
+		require.Equal(t, http.StatusOK, recorder.Code, recorder.Body.String())
+		require.Equal(t, user.ID, recorder.Body.String())
+	})
+
+	t.Run("rejects a bound session without its binding cookie", func(t *testing.T) {
+		recorder := serve(http.MethodGet, "/api/account", token, nil)
+		require.Equal(t, http.StatusUnauthorized, recorder.Code)
+	})
+
+	t.Run("rejects a bound session with the binding cookie of another session", func(t *testing.T) {
+		recorder := serve(http.MethodGet, "/api/account", otherToken, nil, &http.Cookie{Name: otherBindingCookie.Name, Value: bindingCookie.Value, Secure: true, HttpOnly: true, SameSite: http.SameSiteLaxMode})
+		require.Equal(t, http.StatusUnauthorized, recorder.Code)
+	})
+}
+
+type nopAuditLogger struct{}
+
+func (nopAuditLogger) Record(context.Context, auditlogs.Event, auditlogs.Origin, string, auditlogs.Data, *gorm.DB) {
+}
+
+func (nopAuditLogger) KeepUsername(context.Context, string, string, *gorm.DB) error {
+	return nil
+}
+
+func (nopAuditLogger) DeviceStringFromUserAgent(string) string {
+	return ""
+}
+
+type noEndNotifier struct{}
+
+func (noEndNotifier) SessionsEnded(context.Context, string, []string) {}
+
+func (noEndNotifier) SessionsExpired(context.Context, string, []string) error { return nil }
+
+func (noEndNotifier) SignedOutEverywhere(context.Context, string) error { return nil }
+
+type noIPLocation struct{}
+
+func (noIPLocation) GetLocationByIP(context.Context, string) (string, string, error) {
+	return "", "", nil
+}
+
+// fakeAccessTokenVerifier resolves raw OAuth access tokens to the requests they were granted for
+type fakeAccessTokenVerifier map[string]fosite.AccessRequester
+
+func (f fakeAccessTokenVerifier) VerifyAccessToken(_ context.Context, token string) (fosite.AccessRequester, error) {
+	accessRequest, ok := f[token]
+	if !ok {
+		return nil, fosite.ErrRequestUnauthorized
+	}
+	return accessRequest, nil
+}
+
+const oauthTestClientID = "machine-client"
+
+func oauthAccessRequest(subject string, audience fosite.Arguments, scopes ...string) fosite.AccessRequester {
+	accessRequest := fosite.NewAccessRequest(&fosite.DefaultSession{Subject: subject})
+	accessRequest.Client = oidc.Client{OidcClient: model.OidcClient{Base: model.Base{ID: oauthTestClientID}}}
+	accessRequest.GrantedAudience = audience
+	accessRequest.GrantedScope = scopes
+	return accessRequest
 }
 
 func createUserForAuthorizationTest(t *testing.T, db *gorm.DB, username string, isAdmin, disabled, emailVerified bool) model.User {
@@ -160,14 +357,15 @@ func createUserForAuthorizationTest(t *testing.T, db *gorm.DB, username string, 
 	return user
 }
 
-func createAPIKeyForAuthorizationTest(t *testing.T, db *gorm.DB, owner model.User, rawToken string) string {
+func createAPIKeyForAuthorizationTest(t *testing.T, db *gorm.DB, owner model.User, rawToken string, scopes datatype.StringList) string {
 	t.Helper()
 
 	err := db.Create(&apikey.ApiKey{
-		Name:      owner.Username + " key",
+		Name:      rawToken,
 		Key:       utils.CreateSha256Hash(rawToken),
 		UserID:    owner.ID,
 		ExpiresAt: datatype.DateTime(time.Now().Add(24 * time.Hour)),
+		Scopes:    scopes,
 	}).Error
 	require.NoError(t, err)
 

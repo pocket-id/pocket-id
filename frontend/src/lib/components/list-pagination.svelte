@@ -1,12 +1,12 @@
 <script lang="ts">
 	import FormattedMessage from '#lib/components/formatted-message.svelte';
-	import { Button } from '#lib/components/ui/button/index.ts';
-	import * as Select from '#lib/components/ui/select/index.ts';
+	import { Button } from '@pocket-id/ui/button';
+	import * as Select from '@pocket-id/ui/select';
 	import { m } from '#lib/paraglide/messages.js';
 	import type { PaginationResponse } from '#lib/types/list-request.type.ts';
-	import { cn } from '#lib/utils/style.ts';
-	import ChevronLeftIcon from '@lucide/svelte/icons/chevron-left';
-	import ChevronRightIcon from '@lucide/svelte/icons/chevron-right';
+	import { cn } from '@pocket-id/ui/utils';
+	import ChevronLeftIcon from '~icons/solar/alt-arrow-left-linear';
+	import ChevronRightIcon from '~icons/solar/alt-arrow-right-linear';
 
 	let {
 		pagination,

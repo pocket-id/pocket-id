@@ -6,7 +6,7 @@ export const categories = [
 	'email',
 	'ldap',
 	'oidc',
-	'branding'
+	'appearance'
 ] as const;
 
 export type Category = (typeof categories)[number];

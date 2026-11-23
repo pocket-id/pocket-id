@@ -1,3 +1,6 @@
+// The API that represents Pocket ID itself, which the backend keeps in sync and admins can only grant clients access to
+export const builtInApiId = '00000000-0000-0000-0000-000000000000';
+
 export type ApiPermission = {
 	id: string;
 	key: string;

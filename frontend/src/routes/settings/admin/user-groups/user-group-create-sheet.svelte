@@ -1,8 +1,8 @@
 <script lang="ts">
 	import { goto } from '$app/navigation';
 	import FormInput from '#lib/components/form/form-input.svelte';
-	import { Button } from '#lib/components/ui/button/index.ts';
-	import * as Sheet from '#lib/components/ui/sheet/index.ts';
+	import { Button } from '@pocket-id/ui/button';
+	import * as Sheet from '@pocket-id/ui/sheet';
 	import { m } from '#lib/paraglide/messages.js';
 	import UserGroupService from '#lib/services/user-group-service.ts';
 	import { axiosErrorToast } from '#lib/utils/error-util.ts';
@@ -10,7 +10,7 @@
 	import { createForm } from '#lib/utils/form-util.ts';
 	import { untrack } from 'svelte';
 	import { toast } from 'svelte-sonner';
-	import { groupNameSchema } from './group-name-schema';
+	import { groupSchema } from './group-schema';
 
 	let { open = $bindable() }: { open: boolean } = $props();
 
@@ -21,7 +21,7 @@
 	// The claim name follows the friendly name until it is edited by hand
 	let nameEdited = false;
 
-	const formStore = createForm(groupNameSchema, { friendlyName: '', name: '' });
+	const formStore = createForm(groupSchema, { friendlyName: '', name: '', notes: '' });
 	const { inputs } = formStore;
 
 	$effect(() => {

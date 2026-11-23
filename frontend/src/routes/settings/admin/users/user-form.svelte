@@ -2,9 +2,9 @@
 	import FormInput from '#lib/components/form/form-input.svelte';
 	import ProfilePictureSettings from '#lib/components/form/profile-picture-settings.svelte';
 	import SettingRow from '#lib/components/setting-row.svelte';
-	import SettingsSection from '#lib/components/settings-section.svelte';
-	import { Checkbox } from '#lib/components/ui/checkbox/index.ts';
-	import { Switch } from '#lib/components/ui/switch/index.ts';
+	import SettingsCard from '#lib/components/settings-card.svelte';
+	import { Checkbox } from '@pocket-id/ui/checkbox';
+	import { Switch } from '@pocket-id/ui/switch';
 	import { m } from '#lib/paraglide/messages.js';
 	import UserService from '#lib/services/user-service.ts';
 	import appConfigStore from '#lib/stores/application-configuration-store.ts';
@@ -13,7 +13,8 @@
 	import { createForm } from '#lib/utils/form-util.ts';
 	import { trackFormChanges } from '#lib/utils/unsaved-changes-util.svelte.ts';
 	import { emptyToUndefined, usernameSchema } from '#lib/utils/zod-util.ts';
-	import { LucideLock, LucideShieldCheck } from '@lucide/svelte';
+	import LockIcon from '~icons/solar/lock-bold-duotone';
+	import ShieldCheckIcon from '~icons/solar/shield-check-bold-duotone';
 	import { toast } from 'svelte-sonner';
 	import { get } from 'svelte/store';
 	import { z } from 'zod/v4';
@@ -57,8 +58,7 @@
 	trackFormChanges(
 		() => formStore,
 		async (data) => {
-			// Disabling is an action of its own, so the saved state is sent along unchanged
-			const saved = await userService.update(user.id, { ...data, disabled: user.disabled });
+			const saved = await userService.update(user.id, data);
 			// Groups and claims are edited elsewhere on the page and may hold unsaved edits, so only the profile is taken over
 			Object.assign(user, {
 				...saved,
@@ -83,8 +83,8 @@
 	}
 </script>
 
-<SettingsSection title={m.profile()}>
-	<div class="flex flex-col gap-6 pt-4">
+<SettingsCard title={m.profile()}>
+	<div class="flex flex-col gap-6 py-4">
 		<ProfilePictureSettings
 			userId={user.id}
 			isLdapUser={!!user.ldapId}
@@ -93,7 +93,7 @@
 		/>
 		{#if readOnly}
 			<p class="text-caption text-fg-muted flex items-start gap-1.5">
-				<LucideLock class="mt-1 size-3 shrink-0" />
+				<LockIcon class="mt-1 size-3 shrink-0" />
 				{m.profile_managed_by_ldap()}
 			</p>
 		{/if}
@@ -115,7 +115,6 @@
 			<FormInput
 				label={m.display_name()}
 				optional
-				description={readOnly ? undefined : m.display_name_follows_names()}
 				bind:input={$inputs.displayName}
 				onInput={() => (displayNameEdited = true)}
 				readonly={readOnly}
@@ -138,17 +137,17 @@
 			</div>
 		</div>
 	</div>
-</SettingsSection>
+</SettingsCard>
 
-<SettingsSection title={m.access()}>
+<SettingsCard title={m.access()}>
 	<SettingRow
 		title={m.admin_privileges()}
 		description={m.admins_have_full_access_to_the_admin_panel()}
-		icon={LucideShieldCheck}
+		icon={ShieldCheckIcon}
 		consequence={readOnly ? m.set_by_the_ldap_admin_group() : undefined}
 	>
 		{#snippet control(props)}
 			<Switch {...props} bind:checked={$inputs.isAdmin.value} disabled={readOnly} />
 		{/snippet}
 	</SettingRow>
-</SettingsSection>
+</SettingsCard>

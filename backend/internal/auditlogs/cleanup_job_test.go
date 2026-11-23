@@ -7,6 +7,7 @@ import (
 	"github.com/italypaleale/francis/host/local"
 	"github.com/stretchr/testify/require"
 
+	"github.com/pocket-id/pocket-id/backend/internal/common"
 	"github.com/pocket-id/pocket-id/backend/internal/model"
 	datatype "github.com/pocket-id/pocket-id/backend/internal/model/types"
 	testutils "github.com/pocket-id/pocket-id/backend/internal/utils/testing"
@@ -23,8 +24,9 @@ func TestModuleCleanupDeletesLogsPastRetention(t *testing.T) {
 
 	testutils.NewActorHostForTest(t, func(t *testing.T, host *local.Host) {
 		t.Helper()
-		_, err := New(Dependencies{
+		_, err := New(t.Context(), Dependencies{
 			DB: db, Actors: host, RetentionDays: retentionDays,
+			EnvConfig: &common.EnvConfigSchema{EncryptionKey: []byte("0123456789abcdef0123456789abcdef")},
 		})
 		require.NoError(t, err)
 	})

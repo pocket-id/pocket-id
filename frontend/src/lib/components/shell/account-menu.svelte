@@ -1,28 +1,33 @@
 <script lang="ts">
 	import { goto } from '$app/navigation';
-	import * as Avatar from '#lib/components/ui/avatar/index.ts';
-	import * as DropdownMenu from '#lib/components/ui/dropdown-menu/index.ts';
-	import * as Tooltip from '#lib/components/ui/tooltip/index.ts';
+	import * as Avatar from '@pocket-id/ui/avatar';
+	import * as DropdownMenu from '@pocket-id/ui/dropdown-menu';
+	import * as Tooltip from '@pocket-id/ui/tooltip';
 	import { m } from '#lib/paraglide/messages.js';
 	import userStore from '#lib/stores/user-store.ts';
-	import { cachedProfilePicture } from '#lib/utils/cached-image-util.ts';
+	import { cachedProfilePicture } from '#lib/utils/cached-asset-util.ts';
 	import { setModeInstantly } from '#lib/utils/color-theme-util.ts';
 	import { signOut } from '#lib/utils/sign-out-util.ts';
-	import { cn } from '#lib/utils/style.ts';
-	import { IdCard, LogOut, SunMoon } from '@lucide/svelte';
+	import { cn } from '@pocket-id/ui/utils';
+	import IdCard from '~icons/solar/user-id-bold';
+	import LogOut from '~icons/solar/logout-2-bold';
+	import Plug from '~icons/solar/plug-circle-bold';
+	import SunMoon from '~icons/solar/palette-round-bold';
 	import { userPrefersMode } from 'mode-watcher';
+	import McpServerDialog from './mcp-server-dialog.svelte';
 
 	let {
 		variant,
 		version
 	}: {
-		// row: the sidebar's account row; rail: the avatar at the foot of the rail; avatar: the phone top bar
+		// row: the sidebar's account row; rail: the avatar at the foot of the rail; avatar: the phone top bar and the top bar layout
 		variant: 'row' | 'rail' | 'avatar';
 		version?: string;
 	} = $props();
 
 	let open = $state(false);
 	let jumping = $state(false);
+	let mcpServerOpen = $state(false);
 
 	const appearanceLabels = { light: m.light(), dark: m.dark(), system: m.system() };
 </script>
@@ -45,7 +50,7 @@
 			if (o) jumping = false;
 		}}
 	>
-		<Tooltip.Root disabled={open || variant === 'avatar'}>
+		<Tooltip.Root disabled={open || variant !== 'rail'}>
 			<Tooltip.Trigger>
 				{#snippet child({ props: tooltipProps })}
 					<DropdownMenu.Trigger {...tooltipProps}>
@@ -83,7 +88,7 @@
 		</Tooltip.Root>
 
 		<DropdownMenu.Content
-			class="bg-popover w-60"
+			class="bg-surface-raised w-60"
 			side={variant === 'avatar' ? 'bottom' : 'top'}
 			align={variant === 'avatar' ? 'end' : 'start'}
 			data-jumping={jumping || undefined}
@@ -109,6 +114,12 @@
 					<IdCard />
 					{m.my_account()}
 				</DropdownMenu.Item>
+				{#if $userStore.isAdmin}
+					<DropdownMenu.Item onclick={() => (mcpServerOpen = true)}>
+						<Plug />
+						{m.mcp_server()}
+					</DropdownMenu.Item>
+				{/if}
 				{#if variant !== 'avatar'}
 					<DropdownMenu.Sub>
 						<DropdownMenu.SubTrigger>
@@ -120,7 +131,7 @@
 								>
 							</span>
 						</DropdownMenu.SubTrigger>
-						<DropdownMenu.SubContent class="bg-popover">
+						<DropdownMenu.SubContent class="bg-surface-raised">
 							{@render appearanceOptions()}
 						</DropdownMenu.SubContent>
 					</DropdownMenu.Sub>
@@ -139,6 +150,12 @@
 				<LogOut />
 				{m.sign_out()}
 			</DropdownMenu.Item>
+			<!-- The top bar layout has no sidebar foot to carry the version -->
+			{#if variant === 'avatar' && version}
+				<DropdownMenu.Separator />
+				<p class="text-fg-muted px-2 py-1.5 text-xs tabular-nums">{version}</p>
+			{/if}
 		</DropdownMenu.Content>
 	</DropdownMenu.Root>
+	<McpServerDialog bind:open={mcpServerOpen} />
 {/if}

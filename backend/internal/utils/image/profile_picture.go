@@ -88,7 +88,7 @@ func centerSquare(img image.Image) image.Image {
 }
 
 var loadInitialsFont = sync.OnceValues(func() (*opentype.Font, error) {
-	fontBytes, err := resources.FS.ReadFile("fonts/FunnelDisplay-SemiBold.ttf")
+	fontBytes, err := resources.FS.ReadFile("fonts/DMSans-SemiBold.ttf")
 	if err != nil {
 		return nil, fmt.Errorf("failed to read font file: %w", err)
 	}

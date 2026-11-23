@@ -1,1 +1,0 @@
-UPDATE app_config_variables SET key = 'emailLoginNotificationEnabled' WHERE key = 'emailEnabled';

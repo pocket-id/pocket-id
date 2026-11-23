@@ -1,6 +1,7 @@
 package authz
 
 import (
+	"context"
 	"errors"
 	"net/http"
 	"net/http/httptest"
@@ -11,6 +12,7 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/pocket-id/pocket-id/backend/internal/apperror"
+	"github.com/pocket-id/pocket-id/backend/internal/httpserver"
 )
 
 // fakeAuthenticator accepts any request carrying its header and resolves to the configured outcome
@@ -20,11 +22,12 @@ type fakeAuthenticator struct {
 	user       string
 	admin      bool
 	unverified bool
+	sudoUntil  time.Time
 	err        error
 	calls      int
 }
 
-func (a *fakeAuthenticator) Kind() PrincipalKind {
+func (a *fakeAuthenticator) Kinds() PrincipalKind {
 	return a.kind
 }
 
@@ -45,6 +48,7 @@ func (a *fakeAuthenticator) Authenticate(*gin.Context) (*Principal, error) {
 	if a.kind == KindSession {
 		principal.AuthenticationMethod = "passkey"
 		principal.AuthenticationTime = time.Unix(1700000000, 0)
+		principal.SudoUntil = a.sudoUntil
 	}
 	return principal, nil
 }
@@ -55,8 +59,8 @@ type middlewareResult struct {
 	principal Principal
 }
 
-// serve runs one request through a route that requires the scope and reports what the middleware decided
-func serve(t *testing.T, m *Middleware, scope Scope, optional bool, headers map[string]string) middlewareResult {
+// serve runs one request through a route that requires the access and reports what the middleware decided
+func serve(t *testing.T, m *Middleware, access Access, optional bool, headers map[string]string) middlewareResult {
 	t.Helper()
 	gin.SetMode(gin.TestMode)
 
@@ -69,16 +73,21 @@ func serve(t *testing.T, m *Middleware, scope Scope, optional bool, headers map[
 		}
 	})
 
-	r := m.Router(router.Group("/api"))
+	// Routes with an admin scope must live below the admin prefix
+	base := "/api"
+	if scope, ok := access.(Scope); ok && definitions[scope].category == CategoryAdmin {
+		base = "/api/admin"
+	}
+	r := m.Router(router.Group(base))
 	if optional {
 		r = r.Optional()
 	}
-	r.GET("/route", scope, func(c *gin.Context) {
+	r.GET("/route", access, httpserver.Endpoint{Handler: func(c *gin.Context) {
 		result.principal = PrincipalFrom(c)
 		c.Status(http.StatusNoContent)
-	})
+	}})
 
-	req := httptest.NewRequestWithContext(t.Context(), http.MethodGet, "/api/route", nil)
+	req := httptest.NewRequestWithContext(t.Context(), http.MethodGet, base+"/route", nil)
 	for key, value := range headers {
 		req.Header.Set(key, value)
 	}
@@ -92,7 +101,7 @@ func serve(t *testing.T, m *Middleware, scope Scope, optional bool, headers map[
 func TestMiddlewareAuthorizes(t *testing.T) {
 	session := &fakeAuthenticator{kind: KindSession, header: "X-Session", user: "session-user"}
 	apiKey := &fakeAuthenticator{kind: KindAPIKey, header: "X-Key", user: "key-user", admin: true}
-	m := NewMiddleware(session, apiKey)
+	m := NewMiddleware(nil, session, apiKey)
 
 	t.Run("attaches the principal", func(t *testing.T) {
 		result := serve(t, m, AccountRead, false, map[string]string{"X-Session": "1"})
@@ -142,7 +151,7 @@ func TestMiddlewareAuthorizes(t *testing.T) {
 
 func TestMiddlewareExplainsScopesWithheldUntilVerified(t *testing.T) {
 	session := &fakeAuthenticator{kind: KindSession, header: "X-Session", user: "session-user", unverified: true}
-	m := NewMiddleware(session)
+	m := NewMiddleware(nil, session)
 
 	t.Run("allows a scope needed to verify the email", func(t *testing.T) {
 		result := serve(t, m, AccountWrite, false, map[string]string{"X-Session": "1"})
@@ -168,7 +177,7 @@ func TestMiddlewareExplainsScopesWithheldUntilVerified(t *testing.T) {
 func TestMiddlewareFallsThroughInvalidCredentials(t *testing.T) {
 	invalidSession := &fakeAuthenticator{kind: KindSession, header: "X-Session", err: apperror.NotSignedIn()}
 	apiKey := &fakeAuthenticator{kind: KindAPIKey, header: "X-Key", user: "key-user"}
-	m := NewMiddleware(invalidSession, apiKey)
+	m := NewMiddleware(nil, invalidSession, apiKey)
 
 	result := serve(t, m, AccountRead, false, map[string]string{"X-Session": "1", "X-Key": "1"})
 
@@ -179,7 +188,7 @@ func TestMiddlewareFallsThroughInvalidCredentials(t *testing.T) {
 func TestMiddlewareStopsOnRejectedCredentials(t *testing.T) {
 	disabledSession := &fakeAuthenticator{kind: KindSession, header: "X-Session", err: apperror.UserDisabled()}
 	apiKey := &fakeAuthenticator{kind: KindAPIKey, header: "X-Key", user: "key-user"}
-	m := NewMiddleware(disabledSession, apiKey)
+	m := NewMiddleware(nil, disabledSession, apiKey)
 
 	for _, optional := range []bool{false, true} {
 		result := serve(t, m, AccountRead, optional, map[string]string{"X-Session": "1", "X-Key": "1"})
@@ -193,7 +202,7 @@ func TestMiddlewareOptional(t *testing.T) {
 	session := &fakeAuthenticator{kind: KindSession, header: "X-Session", user: "session-user"}
 	invalidSession := &fakeAuthenticator{kind: KindSession, header: "X-Expired", err: apperror.NotSignedIn()}
 	apiKey := &fakeAuthenticator{kind: KindAPIKey, header: "X-Key", user: "key-user"}
-	m := NewMiddleware(session, invalidSession, apiKey)
+	m := NewMiddleware(nil, session, invalidSession, apiKey)
 
 	t.Run("continues anonymously without credentials", func(t *testing.T) {
 		result := serve(t, m, AccountSession, true, nil)
@@ -232,9 +241,145 @@ func TestMiddlewareOptional(t *testing.T) {
 
 func TestMiddlewarePassesThroughUnexpectedErrors(t *testing.T) {
 	failure := errors.New("database unavailable")
-	m := NewMiddleware(&fakeAuthenticator{kind: KindSession, header: "X-Session", err: failure})
+	m := NewMiddleware(nil, &fakeAuthenticator{kind: KindSession, header: "X-Session", err: failure})
 
 	result := serve(t, m, AccountRead, false, map[string]string{"X-Session": "1"})
 
 	require.ErrorIs(t, result.err, failure)
+}
+
+func TestDispatchRouteRequiresAnAdminScope(t *testing.T) {
+	session := &fakeAuthenticator{kind: KindSession, header: "X-Session", user: "session-user", admin: true}
+	apiKey := &fakeAuthenticator{kind: KindAPIKey, header: "X-Key", user: "key-user"}
+	adminAPIKey := &fakeAuthenticator{kind: KindAPIKey, header: "X-Admin-Key", user: "admin-key-user", admin: true}
+	m := NewMiddleware(nil, session, apiKey, adminAPIKey)
+
+	serveDispatch := func(t *testing.T, headers map[string]string) middlewareResult {
+		t.Helper()
+		gin.SetMode(gin.TestMode)
+
+		var result middlewareResult
+		router := gin.New()
+		router.Use(func(c *gin.Context) {
+			c.Next()
+			if len(c.Errors) > 0 {
+				result.err = c.Errors.Last().Err
+			}
+		})
+		m.Router(router.Group("/api/admin")).Dispatch(http.MethodPost, "/mcp", func(c *gin.Context) {
+			result.principal = PrincipalFrom(c)
+			c.Status(http.StatusNoContent)
+		})
+
+		req := httptest.NewRequestWithContext(t.Context(), http.MethodPost, "/api/admin/mcp", nil)
+		for key, value := range headers {
+			req.Header.Set(key, value)
+		}
+		recorder := httptest.NewRecorder()
+		router.ServeHTTP(recorder, req)
+		result.status = recorder.Code
+		return result
+	}
+
+	t.Run("accepts an API key that holds admin scopes", func(t *testing.T) {
+		result := serveDispatch(t, map[string]string{"X-Admin-Key": "1"})
+
+		require.Equal(t, http.StatusNoContent, result.status)
+		require.Equal(t, "admin-key-user", result.principal.UserID)
+	})
+
+	t.Run("rejects an API key that holds only account scopes", func(t *testing.T) {
+		result := serveDispatch(t, map[string]string{"X-Key": "1"})
+
+		require.True(t, apperror.IsCode(result.err, apperror.CodeForbidden))
+	})
+
+	t.Run("rejects a browser session", func(t *testing.T) {
+		result := serveDispatch(t, map[string]string{"X-Session": "1"})
+
+		require.True(t, apperror.IsCode(result.err, apperror.CodeNotSignedIn))
+		require.Zero(t, session.calls, "the session must not be validated")
+	})
+
+	t.Run("rejects missing credentials", func(t *testing.T) {
+		result := serveDispatch(t, nil)
+
+		require.True(t, apperror.IsCode(result.err, apperror.CodeNotSignedIn))
+	})
+}
+
+func TestAuthenticatedRouteAcceptsAnyCredential(t *testing.T) {
+	staticKey := &fakeAuthenticator{kind: KindStaticAPIKey, header: "X-Static-Key"}
+	m := NewMiddleware(nil, staticKey)
+
+	t.Run("accepts the static API key, which holds no account scope", func(t *testing.T) {
+		result := serve(t, m, Authenticated, false, map[string]string{"X-Static-Key": "1"})
+
+		require.Equal(t, http.StatusNoContent, result.status)
+		require.Equal(t, KindStaticAPIKey, result.principal.Kind)
+	})
+
+	t.Run("rejects missing credentials", func(t *testing.T) {
+		result := serve(t, m, Authenticated, false, nil)
+
+		require.True(t, apperror.IsCode(result.err, apperror.CodeNotSignedIn))
+	})
+}
+
+func TestRequireSudo(t *testing.T) {
+	admin := NewScopeSet(AdminAccessWrite)
+	inSudo := time.Now().Add(time.Minute)
+
+	tests := []struct {
+		name      string
+		principal Principal
+		wantCode  apperror.Code
+	}{
+		{name: "an API key passes without sudo mode", principal: Principal{Kind: KindAPIKey, Scopes: admin}},
+		{name: "a session in sudo mode passes", principal: Principal{Kind: KindSession, Scopes: admin, SudoUntil: inSudo}},
+		{name: "a session outside of sudo mode has to prove its passkey", principal: Principal{Kind: KindSession, Scopes: admin}, wantCode: apperror.CodeSudoRequired},
+		{name: "sudo mode doesn't stand in for the scope", principal: Principal{Kind: KindSession, SudoUntil: inSudo}, wantCode: apperror.CodeForbidden},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			err := tt.principal.RequireAdminAccess()
+			if tt.wantCode == "" {
+				require.NoError(t, err)
+				return
+			}
+			require.True(t, apperror.IsCode(err, tt.wantCode), err)
+		})
+	}
+}
+
+// sudoRecorder records the sessions whose sudo mode the middleware kept alive
+type sudoRecorder []string
+
+func (r *sudoRecorder) KeepSudo(_ context.Context, userID, _ string) {
+	*r = append(*r, userID)
+}
+
+func TestMiddlewareKeepsUsedSudo(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+
+	kept := &sudoRecorder{}
+	session := &fakeAuthenticator{kind: KindSession, header: "X-Session", user: "session-user", sudoUntil: time.Now().Add(time.Minute)}
+	router := gin.New()
+	r := NewMiddleware(kept, session).Router(router.Group("/api"))
+	r.GET("/plain", AccountRead, httpserver.Endpoint{Handler: func(*gin.Context) {}})
+	r.GET("/sudo", AccountRead, httpserver.Endpoint{Handler: func(c *gin.Context) {
+		// Services check a copy of the principal, which must still reach the middleware
+		principal := PrincipalFrom(c)
+		require.NoError(t, principal.RequireSudo())
+	}})
+
+	for _, path := range []string{"/api/plain", "/api/sudo"} {
+		req := httptest.NewRequestWithContext(t.Context(), http.MethodGet, path, nil)
+		req.Header.Set("X-Session", "token")
+		router.ServeHTTP(httptest.NewRecorder(), req)
+	}
+
+	// Only the request that relied on sudo mode keeps it alive
+	require.Equal(t, &sudoRecorder{"session-user"}, kept)
 }

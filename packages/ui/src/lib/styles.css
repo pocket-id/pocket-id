@@ -1,0 +1,309 @@
+@import 'tw-animate-css';
+@import './theme.css';
+
+/* bits-ui marks state either as a data-state value or as a boolean data attribute, so each variant matches both */
+@custom-variant data-open {
+	&:where([data-state='open']),
+	&:where([data-open]:not([data-open='false'])) {
+		@slot;
+	}
+}
+
+@custom-variant data-closed {
+	&:where([data-state='closed']),
+	&:where([data-closed]:not([data-closed='false'])) {
+		@slot;
+	}
+}
+
+@custom-variant data-checked {
+	&:where([data-state='checked']),
+	&:where([data-checked]:not([data-checked='false'])) {
+		@slot;
+	}
+}
+
+@custom-variant data-disabled {
+	&:where([data-disabled='true']),
+	&:where([data-disabled]:not([data-disabled='false'])) {
+		@slot;
+	}
+}
+
+@custom-variant data-active {
+	&:where([data-state='active']),
+	&:where([data-active]:not([data-active='false'])) {
+		@slot;
+	}
+}
+
+@source './components';
+
+@layer base {
+	* {
+		@apply border-border outline-ring;
+	}
+
+	/* Links and anything else without its own focus style get the standard ring, which component utilities override */
+	:focus-visible {
+		outline: 2px solid var(--ring);
+		outline-offset: 2px;
+	}
+
+	html {
+		font-family: var(--font-sans);
+		-webkit-font-smoothing: antialiased;
+		-moz-osx-font-smoothing: grayscale;
+		text-rendering: optimizeLegibility;
+	}
+
+	/* Names are interpolated into sentences, so a long unbroken one wraps instead of pushing the page sideways */
+	body {
+		@apply bg-canvas text-body text-fg wrap-break-word;
+	}
+
+	button {
+		@apply cursor-pointer;
+	}
+
+	::selection {
+		background: color-mix(in oklab, var(--fg) 22%, transparent);
+	}
+}
+
+/* A link inside a sentence stands out by contrast and weight rather than a permanent underline, which appears only on hover */
+@utility inline-link {
+	color: var(--fg);
+	font-weight: 500;
+	text-underline-offset: 3px;
+	text-decoration-line: underline;
+	text-decoration-thickness: 1px;
+	text-decoration-color: transparent;
+	transition: text-decoration-color var(--dur-fast) var(--ease-out);
+
+	&:hover {
+		text-decoration-color: color-mix(in srgb, currentColor 40%, transparent);
+	}
+}
+
+/* Compositor-only motion; Tailwind 4 writes scale and translate as their own properties, so they are listed next to transform */
+@utility transition-motion {
+	transition-property: opacity, transform, translate, scale;
+	transition-duration: var(--dur-fast);
+	transition-timing-function: var(--ease-out);
+}
+
+/* A scroller fades at the edge that has more content; without overflow its scroll timeline is inactive, so nothing fades */
+@property --fade-start {
+	syntax: '<length>';
+	inherits: false;
+	initial-value: 0px;
+}
+
+@property --fade-end {
+	syntax: '<length>';
+	inherits: false;
+	initial-value: 0px;
+}
+
+@supports (animation-timeline: scroll()) {
+	.scroll-fade-x,
+	.scroll-fade-y {
+		animation:
+			scroll-fade-start linear both,
+			scroll-fade-end linear both;
+		animation-range:
+			0 24px,
+			calc(100% - 24px) 100%;
+	}
+
+	.scroll-fade-x {
+		mask-image: linear-gradient(
+			to right,
+			transparent,
+			#000 var(--fade-start),
+			#000 calc(100% - var(--fade-end)),
+			transparent
+		);
+		animation-timeline: scroll(self inline), scroll(self inline);
+	}
+
+	.scroll-fade-y {
+		mask-image: linear-gradient(
+			transparent,
+			#000 var(--fade-start),
+			#000 calc(100% - var(--fade-end)),
+			transparent
+		);
+		animation-timeline: scroll(self), scroll(self);
+	}
+}
+
+@keyframes scroll-fade-start {
+	to {
+		--fade-start: 24px;
+	}
+}
+
+@keyframes scroll-fade-end {
+	from {
+		--fade-end: 24px;
+	}
+	to {
+		--fade-end: 0px;
+	}
+}
+
+/* A busy label stays readable while a band of light runs through it, so the control keeps its width and still says what it does */
+@utility animate-shimmer {
+	mask-image: linear-gradient(90deg, #0006 0 35%, #000 50%, #0006 65% 100%);
+	mask-size: 300% 100%;
+	animation: shimmer 1.6s linear infinite;
+}
+
+@keyframes shimmer {
+	from {
+		mask-position: 100% 0;
+	}
+	to {
+		mask-position: 0 0;
+	}
+}
+
+/* Safety net for motion that does not read the tokens (bits-ui keyframes, svelte-sonner): only busy indicators and scroll-linked fades keep moving */
+@media (prefers-reduced-motion: reduce) {
+	*:not(.animate-spin, .animate-shimmer, .scroll-fade-x, .scroll-fade-y),
+	*::before,
+	*::after {
+		animation-duration: 0s !important;
+		transition-duration: 0s !important;
+	}
+}
+
+/* bits-ui moves the highlight in selects and the palette with aria-activedescendant, so :focus-visible never applies there and the tint alone fails 3:1 */
+/* It sits outside the layers so it beats the items' outline-hidden utility */
+html[data-modality='keyboard']
+	:is(
+		[role='option'][data-highlighted],
+		[role^='menuitem'][data-highlighted],
+		[data-slot='command-item'][data-selected]
+	) {
+	outline: 2px solid var(--ring);
+	outline-offset: -2px;
+}
+
+/* Alt+T focuses svelte-sonner's toast list, which has no height, so the newest toast shows the ring instead */
+[data-sonner-toaster]:focus-visible > [data-front='true'] {
+	outline: 2px solid var(--inverse-fg);
+	outline-offset: -2px;
+}
+
+/* Phones show every dropdown as a bottom sheet with its groups as cards */
+/* These rules sit outside the layers so they beat the menu's utility classes, and !important beats bits-ui's inline floating position */
+@media (width < 40rem) {
+	[data-bits-floating-content-wrapper]:has(> [data-slot='dropdown-menu-content']) {
+		position: fixed !important;
+		inset: auto 0 0 !important;
+		transform: none !important;
+		min-width: 0 !important;
+	}
+
+	[data-slot='dropdown-menu-content'] {
+		display: flex;
+		flex-direction: column;
+		width: 100%;
+		max-height: 85dvh;
+		padding: 0 16px calc(16px + env(safe-area-inset-bottom));
+		border: 0;
+		border-radius: var(--radius-lg) var(--radius-lg) 0 0;
+		background: var(--surface-raised);
+		backdrop-filter: none;
+		/* The spread shadow doubles as the scrim, so tapping it lands outside the menu and closes it */
+		box-shadow: 0 0 0 100vmax var(--scrim);
+		scale: 1;
+		transition-property: translate, box-shadow;
+		transition-duration: var(--dur-slow);
+		transition-timing-function: var(--ease-out);
+
+		@starting-style {
+			translate: 0 100%;
+			box-shadow: 0 0 0 100vmax transparent;
+		}
+
+		&[data-state='closed'] {
+			translate: 0 100%;
+			opacity: 1;
+			box-shadow: 0 0 0 100vmax transparent;
+			transition-duration: var(--dur-base);
+			transition-timing-function: var(--ease-in);
+		}
+
+		/* An item that navigates sets data-jumping before the menu closes, because the page crossfade would otherwise show the sheet sliding away under the new page */
+		&[data-state='closed'][data-jumping] {
+			transition: none;
+		}
+
+		&::before {
+			content: '';
+			flex-shrink: 0;
+			align-self: center;
+			width: 36px;
+			height: 4px;
+			margin: 8px 0 12px;
+			border-radius: 2px;
+			background: var(--border-strong);
+		}
+
+		[data-slot='dropdown-menu-group'] + [data-slot='dropdown-menu-group'] {
+			margin-top: 8px;
+		}
+
+		[data-slot='dropdown-menu-separator'] {
+			height: 8px;
+			margin: 0;
+			background: none;
+		}
+
+		[data-slot='dropdown-menu-group-heading'],
+		[data-slot='dropdown-menu-label'] {
+			padding: 8px 4px 6px;
+		}
+
+		/* Consecutive items form one card: each draws its sides and top line, the last one closes the card */
+		[role^='menuitem'] {
+			min-height: var(--h-xl);
+			padding-inline: 16px;
+			border-radius: 0;
+			background-color: var(--surface);
+			box-shadow:
+				inset 1px 0 var(--border),
+				inset -1px 0 var(--border),
+				inset 0 1px var(--border);
+			font-size: var(--text-body);
+			line-height: var(--text-body--line-height);
+		}
+
+		[role^='menuitem']:not([role^='menuitem'] + [role^='menuitem']) {
+			border-top-left-radius: var(--radius-md);
+			border-top-right-radius: var(--radius-md);
+		}
+
+		[role^='menuitem']:not(:has(+ [role^='menuitem'])) {
+			border-bottom-left-radius: var(--radius-md);
+			border-bottom-right-radius: var(--radius-md);
+			box-shadow:
+				inset 1px 0 var(--border),
+				inset -1px 0 var(--border),
+				inset 0 1px var(--border),
+				inset 0 -1px var(--border);
+		}
+
+		[role^='menuitem'][data-highlighted] {
+			background-color: var(--fill-hover);
+		}
+
+		[data-variant='destructive'][data-highlighted] {
+			background-color: var(--danger-soft);
+		}
+	}
+}

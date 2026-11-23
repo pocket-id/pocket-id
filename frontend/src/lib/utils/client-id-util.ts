@@ -1,12 +1,13 @@
-// Raw pocket-id client IDs match this pattern and need no encoding.
+// Client IDs matching this pattern need no encoding.
 const RAW_CLIENT_ID = /^[a-zA-Z0-9._-]+$/;
 
 /**
  * Encodes a client ID for use as a path segment.
  *
- * CIMD client IDs are full https URLs containing slashes and colons, which
- * cannot be carried in a single path segment. Such IDs are encoded as
- * `~<base64url>`; the backend decodes them. Plain client IDs are unchanged.
+ * Client IDs may contain slashes and other characters, such as the full https
+ * URLs of CIMD clients, which cannot be carried in a single path segment. Such
+ * IDs are encoded as `~<base64url>`; the backend decodes them. Plain client IDs
+ * are unchanged.
  */
 export function encodeClientIdParam(id: string): string {
 	if (RAW_CLIENT_ID.test(id)) {

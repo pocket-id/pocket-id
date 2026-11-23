@@ -51,7 +51,7 @@ updates:
   - package-ecosystem: "docker"
     directories:
       - "/docker"
-      - "/tests/setup"
+      - "/packages/tests/setup"
     patterns: ["*"]
     multi-ecosystem-group: "all-dependencies"
     ignore:
@@ -63,7 +63,7 @@ updates:
   - package-ecosystem: "docker-compose"
     directories:
       - "/"
-      - "/tests/setup"
+      - "/packages/tests/setup"
     patterns: ["*"]
     multi-ecosystem-group: "all-dependencies"
     ignore:

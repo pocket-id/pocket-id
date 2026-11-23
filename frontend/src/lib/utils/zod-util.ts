@@ -38,4 +38,4 @@ export const usernameSchema = z
 	.max(30)
 	.regex(/^[a-zA-Z0-9]/, m.username_must_start_with())
 	.regex(/[a-zA-Z0-9]$/, m.username_must_end_with())
-	.regex(/^[a-zA-Z0-9_.@-]+$/, m.username_can_only_contain());
+	.regex(/^[a-zA-Z0-9_.@-]+$/, m.username_allowed_characters());

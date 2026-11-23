@@ -6,6 +6,8 @@ import (
 	"strings"
 
 	"github.com/pocket-id/fosite"
+	"github.com/pocket-id/pocket-id/backend/internal/authz"
+	"github.com/pocket-id/pocket-id/backend/internal/common"
 	"github.com/pocket-id/pocket-id/backend/internal/dto"
 	"gorm.io/gorm"
 )
@@ -37,14 +39,19 @@ type APIAccessProvider interface {
 	// DescribePermissions returns the display information for the given permission keys of the API identified by audience
 	// Unknown keys are omitted
 	DescribePermissions(ctx context.Context, audience string, keys []string) ([]dto.ScopeInfoDto, error)
+	// HeldScopes drops the scopes of the API identified by audience that the user can never hold, which only applies to Pocket ID's own API whose scopes follow the user's role
+	// It keeps a user from being asked to consent to, or being granted, scopes that Pocket ID would refuse anyway
+	HeldScopes(ctx context.Context, tx *gorm.DB, userID, audience string, scopes []string) ([]string, error)
+	// RequireAdminAccessForClients rejects a principal without admin access that changes clients of which any may use Pocket ID's own API
+	RequireAdminAccessForClients(ctx context.Context, tx *gorm.DB, principal authz.Principal, clientIDs ...string) error
 }
 
 // resolveResource maps an RFC 8707 resource, which may be empty, to the audience to stamp on the issued token and the subset of requestedScopes that may be granted
-// An empty resource is a plain login token bound to the requesting client and yields only identity scopes
+// An empty resource is a plain login token bound to the requesting client and yields only identity scopes, which include the custom scopes the client may request
 // The subject type selects which of the client's grants apply: user-delegated flows only see user grants, the client credentials grant only sees client grants
-func resolveResource(ctx context.Context, tx *gorm.DB, provider APIAccessProvider, clientID, resource string, requestedScopes []string, subjectType SubjectType) (audience string, grantedScopes []string, err error) {
-	grantable := make(map[string]struct{}, len(standardScopes))
-	for _, scope := range standardScopes {
+func resolveResource(ctx context.Context, tx *gorm.DB, provider APIAccessProvider, clientID, resource string, requestedScopes []string, subjectType SubjectType, customScopes []string) (audience string, grantedScopes []string, err error) {
+	grantable := make(map[string]struct{}, len(standardScopes)+len(customScopes))
+	for _, scope := range slices.Concat(standardScopes, customScopes) {
 		grantable[scope] = struct{}{}
 	}
 
@@ -55,8 +62,7 @@ func resolveResource(ctx context.Context, tx *gorm.DB, provider APIAccessProvide
 		if !fosite.IsValidResourceIndicatorURI(resource) || provider == nil {
 			return "", nil, fosite.ErrInvalidTarget.WithHintf("The requested resource '%s' is invalid, missing, unknown, or malformed.", resource)
 		}
-		// Resolve every trailing-slash variant against the same canonical resource and stamp that value into the token audience
-		resource = strings.TrimRight(resource, "/")
+		resource = canonicalResource(resource)
 
 		allowedScopes, apiExists, hasAccess, err := provider.AllowedScopesForAudience(ctx, tx, clientID, resource, subjectType)
 		if err != nil {
@@ -91,6 +97,53 @@ func resolveResource(ctx context.Context, tx *gorm.DB, provider APIAccessProvide
 	}
 
 	return audience, granted, nil
+}
+
+// validateGrantAPIAccess re-checks that the client of a grant or issued token may still be granted everything it carries, and returns the API resource it targets
+// Narrowing a client's access doesn't revoke what was already issued, so this runs whenever a grant is refreshed or a token is accepted or introspected
+// An issued access token with an identity scope also lists the issuer, which isn't an API resource
+func validateGrantAPIAccess(ctx context.Context, apiAccess APIAccessProvider, issuer string, requester fosite.Requester) (string, error) {
+	client, ok := requester.GetClient().(Client)
+	if !ok {
+		return "", fosite.ErrInvalidClient
+	}
+
+	// The audience is the client itself for a plain login token and the API otherwise
+	resource := ""
+	for _, audience := range requester.GetGrantedAudience() {
+		if audience == "" || audience == client.GetID() || audience == issuer {
+			continue
+		}
+		if resource != "" && resource != audience {
+			return "", fosite.ErrInvalidTarget.WithHint("A grant may only target one API resource.")
+		}
+		resource = audience
+	}
+
+	// A client acting as itself holds its own grants, which are separate from the ones users delegate to it
+	subjectType := SubjectTypeUser
+	if requester.GetSession().GetSubject() == ClientSubject(client.GetID()) {
+		subjectType = SubjectTypeClient
+	}
+
+	_, _, err := resolveResource(ctx, nil, apiAccess, client.GetID(), resource, requester.GetGrantedScopes(), subjectType, client.customScopes)
+	return resource, err
+}
+
+// canonicalResource maps a resource to the audience of the API it names, which is stamped into the token
+// Trailing-slash variants name the same API, and the MCP endpoint is part of Pocket ID's own API
+func canonicalResource(resource string) string {
+	resource = strings.TrimRight(resource, "/")
+	if resource == authz.MCPResourceURI(common.EnvConfig.AppURL) {
+		return authz.ResourceURI(common.EnvConfig.AppURL)
+	}
+	return resource
+}
+
+// grantsAdminAccess reports whether a grant lets its client decide who holds admin access through Pocket ID's own API
+// Such a grant outlives the browser session it is approved in, so the user proves their passkey for it like for a client that requires reauthentication
+func grantsAdminAccess(audience string, scopes []string) bool {
+	return audience == authz.ResourceURI(common.EnvConfig.AppURL) && slices.Contains(scopes, string(authz.AdminAccessWrite))
 }
 
 // grantResourceIndicator applies a resolved resource audience and scopes to the request

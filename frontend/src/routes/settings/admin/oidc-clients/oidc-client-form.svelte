@@ -5,8 +5,9 @@
 	import SearchableSelect from '#lib/components/form/searchable-select.svelte';
 	import FormattedMessage from '#lib/components/formatted-message.svelte';
 	import SettingRow from '#lib/components/setting-row.svelte';
-	import SettingsSection from '#lib/components/settings-section.svelte';
-	import { Switch } from '#lib/components/ui/switch/index.ts';
+	import SettingsCard from '#lib/components/settings-card.svelte';
+	import { Switch } from '@pocket-id/ui/switch';
+	import { Textarea } from '@pocket-id/ui/textarea';
 	import { m } from '#lib/paraglide/messages.js';
 	import OidcClaimMappingPolicyService from '#lib/services/oidc-claim-mapping-policy-service.ts';
 	import appConfigStore from '#lib/stores/application-configuration-store.ts';
@@ -16,14 +17,14 @@
 		OidcClientCreateWithLogo,
 		OidcClientLogoPreset
 	} from '#lib/types/oidc.type.ts';
-	import { cachedOidcClientLogo } from '#lib/utils/cached-image-util.ts';
+	import { cachedOidcClientLogo } from '#lib/utils/cached-asset-util.ts';
 	import { debounced } from '#lib/utils/debounce-util.ts';
 	import { axiosErrorToast } from '#lib/utils/error-util.ts';
 	import { preventDefault } from '#lib/utils/event-util.ts';
 	import { createForm } from '#lib/utils/form-util.ts';
 	import { trackFormChanges } from '#lib/utils/unsaved-changes-util.svelte.ts';
 	import { callbackUrlSchema, optionalUrl } from '#lib/utils/zod-util.ts';
-	import { LucideArrowRight } from '@lucide/svelte';
+	import ArrowRightIcon from '~icons/solar/arrow-right-linear';
 	import { z } from 'zod/v4';
 	import { claimsCount, policyHref } from '../claim-mappings/claim-mapping-util';
 	import ChangedMarker from './changed-marker.svelte';
@@ -39,7 +40,7 @@
 		existingClient: OidcClient;
 		// Left out while the claim mappings feature is off, which hides the Claims section
 		claimMappingPolicies?: OidcClaimMappingPolicyMetadataDto[];
-		callback: (client: OidcClientCreateWithLogo) => Promise<void>;
+		callback: (client: Partial<OidcClientCreateWithLogo>) => Promise<void>;
 	} = $props();
 
 	// What a new client starts with; anything else counts as changed and keeps Advanced open
@@ -69,7 +70,7 @@
 
 	const formSchema = z.object({
 		name: z.string().min(2).max(50),
-		description: z.string().max(150),
+		notes: z.string().max(5000),
 		callbackURLs: z.array(callbackUrlSchema).default([]),
 		logoutCallbackURLs: z.array(callbackUrlSchema).default([]),
 		backchannelLogoutURL: z.url().or(z.literal('')),
@@ -89,7 +90,7 @@
 	type FormSchema = typeof formSchema;
 	const formStore = createForm<FormSchema>(formSchema, {
 		name: existingClient.name,
-		description: existingClient.description || '',
+		notes: existingClient.notes || '',
 		callbackURLs: existingClient.callbackURLs,
 		logoutCallbackURLs: existingClient.logoutCallbackURLs,
 		backchannelLogoutURL: existingClient.backchannelLogoutURL || '',
@@ -160,12 +161,10 @@
 	async function saveClient(data: z.infer<FormSchema>) {
 		await callback({
 			...data,
-			credentials: existingClient.credentials ?? { federatedIdentities: [], secrets: [] },
 			logo: $inputs.logoUrl?.value ? undefined : logo,
 			logoUrl: $inputs.logoUrl?.value,
 			darkLogo: $inputs.darkLogoUrl?.value ? undefined : darkLogo,
-			darkLogoUrl: $inputs.darkLogoUrl?.value,
-			isGroupRestricted: existingClient.isGroupRestricted
+			darkLogoUrl: $inputs.darkLogoUrl?.value
 		});
 
 		const hasLogo = logo != null || !!$inputs.logoUrl?.value;
@@ -258,13 +257,16 @@
 </script>
 
 {#snippet callbackUrlDescription()}
-	<FormattedMessage message={m.callback_url_description} />
+	<FormattedMessage
+		message={m.callback_url_description}
+		links={{ link: 'https://pocket-id.org/docs/advanced/callback-url-wildcards' }}
+	/>
 {/snippet}
 
 {#snippet switchRow(
 	key: 'skipConsent' | 'requiresPushedAuthorizationRequests',
 	title: string,
-	description: string,
+	description: string | undefined,
 	isChanged: boolean
 )}
 	<SettingRow
@@ -279,9 +281,9 @@
 	</SettingRow>
 {/snippet}
 
-<form onsubmit={preventDefault(onSubmit)} class="flex flex-col gap-10">
-	<SettingsSection title={m.application()}>
-		<div class="flex flex-col gap-6 pt-2">
+<form onsubmit={preventDefault(onSubmit)} class="flex flex-col gap-4">
+	<SettingsCard title={m.application()}>
+		<div class="@container flex flex-col gap-6 py-4">
 			<OidcClientLogoPicker
 				clientName={$inputs.name.value}
 				{logoDataURL}
@@ -294,7 +296,7 @@
 					resetLogo(false);
 				}}
 			/>
-			<div class="grid gap-6 sm:grid-cols-2">
+			<div class="grid gap-6 @3xl:grid-cols-2">
 				<FormInput
 					label={m.name()}
 					description={isCIMDClient ? m.set_by_the_metadata_document() : undefined}
@@ -302,33 +304,24 @@
 					bind:input={$inputs.name}
 				/>
 				<FormInput
-					label={m.description()}
+					label={m.launch_url()}
 					optional
-					description={m.count_of_max({
-						count: $inputs.description.value.length,
-						max: 150
-					})}
-					bind:input={$inputs.description}
+					description={m.opened_when_someone_launches_name_from_my_apps()}
+					placeholder="https://"
+					type="url"
+					inputClass="font-mono"
+					bind:input={$inputs.launchURL}
 				/>
 			</div>
-			<FormInput
-				label={m.launch_url()}
-				optional
-				description={m.opened_when_someone_launches_name_from_my_apps()}
-				placeholder="https://"
-				type="url"
-				inputClass="font-mono"
-				bind:input={$inputs.launchURL}
-			/>
 			<ClientTypeTiles
 				bind:isPublic={() => $inputs.isPublic.value, setPublic}
 				disabled={isCIMDClient}
 			/>
 		</div>
-	</SettingsSection>
+	</SettingsCard>
 
-	<SettingsSection title={m.redirects()}>
-		<div class="pt-2">
+	<SettingsCard title={m.redirects()}>
+		<div class="py-4">
 			<OidcCallbackUrlInput
 				label={m.callback_urls()}
 				description={callbackUrlDescription}
@@ -340,9 +333,9 @@
 				error={$inputs.callbackURLs.error}
 			/>
 		</div>
-	</SettingsSection>
+	</SettingsCard>
 
-	<SettingsSection title={m.security()}>
+	<SettingsCard title={m.security()}>
 		<div>
 			<SettingRow
 				title={m.pkce()}
@@ -370,11 +363,25 @@
 				{/snippet}
 			</SettingRow>
 		</div>
-	</SettingsSection>
+	</SettingsCard>
+
+	<SettingsCard title={m.notes()}>
+		<div class="py-4">
+			<FormInput description={m.client_notes_description()} input={$inputs.notes}>
+				<Textarea
+					aria-label={m.notes()}
+					rows={4}
+					placeholder={m.client_notes_placeholder()}
+					aria-invalid={!!$inputs.notes.error}
+					bind:value={$inputs.notes.value}
+				/>
+			</FormInput>
+		</div>
+	</SettingsCard>
 
 	<AdvancedDisclosure summary={m.oidc_client_advanced_summary()} {changedCount}>
-		<SettingsSection title={m.sign_out_section()}>
-			<div class="flex flex-col gap-6 pt-2">
+		<SettingsCard title={m.sign_out_section()}>
+			<div class="flex flex-col gap-6 py-4">
 				<OidcCallbackUrlInput
 					label={m.logout_callback_urls()}
 					description={callbackUrlDescription}
@@ -406,9 +413,9 @@
 					{/if}
 				</div>
 			</div>
-		</SettingsSection>
+		</SettingsCard>
 
-		<SettingsSection title={m.authorization()}>
+		<SettingsCard title={m.authorization()}>
 			<div>
 				{@render switchRow(
 					'skipConsent',
@@ -419,17 +426,14 @@
 				{@render switchRow(
 					'requiresPushedAuthorizationRequests',
 					m.requires_pushed_authorization_requests(),
-					m.requires_par_row_description(),
+					undefined,
 					changed.par
 				)}
 			</div>
-		</SettingsSection>
+		</SettingsCard>
 
-		<SettingsSection
-			title={m.token_lifetimes()}
-			description={m.token_lifetimes_section_description()}
-		>
-			<div class="grid gap-6 pt-2 sm:grid-cols-2">
+		<SettingsCard title={m.token_lifetimes()}>
+			<div class="grid gap-6 py-4 sm:grid-cols-2">
 				<div class="relative min-w-0">
 					<DurationInput
 						id="access-token-lifetime"
@@ -448,7 +452,10 @@
 					<DurationInput
 						id="refresh-token-lifetime"
 						label={m.refresh_token_inactivity_timeout()}
-						description={m.refresh_token_lifetime_helper({ name: existingClient.name })}
+						description={m.refresh_token_lifetime_helper({
+							name: existingClient.name,
+							appName: $appConfigStore.appName
+						})}
 						changed={changed.refresh}
 						bind:input={$inputs.refreshTokenDurationMinutes}
 					/>
@@ -461,14 +468,11 @@
 					{/if}
 				</div>
 			</div>
-		</SettingsSection>
+		</SettingsCard>
 
 		{#if claimMappingPolicies}
-			<SettingsSection
-				title={m.claims()}
-				description={m.claims_section_description({ name: existingClient.name })}
-			>
-				<div class="flex flex-col gap-3 pt-2">
+			<SettingsCard title={m.claims()}>
+				<div class="flex flex-col gap-3 py-4">
 					<div class="relative max-w-100 min-w-0">
 						<FormInput
 							label={m.claim_mapping_policy()}
@@ -498,11 +502,11 @@
 							class="text-control text-fg focus-visible:outline-ring inline-flex w-fit items-center gap-1 rounded-xs font-medium hover:underline focus-visible:outline-2 focus-visible:outline-offset-2"
 						>
 							{m.see_the_claims_in_name({ name: appliedPolicy.name })}
-							<LucideArrowRight class="size-3.5" />
+							<ArrowRightIcon class="size-3.5" />
 						</a>
 					{/if}
 				</div>
-			</SettingsSection>
+			</SettingsCard>
 		{/if}
 	</AdvancedDisclosure>
 </form>

@@ -1,20 +1,20 @@
-{{define "root"}}NEW SIGN-IN DETECTED
+{{define "root"}}{{.T "new_sign_in_title"}}
 
-Your {{.AppName}} account was recently accessed from a new IP address or browser. If this was you, no further action is needed.
+{{.T "new_sign_in_description" "appName" (.AppName)}}
 
-Approximate location
-{{if and .Data.City .Data.Country}}{{.Data.City}}, {{.Data.Country}}{{else if .Data.Country}}{{.Data.Country}}{{else}}Unknown{{end}}
+{{.T "new_sign_in_location"}}
+{{if and .Data.City .Data.Country}}{{.Data.City}}, {{.Data.Country}}{{else if .Data.Country}}{{.Data.Country}}{{else}}{{.T "unknown"}}{{end}}
 
-IP address
+{{.T "new_sign_in_ip_address"}}
 {{.Data.IPAddress}}
 
-Device
+{{.T "new_sign_in_device"}}
 {{.Data.Device}}
 
-Sign-in method
-{{.Data.Method}}
+{{.T "new_sign_in_method"}}
+{{.T .Data.Method}}
 
-Time
-{{.Data.DateTime.Format "January 2, 2006 at 3:04 PM MST"}}
+{{.T "new_sign_in_time"}}
+{{.DateTime .Data.DateTime}}
 
-If you don't recognize this activity, review the passkeys in your {{.AppName}} account settings and remove any you don't recognize.{{end}}
+{{.Part 0 "new_sign_in_review"}}{{.Part 1 "new_sign_in_review"}} {{.AppURL}}/settings/account{{.Part 2 "new_sign_in_review"}}{{end}}

@@ -3,15 +3,65 @@
 package frontend
 
 import (
-	"bytes"
+	"context"
 	"net/http"
 	"net/http/httptest"
 	"testing"
 	"testing/fstest"
 
+	"github.com/gin-gonic/gin"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
+
+func TestTrailingSlashRedirectStaysOnOrigin(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	router := gin.New()
+	require.NoError(t, RegisterFrontend(router, setupCompleted(true)))
+
+	for target, location := range map[string]string{
+		"/settings/?tab=1":     "/settings?tab=1",
+		"//attacker.example/":  "/attacker.example",
+		"///attacker.example/": "/attacker.example",
+	} {
+		rec := httptest.NewRecorder()
+		router.ServeHTTP(rec, httptest.NewRequestWithContext(t.Context(), http.MethodGet, target, nil))
+		require.Equal(t, http.StatusMovedPermanently, rec.Code, target)
+		assert.Equal(t, location, rec.Header().Get("Location"), target)
+	}
+}
+
+func setupCompleted(completed bool) func(context.Context) (bool, error) {
+	return func(context.Context) (bool, error) { return completed, nil }
+}
+
+func TestSetupRedirect(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+
+	serve := func(completed bool, target string) *httptest.ResponseRecorder {
+		router := gin.New()
+		require.NoError(t, RegisterFrontend(router, setupCompleted(completed)))
+		rec := httptest.NewRecorder()
+		router.ServeHTTP(rec, httptest.NewRequestWithContext(t.Context(), http.MethodGet, target, nil))
+		return rec
+	}
+
+	t.Run("fresh install redirects the landing pages to the setup", func(t *testing.T) {
+		for _, target := range []string{"/", "/login?redirect=%2F"} {
+			rec := serve(false, target)
+			require.Equal(t, http.StatusFound, rec.Code, target)
+			assert.Equal(t, "/signup/setup", rec.Header().Get("Location"), target)
+		}
+	})
+
+	t.Run("fresh install still serves other pages", func(t *testing.T) {
+		assert.Equal(t, http.StatusOK, serve(false, "/signup/setup").Code)
+	})
+
+	t.Run("completed setup serves the login page", func(t *testing.T) {
+		assert.Equal(t, http.StatusOK, serve(true, "/login").Code)
+	})
+}
 
 func TestIsSPARequest(t *testing.T) {
 	distFS := fstest.MapFS{
@@ -111,15 +161,4 @@ func TestFileServerWithCachingDoesNotCompressUnsupportedExtensions(t *testing.T)
 	assert.Equal(t, "font", res.Body.String())
 	assert.Empty(t, res.Header().Get("Content-Encoding"))
 	assert.Empty(t, res.Header().Get("Vary"))
-}
-
-func TestWriteIndexMarksDisabledAnimations(t *testing.T) {
-	var page bytes.Buffer
-	require.NoError(t, writeIndexFn(&page, "abc", true))
-	assert.Contains(t, page.String(), `<html lang="en" class="no-motion">`)
-	assert.Contains(t, page.String(), `<script nonce="abc">`)
-
-	page.Reset()
-	require.NoError(t, writeIndexFn(&page, "", false))
-	assert.NotContains(t, page.String(), "no-motion")
 }

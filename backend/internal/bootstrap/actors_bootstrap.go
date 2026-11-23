@@ -19,8 +19,8 @@ import (
 	"github.com/jackc/pgx/v5/pgxpool"
 	"gorm.io/gorm"
 
+	"github.com/pocket-id/pocket-id/backend/internal/analytics"
 	"github.com/pocket-id/pocket-id/backend/internal/common"
-	"github.com/pocket-id/pocket-id/backend/internal/job"
 	"github.com/pocket-id/pocket-id/backend/internal/middleware"
 	"github.com/pocket-id/pocket-id/backend/internal/storage"
 	"github.com/pocket-id/pocket-id/backend/internal/utils/crypto"
@@ -315,27 +315,27 @@ func (o *NewActorsOpts) registerCronJobs(host francishost.Host) (err error) {
 		return nil
 	}
 
-	// Register the analytics job
-	analyticsJob, err := job.GetAnalyticsJob(o.HttpClient, o.InstanceID)
-	if err != nil {
-		return fmt.Errorf("failed to get analytics cron job: %w", err)
-	}
+	// Register the analytics job, unless analytics are disabled or this isn't a production environment
+	if !common.EnvConfig.AnalyticsDisabled && common.EnvConfig.AppEnv.IsProduction() {
+		analyticsJob, err := analytics.NewJob(o.HttpClient, o.InstanceID)
+		if err != nil {
+			return fmt.Errorf("failed to get analytics cron job: %w", err)
+		}
 
-	// This could be nil if analytics are disabled
-	if analyticsJob != nil {
 		err = host.RegisterBuiltInActor(analyticsJob)
 		if err != nil {
 			return fmt.Errorf("error registering built-in actor for analytics job: %w", err)
 		}
 	}
 
-	// Register the file cleanup jobs
-	fileCleanupJobs, err := job.GetFileCleanupJobs(o.DB, o.FileStorage)
-	if err != nil {
-		return fmt.Errorf("failed to get file cleanup cron jobs: %w", err)
-	}
-	for _, j := range fileCleanupJobs {
-		err = host.RegisterBuiltInActor(j)
+	// Register the temp file cleanup job, which only the file system storage needs since it's the only one that writes temp files
+	if o.FileStorage.Type() == storage.TypeFileSystem {
+		tempFileCleanupJob, err := storage.NewTempFileCleanupJob(o.FileStorage)
+		if err != nil {
+			return fmt.Errorf("failed to get temp file cleanup cron job: %w", err)
+		}
+
+		err = host.RegisterBuiltInActor(tempFileCleanupJob)
 		if err != nil {
 			return fmt.Errorf("error registering built-in actor for cleanup job: %w", err)
 		}
@@ -355,6 +355,8 @@ func (o *NewActorsOpts) registerRateLimiters(host francishost.Host) (actors map[
 			ratelimit.WithRate(p.Rate),
 			ratelimit.WithPer(p.Per),
 			ratelimit.WithBurst(p.Burst),
+			// A limiter that forgets an idle client starts it over with a full burst, so it must remember the client until an empty bucket has refilled
+			ratelimit.WithIdleTimeout(max(time.Duration(p.Burst)*p.Per/time.Duration(p.Rate), time.Minute)),
 		)
 		if err != nil {
 			return nil, fmt.Errorf("error creating rate limiter %q: %w", p.Name, err)

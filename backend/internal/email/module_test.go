@@ -5,7 +5,10 @@ package email
 import (
 	"bufio"
 	"context"
+	"errors"
 	"io"
+	"mime"
+	"mime/multipart"
 	"net"
 	"net/mail"
 	"net/url"
@@ -18,6 +21,7 @@ import (
 
 	"github.com/pocket-id/pocket-id/backend/internal/appconfig"
 	"github.com/pocket-id/pocket-id/backend/internal/apperror"
+	"github.com/pocket-id/pocket-id/backend/internal/authz"
 	"github.com/pocket-id/pocket-id/backend/internal/model"
 	testutils "github.com/pocket-id/pocket-id/backend/internal/utils/testing"
 )
@@ -51,49 +55,63 @@ func TestModuleSendsEveryEmailType(t *testing.T) {
 
 	eventTime := time.Date(2030, time.January, 2, 15, 4, 5, 0, time.UTC)
 	tests := []struct {
-		name         string
-		subject      string
-		bodyContains []string
-		send         func(ctx context.Context, config *appconfig.AppConfigModel) error
+		name          string
+		subject       string
+		recipientName string
+		bodyContains  []string
+		send          func(ctx context.Context, config *appconfig.AppConfigModel) error
 	}{
 		{
-			name:         "test email",
-			subject:      "Test email",
-			bodyContains: []string{"TEST EMAIL", "Your email setup is working correctly!"},
+			name:          "test email",
+			subject:       "Test email",
+			recipientName: "Test User",
+			bodyContains:  []string{"Test email", "Your email setup is working correctly!"},
 			send: func(ctx context.Context, config *appconfig.AppConfigModel) error {
 				return module.SendTestEmail(ctx, config, user.ID)
 			},
 		},
 		{
-			name:         "email verification",
-			subject:      "Verify your Pocket ID Test email address",
-			bodyContains: []string{"VERIFY YOUR EMAIL ADDRESS", "Hello Test User", "https://id.example.test/verify-token"},
+			name:          "email verification",
+			subject:       "Verify your Pocket ID Test email address",
+			recipientName: "Test User",
+			bodyContains:  []string{"Verify your email address", "Hello Test User", "The link expires in 1 day", "https://id.example.test/verify-token"},
 			send: func(ctx context.Context, config *appconfig.AppConfigModel) error {
-				return module.SendEmailVerification(ctx, config, user.FullName(), userEmail, "https://id.example.test/verify-token")
+				return module.SendEmailVerification(ctx, config, user.FullName(), userEmail, nil, "https://id.example.test/verify-token", 24*time.Hour)
 			},
 		},
 		{
-			name:         "one-time access",
-			subject:      "Login Code",
-			bodyContains: []string{"YOUR LOGIN CODE", "123456", "https://id.example.test/lc/123456", "15 minutes"},
+			name:          "one-time access",
+			subject:       "Your Pocket ID Test login code",
+			recipientName: "Test User",
+			bodyContains:  []string{"Your login code", "123456", "https://id.example.test/lc/123456", "15 minutes"},
 			send: func(ctx context.Context, config *appconfig.AppConfigModel) error {
-				return module.SendOneTimeAccessEmail(ctx, config, user.FullName(), userEmail, "123456", "https://id.example.test/lc", "https://id.example.test/lc/123456", "15 minutes")
+				return module.SendOneTimeAccessEmail(ctx, config, user.FullName(), userEmail, nil, "123456", "https://id.example.test/lc", "https://id.example.test/lc/123456", 15*time.Minute)
 			},
 		},
 		{
-			name:         "new login",
-			subject:      "New device login with Pocket ID Test",
-			bodyContains: []string{"NEW SIGN-IN DETECTED", "Zurich, Switzerland", "192.0.2.10", "Firefox on Linux", "Sign-in method", "One-time code", "January 2, 2030 at 3:04 PM UTC"},
+			name:         "signup invitation",
+			subject:      "You're invited to Pocket ID Test",
+			bodyContains: []string{"You're invited", "https://id.example.test/st/abcdefgh12345678", "1 day"},
 			send: func(ctx context.Context, config *appconfig.AppConfigModel) error {
-				return module.SendNewLogin(ctx, config, user.FullName(), userEmail, "192.0.2.10", "Switzerland", "Zurich", "Firefox on Linux", "One-time code", eventTime)
+				return module.SendSignupInvitation(ctx, config, userEmail, "https://id.example.test/st/abcdefgh12345678", 24*time.Hour)
 			},
 		},
 		{
-			name:         "API key expiration",
-			subject:      `API Key "Automation" Expiring Soon`,
-			bodyContains: []string{"API KEY EXPIRING SOON", "Hello Test", "Automation", "2030-01-02 15:04:05 UTC"},
+			name:          "new login",
+			subject:       "New sign-in to your Pocket ID Test account",
+			recipientName: "Test User",
+			bodyContains:  []string{"New sign-in detected", "Zurich, Switzerland", "192.0.2.10", "Firefox on Linux", "Sign-in method", "One-time code", "January 2, 2030 at 3:04 pm UTC"},
 			send: func(ctx context.Context, config *appconfig.AppConfigModel) error {
-				return module.SendAPIKeyExpiringSoon(ctx, config, user.FullName(), userEmail, user.FirstName, "Automation", eventTime)
+				return module.SendNewLogin(ctx, config, user.FullName(), userEmail, nil, "192.0.2.10", "Switzerland", "Zurich", "Firefox on Linux", "sign_in_method_one_time_code", eventTime)
+			},
+		},
+		{
+			name:          "API key expiration",
+			subject:       "Your API key Automation expires soon",
+			recipientName: "Test User",
+			bodyContains:  []string{"API key expiring soon", "Hello Test", "Automation", "January 2, 2030 at 3:04 pm UTC"},
+			send: func(ctx context.Context, config *appconfig.AppConfigModel) error {
+				return module.SendAPIKeyExpiringSoon(ctx, config, user.FullName(), userEmail, nil, user.FirstName, "Automation", eventTime)
 			},
 		},
 	}
@@ -119,17 +137,72 @@ func TestModuleSendsEveryEmailType(t *testing.T) {
 			assert.Equal(t, "sender@example.test", from.Address)
 			to, err := mail.ParseAddress(message.Header.Get("To"))
 			require.NoError(t, err)
-			assert.Equal(t, "Test User", to.Name)
+			assert.Equal(t, test.recipientName, to.Name)
 			assert.Equal(t, "recipient@example.test", to.Address)
 			assert.Equal(t, test.subject, message.Header.Get("Subject"))
 
 			assert.Contains(t, session.message, "Content-Type: multipart/alternative; boundary=")
 			assert.Contains(t, session.message, "Content-Type: text/plain; charset=UTF-8")
 			assert.Contains(t, session.message, "Content-Type: text/html; charset=UTF-8")
+			body := decodedBody(t, message)
 			for _, expected := range test.bodyContains {
-				assert.Contains(t, session.message, expected)
+				assert.Contains(t, body, expected)
 			}
 		})
+	}
+}
+
+func TestModuleSendsInRecipientLanguage(t *testing.T) {
+	db := testutils.NewDatabaseForTest(t)
+	userEmail := "recipient@example.test"
+	user := model.User{Base: model.Base{ID: "email-recipient"}, Username: "email-recipient", Email: &userEmail, Locale: new("de")}
+	require.NoError(t, db.Create(&user).Error)
+
+	module, err := New(db)
+	require.NoError(t, err)
+	module.localizers, err = loadLocalizers(testCatalogs, ".")
+	require.NoError(t, err)
+
+	server := newSMTPTestServer(t)
+	require.NoError(t, module.SendTestEmail(t.Context(), newSMTPTestConfig(t, server.address()), user.ID))
+
+	session, err := server.wait()
+	require.NoError(t, err)
+	message, err := mail.ReadMessage(strings.NewReader(session.message))
+	require.NoError(t, err)
+	assert.Equal(t, "Test-E-Mail", message.Header.Get("Subject"))
+	body := decodedBody(t, message)
+	assert.Contains(t, body, `lang="de"`)
+	assert.Contains(t, body, "Your email setup is working correctly!")
+
+	// An invitee has no account, so the invitation takes the language of the user whose request sends it
+	server = newSMTPTestServer(t)
+	ctx := authz.ContextWithPrincipal(t.Context(), &authz.Principal{UserID: user.ID})
+	require.NoError(t, module.SendSignupInvitation(ctx, newSMTPTestConfig(t, server.address()), "invitee@example.test", "https://id.example.test/st/abc", time.Hour))
+
+	session, err = server.wait()
+	require.NoError(t, err)
+	message, err = mail.ReadMessage(strings.NewReader(session.message))
+	require.NoError(t, err)
+	assert.Contains(t, decodedBody(t, message), `lang="de"`)
+}
+
+// decodedBody joins the decoded text and HTML parts, so assertions don't depend on where quoted-printable breaks lines
+func decodedBody(t *testing.T, message *mail.Message) string {
+	t.Helper()
+	_, params, err := mime.ParseMediaType(message.Header.Get("Content-Type"))
+	require.NoError(t, err)
+
+	var body strings.Builder
+	reader := multipart.NewReader(message.Body, params["boundary"])
+	for {
+		part, err := reader.NextPart()
+		if errors.Is(err, io.EOF) {
+			return body.String()
+		}
+		require.NoError(t, err)
+		_, err = io.Copy(&body, part)
+		require.NoError(t, err)
 	}
 }
 
@@ -197,6 +270,17 @@ func TestSMTPConnStringRequiresHostAndDefaultsTLS(t *testing.T) {
 	require.NoError(t, err)
 	assert.Equal(t, "none", smtpURL.Query().Get("tls"))
 	assert.Empty(t, smtpURL.Query().Get("insecureSkipVerify"))
+}
+
+func TestMalformedSMTPHostDoesNotLeakPassword(t *testing.T) {
+	_, err := (&Module{}).getEmailer(t.Context(), &appconfig.AppConfigModel{
+		SmtpHost:     "127.0.0.1:2525",
+		SmtpPort:     "2525",
+		SmtpUser:     "mailer",
+		SmtpPassword: "secret-password",
+	})
+	require.Error(t, err)
+	require.NotContains(t, err.Error(), "secret-password")
 }
 
 type smtpTestSession struct {
@@ -367,8 +451,9 @@ func TestNewLoginRendersSignInMethodInBothTemplates(t *testing.T) {
 	module, err := New(nil)
 	require.NoError(t, err)
 	text, html, err := renderBody(module, newLoginTemplate, &templateData[newLoginTemplateData]{
-		AppName: "Pocket ID", AppURL: "https://id.example.test", LogoURL: "https://id.example.test/logo.png",
-		Data: &newLoginTemplateData{IPAddress: "192.0.2.1", Device: "Firefox on Linux", Method: "One-time code", DateTime: time.Now()},
+		localizer: module.localizers[baseLocale],
+		AppName:   "Pocket ID", AppURL: "https://id.example.test", LogoURL: "https://id.example.test/logo.png",
+		Data: &newLoginTemplateData{IPAddress: "192.0.2.1", Device: "Firefox on Linux", Method: "sign_in_method_one_time_code", DateTime: time.Now()},
 	})
 	require.NoError(t, err)
 	for _, body := range []string{text, html} {

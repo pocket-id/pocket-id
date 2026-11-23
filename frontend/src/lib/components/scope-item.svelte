@@ -1,18 +1,21 @@
 <script lang="ts">
-	import Checkbox from '#lib/components/ui/checkbox/checkbox.svelte';
-	import type { LucideIcon } from '@lucide/svelte';
+	import AdminAccessMarker from '#lib/components/admin-access-marker.svelte';
+	import { Checkbox } from '@pocket-id/ui/checkbox';
+	import type { Component } from 'svelte';
 
 	let {
 		icon: Icon,
-		value,
-		category,
+		name,
+		description,
+		adminAccess = false,
 		selected = true,
 		onSelectedChange
 	}: {
-		icon: LucideIcon;
-		// The person's real value, such as their email address, shown over the category it belongs to
-		value?: string;
-		category: string;
+		icon: Component;
+		name: string;
+		description: string;
+		// Marks a scope that can lead to full admin access
+		adminAccess?: boolean;
 		selected?: boolean;
 		onSelectedChange?: (selected: boolean) => void;
 	} = $props();
@@ -23,12 +26,11 @@
 {#snippet content()}
 	<Icon class="text-fg-muted size-4 shrink-0" />
 	<span id={textId} class="flex min-w-0 flex-1 flex-col gap-0.5 text-start wrap-anywhere">
-		{#if value}
-			<span class="text-body">{value}</span>
-			<span class="text-control text-fg-muted">{category}</span>
-		{:else}
-			<span class="text-body">{category}</span>
-		{/if}
+		<span class="text-body flex items-center gap-1.5">
+			{name}
+			{#if adminAccess}<AdminAccessMarker />{/if}
+		</span>
+		<span class="text-control text-fg-muted">{description}</span>
 	</span>
 {/snippet}
 

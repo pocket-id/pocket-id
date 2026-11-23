@@ -4,6 +4,7 @@
 	import SignInWrapper from '#lib/components/login-wrapper.svelte';
 	import SignupForm from '#lib/components/signup/signup-form.svelte';
 	import { m } from '#lib/paraglide/messages.js';
+	import { getLocale } from '#lib/paraglide/runtime.js';
 	import UserService from '#lib/services/user-service.ts';
 	import userStore from '#lib/stores/user-store.ts';
 	import type { UserSignUp } from '#lib/types/user.type.ts';
@@ -17,7 +18,9 @@
 
 	async function handleSignup(userData: UserSignUp) {
 		error = undefined;
-		const result = await tryCatch(userService.signupInitialUser(userData));
+		const result = await tryCatch(
+			userService.signupInitialUser({ ...userData, locale: getLocale() })
+		);
 
 		if (result.error) {
 			error = getAxiosErrorMessage(result.error);
@@ -34,8 +37,8 @@
 </svelte:head>
 
 <SignInWrapper>
-	<AuthTile />
-	<AuthHeading title={m.auth_set_up_pocket_id()} tone={error ? 'danger' : undefined}>
+	<AuthTile error={!!error} />
+	<AuthHeading title={m.auth_set_up_pocket_id()}>
 		{error ?? m.auth_setup_description()}
 	</AuthHeading>
 	<SignupForm callback={handleSignup} submitLabel={m.auth_create_admin_account()} />

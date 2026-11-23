@@ -2,8 +2,10 @@ package ldapsync
 
 import (
 	"bytes"
+	"context"
 	"net/http"
 	"net/http/httptest"
+	"strings"
 	"testing"
 	"time"
 
@@ -12,12 +14,16 @@ import (
 	"github.com/stretchr/testify/require"
 	"gorm.io/gorm"
 
+	"github.com/pocket-id/pocket-id/backend/internal/appassets"
 	"github.com/pocket-id/pocket-id/backend/internal/appconfig"
 	"github.com/pocket-id/pocket-id/backend/internal/apperror"
+	"github.com/pocket-id/pocket-id/backend/internal/auditlogs"
+	"github.com/pocket-id/pocket-id/backend/internal/customclaims"
 	"github.com/pocket-id/pocket-id/backend/internal/model"
 	datatype "github.com/pocket-id/pocket-id/backend/internal/model/types"
-	"github.com/pocket-id/pocket-id/backend/internal/service"
 	"github.com/pocket-id/pocket-id/backend/internal/storage"
+	"github.com/pocket-id/pocket-id/backend/internal/usergroups"
+	"github.com/pocket-id/pocket-id/backend/internal/users"
 	testutils "github.com/pocket-id/pocket-id/backend/internal/utils/testing"
 )
 
@@ -25,6 +31,14 @@ type fakeLDAPClient struct {
 	searchFn func(searchRequest *ldap.SearchRequest) (*ldap.SearchResult, error)
 }
 
+type nopAuditLogger struct{}
+
+func (nopAuditLogger) Record(context.Context, auditlogs.Event, auditlogs.Origin, string, auditlogs.Data, *gorm.DB) {
+}
+
+func (nopAuditLogger) KeepUsername(context.Context, string, string, *gorm.DB) error {
+	return nil
+}
 func TestCreateLDAPClientRejectsDisabledConfiguration(t *testing.T) {
 	svc := newService(Dependencies{})
 
@@ -247,6 +261,16 @@ func TestLdapServiceSyncAllKeepsDistinctDNMemberships(t *testing.T) {
 			memberDN:   "cn=admin+ou=staff,dc=example,dc=com",
 			attackerDN: `cn=admin\+ou=staff,dc=example,dc=com`,
 		},
+		{
+			name:       "non-ASCII letter that lowercases to ASCII",
+			memberDN:   "cn=admin,ou=staff,dc=example,dc=com",
+			attackerDN: "cn=adm\u0130n,ou=staff,dc=example,dc=com",
+		},
+		{
+			name:       "different invalid UTF-8 bytes",
+			memberDN:   `cn=admin\fe,ou=staff,dc=example,dc=com`,
+			attackerDN: `cn=admin\ff,ou=staff,dc=example,dc=com`,
+		},
 	}
 
 	for _, tt := range tests {
@@ -359,6 +383,29 @@ func TestLdapServiceSyncAllHandlesDuplicateLDAPIDsInSingleRun(t *testing.T) {
 	assert.Equal(t, "team-renamed", groups[0].Name)
 	assert.Equal(t, "team-renamed", groups[0].FriendlyName)
 	assert.ElementsMatch(t, []string{"alice"}, usernames(groups[0].Users))
+}
+
+func TestLdapServiceSyncAllReplacesGroupRecreatedUnderSameName(t *testing.T) {
+	service, db := newTestLdapService(t, newFakeLDAPClient(
+		ldapSearchResult(),
+		ldapSearchResult(
+			ldapEntry("cn=team,ou=groups,dc=example,dc=com", map[string][]string{
+				"entryUUID": {"g-new"},
+				"cn":        {"team"},
+			}),
+		),
+	))
+
+	oldLdapID := "g-old"
+	require.NoError(t, db.Create(&model.UserGroup{Name: "team", FriendlyName: "team", LdapID: &oldLdapID}).Error)
+
+	err := service.SyncAll(t.Context(), defaultTestLDAPAppConfig())
+	require.NoError(t, err)
+
+	var groups []model.UserGroup
+	require.NoError(t, db.Find(&groups, "name = ?", "team").Error)
+	require.Len(t, groups, 1)
+	assert.Equal(t, "g-new", *groups[0].LdapID)
 }
 
 func TestLdapServiceSyncAllBumpsUpdatedAtOfSoftDeletedUsers(t *testing.T) {
@@ -535,6 +582,221 @@ func TestLdapServiceSyncAllSetsAdminFromGroupMembership(t *testing.T) {
 	}
 }
 
+func TestLdapServiceSyncAllKeepsStoredValueOfRejectedAttributes(t *testing.T) {
+	service, db := newTestLdapService(t, newFakeLDAPClient(
+		ldapSearchResult(
+			ldapEntry("uid=taken,ou=people,dc=example,dc=com", map[string][]string{
+				"entryUUID": {"u-alice"},
+				"uid":       {"taken"},
+				"mail":      {"alice.new@example.com"},
+				"givenName": {strings.Repeat("a", 51)},
+				"sn":        {"Changed"},
+			}),
+			ldapEntry("uid=bob,ou=people,dc=example,dc=com", map[string][]string{
+				"entryUUID": {"u-bob"},
+				"uid":       {"bob"},
+				"mail":      {"taken@example.com"},
+				"givenName": {"Bobby"},
+				"sn":        {"Brown"},
+			}),
+		),
+		ldapSearchResult(
+			ldapEntry("cn=admins,ou=groups,dc=example,dc=com", map[string][]string{
+				"entryUUID": {"g-admins"},
+				"cn":        {"admins"},
+				"member":    {"uid=bob,ou=people,dc=example,dc=com"},
+			}),
+		),
+	))
+
+	// Both were synced as admins, then Alice was removed from the admin group while her new username is taken and her first name is too long, and Bob got a taken email
+	require.NoError(t, db.Create(&model.User{Username: "taken", Email: new("taken@example.com")}).Error)
+	aliceLdapID, bobLdapID := "u-alice", "u-bob"
+	require.NoError(t, db.Create(&model.User{Username: "alice", Email: new("alice@example.com"), FirstName: "Alice", LastName: "Jones", IsAdmin: true, LdapID: &aliceLdapID}).Error)
+	require.NoError(t, db.Create(&model.User{Username: "bob", Email: new("bob@example.com"), FirstName: "Bob", LastName: "Brown", IsAdmin: true, LdapID: &bobLdapID}).Error)
+
+	err := service.SyncAll(t.Context(), defaultTestLDAPAppConfig())
+	require.NoError(t, err)
+
+	var alice model.User
+	require.NoError(t, db.First(&alice, "ldap_id = ?", aliceLdapID).Error)
+	assert.Equal(t, "alice", alice.Username)
+	assert.Equal(t, "Alice", alice.FirstName)
+	assert.Equal(t, "Changed", alice.LastName)
+	assert.Equal(t, new("alice.new@example.com"), alice.Email)
+	assert.False(t, alice.IsAdmin)
+	assert.False(t, alice.Disabled)
+
+	var bob model.User
+	require.NoError(t, db.First(&bob, "ldap_id = ?", bobLdapID).Error)
+	assert.Equal(t, new("bob@example.com"), bob.Email)
+	assert.Equal(t, "Bobby", bob.FirstName)
+	assert.True(t, bob.IsAdmin)
+
+	var admins model.UserGroup
+	require.NoError(t, db.Preload("Users").First(&admins, "ldap_id = ?", "g-admins").Error)
+	assert.Equal(t, []string{"bob"}, usernames(admins.Users))
+}
+
+func TestLdapServiceSyncAllTakesLanguageFromDirectoryOnlyWhenNoneIsSaved(t *testing.T) {
+	service, db := newTestLdapService(t, newFakeLDAPClient(
+		ldapSearchResult(
+			ldapEntry("uid=alice,ou=people,dc=example,dc=com", map[string][]string{
+				"entryUUID":         {"u-alice"},
+				"uid":               {"alice"},
+				"mail":              {"alice@example.com"},
+				"givenName":         {"Changed"},
+				"preferredLanguage": {"fr-CH"},
+			}),
+			ldapEntry("uid=bob,ou=people,dc=example,dc=com", map[string][]string{
+				"entryUUID":         {"u-bob"},
+				"uid":               {"bob"},
+				"mail":              {"bob@example.com"},
+				"givenName":         {"Bob"},
+				"preferredLanguage": {"de-AT"},
+			}),
+			ldapEntry("uid=carol,ou=people,dc=example,dc=com", map[string][]string{
+				"entryUUID": {"u-carol"},
+				"uid":       {"carol"},
+				"mail":      {"carol@example.com"},
+				"givenName": {"Carol"},
+			}),
+		),
+		ldapSearchResult(),
+	))
+
+	// Alice picked German in Pocket ID, Bob has no saved language and Carol is new
+	require.NoError(t, db.Create(&model.User{Username: "alice", Email: new("alice@example.com"), FirstName: "Alice", Locale: new("de"), LdapID: new("u-alice")}).Error)
+	require.NoError(t, db.Create(&model.User{Username: "bob", Email: new("bob@example.com"), FirstName: "Bob", LdapID: new("u-bob")}).Error)
+
+	err := service.SyncAll(t.Context(), defaultTestLDAPAppConfig())
+	require.NoError(t, err)
+
+	locales := map[string]*string{}
+	var users []model.User
+	require.NoError(t, db.Find(&users).Error)
+	for _, user := range users {
+		locales[user.Username] = user.Locale
+	}
+	assert.Equal(t, map[string]*string{"alice": new("de"), "bob": new("de"), "carol": nil}, locales)
+}
+
+func TestLdapServiceSyncAllUpdatesUserWithoutEmailWhenEmailIsRequired(t *testing.T) {
+	service, db := newTestLdapService(t, newFakeLDAPClient(
+		ldapSearchResult(
+			ldapEntry("uid=testadmin,ou=people,dc=example,dc=com", map[string][]string{
+				"entryUUID": {"u-testadmin"},
+				"uid":       {"testadmin"},
+				"givenName": {"Changed"},
+				"sn":        {"Admin"},
+			}),
+		),
+		ldapSearchResult(),
+	))
+
+	// The admin never had an email and was removed from the admin group after emails became required
+	ldapID := "u-testadmin"
+	require.NoError(t, db.Create(&model.User{Username: "testadmin", FirstName: "Test", IsAdmin: true, LdapID: &ldapID}).Error)
+
+	config := defaultTestLDAPAppConfig()
+	config.RequireUserEmail = "true"
+
+	err := service.SyncAll(t.Context(), config)
+	require.NoError(t, err)
+
+	var user model.User
+	require.NoError(t, db.First(&user, "ldap_id = ?", ldapID).Error)
+	assert.Equal(t, "Changed", user.FirstName)
+	assert.Nil(t, user.Email)
+	assert.False(t, user.IsAdmin)
+	assert.False(t, user.Disabled)
+}
+
+func TestLdapServiceSyncAllMatchesGroupMembersByLdapIDWhenUsernameCollides(t *testing.T) {
+	service, db := newTestLdapService(t, newFakeLDAPClient(
+		ldapSearchResult(
+			ldapEntry("cn=alice,ou=people,dc=example,dc=com", map[string][]string{
+				"entryUUID": {"u-alice"},
+				"uid":       {"bob"},
+				"mail":      {"alice@example.com"},
+			}),
+			ldapEntry("cn=bob,ou=people,dc=example,dc=com", map[string][]string{
+				"entryUUID": {"u-bob"},
+				"uid":       {"bob"},
+				"mail":      {"bob@example.com"},
+			}),
+		),
+		ldapSearchResult(
+			ldapEntry("cn=team,ou=groups,dc=example,dc=com", map[string][]string{
+				"entryUUID": {"g-team"},
+				"cn":        {"team"},
+				"member":    {"cn=alice,ou=people,dc=example,dc=com"},
+			}),
+			ldapEntry("cn=admins,ou=groups,dc=example,dc=com", map[string][]string{
+				"entryUUID": {"g-admins"},
+				"cn":        {"admins"},
+				"member":    {"cn=bob,ou=people,dc=example,dc=com"},
+			}),
+		),
+	))
+
+	// Alice's username was changed in LDAP to the one Bob already has, so she keeps her stored username
+	aliceLdapID, bobLdapID := "u-alice", "u-bob"
+	require.NoError(t, db.Create(&model.User{Username: "alice", Email: new("alice@example.com"), LdapID: &aliceLdapID}).Error)
+	require.NoError(t, db.Create(&model.User{Username: "bob", Email: new("bob@example.com"), LdapID: &bobLdapID}).Error)
+
+	err := service.SyncAll(t.Context(), defaultTestLDAPAppConfig())
+	require.NoError(t, err)
+
+	var alice, bob model.User
+	require.NoError(t, db.First(&alice, "ldap_id = ?", aliceLdapID).Error)
+	require.NoError(t, db.First(&bob, "ldap_id = ?", bobLdapID).Error)
+	assert.Equal(t, "alice", alice.Username)
+	assert.False(t, alice.IsAdmin)
+	assert.True(t, bob.IsAdmin)
+
+	var team model.UserGroup
+	require.NoError(t, db.Preload("Users").First(&team, "ldap_id = ?", "g-team").Error)
+	assert.Equal(t, []string{"alice"}, usernames(team.Users))
+}
+
+func TestLdapServiceSyncAllFallsBackToValuesSavedEarlierInTheSameRun(t *testing.T) {
+	service, db := newTestLdapService(t, newFakeLDAPClient(
+		ldapSearchResult(
+			ldapEntry("uid=new,ou=people,dc=example,dc=com", map[string][]string{
+				"entryUUID": {"u-alice"},
+				"uid":       {"new"},
+				"mail":      {"alice@example.com"},
+			}),
+			ldapEntry("uid=old,ou=people,dc=example,dc=com", map[string][]string{
+				"entryUUID": {"u-bob"},
+				"uid":       {"old"},
+				"mail":      {"bob@example.com"},
+			}),
+			ldapEntry("uid=alice,ou=people,dc=example,dc=com", map[string][]string{
+				"entryUUID": {"u-alice"},
+				"uid":       {strings.Repeat("a", 51)},
+				"mail":      {"alice@example.com"},
+			}),
+		),
+		ldapSearchResult(),
+	))
+
+	// Alice is renamed from old to new, Bob takes old, and a duplicate entry of Alice with an invalid username must fall back to new
+	aliceLdapID, bobLdapID := "u-alice", "u-bob"
+	require.NoError(t, db.Create(&model.User{Username: "old", Email: new("alice@example.com"), LdapID: &aliceLdapID}).Error)
+	require.NoError(t, db.Create(&model.User{Username: "bob", Email: new("bob@example.com"), LdapID: &bobLdapID}).Error)
+
+	err := service.SyncAll(t.Context(), defaultTestLDAPAppConfig())
+	require.NoError(t, err)
+
+	var alice, bob model.User
+	require.NoError(t, db.First(&alice, "ldap_id = ?", aliceLdapID).Error)
+	require.NoError(t, db.First(&bob, "ldap_id = ?", bobLdapID).Error)
+	assert.Equal(t, "new", alice.Username)
+	assert.Equal(t, "old", bob.Username)
+}
+
 func TestLoadGroupMembers(t *testing.T) {
 	svc, db := newTestLdapService(t, nil)
 
@@ -575,26 +837,27 @@ func newTestLdapService(t *testing.T, client ldapClient) (*Service, *gorm.DB) {
 
 	fileStorage, err := storage.NewDatabaseStorage(db)
 	require.NoError(t, err)
+	appAssets, err := appassets.New(t.Context(), fileStorage)
+	require.NoError(t, err)
 
 	// The sync is exercised against the real user and group services, so the assertions below can check what actually lands in the database
-	groupService := service.NewUserGroupService(db, nil, nil)
-	userService := service.NewUserService(
-		db,
-		nil,
-		service.NewCustomClaimService(db),
-		service.NewAppImagesService(map[string]string{}, fileStorage),
-		nil,
-		nil,
-		fileStorage,
-		nil,
-	)
+	groupsModule := usergroups.New(usergroups.Dependencies{DB: db, AuditLog: nopAuditLogger{}})
+	usersModule, err := users.New(users.Dependencies{
+		DB:              db,
+		FileStorage:     fileStorage,
+		CustomClaims:    customclaims.New(db),
+		AppAssets:       appAssets,
+		AuditLog:        nopAuditLogger{},
+		CleanupDisabled: true,
+	})
+	require.NoError(t, err)
 
 	svc := newService(Dependencies{
 		DB:          db,
 		HTTPClient:  &http.Client{},
 		FileStorage: fileStorage,
-		Users:       userService,
-		Groups:      groupService,
+		Users:       usersModule,
+		Groups:      groupsModule,
 	})
 	svc.clientFactory = func(dbConfig *appconfig.AppConfigModel) (ldapClient, error) {
 		return client, nil
@@ -617,6 +880,7 @@ func defaultTestLDAPAppConfig() *appconfig.AppConfigModel {
 		LdapAttributeUserLastName:          "sn",
 		LdapAttributeUserDisplayName:       "displayName",
 		LdapAttributeUserProfilePicture:    "jpegPhoto",
+		LdapAttributeUserLanguage:          "preferredLanguage",
 		LdapAttributeGroupMember:           "member",
 		LdapAttributeGroupUniqueIdentifier: "entryUUID",
 		LdapAttributeGroupName:             "cn",
@@ -724,6 +988,18 @@ func TestGetDNProperty(t *testing.T) {
 			dn:             "cn=username,ou=people,dc=example,dc=com",
 			expectedResult: "",
 		},
+		{
+			name:           "non-ASCII letter that lowercases to ASCII is not the property",
+			property:       "uid",
+			dn:             "u\u0130d=username,ou=people,dc=example,dc=com",
+			expectedResult: "",
+		},
+		{
+			name:           "component that shrinks when lowercased",
+			property:       "uid",
+			dn:             "cn=user\\,\u212a\u212a,ou=people,dc=example,dc=com",
+			expectedResult: "",
+		},
 	}
 
 	for _, tt := range tests {
@@ -786,9 +1062,19 @@ func TestNormalizeLDAPDN(t *testing.T) {
 			expected: `cn=admin\+ou=staff,dc=example,dc=com`,
 		},
 		{
+			name:     "non-ASCII letters keep their case",
+			input:    "CN=Adm\u0130n,DC=example,DC=com",
+			expected: `cn=adm\c4\b0n,dc=example,dc=com`,
+		},
+		{
 			name:     "invalid DN falls back to lowercase+trim",
 			input:    "  NOT A VALID DN  ",
 			expected: "not a valid dn",
+		},
+		{
+			name:     "invalid DN keeps the case of non-ASCII letters",
+			input:    "  NOT A VAL\u0130D DN  ",
+			expected: "not a val\u0130d dn",
 		},
 		{
 			name:     "empty string",

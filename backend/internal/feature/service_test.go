@@ -12,6 +12,7 @@ import (
 	"github.com/pocket-id/pocket-id/backend/internal/appconfig"
 	"github.com/pocket-id/pocket-id/backend/internal/claimmappingpolicy"
 	"github.com/pocket-id/pocket-id/backend/internal/model"
+	"github.com/pocket-id/pocket-id/backend/internal/oidc"
 	testutils "github.com/pocket-id/pocket-id/backend/internal/utils/testing"
 )
 
@@ -94,4 +95,20 @@ func TestListSavesFeaturesInUseOnce(t *testing.T) {
 	statuses, err := svc.List(t.Context())
 	require.NoError(t, err)
 	assert.Equal(t, Status{Enabled: true, InUse: false}, statuses[APIs])
+}
+
+func TestListCountsTheBuiltInAPIOnlyOnceClientsMayUseIt(t *testing.T) {
+	db := testutils.NewDatabaseForTest(t)
+	svc := New(Dependencies{DB: db, AppConfig: &fakeAppConfig{cfg: appconfig.NewTestConfig(nil)}}).service
+	require.NoError(t, api.Bootstrap(t.Context(), db, "https://id.example.com"))
+
+	statuses, err := svc.List(t.Context())
+	require.NoError(t, err)
+	assert.False(t, statuses[APIs].InUse)
+
+	require.NoError(t, db.Create(&model.OidcClient{Base: model.Base{ID: "client-1"}, Name: "Client"}).Error)
+	require.NoError(t, db.Create(&api.OidcClientAllowedAPI{OidcClientID: "client-1", APIID: api.BuiltInAPIID, SubjectType: oidc.SubjectTypeClient}).Error)
+	statuses, err = svc.List(t.Context())
+	require.NoError(t, err)
+	assert.True(t, statuses[APIs].InUse)
 }

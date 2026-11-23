@@ -11,6 +11,7 @@ type UserGroupDto struct {
 	ID                 string                  `json:"id"`
 	FriendlyName       string                  `json:"friendlyName"`
 	Name               string                  `json:"name"`
+	Notes              string                  `json:"notes"`
 	CustomClaims       []CustomClaimDto        `json:"customClaims"`
 	LdapID             *string                 `json:"ldapId"`
 	CreatedAt          datatype.DateTime       `json:"createdAt"`
@@ -28,6 +29,13 @@ type UserGroupMinimalDto struct {
 	CreatedAt    datatype.DateTime `json:"createdAt"`
 }
 
+// UserGroupRefDto is a group referenced by another resource, such as a group a user belongs to, whose claims and members aren't loaded
+type UserGroupRefDto struct {
+	ID           string `json:"id"`
+	FriendlyName string `json:"friendlyName"`
+	Name         string `json:"name"`
+}
+
 type UserGroupUpdateAllowedOidcClientsDto struct {
 	OidcClientIDs []string `json:"oidcClientIds" binding:"required"`
 }
@@ -35,6 +43,7 @@ type UserGroupUpdateAllowedOidcClientsDto struct {
 type UserGroupCreateDto struct {
 	FriendlyName string `json:"friendlyName" binding:"required,min=2,max=50" unorm:"nfc"`
 	Name         string `json:"name" binding:"required,min=2,max=255" unorm:"nfc"`
+	Notes        string `json:"notes" binding:"omitempty,max=5000" unorm:"nfc"`
 	LdapID       string `json:"-"`
 }
 

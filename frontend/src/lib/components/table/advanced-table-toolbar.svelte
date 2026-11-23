@@ -1,11 +1,11 @@
 <script lang="ts" generics="TData extends Record<string, any>">
-	import * as InputGroup from '#lib/components/ui/input-group/index.ts';
+	import * as InputGroup from '@pocket-id/ui/input-group';
 	import { m } from '#lib/paraglide/messages.js';
 	import type { AdvancedTableColumn } from '#lib/types/advanced-table.type.ts';
 	import type { ListRequestOptions } from '#lib/types/list-request.type.ts';
 	import { debounced } from '#lib/utils/debounce-util.ts';
 	import { revealFocused } from '#lib/utils/event-util.ts';
-	import { LucideSearch } from '@lucide/svelte';
+	import SearchIcon from '~icons/solar/magnifier-linear';
 	import AdvancedTableFilter from './advanced-table-filter.svelte';
 
 	let {
@@ -43,7 +43,7 @@
 					type="search"
 					oninput={(e: Event) => search((e.currentTarget as HTMLInputElement).value)}
 				/>
-				<InputGroup.Addon><LucideSearch /></InputGroup.Addon>
+				<InputGroup.Addon><SearchIcon /></InputGroup.Addon>
 			</InputGroup.Root>
 		{/if}
 

@@ -77,7 +77,7 @@ type userClaimsSource struct {
 // loadUserClaimsSource reads the user with its groups, the claim mapping policy of the client and, when the policy needs them, the custom claims of the user
 func (s *ClaimsService) loadUserClaimsSource(ctx context.Context, userID string, clientID string) (*userClaimsSource, error) {
 	return s.loadClaimsSource(ctx, userID, func(ctx context.Context) (*claimmappingpolicy.OidcClaimMappingPolicy, error) {
-		return s.GetClaimMappingPolicyByClientID(ctx, clientID)
+		return claimmappingpolicy.ClientPolicy(ctx, dbFromContext(ctx, s.db), clientID)
 	})
 }
 
@@ -126,10 +126,11 @@ func policyHasCustomClaimMapping(policy claimmappingpolicy.OidcClaimMappingPolic
 	})
 }
 
-// loadGrantClaimsSource loads the claims source of the user behind a grant and re-checks, at token-issuance time, that the user is still allowed to obtain tokens for the client
-// Grants without a resource owner (e.g. client_credentials) carry an empty subject, so they have no user to validate and get a nil source
+// loadGrantClaimsSource loads the claims source of the user behind a grant or token and re-checks that the user is still allowed to use the client
+// Grants without a resource owner (client_credentials) have no user to validate and get a nil source
+// They carry an empty subject while the token is requested and the client's own subject once it is issued
 func (s *ClaimsService) loadGrantClaimsSource(ctx context.Context, userID string, client Client) (*userClaimsSource, error) {
-	if userID == "" {
+	if userID == "" || userID == ClientSubject(client.GetID()) {
 		return nil, nil
 	}
 
@@ -192,22 +193,6 @@ func (s *ClaimsService) PreviewClaimMappings(ctx context.Context, userID string,
 	return preview, nil
 }
 
-// GetClaimMappingPolicyByClientID returns the claim mapping policy assigned to the client, or the default policy when the client doesn't have one assigned (claim_mapping_policy_id IS NULL)
-// Both candidates are fetched in a single query: the assigned policy is ordered first so it wins over the default whenever it exists
-func (s *ClaimsService) GetClaimMappingPolicyByClientID(ctx context.Context, clientID string) (*claimmappingpolicy.OidcClaimMappingPolicy, error) {
-	var claimMappingPolicy claimmappingpolicy.OidcClaimMappingPolicy
-	err := dbFromContext(ctx, s.db).
-		Model(&claimmappingpolicy.OidcClaimMappingPolicy{}).
-		Where("oidc_claim_mapping_policies.id = (SELECT claim_mapping_policy_id FROM oidc_clients WHERE oidc_clients.id = ?)", clientID).
-		Or("oidc_claim_mapping_policies.is_default = ?", true).
-		Order("oidc_claim_mapping_policies.is_default ASC").
-		First(&claimMappingPolicy).Error
-	if err != nil {
-		return nil, err
-	}
-	return &claimMappingPolicy, nil
-}
-
 // applyTokenClaims applies the claims of a user to both the ID token and the access token of the session based on the granted scopes
 func (s *ClaimsService) applyTokenClaims(session *Session, scopes fosite.Arguments, src *userClaimsSource) error {
 	// Record the signing algorithm on the ID token header so fosite derives the at_hash/c_hash digest from it (e.g. RS384 -> SHA-384, ES512 -> SHA-512)
@@ -243,11 +228,17 @@ func applyUserClaimsToIDToken(session *Session, userID string, claims map[string
 	if session.AuthenticationMethod != "" {
 		idTokenClaims.AuthenticationMethodsReferences = []string{session.AuthenticationMethod}
 	}
+	if session.SessionID != "" {
+		idTokenClaims.Extra[common.SessionIDClaim] = session.SessionID
+	}
 }
 
 func applyUserClaimsToAccessToken(session *Session, claims map[string]any) {
 	jwtClaims := session.GetJWTClaims().(*fositejwt.JWTClaims)
 	jwtClaims.Extra = claims
+	if session.SessionID != "" {
+		jwtClaims.Extra[common.SessionIDClaim] = session.SessionID
+	}
 }
 
 // buildClaims applies the mappings of the policy that target the token type and match the scopes

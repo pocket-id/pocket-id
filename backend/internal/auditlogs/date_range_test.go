@@ -1,11 +1,9 @@
 package auditlogs
 
 import (
-	"net/http/httptest"
 	"testing"
 	"time"
 
-	"github.com/gin-gonic/gin"
 	"github.com/stretchr/testify/require"
 
 	"github.com/pocket-id/pocket-id/backend/internal/model"
@@ -46,17 +44,11 @@ func TestListAuditLogsByDateRange(t *testing.T) {
 }
 
 func TestParseDateRange(t *testing.T) {
-	parse := func(query string) (DateRange, error) {
-		c, _ := gin.CreateTestContext(httptest.NewRecorder())
-		c.Request = httptest.NewRequestWithContext(t.Context(), "GET", "/api/audit-logs?"+query, nil)
-		return parseDateRange(c)
-	}
-
-	r, err := parse("from=2026-10-10T00:00:00%2B02:00")
+	r, err := parseDateRange("2026-10-10T00:00:00+02:00", "")
 	require.NoError(t, err)
 	require.True(t, r.From.Equal(time.Date(2026, 10, 9, 22, 0, 0, 0, time.UTC)))
 	require.True(t, r.To.IsZero())
 
-	_, err = parse("to=yesterday")
+	_, err = parseDateRange("", "yesterday")
 	require.Error(t, err)
 }

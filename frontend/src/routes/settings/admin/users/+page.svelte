@@ -2,10 +2,10 @@
 	import { goto } from '$app/navigation';
 	import PageHeader from '#lib/components/page-header.svelte';
 	import AdvancedTable from '#lib/components/table/advanced-table.svelte';
-	import { Badge } from '#lib/components/ui/badge/index.ts';
-	import { Button } from '#lib/components/ui/button/index.ts';
-	import * as InputGroup from '#lib/components/ui/input-group/index.ts';
-	import * as Tabs from '#lib/components/ui/tabs/index.ts';
+	import { Badge } from '@pocket-id/ui/badge';
+	import { Button } from '@pocket-id/ui/button';
+	import * as InputGroup from '@pocket-id/ui/input-group';
+	import * as Tabs from '@pocket-id/ui/tabs';
 	import { m } from '#lib/paraglide/messages.js';
 	import UserGroupService from '#lib/services/user-group-service.ts';
 	import UserService from '#lib/services/user-service.ts';
@@ -20,18 +20,16 @@
 	import type { UserGroupMinimal } from '#lib/types/user-group.type.ts';
 	import { debounced } from '#lib/utils/debounce-util.ts';
 	import { revealFocused } from '#lib/utils/event-util.ts';
-	import { cn } from '#lib/utils/style.ts';
+	import { cn } from '@pocket-id/ui/utils';
 	import { toast } from 'svelte-sonner';
-	import {
-		LucideArrowRight,
-		LucideKeyRound,
-		LucidePlus,
-		LucideSearch,
-		LucideTrash2,
-		LucideUserCheck,
-		LucideUserX,
-		LucideUsersRound
-	} from '@lucide/svelte';
+	import ArrowRightIcon from '~icons/solar/arrow-right-linear';
+	import KeyRoundIcon from '~icons/solar/key-minimalistic-bold';
+	import PlusIcon from '~icons/solar/add-circle-bold';
+	import SearchIcon from '~icons/solar/magnifier-linear';
+	import Trash2Icon from '~icons/solar/trash-bin-minimalistic-bold';
+	import UserCheckIcon from '~icons/solar/user-check-rounded-bold';
+	import UserXIcon from '~icons/solar/user-block-rounded-bold';
+	import UsersRoundIcon from '~icons/solar/users-group-rounded-bold';
 	import { SvelteMap } from 'svelte/reactivity';
 	import OidcClientAvatar from '#lib/components/oidc-client-avatar.svelte';
 	import { openOnCreateParam } from '#lib/utils/create-param-util.ts';
@@ -77,7 +75,7 @@
 			[
 				['all', m.all()],
 				['admins', m.admins()],
-				['disabled', m.disabled()],
+				['disabled', m.user_disabled()],
 				['unverified', m.unverified()]
 			] as const
 		).filter(([value]) => value !== 'unverified' || verificationOn)
@@ -107,7 +105,7 @@
 
 	const countLine = $derived.by(() => {
 		if (scope === 'all' && !search.trim()) {
-			return counts.all === 1 ? m.users_count_one() : m.users_count({ count: counts.all });
+			return m.users_count({ count: counts.all });
 		}
 		return m.count_of_users({ count: shownCount, total: counts.all });
 	});
@@ -115,7 +113,7 @@
 	// Phones hide every column but the first, so its third line carries what they would have shown
 	function phoneMeta(user: User) {
 		const status = user.disabled
-			? m.disabled()
+			? m.user_disabled()
 			: !user.emailVerified && verificationOn
 				? m.unverified()
 				: undefined;
@@ -140,20 +138,20 @@
 		{
 			label: m.open(),
 			primary: true,
-			icon: LucideArrowRight,
+			icon: ArrowRightIcon,
 			onClick: (u) => goto(`/settings/admin/users/${u.id}`)
 		},
-		{ label: m.login_code_ellipsis(), icon: LucideKeyRound, onClick: (u) => (loginCodeUser = u) },
+		{ label: m.login_code_ellipsis(), icon: KeyRoundIcon, onClick: (u) => (loginCodeUser = u) },
 		{
 			label: user.disabled ? m.enable() : m.disable_ellipsis(),
-			icon: user.disabled ? LucideUserCheck : LucideUserX,
+			icon: user.disabled ? UserCheckIcon : UserXIcon,
 			hidden: ldapManaged(user),
 			disabled: isMe(user),
 			onClick: (u) => (u.disabled ? enableUsers([u], refresh) : confirmDisableUsers([u], refresh))
 		},
 		{
 			label: m.delete_ellipsis(),
-			icon: LucideTrash2,
+			icon: Trash2Icon,
 			variant: 'danger',
 			hidden: ldapManaged(user) && !user.disabled,
 			disabled: isMe(user),
@@ -207,7 +205,7 @@
 {/snippet}
 
 {#snippet RoleCell({ item }: { item: User })}
-	{#if item.isAdmin}{m.admin()}{:else}<span class="text-fg-muted">{m.user()}</span>{/if}
+	{#if item.isAdmin}{m.admin()}{:else}<span class="text-fg-muted">{m.role_user()}</span>{/if}
 {/snippet}
 
 {#snippet StatusCell({ item }: { item: User })}
@@ -234,7 +232,7 @@
 	<OidcClientAvatar id={group.id} name={group.friendlyName} hasLogo={false} size={24} />
 	<span class="text-control text-fg min-w-0 flex-1 truncate font-medium">{group.friendlyName}</span>
 	<span class="text-caption text-fg-muted">
-		{group.userCount === 1 ? m.members_count_one() : m.members_count({ count: group.userCount })}
+		{m.members_count({ count: group.userCount })}
 	</span>
 {/snippet}
 
@@ -250,7 +248,7 @@
 				</Button>
 			{/if}
 			<Button onclick={() => (createOpen = true)}>
-				<LucidePlus />
+				<PlusIcon />
 				{m.add_user()}
 			</Button>
 		{/snippet}
@@ -272,7 +270,7 @@
 				{m.clear_selection()}
 			</Button>
 			<Button variant="secondary" size="sm" onclick={() => (groupPickerOpen = true)}>
-				<LucideUsersRound />
+				<UsersRoundIcon />
 				{m.add_to_groups_ellipsis()}
 			</Button>
 			{#if bulkEditable.some((u) => !u.disabled)}
@@ -285,7 +283,7 @@
 							afterBulk
 						)}
 				>
-					<LucideUserX />
+					<UserXIcon />
 					{m.disable_ellipsis()}
 				</Button>
 			{/if}
@@ -299,7 +297,7 @@
 							afterBulk
 						)}
 				>
-					<LucideUserCheck />
+					<UserCheckIcon />
 					{m.enable()}
 				</Button>
 			{/if}
@@ -309,7 +307,7 @@
 					size="sm"
 					onclick={() => confirmDeleteUsers(bulkDeletable, afterBulk)}
 				>
-					<LucideTrash2 />
+					<Trash2Icon />
 					{m.delete_ellipsis()}
 				</Button>
 			{/if}
@@ -323,7 +321,7 @@
 					type="search"
 					oninput={() => onSearch()}
 				/>
-				<InputGroup.Addon><LucideSearch /></InputGroup.Addon>
+				<InputGroup.Addon><SearchIcon /></InputGroup.Addon>
 			</InputGroup.Root>
 			<!-- The padding keeps focus rings visible inside the horizontal phone scroller -->
 			<div
@@ -337,7 +335,7 @@
 						tableRef?.refresh();
 					}}
 				>
-					<Tabs.List aria-label={m.user_scopes()}>
+					<Tabs.List aria-label={m.user_filters()}>
 						{#each scopes as [value, label] (value)}
 							<Tabs.Trigger {value}>
 								{label}

@@ -1,8 +1,8 @@
 <script lang="ts">
 	import { openConfirmDialog } from '#lib/components/confirm-dialog/index.ts';
-	import SettingsSection from '#lib/components/settings-section.svelte';
-	import * as Field from '#lib/components/ui/field/index.ts';
-	import * as RadioGroup from '#lib/components/ui/radio-group/index.ts';
+	import SettingsCard from '#lib/components/settings-card.svelte';
+	import * as Field from '@pocket-id/ui/field';
+	import * as RadioGroup from '@pocket-id/ui/radio-group';
 	import UserGroupSelection from '#lib/components/user-group-selection.svelte';
 	import { m } from '#lib/paraglide/messages.js';
 	import OidcService from '#lib/services/oidc-service.ts';
@@ -10,7 +10,7 @@
 	import type { OidcClient } from '#lib/types/oidc.type.ts';
 	import { axiosErrorToast } from '#lib/utils/error-util.ts';
 	import { trackUnsavedValue } from '#lib/utils/unsaved-changes-util.svelte.ts';
-	import { LucideLockOpen } from '@lucide/svelte';
+	import LockOpenIcon from '~icons/solar/lock-unlocked-bold';
 	import { toast } from 'svelte-sonner';
 
 	type AccessMode = 'all' | 'restricted';
@@ -48,9 +48,9 @@
 
 	async function restrict() {
 		try {
-			await oidcService.updateClient(client.id, { ...client, isGroupRestricted: true });
+			await oidcService.updateClient(client.id, { isGroupRestricted: true });
 			client.isGroupRestricted = true;
-			toast.success(m.who_can_sign_in_updated());
+			toast.success(m.sign_in_access_updated());
 		} catch (e) {
 			axiosErrorToast(e);
 		}
@@ -63,14 +63,14 @@
 			confirm: {
 				label: m.allow_all_users(),
 				destructive: true,
-				icon: LucideLockOpen,
+				icon: LockOpenIcon,
 				action: async () => {
 					try {
-						await oidcService.updateClient(client.id, { ...client, isGroupRestricted: false });
+						await oidcService.updateClient(client.id, { isGroupRestricted: false });
 						client.allowedUserGroupIds = [];
 						allowedUserGroups.markSaved();
 						client.isGroupRestricted = false;
-						toast.success(m.who_can_sign_in_updated());
+						toast.success(m.sign_in_access_updated());
 					} catch (e) {
 						axiosErrorToast(e);
 					}
@@ -89,8 +89,8 @@
 	}
 </script>
 
-<SettingsSection title={m.who_can_sign_in()}>
-	<div class="flex flex-col gap-6 pt-2">
+<SettingsCard title={m.who_can_sign_in()}>
+	<div class="flex flex-col gap-6 py-4">
 		<RadioGroup.Root
 			class="grid gap-3 sm:grid-cols-2"
 			aria-label={m.who_can_sign_in()}
@@ -119,4 +119,4 @@
 			</div>
 		{/if}
 	</div>
-</SettingsSection>
+</SettingsCard>

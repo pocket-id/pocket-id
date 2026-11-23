@@ -1,1 +1,0 @@
-DROP TABLE oidc_clients_allowed_user_groups;

@@ -1,9 +1,9 @@
-{{define "root"}}YOUR LOGIN CODE
+{{define "root"}}{{.T "one_time_access_title"}}
 
-Use the code below to sign in to {{.AppName}}. It expires in {{.Data.ExpirationString}}.
+{{.T "one_time_access_description" "appName" (.AppName) "expiration" (.Duration .Data.Expiration)}}
 
 {{.Data.Code}}
 
-Sign in {{.Data.LoginLinkWithCode}}
+{{.T "one_time_access_button"}} {{.Data.LoginLinkWithCode}}
 
-Or open {{.Data.LoginLink}} and enter the code manually.{{end}}
+{{.Part 0 "one_time_access_manual"}}{{.Data.LoginLink}}{{.Part 2 "one_time_access_manual"}}{{end}}

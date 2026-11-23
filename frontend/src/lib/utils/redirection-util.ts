@@ -15,7 +15,6 @@ export function getAuthRedirectPath(url: URL, user: User | null, appConfig: AppC
 		path == '/lc' ||
 		path == '/signup' ||
 		path == '/signup/setup' ||
-		path == '/setup' ||
 		path.startsWith('/st/');
 
 	const isPublicPath =
@@ -23,6 +22,7 @@ export function getAuthRedirectPath(url: URL, user: User | null, appConfig: AppC
 		[
 			'/interaction',
 			'/interaction/error',
+			'/end-session',
 			'/login/alternative/code',
 			'/device',
 			'/health',

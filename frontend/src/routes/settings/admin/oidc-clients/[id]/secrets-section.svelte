@@ -1,18 +1,19 @@
 <script lang="ts">
 	import { openConfirmDialog } from '#lib/components/confirm-dialog/index.ts';
-	import SettingsSection from '#lib/components/settings-section.svelte';
-	import { Badge } from '#lib/components/ui/badge/index.ts';
-	import { Button } from '#lib/components/ui/button/index.ts';
-	import * as Dialog from '#lib/components/ui/dialog/index.ts';
-	import * as Field from '#lib/components/ui/field/index.ts';
-	import * as Select from '#lib/components/ui/select/index.ts';
+	import SettingsCard from '#lib/components/settings-card.svelte';
+	import { Badge } from '@pocket-id/ui/badge';
+	import { Button } from '@pocket-id/ui/button';
+	import * as Dialog from '@pocket-id/ui/dialog';
+	import * as Field from '@pocket-id/ui/field';
+	import * as Select from '@pocket-id/ui/select';
 	import { m } from '#lib/paraglide/messages.js';
 	import { getLocale } from '#lib/paraglide/runtime.js';
 	import OidcService from '#lib/services/oidc-service.ts';
 	import clientSecretStore, { autoCreatedSecretId } from '#lib/stores/client-secret-store.ts';
 	import type { OidcClient, OidcClientSecret } from '#lib/types/oidc.type.ts';
 	import { axiosErrorToast } from '#lib/utils/error-util.ts';
-	import { LucidePlus, LucideTrash2 } from '@lucide/svelte';
+	import PlusIcon from '~icons/solar/add-circle-bold';
+	import Trash2Icon from '~icons/solar/trash-bin-minimalistic-bold';
 	import { toast } from 'svelte-sonner';
 	import SecretReveal from './secret-reveal.svelte';
 
@@ -107,38 +108,34 @@
 	}
 </script>
 
-<SettingsSection
+<SettingsCard
 	title={m.client_secrets()}
-	description={client.isPublic
-		? undefined
-		: limitReached
-			? m.client_secrets_limit_reached()
-			: m.client_secrets_section_description()}
+	description={!client.isPublic && limitReached ? m.client_secrets_limit_reached() : undefined}
 >
 	<!-- An empty list offers the action in its row, so the header shows it only once secrets exist -->
 	{#snippet action()}
 		{#if !client.isPublic && secrets.length > 0}
 			<Button variant="secondary" size="sm" disabled={limitReached} onclick={openGenerate}>
-				<LucidePlus />
+				<PlusIcon />
 				{m.generate_secret_ellipsis()}
 			</Button>
 		{/if}
 	{/snippet}
-	<div class="mt-2 flex flex-col gap-4">
+	<div class="flex flex-col">
 		{#if revealed}
-			<div bind:this={revealRef}>
+			<div bind:this={revealRef} class="pt-4 pb-3">
 				<SecretReveal label={m.new_client_secret()} value={revealed} testId="new-client-secret" />
 			</div>
 		{/if}
-		<ul class="flex flex-col rounded-md border">
+		<ul class="flex flex-col">
 			{#if client.isPublic}
-				<li class="text-control text-fg-muted flex min-h-11 items-center px-4">
+				<li class="text-control text-fg-muted flex min-h-(--row-2line) items-center">
 					{m.public_clients_dont_have_client_secrets()}
 				</li>
 			{:else}
 				{#each secrets as secret (secret.id)}
 					<li
-						class="flex min-h-11 items-center gap-3 border-b py-2 ps-4 pe-2 last:border-b-0"
+						class="flex min-h-(--row-2line) items-center gap-3 border-b py-2 last:border-b-0"
 						data-testid="client-secret-row"
 					>
 						<div class="flex min-w-0 flex-1 flex-col">
@@ -164,16 +161,16 @@
 							aria-label={m.delete_secret_prefix({ prefix: secret.prefix })}
 							onclick={() => deleteSecret(secret)}
 						>
-							<LucideTrash2 />
+							<Trash2Icon />
 						</Button>
 					</li>
 				{:else}
-					<li class="flex min-h-11 flex-wrap items-center justify-between gap-2 ps-4 pe-2">
+					<li class="flex min-h-(--row-2line) flex-wrap items-center justify-between gap-2">
 						<span class="text-control text-fg-muted min-w-0">
 							{m.name_has_no_client_secrets_yet({ name: client.name })}
 						</span>
 						<Button variant="ghost" size="sm" onclick={openGenerate}>
-							<LucidePlus />
+							<PlusIcon />
 							{m.generate_secret_ellipsis()}
 						</Button>
 					</li>
@@ -181,7 +178,7 @@
 			{/if}
 		</ul>
 	</div>
-</SettingsSection>
+</SettingsCard>
 
 <Dialog.Root bind:open={dialogOpen}>
 	<!-- The new secret's only button is its Copy button, which takes focus so it can be copied right away -->

@@ -8,6 +8,6 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
-func RegisterFrontend(router *gin.Engine, animationsDisabled func(ctx context.Context) bool) error {
+func RegisterFrontend(_ *gin.Engine, _ func(ctx context.Context) (bool, error)) error {
 	return ErrFrontendNotIncluded
 }

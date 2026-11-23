@@ -5,7 +5,6 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	"net/url"
 	"regexp"
 	"strings"
 	"unicode"
@@ -77,14 +76,6 @@ func GenerateRandomString(length int, charset string) (string, error) {
 	return result.String(), nil
 }
 
-func GetHostnameFromURL(rawURL string) string {
-	parsedURL, err := url.Parse(rawURL)
-	if err != nil {
-		return ""
-	}
-	return parsedURL.Hostname()
-}
-
 func CapitalizeFirstLetter(str string) string {
 	if str == "" {
 		return ""
@@ -111,12 +102,6 @@ func CamelCaseToSnakeCase(s string) string {
 	s = reAcronymBoundary.ReplaceAllString(s, "${1}_${2}")
 	s = reLowerToUpper.ReplaceAllString(s, "${1}_${2}")
 	return strings.ToLower(s)
-}
-
-func CamelCaseToScreamingSnakeCase(s string) string {
-	s = reAcronymBoundary.ReplaceAllString(s, "${1}_${2}")
-	s = reLowerToUpper.ReplaceAllString(s, "${1}_${2}")
-	return strings.ToUpper(s)
 }
 
 // GetFirstCharacter returns the first non-whitespace character of the string, correctly handling Unicode

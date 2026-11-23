@@ -42,7 +42,7 @@ func (f *fakeReauthenticationTokenConsumer) ConsumeReauthenticationToken(_ conte
 	return time.Now(), nil
 }
 
-type fakeTokenService struct {
+type fakeSessionCreator struct {
 	mu                   sync.Mutex
 	userID               string
 	authenticationMethod string
@@ -51,20 +51,20 @@ type fakeTokenService struct {
 	err                  error
 }
 
-func (f *fakeTokenService) GenerateAccessToken(user model.User, authenticationMethod string, sessionDuration time.Duration) (string, error) {
+func (f *fakeSessionCreator) Create(_ context.Context, userID, authenticationMethod, _, _ string, sessionDuration time.Duration, _ bool) (string, error) {
 	f.mu.Lock()
 	defer f.mu.Unlock()
-	f.userID = user.ID
+	f.userID = userID
 	f.authenticationMethod = authenticationMethod
 	f.sessionDuration = sessionDuration
 	f.generated++
 	if f.err != nil {
 		return "", f.err
 	}
-	return "device-login-access-token", nil
+	return "device-login-session-token", nil
 }
 
-func (f *fakeTokenService) generatedToken() (string, string, time.Duration, int) {
+func (f *fakeSessionCreator) generatedToken() (string, string, time.Duration, int) {
 	f.mu.Lock()
 	defer f.mu.Unlock()
 	return f.userID, f.authenticationMethod, f.sessionDuration, f.generated
@@ -119,7 +119,7 @@ func (f *fakeAuditLogger) entryCount() int {
 type serviceFixture struct {
 	service  *Service
 	actors   *actor.Service
-	signer   *fakeTokenService
+	sessions *fakeSessionCreator
 	auditLog *fakeAuditLogger
 	reauth   *fakeReauthenticationTokenConsumer
 }
@@ -156,16 +156,16 @@ func TestRequestLifecycle(t *testing.T) {
 	err = fixture.service.Decide(t.Context(), strings.ToLower(request.Code), "approve", user.ID, "fresh-proof")
 	require.NoError(t, err)
 
-	exchangedUser, accessToken, status, err := fixture.service.Exchange(t.Context(), request.ID, deviceToken, "198.51.100.20", "target-agent", "", testSessionDuration, appconfig.LoginNotificationBrowserRecognition)
+	exchangedUser, tokens, status, err := fixture.service.Exchange(t.Context(), request.ID, deviceToken, "198.51.100.20", "target-agent", "", testSessionDuration, true, appconfig.LoginNotificationBrowserRecognition)
 	require.NoError(t, err)
 	require.Equal(t, RequestStatusApproved, status)
 	require.Equal(t, user.ID, exchangedUser.ID)
-	require.Equal(t, "device-login-access-token", accessToken.AccessToken)
+	require.Equal(t, "device-login-session-token", tokens.SessionToken)
 	require.Len(t, fixture.auditLog.notifications, 1)
 	require.True(t, fixture.auditLog.notifications[0].Notify)
 	require.Equal(t, auditlogs.EventRemoteSignIn, fixture.auditLog.notifications[0].AuditLog.Event)
 
-	signedUserID, authenticationMethod, sessionDuration, generated := fixture.signer.generatedToken()
+	signedUserID, authenticationMethod, sessionDuration, generated := fixture.sessions.generatedToken()
 	require.Equal(t, user.ID, signedUserID)
 	require.Equal(t, authenticationMethodOneTimePassword, authenticationMethod)
 	require.Equal(t, testSessionDuration, sessionDuration)
@@ -178,12 +178,12 @@ func TestRequestLifecycle(t *testing.T) {
 	require.Equal(t, "target-agent", entry.userAgent)
 	require.Equal(t, user.ID, entry.userID)
 
-	_, _, _, err = fixture.service.Exchange(t.Context(), request.ID, deviceToken, "", "", "", testSessionDuration, appconfig.LoginNotificationDisabled)
+	_, _, _, err = fixture.service.Exchange(t.Context(), request.ID, deviceToken, "", "", "", testSessionDuration, true, appconfig.LoginNotificationDisabled)
 	assertInvalidRequestError(t, err)
 
-	_, _, _, err = fixture.service.Exchange(t.Context(), request.ID, "wrong-token", "", "", "", testSessionDuration, appconfig.LoginNotificationDisabled)
+	_, _, _, err = fixture.service.Exchange(t.Context(), request.ID, "wrong-token", "", "", "", testSessionDuration, true, appconfig.LoginNotificationDisabled)
 	assertInvalidRequestError(t, err)
-	_, _, _, generated = fixture.signer.generatedToken()
+	_, _, _, generated = fixture.sessions.generatedToken()
 	require.Equal(t, 1, generated)
 	require.Equal(t, 1, fixture.auditLog.entryCount())
 }
@@ -204,7 +204,7 @@ func TestPendingAndDeniedRequests(t *testing.T) {
 	err = fixture.service.Decide(t.Context(), request.Code, "deny", "device-login-user", "")
 	require.NoError(t, err)
 
-	user, accessToken, status, err := fixture.service.Exchange(t.Context(), request.ID, deviceToken, "", "", "", testSessionDuration, appconfig.LoginNotificationDisabled)
+	user, accessToken, status, err := fixture.service.Exchange(t.Context(), request.ID, deviceToken, "", "", "", testSessionDuration, true, appconfig.LoginNotificationDisabled)
 	require.True(t, apperror.IsCode(err, apperror.CodeDeviceLoginDenied))
 	require.Equal(t, RequestStatusDenied, status)
 	require.Empty(t, user.ID)
@@ -224,7 +224,7 @@ func TestPendingExchangeObservesDecisionDuringLongPoll(t *testing.T) {
 	}
 	result := make(chan exchangeOutcome, 1)
 	go func() {
-		_, _, status, exchangeErr := fixture.service.Exchange(t.Context(), request.ID, deviceToken, "", "", "", testSessionDuration, appconfig.LoginNotificationDisabled)
+		_, _, status, exchangeErr := fixture.service.Exchange(t.Context(), request.ID, deviceToken, "", "", "", testSessionDuration, true, appconfig.LoginNotificationDisabled)
 		result <- exchangeOutcome{status: status, err: exchangeErr}
 	}()
 
@@ -248,14 +248,14 @@ func TestRejectsInvalidAndExpiredRequestsWhileActorIsActive(t *testing.T) {
 	require.NoError(t, err)
 
 	unknownRequestID := strings.Repeat("a", 64)
-	_, _, _, err = fixture.service.Exchange(t.Context(), unknownRequestID, "device-token", "", "", "", testSessionDuration, appconfig.LoginNotificationDisabled)
+	_, _, _, err = fixture.service.Exchange(t.Context(), unknownRequestID, "device-token", "", "", "", testSessionDuration, true, appconfig.LoginNotificationDisabled)
 	assertInvalidRequestError(t, err)
 	_, err = fixture.service.Inspect(t.Context(), unknownRequestID)
 	assertInvalidRequestError(t, err)
 	err = fixture.service.Decide(t.Context(), unknownRequestID, "deny", "device-login-user", "")
 	assertInvalidRequestError(t, err)
 
-	_, _, _, err = fixture.service.Exchange(t.Context(), request.ID, "wrong-token", "", "", "", testSessionDuration, appconfig.LoginNotificationDisabled)
+	_, _, _, err = fixture.service.Exchange(t.Context(), request.ID, "wrong-token", "", "", "", testSessionDuration, true, appconfig.LoginNotificationDisabled)
 	assertInvalidRequestError(t, err)
 
 	state := getRequestActorState(t, fixture.actors, request.ID)
@@ -266,7 +266,7 @@ func TestRejectsInvalidAndExpiredRequestsWhileActorIsActive(t *testing.T) {
 	assertInvalidRequestError(t, err)
 	err = fixture.service.Decide(t.Context(), request.Code, "deny", "device-login-user", "")
 	assertInvalidRequestError(t, err)
-	_, _, _, err = fixture.service.Exchange(t.Context(), request.ID, deviceToken, "", "", "", testSessionDuration, appconfig.LoginNotificationDisabled)
+	_, _, _, err = fixture.service.Exchange(t.Context(), request.ID, deviceToken, "", "", "", testSessionDuration, true, appconfig.LoginNotificationDisabled)
 	assertInvalidRequestError(t, err)
 }
 
@@ -285,7 +285,7 @@ func TestRejectsDisabledUserAtExchange(t *testing.T) {
 	require.NoError(t, err)
 	require.NoError(t, fixture.service.Decide(t.Context(), request.Code, "approve", user.ID, "fresh-proof"))
 
-	_, accessToken, _, err := fixture.service.Exchange(t.Context(), request.ID, deviceToken, "", "", "", testSessionDuration, appconfig.LoginNotificationDisabled)
+	_, accessToken, _, err := fixture.service.Exchange(t.Context(), request.ID, deviceToken, "", "", "", testSessionDuration, true, appconfig.LoginNotificationDisabled)
 	require.True(t, apperror.IsCode(err, apperror.CodeUserDisabled))
 	require.Empty(t, accessToken)
 	require.Equal(t, RequestStatusApproved, getRequestActorState(t, fixture.actors, request.ID).Status)
@@ -294,7 +294,7 @@ func TestRejectsDisabledUserAtExchange(t *testing.T) {
 func TestFailedTokenGenerationConsumesApprovedRequest(t *testing.T) {
 	db := testutils.NewDatabaseForTest(t)
 	fixture := newServiceFixture(t, db)
-	fixture.signer.err = errors.New("token generation failed")
+	fixture.sessions.err = errors.New("session creation failed")
 
 	user := model.User{
 		Base:     model.Base{ID: "token-failure-device-login-user"},
@@ -306,14 +306,14 @@ func TestFailedTokenGenerationConsumesApprovedRequest(t *testing.T) {
 	require.NoError(t, err)
 	require.NoError(t, fixture.service.Decide(t.Context(), request.Code, "approve", user.ID, "fresh-proof"))
 
-	_, accessToken, status, err := fixture.service.Exchange(t.Context(), request.ID, deviceToken, "", "", "", testSessionDuration, appconfig.LoginNotificationDisabled)
-	require.EqualError(t, err, "token generation failed")
+	_, accessToken, status, err := fixture.service.Exchange(t.Context(), request.ID, deviceToken, "", "", "", testSessionDuration, true, appconfig.LoginNotificationDisabled)
+	require.EqualError(t, err, "session creation failed")
 	require.Empty(t, accessToken)
 	require.Equal(t, RequestStatusApproved, status)
 	requireRequestActorStateDeleted(t, fixture.actors, request.ID)
 	require.Equal(t, 0, fixture.auditLog.entryCount())
 
-	_, _, _, err = fixture.service.Exchange(t.Context(), request.ID, deviceToken, "", "", "", testSessionDuration, appconfig.LoginNotificationDisabled)
+	_, _, _, err = fixture.service.Exchange(t.Context(), request.ID, deviceToken, "", "", "", testSessionDuration, true, appconfig.LoginNotificationDisabled)
 	assertInvalidRequestError(t, err)
 }
 
@@ -362,8 +362,8 @@ func TestConcurrentExchangeAllowsOnlyOneSuccess(t *testing.T) {
 		waitGroup.Add(1)
 		go func() {
 			defer waitGroup.Done()
-			_, token, _, exchangeErr := fixture.service.Exchange(t.Context(), request.ID, deviceToken, "", "", "", testSessionDuration, appconfig.LoginNotificationDisabled)
-			results <- exchangeResult{token: token.AccessToken, err: exchangeErr}
+			_, token, _, exchangeErr := fixture.service.Exchange(t.Context(), request.ID, deviceToken, "", "", "", testSessionDuration, true, appconfig.LoginNotificationDisabled)
+			results <- exchangeResult{token: token.SessionToken, err: exchangeErr}
 		}()
 	}
 	waitGroup.Wait()
@@ -379,10 +379,10 @@ func TestConcurrentExchangeAllowsOnlyOneSuccess(t *testing.T) {
 		require.True(t, apperror.IsCode(result.err, apperror.CodeDeviceLoginExpired))
 		invalidExchanges++
 	}
-	require.Equal(t, []string{"device-login-access-token"}, successfulTokens)
+	require.Equal(t, []string{"device-login-session-token"}, successfulTokens)
 	require.Equal(t, 1, invalidExchanges)
 	require.Equal(t, 1, fixture.auditLog.entryCount())
-	_, _, _, generated := fixture.signer.generatedToken()
+	_, _, _, generated := fixture.sessions.generatedToken()
 	require.Equal(t, 1, generated)
 	requireRequestActorStateDeleted(t, fixture.actors, request.ID)
 }
@@ -422,7 +422,7 @@ func TestRequestStateSurvivesActorHostRestart(t *testing.T) {
 	require.NoError(t, err)
 	require.Equal(t, "persistent-agent", strings.TrimPrefix(info.Device, "Parsed "))
 	require.NoError(t, secondModule.service.Decide(t.Context(), request.Code, "deny", "device-login-user", ""))
-	_, _, status, err := secondModule.service.Exchange(t.Context(), request.ID, deviceToken, "", "", "", testSessionDuration, appconfig.LoginNotificationDisabled)
+	_, _, status, err := secondModule.service.Exchange(t.Context(), request.ID, deviceToken, "", "", "", testSessionDuration, true, appconfig.LoginNotificationDisabled)
 	require.True(t, apperror.IsCode(err, apperror.CodeDeviceLoginDenied))
 	require.Equal(t, RequestStatusDenied, status)
 }
@@ -441,17 +441,17 @@ func TestCompletedExchangeIsInvalidAfterActorHostRestart(t *testing.T) {
 	request, deviceToken, err := firstModule.service.Create(t.Context(), "", "persistent-agent")
 	require.NoError(t, err)
 	require.NoError(t, firstModule.service.Decide(t.Context(), request.Code, "approve", user.ID, "fresh-proof"))
-	_, _, firstStatus, err := firstModule.service.Exchange(t.Context(), request.ID, deviceToken, "", "", "", testSessionDuration, appconfig.LoginNotificationDisabled)
+	_, _, firstStatus, err := firstModule.service.Exchange(t.Context(), request.ID, deviceToken, "", "", "", testSessionDuration, true, appconfig.LoginNotificationDisabled)
 	require.NoError(t, err)
 	require.Equal(t, RequestStatusApproved, firstStatus)
 	stopFirst()
 
 	secondModule, stopSecond := startPersistentDeviceLoginHost(t, db, deps)
 	defer stopSecond()
-	_, _, _, err = secondModule.service.Exchange(t.Context(), request.ID, deviceToken, "", "", "", testSessionDuration, appconfig.LoginNotificationDisabled)
+	_, _, _, err = secondModule.service.Exchange(t.Context(), request.ID, deviceToken, "", "", "", testSessionDuration, true, appconfig.LoginNotificationDisabled)
 	assertInvalidRequestError(t, err)
 
-	_, _, _, generated := deps.Signer.(*fakeTokenService).generatedToken()
+	_, _, _, generated := deps.Sessions.(*fakeSessionCreator).generatedToken()
 	require.Equal(t, 1, generated)
 	require.Equal(t, 1, deps.AuditLog.(*fakeAuditLogger).entryCount())
 }
@@ -468,7 +468,7 @@ func TestPendingExchangeStopsWhenRequestIsCanceled(t *testing.T) {
 	result := make(chan error, 1)
 	go func() {
 		close(started)
-		_, _, _, exchangeErr := fixture.service.Exchange(ctx, request.ID, deviceToken, "", "", "", testSessionDuration, appconfig.LoginNotificationDisabled)
+		_, _, _, exchangeErr := fixture.service.Exchange(ctx, request.ID, deviceToken, "", "", "", testSessionDuration, true, appconfig.LoginNotificationDisabled)
 		result <- exchangeErr
 	}()
 
@@ -485,7 +485,7 @@ func TestPendingExchangeStopsWhenRequestIsCanceled(t *testing.T) {
 
 func newServiceFixture(t *testing.T, db *gorm.DB) serviceFixture {
 	t.Helper()
-	signer := &fakeTokenService{}
+	sessions := &fakeSessionCreator{}
 	auditLog := &fakeAuditLogger{}
 	ipLocator := &fakeIPLocationResolver{country: "Switzerland", city: "Zurich"}
 	reauth := &fakeReauthenticationTokenConsumer{expectedValue: "fresh-proof"}
@@ -495,7 +495,7 @@ func newServiceFixture(t *testing.T, db *gorm.DB) serviceFixture {
 		module, err = New(Dependencies{
 			DB:        db,
 			Actors:    host,
-			Signer:    signer,
+			Sessions:  sessions,
 			AuditLog:  auditLog,
 			IPLocator: ipLocator,
 			Reauth:    reauth,
@@ -506,7 +506,7 @@ func newServiceFixture(t *testing.T, db *gorm.DB) serviceFixture {
 	return serviceFixture{
 		service:  module.service,
 		actors:   host.Service(),
-		signer:   signer,
+		sessions: sessions,
 		auditLog: auditLog,
 		reauth:   reauth,
 	}
@@ -533,7 +533,7 @@ func assertInvalidRequestError(t *testing.T, err error) {
 func persistentTestDependencies(db *gorm.DB) Dependencies {
 	return Dependencies{
 		DB:        db,
-		Signer:    &fakeTokenService{},
+		Sessions:  &fakeSessionCreator{},
 		AuditLog:  &fakeAuditLogger{},
 		IPLocator: &fakeIPLocationResolver{},
 		Reauth:    &fakeReauthenticationTokenConsumer{expectedValue: "fresh-proof"},

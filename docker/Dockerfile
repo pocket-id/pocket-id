@@ -6,15 +6,16 @@
 ARG BUILD_TAGS=""
 
 # Stage 1: Build Frontend
-FROM --platform=$BUILDPLATFORM ghcr.io/voidzero-dev/vite-plus:1.4.0 AS frontend-builder
+FROM --platform=$BUILDPLATFORM ghcr.io/voidzero-dev/vite-plus:1.7.0 AS frontend-builder
 ENV CI=true
 WORKDIR /app
 
 COPY --chown=vp:vp package.json pnpm-workspace.yaml pnpm-lock.yaml .node-version ./
-COPY --chown=vp:vp --parents frontend/package.json tests/package.json email-templates/package.json ./
+COPY --chown=vp:vp --parents frontend/package.json packages/tests/package.json packages/email-templates/package.json packages/ui/package.json ./
 RUN --mount=type=cache,id=pocket-id-pnpm,target=/home/vp/.local/share/pnpm/store,sharing=locked,uid=1000,gid=1000 \
   vp -C frontend install --frozen-lockfile --prefer-offline
 
+COPY --chown=vp:vp ./packages/ui ./packages/ui/
 COPY --chown=vp:vp ./frontend ./frontend/
 
 RUN --mount=type=cache,target=/app/frontend/node_modules/.vite,uid=1000,gid=1000 \
@@ -22,7 +23,7 @@ RUN --mount=type=cache,target=/app/frontend/node_modules/.vite,uid=1000,gid=1000
   BUILD_OUTPUT_PATH=dist vp -C frontend run build
 
 # Stage 2: Build Backend
-FROM golang:1.27.3-alpine AS backend-builder
+FROM golang:1.27.4-alpine AS backend-builder
 ARG BUILD_TAGS
 WORKDIR /build
 COPY ./backend/go.mod ./backend/go.sum ./
@@ -47,21 +48,19 @@ RUN --mount=type=cache,target=/go/pkg/mod \
     .
 
 # Stage 3: Production Image
-FROM alpine:3.24.3
+FROM gcr.io/distroless/static-debian13:nonroot@sha256:aafe993665bf6200db38a02c11a9351e782a84b6a45e7f33b6695638c88e3931
 WORKDIR /app
 
-RUN apk add --no-cache su-exec
-
 COPY --from=backend-builder /build/pocket-id /app/pocket-id
-COPY ./scripts/docker /app/docker
 
-RUN chmod +x /app/pocket-id && \
-  find /app/docker -name "*.sh" -exec chmod +x {} \;
+USER 65532:65532
+
+WORKDIR /app/data
+WORKDIR /app
 
 EXPOSE 1411
 ENV APP_ENV=production
 
 HEALTHCHECK --interval=90s --timeout=5s --start-period=10s --retries=3 CMD [ "/app/pocket-id", "healthcheck" ]
 
-ENTRYPOINT ["sh", "/app/docker/entrypoint.sh"]
 CMD ["/app/pocket-id"]

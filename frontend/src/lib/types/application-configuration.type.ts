@@ -1,3 +1,4 @@
+import type { Appearance } from '#lib/components/appearance/appearance.svelte.ts';
 import type { CustomClaim } from './custom-claim.type';
 import type { Feature } from './feature.type';
 
@@ -10,9 +11,9 @@ export type AppConfig = {
 	emailOneTimeAccessAsAdminEnabled: boolean;
 	emailVerification: 'disabled' | 'optional' | 'required';
 	ldapEnabled: boolean;
-	disableAnimations: boolean;
+	ldapAllowProfilePictureOverride: boolean;
 	uiConfigDisabled: boolean;
-	colorTheme: string;
+	appearance: Partial<Appearance>;
 	requireUserEmail: boolean;
 	tracingEnabled: boolean;
 	iconLibrary: 'default' | 'custom' | 'disabled';
@@ -49,6 +50,7 @@ export type AllAppConfig = AppConfig & {
 	ldapAttributeUserLastName: string;
 	ldapAttributeUserDisplayName: string;
 	ldapAttributeUserProfilePicture: string;
+	ldapAttributeUserLanguage: string;
 	ldapAttributeGroupMember: string;
 	ldapAttributeGroupUniqueIdentifier: string;
 	ldapAttributeGroupName: string;
@@ -58,6 +60,7 @@ export type AllAppConfig = AppConfig & {
 	webauthnUserVerification: 'required' | 'preferred';
 	webauthnAllowSyncedPasskeys: boolean;
 	webauthnAuthenticatorAttachment: 'any' | 'platform' | 'cross-platform';
+	webauthnAttestation: 'none' | 'verified' | 'l1' | 'l2' | 'l3';
 	// OIDC
 	cimdUrlAllowlist: string[];
 	autoCreateOidcClientSecret: boolean;
@@ -69,6 +72,7 @@ export type AppConfigRawResponse = {
 	key: string;
 	type: string;
 	value: string;
+	envOverride?: boolean;
 }[];
 
 export type AppVersionInformation = {

@@ -6,27 +6,27 @@
 		alternativeSignInHref,
 		authPrimaryClass,
 		authQuietClass,
-		isPasskeyPromptClosed,
-		successHold
+		isPasskeyPromptClosed
 	} from '#lib/components/auth/auth-util.ts';
 	import AuthorizeTiles from '#lib/components/auth/authorize-tiles.svelte';
 	import TrustLine from '#lib/components/auth/trust-line.svelte';
 	import IdentityRow from '#lib/components/identity-row.svelte';
 	import SignInWrapper from '#lib/components/login-wrapper.svelte';
 	import ScopeList from '#lib/components/scope-list.svelte';
-	import { Button } from '#lib/components/ui/button/index.ts';
-	import { Spinner } from '#lib/components/ui/spinner/index.ts';
+	import { Button } from '@pocket-id/ui/button';
+	import { Spinner } from '@pocket-id/ui/spinner';
 	import { m } from '#lib/paraglide/messages.js';
 	import OidcService from '#lib/services/oidc-service.ts';
 	import WebAuthnService from '#lib/services/webauthn-service.ts';
 	import appConfigStore from '#lib/stores/application-configuration-store.ts';
+	import { keepSignedIn } from '#lib/stores/keep-signed-in-store.svelte.ts';
 	import userStore from '#lib/stores/user-store.ts';
 	import type { InteractionStep } from '#lib/types/oidc.type.ts';
 	import { getClientIDHost } from '#lib/utils/client-id-util.ts';
 	import { getAxiosErrorCode, getWebauthnErrorMessage } from '#lib/utils/error-util.ts';
 	import { cssMs } from '#lib/utils/style.ts';
 	import { startAuthentication } from '@simplewebauthn/browser';
-	import { LucideChevronRight } from '@lucide/svelte';
+	import ChevronRightIcon from '~icons/solar/alt-arrow-right-linear';
 	import type { PageProps } from './$types';
 
 	const webauthnService = new WebAuthnService();
@@ -39,6 +39,8 @@
 	let signingIn = $state(false);
 	let redirectUrl: string | undefined = $state();
 	let showFallback = $state(false);
+	// Scopes granted on this page stay in view while the browser leaves, so the wide card does not collapse into a small one
+	let granted = $state(false);
 	let failure: { message: string; code?: string; closed: boolean } | undefined = $state();
 	let currentStep = $derived(interactionSession.currentStep);
 	// Every requested scope starts selected so the user only has to deselect the ones they do not want to grant
@@ -47,10 +49,8 @@
 	const client = $derived(interactionSession.client);
 	// Metadata-document clients go by their host in body copy, because their display name is self-declared
 	const clientName = $derived(getClientIDHost(client) ?? client.name);
-	// openid and offline_access show nothing, so a request for only those keeps the compact card
-	const hasScopes = $derived(
-		(interactionSession.scopes ?? []).some((s) => s !== 'openid' && s !== 'offline_access')
-	);
+	// openid shows nothing, so a request for only openid keeps the compact card
+	const hasScopes = $derived((interactionSession.scopes ?? []).some((s) => s !== 'openid'));
 	const emailVerificationRequired = $derived(failure?.code === 'email_verification_required');
 	const view = $derived(
 		redirectUrl
@@ -61,6 +61,7 @@
 					? 'verify'
 					: (currentStep ?? 'authenticate')
 	);
+	const showScopes = $derived(hasScopes && (view === 'consent' || (view === 'success' && granted)));
 
 	async function useDifferentAccount() {
 		await webauthnService.logout();
@@ -75,6 +76,9 @@
 		try {
 			if (!$userStore) {
 				await authenticate();
+
+				// Signing in is not consent, so an interaction that already waits at the consent step shows it first
+				if (currentStep === 'consent') return;
 			}
 
 			if (currentStep === 'reauthenticate') {
@@ -98,6 +102,7 @@
 		const loginOptions = await webauthnService.getLoginOptions();
 		const authResponse = await startAuthentication({ optionsJSON: loginOptions });
 		const user = await webauthnService.finishLogin(authResponse);
+		await keepSignedIn.ask();
 		await userStore.setUser(user);
 		await refreshAll();
 	}
@@ -127,12 +132,16 @@
 		}
 
 		if (result.redirectUrl && !skipRedirect) {
+			granted = step === 'consent';
 			redirectUrl = result.redirectUrl;
 			// The way forward becomes a link when the browser has not left after a few seconds
 			setTimeout(() => (showFallback = true), cssMs('--t-redirect-fallback'));
-			await successHold();
-			window.location.href = result.redirectUrl;
 		}
+	}
+
+	// The redirect waits for the tiles to settle, because a fast client would otherwise replace the check before it is seen
+	function redirect() {
+		setTimeout(() => (window.location.href = redirectUrl!), cssMs('--t-success-dwell'));
 	}
 </script>
 
@@ -140,8 +149,8 @@
 	<title>{m.sign_in_to({ name: client.name })}</title>
 </svelte:head>
 
-<SignInWrapper wide={view === 'consent' && hasScopes}>
-	<AuthorizeTiles {client} success={!!redirectUrl} error={!!failure && !failure.closed} />
+<SignInWrapper wide={showScopes}>
+	<AuthorizeTiles {client} success={!!redirectUrl} error={!!failure} onsuccessshown={redirect} />
 
 	{#if view === 'success'}
 		<AuthHeading title={m.auth_signed_in()}>
@@ -154,7 +163,7 @@
 		>
 			<Button variant="link" class="text-body h-(--h-xl) max-w-full gap-1" href={redirectUrl}>
 				<span class="truncate">{m.auth_continue_to({ name: clientName })}</span>
-				<LucideChevronRight />
+				<ChevronRightIcon />
 			</Button>
 		</div>
 	{:else}
@@ -164,16 +173,15 @@
 				: view === 'reauthenticate'
 					? m.auth_confirm_its_you()
 					: client.name}
-			tone={failure ? (failure.closed ? 'info' : 'danger') : undefined}
 		>
 			{#if failure}
 				{failure.closed ? m.auth_passkey_prompt_closed() : failure.message}
 			{:else if view === 'select_account'}
-				{m.auth_to_continue_to({ name: clientName })}
+				{m.auth_continue_with_chosen_account({ name: clientName })}
 			{:else if view === 'reauthenticate'}
 				{m.auth_confirm_with_passkey({ name: clientName })}
 			{:else}
-				{m.auth_wants_to_sign_you_in({ appName: $appConfigStore.appName })}
+				{m.auth_sign_in_with_your_account({ appName: $appConfigStore.appName })}
 			{/if}
 		</AuthHeading>
 
@@ -195,7 +203,7 @@
 							{#if isLoading}
 								<Spinner class="size-4" />
 							{:else}
-								<LucideChevronRight
+								<ChevronRightIcon
 									class="size-4 transition-transform duration-(--dur-fast) group-hover/account:translate-x-(--nudge)"
 								/>
 							{/if}
@@ -208,59 +216,64 @@
 				<IdentityRow user={$userStore} />
 			</div>
 		{/if}
-
-		{#if view === 'consent' && hasScopes}
-			<div class="mb-6 lg:break-before-column">
-				<ScopeList
-					scopes={interactionSession.scopes || []}
-					scopeInfo={interactionSession.scopeInfo ?? []}
-					bind:selectedScopes
-				/>
-			</div>
-		{/if}
-
-		<ActionPanel>
-			<div class="flex flex-col items-center gap-3">
-				{#if view === 'verify'}
-					<Button class={authPrimaryClass} href="/settings/account">
-						{m.verify_email_address()}
-					</Button>
-				{:else if view === 'sign-in'}
-					<Button class={authPrimaryClass} {isLoading} onclick={handlePipeline}>
-						{failure ? m.try_again() : m.auth_sign_in_with_passkey()}
-					</Button>
-					<Button variant="link" class={authQuietClass} href={alternativeSignInHref()}>
-						{m.auth_other_ways_to_sign_in()}
-					</Button>
-				{:else if view === 'select_account'}
-					<Button variant="link" class={authQuietClass} onclick={useDifferentAccount}>
-						{m.use_a_different_account()}
-					</Button>
-				{:else}
-					<!-- A metadata-document client goes by its host, which can be longer than the button -->
-					<Button class={authPrimaryClass} {isLoading} onclick={handlePipeline}>
-						<span class="truncate">
-							{failure
-								? m.try_again()
-								: view === 'reauthenticate'
-									? m.auth_continue_with_passkey()
-									: m.auth_continue_to({ name: clientName })}
-						</span>
-					</Button>
-				{/if}
-				<!-- Cancel goes back through authorize, so the app hears access_denied instead of the person being left on Pocket ID -->
-				<Button
-					variant="link"
-					class={authQuietClass}
-					href={`/authorize?interaction=${encodeURIComponent(interactionSession.id)}&cancel=true`}
-				>
-					{m.cancel()}
-				</Button>
-			</div>
-
-			{#if view === 'consent'}
-				<p class="text-control text-fg-muted mt-2 text-center">{m.auth_remove_access_anytime()}</p>
-			{/if}
-		</ActionPanel>
 	{/if}
+
+	{#snippet side()}
+		{#if showScopes && view === 'success'}
+			<!-- The granted scopes only fill the second column, because stacked under the outcome they would read as another question -->
+			<div class="max-lg:hidden">
+				<ScopeList scopes={selectedScopes} scopeInfo={interactionSession.scopeInfo ?? []} />
+			</div>
+		{:else if view !== 'success'}
+			{#if showScopes}
+				<div class="mb-6">
+					<ScopeList
+						scopes={interactionSession.scopes || []}
+						scopeInfo={interactionSession.scopeInfo ?? []}
+						bind:selectedScopes
+					/>
+				</div>
+			{/if}
+
+			<ActionPanel>
+				<div class="flex flex-col items-center gap-3">
+					{#if view === 'verify'}
+						<Button class={authPrimaryClass} href="/settings/account">
+							{m.verify_email_address()}
+						</Button>
+					{:else if view === 'sign-in'}
+						<Button class={authPrimaryClass} {isLoading} onclick={handlePipeline}>
+							{failure ? m.try_again() : m.auth_sign_in_with_passkey()}
+						</Button>
+						<Button variant="link" class={authQuietClass} href={alternativeSignInHref()}>
+							{m.auth_other_ways_to_sign_in()}
+						</Button>
+					{:else if view === 'select_account'}
+						<Button variant="link" class={authQuietClass} onclick={useDifferentAccount}>
+							{m.use_a_different_account()}
+						</Button>
+					{:else}
+						<!-- A metadata-document client goes by its host, which can be longer than the button -->
+						<Button class={authPrimaryClass} {isLoading} onclick={handlePipeline}>
+							<span class="truncate">
+								{failure
+									? m.try_again()
+									: view === 'reauthenticate'
+										? m.auth_continue_with_passkey()
+										: m.auth_continue_to({ name: clientName })}
+							</span>
+						</Button>
+					{/if}
+					<!-- Cancel goes back through authorize, so the app hears access_denied instead of the person being left on Pocket ID -->
+					<Button
+						variant="link"
+						class={authQuietClass}
+						href={`/authorize?interaction=${encodeURIComponent(interactionSession.id)}&cancel=true`}
+					>
+						{m.cancel()}
+					</Button>
+				</div>
+			</ActionPanel>
+		{/if}
+	{/snippet}
 </SignInWrapper>

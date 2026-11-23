@@ -6,12 +6,11 @@
 	import { authPrimaryClass, emailedLoginCode } from '#lib/components/auth/auth-util.ts';
 	import CodeLine from '#lib/components/auth/code-line.svelte';
 	import SignInWrapper from '#lib/components/login-wrapper.svelte';
-	import { Button } from '#lib/components/ui/button/index.ts';
-	import { Input } from '#lib/components/ui/input/index.ts';
-	import { Label } from '#lib/components/ui/label/index.ts';
+	import { Button } from '@pocket-id/ui/button';
+	import { Input } from '@pocket-id/ui/input';
+	import { Label } from '@pocket-id/ui/label';
 	import { m } from '#lib/paraglide/messages.js';
 	import UserService from '#lib/services/user-service.ts';
-	import appConfigStore from '#lib/stores/application-configuration-store.ts';
 	import { getAxiosErrorMessage } from '#lib/utils/error-util.ts';
 	import { preventDefault } from '#lib/utils/event-util.ts';
 	import { createForm } from '#lib/utils/form-util.ts';
@@ -49,9 +48,9 @@
 </svelte:head>
 
 <SignInWrapper back={'/login/alternative' + page.url.search}>
-	<AuthTile />
-	<AuthHeading title={m.auth_get_a_login_code_by_email()} tone={error ? 'danger' : undefined}>
-		{error ?? m.auth_email_login_description({ appName: $appConfigStore.appName })}
+	<AuthTile error={!!error} />
+	<AuthHeading title={m.auth_get_a_login_code_by_email()}>
+		{error}
 	</AuthHeading>
 	<form onsubmit={preventDefault(requestEmail)} class="flex flex-col" novalidate>
 		<Label for="email" class="mb-2">{m.email_address()}</Label>

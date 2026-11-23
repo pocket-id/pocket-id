@@ -29,11 +29,9 @@ export async function duplicatePolicy(policy: PolicyRef) {
 	}
 }
 
-// The update replaces the whole policy, so the saved claims are read first and sent back unchanged
 export async function makeDefaultPolicy(policy: PolicyRef) {
 	try {
-		const saved = await policyService.getClaimMappingPolicy(policy.id);
-		await policyService.updateClaimMappingPolicy(policy.id, { ...saved, isDefault: true });
+		await policyService.updateClaimMappingPolicy(policy.id, { isDefault: true });
 		toast.success(m.name_is_now_the_default({ name: policy.name }), {
 			description: m.apps_without_a_policy_use_it()
 		});
@@ -59,14 +57,12 @@ export async function confirmDeletePolicy(policy: PolicyRef, onDeleted: () => un
 	const consequence =
 		assigned === 0
 			? m.delete_unused_policy_consequence()
-			: assigned === 1
-				? m.delete_policy_consequence_one()
-				: m.delete_policy_consequence({ count: assigned });
+			: m.delete_policy_consequence({ count: assigned });
 
 	openConfirmDialog({
 		title: m.delete_name_question({ name: policy.name }),
 		message: policy.isDefault
-			? `${consequence} ${m.built_in_policy_becomes_the_default()}`
+			? m.consequence_and_built_in_policy_becomes_default({ consequence })
 			: consequence,
 		confirm: {
 			label: m.delete_policy(),

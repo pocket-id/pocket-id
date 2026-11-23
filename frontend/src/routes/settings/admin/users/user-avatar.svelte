@@ -1,8 +1,8 @@
 <script lang="ts">
-	import * as Avatar from '#lib/components/ui/avatar/index.ts';
+	import * as Avatar from '@pocket-id/ui/avatar';
 	import type { User } from '#lib/types/user.type.ts';
-	import { cachedProfilePicture } from '#lib/utils/cached-image-util.ts';
-	import { cn } from '#lib/utils/style.ts';
+	import { cachedProfilePicture } from '#lib/utils/cached-asset-util.ts';
+	import { cn } from '@pocket-id/ui/utils';
 
 	let {
 		user,

@@ -23,6 +23,7 @@ type Session struct {
 	ExpiresAt            map[fosite.TokenType]time.Time `json:"expires_at,omitempty"`
 	Subject              string                         `json:"subject"`
 	AuthenticationMethod string                         `json:"authentication_method,omitempty"`
+	SessionID            string                         `json:"sid,omitempty"`
 }
 
 func NewEmptySession() *Session {
@@ -176,4 +177,10 @@ func (s *Session) GetJWTHeader() *fositejwt.Headers {
 		s.JWTHeader.Extra = map[string]interface{}{}
 	}
 	return s.JWTHeader
+}
+
+// ClientSubject is the synthetic subject of a token a client obtained for itself through the client credentials grant
+// It can't collide with a user's subject because user IDs are UUIDs
+func ClientSubject(clientID string) string {
+	return "client-" + clientID
 }

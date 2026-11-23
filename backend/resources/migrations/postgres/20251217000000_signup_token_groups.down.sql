@@ -1,1 +1,0 @@
-DROP TABLE signup_tokens_user_groups;

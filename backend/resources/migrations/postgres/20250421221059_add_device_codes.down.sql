@@ -1,1 +1,0 @@
-DROP TABLE oidc_device_codes;

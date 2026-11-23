@@ -1,10 +1,10 @@
 <script lang="ts">
-	import { Calendar } from '#lib/components/ui/calendar/index.ts';
-	import { filledFieldClass } from '#lib/components/ui/input/index.ts';
-	import * as Popover from '#lib/components/ui/popover/index.ts';
+	import { Calendar } from '@pocket-id/ui/calendar';
+	import { filledFieldClass } from '@pocket-id/ui/input';
+	import * as Popover from '@pocket-id/ui/popover';
 	import { m } from '#lib/paraglide/messages.js';
 	import { getLocale } from '#lib/paraglide/runtime.js';
-	import { cn } from '#lib/utils/style.ts';
+	import { cn } from '@pocket-id/ui/utils';
 	import {
 		CalendarDate,
 		DateFormatter,
@@ -12,7 +12,7 @@
 		today,
 		type DateValue
 	} from '@internationalized/date';
-	import CalendarIcon from '@lucide/svelte/icons/calendar';
+	import CalendarIcon from '~icons/solar/calendar-linear';
 	import type { HTMLAttributes } from 'svelte/elements';
 
 	type Props = {
@@ -91,6 +91,7 @@
 				type="single"
 				bind:value={() => calendarDisplayDate, (newValue) => handleCalendarInteraction(newValue)}
 				minValue={today(getLocalTimeZone()).add({ days: 1 })}
+				locale={getLocale()}
 				initialFocus
 			/>
 		</Popover.Content>

@@ -7,6 +7,8 @@ import (
 	"github.com/gin-gonic/gin"
 
 	"github.com/pocket-id/pocket-id/backend/internal/apperror"
+	"github.com/pocket-id/pocket-id/backend/internal/authz"
+	"github.com/pocket-id/pocket-id/backend/internal/session"
 )
 
 // CrossOriginProtectionMiddleware rejects state-changing browser requests that come from another origin to prevent CSRF
@@ -29,7 +31,7 @@ func NewCrossOriginProtectionMiddleware(appURL string) *CrossOriginProtectionMid
 
 func (m *CrossOriginProtectionMiddleware) Add() gin.HandlerFunc {
 	return func(c *gin.Context) {
-		if isCrossOriginAllowedPath(c.FullPath()) {
+		if isCrossOriginAllowedPath(c.FullPath()) || isCookielessBearerRequest(c) {
 			c.Next()
 			return
 		}
@@ -54,9 +56,19 @@ func isCrossOriginAllowedPath(path string) bool {
 	switch path {
 	case "/authorize",
 		"/api/oidc/par",
-		"/api/oidc/device/authorize":
+		"/api/oidc/device/authorize",
+		// The MCP endpoint never accepts the session cookie, so there is nothing to forge, and browser MCP clients have to reach it anonymously to get its 401 challenge
+		authz.MCPPath,
+		// The DBSC refresh endpoint trusts no cookie, and rejecting a refresh would make the browser drop the device-bound session
+		session.BindingRefreshPath:
 		return true
 	default:
 		return false
 	}
+}
+
+// isCookielessBearerRequest reports whether the request authenticates with an Authorization header and carries no cookie, as browser apps on other origins do when they call the API with an OAuth access token
+// CSRF rides on ambient cookies, so a request without any cannot be forged, while a request with one is still checked whatever headers it adds
+func isCookielessBearerRequest(c *gin.Context) bool {
+	return c.GetHeader("Authorization") != "" && c.GetHeader("Cookie") == ""
 }

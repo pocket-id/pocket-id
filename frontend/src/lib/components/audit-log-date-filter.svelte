@@ -1,12 +1,13 @@
 <script lang="ts">
-	import { Button } from '#lib/components/ui/button/index.ts';
-	import { Input } from '#lib/components/ui/input/index.ts';
-	import * as Popover from '#lib/components/ui/popover/index.ts';
+	import { Button } from '@pocket-id/ui/button';
+	import { Input } from '@pocket-id/ui/input';
+	import * as Popover from '@pocket-id/ui/popover';
 	import { m } from '#lib/paraglide/messages.js';
 	import { getLocale } from '#lib/paraglide/runtime.js';
 	import type { AuditLogDateRange } from '#lib/types/audit-log.type.ts';
 	import { preventDefault } from '#lib/utils/event-util.ts';
-	import { Check, ChevronDown } from '@lucide/svelte';
+	import Check from '~icons/solar/check-linear';
+	import ChevronDown from '~icons/solar/alt-arrow-down-linear';
 
 	let { range = $bindable({}) }: { range: AuditLogDateRange } = $props();
 
@@ -65,7 +66,7 @@
 		aria-label={m.facet_filter_label({ name: m.date(), value: label })}
 		class="hover:bg-fill-hover aria-expanded:bg-fill-selected focus-visible:outline-ring text-control flex h-7 shrink-0 items-center gap-1 rounded-xs pr-1.5 pl-2 whitespace-nowrap transition-colors duration-(--dur-fast) focus-visible:outline-2 focus-visible:outline-offset-2"
 	>
-		<span class="text-fg-muted">{m.date()}:</span>
+		<span class="text-fg-muted">{m.filter_name_label({ name: m.date() })}</span>
 		<span class={selected === 'any' ? 'text-fg-muted' : 'text-fg font-medium'}>{label}</span>
 		<span class="text-fg-muted">({zone})</span>
 		<ChevronDown class="text-fg-muted size-3" />

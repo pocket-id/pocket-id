@@ -1,0 +1,347 @@
+package session
+
+import (
+	"cmp"
+	"context"
+	"fmt"
+	"log/slog"
+	"slices"
+	"strconv"
+	"strings"
+	"time"
+
+	"github.com/italypaleale/francis/actor"
+
+	"github.com/pocket-id/pocket-id/backend/internal/apperror"
+	"github.com/pocket-id/pocket-id/backend/internal/auditlogs"
+	"github.com/pocket-id/pocket-id/backend/internal/iplocation"
+	"github.com/pocket-id/pocket-id/backend/internal/utils"
+)
+
+// touchInterval throttles how often a session's last activity is written, so most requests only read the session
+const touchInterval = 5 * time.Minute
+
+// passkeyAuthenticationMethod is how a passkey sign-in is recorded, see the authentication method the webauthn module creates its sessions with
+const passkeyAuthenticationMethod = "phr"
+
+// idleTimeout ends a session the user chose not to keep once it goes unused, so a shared computer does not stay signed in
+// It must stay well above touchInterval, because the recorded last activity can lag behind by up to that interval
+const idleTimeout = 20 * time.Minute
+
+type Service struct {
+	actorService *actor.Service
+	ipLocator    iplocation.Resolver
+	auditLog     AuditLogger
+	endNotifier  EndNotifier
+}
+
+func newService(actorService *actor.Service, ipLocator iplocation.Resolver, auditLog AuditLogger, endNotifier EndNotifier) *Service {
+	return &Service{actorService: actorService, ipLocator: ipLocator, auditLog: auditLog, endNotifier: endNotifier}
+}
+
+// Create starts a session for the user and returns its token
+// A session that is not remembered also ends after idleTimeout without activity
+// Signing in with a passkey proves it, so only such a session starts in sudo mode
+// It invokes an actor, so it must not be called while a database transaction is open, which would deadlock on SQLite
+func (s *Service) Create(ctx context.Context, userID, authenticationMethod, ipAddress, userAgent string, duration time.Duration, remember bool) (string, error) {
+	sessionID, err := utils.GenerateRandomAlphanumericString(16)
+	if err != nil {
+		return "", err
+	}
+	secret, err := utils.GenerateRandomAlphanumericString(32)
+	if err != nil {
+		return "", err
+	}
+
+	// The location is resolved once at sign-in so listing sessions never waits on a lookup
+	country, city, err := s.ipLocator.GetLocationByIP(ctx, ipAddress)
+	if err != nil {
+		slog.WarnContext(ctx, "Failed to get IP location", slog.String("ip", ipAddress), slog.Any("error", err))
+	}
+
+	var sessionIdleTimeout time.Duration
+	if !remember {
+		sessionIdleTimeout = idleTimeout
+	}
+
+	now := time.Now()
+	var sudoStartedAt time.Time
+	if authenticationMethod == passkeyAuthenticationMethod {
+		sudoStartedAt = now
+	}
+
+	_, err = s.actorService.Invoke(ctx, ActorType, userID, MethodCreate, Session{
+		ID:                   sessionID,
+		TokenHash:            utils.CreateSha256Hash(secret),
+		AuthenticationMethod: authenticationMethod,
+		IPAddress:            ipAddress,
+		UserAgent:            userAgent,
+		Country:              country,
+		City:                 city,
+		CreatedAt:            now,
+		LastActiveAt:         now,
+		ExpiresAt:            now.Add(duration),
+		IdleTimeout:          sessionIdleTimeout,
+		SudoStartedAt:        sudoStartedAt,
+		SudoUsedAt:           sudoStartedAt,
+	})
+	if err != nil {
+		return "", fmt.Errorf("error creating session: %w", err)
+	}
+
+	// The token carries the user ID so it can be routed to the actor that holds the session
+	return userID + "." + sessionID + "." + secret, nil
+}
+
+// Validate returns the active session the token belongs to, and the ID of its user
+// It returns a not_signed_in error when the token is malformed, revoked or expired
+func (s *Service) Validate(ctx context.Context, token string) (string, Session, error) {
+	userID, sessionID, secret, ok := parseToken(token)
+	if !ok {
+		return "", Session{}, apperror.NotSignedIn()
+	}
+
+	envelope, err := s.actorService.Peek(ctx, ActorType, userID, methodValidate, validateRequest{
+		SessionID: sessionID,
+		TokenHash: utils.CreateSha256Hash(secret),
+	})
+	if err != nil {
+		return "", Session{}, fmt.Errorf("error validating session: %w", err)
+	}
+	var res validateResponse
+	err = envelope.Decode(&res)
+	if err != nil {
+		return "", Session{}, fmt.Errorf("error decoding session validation response: %w", err)
+	}
+	if !res.Valid {
+		return "", Session{}, apperror.NotSignedIn()
+	}
+
+	// A failed write of the last activity must not fail the request it was recorded for
+	if time.Since(res.Session.LastActiveAt) > touchInterval {
+		_, err = s.actorService.Invoke(ctx, ActorType, userID, methodTouch, sessionRequest{SessionID: sessionID})
+		if err != nil {
+			slog.WarnContext(ctx, "Failed to record session activity", slog.Any("error", err))
+		}
+	}
+
+	return userID, res.Session, nil
+}
+
+// List returns the active sessions of the user, most recently active first
+func (s *Service) List(ctx context.Context, userID string) ([]Session, error) {
+	sessions, err := listSessions(ctx, s.actorService, userID)
+	if err != nil {
+		return nil, err
+	}
+
+	slices.SortFunc(sessions, func(a, b Session) int {
+		return cmp.Compare(b.LastActiveAt.UnixNano(), a.LastActiveAt.UnixNano())
+	})
+	return sessions, nil
+}
+
+// ActiveSessionIDs returns the IDs of the user's active sessions
+// It takes the actor service instead of the module, because the module's EndNotifier needs it and the module depends on that notifier
+func ActiveSessionIDs(ctx context.Context, actorService *actor.Service, userID string) ([]string, error) {
+	sessions, err := listSessions(ctx, actorService, userID)
+	if err != nil {
+		return nil, err
+	}
+
+	ids := make([]string, len(sessions))
+	for i, session := range sessions {
+		ids[i] = session.ID
+	}
+	return ids, nil
+}
+
+// IsActive reports whether the user is still signed in with the session
+func (s *Service) IsActive(ctx context.Context, userID, sessionID string) (bool, error) {
+	sessions, err := listSessions(ctx, s.actorService, userID)
+	if err != nil {
+		return false, err
+	}
+	return slices.ContainsFunc(sessions, func(session Session) bool { return session.ID == sessionID }), nil
+}
+
+func listSessions(ctx context.Context, actorService *actor.Service, userID string) ([]Session, error) {
+	envelope, err := actorService.Peek(ctx, ActorType, userID, methodList, nil)
+	if err != nil {
+		return nil, fmt.Errorf("error listing sessions: %w", err)
+	}
+	var sessions []Session
+	err = envelope.Decode(&sessions)
+	if err != nil {
+		return nil, fmt.Errorf("error decoding sessions: %w", err)
+	}
+	return sessions, nil
+}
+
+// Revoke signs the user out of one session on behalf of origin
+// Revoking the session the request itself was made with is audited as signing out
+func (s *Service) Revoke(ctx context.Context, userID, sessionID string, origin auditlogs.Origin) error {
+	envelope, err := s.actorService.Invoke(ctx, ActorType, userID, methodRevoke, sessionRequest{SessionID: sessionID})
+	if err != nil {
+		return fmt.Errorf("error revoking session: %w", err)
+	}
+	var session Session
+	err = envelope.Decode(&session)
+	if err != nil {
+		return fmt.Errorf("error decoding session revocation response: %w", err)
+	}
+	if session.ID == "" {
+		return apperror.NotFound("session")
+	}
+
+	s.endNotifier.SessionsEnded(ctx, userID, []string{sessionID})
+
+	if origin.Principal.UserID == userID && origin.Principal.SessionID == sessionID {
+		s.auditLog.Record(ctx, auditlogs.EventSignedOut, origin, userID, nil, nil)
+	} else {
+		s.auditLog.Record(ctx, auditlogs.EventSessionRevoked, origin, userID, auditlogs.Data{"device": s.auditLog.DeviceStringFromUserAgent(session.UserAgent)}, nil)
+	}
+	return nil
+}
+
+// RevokeAll signs the user out of every session except the one with exceptSessionID, which may be empty, on behalf of origin
+func (s *Service) RevokeAll(ctx context.Context, userID, exceptSessionID string, origin auditlogs.Origin) error {
+	envelope, err := s.actorService.Invoke(ctx, ActorType, userID, methodRevokeAll, revokeAllRequest{ExceptSessionID: exceptSessionID})
+	if err != nil {
+		return fmt.Errorf("error revoking sessions: %w", err)
+	}
+	var res revokeAllResponse
+	err = envelope.Decode(&res)
+	if err != nil {
+		return fmt.Errorf("error decoding session revocation response: %w", err)
+	}
+	if len(res.SessionIDs) == 0 {
+		return nil
+	}
+
+	s.endNotifier.SessionsEnded(ctx, userID, res.SessionIDs)
+
+	data := auditlogs.Data{"sessionCount": strconv.Itoa(len(res.SessionIDs))}
+	if exceptSessionID != "" {
+		data["exceptCurrent"] = "true"
+	}
+	s.auditLog.Record(ctx, auditlogs.EventSessionRevoked, origin, userID, data, nil)
+	return nil
+}
+
+// SignOutEverywhere signs the user out of every session on behalf of origin and also ends the grants that outlive sessions, such as offline_access ones
+func (s *Service) SignOutEverywhere(ctx context.Context, userID string, origin auditlogs.Origin) error {
+	err := s.RevokeAll(ctx, userID, "", origin)
+	if err != nil {
+		return err
+	}
+
+	return s.endNotifier.SignedOutEverywhere(ctx, userID)
+}
+
+// Remember keeps a session that was started without being remembered until it expires, and returns it
+func (s *Service) Remember(ctx context.Context, userID, sessionID string) (Session, error) {
+	envelope, err := s.actorService.Invoke(ctx, ActorType, userID, methodRemember, sessionRequest{SessionID: sessionID})
+	if err != nil {
+		return Session{}, fmt.Errorf("error remembering session: %w", err)
+	}
+	var session Session
+	err = envelope.Decode(&session)
+	if err != nil {
+		return Session{}, fmt.Errorf("error decoding remembered session: %w", err)
+	}
+	if session.ID == "" {
+		return Session{}, apperror.NotFound("session")
+	}
+	return session, nil
+}
+
+// StartSudo puts a session into sudo mode after its user proved their passkey again
+// It invokes an actor, so it must not be called while a database transaction is open
+func (s *Service) StartSudo(ctx context.Context, userID, sessionID string) error {
+	_, err := s.actorService.Invoke(ctx, ActorType, userID, methodSudo, sudoRequest{SessionID: sessionID, Start: true})
+	if err != nil {
+		return fmt.Errorf("error starting sudo mode: %w", err)
+	}
+	return nil
+}
+
+// KeepSudo records that a request relied on the session's sudo mode, which keeps it from ending for being unused
+// A failed write is only logged, because the request it is recorded for was already handled
+func (s *Service) KeepSudo(ctx context.Context, userID, sessionID string) {
+	_, err := s.actorService.Invoke(ctx, ActorType, userID, methodSudo, sudoRequest{SessionID: sessionID})
+	if err != nil {
+		slog.WarnContext(ctx, "Failed to record the use of sudo mode", slog.Any("error", err))
+	}
+}
+
+// Bind binds a session that is not bound yet to the public key of the browser's device key, and returns the challenge the browser signs on its first refresh
+// It returns false when the session has ended or is already bound
+func (s *Service) Bind(ctx context.Context, userID, sessionID string, key []byte) (string, bool, error) {
+	challenge, err := utils.GenerateRandomAlphanumericString(32)
+	if err != nil {
+		return "", false, err
+	}
+
+	envelope, err := s.actorService.Invoke(ctx, ActorType, userID, methodBind, bindRequest{SessionID: sessionID, Key: key, Challenge: challenge})
+	if err != nil {
+		return "", false, fmt.Errorf("error binding session: %w", err)
+	}
+	var bound bool
+	err = envelope.Decode(&bound)
+	if err != nil {
+		return "", false, fmt.Errorf("error decoding session binding response: %w", err)
+	}
+	return challenge, bound, nil
+}
+
+// RefreshBinding moves a bound session to a new challenge after its browser signed challenge with the device key, and returns the session
+// It returns false with the session on its current challenge when challenge was used meanwhile, and the zero Session when the session has ended
+func (s *Service) RefreshBinding(ctx context.Context, userID, sessionID, challenge string) (Session, bool, error) {
+	nextChallenge, err := utils.GenerateRandomAlphanumericString(32)
+	if err != nil {
+		return Session{}, false, err
+	}
+	secret, err := utils.GenerateRandomAlphanumericString(32)
+	if err != nil {
+		return Session{}, false, err
+	}
+
+	envelope, err := s.actorService.Invoke(ctx, ActorType, userID, methodRefreshBinding, refreshBindingRequest{
+		SessionID:     sessionID,
+		Challenge:     challenge,
+		NextChallenge: nextChallenge,
+		Secret:        secret,
+	})
+	if err != nil {
+		return Session{}, false, fmt.Errorf("error refreshing session binding: %w", err)
+	}
+	var session Session
+	err = envelope.Decode(&session)
+	if err != nil {
+		return Session{}, false, fmt.Errorf("error decoding session binding refresh response: %w", err)
+	}
+	return session, session.BindingChallenge == nextChallenge, nil
+}
+
+// find returns the user's active session with the ID, or the zero Session when there is none
+func (s *Service) find(ctx context.Context, userID, sessionID string) (Session, error) {
+	sessions, err := listSessions(ctx, s.actorService, userID)
+	if err != nil {
+		return Session{}, err
+	}
+	for _, session := range sessions {
+		if session.ID == sessionID {
+			return session, nil
+		}
+	}
+	return Session{}, nil
+}
+
+func parseToken(token string) (userID, sessionID, secret string, ok bool) {
+	parts := strings.Split(token, ".")
+	if len(parts) != 3 || parts[0] == "" || parts[1] == "" || parts[2] == "" {
+		return "", "", "", false
+	}
+	return parts[0], parts[1], parts[2], true
+}

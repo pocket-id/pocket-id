@@ -4,8 +4,9 @@
 	import { authPrimaryClass } from '#lib/components/auth/auth-util.ts';
 	import SignInWrapper from '#lib/components/login-wrapper.svelte';
 	import SignupForm from '#lib/components/signup/signup-form.svelte';
-	import { Button } from '#lib/components/ui/button/index.ts';
+	import { Button } from '@pocket-id/ui/button';
 	import { m } from '#lib/paraglide/messages.js';
+	import { getLocale } from '#lib/paraglide/runtime.js';
 	import UserService from '#lib/services/user-service.ts';
 	import appConfigStore from '#lib/stores/application-configuration-store.ts';
 	import userStore from '#lib/stores/user-store.ts';
@@ -24,7 +25,9 @@
 
 	async function handleSignup(userData: UserSignUp) {
 		error = undefined;
-		const result = await tryCatch(userService.signup({ ...userData, token: data.token }));
+		const result = await tryCatch(
+			userService.signup({ ...userData, locale: getLocale(), token: data.token })
+		);
 
 		if (result.error) {
 			error = getAxiosErrorMessage(result.error);
@@ -41,7 +44,7 @@
 </svelte:head>
 
 <SignInWrapper back={closed ? undefined : '/login'}>
-	<AuthTile />
+	<AuthTile error={!!error} />
 	{#if closed}
 		<AuthHeading
 			title={mode === 'withToken' ? m.auth_signups_invite_only() : m.auth_signups_closed()}
@@ -53,18 +56,12 @@
 		<Button class={authPrimaryClass} href="/login">{m.auth_go_to_sign_in()}</Button>
 	{:else}
 		<AuthHeading
-			title={data.token ? invite : m.auth_create_your_account({ appName: $appConfigStore.appName })}
-			tone={error ? 'danger' : undefined}
+			title={data.token
+				? m.auth_invited_to_app({ appName: $appConfigStore.appName })
+				: m.auth_create_your_account({ appName: $appConfigStore.appName })}
 		>
 			{error ?? m.auth_signup_description()}
 		</AuthHeading>
 		<SignupForm callback={handleSignup} submitLabel={m.auth_create_account()} />
 	{/if}
 </SignInWrapper>
-
-{#snippet invite()}
-	<span class="text-control text-fg-muted block font-sans font-normal tracking-normal">
-		{m.auth_invited_to()}
-	</span>
-	<span class="block">{$appConfigStore.appName}</span>
-{/snippet}

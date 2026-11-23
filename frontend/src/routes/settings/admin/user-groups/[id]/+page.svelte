@@ -4,12 +4,16 @@
 	import CustomClaimsInput from '#lib/components/form/custom-claims-input.svelte';
 	import OidcClientAvatar from '#lib/components/oidc-client-avatar.svelte';
 	import PageHeader from '#lib/components/page-header.svelte';
+	import SettingsCard from '#lib/components/settings-card.svelte';
 	import SettingsSection from '#lib/components/settings-section.svelte';
-	import { Badge } from '#lib/components/ui/badge/index.ts';
-	import { Button } from '#lib/components/ui/button/index.ts';
-	import * as DropdownMenu from '#lib/components/ui/dropdown-menu/index.ts';
-	import * as InputGroup from '#lib/components/ui/input-group/index.ts';
-	import * as Tabs from '#lib/components/ui/tabs/index.ts';
+	import { Badge } from '@pocket-id/ui/badge';
+	import { Button } from '@pocket-id/ui/button';
+	import { Textarea } from '@pocket-id/ui/textarea';
+	import * as DropdownMenu from '@pocket-id/ui/dropdown-menu';
+	import * as InputGroup from '@pocket-id/ui/input-group';
+	import HashTabs from '#lib/components/hash-tabs.svelte';
+	import * as Tabs from '@pocket-id/ui/tabs';
+	import { formatNames } from '#lib/utils/locale.util.ts';
 	import { m } from '#lib/paraglide/messages.js';
 	import CustomClaimService from '#lib/services/custom-claim-service.ts';
 	import UserGroupService from '#lib/services/user-group-service.ts';
@@ -21,22 +25,20 @@
 	import { axiosErrorToast } from '#lib/utils/error-util.ts';
 	import { createForm } from '#lib/utils/form-util.ts';
 	import { trackFormChanges, trackUnsavedValue } from '#lib/utils/unsaved-changes-util.svelte.ts';
-	import {
-		LucideCopy,
-		LucideEllipsis,
-		LucideInfo,
-		LucideLock,
-		LucidePlus,
-		LucideSearch,
-		LucideTrash2,
-		LucideUserMinus,
-		LucideX
-	} from '@lucide/svelte';
+	import CopyIcon from '~icons/solar/copy-bold';
+	import EllipsisIcon from '~icons/solar/menu-dots-bold';
+	import InfoIcon from '~icons/solar/info-circle-bold-duotone';
+	import LockIcon from '~icons/solar/lock-bold-duotone';
+	import PlusIcon from '~icons/solar/add-circle-bold';
+	import SearchIcon from '~icons/solar/magnifier-linear';
+	import Trash2Icon from '~icons/solar/trash-bin-minimalistic-bold';
+	import UserMinusIcon from '~icons/solar/user-minus-rounded-bold';
+	import XIcon from '~icons/solar/close-linear';
 	import { toast } from 'svelte-sonner';
 	import { backNavigate } from '../../users/navigate-back-util';
 	import UserAvatar from '../../users/user-avatar.svelte';
 	import UserStatus from '../../users/user-status.svelte';
-	import { groupNameSchema } from '../group-name-schema';
+	import { groupSchema } from '../group-schema';
 	import PickerDialog from '../picker-dialog.svelte';
 	import { confirmDeleteGroup } from '../user-group-actions';
 
@@ -55,11 +57,7 @@
 
 	const readOnly = $derived(!!group.ldapId && $appConfigStore.ldapEnabled);
 	const openClients = $derived(data.clients.filter((c) => !c.isGroupRestricted));
-	const memberCountLabel = $derived(
-		group.users.length === 1
-			? m.members_count_one()
-			: m.members_count({ count: group.users.length })
-	);
+	const memberCountLabel = $derived(m.members_count({ count: group.users.length }));
 	const filteredMembers = $derived.by(() => {
 		const query = memberSearch.trim().toLowerCase();
 		return group.users
@@ -67,9 +65,10 @@
 			.toSorted((a, b) => a.displayName.localeCompare(b.displayName));
 	});
 
-	const formStore = createForm(groupNameSchema, {
+	const formStore = createForm(groupSchema, {
 		friendlyName: group.friendlyName,
-		name: group.name
+		name: group.name,
+		notes: group.notes
 	});
 	const { inputs } = formStore;
 	trackFormChanges(
@@ -78,6 +77,7 @@
 			const saved = await userGroupService.update(group.id, values);
 			group.friendlyName = saved.friendlyName;
 			group.name = saved.name;
+			group.notes = saved.notes;
 		}
 	);
 
@@ -159,14 +159,7 @@
 		toast.success(m.group_id_copied());
 	}
 
-	// Long lists name the first few and count the rest, so the note stays short
-	const joinNames = (names: string[]) =>
-		names.length > 4
-			? m.names_and_last({
-					names: names.slice(0, 3).join(', '),
-					last: m.count_more({ count: names.length - 3 })
-				})
-			: m.names_and_last({ names: names.slice(0, -1).join(', '), last: names.at(-1)! });
+	const joinNames = (names: string[]) => formatNames(names, 4, (count) => m.count_more({ count }));
 </script>
 
 <svelte:head>
@@ -224,13 +217,13 @@
 				<DropdownMenu.Trigger>
 					{#snippet child({ props })}
 						<Button {...props} variant="outline" size="icon" aria-label={m.more_actions()}>
-							<LucideEllipsis />
+							<EllipsisIcon />
 						</Button>
 					{/snippet}
 				</DropdownMenu.Trigger>
 				<DropdownMenu.Content align="end">
 					<DropdownMenu.Item onclick={copyGroupId}>
-						<LucideCopy />
+						<CopyIcon />
 						{m.copy_group_id()}
 					</DropdownMenu.Item>
 					{#if !readOnly}
@@ -243,7 +236,7 @@
 									backNavigation.leave
 								)}
 						>
-							<LucideTrash2 />
+							<Trash2Icon />
 							{m.delete_group_ellipsis()}
 						</DropdownMenu.Item>
 					{/if}
@@ -252,7 +245,7 @@
 		{/snippet}
 	</PageHeader>
 
-	<Tabs.Root bind:value={tab} useHash class="gap-10">
+	<HashTabs bind:value={tab} class="gap-8">
 		<div class="flex shadow-[inset_0_-1px_0_var(--border)]">
 			<div class="scroll-fade-x min-w-0 [scrollbar-width:none] overflow-x-auto">
 				<Tabs.List variant="line" class="shadow-none max-sm:gap-4" aria-label={m.group_sections()}>
@@ -274,12 +267,12 @@
 			</div>
 		</div>
 
-		<Tabs.Content value="general">
-			<SettingsSection title={m.names()}>
-				<div class="flex max-w-100 flex-col gap-6 pt-4">
+		<Tabs.Content value="general" class="flex flex-col gap-4">
+			<SettingsCard title={m.names()}>
+				<div class="flex max-w-100 flex-col gap-6 py-4">
 					{#if readOnly}
 						<p class="text-caption text-fg-muted flex items-start gap-1.5">
-							<LucideLock class="mt-1 size-3 shrink-0" />
+							<LockIcon class="mt-1 size-3 shrink-0" />
 							{m.profile_managed_by_ldap()}
 						</p>
 					{/if}
@@ -296,7 +289,21 @@
 						readonly={readOnly}
 					/>
 				</div>
-			</SettingsSection>
+			</SettingsCard>
+			<SettingsCard title={m.notes()}>
+				<div class="py-4">
+					<FormInput description={m.client_notes_description()} input={$inputs.notes}>
+						<Textarea
+							aria-label={m.notes()}
+							rows={4}
+							placeholder={m.group_notes_placeholder()}
+							aria-invalid={!!$inputs.notes.error}
+							readonly={readOnly}
+							bind:value={$inputs.notes.value}
+						/>
+					</FormInput>
+				</div>
+			</SettingsCard>
 		</Tabs.Content>
 
 		<Tabs.Content value="members">
@@ -304,14 +311,14 @@
 				{#snippet action()}
 					{#if !readOnly}
 						<Button variant="secondary" size="sm" onclick={() => (memberPickerOpen = true)}>
-							<LucidePlus />
+							<PlusIcon />
 							{m.add_members_ellipsis()}
 						</Button>
 					{/if}
 				{/snippet}
 				{#if readOnly}
 					<p class="text-caption text-fg-muted mb-2 flex items-start gap-1.5">
-						<LucideLock class="mt-1 size-3 shrink-0" />
+						<LockIcon class="mt-1 size-3 shrink-0" />
 						{m.group_members_come_from_ldap()}
 					</p>
 				{/if}
@@ -324,7 +331,7 @@
 							aria-label={m.search_members()}
 							type="search"
 						/>
-						<InputGroup.Addon><LucideSearch /></InputGroup.Addon>
+						<InputGroup.Addon><SearchIcon /></InputGroup.Addon>
 					</InputGroup.Root>
 				{/if}
 				<ul class="border-t">
@@ -352,7 +359,7 @@
 									})}
 									onclick={() => removeMember(user)}
 								>
-									<LucideUserMinus />
+									<UserMinusIcon />
 								</Button>
 							{/if}
 						</li>
@@ -385,7 +392,7 @@
 			>
 				{#snippet action()}
 					<Button variant="secondary" size="sm" onclick={() => (clientPickerOpen = true)}>
-						<LucidePlus />
+						<PlusIcon />
 						{m.allow_clients_ellipsis()}
 					</Button>
 				{/snippet}
@@ -417,7 +424,7 @@
 								})}
 								onclick={() => removeClient(client)}
 							>
-								<LucideX />
+								<XIcon />
 							</Button>
 						</li>
 					{:else}
@@ -430,7 +437,7 @@
 				</ul>
 				{#if openClients.length}
 					<p class="text-caption text-fg-muted mt-3 flex items-start gap-1.5">
-						<LucideInfo class="mt-[3px] size-3 shrink-0" />
+						<InfoIcon class="mt-[3px] size-3 shrink-0" />
 						{openClients.length === 1
 							? m.client_open_to_everyone({ client: openClients[0].name })
 							: m.clients_open_to_everyone({ clients: joinNames(openClients.map((c) => c.name)) })}
@@ -444,7 +451,7 @@
 				<CustomClaimsInput bind:customClaims={group.customClaims} />
 			</SettingsSection>
 		</Tabs.Content>
-	</Tabs.Root>
+	</HashTabs>
 </div>
 
 <PickerDialog
@@ -475,11 +482,6 @@
 	}}
 	exclude={group.allowedOidcClients.map((c) => c.id)}
 	row={ClientRow}
-	confirmLabel={(n) =>
-		n === 0
-			? m.allow_clients()
-			: n === 1
-				? m.allow_one_client()
-				: m.allow_count_clients({ count: n })}
+	confirmLabel={(n) => (n === 0 ? m.allow_clients() : m.allow_count_clients({ count: n }))}
 	onConfirm={allowClients}
 />

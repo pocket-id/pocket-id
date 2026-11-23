@@ -3,14 +3,14 @@ package cmds
 import (
 	"context"
 	"fmt"
-	"io"
 	"os"
+	"path/filepath"
 
 	"github.com/spf13/cobra"
 
+	"github.com/pocket-id/pocket-id/backend/internal/backup"
 	"github.com/pocket-id/pocket-id/backend/internal/bootstrap"
 	"github.com/pocket-id/pocket-id/backend/internal/common"
-	"github.com/pocket-id/pocket-id/backend/internal/service"
 )
 
 type exportFlags struct {
@@ -39,6 +39,15 @@ func runExport(ctx context.Context, flags exportFlags) error {
 	if err != nil {
 		return fmt.Errorf("failed to connect to database: %w", err)
 	}
+	sqlDB, err := db.DB()
+	if err != nil {
+		return fmt.Errorf("failed to get sql.DB: %w", err)
+	}
+
+	// Close the database last, since the storage and the actor provider still use it, and Windows can't delete a SQLite file that's still open
+	defer func() {
+		_ = sqlDB.Close()
+	}()
 
 	storage, err := bootstrap.InitStorage(ctx, db)
 	if err != nil {
@@ -52,7 +61,7 @@ func runExport(ctx context.Context, flags exportFlags) error {
 
 	// The actor data lives outside of the Pocket ID schema, so it's exported through Francis
 	// A standalone runtime keeps it in its own store, out of reach from here, and the export service leaves the entry out of the archive when no provider is passed
-	var actorsProvider service.ActorsBackupProvider
+	var actorsProvider backup.ActorsBackupProvider
 	if common.EnvConfig.HasEmbeddedFrancisRuntime() {
 		providerOpts, err := bootstrap.ActorsProviderOptions(db, pg)
 		if err != nil {
@@ -72,28 +81,39 @@ func runExport(ctx context.Context, flags exportFlags) error {
 		printRemoteActorDataNotice("The actor data is NOT included in this export", "back it up separately with: francis runtime backup -f actors.bin")
 	}
 
-	exportService := service.NewExportService(db, storage, actorsProvider)
+	exportService := backup.NewExportService(db, storage, actorsProvider)
 
-	var w io.Writer
 	if flags.Path == "-" {
-		w = os.Stdout
-	} else {
-		file, err := os.Create(flags.Path)
+		err = exportService.ExportToZip(ctx, os.Stdout)
 		if err != nil {
-			return fmt.Errorf("failed to create export file: %w", err)
+			return fmt.Errorf("failed to export data: %w", err)
 		}
-		defer file.Close()
-
-		w = file
+		return nil
 	}
 
-	if err := exportService.ExportToZip(ctx, w); err != nil {
+	// The archive is written to a temporary file that replaces the target only once it's complete, so a failed export keeps an earlier archive intact
+	file, err := os.CreateTemp(filepath.Dir(flags.Path), ".pocket-id-export-*")
+	if err != nil {
+		return fmt.Errorf("failed to create export file: %w", err)
+	}
+	defer func() {
+		_ = file.Close()
+		_ = os.Remove(file.Name())
+	}()
+
+	err = exportService.ExportToZip(ctx, file)
+	if err != nil {
 		return fmt.Errorf("failed to export data: %w", err)
 	}
-
-	if flags.Path != "-" {
-		fmt.Printf("Exported data to %s\n", flags.Path)
+	err = file.Close()
+	if err != nil {
+		return fmt.Errorf("failed to write export file: %w", err)
+	}
+	err = os.Rename(file.Name(), flags.Path)
+	if err != nil {
+		return fmt.Errorf("failed to move export file into place: %w", err)
 	}
 
+	fmt.Printf("Exported data to %s\n", flags.Path)
 	return nil
 }

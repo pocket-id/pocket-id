@@ -1,7 +1,4 @@
 import { setMode } from 'mode-watcher';
-import { colorThemes } from './color-themes.ts';
-
-// A stored value is a theme id, or custom:<css color> for a custom theme built from one color, with a :dark suffix when its sidebar is dark
 
 type Rgb = [number, number, number];
 type Oklch = { l: number; c: number; h: number };
@@ -20,17 +17,10 @@ export type AccentInputs = {
 	semanticHues: Record<string, number>;
 };
 
-export type ColorTheme = {
-	id: string;
-	accent: string;
+export type Theme = {
 	tokens: Record<Mode, Record<string, string>>;
 	accentInputs: Record<Mode, AccentInputs>;
-	// Mono separates its sidebar with a hairline; Midnight paints a navy sidebar that remaps the neutrals inside it
-	sidebarEdge?: boolean;
-	sidebarVars?: Record<string, string>;
 };
-
-export const DEFAULT_COLOR_THEME = 'mono';
 
 // sRGB transfer functions
 const toLinear = (c: number) => (c <= 0.04045 ? c / 12.92 : Math.pow((c + 0.055) / 1.055, 2.4));
@@ -161,8 +151,6 @@ const FIT_MAX_DEEPEN = 0.12;
 const DARK_MIN_SURFACE_CONTRAST = 2.2;
 const DARK_MAX_LIFT = 0.3;
 const HOVER_STEP = 0.045;
-// The near-white ink fill of dark mode needs a larger step than operator colors before its hover is visible
-const DARK_INK_HOVER_STEP = 0.07;
 // Controls need 3:1, and 3.2 leaves margin for rounding and antialiasing
 const CONTROL_TARGET = 3.2;
 const CONTROL_MAX_LIFT = 0.12;
@@ -304,151 +292,14 @@ export function primaryVars(d: DerivedAccent): Record<string, string> {
 	const rgba = (rgb: Rgb, a: number) => `rgb(${rgb.join(' ')} / ${a})`;
 	return {
 		primary: hex(d.fill),
-		'primary-foreground': hex(d.fillFg),
+		'primary-fg': hex(d.fillFg),
 		'primary-hover': hex(d.hover),
 		'primary-control': hex(d.control),
-		'primary-control-foreground': hex(d.controlFg),
+		'primary-control-fg': hex(d.controlFg),
 		ring: hex(d.control),
 		'ring-halo': rgba(d.control, 0.24),
 		'primary-edge': d.edge ? hex(d.edge) : 'transparent'
 	};
-}
-
-export function parseColorTheme(value: string): {
-	id: string;
-	color?: string;
-	darkSidebar?: boolean;
-} {
-	if (!value.startsWith('custom:')) return { id: value };
-	const color = value.slice('custom:'.length);
-	if (color.endsWith(':dark'))
-		return { id: 'custom', color: color.slice(0, -':dark'.length), darkSidebar: true };
-	return { id: 'custom', color, darkSidebar: false };
-}
-
-export function customColorTheme(color: string, darkSidebar: boolean) {
-	return `custom:${color}${darkSidebar ? ':dark' : ''}`;
-}
-
-const themeById = (id: string) => colorThemes.find((t) => t.id === id);
-
-// A custom theme tints Sage's neutrals with the operator's hue at the same lightness, so contrast stays where Sage has it
-// A muted color tints less and a gray one gives plain grays; the accent is the color itself
-// A dark sidebar tints Midnight's sidebar tokens the same way, so the rail keeps Midnight's contrast
-function customTheme(color: string, darkSidebar: boolean): ColorTheme {
-	const sage = themeById('sage')!;
-	const parsed = parseColor(color);
-	if (!parsed || parsed.alpha < 1)
-		return { ...themeById(DEFAULT_COLOR_THEME)!, id: 'custom', accent: color };
-	const o = rgbToOklch(parsed.rgb);
-	const k = Math.min(1, o.c / 0.12);
-	const tint = (value: string) => {
-		const t = rgbToOklch(parseColor(value)!.rgb);
-		return hex(oklchToRgb({ l: t.l, c: t.c * k, h: o.h }));
-	};
-	const tokens = {} as ColorTheme['tokens'];
-	const accentInputs = {} as ColorTheme['accentInputs'];
-	for (const mode of ['light', 'dark'] as const) {
-		tokens[mode] = Object.fromEntries(
-			Object.entries(sage.tokens[mode]).map(([key, value]) => [key, tint(value)])
-		);
-		if (darkSidebar) {
-			for (const [key, value] of Object.entries(themeById('midnight')!.tokens[mode])) {
-				if (key === 'sidebar' || key.startsWith('sidebar-')) tokens[mode][key] = tint(value);
-			}
-		}
-		const t = tokens[mode];
-		const rgb = (key: string) => parseColor(t[key])!.rgb;
-		accentInputs[mode] = {
-			...sage.accentInputs[mode],
-			surface: rgb('surface'),
-			canvas: rgb('canvas'),
-			fg: rgb('fg'),
-			inkFill: rgb('fg'),
-			inkFillFg: mode === 'light' ? WHITE : rgb('canvas'),
-			inkHover:
-				mode === 'light'
-					? rgb('inverse-hover')
-					: oklchToRgb({
-							...rgbToOklch(rgb('fg')),
-							l: rgbToOklch(rgb('fg')).l - DARK_INK_HOVER_STEP
-						}),
-			borderControl: rgb('border-strong'),
-			controlBgs: [
-				'canvas',
-				'surface',
-				'surface-raised',
-				'surface-sunken',
-				'fill-muted',
-				'fill-hover',
-				'fill-row-hover',
-				'fill-selected'
-			].map(rgb)
-		};
-	}
-	return {
-		...sage,
-		id: 'custom',
-		accent: color,
-		tokens,
-		accentInputs,
-		sidebarVars: darkSidebar ? themeById('midnight')!.sidebarVars : undefined
-	};
-}
-
-export function colorThemeFor(value: string): ColorTheme {
-	const { id, color, darkSidebar } = parseColorTheme(value || DEFAULT_COLOR_THEME);
-	if (id === 'custom' && color) return customTheme(color, !!darkSidebar);
-	return themeById(id) || themeById(DEFAULT_COLOR_THEME)!;
-}
-
-// Writes the theme's neutrals and derived primary family for light and dark as one stylesheet that overrides app.css
-export function applyColorTheme(value: string) {
-	const theme = colorThemeFor(value);
-	const block = (vars: Record<string, string>) =>
-		Object.entries(vars)
-			.map(([k, v]) => `--${k}: ${v};`)
-			.join(' ');
-	const rules = (['light', 'dark'] as const).map((mode) => {
-		const vars = {
-			...theme.tokens[mode],
-			...primaryVars(deriveAccent(theme.accent, theme.accentInputs[mode]))
-		};
-		return `${mode === 'light' ? 'html:root' : 'html.dark'} { ${block(vars)} }`;
-	});
-	if (theme.sidebarEdge) {
-		rules.push('[data-slot="app-sidebar"] { box-shadow: inset -1px 0 0 var(--border); }');
-	}
-	if (theme.sidebarVars) {
-		rules.push(
-			`[data-slot="app-sidebar"], [data-slot="phone-top-bar"] { ${block(theme.sidebarVars)} color: var(--fg); }`
-		);
-	}
-	const css = rules.join('\n');
-
-	let el = document.getElementById('color-theme');
-	if (!el) {
-		el = document.createElement('style');
-		el.id = 'color-theme';
-		document.head.appendChild(el);
-	}
-	el.textContent = css;
-}
-
-// The light and dark halves of a theme tile: sidebar, page, selected line, text line and the fitted primary
-export function colorThemePreview(value: string) {
-	const theme = colorThemeFor(value);
-	return (['light', 'dark'] as const).map((mode) => {
-		const t = theme.tokens[mode];
-		return {
-			mode,
-			sidebar: t.sidebar,
-			page: t.canvas,
-			line: t['fill-selected'],
-			text: t['fg-muted'],
-			primary: hex(deriveAccent(theme.accent, theme.accentInputs[mode]).fill)
-		};
-	});
 }
 
 // mode-watcher's own disableTransitions stays off because it also blocks transitions briefly at load, which cut the authorize animation short

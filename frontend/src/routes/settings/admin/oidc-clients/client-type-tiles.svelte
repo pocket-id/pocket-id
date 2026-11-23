@@ -1,6 +1,6 @@
 <script lang="ts">
-	import * as Field from '#lib/components/ui/field/index.ts';
-	import * as RadioGroup from '#lib/components/ui/radio-group/index.ts';
+	import * as Field from '@pocket-id/ui/field';
+	import * as RadioGroup from '@pocket-id/ui/radio-group';
 	import { m } from '#lib/paraglide/messages.js';
 
 	let {

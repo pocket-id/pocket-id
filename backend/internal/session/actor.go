@@ -1,0 +1,512 @@
+package session
+
+import (
+	"context"
+	"crypto/subtle"
+	"errors"
+	"fmt"
+	"log/slog"
+	"maps"
+	"time"
+
+	"github.com/italypaleale/francis/actor"
+
+	"github.com/pocket-id/pocket-id/backend/internal/common"
+)
+
+// Sessions are stored entirely in the actor state store, in one actor per user whose actor ID is the user ID
+// Keeping all of a user's sessions in one actor makes listing their devices and signing them out everywhere a single state access
+// The state's TTL follows the session that expires last, so it is purged once every session of the user has expired
+// Each session also has an alarm named after its ID that fires when it ends, so the grants issued through it end with it
+// The alarm is not moved when the session is used or remembered, so when it fires early it is set again for the session's new end
+
+// ActorType is the actor type for the actor that holds the sessions of one user
+const ActorType = "UserSessions"
+
+const (
+	// MethodCreate stores a new session, replacing any existing session with the same ID
+	MethodCreate = "create"
+
+	methodValidate  = "validate"
+	methodList      = "list"
+	methodTouch     = "touch"
+	methodRevoke    = "revoke"
+	methodRevokeAll = "revokeAll"
+	methodRemember  = "remember"
+	methodSudo      = "sudo"
+
+	methodBind           = "bind"
+	methodRefreshBinding = "refreshBinding"
+)
+
+// sudoDuration ends sudo mode however much it is used, so a passkey is proven again at least this often
+const sudoDuration = 2 * time.Hour
+
+// sudoIdleTimeout ends sudo mode once nothing has relied on it for this long
+const sudoIdleTimeout = 15 * time.Minute
+
+// Session is a browser in which a user is signed in to Pocket ID
+type Session struct {
+	ID string
+	// TokenHash is the SHA-256 hash of the secret part of the session token, which is never stored itself
+	TokenHash            string
+	AuthenticationMethod string
+	IPAddress            string
+	UserAgent            string
+	Country              string
+	City                 string
+	CreatedAt            time.Time
+	LastActiveAt         time.Time
+	ExpiresAt            time.Time
+	// IdleTimeout ends the session once it has gone unused for this long, and is zero for a session that lasts until ExpiresAt
+	IdleTimeout time.Duration
+	// SudoStartedAt and SudoUsedAt are when the user last proved who they are and when a request last relied on that, see SudoUntil
+	SudoStartedAt time.Time
+	SudoUsedAt    time.Time
+	// BindingKey is the public JWK of the device key the browser bound the session to with DBSC, and empty while the session is not bound
+	BindingKey []byte
+	// BindingChallenge is the challenge the browser has to sign with the device key on its next refresh
+	BindingChallenge string
+	// BindingSecret signs the session's binding cookies and is set on the first refresh, from which on the session requires a binding cookie
+	BindingSecret string
+}
+
+// SudoUntil is when the session's sudo mode ends unless it is used before then
+// Sudo mode is required for what would turn a hijacked session into lasting access, so the session cookie alone is not enough for it
+// A session that never entered it gets a time in the distant past
+func (s Session) SudoUntil() time.Time {
+	idleEnd := s.SudoUsedAt.Add(sudoIdleTimeout)
+	maxEnd := s.SudoStartedAt.Add(sudoDuration)
+	if maxEnd.Before(idleEnd) {
+		return maxEnd
+	}
+	return idleEnd
+}
+
+// endsAt is when the session stops being valid, which comes before ExpiresAt once a session with an idle timeout goes unused
+func (s Session) endsAt() time.Time {
+	idleEnd := s.LastActiveAt.Add(s.IdleTimeout)
+	if s.IdleTimeout == 0 || s.ExpiresAt.Before(idleEnd) {
+		return s.ExpiresAt
+	}
+	return idleEnd
+}
+
+// alarmAt is when the session's expiry alarm fires
+// Francis stores due times in milliseconds, so an alarm for endsAt itself can fire just before the session ends, and re-setting it for the same millisecond is a no-op that lets Francis drop the alarm as done
+func (s Session) alarmAt() time.Time {
+	return s.endsAt().Add(time.Second)
+}
+
+type actorState struct {
+	Sessions map[string]Session
+}
+
+type validateRequest struct {
+	SessionID string
+	TokenHash string
+}
+
+type validateResponse struct {
+	Valid   bool
+	Session Session
+}
+
+type sessionRequest struct {
+	SessionID string
+}
+
+type sudoRequest struct {
+	SessionID string
+	// Start enters sudo mode, while a request without it only records that sudo mode was used
+	Start bool
+}
+
+type bindRequest struct {
+	SessionID string
+	Key       []byte
+	Challenge string
+}
+
+type refreshBindingRequest struct {
+	SessionID string
+	// Challenge is the challenge the browser signed, which must still be the session's current one, so a proof is accepted only once
+	Challenge     string
+	NextChallenge string
+	Secret        string
+}
+
+type revokeAllRequest struct {
+	ExceptSessionID string
+}
+
+type revokeAllResponse struct {
+	SessionIDs []string
+}
+
+type sessionsActor struct {
+	userID      string
+	client      actor.Client[actorState]
+	endNotifier EndNotifier
+}
+
+// newActorFactory returns the actor.Factory that allocates the actor for the sessions of one user
+func newActorFactory(endNotifier EndNotifier) actor.Factory {
+	return func(actorID string, service *actor.Service) actor.Actor {
+		return &sessionsActor{
+			userID:      actorID,
+			client:      actor.NewActorClient[actorState](ActorType, actorID, service),
+			endNotifier: endNotifier,
+		}
+	}
+}
+
+// Invoke implements actor.ActorInvoke
+func (a *sessionsActor) Invoke(ctx context.Context, method string, data actor.Envelope) (any, error) {
+	switch method {
+	case MethodCreate:
+		var session Session
+		if err := decode(data, method, &session); err != nil {
+			return nil, err
+		}
+		return nil, a.create(ctx, session)
+	case methodTouch:
+		var req sessionRequest
+		if err := decode(data, method, &req); err != nil {
+			return nil, err
+		}
+		return nil, a.touch(ctx, req.SessionID)
+	case methodRevoke:
+		var req sessionRequest
+		if err := decode(data, method, &req); err != nil {
+			return nil, err
+		}
+		return a.revoke(ctx, req.SessionID)
+	case methodRevokeAll:
+		var req revokeAllRequest
+		if err := decode(data, method, &req); err != nil {
+			return nil, err
+		}
+		return a.revokeAll(ctx, req.ExceptSessionID)
+	case methodRemember:
+		var req sessionRequest
+		if err := decode(data, method, &req); err != nil {
+			return nil, err
+		}
+		return a.remember(ctx, req.SessionID)
+	case methodSudo:
+		var req sudoRequest
+		if err := decode(data, method, &req); err != nil {
+			return nil, err
+		}
+		return nil, a.sudo(ctx, req)
+	case methodBind:
+		var req bindRequest
+		if err := decode(data, method, &req); err != nil {
+			return nil, err
+		}
+		return a.bind(ctx, req)
+	case methodRefreshBinding:
+		var req refreshBindingRequest
+		if err := decode(data, method, &req); err != nil {
+			return nil, err
+		}
+		return a.refreshBinding(ctx, req)
+	default:
+		return nil, common.ErrUnsupportedActorMethod{Method: method}
+	}
+}
+
+// Peek implements actor.ActorPeek
+// Every authenticated request validates its session, so validation is a peek that runs concurrently and is served from the activation's state cache
+func (a *sessionsActor) Peek(ctx context.Context, method string, data actor.Envelope) (any, error) {
+	switch method {
+	case methodValidate:
+		var req validateRequest
+		if err := decode(data, method, &req); err != nil {
+			return nil, err
+		}
+		return a.validate(ctx, req)
+	case methodList:
+		return a.list(ctx)
+	default:
+		return nil, common.ErrUnsupportedActorMethod{Method: method}
+	}
+}
+
+// Alarm implements actor.ActorAlarm
+func (a *sessionsActor) Alarm(ctx context.Context, sessionID string, _ actor.Envelope) error {
+	state, err := a.loadForWrite(ctx)
+	if err != nil {
+		return err
+	}
+
+	// The state may already be gone once its TTL ran out with the last session
+	session, ok := state.Sessions[sessionID]
+	if ok && session.endsAt().After(time.Now()) {
+		return a.client.SetAlarm(ctx, sessionID, actor.AlarmProperties{DueTime: session.alarmAt()})
+	}
+	if ok {
+		delete(state.Sessions, sessionID)
+		err = a.save(ctx, state)
+		if err != nil {
+			return err
+		}
+	}
+
+	// Returning the error makes the alarm retry, which finds the session gone and only retries the cleanup
+	return a.endNotifier.SessionsExpired(ctx, a.userID, []string{sessionID})
+}
+
+func (a *sessionsActor) create(ctx context.Context, session Session) error {
+	state, err := a.loadForWrite(ctx)
+	if err != nil {
+		return err
+	}
+
+	// The alarm is set first, so every stored session has one and revoking a session can rely on deleting it
+	err = a.client.SetAlarm(ctx, session.ID, actor.AlarmProperties{DueTime: session.alarmAt()})
+	if err != nil {
+		return fmt.Errorf("error setting the expiry alarm: %w", err)
+	}
+
+	state.Sessions[session.ID] = session
+	return a.save(ctx, state)
+}
+
+func (a *sessionsActor) validate(ctx context.Context, req validateRequest) (validateResponse, error) {
+	state, err := a.client.GetState(ctx)
+	if err != nil {
+		return validateResponse{}, fmt.Errorf("error retrieving actor state: %w", err)
+	}
+
+	session, ok := state.Sessions[req.SessionID]
+	if !ok || !session.endsAt().After(time.Now()) {
+		return validateResponse{}, nil
+	}
+	if subtle.ConstantTimeCompare([]byte(session.TokenHash), []byte(req.TokenHash)) != 1 {
+		return validateResponse{}, nil
+	}
+
+	return validateResponse{Valid: true, Session: session}, nil
+}
+
+func (a *sessionsActor) list(ctx context.Context) ([]Session, error) {
+	state, err := a.client.GetState(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("error retrieving actor state: %w", err)
+	}
+
+	now := time.Now()
+	sessions := make([]Session, 0, len(state.Sessions))
+	for _, session := range state.Sessions {
+		if session.endsAt().After(now) {
+			sessions = append(sessions, session)
+		}
+	}
+	return sessions, nil
+}
+
+func (a *sessionsActor) touch(ctx context.Context, sessionID string) error {
+	state, err := a.loadForWrite(ctx)
+	if err != nil {
+		return err
+	}
+
+	// The session may have been revoked since it was validated
+	session, ok := state.Sessions[sessionID]
+	if !ok {
+		return nil
+	}
+
+	session.LastActiveAt = time.Now()
+	state.Sessions[sessionID] = session
+	return a.save(ctx, state)
+}
+
+// revoke returns the revoked session, or the zero Session when it does not exist
+func (a *sessionsActor) revoke(ctx context.Context, sessionID string) (Session, error) {
+	state, err := a.loadForWrite(ctx)
+	if err != nil {
+		return Session{}, err
+	}
+
+	session, ok := state.Sessions[sessionID]
+	if !ok {
+		return Session{}, nil
+	}
+
+	delete(state.Sessions, sessionID)
+	err = a.save(ctx, state)
+	if err != nil {
+		return Session{}, err
+	}
+	a.deleteAlarm(ctx, sessionID)
+	return session, nil
+}
+
+func (a *sessionsActor) revokeAll(ctx context.Context, exceptSessionID string) (revokeAllResponse, error) {
+	state, err := a.loadForWrite(ctx)
+	if err != nil {
+		return revokeAllResponse{}, err
+	}
+
+	var res revokeAllResponse
+	maps.DeleteFunc(state.Sessions, func(id string, _ Session) bool {
+		if id == exceptSessionID {
+			return false
+		}
+		res.SessionIDs = append(res.SessionIDs, id)
+		return true
+	})
+	err = a.save(ctx, state)
+	if err != nil {
+		return revokeAllResponse{}, err
+	}
+
+	for _, sessionID := range res.SessionIDs {
+		a.deleteAlarm(ctx, sessionID)
+	}
+	return res, nil
+}
+
+// remember drops the idle timeout of a session, so it lasts until it expires
+// It returns the zero Session when the session does not exist
+func (a *sessionsActor) remember(ctx context.Context, sessionID string) (Session, error) {
+	state, err := a.loadForWrite(ctx)
+	if err != nil {
+		return Session{}, err
+	}
+
+	session, ok := state.Sessions[sessionID]
+	if !ok {
+		return Session{}, nil
+	}
+
+	session.IdleTimeout = 0
+	state.Sessions[sessionID] = session
+	return session, a.save(ctx, state)
+}
+
+// sudo puts a session into sudo mode or records that its sudo mode was used
+func (a *sessionsActor) sudo(ctx context.Context, req sudoRequest) error {
+	state, err := a.loadForWrite(ctx)
+	if err != nil {
+		return err
+	}
+
+	// A use only counts while sudo mode lasts, so it can't revive one that has ended
+	session, ok := state.Sessions[req.SessionID]
+	now := time.Now()
+	if !ok || (!req.Start && !session.SudoUntil().After(now)) {
+		return nil
+	}
+
+	if req.Start {
+		session.SudoStartedAt = now
+	}
+	session.SudoUsedAt = now
+	state.Sessions[req.SessionID] = session
+	return a.save(ctx, state)
+}
+
+// bind stores the device key of a session that is not bound yet, and reports whether it did
+func (a *sessionsActor) bind(ctx context.Context, req bindRequest) (bool, error) {
+	state, err := a.loadForWrite(ctx)
+	if err != nil {
+		return false, err
+	}
+
+	// A bound session keeps its key, so whoever holds the session token can't replace the browser's key with their own
+	session, ok := state.Sessions[req.SessionID]
+	if !ok || len(session.BindingKey) > 0 {
+		return false, nil
+	}
+
+	session.BindingKey = req.Key
+	session.BindingChallenge = req.Challenge
+	state.Sessions[req.SessionID] = session
+	return true, a.save(ctx, state)
+}
+
+// refreshBinding moves a bound session to its next challenge if the browser signed the current one, and returns the session
+// It returns the zero Session when the session does not exist
+func (a *sessionsActor) refreshBinding(ctx context.Context, req refreshBindingRequest) (Session, error) {
+	state, err := a.loadForWrite(ctx)
+	if err != nil {
+		return Session{}, err
+	}
+
+	// Another refresh may have used the challenge since it was verified, and the caller then sees the session still on another challenge
+	session, ok := state.Sessions[req.SessionID]
+	if !ok || session.BindingChallenge != req.Challenge {
+		return session, nil
+	}
+
+	session.BindingChallenge = req.NextChallenge
+	if session.BindingSecret == "" {
+		session.BindingSecret = req.Secret
+	}
+	state.Sessions[req.SessionID] = session
+	return session, a.save(ctx, state)
+}
+
+// deleteAlarm cancels the expiry alarm of a revoked session
+// A failure is only logged, because the session is already gone and an alarm that still fires finds nothing to end
+func (a *sessionsActor) deleteAlarm(ctx context.Context, sessionID string) {
+	err := a.client.DeleteAlarm(ctx, sessionID)
+	if err != nil {
+		slog.WarnContext(ctx, "Failed to delete the expiry alarm of a revoked session", slog.Any("error", err))
+	}
+}
+
+// loadForWrite returns a copy of the state that can be modified without touching the client's state cache, which must keep the old state if saving fails
+func (a *sessionsActor) loadForWrite(ctx context.Context) (actorState, error) {
+	state, err := a.client.GetState(ctx)
+	if err != nil {
+		return actorState{}, fmt.Errorf("error retrieving actor state: %w", err)
+	}
+
+	sessions := make(map[string]Session, len(state.Sessions)+1)
+	maps.Copy(sessions, state.Sessions)
+	return actorState{Sessions: sessions}, nil
+}
+
+// save drops ended sessions and persists the rest until the last of them ends
+func (a *sessionsActor) save(ctx context.Context, state actorState) error {
+	now := time.Now()
+	var lastExpiry time.Time
+	maps.DeleteFunc(state.Sessions, func(_ string, session Session) bool {
+		return !session.endsAt().After(now)
+	})
+	for _, session := range state.Sessions {
+		if session.endsAt().After(lastExpiry) {
+			lastExpiry = session.endsAt()
+		}
+	}
+
+	if len(state.Sessions) == 0 {
+		err := a.client.DeleteState(ctx)
+		if err != nil && !errors.Is(err, actor.ErrStateNotFound) {
+			return fmt.Errorf("error deleting actor state: %w", err)
+		}
+		return nil
+	}
+
+	err := a.client.SetState(ctx, state, &actor.SetStateOpts{TTL: lastExpiry.Sub(now)})
+	if err != nil {
+		return fmt.Errorf("error saving actor state: %w", err)
+	}
+	return nil
+}
+
+func decode(data actor.Envelope, method string, target any) error {
+	if data == nil {
+		return fmt.Errorf("request body is empty for method '%s'", method)
+	}
+	err := data.Decode(target)
+	if err != nil {
+		return fmt.Errorf("request body is not valid for method '%s': %w", method, err)
+	}
+	return nil
+}

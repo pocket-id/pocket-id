@@ -22,6 +22,8 @@ const (
 const (
 	UsersRead                     Scope = "users:read"
 	UsersWrite                    Scope = "users:write"
+	UsersLoginCodes               Scope = "users:login-codes"
+	UsersInvite                   Scope = "users:invite"
 	GroupsRead                    Scope = "groups:read"
 	GroupsWrite                   Scope = "groups:write"
 	OidcClientsRead               Scope = "oidc-clients:read"
@@ -33,6 +35,9 @@ const (
 	ConfigRead                    Scope = "config:read"
 	ConfigWrite                   Scope = "config:write"
 	AuditLogsRead                 Scope = "audit-logs:read"
+
+	// AdminAccessWrite guards every change that decides who holds admin access, such as acting on an admin or granting a client access to Pocket ID's own API
+	AdminAccessWrite Scope = "admin-access:write"
 )
 
 // Category groups scopes by whose data they reach
@@ -58,10 +63,15 @@ const (
 	KindOAuthUser
 	// KindOAuthClient is an OAuth access token issued to a client acting as itself through the client credentials grant
 	KindOAuthClient
+	// KindStaticAPIKey is the instance-wide key from the STATIC_API_KEY environment variable, which belongs to no user
+	KindStaticAPIKey
 )
 
-// delegated lists the kinds that act for a user, which is every kind except a client acting as itself
+// delegated lists the kinds that act for a user
 const delegated = KindSession | KindAPIKey | KindOAuthUser
+
+// delegatedOrUserless also admits the kinds without a user, which can hold admin scopes but none that act on an account, since they have none
+const delegatedOrUserless = delegated | KindOAuthClient | KindStaticAPIKey
 
 type definition struct {
 	scope       Scope
@@ -84,19 +94,22 @@ var catalog = []definition{
 	{AccountPasskeysEnroll, CategoryAccount, KindSession},
 	{AccountAPIKeysCreate, CategoryAccount, KindSession},
 
-	{UsersRead, CategoryAdmin, delegated},
-	{UsersWrite, CategoryAdmin, delegated},
-	{GroupsRead, CategoryAdmin, delegated},
-	{GroupsWrite, CategoryAdmin, delegated},
-	{OidcClientsRead, CategoryAdmin, delegated},
-	{OidcClientsWrite, CategoryAdmin, delegated},
-	{OidcClaimMappingPoliciesRead, CategoryAdmin, delegated},
-	{OidcClaimMappingPoliciesWrite, CategoryAdmin, delegated},
-	{APIsRead, CategoryAdmin, delegated},
-	{APIsWrite, CategoryAdmin, delegated},
-	{ConfigRead, CategoryAdmin, delegated},
-	{ConfigWrite, CategoryAdmin, delegated},
-	{AuditLogsRead, CategoryAdmin, delegated},
+	{UsersRead, CategoryAdmin, delegatedOrUserless},
+	{UsersWrite, CategoryAdmin, delegatedOrUserless},
+	{UsersLoginCodes, CategoryAdmin, delegatedOrUserless},
+	{UsersInvite, CategoryAdmin, delegatedOrUserless},
+	{GroupsRead, CategoryAdmin, delegatedOrUserless},
+	{GroupsWrite, CategoryAdmin, delegatedOrUserless},
+	{OidcClientsRead, CategoryAdmin, delegatedOrUserless},
+	{OidcClientsWrite, CategoryAdmin, delegatedOrUserless},
+	{OidcClaimMappingPoliciesRead, CategoryAdmin, delegatedOrUserless},
+	{OidcClaimMappingPoliciesWrite, CategoryAdmin, delegatedOrUserless},
+	{APIsRead, CategoryAdmin, delegatedOrUserless},
+	{APIsWrite, CategoryAdmin, delegatedOrUserless},
+	{ConfigRead, CategoryAdmin, delegatedOrUserless},
+	{ConfigWrite, CategoryAdmin, delegatedOrUserless},
+	{AuditLogsRead, CategoryAdmin, delegatedOrUserless},
+	{AdminAccessWrite, CategoryAdmin, delegatedOrUserless},
 }
 
 var definitions = indexCatalog(catalog)
@@ -138,8 +151,49 @@ func (s ScopeSet) Has(scope Scope) bool {
 	return ok
 }
 
+// Intersect returns the scopes contained in both sets
+func (s ScopeSet) Intersect(other ScopeSet) ScopeSet {
+	set := make(ScopeSet, min(len(s), len(other)))
+	for scope := range s {
+		if other.Has(scope) {
+			set[scope] = struct{}{}
+		}
+	}
+	return set
+}
+
+// hasAdmin reports whether the set contains any admin scope
+func (s ScopeSet) hasAdmin() bool {
+	for scope := range s {
+		if definitions[scope].category == CategoryAdmin {
+			return true
+		}
+	}
+	return false
+}
+
 // unverifiedScopes are the scopes a user keeps while their email still has to be verified
 var unverifiedScopes = NewScopeSet(AccountRead, AccountWrite, AccountPasskeys, AccountPasskeysEnroll, AccountSession)
+
+// ResourceURI returns the RFC 8707 resource identifier under which OAuth clients request access tokens for Pocket ID's own API
+// It deliberately differs from the issuer, which every token with an identity scope carries in its audience so it can call the userinfo endpoint
+func ResourceURI(appURL string) string {
+	return appURL + "/api"
+}
+
+const (
+	// MCPPath is the URL MCP clients connect to and the resource their tokens are issued for
+	// It lives below the admin prefix, so a proxy that blocks the admin API blocks the MCP endpoint too
+	MCPPath = AdminPathPrefix + "mcp"
+	// MCPResourceMetadataPath is where the RFC 9728 protected resource metadata of the MCP endpoint is served, which RFC 9728 derives by inserting the well-known prefix before the endpoint's path
+	MCPResourceMetadataPath = "/.well-known/oauth-protected-resource" + MCPPath
+)
+
+// MCPResourceURI returns the RFC 8707 resource identifier of Pocket ID's MCP endpoint, which MCP clients request access tokens for
+// The endpoint is part of Pocket ID's own API, so a token requested for it is issued for ResourceURI
+func MCPResourceURI(appURL string) string {
+	return appURL + MCPPath
+}
 
 // UserScopes returns the scopes a user holds when authenticated with a credential of the given kind
 // The admin flag stands in for roles: admins hold every scope and other users hold the account scopes

@@ -29,9 +29,11 @@ func TestUserInfoHandler(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 
 	const (
-		baseURL  = "https://issuer.example.com"
-		userID   = "user-1"
-		clientID = "client-1"
+		baseURL            = "https://issuer.example.com"
+		userID             = "user-1"
+		disabledUserID     = "user-disabled"
+		clientID           = "client-1"
+		restrictedClientID = "client-restricted"
 	)
 
 	db := testutils.NewDatabaseForTest(t)
@@ -47,6 +49,17 @@ func TestUserInfoHandler(t *testing.T) {
 		Email:         stringPointer("tim@example.com"),
 		EmailVerified: true,
 	}).Error)
+	require.NoError(t, db.Create(&model.User{
+		Base:     model.Base{ID: disabledUserID},
+		Username: "disabled",
+		Disabled: true,
+	}).Error)
+	require.NoError(t, db.Create(&model.OidcClient{
+		Base:              model.Base{ID: restrictedClientID},
+		Name:              "Restricted Client",
+		IsGroupRestricted: true,
+		AllowedUserGroups: []model.UserGroup{{Base: model.Base{ID: "group-1"}, Name: "admins", FriendlyName: "Admins"}},
+	}).Error)
 
 	key, err := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
 	require.NoError(t, err)
@@ -60,7 +73,7 @@ func TestUserInfoHandler(t *testing.T) {
 
 	handler := newUserInfoHandler(provider, newClaimsService(db, nil, baseURL, nil, appconfig.StaticResolver{}), baseURL)
 
-	issueAccessToken := func(t *testing.T, requestID, subject string, scopes ...string) string {
+	issueAccessToken := func(t *testing.T, requestID, tokenClientID, subject string, scopes ...string) string {
 		t.Helper()
 		session := NewEmptySession()
 		session.Subject = subject
@@ -68,14 +81,14 @@ func TestUserInfoHandler(t *testing.T) {
 
 		request := fosite.NewAccessRequest(session)
 		request.ID = requestID
-		request.Client = Client{OidcClient: model.OidcClient{Base: model.Base{ID: clientID}}}
+		request.Client = Client{OidcClient: model.OidcClient{Base: model.Base{ID: tokenClientID}}}
 		request.GrantTypes = fosite.Arguments{string(fosite.GrantTypeClientCredentials)}
 		request.RequestedScope = fosite.Arguments(scopes)
 		request.GrantedScope = fosite.Arguments(scopes)
 		// The grant is bound to the requesting client
 		// The issuer store adds the issuer audience when the token carries an identity scope, which is what userinfo gates on
-		request.RequestedAudience = fosite.Arguments{clientID}
-		request.GrantedAudience = fosite.Arguments{clientID}
+		request.RequestedAudience = fosite.Arguments{tokenClientID}
+		request.GrantedAudience = fosite.Arguments{tokenClientID}
 
 		response, err := provider.NewAccessResponse(t.Context(), request)
 		require.NoError(t, err)
@@ -96,7 +109,7 @@ func TestUserInfoHandler(t *testing.T) {
 	}
 
 	t.Run("valid user access token returns the granted claims", func(t *testing.T) {
-		token := issueAccessToken(t, "req-valid", userID, "openid", "email")
+		token := issueAccessToken(t, "req-valid", clientID, userID, "openid", "email")
 		rec, c := call(t, token)
 
 		require.Empty(t, c.Errors)
@@ -187,11 +200,27 @@ func TestUserInfoHandler(t *testing.T) {
 
 	t.Run("token whose user no longer exists is rejected with 401", func(t *testing.T) {
 		// A valid token whose subject was deleted is an auth failure, not a 404
-		token := issueAccessToken(t, "req-ghost", "ghost-user", "openid")
+		token := issueAccessToken(t, "req-ghost", clientID, "ghost-user", "openid")
 		rec, c := call(t, token)
 		require.Empty(t, c.Errors)
 		require.Equal(t, http.StatusUnauthorized, rec.Code)
 		require.Contains(t, rec.Header().Get("WWW-Authenticate"), `Bearer error="request_unauthorized"`)
+	})
+
+	t.Run("token whose user was disabled is rejected with 401", func(t *testing.T) {
+		token := issueAccessToken(t, "req-disabled", clientID, disabledUserID, "openid")
+		rec, c := call(t, token)
+		require.Empty(t, c.Errors)
+		require.Equal(t, http.StatusUnauthorized, rec.Code)
+		require.Contains(t, rec.Body.String(), "The user account is disabled.")
+	})
+
+	t.Run("token whose user is not in the client's allowed groups is rejected with 401", func(t *testing.T) {
+		token := issueAccessToken(t, "req-restricted", restrictedClientID, userID, "openid")
+		rec, c := call(t, token)
+		require.Empty(t, c.Errors)
+		require.Equal(t, http.StatusUnauthorized, rec.Code)
+		require.Contains(t, rec.Body.String(), "You are not allowed to access this service.")
 	})
 
 	t.Run("missing access token is rejected", func(t *testing.T) {

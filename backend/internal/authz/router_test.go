@@ -9,27 +9,30 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/pocket-id/pocket-id/backend/internal/apperror"
+	"github.com/pocket-id/pocket-id/backend/internal/httpserver"
 )
 
 func noop(c *gin.Context) {
 	c.Status(http.StatusNoContent)
 }
 
+var noopEndpoint = httpserver.Endpoint{Handler: noop}
+
 func TestIsDeclared(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 	engine := gin.New()
-	m := NewMiddleware()
+	m := NewMiddleware(nil)
 	apiGroup := engine.Group("/api")
 	api := m.Router(apiGroup)
 
 	// Declare routes through every router variant
-	api.GET("/users", UsersRead, noop)
-	api.Group("/api-keys").POST("", AccountAPIKeysCreate, noop)
-	api.Group("/nested").Group("/deeper").DELETE("/:id", UsersWrite, noop)
-	api.Optional().GET("/optional", AccountSession, noop)
-	api.Public().POST("/signup", noop)
-	api.Use(noop).GET("/with-middleware", AccountRead, noop)
-	m.Router(engine.Group("/")).Optional().GET("/authorize", AccountSession, noop)
+	api.GET("/admin/users", UsersRead, noopEndpoint)
+	api.Group("/api-keys").POST("", AccountAPIKeysCreate, noopEndpoint)
+	api.Group("/admin").Group("/deeper").DELETE("/:id", UsersWrite, noopEndpoint)
+	api.Optional().GET("/optional", AccountSession, noopEndpoint)
+	api.POST("/signup", Public, noopEndpoint)
+	api.Use(noop).GET("/with-middleware", AccountRead, noopEndpoint)
+	m.Router(engine.Group("/")).Optional().GET("/authorize", AccountSession, noopEndpoint)
 
 	// Register routes past the routers
 	apiGroup.GET("/forgotten", noop)
@@ -40,15 +43,15 @@ func TestIsDeclared(t *testing.T) {
 		declared[route.Method+" "+route.Path] = m.IsDeclared(route.Method, route.Path)
 	}
 	require.Equal(t, map[string]bool{
-		"GET /api/users":                true,
-		"POST /api/api-keys":            true,
-		"DELETE /api/nested/deeper/:id": true,
-		"GET /api/optional":             true,
-		"POST /api/signup":              true,
-		"GET /api/with-middleware":      true,
-		"GET /authorize":                true,
-		"GET /api/forgotten":            false,
-		"POST /api/users":               false,
+		"GET /api/admin/users":         true,
+		"POST /api/api-keys":           true,
+		"DELETE /api/admin/deeper/:id": true,
+		"GET /api/optional":            true,
+		"POST /api/signup":             true,
+		"GET /api/with-middleware":     true,
+		"GET /authorize":               true,
+		"GET /api/forgotten":           false,
+		"POST /api/users":              false,
 	}, declared)
 }
 
@@ -58,13 +61,13 @@ func TestRouterUseWrapsAuthorization(t *testing.T) {
 
 	// The middleware added with Use runs around authorization, so it sees the error of a refused request and can render it
 	var seen error
-	r := NewMiddleware().Router(engine.Group("/api")).Use(func(c *gin.Context) {
+	r := NewMiddleware(nil).Router(engine.Group("/api")).Use(func(c *gin.Context) {
 		c.Next()
 		if len(c.Errors) > 0 {
 			seen = c.Errors.Last().Err
 		}
 	})
-	r.GET("/account", AccountRead, noop)
+	r.GET("/account", AccountRead, noopEndpoint)
 
 	recorder := httptest.NewRecorder()
 	engine.ServeHTTP(recorder, httptest.NewRequestWithContext(t.Context(), http.MethodGet, "/api/account", nil))
@@ -74,11 +77,23 @@ func TestRouterUseWrapsAuthorization(t *testing.T) {
 
 func TestRouterRejectsUnknownScopes(t *testing.T) {
 	gin.SetMode(gin.TestMode)
-	r := NewMiddleware().Router(gin.New().Group("/api"))
+	r := NewMiddleware(nil).Router(gin.New().Group("/api"))
 
 	require.PanicsWithValue(t, `route GET /api/users requires unknown scope "users:everything"`, func() {
-		r.GET("/users", Scope("users:everything"), noop)
+		r.GET("/users", Scope("users:everything"), noopEndpoint)
 	})
+}
+
+func TestRouterKeepsAdminScopesBelowTheAdminPrefix(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	r := NewMiddleware(nil).Router(gin.New().Group("/api"))
+
+	require.Panics(t, func() { r.GET("/users", UsersRead, noopEndpoint) })
+	require.Panics(t, func() { r.GET("/admin/me", AccountRead, noopEndpoint) })
+	require.Panics(t, func() { r.GET("/admin/logo", Public, noopEndpoint) })
+	require.Panics(t, func() { r.GET("/admin/version", Authenticated, noopEndpoint) })
+	require.Panics(t, func() { r.Dispatch(http.MethodPost, "/mcp", noop) })
+	require.NotPanics(t, func() { r.Group("/admin").GET("/users", UsersRead, noopEndpoint) })
 }
 
 func TestJoinPathsMatchesGin(t *testing.T) {

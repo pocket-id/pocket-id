@@ -23,9 +23,9 @@ func TestDBSchemaParity(t *testing.T) {
 	postgresSchema, err := utils.LoadDBSchemaTypes(testutils.NewPostgresDatabaseForTest(t))
 	require.NoError(t, err)
 
-	// The migration bookkeeping table is managed by golang-migrate and never exported
-	delete(sqliteSchema, "schema_migrations")
-	delete(postgresSchema, "schema_migrations")
+	// The migration tables are never exported
+	maps.DeleteFunc(sqliteSchema, func(table string, _ utils.DBSchemaTableTypes) bool { return utils.IsMigrationTable(table) })
+	maps.DeleteFunc(postgresSchema, func(table string, _ utils.DBSchemaTableTypes) bool { return utils.IsMigrationTable(table) })
 
 	// Both databases must have the same tables
 	require.ElementsMatch(t, slices.Collect(maps.Keys(sqliteSchema)), slices.Collect(maps.Keys(postgresSchema)), "SQLite and Postgres must have the same tables")

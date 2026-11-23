@@ -4,7 +4,7 @@ import { m } from '#lib/paraglide/messages.js';
 import { cssMs } from '#lib/utils/style.ts';
 
 // The one filled button of an auth step, full width and taller in the desktop card
-export const authPrimaryClass = 'h-(--h-xl) w-full text-heading lg:h-13';
+export const authPrimaryClass = 'h-(--h-xl) w-full text-heading sm:h-13';
 
 // Every other path on an auth step is a quiet text action with a full-height hit area
 export const authQuietClass =
@@ -15,6 +15,14 @@ export function alternativeSignInHref() {
 	return page.url.pathname === '/login'
 		? `/login/alternative${page.url.search}`
 		: `/login/alternative?redirect=${encodeURIComponent(page.url.pathname + page.url.search)}`;
+}
+
+// Leaving other ways to sign in returns to an app's sign-in step when that step sent the person there, since /login would drop the app
+export function leaveAlternativeSignInHref() {
+	const redirect = page.url.searchParams.get('redirect');
+	return redirect && /^\/(interaction|device)([?#]|$)/.test(redirect)
+		? redirect
+		: `/login${page.url.search}`;
 }
 
 // Closing the browser's passkey prompt is the person's choice, so it reads as information rather than an error

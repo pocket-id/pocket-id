@@ -1,6 +1,7 @@
 package storage
 
 import (
+	"bytes"
 	"context"
 	"errors"
 	"fmt"
@@ -67,6 +68,14 @@ func (s *s3Storage) Close() error {
 }
 
 func (s *s3Storage) Save(ctx context.Context, path string, data io.Reader) error {
+	if _, ok := data.(io.Seeker); !ok {
+		buf, err := io.ReadAll(data)
+		if err != nil {
+			return fmt.Errorf("failed to read data: %w", err)
+		}
+		data = bytes.NewReader(buf)
+	}
+
 	_, err := s.client.PutObject(ctx, &s3.PutObjectInput{
 		Bucket: aws.String(s.bucket),
 		Key:    aws.String(s.buildObjectKey(path)),

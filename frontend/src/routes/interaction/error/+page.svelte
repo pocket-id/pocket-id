@@ -4,7 +4,7 @@
 	import AuthorizeTiles from '#lib/components/auth/authorize-tiles.svelte';
 	import IdentityRow from '#lib/components/identity-row.svelte';
 	import SignInWrapper from '#lib/components/login-wrapper.svelte';
-	import { Button } from '#lib/components/ui/button/index.ts';
+	import { Button } from '@pocket-id/ui/button';
 	import { m } from '#lib/paraglide/messages.js';
 	import appConfigStore from '#lib/stores/application-configuration-store.ts';
 	import userStore from '#lib/stores/user-store.ts';

@@ -1,8 +1,8 @@
 <script lang="ts">
 	import { goto } from '$app/navigation';
 	import FormInput from '#lib/components/form/form-input.svelte';
-	import { Button } from '#lib/components/ui/button/index.ts';
-	import * as Sheet from '#lib/components/ui/sheet/index.ts';
+	import { Button } from '@pocket-id/ui/button';
+	import * as Sheet from '@pocket-id/ui/sheet';
 	import { m } from '#lib/paraglide/messages.js';
 	import OIDCService from '#lib/services/oidc-service.ts';
 	import clientSecretStore from '#lib/stores/client-secret-store.ts';
@@ -11,7 +11,8 @@
 	import { preventDefault } from '#lib/utils/event-util.ts';
 	import { createForm } from '#lib/utils/form-util.ts';
 	import { callbackUrlSchema, emptyToUndefined } from '#lib/utils/zod-util.ts';
-	import { LucideChevronDown, LucideInfo } from '@lucide/svelte';
+	import ChevronDownIcon from '~icons/solar/alt-arrow-down-linear';
+	import InfoIcon from '~icons/solar/info-circle-bold-duotone';
 	import { untrack } from 'svelte';
 	import { toast } from 'svelte-sonner';
 	import { z } from 'zod/v4';
@@ -34,7 +35,7 @@
 				.string()
 				.min(2)
 				.max(128)
-				.regex(/^[a-zA-Z0-9_-]+$/, { message: m.invalid_client_id() })
+				.regex(/^(?!~|https:\/\/)[!-~]+$/i, { message: m.invalid_client_id() })
 		)
 	});
 
@@ -63,7 +64,7 @@
 				name: data.name,
 				isPublic: data.isPublic,
 				callbackURLs: data.callbackURL ? [data.callbackURL] : [],
-				description: '',
+				notes: '',
 				logoutCallbackURLs: [],
 				backchannelLogoutURL: '',
 				pkceEnabled: data.isPublic,
@@ -71,9 +72,10 @@
 				requiresPushedAuthorizationRequests: false,
 				skipConsent: false,
 				isGroupRestricted: true,
-				credentials: { federatedIdentities: [], secrets: [] },
+				credentials: { federatedIdentities: [] },
 				accessTokenDurationMinutes: 60,
-				refreshTokenDurationMinutes: 30 * 24 * 60
+				refreshTokenDurationMinutes: 30 * 24 * 60,
+				disabled: false
 			});
 			if (client.createdSecret) {
 				clientSecretStore.setAutoCreated(client.createdSecret.id, client.createdSecret.secret);
@@ -92,12 +94,7 @@
 <Sheet.Root bind:open>
 	<Sheet.Content title={m.add_oidc_client()}>
 		<form id={formId} onsubmit={preventDefault(onSubmit)} class="flex flex-col gap-6">
-			<FormInput
-				label={m.name()}
-				placeholder="Planka"
-				description={m.client_name_helper()}
-				bind:input={$inputs.name}
-			/>
+			<FormInput label={m.name()} placeholder="Planka" bind:input={$inputs.name} />
 			<ClientTypeTiles bind:isPublic={$inputs.isPublic.value} />
 			<FormInput
 				label={m.callback_url()}
@@ -114,7 +111,7 @@
 					class="text-control text-fg-muted hover:text-fg inline-flex w-fit items-center gap-1 rounded-xs"
 					onclick={() => (showCustomClientId = !showCustomClientId)}
 				>
-					<LucideChevronDown
+					<ChevronDownIcon
 						class="size-3.5 transition-transform duration-(--dur-base) {showCustomClientId
 							? ''
 							: '-rotate-90'}"
@@ -134,7 +131,7 @@
 				{/if}
 			</div>
 			<p class="text-caption text-fg-muted flex items-start gap-1.5">
-				<LucideInfo class="mt-[3px] size-3 shrink-0" />
+				<InfoIcon class="mt-[3px] size-3 shrink-0" />
 				{m.new_clients_start_with_no_allowed_groups()}
 			</p>
 		</form>

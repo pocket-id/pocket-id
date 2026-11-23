@@ -49,15 +49,18 @@ func (f *fakeEmailVerificationSender) Send(_ context.Context, _ *appconfig.AppCo
 	return f.err
 }
 
-type fakeSigner struct{}
+type fakeSessionCreator struct{}
 
-func (fakeSigner) GenerateAccessToken(_ model.User, _ string, _ time.Duration) (string, error) {
-	return "access-token", nil
+func (fakeSessionCreator) Create(_ context.Context, _, _, _, _ string, _ time.Duration, _ bool) (string, error) {
+	return "session-token", nil
 }
 
-type fakeAuditLogger struct{}
+type fakeAuditLogger struct {
+	data []auditlogs.Data
+}
 
-func (fakeAuditLogger) Create(_ context.Context, _ auditlogs.Event, _, _, _ string, _ auditlogs.Data, _ *gorm.DB) (auditlogs.AuditLog, bool) {
+func (f *fakeAuditLogger) Create(_ context.Context, _ auditlogs.Event, _, _, _ string, data auditlogs.Data, _ *gorm.DB) (auditlogs.AuditLog, bool) {
+	f.data = append(f.data, data)
 	return auditlogs.AuditLog{}, true
 }
 
@@ -67,8 +70,8 @@ func newSignupServiceForTest(t *testing.T, db *gorm.DB, userCreator UserCreator)
 	return newService(Dependencies{
 		DB:          db,
 		UserCreator: userCreator,
-		Signer:      fakeSigner{},
-		AuditLog:    fakeAuditLogger{},
+		Sessions:    fakeSessionCreator{},
+		AuditLog:    &fakeAuditLogger{},
 	}, actorService)
 }
 
@@ -89,7 +92,7 @@ func TestSignUpConsumesTokenOnSuccess(t *testing.T) {
 	db := testutils.NewDatabaseForTest(t)
 	svc := newSignupServiceForTest(t, db, fakeUserCreator{user: model.User{Base: model.Base{ID: "new-user"}}})
 
-	token, err := svc.CreateSignupToken(t.Context(), time.Hour, 2, nil)
+	token, err := svc.CreateSignupToken(t.Context(), time.Hour, 2, nil, "")
 	require.NoError(t, err)
 
 	config := appconfig.NewTestConfig(nil)
@@ -99,10 +102,44 @@ func TestSignUpConsumesTokenOnSuccess(t *testing.T) {
 	}, "1.2.3.4", "test-agent")
 	require.NoError(t, err)
 	require.Equal(t, "new-user", user.ID)
-	require.Equal(t, "access-token", accessToken)
+	require.Equal(t, "session-token", accessToken)
 
 	// The token's usage count must have been incremented and not rolled back
 	require.Equal(t, 1, signupTokenUsageCount(t, svc, token.ID))
+}
+
+func TestSignupTokenIsStoredOnlyAsHash(t *testing.T) {
+	db := testutils.NewDatabaseForTest(t)
+	svc := newSignupServiceForTest(t, db, fakeUserCreator{})
+
+	created, err := svc.CreateSignupToken(t.Context(), time.Hour, 1, nil, "")
+	require.NoError(t, err)
+
+	// Neither the actor ID nor the listing may reveal the token, only its prefix
+	require.Equal(t, []string{utils.CreateSha256Hash(created.Token)}, listSignupTokenIDsForTest(t, svc.actorService))
+	tokens, _, err := svc.ListSignupTokens(t.Context(), listAllOptions())
+	require.NoError(t, err)
+	require.Len(t, tokens, 1)
+	require.Empty(t, tokens[0].Token)
+	require.Equal(t, created.Token[:signupTokenPrefixLength], tokens[0].Prefix)
+}
+
+func TestSignUpAuditsTokenIDInsteadOfValue(t *testing.T) {
+	db := testutils.NewDatabaseForTest(t)
+	svc := newSignupServiceForTest(t, db, fakeUserCreator{user: model.User{Base: model.Base{ID: "new-user"}}})
+	auditLog := &fakeAuditLogger{}
+	svc.auditLog = auditLog
+
+	token, err := svc.CreateSignupToken(t.Context(), time.Hour, 2, nil, "")
+	require.NoError(t, err)
+
+	_, _, err = svc.SignUp(t.Context(), appconfig.NewTestConfig(nil), signUpDto{
+		Username: "newuser",
+		Token:    token.Token,
+	}, "1.2.3.4", "test-agent")
+	require.NoError(t, err)
+
+	require.Equal(t, []auditlogs.Data{{"signupTokenID": token.ID}}, auditLog.data)
 }
 
 func TestSignUpCompensatesTokenOnFailure(t *testing.T) {
@@ -110,7 +147,7 @@ func TestSignUpCompensatesTokenOnFailure(t *testing.T) {
 	boom := errors.New("could not create user")
 	svc := newSignupServiceForTest(t, db, fakeUserCreator{err: boom})
 
-	token, err := svc.CreateSignupToken(t.Context(), time.Hour, 2, nil)
+	token, err := svc.CreateSignupToken(t.Context(), time.Hour, 2, nil, "")
 	require.NoError(t, err)
 
 	config := appconfig.NewTestConfig(nil)
@@ -143,10 +180,10 @@ func TestSignUpInitialAdminCreatesAdmin(t *testing.T) {
 	config := appconfig.NewTestConfig(nil)
 
 	// Complete setup and return the generated administrator session
-	user, accessToken, err := svc.SignUpInitialAdmin(t.Context(), config, signUpDto{Username: "new-admin"})
+	user, accessToken, err := svc.SignUpInitialAdmin(t.Context(), config, signUpDto{Username: "new-admin"}, "", "")
 	require.NoError(t, err)
 	require.Equal(t, "new-admin", user.ID)
-	require.Equal(t, "access-token", accessToken)
+	require.Equal(t, "session-token", accessToken)
 }
 
 func TestSignUpInitialAdminAllowsRetryAfterFailure(t *testing.T) {
@@ -156,12 +193,12 @@ func TestSignUpInitialAdminAllowsRetryAfterFailure(t *testing.T) {
 	config := appconfig.NewTestConfig(nil)
 
 	// Fail the first setup transaction before it can commit
-	_, _, err := svc.SignUpInitialAdmin(t.Context(), config, signUpDto{Username: "failed-admin"})
+	_, _, err := svc.SignUpInitialAdmin(t.Context(), config, signUpDto{Username: "failed-admin"}, "", "")
 	require.ErrorIs(t, err, boom)
 
 	// Confirm a later setup can complete after the failed transaction rolls back
 	svc.userCreator = fakeUserCreator{user: model.User{Base: model.Base{ID: "new-admin"}}}
-	user, _, err := svc.SignUpInitialAdmin(t.Context(), config, signUpDto{Username: "new-admin"})
+	user, _, err := svc.SignUpInitialAdmin(t.Context(), config, signUpDto{Username: "new-admin"}, "", "")
 	require.NoError(t, err)
 	require.Equal(t, "new-admin", user.ID)
 }
@@ -172,7 +209,7 @@ func TestSignUpInitialAdminRejectsExistingInstallation(t *testing.T) {
 	svc := newSignupServiceForTest(t, db, fakeUserCreator{user: model.User{Base: model.Base{ID: "new-admin"}}})
 
 	// Reject setup when the installation already contains a user
-	_, _, err := svc.SignUpInitialAdmin(t.Context(), appconfig.NewTestConfig(nil), signUpDto{Username: "new-admin"})
+	_, _, err := svc.SignUpInitialAdmin(t.Context(), appconfig.NewTestConfig(nil), signUpDto{Username: "new-admin"}, "", "")
 	require.True(t, apperror.IsCode(err, apperror.CodeSetupAlreadyCompleted))
 }
 

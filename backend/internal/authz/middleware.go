@@ -1,15 +1,23 @@
 package authz
 
 import (
+	"context"
+	"maps"
+	"slices"
+	"sync/atomic"
+
+	"github.com/getkin/kin-openapi/openapi3"
 	"github.com/gin-gonic/gin"
+	"github.com/go-fuego/fuego"
 
 	"github.com/pocket-id/pocket-id/backend/internal/apperror"
+	"github.com/pocket-id/pocket-id/backend/internal/openapi"
 )
 
 // Authenticator resolves a principal from one kind of credential
 type Authenticator interface {
-	// Kind reports the kind of principal this authenticator produces
-	Kind() PrincipalKind
+	// Kinds reports every kind of principal this authenticator can produce, as a set of flags
+	Kinds() PrincipalKind
 
 	// Present reports whether the request carries this authenticator's credential at all, without validating it
 	Present(c *gin.Context) bool
@@ -20,18 +28,25 @@ type Authenticator interface {
 	Authenticate(c *gin.Context) (*Principal, error)
 }
 
+// SudoKeeper records that a session's sudo mode was used, which keeps it from ending for being unused
+type SudoKeeper interface {
+	KeepSudo(ctx context.Context, userID, sessionID string)
+}
+
 // Middleware authenticates requests and enforces the scope each route declares
 type Middleware struct {
+	sudo           SudoKeeper
 	authenticators []Authenticator
-	declared       map[string]struct{}
+	declared       map[string]openapi.Route
 }
 
 // NewMiddleware creates the authorization middleware
 // Authenticators are tried in order and the first one that resolves a principal wins
-func NewMiddleware(authenticators ...Authenticator) *Middleware {
+func NewMiddleware(sudo SudoKeeper, authenticators ...Authenticator) *Middleware {
 	return &Middleware{
+		sudo:           sudo,
 		authenticators: authenticators,
-		declared:       make(map[string]struct{}),
+		declared:       make(map[string]openapi.Route),
 	}
 }
 
@@ -40,25 +55,40 @@ func (m *Middleware) Router(group *gin.RouterGroup) *Router {
 	return &Router{group: group, auth: m}
 }
 
-// IsDeclared reports whether the route was registered through a Router or PublicRouter, so a test can compare gin's route table against the declarations
+// IsDeclared reports whether the route was registered through a Router, so a test can compare gin's route table against the declarations
 func (m *Middleware) IsDeclared(method, path string) bool {
 	_, ok := m.declared[routeKey(method, path)]
 	return ok
 }
 
-func (m *Middleware) declare(method, path string) {
-	m.declared[routeKey(method, path)] = struct{}{}
+// Routes returns every declared route
+func (m *Middleware) Routes() []openapi.Route {
+	return slices.Collect(maps.Values(m.declared))
+}
+
+// register adds the route to gin and declares it with its documentation
+func (m *Middleware) register(group *gin.RouterGroup, method, relativePath string, chain []gin.HandlerFunc, docs []fuego.RouteOption, security openapi3.SecurityRequirements) {
+	group.Handle(method, relativePath, chain...)
+	path := joinPaths(group.BasePath(), relativePath)
+	m.declared[routeKey(method, path)] = openapi.Route{Method: method, Path: path, Docs: docs, Security: security}
 }
 
 func routeKey(method, path string) string {
 	return method + " " + path
 }
 
-// require returns the handler that enforces the scope on a route
+// require returns the handler that enforces the access of a route that is not public
 // An optional route lets requests without a usable credential through as anonymous instead of rejecting them
-func (m *Middleware) require(scope Scope, optional bool) gin.HandlerFunc {
+func (m *Middleware) require(access Access, optional bool) gin.HandlerFunc {
+	// Authenticated routes accept every kind of credential and check no scope
+	scope, scoped := access.(Scope)
+	accepts := func(PrincipalKind) bool { return true }
+	if scoped {
+		accepts = scope.GrantableTo
+	}
+
 	return func(c *gin.Context) {
-		principal, kindRejected, err := m.authenticate(c, scope)
+		principal, rejectedKind, err := m.authenticate(c, accepts)
 		if err != nil {
 			c.Abort()
 			_ = c.Error(err)
@@ -73,17 +103,12 @@ func (m *Middleware) require(scope Scope, optional bool) gin.HandlerFunc {
 			}
 
 			c.Abort()
-			if kindRejected {
-				// Only API keys can be rejected by kind today, so the error tells the caller to use a browser session instead
-				_ = c.Error(apperror.APIKeyAuthNotAllowed())
-				return
-			}
-			_ = c.Error(apperror.NotSignedIn())
+			_ = c.Error(rejectionError(rejectedKind))
 			return
 		}
 
 		// A valid credential without the scope is forbidden even on optional routes, so a caller is never silently downgraded to anonymous
-		if !principal.Scopes.Has(scope) {
+		if scoped && !principal.Scopes.Has(scope) {
 			c.Abort()
 			// A scope that is only withheld until the email is verified tells the user how to regain it
 			if principal.WithheldUntilVerified.Has(scope) {
@@ -94,35 +119,87 @@ func (m *Middleware) require(scope Scope, optional bool) gin.HandlerFunc {
 			return
 		}
 
+		principal.sudoUsed = new(atomic.Bool)
+		SetPrincipal(c, principal)
+		c.Next()
+
+		// Sudo mode lasts while it is used, which is recorded after the handler because the session can't be written while the handler's database transaction is open
+		if principal.sudoUsed.Load() {
+			m.sudo.KeepSudo(c.Request.Context(), principal.UserID, principal.SessionID)
+		}
+	}
+}
+
+// requireDispatch returns the handler of a dispatch route, which authenticates every credential except a browser session and requires some admin scope
+func (m *Middleware) requireDispatch() gin.HandlerFunc {
+	return func(c *gin.Context) {
+		principal, rejectedKind, err := m.authenticate(c, func(kind PrincipalKind) bool { return kind != KindSession })
+		if err != nil {
+			c.Abort()
+			_ = c.Error(err)
+			return
+		}
+		if principal == nil {
+			c.Abort()
+			_ = c.Error(rejectionError(rejectedKind))
+			return
+		}
+
+		// Dispatch routes only serve admin operations, so a caller without any admin scope is turned away before the handler
+		if !principal.Scopes.hasAdmin() {
+			c.Abort()
+			_ = c.Error(apperror.MissingPermission())
+			return
+		}
+
 		SetPrincipal(c, principal)
 		c.Next()
 	}
 }
 
-// authenticate resolves the principal from the first credential that can hold the scope and validates
-// Credentials whose kind can never hold the scope are not validated at all, and kindRejected reports that one was present
-func (m *Middleware) authenticate(c *gin.Context, scope Scope) (principal *Principal, kindRejected bool, err error) {
+// rejectionError tells the caller which credential a route needs when the one it sent was rejected by kind
+func rejectionError(rejectedKind PrincipalKind) error {
+	if rejectedKind&(KindAPIKey|KindStaticAPIKey) != 0 {
+		return apperror.APIKeyAuthNotAllowed()
+	}
+	if rejectedKind == KindOAuthClient {
+		return apperror.ClientTokenAuthNotAllowed()
+	}
+	if rejectedKind&KindOAuthUser != 0 {
+		return apperror.OAuthTokenAuthNotAllowed()
+	}
+	return apperror.NotSignedIn()
+}
+
+// authenticate resolves the principal from the first credential whose kind the route accepts and that validates
+// Credentials of kinds the route never accepts are not validated at all, and rejectedKind reports the last one that was present
+func (m *Middleware) authenticate(c *gin.Context, accepts func(PrincipalKind) bool) (principal *Principal, rejectedKind PrincipalKind, err error) {
 	for _, authenticator := range m.authenticators {
 		if !authenticator.Present(c) {
 			continue
 		}
 
 		// Skip credentials that could never satisfy the route so they are not validated or marked as used
-		if !scope.GrantableTo(authenticator.Kind()) {
-			kindRejected = true
+		if !accepts(authenticator.Kinds()) {
+			rejectedKind = authenticator.Kinds()
 			continue
 		}
 
 		principal, err = authenticator.Authenticate(c)
+		// An authenticator that produces several kinds only knows the kind once the credential is validated
+		if err == nil && !accepts(principal.Kind) {
+			rejectedKind = principal.Kind
+			continue
+		}
 		if err == nil {
-			return principal, false, nil
+			return principal, 0, nil
 		}
 
 		// An invalid credential falls through to the next authenticator, while a valid but rejected one ends the request
 		if !apperror.IsCode(err, apperror.CodeNotSignedIn) {
-			return nil, false, err
+			return nil, 0, err
 		}
 	}
 
-	return nil, kindRejected, nil
+	return nil, rejectedKind, nil
 }

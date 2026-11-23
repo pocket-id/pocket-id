@@ -1,7 +1,7 @@
 <script lang="ts">
 	import OidcClientAvatar from '#lib/components/oidc-client-avatar.svelte';
 	import AdvancedTable from '#lib/components/table/advanced-table.svelte';
-	import * as Dialog from '#lib/components/ui/dialog/index.ts';
+	import * as Dialog from '@pocket-id/ui/dialog';
 	import { m } from '#lib/paraglide/messages.js';
 	import ApisService from '#lib/services/apis-service.ts';
 	import type { AdvancedTableColumn } from '#lib/types/advanced-table.type.ts';

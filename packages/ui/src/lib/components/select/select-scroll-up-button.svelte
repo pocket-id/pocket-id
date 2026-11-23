@@ -1,0 +1,23 @@
+<script lang="ts">
+	import { Select as SelectPrimitive } from 'bits-ui';
+	import { cn, type WithoutChildrenOrChild } from '#lib/utils/style.js';
+	import ChevronUpIcon from '~icons/solar/alt-arrow-up-linear';
+
+	let {
+		ref = $bindable(null),
+		class: className,
+		...restProps
+	}: WithoutChildrenOrChild<SelectPrimitive.ScrollUpButtonProps> = $props();
+</script>
+
+<SelectPrimitive.ScrollUpButton
+	bind:ref
+	data-slot="select-scroll-up-button"
+	class={cn(
+		"text-fg-muted top-0 z-10 flex w-full cursor-default items-center justify-center py-1 [&_svg:not([class*='size-'])]:size-4",
+		className
+	)}
+	{...restProps}
+>
+	<ChevronUpIcon />
+</SelectPrimitive.ScrollUpButton>

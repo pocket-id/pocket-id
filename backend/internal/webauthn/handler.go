@@ -17,6 +17,7 @@ import (
 	"github.com/pocket-id/pocket-id/backend/internal/authz"
 	"github.com/pocket-id/pocket-id/backend/internal/dto"
 	"github.com/pocket-id/pocket-id/backend/internal/httpserver"
+	"github.com/pocket-id/pocket-id/backend/internal/session"
 	"github.com/pocket-id/pocket-id/backend/internal/utils"
 	"github.com/pocket-id/pocket-id/backend/internal/utils/cookie"
 )
@@ -39,8 +40,7 @@ func (h *handler) beginRegistration(c *gin.Context) error {
 		return fmt.Errorf("error loading app configuration: %w", err)
 	}
 
-	userID := authz.PrincipalFrom(c).UserID
-	options, err := h.service.BeginRegistration(c.Request.Context(), dbConfig, userID)
+	options, err := h.service.BeginRegistration(c.Request.Context(), dbConfig, authz.PrincipalFrom(c))
 	if err != nil {
 		return err
 	}
@@ -61,13 +61,18 @@ func (h *handler) verifyRegistration(c *gin.Context) error {
 		return apperror.MissingSessionID()
 	}
 
-	userID := authz.PrincipalFrom(c).UserID
-	credential, err := h.service.VerifyRegistration(c.Request.Context(), dbConfig, sessionID, userID, c.Request, c.ClientIP())
+	// The body is read before the service opens its write transaction, so a client that withholds it can't keep the database locked
+	credentialCreationData, err := protocol.ParseCredentialCreationResponseBody(c.Request.Body)
+	if err != nil {
+		return apperror.InvalidWebAuthnResponse(err)
+	}
+
+	credential, err := h.service.VerifyRegistration(c.Request.Context(), dbConfig, sessionID, authz.PrincipalFrom(c), credentialCreationData, c.ClientIP(), c.Request.UserAgent())
 	if err != nil {
 		return err
 	}
 
-	var credentialDto dto.WebauthnCredentialDto
+	var credentialDto WebauthnCredentialDto
 	if err := dto.MapStruct(credential, &credentialDto); err != nil {
 		return err
 	}
@@ -109,7 +114,8 @@ func (h *handler) verifyLogin(c *gin.Context) error {
 	}
 
 	browserToken, _ := c.Cookie(cookie.KnownBrowserCookieName)
-	user, tokens, err := h.service.VerifyLogin(c.Request.Context(), dbConfig, sessionID, credentialAssertionData, c.ClientIP(), c.Request.UserAgent(), browserToken)
+	remember := cookie.RememberSignIn(c)
+	user, tokens, err := h.service.VerifyLogin(c.Request.Context(), dbConfig, sessionID, credentialAssertionData, c.ClientIP(), c.Request.UserAgent(), browserToken, remember)
 	if err != nil {
 		return err
 	}
@@ -119,8 +125,8 @@ func (h *handler) verifyLogin(c *gin.Context) error {
 		return err
 	}
 
-	maxAge := int(dbConfig.SessionDuration.AsDurationMinutes().Seconds())
-	cookie.AddAccessTokenCookie(c, maxAge, tokens.AccessToken)
+	cookie.AddSignInSessionTokenCookie(c, dbConfig.SessionDuration.AsDurationMinutes(), remember, tokens.SessionToken)
+	session.AnnounceBinding(c, tokens.SessionToken)
 	if tokens.KnownBrowserToken != "" {
 		cookie.AddKnownBrowserCookie(c, tokens.KnownBrowserToken, int(auditlogs.KnownBrowserLifetime.Seconds()))
 	}
@@ -136,7 +142,7 @@ func (h *handler) listCredentials(c *gin.Context) error {
 		return err
 	}
 
-	var credentialDtos []dto.WebauthnCredentialDto
+	var credentialDtos []WebauthnCredentialDto
 	if err := dto.MapStructList(credentials, &credentialDtos); err != nil {
 		return err
 	}
@@ -146,12 +152,8 @@ func (h *handler) listCredentials(c *gin.Context) error {
 }
 
 func (h *handler) deleteCredential(c *gin.Context) error {
-	userID := authz.PrincipalFrom(c).UserID
-	credentialID := c.Param("id")
-	clientIP := c.ClientIP()
-	userAgent := c.Request.UserAgent()
-
-	err := h.service.DeleteCredential(c.Request.Context(), userID, credentialID, clientIP, userAgent, userID)
+	origin := auditlogs.OriginFrom(c)
+	err := h.service.DeleteCredential(c.Request.Context(), origin.Principal.UserID, c.Param("id"), origin)
 	if err != nil {
 		return err
 	}
@@ -164,7 +166,7 @@ func (h *handler) updateCredential(c *gin.Context) error {
 	userID := authz.PrincipalFrom(c).UserID
 	credentialID := c.Param("id")
 
-	var input dto.WebauthnCredentialUpdateDto
+	var input webauthnCredentialUpdateDto
 	if err := httpserver.BindJSON(c, &input); err != nil {
 		return err
 	}
@@ -174,7 +176,7 @@ func (h *handler) updateCredential(c *gin.Context) error {
 		return err
 	}
 
-	var credentialDto dto.WebauthnCredentialDto
+	var credentialDto WebauthnCredentialDto
 	if err := dto.MapStruct(credential, &credentialDto); err != nil {
 		return err
 	}
@@ -184,7 +186,13 @@ func (h *handler) updateCredential(c *gin.Context) error {
 }
 
 func (h *handler) logout(c *gin.Context) error {
-	cookie.AddAccessTokenCookie(c, 0, "")
+	origin := auditlogs.OriginFrom(c)
+	err := h.service.sessions.Revoke(c.Request.Context(), origin.Principal.UserID, origin.Principal.SessionID, origin)
+	if err != nil {
+		return err
+	}
+
+	cookie.AddSessionTokenCookie(c, 0, "")
 	c.Status(http.StatusNoContent)
 	return nil
 }
@@ -200,14 +208,13 @@ func (h *handler) reauthenticate(c *gin.Context) error {
 	// Try to create a reauthentication token with WebAuthn
 	credentialAssertionData, err := protocol.ParseCredentialRequestResponseBody(c.Request.Body)
 	if err == nil {
-		token, err = h.service.CreateReauthenticationTokenWithWebauthn(c.Request.Context(), sessionID, credentialAssertionData)
+		token, err = h.service.CreateReauthenticationTokenWithWebauthn(c.Request.Context(), sessionID, authz.PrincipalFrom(c), credentialAssertionData)
 		if err != nil {
 			return err
 		}
 	} else {
-		// If WebAuthn fails, try to create a reauthentication token with the access token
-		accessToken, _ := c.Cookie(cookie.AccessTokenCookieName)
-		token, err = h.service.CreateReauthenticationTokenWithAccessToken(c.Request.Context(), accessToken)
+		// Without a passkey response, a fresh passkey sign-in can stand in for reauthentication
+		token, err = h.service.CreateReauthenticationTokenWithSession(c.Request.Context(), authz.PrincipalFrom(c))
 		if err != nil {
 			return err
 		}
@@ -224,7 +231,7 @@ func (h *handler) getThemedAuthenticatorIcon(c *gin.Context) error {
 	// An unparsable light parameter falls back to the light icon, which every authenticator with an icon has
 	light, _ := strconv.ParseBool(c.DefaultQuery("light", "true"))
 
-	file, size, err := utils.OpenAuthenticatorIcon(c.Param("aaguid"), light)
+	file, size, err := openAuthenticatorIcon(c.Param("aaguid"), light)
 	if errors.Is(err, os.ErrNotExist) {
 		return apperror.ImageNotFound()
 	}

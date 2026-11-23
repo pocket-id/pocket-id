@@ -1,11 +1,9 @@
 import { m } from '#lib/paraglide/messages.js';
 import type { OidcUserField } from '#lib/types/oidc-claim-mapping-policy.type.ts';
 
-export const claimsCount = (count: number) =>
-	count === 1 ? m.claims_count_one() : m.claims_count({ count });
+export const claimsCount = (count: number) => m.claims_count({ count });
 
-export const clientsCount = (count: number) =>
-	count === 1 ? m.clients_count_one() : m.clients_count({ count });
+export const clientsCount = (count: number) => m.clients_count({ count });
 
 export const policyHref = (id: string) => `/settings/admin/claim-mappings/${id}`;
 

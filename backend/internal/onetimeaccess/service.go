@@ -15,6 +15,7 @@ import (
 	"github.com/pocket-id/pocket-id/backend/internal/appconfig"
 	"github.com/pocket-id/pocket-id/backend/internal/apperror"
 	"github.com/pocket-id/pocket-id/backend/internal/auditlogs"
+	"github.com/pocket-id/pocket-id/backend/internal/authz"
 	"github.com/pocket-id/pocket-id/backend/internal/common"
 	"github.com/pocket-id/pocket-id/backend/internal/model"
 	"github.com/pocket-id/pocket-id/backend/internal/utils"
@@ -39,7 +40,7 @@ type Service struct {
 	db           *gorm.DB
 	actorService *actor.Service
 	userProvider UserProvider
-	signer       TokenService
+	sessions     SessionCreator
 	auditLog     AuditLogger
 	emailSender  EmailSender
 }
@@ -49,52 +50,46 @@ func newService(deps Dependencies, actorService *actor.Service) *Service {
 		db:           deps.DB,
 		actorService: actorService,
 		userProvider: deps.UserProvider,
-		signer:       deps.Signer,
+		sessions:     deps.Sessions,
 		auditLog:     deps.AuditLog,
 		emailSender:  deps.EmailSender,
 	}
 }
 
-func (s *Service) RequestOneTimeAccessEmailAsAdmin(ctx context.Context, dbConfig *appconfig.AppConfigModel, userID string, ttl time.Duration) error {
+func (s *Service) RequestOneTimeAccessEmailAsAdmin(ctx context.Context, dbConfig *appconfig.AppConfigModel, userID string, ttl time.Duration, origin auditlogs.Origin) error {
 	if !dbConfig.EmailOneTimeAccessAsAdminEnabled.IsTrue() {
 		return apperror.OneTimeAccessDisabled()
 	}
 
-	_, err := s.requestOneTimeAccessEmailInternal(ctx, userID, "", ttl, false, dbConfig)
-	return err
+	return s.requestOneTimeAccessEmailInternal(ctx, userID, "", ttl, nil, dbConfig, origin, true)
 }
 
-func (s *Service) RequestOneTimeAccessEmailAsUnauthenticatedUser(ctx context.Context, dbConfig *appconfig.AppConfigModel, email, redirectPath string) (string, error) {
+func (s *Service) RequestOneTimeAccessEmailAsUnauthenticatedUser(ctx context.Context, dbConfig *appconfig.AppConfigModel, email, redirectPath string, origin auditlogs.Origin) (string, error) {
 	// Requests are rejected outright only when no user at all may request a code, which the login page already reveals
 	if !selfRequestedCodeAllowed(dbConfig, false) {
 		return "", apperror.OneTimeAccessDisabled()
 	}
 
-	var user struct {
-		ID      string
-		IsAdmin bool
-	}
-	err := s.db.WithContext(ctx).Model(&model.User{}).Select("id", "is_admin").Where("email = ?", email).First(&user).Error
-	if errors.Is(err, gorm.ErrRecordNotFound) {
-		// Return a dummy device token that looks like a real one so the response does not reveal whether the email is registered
-		return utils.GenerateRandomAlphanumericString(deviceTokenLength)
-	} else if err != nil {
-		return "", err
-	}
-
-	// Users who are excluded get the same dummy device token so the response does not reveal who holds admin privileges
-	if !selfRequestedCodeAllowed(dbConfig, user.IsAdmin) {
-		return utils.GenerateRandomAlphanumericString(deviceTokenLength)
-	}
-
-	deviceToken, err := s.requestOneTimeAccessEmailInternal(ctx, user.ID, redirectPath, 15*time.Minute, true, dbConfig)
+	deviceToken, err := utils.GenerateRandomAlphanumericString(deviceTokenLength)
 	if err != nil {
 		return "", err
-	} else if deviceToken == nil {
-		return "", errors.New("device token expected but not returned")
 	}
 
-	return *deviceToken, nil
+	// The work for a registered email runs in the background, so neither the response time nor its outcome reveals whether the email is registered
+	go func() {
+		innerCtx := context.WithoutCancel(ctx)
+
+		var userID string
+		innerErr := s.db.WithContext(innerCtx).Model(&model.User{}).Select("id").Where("email = ?", email).First(&userID).Error
+		if innerErr == nil {
+			innerErr = s.requestOneTimeAccessEmailInternal(innerCtx, userID, redirectPath, 15*time.Minute, &deviceToken, dbConfig, origin, false)
+		}
+		if innerErr != nil && !errors.Is(innerErr, gorm.ErrRecordNotFound) {
+			slog.ErrorContext(innerCtx, "Failed to create the requested one-time access token", slog.Any("error", innerErr))
+		}
+	}()
+
+	return deviceToken, nil
 }
 
 // selfRequestedCodeAllowed reports whether the configuration lets a user sign in with a login code they requested from the login page
@@ -110,21 +105,37 @@ func selfRequestedCodeAllowed(dbConfig *appconfig.AppConfigModel, isAdmin bool) 
 	}
 }
 
-func (s *Service) requestOneTimeAccessEmailInternal(ctx context.Context, userID, redirectPath string, ttl time.Duration, withDeviceToken bool, dbConfig *appconfig.AppConfigModel) (*string, error) {
+// byAdmin marks a code an admin requests for the user, as opposed to one the user requests for themselves
+func (s *Service) requestOneTimeAccessEmailInternal(ctx context.Context, userID, redirectPath string, ttl time.Duration, deviceToken *string, dbConfig *appconfig.AppConfigModel, origin auditlogs.Origin, byAdmin bool) error {
 	// Load the user to ensure it exists and has an email address
 	user, err := s.userProvider.GetUser(ctx, userID)
 	if err != nil {
-		return nil, err
+		return err
 	}
 
 	if user.Email == nil {
-		return nil, apperror.UserEmailNotSet()
+		return apperror.UserEmailNotSet()
 	}
 
-	oneTimeAccessToken, deviceToken, err := StoreToken(ctx, s.actorService, user.ID, ttl, withDeviceToken)
-	if err != nil {
-		return nil, err
+	forbidAdmin := false
+	if byAdmin {
+		forbidAdmin, err = adminCodeRestriction(user, origin)
+		if err != nil {
+			return err
+		}
+	} else {
+		// A user who may not request a code is ignored like an unknown email, so nothing reveals who is an admin
+		if !selfRequestedCodeAllowed(dbConfig, user.IsAdmin) {
+			return nil
+		}
+		forbidAdmin = !selfRequestedCodeAllowed(dbConfig, true)
 	}
+
+	oneTimeAccessToken, err := StoreToken(ctx, s.actorService, user.ID, ttl, deviceToken, forbidAdmin)
+	if err != nil {
+		return err
+	}
+	s.auditLog.Record(ctx, auditlogs.EventLoginCodeCreated, origin, user.ID, auditlogs.Data{"delivery": "email"}, nil)
 
 	go func() {
 		// This runs in background, so use a context without cancellation (or it would be stopped when the request ends)
@@ -145,10 +156,11 @@ func (s *Service) requestOneTimeAccessEmailInternal(ctx context.Context, userID,
 			dbConfig,
 			user.FullName(),
 			*user.Email,
+			user.Locale,
 			oneTimeAccessToken,
 			link,
 			linkWithCode,
-			utils.DurationToString(ttl),
+			ttl,
 		)
 		if innerErr != nil {
 			slog.ErrorContext(innerCtx, "Failed to send one-time access token email", slog.Any("error", innerErr), slog.String("address", *user.Email))
@@ -156,33 +168,39 @@ func (s *Service) requestOneTimeAccessEmailInternal(ctx context.Context, userID,
 		}
 	}()
 
-	return deviceToken, nil
+	return nil
 }
 
-func (s *Service) CreateToken(ctx context.Context, userID string, ttl time.Duration) (token string, err error) {
+func (s *Service) CreateToken(ctx context.Context, userID string, ttl time.Duration, origin auditlogs.Origin) (token string, err error) {
 	// Load the user to ensure it exists
-	_, err = s.userProvider.GetUser(ctx, userID)
+	user, err := s.userProvider.GetUser(ctx, userID)
 	if errors.Is(err, gorm.ErrRecordNotFound) {
 		return "", apperror.UserNotFound()
 	} else if err != nil {
 		return "", err
 	}
 
-	token, _, err = StoreToken(ctx, s.actorService, userID, ttl, false)
+	forbidAdmin, err := adminCodeRestriction(user, origin)
 	if err != nil {
 		return "", err
 	}
 
+	token, err = StoreToken(ctx, s.actorService, userID, ttl, nil, forbidAdmin)
+	if err != nil {
+		return "", err
+	}
+	s.auditLog.Record(ctx, auditlogs.EventLoginCodeCreated, origin, userID, auditlogs.Data{"delivery": "link"}, nil)
+
 	return token, nil
 }
 
-func (s *Service) ExchangeToken(ctx context.Context, dbConfig *appconfig.AppConfigModel, token, deviceToken, ipAddress, userAgent, browserToken string) (model.User, model.LoginTokens, error) {
-	token = utils.NormalizeUnambiguousString(token)
+func (s *Service) ExchangeToken(ctx context.Context, dbConfig *appconfig.AppConfigModel, token, deviceToken, ipAddress, userAgent, browserToken string, remember bool) (model.User, model.LoginTokens, error) {
+	actorID := utils.CreateSha256Hash(utils.NormalizeUnambiguousString(token))
 
 	// Consume the token by invoking its actor: this atomically validates it and, if valid, deletes it.
 	// It must happen outside of a DB transaction, since invoking an actor while a transaction is open would deadlock on SQLite.
-	res, err := s.actorService.Invoke(ctx, TokenActorType, token, tokenMethodConsume, tokenConsumeRequest{
-		DeviceToken: deviceToken,
+	res, err := s.actorService.Invoke(ctx, TokenActorType, actorID, tokenMethodConsume, tokenConsumeRequest{
+		DeviceToken: utils.CreateSha256Hash(deviceToken),
 	})
 	if err != nil {
 		return model.User{}, model.LoginTokens{}, fmt.Errorf("error invoking one-time access token actor: %w", err)
@@ -197,8 +215,6 @@ func (s *Service) ExchangeToken(ctx context.Context, dbConfig *appconfig.AppConf
 	switch consumeRes.Status {
 	case tokenConsumeNotFound:
 		return model.User{}, model.LoginTokens{}, apperror.TokenInvalidOrExpired()
-	case tokenConsumeDeviceMismatch:
-		return model.User{}, model.LoginTokens{}, apperror.DeviceCodeInvalid()
 	case tokenConsumeOK:
 		// All good, continue below
 	default:
@@ -206,17 +222,17 @@ func (s *Service) ExchangeToken(ctx context.Context, dbConfig *appconfig.AppConf
 	}
 
 	// The token has now been consumed. From this point on, if we hit an error we compensate by restoring the token (this is best-effort).
-	user, accessToken, err := s.completeTokenExchange(ctx, dbConfig, consumeRes.State, ipAddress, userAgent, browserToken)
+	user, tokens, err := s.completeTokenExchange(ctx, dbConfig, consumeRes.State, ipAddress, userAgent, browserToken, remember)
 	if err != nil {
-		s.restoreToken(ctx, token, consumeRes.State)
+		s.restoreToken(ctx, actorID, consumeRes.State)
 		return model.User{}, model.LoginTokens{}, err
 	}
 
-	return user, accessToken, nil
+	return user, tokens, nil
 }
 
-// completeTokenExchange performs the work that follows consuming a token: loading the user, validating it, and issuing an access token.
-func (s *Service) completeTokenExchange(ctx context.Context, dbConfig *appconfig.AppConfigModel, state TokenState, ipAddress, userAgent, browserToken string) (model.User, model.LoginTokens, error) {
+// completeTokenExchange performs the work that follows consuming a token: loading the user, validating it, and starting a session.
+func (s *Service) completeTokenExchange(ctx context.Context, dbConfig *appconfig.AppConfigModel, state TokenState, ipAddress, userAgent, browserToken string, remember bool) (model.User, model.LoginTokens, error) {
 	var user model.User
 	err := s.db.
 		WithContext(ctx).
@@ -233,16 +249,17 @@ func (s *Service) completeTokenExchange(ctx context.Context, dbConfig *appconfig
 		return model.User{}, model.LoginTokens{}, apperror.UserDisabled()
 	}
 
-	// Only codes requested from the login page carry a device token, so check them again in case the user gained admin privileges or the setting changed since the code was sent
+	// The code's creator couldn't have created it for an admin, so it must not sign in as one either
+	if state.ForbidAdmin && user.IsAdmin {
+		return model.User{}, model.LoginTokens{}, apperror.TokenInvalidOrExpired()
+	}
+
+	// Only codes requested from the login page carry a device token, so check them again in case the setting changed since the code was sent
 	if state.DeviceToken != nil && !selfRequestedCodeAllowed(dbConfig, user.IsAdmin) {
 		return model.User{}, model.LoginTokens{}, apperror.TokenInvalidOrExpired()
 	}
 
-	accessToken, err := s.signer.GenerateAccessToken(
-		user,
-		authenticationMethodOneTimePassword,
-		dbConfig.SessionDuration.AsDurationMinutes(),
-	)
+	sessionToken, err := s.sessions.Create(ctx, user.ID, authenticationMethodOneTimePassword, ipAddress, userAgent, dbConfig.SessionDuration.AsDurationMinutes(), remember)
 	if err != nil {
 		return model.User{}, model.LoginTokens{}, err
 	}
@@ -251,65 +268,65 @@ func (s *Service) completeTokenExchange(ctx context.Context, dbConfig *appconfig
 	signIn := s.auditLog.CreateSignIn(ctx, auditlogs.EventOneTimeAccessTokenSignIn, ipAddress, userAgent, user.ID, browserToken, s.db, dbConfig.EmailLoginNotificationMode)
 	s.auditLog.SendSignInNotification(ctx, signIn)
 
-	return user, model.LoginTokens{AccessToken: accessToken, KnownBrowserToken: signIn.KnownBrowserToken}, nil
+	return user, model.LoginTokens{SessionToken: sessionToken, KnownBrowserToken: signIn.KnownBrowserToken}, nil
 }
 
 // restoreToken restores a token that was consumed but whose exchange could not be completed.
 // It's a best-effort compensation: if it fails (or the process crashes before it runs) we accept that the token was consumed unnecessarily.
-func (s *Service) restoreToken(parentCtx context.Context, token string, state TokenState) {
+func (s *Service) restoreToken(parentCtx context.Context, actorID string, state TokenState) {
 	// Use a context that is not canceled when the original request ends
 	ctx, cancel := context.WithTimeout(context.WithoutCancel(parentCtx), 10*time.Second)
 	defer cancel()
 
-	_, err := s.actorService.Invoke(ctx, TokenActorType, token, TokenMethodRestore, state)
+	_, err := s.actorService.Invoke(ctx, TokenActorType, actorID, TokenMethodRestore, state)
 	if err != nil {
 		slog.ErrorContext(ctx, "Failed to restore one-time access token after a failed exchange", slog.Any("error", err))
 	}
 }
 
 // StoreToken generates a new one-time access token and persists it in the actor state store, with a TTL matching its lifetime.
-// It returns the token value and, when requested, the associated device token.
-func StoreToken(ctx context.Context, store TokenStore, userID string, ttl time.Duration, withDeviceToken bool) (token string, deviceToken *string, err error) {
-	token, deviceToken, err = generateToken(ttl, withDeviceToken)
+// A non-nil device token binds the token to the device that requested it.
+// forbidAdmin makes the token stop working if the user becomes an admin before it is used, see TokenState.
+func StoreToken(ctx context.Context, store TokenStore, userID string, ttl time.Duration, deviceToken *string, forbidAdmin bool) (token string, err error) {
+	token, err = generateToken(ttl)
 	if err != nil {
-		return "", nil, err
+		return "", err
 	}
 
 	now := time.Now().Round(time.Second)
 	state := TokenState{
 		UserID:      userID,
-		DeviceToken: deviceToken,
 		ExpiresAt:   now.Add(ttl),
+		ForbidAdmin: forbidAdmin,
+	}
+	if deviceToken != nil {
+		state.DeviceToken = new(utils.CreateSha256Hash(*deviceToken))
 	}
 
-	err = store.SetState(ctx, TokenActorType, token, state, &actor.SetStateOpts{TTL: ttl})
+	err = store.SetState(ctx, TokenActorType, utils.CreateSha256Hash(token), state, &actor.SetStateOpts{TTL: ttl})
 	if err != nil {
-		return "", nil, fmt.Errorf("error saving one-time access token state: %w", err)
+		return "", fmt.Errorf("error saving one-time access token state: %w", err)
 	}
 
-	return token, deviceToken, nil
+	return token, nil
 }
 
-// generateToken generates the random token value (and optional device token) for a one-time access token.
-func generateToken(ttl time.Duration, withDeviceToken bool) (token string, deviceToken *string, err error) {
+// adminCodeRestriction checks that the origin may create a login code for the user, since signing in as an admin hands over their access
+// It reports whether the code must stop working should the user become an admin before it is used
+func adminCodeRestriction(user model.User, origin auditlogs.Origin) (forbidAdmin bool, err error) {
+	if user.IsAdmin {
+		return false, origin.Principal.RequireAdminAccess()
+	}
+	return !origin.Principal.Scopes.Has(authz.AdminAccessWrite), nil
+}
+
+// generateToken generates the random token value for a one-time access token.
+func generateToken(ttl time.Duration) (string, error) {
 	// Use the shorter format only for codes that expire within 15 minutes
 	tokenLength := longTokenLength
 	if ttl <= 15*time.Minute {
 		tokenLength = shortTokenLength
 	}
 
-	token, err = utils.GenerateRandomUnambiguousString(tokenLength)
-	if err != nil {
-		return "", nil, err
-	}
-
-	if withDeviceToken {
-		dt, err := utils.GenerateRandomAlphanumericString(deviceTokenLength)
-		if err != nil {
-			return "", nil, err
-		}
-		deviceToken = &dt
-	}
-
-	return token, deviceToken, nil
+	return utils.GenerateRandomUnambiguousString(tokenLength)
 }

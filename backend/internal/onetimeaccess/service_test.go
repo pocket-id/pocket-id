@@ -2,6 +2,7 @@ package onetimeaccess
 
 import (
 	"context"
+	"errors"
 	"testing"
 	"time"
 
@@ -13,14 +14,16 @@ import (
 	"github.com/pocket-id/pocket-id/backend/internal/appconfig"
 	"github.com/pocket-id/pocket-id/backend/internal/apperror"
 	"github.com/pocket-id/pocket-id/backend/internal/auditlogs"
+	"github.com/pocket-id/pocket-id/backend/internal/authz"
 	"github.com/pocket-id/pocket-id/backend/internal/model"
+	"github.com/pocket-id/pocket-id/backend/internal/utils"
 	testutils "github.com/pocket-id/pocket-id/backend/internal/utils/testing"
 )
 
-type fakeSigner struct{}
+type fakeSessionCreator struct{}
 
-func (fakeSigner) GenerateAccessToken(_ model.User, _ string, _ time.Duration) (string, error) {
-	return "access-token", nil
+func (fakeSessionCreator) Create(_ context.Context, _, _, _, _ string, _ time.Duration, _ bool) (string, error) {
+	return "session-token", nil
 }
 
 type fakeAuditLogger struct {
@@ -31,6 +34,10 @@ type fakeAuditLogger struct {
 func (f *fakeAuditLogger) Create(_ context.Context, event auditlogs.Event, _, _, _ string, _ auditlogs.Data, _ *gorm.DB) (auditlogs.AuditLog, bool) {
 	f.events = append(f.events, event)
 	return auditlogs.AuditLog{}, true
+}
+
+func (f *fakeAuditLogger) Record(_ context.Context, event auditlogs.Event, _ auditlogs.Origin, _ string, _ auditlogs.Data, _ *gorm.DB) {
+	f.events = append(f.events, event)
 }
 
 type fakeUserProvider struct {
@@ -54,7 +61,7 @@ type fakeEmailSender struct {
 	sent chan sentEmail
 }
 
-func (f fakeEmailSender) SendOneTimeAccessEmail(_ context.Context, _ *appconfig.AppConfigModel, _, userEmail, code, _, _, _ string) error {
+func (f fakeEmailSender) SendOneTimeAccessEmail(_ context.Context, _ *appconfig.AppConfigModel, _, userEmail string, _ *string, code, _, _ string, _ time.Duration) error {
 	f.sent <- sentEmail{recipient: userEmail, code: code}
 	return nil
 }
@@ -119,7 +126,7 @@ func newServiceForTest(t *testing.T, db *gorm.DB) (*Service, *local.Host, *fakeA
 
 		svc = newService(Dependencies{
 			DB:           db,
-			Signer:       fakeSigner{},
+			Sessions:     fakeSessionCreator{},
 			AuditLog:     auditLog,
 			UserProvider: fakeUserProvider{db: db},
 			EmailSender:  fakeEmailSender{sent: make(chan sentEmail, 10)},
@@ -128,6 +135,38 @@ func newServiceForTest(t *testing.T, db *gorm.DB) (*Service, *local.Host, *fakeA
 	require.NotNil(t, svc)
 
 	return svc, host, auditLog
+}
+
+type blockingUserProvider struct {
+	release chan struct{}
+}
+
+func (p blockingUserProvider) GetUser(context.Context, string) (model.User, error) {
+	<-p.release
+	return model.User{}, errors.New("released")
+}
+
+func TestRequestOneTimeAccessEmailDoesNotWaitForRegisteredUser(t *testing.T) {
+	db := testutils.NewDatabaseForTest(t)
+	svc, _, _ := newServiceForTest(t, db)
+	release := make(chan struct{})
+	t.Cleanup(func() { close(release) })
+	svc.userProvider = blockingUserProvider{release: release}
+	require.NoError(t, db.Create(&model.User{Username: "registered", Email: new("registered@example.com")}).Error)
+
+	dbConfig := configWithEmailLoginCode(appconfig.EmailOneTimeAccessAsUnauthenticatedAll)
+	done := make(chan error)
+	go func() {
+		_, err := svc.RequestOneTimeAccessEmailAsUnauthenticatedUser(t.Context(), dbConfig, "registered@example.com", "", auditlogs.Origin{})
+		done <- err
+	}()
+
+	select {
+	case err := <-done:
+		require.NoError(t, err)
+	case <-time.After(5 * time.Second):
+		t.Fatal("the response waited for the registered user to be loaded")
+	}
 }
 
 func TestGenerateTokenLength(t *testing.T) {
@@ -140,7 +179,7 @@ func TestGenerateTokenLength(t *testing.T) {
 		{name: "long-lived", ttl: time.Hour, wantLength: longTokenLength},
 	} {
 		t.Run(test.name, func(t *testing.T) {
-			token, _, err := generateToken(test.ttl, false)
+			token, err := generateToken(test.ttl)
 
 			require.NoError(t, err)
 			require.Len(t, token, test.wantLength)
@@ -158,22 +197,22 @@ func TestExchangeTokenSuccess(t *testing.T) {
 	}
 	require.NoError(t, db.Create(&user).Error)
 
-	token, _, err := StoreToken(t.Context(), svc.actorService, user.ID, time.Minute, false)
+	token, err := StoreToken(t.Context(), svc.actorService, user.ID, time.Minute, nil, false)
 	require.NoError(t, err)
 
 	dbConfig := appconfig.NewTestConfig(nil)
 	dbConfig.EmailLoginNotificationMode = appconfig.LoginNotificationBrowserRecognition
-	exchangedUser, accessToken, err := svc.ExchangeToken(t.Context(), dbConfig, token, "", "1.2.3.4", "test-agent", "")
+	exchangedUser, accessToken, err := svc.ExchangeToken(t.Context(), dbConfig, token, "", "1.2.3.4", "test-agent", "", true)
 	require.NoError(t, err)
 	require.Equal(t, user.ID, exchangedUser.ID)
-	require.NotEmpty(t, accessToken.AccessToken)
+	require.NotEmpty(t, accessToken.SessionToken)
 	require.Len(t, auditLog.notifications, 1)
 	require.True(t, auditLog.notifications[0].Notify)
 	require.Equal(t, auditlogs.EventOneTimeAccessTokenSignIn, auditLog.notifications[0].AuditLog.Event)
 
 	// The token must have been consumed
 	var state TokenState
-	err = host.GetState(t.Context(), TokenActorType, token, &state)
+	err = host.GetState(t.Context(), TokenActorType, utils.CreateSha256Hash(token), &state)
 	require.ErrorIs(t, err, actor.ErrStateNotFound)
 
 	// A sign-in audit log must have been created
@@ -190,14 +229,13 @@ func TestExchangeTokenAcceptsAmbiguousAliases(t *testing.T) {
 	}
 	require.NoError(t, db.Create(&user).Error)
 
-	const token = "a10bc2"
-	require.NoError(t, host.SetState(t.Context(), TokenActorType, token, TokenState{
+	require.NoError(t, host.SetState(t.Context(), TokenActorType, utils.CreateSha256Hash("a10bc2"), TokenState{
 		UserID:    user.ID,
 		ExpiresAt: time.Now().Add(time.Minute),
 	}, &actor.SetStateOpts{TTL: time.Minute}))
 
 	dbConfig := appconfig.NewTestConfig(nil)
-	exchangedUser, _, err := svc.ExchangeToken(t.Context(), dbConfig, "aIObc2", "", "", "", "")
+	exchangedUser, _, err := svc.ExchangeToken(t.Context(), dbConfig, "aIObc2", "", "", "", "", true)
 	require.NoError(t, err)
 	require.Equal(t, user.ID, exchangedUser.ID)
 }
@@ -207,7 +245,7 @@ func TestExchangeTokenInvalidToken(t *testing.T) {
 	svc, _, _ := newServiceForTest(t, db)
 
 	dbConfig := appconfig.NewTestConfig(nil)
-	_, _, err := svc.ExchangeToken(t.Context(), dbConfig, "does-not-exist", "", "", "", "")
+	_, _, err := svc.ExchangeToken(t.Context(), dbConfig, "does-not-exist", "", "", "", "", true)
 
 	require.True(t, apperror.IsCode(err, apperror.CodeTokenInvalidOrExpired))
 }
@@ -223,20 +261,24 @@ func TestExchangeTokenDeviceMismatch(t *testing.T) {
 	require.NoError(t, db.Create(&user).Error)
 
 	// Store a token that requires a device token
-	token, deviceToken, err := StoreToken(t.Context(), svc.actorService, user.ID, time.Minute, true)
+	token, err := StoreToken(t.Context(), svc.actorService, user.ID, time.Minute, new("device-token"), false)
 	require.NoError(t, err)
-	require.NotNil(t, deviceToken)
 
 	dbConfig := appconfig.NewTestConfig(nil)
-	_, _, err = svc.ExchangeToken(t.Context(), dbConfig, token, "wrong-device-token", "", "", "")
+	_, _, err = svc.ExchangeToken(t.Context(), dbConfig, token, "wrong-device-token", "", "", "", true)
 
-	require.True(t, apperror.IsCode(err, apperror.CodeDeviceCodeInvalid))
+	require.True(t, apperror.IsCode(err, apperror.CodeTokenInvalidOrExpired))
 
 	// The token must not have been consumed on a device-token mismatch
 	var state TokenState
-	err = host.GetState(t.Context(), TokenActorType, token, &state)
+	err = host.GetState(t.Context(), TokenActorType, utils.CreateSha256Hash(token), &state)
 	require.NoError(t, err)
 	require.Equal(t, user.ID, state.UserID)
+
+	// The state store must hold neither the token nor the device token, so reading it doesn't hand out a working login code
+	require.Equal(t, utils.CreateSha256Hash("device-token"), *state.DeviceToken)
+	err = host.GetState(t.Context(), TokenActorType, token, &TokenState{})
+	require.ErrorIs(t, err, actor.ErrStateNotFound)
 }
 
 func TestExchangeTokenRejectsDisabledUser(t *testing.T) {
@@ -251,11 +293,11 @@ func TestExchangeTokenRejectsDisabledUser(t *testing.T) {
 	require.NoError(t, db.Create(&user).Error)
 
 	// Store a one-time access token for the disabled user in the actor state store
-	token, _, err := StoreToken(t.Context(), svc.actorService, user.ID, time.Minute, false)
+	token, err := StoreToken(t.Context(), svc.actorService, user.ID, time.Minute, nil, false)
 	require.NoError(t, err)
 
 	dbConfig := appconfig.NewTestConfig(nil)
-	exchangedUser, accessToken, err := svc.ExchangeToken(t.Context(), dbConfig, token, "", "", "", "")
+	exchangedUser, accessToken, err := svc.ExchangeToken(t.Context(), dbConfig, token, "", "", "", "", true)
 
 	require.True(t, apperror.IsCode(err, apperror.CodeUserDisabled))
 	require.Empty(t, exchangedUser.ID)
@@ -263,7 +305,7 @@ func TestExchangeTokenRejectsDisabledUser(t *testing.T) {
 
 	// The token must have been restored (not consumed), since the exchange failed because the user is disabled
 	var state TokenState
-	err = host.GetState(t.Context(), TokenActorType, token, &state)
+	err = host.GetState(t.Context(), TokenActorType, utils.CreateSha256Hash(token), &state)
 	require.NoError(t, err)
 	require.Equal(t, user.ID, state.UserID)
 
@@ -291,7 +333,7 @@ func TestRequestOneTimeAccessEmailAsUnauthenticatedUser(t *testing.T) {
 			user := createUserWithEmail(t, db, test.isAdmin)
 			dbConfig := configWithEmailLoginCode(test.mode)
 
-			deviceToken, err := svc.RequestOneTimeAccessEmailAsUnauthenticatedUser(t.Context(), dbConfig, *user.Email, "")
+			deviceToken, err := svc.RequestOneTimeAccessEmailAsUnauthenticatedUser(t.Context(), dbConfig, *user.Email, "", auditlogs.Origin{})
 
 			if test.wantDisabled {
 				// Disabled requests fail before any email is queued, so the error alone proves nothing was sent
@@ -311,47 +353,49 @@ func TestRequestOneTimeAccessEmailAsUnauthenticatedUser(t *testing.T) {
 			// The emailed code must sign the user in from the browser that requested it
 			email := waitForEmail(t, svc)
 			require.Equal(t, *user.Email, email.recipient)
-			exchangedUser, accessToken, err := svc.ExchangeToken(t.Context(), dbConfig, email.code, deviceToken, "", "", "")
+			exchangedUser, accessToken, err := svc.ExchangeToken(t.Context(), dbConfig, email.code, deviceToken, "", "", "", false)
 			require.NoError(t, err)
 			require.Equal(t, user.ID, exchangedUser.ID)
-			require.NotEmpty(t, accessToken.AccessToken)
+			require.NotEmpty(t, accessToken.SessionToken)
 		})
 	}
 }
 
 func TestExchangeTokenRechecksSelfRequestedCodes(t *testing.T) {
-	t.Run("user who becomes admin after requesting a code cannot use it", func(t *testing.T) {
-		db := testutils.NewDatabaseForTest(t)
-		svc, _, auditLog := newServiceForTest(t, db)
-		user := createUserWithEmail(t, db, false)
-		dbConfig := configWithEmailLoginCode(appconfig.EmailOneTimeAccessAsUnauthenticatedNonAdmins)
+	// The code was requested while admins were excluded, so it must not sign in as one even if the setting is widened later
+	for _, mode := range []appconfig.AppConfigValue{appconfig.EmailOneTimeAccessAsUnauthenticatedNonAdmins, appconfig.EmailOneTimeAccessAsUnauthenticatedAll} {
+		t.Run("user who becomes admin after requesting a code cannot use it when the mode is "+string(mode), func(t *testing.T) {
+			db := testutils.NewDatabaseForTest(t)
+			svc, _, auditLog := newServiceForTest(t, db)
+			user := createUserWithEmail(t, db, false)
 
-		deviceToken, err := svc.RequestOneTimeAccessEmailAsUnauthenticatedUser(t.Context(), dbConfig, *user.Email, "")
-		require.NoError(t, err)
-		email := waitForEmail(t, svc)
+			deviceToken, err := svc.RequestOneTimeAccessEmailAsUnauthenticatedUser(t.Context(), configWithEmailLoginCode(appconfig.EmailOneTimeAccessAsUnauthenticatedNonAdmins), *user.Email, "", auditlogs.Origin{})
+			require.NoError(t, err)
+			email := waitForEmail(t, svc)
 
-		// Grant admin privileges while the code is still valid
-		require.NoError(t, db.Model(&user).Update("is_admin", true).Error)
+			// Grant admin privileges while the code is still valid
+			require.NoError(t, db.Model(&user).Update("is_admin", true).Error)
 
-		_, accessToken, err := svc.ExchangeToken(t.Context(), dbConfig, email.code, deviceToken, "", "", "")
-		require.True(t, apperror.IsCode(err, apperror.CodeTokenInvalidOrExpired))
-		require.Empty(t, accessToken)
-		require.Empty(t, auditLog.events)
-	})
+			_, accessToken, err := svc.ExchangeToken(t.Context(), configWithEmailLoginCode(mode), email.code, deviceToken, "", "", "", false)
+			require.True(t, apperror.IsCode(err, apperror.CodeTokenInvalidOrExpired))
+			require.Empty(t, accessToken)
+			require.NotContains(t, auditLog.events, auditlogs.EventOneTimeAccessTokenSignIn)
+		})
+	}
 
 	t.Run("code stops working once the setting is disabled", func(t *testing.T) {
 		db := testutils.NewDatabaseForTest(t)
 		svc, _, auditLog := newServiceForTest(t, db)
 		user := createUserWithEmail(t, db, false)
 
-		deviceToken, err := svc.RequestOneTimeAccessEmailAsUnauthenticatedUser(t.Context(), configWithEmailLoginCode(appconfig.EmailOneTimeAccessAsUnauthenticatedNonAdmins), *user.Email, "")
+		deviceToken, err := svc.RequestOneTimeAccessEmailAsUnauthenticatedUser(t.Context(), configWithEmailLoginCode(appconfig.EmailOneTimeAccessAsUnauthenticatedNonAdmins), *user.Email, "", auditlogs.Origin{})
 		require.NoError(t, err)
 		email := waitForEmail(t, svc)
 
-		_, accessToken, err := svc.ExchangeToken(t.Context(), configWithEmailLoginCode(appconfig.EmailOneTimeAccessAsUnauthenticatedDisabled), email.code, deviceToken, "", "", "")
+		_, accessToken, err := svc.ExchangeToken(t.Context(), configWithEmailLoginCode(appconfig.EmailOneTimeAccessAsUnauthenticatedDisabled), email.code, deviceToken, "", "", "", false)
 		require.True(t, apperror.IsCode(err, apperror.CodeTokenInvalidOrExpired))
 		require.Empty(t, accessToken)
-		require.Empty(t, auditLog.events)
+		require.NotContains(t, auditLog.events, auditlogs.EventOneTimeAccessTokenSignIn)
 	})
 
 	// Codes created by an admin are the recovery path for admins, so the setting must never block them
@@ -361,13 +405,14 @@ func TestExchangeTokenRechecksSelfRequestedCodes(t *testing.T) {
 			svc, _, _ := newServiceForTest(t, db)
 			admin := createUserWithEmail(t, db, true)
 
-			code, err := svc.CreateToken(t.Context(), admin.ID, time.Hour)
+			origin := auditlogs.Origin{Principal: authz.Principal{Scopes: authz.NewScopeSet(authz.UsersLoginCodes, authz.AdminAccessWrite)}}
+			code, err := svc.CreateToken(t.Context(), admin.ID, time.Hour, origin)
 			require.NoError(t, err)
 
-			exchangedUser, accessToken, err := svc.ExchangeToken(t.Context(), configWithEmailLoginCode(mode), code, "", "", "", "")
+			exchangedUser, accessToken, err := svc.ExchangeToken(t.Context(), configWithEmailLoginCode(mode), code, "", "", "", "", false)
 			require.NoError(t, err)
 			require.Equal(t, admin.ID, exchangedUser.ID)
-			require.NotEmpty(t, accessToken.AccessToken)
+			require.NotEmpty(t, accessToken.SessionToken)
 		})
 	}
 }
@@ -380,4 +425,49 @@ func (f *fakeAuditLogger) CreateSignIn(ctx context.Context, event auditlogs.Even
 
 func (f *fakeAuditLogger) SendSignInNotification(_ context.Context, result auditlogs.SignInResult) {
 	f.notifications = append(f.notifications, result)
+}
+
+func TestLoginCodesForAdminsRequireAdminAccess(t *testing.T) {
+	db := testutils.NewDatabaseForTest(t)
+	svc, _, _ := newServiceForTest(t, db)
+	admin := model.User{Username: "admin", Email: new("admin@example.com"), IsAdmin: true}
+	require.NoError(t, db.Create(&admin).Error)
+	member := model.User{Username: "member"}
+	require.NoError(t, db.Create(&member).Error)
+	loginCodes := auditlogs.Origin{Principal: authz.Principal{Scopes: authz.NewScopeSet(authz.UsersLoginCodes)}}
+	dbConfig := appconfig.NewTestConfig(nil)
+	dbConfig.EmailOneTimeAccessAsAdminEnabled = "true"
+
+	// Neither a link nor an emailed code may be created for an admin
+	_, err := svc.CreateToken(t.Context(), admin.ID, time.Minute, loginCodes)
+	require.True(t, apperror.IsCode(err, apperror.CodeForbidden), err)
+	err = svc.RequestOneTimeAccessEmailAsAdmin(t.Context(), dbConfig, admin.ID, time.Minute, loginCodes)
+	require.True(t, apperror.IsCode(err, apperror.CodeForbidden), err)
+
+	// A code created for a regular user stops working once they become an admin
+	token, err := svc.CreateToken(t.Context(), member.ID, time.Minute, loginCodes)
+	require.NoError(t, err)
+	require.NoError(t, db.Model(&member).Update("is_admin", true).Error)
+	_, _, err = svc.ExchangeToken(t.Context(), dbConfig, token, "", "1.2.3.4", "test-agent", "", false)
+	require.True(t, apperror.IsCode(err, apperror.CodeTokenInvalidOrExpired), err)
+}
+
+func TestLoginCodesForAdminsRequireSudoModeFromSessions(t *testing.T) {
+	db := testutils.NewDatabaseForTest(t)
+	svc, _, _ := newServiceForTest(t, db)
+	admin := model.User{Username: "admin", IsAdmin: true}
+	require.NoError(t, db.Create(&admin).Error)
+	member := model.User{Username: "member"}
+	require.NoError(t, db.Create(&member).Error)
+
+	// Signing in as an admin hands over their access, while a code for a regular user is everyday admin work
+	session := auditlogs.Origin{Principal: authz.Principal{Kind: authz.KindSession, Scopes: authz.NewScopeSet(authz.UsersLoginCodes, authz.AdminAccessWrite)}}
+	_, err := svc.CreateToken(t.Context(), admin.ID, time.Minute, session)
+	require.True(t, apperror.IsCode(err, apperror.CodeSudoRequired), err)
+	_, err = svc.CreateToken(t.Context(), member.ID, time.Minute, session)
+	require.NoError(t, err)
+
+	session.Principal.SudoUntil = time.Now().Add(time.Minute)
+	_, err = svc.CreateToken(t.Context(), admin.ID, time.Minute, session)
+	require.NoError(t, err)
 }

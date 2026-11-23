@@ -1,7 +1,11 @@
-{{define "root"}}API KEY EXPIRING SOON
+{{define "root"}}{{.T "api_key_expiring_title"}}
 
-Hello {{.Data.Name}},
+{{.T "api_key_expiring_description" "name" (.Data.Name)}}
 
-Your API key {{.Data.ApiKeyName}} will expire on {{.Data.ExpiresAt.Format "2006-01-02 15:04:05 MST"}}. Anything that uses this key will stop working once it expires.
+{{.T "api_key_expiring_name"}}
+{{.Data.ApiKeyName}}
 
-To keep access, create a new API key in your {{.AppName}} account settings before then.{{end}}
+{{.T "api_key_expiring_expires"}}
+{{.DateTime .Data.ExpiresAt}}
+
+{{.T "api_key_expiring_button"}} {{.AppURL}}/settings/account{{end}}

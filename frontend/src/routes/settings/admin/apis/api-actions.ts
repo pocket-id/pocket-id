@@ -3,6 +3,7 @@ import { m } from '#lib/paraglide/messages.js';
 import ApisService from '#lib/services/apis-service.ts';
 import type { Api } from '#lib/types/api.type.ts';
 import { axiosErrorToast } from '#lib/utils/error-util.ts';
+import { formatNames } from '#lib/utils/locale.util.ts';
 import { toast } from 'svelte-sonner';
 
 const apisService = new ApisService();
@@ -24,10 +25,7 @@ export async function confirmDeleteApi(api: Api, onDeleted: () => unknown) {
 	if (clients.length === 1) message = m.delete_api_consequence_one_client({ client: clients[0] });
 	else if (clients.length > 1)
 		message = m.delete_api_consequence_clients({
-			clients:
-				clients.length <= 3
-					? m.names_and_last({ names: clients.slice(0, -1).join(', '), last: clients.at(-1)! })
-					: m.names_and_others({ names: clients.slice(0, 2).join(', '), count: clients.length - 2 })
+			clients: formatNames(clients, 3, (count) => m.count_others({ count }))
 		});
 	else if (api.allowCimdClients) message = m.delete_api_consequence_cimd();
 	else message = m.delete_api_consequence_no_clients();
@@ -36,7 +34,7 @@ export async function confirmDeleteApi(api: Api, onDeleted: () => unknown) {
 		title: m.delete_name_question({ name: api.name }),
 		message,
 		confirm: {
-			label: m.delete_name_action({ name: api.name }),
+			label: m.delete_api(),
 			destructive: true,
 			action: async () => {
 				try {

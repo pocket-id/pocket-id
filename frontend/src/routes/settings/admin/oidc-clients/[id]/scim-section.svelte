@@ -2,9 +2,9 @@
 	import { openConfirmDialog } from '#lib/components/confirm-dialog/index.ts';
 	import DocsLink from '#lib/components/docs-link.svelte';
 	import FormInput from '#lib/components/form/form-input.svelte';
-	import SettingsSection from '#lib/components/settings-section.svelte';
-	import { Badge } from '#lib/components/ui/badge/index.ts';
-	import { Button } from '#lib/components/ui/button/index.ts';
+	import SettingsCard from '#lib/components/settings-card.svelte';
+	import { Badge } from '@pocket-id/ui/badge';
+	import { Button } from '@pocket-id/ui/button';
 	import { m } from '#lib/paraglide/messages.js';
 	import { getLocale } from '#lib/paraglide/runtime.js';
 	import ScimService from '#lib/services/scim-service.ts';
@@ -15,8 +15,9 @@
 	import { preventDefault } from '#lib/utils/event-util.ts';
 	import { createForm } from '#lib/utils/form-util.ts';
 	import { trackFormChanges } from '#lib/utils/unsaved-changes-util.svelte.ts';
-	import { emptyToUndefined } from '#lib/utils/zod-util.ts';
-	import { LucideBan, LucidePlug, LucideRefreshCw } from '@lucide/svelte';
+	import BanIcon from '~icons/solar/forbidden-circle-bold';
+	import PlugIcon from '~icons/solar/plug-circle-bold';
+	import RefreshCwIcon from '~icons/solar/refresh-bold';
 	import { toast } from 'svelte-sonner';
 	import { z } from 'zod/v4';
 
@@ -37,13 +38,14 @@
 
 	const formSchema = z.object({
 		endpoint: z.url(),
-		token: emptyToUndefined(z.string())
+		token: z.string().optional()
 	});
 	type FormSchema = typeof formSchema;
 
 	const formStore = createForm<FormSchema>(formSchema, {
 		endpoint: existingProvider?.endpoint || '',
-		token: existingProvider?.token || ''
+		// The saved token is never sent to the browser, so undefined leaves it out of the request to keep it, while an empty string removes it
+		token: existingProvider?.hasToken ? undefined : ''
 	});
 	const { inputs } = formStore;
 
@@ -82,7 +84,7 @@
 			confirm: {
 				label: m.disable_provisioning(),
 				destructive: true,
-				icon: LucideBan,
+				icon: BanIcon,
 				action: async () => {
 					try {
 						await onSave(null);
@@ -94,7 +96,7 @@
 					formStore.setValue('endpoint', '');
 					formStore.setValue('token', '');
 					// The cleared fields are the saved state now, so they aren't unsaved changes
-					formStore.commit({ endpoint: '', token: undefined });
+					formStore.commit({ endpoint: '', token: '' });
 				}
 			}
 		});
@@ -128,12 +130,12 @@
 	}
 </script>
 
-<SettingsSection title={m.scim_provisioning()}>
+<SettingsCard title={m.scim_provisioning()}>
 	{#snippet description()}
 		{m.scim_section_description({ appName: $appConfigStore.appName, name: client.name })}
 		<DocsLink href="https://pocket-id.org/docs/configuration/scim" />
 	{/snippet}
-	<form onsubmit={preventDefault(onEnable)} class="flex flex-col gap-6 pt-2">
+	<form onsubmit={preventDefault(onEnable)} class="flex flex-col gap-6 py-4">
 		{#if existingProvider}
 			<div role="status">
 				{#if lastSyncedAt}
@@ -161,13 +163,16 @@
 			label={m.scim_token()}
 			optional
 			type="password"
+			placeholder={$inputs.token?.value === undefined
+				? m.scim_token_saved_placeholder()
+				: undefined}
 			inputClass="font-mono"
 			bind:input={$inputs.token}
 		/>
 		<div class="flex flex-wrap gap-2">
 			{#if existingProvider}
 				<Button variant="secondary" size="sm" isLoading={isSyncing} onclick={onSync}>
-					<LucideRefreshCw />
+					<RefreshCwIcon />
 					{m.sync_now()}
 				</Button>
 				<Button variant="ghost" size="sm" onclick={onDisable}>
@@ -175,10 +180,10 @@
 				</Button>
 			{:else}
 				<Button type="submit" variant="secondary" size="sm">
-					<LucidePlug />
+					<PlugIcon />
 					{m.enable_provisioning()}
 				</Button>
 			{/if}
 		</div>
 	</form>
-</SettingsSection>
+</SettingsCard>

@@ -12,9 +12,11 @@ import (
 	"testing"
 	"time"
 
+	"github.com/gin-gonic/gin"
 	"github.com/pocket-id/fosite"
 	"github.com/pocket-id/pocket-id/backend/internal/appconfig"
 	"github.com/pocket-id/pocket-id/backend/internal/apperror"
+	"github.com/pocket-id/pocket-id/backend/internal/authz"
 	"github.com/pocket-id/pocket-id/backend/internal/claimmappingpolicy"
 	"github.com/pocket-id/pocket-id/backend/internal/model"
 	testutils "github.com/pocket-id/pocket-id/backend/internal/utils/testing"
@@ -121,6 +123,38 @@ func TestDeviceServiceAcceptGrantsOnlyApprovedScopes(t *testing.T) {
 	require.Equal(t, "openid groups", response.GetExtra("scope"))
 }
 
+// TestDeviceServiceAcceptDropsScopesTheUserCantHold guards that a scope granted up front, before the user was known, is dropped once a user who can't hold it approves
+func TestDeviceServiceAcceptDropsScopesTheUserCantHold(t *testing.T) {
+	const (
+		userID   = "test-user"
+		clientID = "test-client"
+		audience = "https://id.example.com/api"
+	)
+	apiAccess := userAccess(map[string][]string{audience: {"users:read", "users:write"}})
+	apiAccess.unheld = []string{"users:write"}
+	service, _, provider := newTestDeviceService(t, clientID, userID, false, nil, apiAccess)
+
+	form := url.Values{
+		"client_id": {clientID},
+		"resource":  {audience},
+		"scope":     {"users:read users:write"},
+	}
+	req := httptest.NewRequestWithContext(t.Context(), http.MethodPost, "/api/oidc/device/authorize", strings.NewReader(form.Encode()))
+	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+	authorization, _, err := service.createDeviceAuthorization(t.Context(), req)
+	require.NoError(t, err)
+
+	info, err := service.getDeviceCodeInfo(t.Context(), authorization.UserCode, userID)
+	require.NoError(t, err)
+	require.Equal(t, []string{"users:read"}, info.Scope)
+
+	require.NoError(t, service.acceptDeviceCode(t.Context(), authorization.UserCode, userID, "phr", time.Now().UTC(), nil, "", requestMeta{}))
+
+	response, err := exchangeDeviceCode(t, provider, clientID, authorization.DeviceCode)
+	require.NoError(t, err)
+	require.Equal(t, "users:read", response.GetExtra("scope"))
+}
+
 func TestDeviceServiceAcceptRejectsUnrequestedScopes(t *testing.T) {
 	const (
 		userID   = "test-user"
@@ -164,6 +198,24 @@ func TestDeviceServiceCreateRejectsResourceWithoutUserDelegatedGrant(t *testing.
 	var count int64
 	require.NoError(t, store.db.Model(&OAuth2Session{}).Where("kind IN ?", []string{sessionKindDeviceCode, sessionKindUserCode}).Count(&count).Error)
 	require.Zero(t, count)
+}
+
+func TestDeviceServiceAcceptDoesNotResolveClientInsideTransaction(t *testing.T) {
+	const userID = "test-user"
+	service, store, _, userCode, _ := newTestDeviceServiceWithCode(t, "test-client", userID, false, nil)
+
+	var resolved, resolvedInTx int
+	store.clientResolver = fosite.ClientResolverFunc(func(ctx context.Context, id string, next fosite.ClientLookupFunc) (fosite.Client, error) {
+		resolved++
+		if _, inTx := ctx.Value(txContextKey{}).(*gorm.DB); inTx {
+			resolvedInTx++
+		}
+		return next(ctx, id)
+	})
+
+	require.NoError(t, service.acceptDeviceCode(t.Context(), userCode, userID, "phr", time.Now().UTC(), nil, "", requestMeta{}))
+	require.Positive(t, resolved)
+	require.Zero(t, resolvedInTx, "a metadata document client could be fetched while the database write lock is held")
 }
 
 func newTestDeviceServiceWithCode(t *testing.T, clientID, userID string, requiresReauthentication bool, reauth ReauthenticationTokenConsumer) (*deviceService, *Store, *oidcProvider, string, string) {
@@ -220,4 +272,43 @@ func newTestDeviceService(t *testing.T, clientID, userID string, requiresReauthe
 	service := newDeviceService(provider, store, provider.deviceStrategy, authorizationService, claimsService, &fakeAuditLogger{}, db)
 
 	return service, store, provider
+}
+
+func TestDeviceHandlerVerifyRequiresJSONBody(t *testing.T) {
+	const (
+		userID   = "test-user"
+		clientID = "test-client"
+	)
+	service, _, provider, userCode, deviceCode := newTestDeviceServiceWithCode(t, clientID, userID, false, nil)
+	handler := newDeviceHandler(provider, service)
+
+	verify := func(body string) (int, *gin.Error) {
+		req := httptest.NewRequestWithContext(t.Context(), http.MethodPost, "/verify?code="+url.QueryEscape(userCode), strings.NewReader(body))
+		if body != "" {
+			req.Header.Set("Content-Type", "application/json")
+		}
+		rec := httptest.NewRecorder()
+		var handlerErr *gin.Error
+		router := gin.New()
+		router.POST("/verify", func(c *gin.Context) {
+			authz.SetPrincipal(c, &authz.Principal{Kind: authz.KindSession, UserID: userID, AuthenticationTime: time.Now().UTC()})
+			handler.verifyDeviceCode(c)
+			handlerErr = c.Errors.Last()
+		})
+		router.ServeHTTP(rec, req)
+		return rec.Code, handlerErr
+	}
+
+	// A forged POST that carries only the user code, like one smuggled through another endpoint's path, must not approve the device
+	_, ginErr := verify("")
+	require.NotNil(t, ginErr)
+	_, err := exchangeDeviceCode(t, provider, clientID, deviceCode)
+	require.ErrorIs(t, err, fosite.ErrAuthorizationPending)
+
+	// The device page always sends a JSON body, and an empty one still approves every requested scope
+	status, ginErr := verify("{}")
+	require.Nil(t, ginErr)
+	require.Equal(t, http.StatusNoContent, status)
+	_, err = exchangeDeviceCode(t, provider, clientID, deviceCode)
+	require.NoError(t, err)
 }
