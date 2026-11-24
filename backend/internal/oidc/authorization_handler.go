@@ -37,7 +37,6 @@ func newAuthorizationHandler(
 func (h *authorizationHandler) authorize(c *gin.Context) {
 	ctx := c.Request.Context()
 	principal := authz.PrincipalFrom(c)
-	reauthenticationToken, _ := c.Cookie(cookie.ReauthenticationTokenCookieName)
 
 	// A request that resumes an interaction only carries the interaction ID; the original
 	// parameters are restored from the stored session so they never travel through the
@@ -103,7 +102,6 @@ func (h *authorizationHandler) authorize(c *gin.Context) {
 		authenticationTime:            principal.AuthenticationTime,
 		requester:                     ar,
 		hasPushedAuthorizationRequest: hasPushedAuthorizationRequest,
-		reauthenticationToken:         reauthenticationToken,
 		interactionID:                 interactionID,
 		requestParams:                 authorizeRequestParams(ar),
 		meta:                          requestMetaFromGin(c),

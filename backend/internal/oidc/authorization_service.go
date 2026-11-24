@@ -117,7 +117,6 @@ type authorizeInput struct {
 	authenticationTime            time.Time
 	requester                     fosite.AuthorizeRequester
 	hasPushedAuthorizationRequest bool
-	reauthenticationToken         string
 	interactionID                 string
 	requestParams                 map[string]string
 	meta                          requestMeta
@@ -390,14 +389,6 @@ func (s *authorizationService) resolveRequirements(ctx context.Context, req auth
 	}
 	if req.prompt.has("none") && requirements.ReauthenticationRequired {
 		return interactionRequirements{}, authenticationTime, fosite.ErrLoginRequired
-	}
-
-	if requirements.ReauthenticationRequired && req.reauthenticationToken != "" && s.reauth != nil {
-		reauthenticatedAt, err := s.reauth.ConsumeReauthenticationToken(ctx, dbFromContext(ctx, s.db), req.reauthenticationToken, req.userID)
-		if err == nil {
-			requirements.ReauthenticationRequired = false
-			authenticationTime = reauthenticatedAt
-		}
 	}
 
 	return requirements, authenticationTime, nil
