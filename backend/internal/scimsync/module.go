@@ -11,6 +11,7 @@ import (
 	francishost "github.com/italypaleale/francis/host"
 	"gorm.io/gorm"
 
+	"github.com/pocket-id/pocket-id/backend/internal/appconfig"
 	"github.com/pocket-id/pocket-id/backend/internal/authz"
 	"github.com/pocket-id/pocket-id/backend/internal/httpserver"
 	"github.com/pocket-id/pocket-id/backend/internal/openapi"
@@ -20,6 +21,7 @@ type Dependencies struct {
 	DB         *gorm.DB
 	Actors     francishost.Host
 	HTTPClient *http.Client
+	AppConfig  appconfig.AppConfigResolver
 
 	// ScheduleDisabled keeps automatic synchronizations from being armed
 	// It's set in the test environment, where SCIM syncs are driven explicitly by the end-to-end tests
@@ -34,7 +36,7 @@ type Module struct {
 }
 
 func New(deps Dependencies) (*Module, error) {
-	service := newService(deps.DB, deps.HTTPClient)
+	service := newService(deps.DB, deps.HTTPClient, deps.AppConfig)
 
 	// Register the singleton so recurring and debounced synchronizations run once for the entire cluster
 	err := deps.Actors.RegisterSingletonActor(ActorType, NewActor(service, deps.ScheduleDisabled))

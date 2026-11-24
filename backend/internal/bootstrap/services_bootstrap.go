@@ -198,6 +198,7 @@ func initServices(
 		DB:         db,
 		Actors:     actors,
 		HTTPClient: outboundClients.Client(outbound.PurposeSCIM),
+		AppConfig:  svc.appConfigService,
 		// Disable in test environment
 		ScheduleDisabled: common.EnvConfig.AppEnv.IsTest(),
 	})

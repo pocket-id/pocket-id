@@ -11,6 +11,7 @@ import (
 
 	"github.com/stretchr/testify/require"
 
+	"github.com/pocket-id/pocket-id/backend/internal/appconfig"
 	"github.com/pocket-id/pocket-id/backend/internal/apperror"
 	"github.com/pocket-id/pocket-id/backend/internal/dto"
 	"github.com/pocket-id/pocket-id/backend/internal/model"
@@ -19,7 +20,7 @@ import (
 )
 
 func TestServiceProviderOperationsReturnSpecificNotFoundErrors(t *testing.T) {
-	service := newService(testutils.NewDatabaseForTest(t), nil)
+	service := newService(testutils.NewDatabaseForTest(t), nil, appconfig.StaticResolver{})
 
 	_, err := service.CreateServiceProvider(t.Context(), &ScimServiceProviderCreateDTO{
 		Endpoint:     "https://scim.example.com",
@@ -36,7 +37,7 @@ func TestServiceProviderOperationsReturnSpecificNotFoundErrors(t *testing.T) {
 
 func TestServiceProviderCreateAndUpdate(t *testing.T) {
 	db := testutils.NewDatabaseForTest(t)
-	service := newService(db, nil)
+	service := newService(db, nil, appconfig.StaticResolver{})
 
 	// Create two clients so provider creation and reassignment both satisfy the foreign key
 	require.NoError(t, db.Create(&[]model.OidcClient{
@@ -75,7 +76,7 @@ func TestServiceProviderCreateAndUpdate(t *testing.T) {
 
 func TestUpdateServiceProviderToken(t *testing.T) {
 	db := testutils.NewDatabaseForTest(t)
-	service := newService(db, nil)
+	service := newService(db, nil, appconfig.StaticResolver{})
 	require.NoError(t, db.Create(&model.OidcClient{Base: model.Base{ID: "client"}, Name: "Client"}).Error)
 
 	provider, err := service.CreateServiceProvider(t.Context(), &ScimServiceProviderCreateDTO{

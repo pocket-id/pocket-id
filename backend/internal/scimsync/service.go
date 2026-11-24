@@ -20,8 +20,10 @@ import (
 	"gorm.io/gorm"
 	"gorm.io/gorm/clause"
 
+	"github.com/pocket-id/pocket-id/backend/internal/appconfig"
 	"github.com/pocket-id/pocket-id/backend/internal/apperror"
 	"github.com/pocket-id/pocket-id/backend/internal/dto"
+	"github.com/pocket-id/pocket-id/backend/internal/emailverification"
 	"github.com/pocket-id/pocket-id/backend/internal/model"
 	datatype "github.com/pocket-id/pocket-id/backend/internal/model/types"
 	"github.com/pocket-id/pocket-id/backend/internal/oidc"
@@ -58,9 +60,10 @@ type scimSyncStats struct {
 type Service struct {
 	db         *gorm.DB
 	httpClient *http.Client
+	appConfig  appconfig.AppConfigResolver
 }
 
-func newService(db *gorm.DB, httpClient *http.Client) *Service {
+func newService(db *gorm.DB, httpClient *http.Client, appConfig appconfig.AppConfigResolver) *Service {
 	if httpClient == nil {
 		httpClient = http.DefaultClient
 	}
@@ -68,6 +71,7 @@ func newService(db *gorm.DB, httpClient *http.Client) *Service {
 	return &Service{
 		db:         db,
 		httpClient: httpClient,
+		appConfig:  appConfig,
 	}
 }
 
@@ -241,6 +245,12 @@ func (s *Service) SyncAll(ctx context.Context) error {
 func (s *Service) SyncServiceProvider(ctx context.Context, serviceProviderID string) error {
 	start := time.Now()
 
+	// The configuration decides which accounts are waiting for their email to be verified
+	cfg, err := s.appConfig.GetConfig(ctx)
+	if err != nil {
+		return err
+	}
+
 	// Load one consistent local snapshot and release the transaction before making remote requests
 	snapshot, err := s.loadSyncSnapshot(ctx, serviceProviderID)
 	if err != nil {
@@ -275,7 +285,7 @@ func (s *Service) SyncServiceProvider(ctx context.Context, serviceProviderID str
 	var errs []error
 
 	// Sync users first, so that groups can reference them
-	userStats, err := s.syncUsers(ctx, provider, snapshot.users, &userResources)
+	userStats, err := s.syncUsers(ctx, cfg, provider, snapshot.users, &userResources)
 	if err != nil {
 		errs = append(errs, err)
 	}
@@ -407,14 +417,14 @@ providerLoop:
 	return errors.Join(errs...)
 }
 
-func (s *Service) syncUsers(ctx context.Context, provider ServiceProvider, users []model.User, resourceList *ScimListResponse[ScimUser]) (stats scimSyncStats, err error) {
+func (s *Service) syncUsers(ctx context.Context, cfg *appconfig.AppConfigModel, provider ServiceProvider, users []model.User, resourceList *ScimListResponse[ScimUser]) (stats scimSyncStats, err error) {
 	var errs []error
 
 	// Update or create users
 	for _, u := range users {
 		existing := getResourceByExternalID(u.ID, resourceList.Resources)
 
-		action, created, err := s.syncUser(ctx, provider, u, existing)
+		action, created, err := s.syncUser(ctx, cfg, provider, u, existing)
 		if created != nil && existing == nil {
 			resourceList.Resources = append(resourceList.Resources, *created)
 		}
@@ -499,10 +509,16 @@ func (s *Service) syncGroups(ctx context.Context, provider ServiceProvider, grou
 	return stats, errors.Join(errs...)
 }
 
-func (s *Service) syncUser(ctx context.Context, provider ServiceProvider, user model.User, userResource *ScimUser) (scimSyncAction, *ScimUser, error) {
+func (s *Service) syncUser(ctx context.Context, cfg *appconfig.AppConfigModel, provider ServiceProvider, user model.User, userResource *ScimUser) (scimSyncAction, *ScimUser, error) {
 	// If user is not allowed for the client, delete it from SCIM provider
 	if userResource != nil && !oidc.IsUserGroupAllowedToAuthorize(user, provider.OidcClient) {
 		return scimActionDeleted, nil, s.deleteScimResource(ctx, provider, "/Users/"+url.PathEscape(userResource.ID))
+	}
+
+	// An account that still has to verify its email can't sign in to the client, so it gets no account there either
+	pending := emailverification.IsPending(cfg, &user)
+	if pending && userResource == nil {
+		return scimActionNone, nil, nil
 	}
 
 	payload := ScimUser{
@@ -516,7 +532,7 @@ func (s *Service) syncUser(ctx context.Context, provider ServiceProvider, user m
 			FamilyName: user.LastName,
 		},
 		Display: user.DisplayName,
-		Active:  !user.Disabled,
+		Active:  !user.Disabled && !pending,
 	}
 
 	if user.Email != nil {
@@ -524,6 +540,15 @@ func (s *Service) syncUser(ctx context.Context, provider ServiceProvider, user m
 			Value:   *user.Email,
 			Primary: true,
 		}}
+	}
+
+	// An account that may not sign in is only deactivated and keeps the profile the provider has
+	// So a value the provider refuses can't hold the deactivation back, and an unverified address never reaches it
+	if !payload.Active && userResource != nil {
+		payload.UserName = userResource.UserName
+		payload.Name = userResource.Name
+		payload.Display = userResource.Display
+		payload.Emails = userResource.Emails
 	}
 
 	// If the user exists on the SCIM provider, update it unless the provider already has the current data

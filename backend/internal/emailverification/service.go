@@ -250,13 +250,13 @@ func (s *Service) Verify(ctx context.Context, userID, token string, origin audit
 		return apperror.InvalidEmailVerificationToken()
 	}
 
-	if !isEmailChange {
+	if isEmailChange {
+		s.auditLog.Record(ctx, auditlogs.EventEmailChanged, origin, userID, auditlogs.Data{"email": result.State.Email, "previousEmail": result.State.ReplacesEmail}, nil)
+	} else {
 		s.auditLog.Record(ctx, auditlogs.EventEmailVerified, origin, userID, auditlogs.Data{"email": result.State.Email}, nil)
-		return nil
 	}
-	s.auditLog.Record(ctx, auditlogs.EventEmailChanged, origin, userID, auditlogs.Data{"email": result.State.Email, "previousEmail": result.State.ReplacesEmail}, nil)
 
-	// Service providers have to learn about the new address
+	// Service providers have to learn about the new address, or that the account may sign in now
 	if s.scimSync != nil {
 		s.scimSync.ScheduleSync(ctx)
 	}

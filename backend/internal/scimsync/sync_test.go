@@ -21,6 +21,7 @@ import (
 	"github.com/stretchr/testify/require"
 	"gorm.io/gorm"
 
+	"github.com/pocket-id/pocket-id/backend/internal/appconfig"
 	"github.com/pocket-id/pocket-id/backend/internal/model"
 	datatype "github.com/pocket-id/pocket-id/backend/internal/model/types"
 	testutils "github.com/pocket-id/pocket-id/backend/internal/utils/testing"
@@ -37,6 +38,7 @@ type scimSyncFixture struct {
 	db        *gorm.DB
 	service   *Service
 	transport *mockSCIMTransport
+	config    *appconfig.AppConfigModel
 	client    model.OidcClient
 	provider  ServiceProvider
 }
@@ -64,12 +66,14 @@ func newSCIMSyncFixture(t *testing.T, restricted bool) *scimSyncFixture {
 	require.NoError(t, err)
 
 	transport := newMockSCIMTransport(providerToken)
-	service := newService(db, &http.Client{Transport: transport})
+	config := appconfig.NewTestConfig(nil)
+	service := newService(db, &http.Client{Transport: transport}, appconfig.StaticResolver{Config: config})
 
 	return &scimSyncFixture{
 		db:        db,
 		service:   service,
 		transport: transport,
+		config:    config,
 		client:    client,
 		provider:  provider,
 	}
@@ -183,14 +187,14 @@ func TestSyncSkipsDisabledClient(t *testing.T) {
 func TestSyncUpdatesExistingUsersAndGroupsWithPUT(t *testing.T) {
 	fixture := newSCIMSyncFixture(t, false)
 	email := "updated@example.com"
-	user := fixture.createUser(t, "user-updated", "updated", &email, true)
+	user := fixture.createUser(t, "user-updated", "updated", &email, false)
 	group := fixture.createGroup(t, "group-updated", "updated", user)
 	remoteModified := time.Now().Add(-time.Hour)
 
 	fixture.transport.seedUser(ScimUser{
 		ScimResourceData: remoteResourceData("remote-user", user.ID, scimUserSchema, "User", remoteModified),
 		UserName:         "stale-name",
-		Active:           true,
+		Active:           false,
 	})
 	fixture.transport.seedGroup(ScimGroup{
 		ScimResourceData: remoteResourceData("remote-group", group.ID, scimGroupSchema, "Group", remoteModified),
@@ -203,7 +207,7 @@ func TestSyncUpdatesExistingUsersAndGroupsWithPUT(t *testing.T) {
 	require.NotNil(t, remoteUser)
 	assert.Equal(t, user.Username, remoteUser.UserName)
 	assert.Equal(t, user.DisplayName, remoteUser.Display)
-	assert.False(t, remoteUser.Active)
+	assert.True(t, remoteUser.Active)
 	require.Equal(t, []ScimEmail{{Value: email, Primary: true}}, remoteUser.Emails)
 
 	remoteGroup := fixture.transport.group("remote-group")
@@ -217,6 +221,64 @@ func TestSyncUpdatesExistingUsersAndGroupsWithPUT(t *testing.T) {
 	assert.Zero(t, countRequestsWithPrefix(requests, http.MethodPost, "/"))
 	fixture.requireLastSynced(t, true)
 	fixture.transport.requireCompliant(t)
+}
+
+// A disabled account is deactivated at the provider without its profile, so a value the provider refuses can't keep it active there
+func TestSyncDeactivatesDisabledUserWithoutSendingItsProfile(t *testing.T) {
+	fixture := newSCIMSyncFixture(t, false)
+	email := "changed@example.com"
+	user := fixture.createUser(t, "user-disabled", "changed-name", &email, true)
+	fixture.transport.seedUser(ScimUser{
+		ScimResourceData: ScimResourceData{ID: "remote-user", ExternalID: user.ID, Schemas: []string{scimUserSchema}},
+		UserName:         "name-at-provider",
+		Active:           true,
+	})
+
+	require.NoError(t, fixture.service.SyncServiceProvider(t.Context(), fixture.provider.ID))
+	remoteUser := fixture.transport.user("remote-user")
+	assert.False(t, remoteUser.Active)
+	assert.Equal(t, "name-at-provider", remoteUser.UserName)
+	assert.Empty(t, remoteUser.Emails)
+
+	// The provider's copy is up to date now, so the next sync sends nothing
+	require.NoError(t, fixture.service.SyncServiceProvider(t.Context(), fixture.provider.ID))
+	assert.Equal(t, 1, countRequests(fixture.transport.requestsSnapshot(), http.MethodPut, "/Users/remote-user"))
+}
+
+// An account that still has to verify its email can't sign in to the client, so the provider gets no active account for it
+func TestSyncHoldsBackUsersWithUnverifiedEmail(t *testing.T) {
+	fixture := newSCIMSyncFixture(t, false)
+	fixture.config.EmailVerification = appconfig.EmailVerificationRequired
+	newcomer := fixture.createUser(t, "user-newcomer", "newcomer", new("newcomer@example.com"), false)
+	known := fixture.createUser(t, "user-known", "known", new("unverified@example.com"), false)
+	verified := fixture.createUser(t, "user-verified", "verified", new("verified@example.com"), false)
+	require.NoError(t, fixture.db.Model(&verified).Update("email_verified", true).Error)
+	group := fixture.createGroup(t, "group-all", "all", newcomer, known, verified)
+	fixture.transport.seedUser(ScimUser{
+		ScimResourceData: ScimResourceData{ID: "remote-known", ExternalID: known.ID, Schemas: []string{scimUserSchema}},
+		UserName:         "known",
+		Emails:           []ScimEmail{{Value: "old@example.com", Primary: true}},
+		Active:           true,
+	})
+
+	require.NoError(t, fixture.service.SyncServiceProvider(t.Context(), fixture.provider.ID))
+
+	remote := map[string]ScimUser{}
+	for _, user := range fixture.transport.usersSnapshot() {
+		remote[user.ExternalID] = user
+	}
+
+	// The account the provider doesn't know is not created, and the one it knows is deactivated with the address it had
+	assert.NotContains(t, remote, newcomer.ID)
+	assert.False(t, remote[known.ID].Active)
+	assert.Equal(t, []ScimEmail{{Value: "old@example.com", Primary: true}}, remote[known.ID].Emails)
+	assert.True(t, remote[verified.ID].Active)
+
+	// Only accounts the provider has are members of the group
+	for _, remoteGroup := range fixture.transport.groupsSnapshot() {
+		assert.Equal(t, group.ID, remoteGroup.ExternalID)
+		assert.ElementsMatch(t, []ScimGroupMember{{Value: remote[known.ID].ID}, {Value: remote[verified.ID].ID}}, remoteGroup.Members)
+	}
 }
 
 func TestSyncRestrictedClientDeletesDisallowedResources(t *testing.T) {

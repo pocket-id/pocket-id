@@ -61,6 +61,14 @@ func (f *fakeAuditLogger) Record(_ context.Context, event auditlogs.Event, _ aud
 	f.data = append(f.data, data)
 }
 
+type fakeScimSync struct {
+	scheduled int
+}
+
+func (f *fakeScimSync) ScheduleSync(context.Context) {
+	f.scheduled++
+}
+
 func newServiceForTest(t *testing.T, emailSender *testEmailSender) (*Service, *local.Host, *gorm.DB) {
 	t.Helper()
 
@@ -133,6 +141,8 @@ func TestSendIsRejectedWhenVerificationIsDisabled(t *testing.T) {
 func TestVerifyConsumesTokenAndMarksBoundAddressVerified(t *testing.T) {
 	emailSender := &testEmailSender{}
 	service, host, db := newServiceForTest(t, emailSender)
+	scimSync := &fakeScimSync{}
+	service.scimSync = scimSync
 	user := createTestUser(t, db, "user-2", "user@example.test")
 
 	require.NoError(t, service.Send(t.Context(), &appconfig.AppConfigModel{}, user.ID))
@@ -142,6 +152,9 @@ func TestVerifyConsumesTokenAndMarksBoundAddressVerified(t *testing.T) {
 	var updated model.User
 	require.NoError(t, db.Where("id = ?", user.ID).First(&updated).Error)
 	require.True(t, updated.EmailVerified)
+
+	// Service providers hold the account back until its email is verified, so they have to learn that it is
+	require.Equal(t, 1, scimSync.scheduled)
 	auditLog := service.auditLog.(*fakeAuditLogger)
 	require.Equal(t, []auditlogs.Event{auditlogs.EventEmailVerified}, auditLog.events)
 	require.Equal(t, auditlogs.Data{"email": "user@example.test"}, auditLog.data[0])
