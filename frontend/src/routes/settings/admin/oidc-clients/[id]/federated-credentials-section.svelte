@@ -28,7 +28,10 @@
 				subject: z.string().optional(),
 				audience: z.string().optional(),
 				jwks: z.url().optional().or(z.literal('')),
-				publicKeys: z.array(z.record(z.string(), z.unknown())).optional(),
+				publicKeys: z
+					.array(z.record(z.string(), z.unknown()))
+					.min(1, m.paste_a_public_key_or_a_jwks())
+					.optional(),
 				replayProtection: z.boolean().default(true)
 			})
 		)
