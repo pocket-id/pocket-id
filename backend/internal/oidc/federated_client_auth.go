@@ -20,10 +20,14 @@ import (
 	"github.com/pocket-id/fosite"
 
 	"github.com/pocket-id/pocket-id/backend/internal/model"
+	"github.com/pocket-id/pocket-id/backend/internal/utils"
 	jwkutils "github.com/pocket-id/pocket-id/backend/internal/utils/jwk"
 )
 
 const clientAssertionTypeJWTBearer = "urn:ietf:params:oauth:client-assertion-type:jwt-bearer" // #nosec G101 -- OAuth assertion type identifier, not a credential
+
+// maxClientAssertionLength bounds a client assertion, which is decoded before its signature is verified and takes many times its length in memory once decoded
+const maxClientAssertionLength = 16 << 10
 
 var errNoFederatedClientAssertion = errors.New("no federated client assertion")
 
@@ -136,10 +140,15 @@ func (a *federatedClientAuthenticator) authenticateForm(ctx context.Context, for
 // authenticateAssertion validates the assertion JWT against the client's configured
 // federated identity. An empty clientID falls back to the assertion's subject.
 func (a *federatedClientAuthenticator) authenticateAssertion(ctx context.Context, assertion string, clientID string) (fosite.Client, error) {
+	// Failures that only depend on the assertion itself are answered with their actual reason
+	if len(assertion) > maxClientAssertionLength {
+		return nil, fosite.ErrInvalidClient.WithHintf("Client assertion is longer than %d bytes.", maxClientAssertionLength)
+	}
+
 	rawAssertion := []byte(assertion)
 	insecureToken, err := jwt.ParseInsecure(rawAssertion)
 	if err != nil {
-		return nil, fosite.ErrInvalidClient.WithHint("Invalid client assertion.").WithWrap(err)
+		return nil, fosite.ErrInvalidClient.WithHintf("Client assertion is not a valid JWT: %s", err).WithWrap(err)
 	}
 
 	issuer, _ := insecureToken.Issuer()
@@ -154,6 +163,13 @@ func (a *federatedClientAuthenticator) authenticateAssertion(ctx context.Context
 		return nil, fosite.ErrInvalidClient.WithHint("Client assertion is missing subject.")
 	}
 
+	// Failures that depend on the client's configuration all get the same answer, so callers can't tell which issuers it trusts
+	// The actual reason is logged for whoever debugs the client
+	reject := func(reason error) error {
+		slog.WarnContext(ctx, "Rejected a federated client assertion", "clientId", clientID, "issuer", utils.Truncate(issuer, 512), "error", reason)
+		return fosite.ErrInvalidClient.WithHint("Invalid client assertion.").WithWrap(reason)
+	}
+
 	client, err := a.clients.GetClient(ctx, clientID)
 	if err != nil {
 		return nil, fosite.ErrInvalidClient.WithWrap(err)
@@ -161,7 +177,7 @@ func (a *federatedClientAuthenticator) authenticateAssertion(ctx context.Context
 
 	oidcClient, ok := client.(Client)
 	if !ok {
-		return nil, errNoFederatedClientAssertion
+		return nil, reject(fmt.Errorf("unexpected client type %T", client))
 	}
 
 	// A metadata document client has no credential, so its assertion is refused here instead of being passed on as an unsupported one
@@ -171,12 +187,12 @@ func (a *federatedClientAuthenticator) authenticateAssertion(ctx context.Context
 
 	federatedIdentity, ok := oidcClient.Credentials.FederatedIdentityForIssuer(issuer)
 	if !ok {
-		return nil, errNoFederatedClientAssertion
+		return nil, reject(errors.New("client has no federated identity for this issuer"))
 	}
 
 	jwks, err := a.keySetForIdentity(ctx, federatedIdentity)
 	if err != nil {
-		return nil, err
+		return nil, reject(err)
 	}
 
 	audience := federatedIdentity.Audience
@@ -198,7 +214,7 @@ func (a *federatedClientAuthenticator) authenticateAssertion(ctx context.Context
 		jwt.WithKeySet(jwks, jws.WithInferAlgorithmFromKey(true), jws.WithUseDefault(true)),
 	)
 	if err != nil {
-		return nil, fosite.ErrInvalidClient.WithHint("Invalid client assertion.").WithWrap(err)
+		return nil, reject(fmt.Errorf("failed to verify the assertion: %w", err))
 	}
 
 	if federatedIdentity.ReplayProtection {
@@ -228,7 +244,7 @@ func (a *federatedClientAuthenticator) keySetForIdentity(ctx context.Context, fe
 	if len(federatedIdentity.PublicKeys) > 0 {
 		jwks, err := jwkutils.ParsePublicKeySet(federatedIdentity.PublicKeys)
 		if err != nil {
-			return nil, fosite.ErrInvalidClient.WithHint("Unable to load the public keys configured for the client assertion.").WithWrap(err)
+			return nil, fmt.Errorf("failed to load the configured public keys: %w", err)
 		}
 		return jwks, nil
 	}
@@ -240,7 +256,7 @@ func (a *federatedClientAuthenticator) keySetForIdentity(ctx context.Context, fe
 
 	jwks, err := a.fetchJWKSet(ctx, jwksURL)
 	if err != nil {
-		return nil, fosite.ErrInvalidClient.WithHint("Unable to fetch client assertion JWKS.").WithWrap(err)
+		return nil, fmt.Errorf("failed to fetch the JWKS: %w", err)
 	}
 
 	return jwks, nil
