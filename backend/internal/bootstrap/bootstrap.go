@@ -101,7 +101,6 @@ func Bootstrap(ctx context.Context) error {
 		EnvConfig:   &common.EnvConfig,
 		InstanceID:  instanceID,
 		HttpClient:  httpClient,
-		DB:          db,
 		FileStorage: fileStorage,
 	}
 	actors, rateLimitServices, err := NewActors(actorsOpts)

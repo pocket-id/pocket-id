@@ -17,7 +17,6 @@ import (
 	"github.com/italypaleale/francis/host/local"
 	"github.com/italypaleale/francis/host/remote"
 	"github.com/jackc/pgx/v5/pgxpool"
-	"gorm.io/gorm"
 
 	"github.com/pocket-id/pocket-id/backend/internal/analytics"
 	"github.com/pocket-id/pocket-id/backend/internal/common"
@@ -40,7 +39,6 @@ type NewActorsOpts struct {
 	EnvConfig   *common.EnvConfigSchema
 	InstanceID  string
 	HttpClient  *http.Client
-	DB          *gorm.DB
 	FileStorage storage.FileStorage
 }
 
@@ -225,40 +223,39 @@ func ActorsHostHealthCheckDeadline(haEnabled bool) time.Duration {
 	return 90 * time.Second
 }
 
-// ActorsProviderOptions builds the Francis provider options for the given database
+// ActorsProviderOptions builds the Francis provider options of the embedded runtime
 // The actor host, the cluster admin, and the backup provider must all use these so they address the same cluster
-// A Postgres deployment passes both handles, since the Gorm one wraps the same pool, and the pool is what the provider takes
-func ActorsProviderOptions(db *gorm.DB, pg *pgxpool.Pool) (components.ProviderOptions, error) {
+// On Postgres the provider shares Pocket ID's pool, while on SQLite it opens francis.db, a file of its own, and closes it with the provider
+func ActorsProviderOptions(pg *pgxpool.Pool) components.ProviderOptions {
 	// Log each provider operation, such as a lease renewal or an actor lookup, while debugging
-	// The statements those operations run are logged separately, by the instrumentation attached to the connection in ConnectDatabase
+	// The statements those operations run are logged separately, by the instrumentation of the connection
 	operationLog := components.OperationLogConfig{
 		Enabled: common.EnvConfig.LogLevel == "debug",
 	}
 
-	switch {
-	case pg != nil:
+	if pg != nil {
 		return postgres.PostgresProviderOptions{
 			DB:           pg,
 			OperationLog: operationLog,
-		}, nil
-	case db != nil:
-		// The SQLite provider takes the raw connection, which only Gorm holds
-		sqliteDB, err := db.DB()
-		if err != nil {
-			return nil, fmt.Errorf("failed to get *sql.DB connection from Gorm: %w", err)
 		}
-		return local.SQLiteProviderOptions{
-			DB:           sqliteDB,
-			OperationLog: operationLog,
-		}, nil
-	default:
-		return nil, errors.New("one of the Postgres pool and the database connection must be set")
+	}
+
+	// The provider opens the connection itself, so it gets the statement logging and tracing Pocket ID's own connection has
+	queryLog := sqlInstrumentOptions()
+	return local.SQLiteProviderOptions{
+		ConnectionString: common.EnvConfig.SqliteConnString("francis.db"),
+		QueryLog: components.QueryLogConfig{
+			Enabled:           queryLog.QueryLog,
+			IncludeParameters: queryLog.IncludeParameters,
+			SlowThreshold:     queryLog.SlowThreshold,
+		},
+		OperationLog: operationLog,
 	}
 }
 
 // NewActorsBackupProvider creates a Francis provider that talks to the same cluster as the actor host, without registering a host or joining the cluster
 // It's meant for backing up and restoring the actor host's own data
-// The caller owns the returned provider and must Close it: the database connection stays owned by the caller and is not closed.
+// The caller owns the returned provider and must Close it, which closes the SQLite file the provider opened, while a Postgres pool stays owned by the caller
 func NewActorsBackupProvider(ctx context.Context, providerOpts components.ProviderOptions) (components.ActorProvider, error) {
 	// The health check deadline must match the actor host's, since it decides when a host that stopped health-checking is considered gone, and a restore refuses to run while any host is still connected
 	// The remaining values are irrelevant here, because this provider never registers a host nor processes alarms
@@ -295,17 +292,13 @@ func NewActorsBackupProvider(ctx context.Context, providerOpts components.Provid
 
 // getProviderOption wraps the shared provider options in the host option the local host expects
 func (o *NewActorsOpts) getProviderOption() (local.HostOption, error) {
-	providerOpts, err := ActorsProviderOptions(o.DB, o.Postgres)
-	if err != nil {
-		return nil, err
-	}
-	switch v := providerOpts.(type) {
+	switch v := ActorsProviderOptions(o.Postgres).(type) {
 	case postgres.PostgresProviderOptions:
 		return local.WithPostgresProvider(v), nil
 	case local.SQLiteProviderOptions:
 		return local.WithSQLiteProvider(v), nil
 	default:
-		return nil, fmt.Errorf("unsupported provider options type: %T", providerOpts)
+		return nil, fmt.Errorf("unsupported provider options type: %T", v)
 	}
 }
 

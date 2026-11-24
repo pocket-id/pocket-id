@@ -49,7 +49,6 @@ func init() {
 				})
 			}
 			actorStore, err := bootstrap.NewActorStateStore(bootstrap.NewActorsOpts{
-				DB:         db,
 				Postgres:   pg,
 				EnvConfig:  &common.EnvConfig,
 				InstanceID: instanceID,

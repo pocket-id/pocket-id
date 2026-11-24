@@ -2,6 +2,7 @@ package common
 
 import (
 	"os"
+	"path/filepath"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -31,7 +32,7 @@ func TestParseEnvConfig(t *testing.T) {
 
 	t.Run("should parse valid SQLite config correctly", func(t *testing.T) {
 		EnvConfig = defaultConfig()
-		t.Setenv("DB_CONNECTION_STRING", "file:test.db")
+		t.Setenv("DB_CONNECTION_STRING", "file:test")
 		t.Setenv("APP_URL", "HTTP://LOCALHOST:3000")
 
 		err := parseAndValidateEnvConfig(t)
@@ -52,7 +53,7 @@ func TestParseEnvConfig(t *testing.T) {
 
 	t.Run("should fail when ENCRYPTION_KEY is too short", func(t *testing.T) {
 		EnvConfig = defaultConfig()
-		t.Setenv("DB_CONNECTION_STRING", "file:test.db")
+		t.Setenv("DB_CONNECTION_STRING", "file:test")
 		t.Setenv("APP_URL", "http://localhost:3000")
 		t.Setenv("ENCRYPTION_KEY", "short")
 
@@ -70,9 +71,33 @@ func TestParseEnvConfig(t *testing.T) {
 		assert.Equal(t, defaultSqliteConnString, EnvConfig.DbConnectionString)
 	})
 
+	t.Run("should reject a SQLite connection string that names a database file", func(t *testing.T) {
+		existing := filepath.Join(t.TempDir(), "auth")
+		require.NoError(t, os.WriteFile(existing, nil, 0o600))
+
+		for _, connString := range []string{"data/pocket-id.db", "file:/app/data/pocket-id.sqlite?_pragma=busy_timeout(5000)", existing} {
+			EnvConfig = defaultConfig()
+			t.Setenv("DB_CONNECTION_STRING", connString)
+			t.Setenv("APP_URL", "http://localhost:3000")
+
+			err := parseAndValidateEnvConfig(t)
+			require.ErrorContains(t, err, "must be the folder of the SQLite databases", connString)
+		}
+	})
+
+	t.Run("should derive both SQLite files from the folder and keep its query parameters", func(t *testing.T) {
+		// The file is joined with the separator of the OS, which SQLite accepts on Windows too
+		config := EnvConfigSchema{DbConnectionString: "file:/app/data?_pragma=busy_timeout(5000)"}
+		assert.Equal(t, "file:"+filepath.Join("/app/data", "pocket-id.db")+"?_pragma=busy_timeout(5000)", config.SqliteConnString("pocket-id.db"))
+		assert.Equal(t, "file:"+filepath.Join("/app/data", "francis.db")+"?_pragma=busy_timeout(5000)", config.SqliteConnString("francis.db"))
+
+		config.DbConnectionString = "data"
+		assert.Equal(t, "file:"+filepath.Join("data", "francis.db"), config.SqliteConnString("francis.db"))
+	})
+
 	t.Run("should fail with invalid APP_URL", func(t *testing.T) {
 		EnvConfig = defaultConfig()
-		t.Setenv("DB_CONNECTION_STRING", "file:test.db")
+		t.Setenv("DB_CONNECTION_STRING", "file:test")
 		t.Setenv("APP_URL", "€://not-a-valid-url")
 
 		err := parseAndValidateEnvConfig(t)
@@ -82,7 +107,7 @@ func TestParseEnvConfig(t *testing.T) {
 
 	t.Run("should fail when APP_URL contains path", func(t *testing.T) {
 		EnvConfig = defaultConfig()
-		t.Setenv("DB_CONNECTION_STRING", "file:test.db")
+		t.Setenv("DB_CONNECTION_STRING", "file:test")
 		t.Setenv("APP_URL", "http://localhost:3000/path")
 
 		err := parseAndValidateEnvConfig(t)
@@ -92,7 +117,7 @@ func TestParseEnvConfig(t *testing.T) {
 
 	t.Run("should fail with invalid INTERNAL_APP_URL", func(t *testing.T) {
 		EnvConfig = defaultConfig()
-		t.Setenv("DB_CONNECTION_STRING", "file:test.db")
+		t.Setenv("DB_CONNECTION_STRING", "file:test")
 		t.Setenv("INTERNAL_APP_URL", "€://not-a-valid-url")
 
 		err := parseAndValidateEnvConfig(t)
@@ -102,7 +127,7 @@ func TestParseEnvConfig(t *testing.T) {
 
 	t.Run("should fail when INTERNAL_APP_URL contains path", func(t *testing.T) {
 		EnvConfig = defaultConfig()
-		t.Setenv("DB_CONNECTION_STRING", "file:test.db")
+		t.Setenv("DB_CONNECTION_STRING", "file:test")
 		t.Setenv("INTERNAL_APP_URL", "http://localhost:3000/path")
 
 		err := parseAndValidateEnvConfig(t)
@@ -112,7 +137,7 @@ func TestParseEnvConfig(t *testing.T) {
 
 	t.Run("should parse boolean environment variables correctly", func(t *testing.T) {
 		EnvConfig = defaultConfig()
-		t.Setenv("DB_CONNECTION_STRING", "file:test.db")
+		t.Setenv("DB_CONNECTION_STRING", "file:test")
 		t.Setenv("APP_URL", "http://localhost:3000")
 		t.Setenv("UI_CONFIG_DISABLED", "true")
 		t.Setenv("METRICS_ENABLED", "true")
@@ -205,7 +230,7 @@ func TestParseEnvConfig(t *testing.T) {
 	t.Run("should default audit log retention days to 90", func(t *testing.T) {
 		EnvConfig = defaultConfig()
 		t.Setenv("DB_PROVIDER", "sqlite")
-		t.Setenv("DB_CONNECTION_STRING", "file:test.db")
+		t.Setenv("DB_CONNECTION_STRING", "file:test")
 		t.Setenv("APP_URL", "http://localhost:3000")
 
 		err := parseEnvConfig()
@@ -216,7 +241,7 @@ func TestParseEnvConfig(t *testing.T) {
 	t.Run("should parse audit log retention days override", func(t *testing.T) {
 		EnvConfig = defaultConfig()
 		t.Setenv("DB_PROVIDER", "sqlite")
-		t.Setenv("DB_CONNECTION_STRING", "file:test.db")
+		t.Setenv("DB_CONNECTION_STRING", "file:test")
 		t.Setenv("APP_URL", "http://localhost:3000")
 		t.Setenv("AUDIT_LOG_RETENTION_DAYS", "365")
 
@@ -228,7 +253,7 @@ func TestParseEnvConfig(t *testing.T) {
 	t.Run("should fail when AUDIT_LOG_RETENTION_DAYS is non-positive", func(t *testing.T) {
 		EnvConfig = defaultConfig()
 		t.Setenv("DB_PROVIDER", "sqlite")
-		t.Setenv("DB_CONNECTION_STRING", "file:test.db")
+		t.Setenv("DB_CONNECTION_STRING", "file:test")
 		t.Setenv("APP_URL", "http://localhost:3000")
 		t.Setenv("AUDIT_LOG_RETENTION_DAYS", "0")
 
@@ -263,7 +288,7 @@ func TestParseEnvConfig(t *testing.T) {
 
 	t.Run("should normalize file backend and default upload path", func(t *testing.T) {
 		EnvConfig = defaultConfig()
-		t.Setenv("DB_CONNECTION_STRING", "file:test.db")
+		t.Setenv("DB_CONNECTION_STRING", "file:test")
 		t.Setenv("APP_URL", "http://localhost:3000")
 		t.Setenv("FILE_BACKEND", "FILESYSTEM")
 		t.Setenv("UPLOAD_PATH", "")
@@ -276,7 +301,7 @@ func TestParseEnvConfig(t *testing.T) {
 
 	t.Run("should fail with invalid FILE_BACKEND value", func(t *testing.T) {
 		EnvConfig = defaultConfig()
-		t.Setenv("DB_CONNECTION_STRING", "file:test.db")
+		t.Setenv("DB_CONNECTION_STRING", "file:test")
 		t.Setenv("APP_URL", "http://localhost:3000")
 		t.Setenv("FILE_BACKEND", "invalid")
 
@@ -287,7 +312,7 @@ func TestParseEnvConfig(t *testing.T) {
 
 	t.Run("should fail when TLS cert is set without key", func(t *testing.T) {
 		EnvConfig = defaultConfig()
-		t.Setenv("DB_CONNECTION_STRING", "file:test.db")
+		t.Setenv("DB_CONNECTION_STRING", "file:test")
 		t.Setenv("APP_URL", "http://localhost:3000")
 		t.Setenv("TLS_CERT", "certificate")
 
@@ -298,7 +323,7 @@ func TestParseEnvConfig(t *testing.T) {
 
 	t.Run("should fail when TLS key is set without cert", func(t *testing.T) {
 		EnvConfig = defaultConfig()
-		t.Setenv("DB_CONNECTION_STRING", "file:test.db")
+		t.Setenv("DB_CONNECTION_STRING", "file:test")
 		t.Setenv("APP_URL", "http://localhost:3000")
 		t.Setenv("TLS_KEY", "private key")
 
@@ -309,7 +334,7 @@ func TestParseEnvConfig(t *testing.T) {
 
 	t.Run("should fail when TLS cert file is set without key file", func(t *testing.T) {
 		EnvConfig = defaultConfig()
-		t.Setenv("DB_CONNECTION_STRING", "file:test.db")
+		t.Setenv("DB_CONNECTION_STRING", "file:test")
 		t.Setenv("APP_URL", "http://localhost:3000")
 		t.Setenv("TLS_CERT_FILE", "/path/to/cert.pem")
 
@@ -320,7 +345,7 @@ func TestParseEnvConfig(t *testing.T) {
 
 	t.Run("should fail when TLS key file is set without cert file", func(t *testing.T) {
 		EnvConfig = defaultConfig()
-		t.Setenv("DB_CONNECTION_STRING", "file:test.db")
+		t.Setenv("DB_CONNECTION_STRING", "file:test")
 		t.Setenv("APP_URL", "http://localhost:3000")
 		t.Setenv("TLS_KEY_FILE", "/path/to/key.pem")
 
@@ -331,7 +356,7 @@ func TestParseEnvConfig(t *testing.T) {
 
 	t.Run("should fail when inline and file TLS configuration are combined", func(t *testing.T) {
 		EnvConfig = defaultConfig()
-		t.Setenv("DB_CONNECTION_STRING", "file:test.db")
+		t.Setenv("DB_CONNECTION_STRING", "file:test")
 		t.Setenv("APP_URL", "http://localhost:3000")
 		t.Setenv("TLS_CERT", "certificate")
 		t.Setenv("TLS_KEY", "private key")
@@ -345,7 +370,7 @@ func TestParseEnvConfig(t *testing.T) {
 
 	t.Run("should fail when TLS cert file does not exist", func(t *testing.T) {
 		EnvConfig = defaultConfig()
-		t.Setenv("DB_CONNECTION_STRING", "file:test.db")
+		t.Setenv("DB_CONNECTION_STRING", "file:test")
 		t.Setenv("APP_URL", "http://localhost:3000")
 		t.Setenv("TLS_CERT_FILE", "/nonexistent/cert.pem")
 
@@ -360,7 +385,7 @@ func TestParseEnvConfig(t *testing.T) {
 
 	t.Run("should not dismiss the SQLite storage warning by default", func(t *testing.T) {
 		EnvConfig = defaultConfig()
-		t.Setenv("DB_CONNECTION_STRING", "file:test.db")
+		t.Setenv("DB_CONNECTION_STRING", "file:test")
 		t.Setenv("APP_URL", "http://localhost:3000")
 
 		err := parseAndValidateEnvConfig(t)
@@ -370,7 +395,7 @@ func TestParseEnvConfig(t *testing.T) {
 
 	t.Run("should not dismiss the SQLite storage warning with an unrelated value", func(t *testing.T) {
 		EnvConfig = defaultConfig()
-		t.Setenv("DB_CONNECTION_STRING", "file:test.db")
+		t.Setenv("DB_CONNECTION_STRING", "file:test")
 		t.Setenv("APP_URL", "http://localhost:3000")
 		t.Setenv("DISMISS_SQLITE_STORAGE_WARNING", "true")
 
@@ -381,7 +406,7 @@ func TestParseEnvConfig(t *testing.T) {
 
 	t.Run("should dismiss the SQLite storage warning with the confirmation phrase", func(t *testing.T) {
 		EnvConfig = defaultConfig()
-		t.Setenv("DB_CONNECTION_STRING", "file:test.db")
+		t.Setenv("DB_CONNECTION_STRING", "file:test")
 		t.Setenv("APP_URL", "http://localhost:3000")
 		t.Setenv("DISMISS_SQLITE_STORAGE_WARNING", "  I Accept The Risks  ")
 
@@ -392,7 +417,7 @@ func TestParseEnvConfig(t *testing.T) {
 
 	t.Run("should dismiss the SQLite storage warning with the confirmation phrase with dashes", func(t *testing.T) {
 		EnvConfig = defaultConfig()
-		t.Setenv("DB_CONNECTION_STRING", "file:test.db")
+		t.Setenv("DB_CONNECTION_STRING", "file:test")
 		t.Setenv("APP_URL", "http://localhost:3000")
 		t.Setenv("DISMISS_SQLITE_STORAGE_WARNING", " I-Accept_The_Risks  ")
 
@@ -403,7 +428,7 @@ func TestParseEnvConfig(t *testing.T) {
 
 	t.Run("should fail when TLS key file does not exist", func(t *testing.T) {
 		EnvConfig = defaultConfig()
-		t.Setenv("DB_CONNECTION_STRING", "file:test.db")
+		t.Setenv("DB_CONNECTION_STRING", "file:test")
 		t.Setenv("APP_URL", "http://localhost:3000")
 
 		certFile := t.TempDir() + "/cert.pem"
@@ -427,7 +452,7 @@ func TestFrancisHostConfig(t *testing.T) {
 	setBaseEnv := func(t *testing.T) {
 		t.Helper()
 		EnvConfig = defaultConfig()
-		t.Setenv("DB_CONNECTION_STRING", "file:test.db")
+		t.Setenv("DB_CONNECTION_STRING", "file:test")
 		t.Setenv("APP_URL", "http://localhost:3000")
 	}
 

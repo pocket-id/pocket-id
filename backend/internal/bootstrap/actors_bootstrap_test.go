@@ -48,31 +48,16 @@ func TestNewActorsOptsGetPSKUsesStableValue(t *testing.T) {
 
 // TestNewActorsSelectsTopology covers the branch that FRANCIS_HOST drives: with no standalone runtime configured Pocket ID starts an embedded one, and otherwise it connects to the addresses it was given.
 func TestNewActorsSelectsTopology(t *testing.T) {
-	// The actor host is created but never run, so the database only has to exist
-	newDB := func(t *testing.T) *gorm.DB {
-		t.Helper()
-
-		dbPath := filepath.Join(t.TempDir(), "pocket-id.db")
-		db, err := gorm.Open(sqlite.Open("file:"+dbPath+"?_pragma=foreign_keys(1)"), &gorm.Config{})
-		require.NoError(t, err)
-		t.Cleanup(func() {
-			sqlDB, dbErr := db.DB()
-			if dbErr == nil {
-				_ = sqlDB.Close()
-			}
-		})
-
-		return db
-	}
-
 	// registerCronJobs reads the app environment off the global config and skips every job in test mode, which keeps each case down to the host itself and the rate limiters
+	// The actor host is created but never run, so its SQLite file only needs a folder
 	baseConfig := func(t *testing.T) *common.EnvConfigSchema {
 		t.Helper()
 
-		originalAppEnv := common.EnvConfig.AppEnv
+		originalConfig := common.EnvConfig
 		common.EnvConfig.AppEnv = common.AppEnvTest
+		common.EnvConfig.DbConnectionString = t.TempDir()
 		t.Cleanup(func() {
-			common.EnvConfig.AppEnv = originalAppEnv
+			common.EnvConfig = originalConfig
 		})
 
 		return &common.EnvConfigSchema{
@@ -89,7 +74,6 @@ func TestNewActorsSelectsTopology(t *testing.T) {
 		h, rateLimitServices, err := NewActors(NewActorsOpts{
 			EnvConfig:  cfg,
 			InstanceID: "ee05c3eb-8129-47a6-a1c7-849998b6f876",
-			DB:         newDB(t),
 		})
 		require.NoError(t, err)
 		require.IsType(t, &local.Host{}, h)
@@ -101,7 +85,6 @@ func TestNewActorsSelectsTopology(t *testing.T) {
 		cfg.SetFrancisAddresses([]string{"runtime-1.example.com:8443", "runtime-2.example.com:8443"})
 		cfg.FrancisHostPSK = []byte("bootstrap-psk-that-is-long-enough")
 
-		// No database is passed, since a standalone runtime owns the actor data and the remote host must not reach for Pocket ID's own database
 		h, rateLimitServices, err := NewActors(NewActorsOpts{
 			EnvConfig:  cfg,
 			InstanceID: "ee05c3eb-8129-47a6-a1c7-849998b6f876",
@@ -184,7 +167,6 @@ func TestNewActorsSelectsTopology(t *testing.T) {
 		_, err := NewActorStateStore(NewActorsOpts{
 			EnvConfig:  cfg,
 			InstanceID: "ee05c3eb-8129-47a6-a1c7-849998b6f876",
-			DB:         newDB(t),
 		})
 		require.ErrorIs(t, err, ErrRemoteFrancisRuntime)
 	})
@@ -193,10 +175,21 @@ func TestNewActorsSelectsTopology(t *testing.T) {
 // TestNewActorsBackupProvider covers the provider the export and import use to back up and restore the actor host's data.
 // It builds the provider from the same options the actor host uses, so a mismatch between those options and the concrete provider would otherwise only surface at runtime, when an export or import is attempted.
 func TestNewActorsBackupProvider(t *testing.T) {
-	// Foreign keys must be enabled, which the provider validates on init and which the application enables on every connection
-	dbPath := filepath.Join(t.TempDir(), "pocket-id.db")
-	dsn := "file:" + dbPath + "?_txlock=immediate&_pragma=busy_timeout(2500)&_pragma=journal_mode(WAL)&_pragma=foreign_keys(1)"
-	db, err := gorm.Open(sqlite.Open(dsn), &gorm.Config{})
+	originalConfig := common.EnvConfig
+	t.Cleanup(func() {
+		common.EnvConfig = originalConfig
+	})
+	dir := t.TempDir()
+	common.EnvConfig.DbConnectionString = dir
+
+	provider, err := NewActorsBackupProvider(t.Context(), ActorsProviderOptions(nil))
+	require.NoError(t, err)
+	t.Cleanup(func() {
+		_ = provider.Close()
+	})
+
+	// Init applies the actor host's schema migrations in francis.db, so an export also works against a database the actor host has never run against
+	db, err := gorm.Open(sqlite.Open("file:"+filepath.Join(dir, "francis.db")+"?mode=ro"), &gorm.Config{})
 	require.NoError(t, err)
 	t.Cleanup(func() {
 		sqlDB, dbErr := db.DB()
@@ -204,17 +197,6 @@ func TestNewActorsBackupProvider(t *testing.T) {
 			_ = sqlDB.Close()
 		}
 	})
-
-	providerOpts, err := ActorsProviderOptions(db, nil)
-	require.NoError(t, err)
-
-	provider, err := NewActorsBackupProvider(t.Context(), providerOpts)
-	require.NoError(t, err)
-	t.Cleanup(func() {
-		_ = provider.Close()
-	})
-
-	// Init applies the actor host's schema migrations, so an export also works against a database the actor host has never run against
 	var tables int64
 	err = db.Raw(`SELECT count(*) FROM sqlite_master WHERE type = 'table' AND name LIKE 'francis_%'`).Scan(&tables).Error
 	require.NoError(t, err)
