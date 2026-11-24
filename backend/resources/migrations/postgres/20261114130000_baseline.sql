@@ -70,10 +70,10 @@ CREATE TABLE interaction_sessions (
     account_selection_required boolean DEFAULT false NOT NULL,
     scopes jsonb DEFAULT '[]'::jsonb NOT NULL,
     client_id text NOT NULL,
-    user_id uuid,
     requested_at timestamp with time zone NOT NULL,
     reauthenticated_at timestamp with time zone,
-    parameters jsonb DEFAULT '{}'::jsonb NOT NULL
+    parameters jsonb DEFAULT '{}'::jsonb NOT NULL,
+    session_id text
 );
 
 CREATE TABLE kv (
@@ -386,8 +386,6 @@ CREATE INDEX idx_audit_logs_user_id ON audit_logs USING btree (user_id);
 
 CREATE INDEX idx_interaction_sessions_client_id ON interaction_sessions USING btree (client_id);
 
-CREATE INDEX idx_interaction_sessions_user_id ON interaction_sessions USING btree (user_id);
-
 CREATE INDEX idx_oauth2_jtis_expires_at ON oauth2_jtis USING btree (expires_at);
 
 CREATE INDEX idx_oauth2_sessions_client_subject ON oauth2_sessions USING btree (client_id, ((request_data #>> '{session,subject}'::text[])), kind, active);
@@ -430,9 +428,6 @@ ALTER TABLE ONLY oauth2_sessions
 
 ALTER TABLE ONLY interaction_sessions
     ADD CONSTRAINT interaction_sessions_client_id_fkey FOREIGN KEY (client_id) REFERENCES oidc_clients(id) ON DELETE CASCADE;
-
-ALTER TABLE ONLY interaction_sessions
-    ADD CONSTRAINT interaction_sessions_user_id_fkey FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE;
 
 ALTER TABLE ONLY oidc_clients_allowed_api_permissions
     ADD CONSTRAINT oidc_clients_allowed_api_permissions_api_permission_id_fkey FOREIGN KEY (api_permission_id) REFERENCES api_permissions(id) ON DELETE CASCADE;

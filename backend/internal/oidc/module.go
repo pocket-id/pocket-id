@@ -243,7 +243,8 @@ func (m *Module) RegisterRoutes(root, api *authz.Router, logoSizeLimit, protectP
 		openapi.Response[map[string]any](http.StatusOK, "OAuth 2.0 authorization server metadata"),
 	)
 
-	api.GET("/oidc/interactions/:id", authz.Public, httpserver.Endpoint{Handler: m.authorizationHandler.getInteractionSession})
+	// The page shows the interaction before the sign-in too, and hides the scopes a signed-in caller cannot hold
+	api.Optional().GET("/oidc/interactions/:id", authz.Authenticated, httpserver.Endpoint{Handler: m.authorizationHandler.getInteractionSession})
 	api.POST("/oidc/interactions/:id/complete", authz.AccountAuthorize, httpserver.Endpoint{Handler: m.authorizationHandler.completeInteraction})
 
 	protocol.POST("/oidc/par", authz.Public, httpserver.Endpoint{Handler: m.parHandler.pushedAuthorizationRequest})

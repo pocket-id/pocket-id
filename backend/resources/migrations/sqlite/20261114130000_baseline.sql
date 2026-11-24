@@ -122,10 +122,10 @@ CREATE TABLE "interaction_sessions" (
     account_selection_required BOOLEAN NOT NULL DEFAULT FALSE,
     scopes BLOB NOT NULL DEFAULT X'5B5D',
     client_id TEXT NOT NULL REFERENCES oidc_clients(id) ON DELETE CASCADE,
-    user_id TEXT REFERENCES users(id) ON DELETE CASCADE,
     requested_at DATETIME NOT NULL,
     reauthenticated_at DATETIME,
-    parameters BLOB NOT NULL DEFAULT X'7B7D'
+    parameters BLOB NOT NULL DEFAULT X'7B7D',
+    session_id TEXT
 );
 
 CREATE TABLE oidc_clients_allowed_apis (
@@ -277,8 +277,6 @@ CREATE INDEX idx_api_permissions_api_id ON api_permissions(api_id);
 CREATE INDEX idx_oauth2_jtis_expires_at ON oauth2_jtis (expires_at);
 
 CREATE INDEX idx_interaction_sessions_client_id ON interaction_sessions (client_id);
-
-CREATE INDEX idx_interaction_sessions_user_id ON interaction_sessions (user_id);
 
 CREATE INDEX idx_oidc_clients_allowed_apis_api_id ON oidc_clients_allowed_apis(api_id);
 

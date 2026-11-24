@@ -369,7 +369,6 @@ func TestAuthorizationHandlerIgnoresBodyWhenResumingInteraction(t *testing.T) {
 	}).Error)
 	interaction := InteractionSession{
 		ClientID:    clientID,
-		UserID:      new(userID),
 		Scopes:      datatype.StringList{"openid"},
 		RequestedAt: datatype.DateTime(time.Now()),
 		Parameters: InteractionSessionParameters{

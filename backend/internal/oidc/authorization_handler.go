@@ -133,7 +133,7 @@ func (h *authorizationHandler) authorize(c *gin.Context) {
 func (h *authorizationHandler) getInteractionSession(c *gin.Context) {
 	interactionID := c.Param("id")
 
-	interactionSession, err := h.authorizationService.getInteractionSession(c.Request.Context(), interactionID)
+	interactionSession, err := h.authorizationService.getInteractionSession(c.Request.Context(), interactionID, authz.PrincipalFrom(c).UserID)
 	if err != nil {
 		_ = c.Error(err)
 		return
@@ -153,7 +153,7 @@ func (h *authorizationHandler) completeInteraction(c *gin.Context) {
 	}
 
 	reauthenticationToken, _ := c.Cookie(cookie.ReauthenticationTokenCookieName)
-	response, err := h.authorizationService.completeInteractionStep(c.Request.Context(), interactionID, principal.UserID, request.Step, request.Scopes, reauthenticationToken, principal.AuthenticationTime, requestMetaFromGin(c))
+	response, err := h.authorizationService.completeInteractionStep(c.Request.Context(), interactionID, principal.UserID, principal.SessionID, request.Step, request.Scopes, reauthenticationToken, principal.AuthenticationTime, requestMetaFromGin(c))
 	if err != nil {
 		_ = c.Error(err)
 		return

@@ -261,9 +261,11 @@ func (s *authorizationService) authorizeAuthenticated(ctx context.Context, req a
 		return authorizationResult{}, fosite.ErrAccessDenied.WithHint("You are not allowed to access this service.")
 	}
 
+	// The completed steps of an interaction count only for the session they were answered in, so any other session, also one of the same user, goes through them itself
 	interactionSession := req.interactionSession
-	if interactionSession != nil && interactionSession.UserID != nil && *interactionSession.UserID != req.userID {
-		if err := s.switchInteractionSessionUser(ctx, interactionSession, req.userID, req.authenticationTime); err != nil {
+	if interactionSession != nil && interactionSession.SessionID != nil && *interactionSession.SessionID != req.sessionID {
+		interactionSession.SessionID = &req.sessionID
+		if err := s.restartInteractionSteps(ctx, interactionSession, req.userID, req.authenticationTime); err != nil {
 			return authorizationResult{}, err
 		}
 		if err := s.interactionSessionService.update(ctx, *interactionSession); err != nil {
@@ -281,7 +283,7 @@ func (s *authorizationService) authorizeAuthenticated(ctx context.Context, req a
 			return authorizationResult{RequiresInteraction: true, InteractionID: interactionSession.ID}, nil
 		}
 
-		created, err := s.createInteractionSession(ctx, req.requester, req.requestParams, req.userID, requirements)
+		created, err := s.createInteractionSession(ctx, req.requester, req.requestParams, req.sessionID, requirements)
 		if err != nil {
 			return authorizationResult{}, err
 		}
@@ -462,10 +464,8 @@ func validateInteractionSessionBinding(interactionSession InteractionSession, us
 		return fosite.ErrInvalidRequest.WithHint("The interaction session does not belong to this client.")
 	}
 
-	if interactionSession.UserID != nil {
-		if userID == "" {
-			return fosite.ErrLoginRequired
-		}
+	if interactionSession.SessionID != nil && userID == "" {
+		return fosite.ErrLoginRequired
 	}
 
 	for _, scope := range requester.GetRequestedScopes() {
@@ -488,7 +488,7 @@ func (r interactionRequirements) any() bool {
 	return r.ConsentRequired || r.ReauthenticationRequired || r.AuthenticationRequired || r.AccountSelectionRequired
 }
 
-func (s *authorizationService) createInteractionSession(ctx context.Context, requester fosite.AuthorizeRequester, requestParams map[string]string, userID string, requirements interactionRequirements) (InteractionSession, error) {
+func (s *authorizationService) createInteractionSession(ctx context.Context, requester fosite.AuthorizeRequester, requestParams map[string]string, sessionID string, requirements interactionRequirements) (InteractionSession, error) {
 	parameters := make(map[string]string, len(requestParams))
 	maps.Copy(parameters, requestParams)
 
@@ -503,7 +503,7 @@ func (s *authorizationService) createInteractionSession(ctx context.Context, req
 		},
 		Scopes:                   datatype.StringList(scopes),
 		ClientID:                 requester.GetClient().GetID(),
-		UserID:                   utils.PtrOrNil(userID),
+		SessionID:                utils.PtrOrNil(sessionID),
 		ConsentRequired:          requirements.ConsentRequired,
 		ReauthenticationRequired: requirements.ReauthenticationRequired,
 		AuthenticationRequired:   requirements.AuthenticationRequired,
@@ -513,26 +513,8 @@ func (s *authorizationService) createInteractionSession(ctx context.Context, req
 	})
 }
 
-func bindInteractionSessionUser(interactionSession *InteractionSession, userID string) error {
-	if userID == "" {
-		return fosite.ErrLoginRequired
-	}
-	if interactionSession.UserID != nil && *interactionSession.UserID != userID {
-		return fosite.ErrInvalidRequest.WithHint("The interaction session belongs to another user.")
-	}
-	if interactionSession.UserID == nil {
-		interactionSession.UserID = &userID
-	}
-
-	return nil
-}
-
-func (s *authorizationService) switchInteractionSessionUser(ctx context.Context, interactionSession *InteractionSession, userID string, authenticationTime time.Time) error {
-	if userID == "" {
-		return fosite.ErrLoginRequired
-	}
-	interactionSession.UserID = &userID
-
+// restartInteractionSteps makes the session an interaction was handed to go through the steps of its own user
+func (s *authorizationService) restartInteractionSteps(ctx context.Context, interactionSession *InteractionSession, userID string, authenticationTime time.Time) error {
 	requirements, err := s.interactionRequirementsForUser(ctx, userID, interactionSession, authenticationTime)
 	if err != nil {
 		return err
@@ -546,7 +528,7 @@ func (s *authorizationService) switchInteractionSessionUser(ctx context.Context,
 	return nil
 }
 
-func (s *authorizationService) getInteractionSession(ctx context.Context, interactionSessionID string) (interactionSessionForUser, error) {
+func (s *authorizationService) getInteractionSession(ctx context.Context, interactionSessionID, userID string) (interactionSessionForUser, error) {
 	interactionSession, err := s.interactionSessionService.get(ctx, interactionSessionID)
 	if errors.Is(err, gorm.ErrRecordNotFound) {
 		return interactionSessionForUser{}, apperror.OidcInteractionNotFound()
@@ -555,11 +537,11 @@ func (s *authorizationService) getInteractionSession(ctx context.Context, intera
 		return interactionSessionForUser{}, err
 	}
 
-	return s.buildInteractionForUser(ctx, interactionSession)
+	return s.buildInteractionForUser(ctx, interactionSession, userID)
 }
 
 // buildInteractionForUser builds the consent-screen DTO and enriches it with display information for the requested custom-API permissions
-func (s *authorizationService) buildInteractionForUser(ctx context.Context, interactionSession InteractionSession) (interactionSessionForUser, error) {
+func (s *authorizationService) buildInteractionForUser(ctx context.Context, interactionSession InteractionSession, userID string) (interactionSessionForUser, error) {
 	result, err := newInteractionSessionForUser(interactionSession)
 	if err != nil {
 		return interactionSessionForUser{}, err
@@ -567,11 +549,9 @@ func (s *authorizationService) buildInteractionForUser(ctx context.Context, inte
 
 	// Hide the scopes the signed-in user can't hold, since resolveGrant won't grant them either
 	resource := interactionSession.Parameters["resource"]
-	if interactionSession.UserID != nil {
-		result.Scopes, err = s.heldScopes(ctx, *interactionSession.UserID, resource, result.Scopes)
-		if err != nil {
-			return interactionSessionForUser{}, err
-		}
+	result.Scopes, err = s.heldScopes(ctx, userID, resource, result.Scopes)
+	if err != nil {
+		return interactionSessionForUser{}, err
 	}
 
 	scopeInfo, err := s.resolveScopeInfoForRequest(ctx, resource, result.Scopes)
@@ -621,7 +601,7 @@ func (s *authorizationService) resolveScopeInfoForRequest(ctx context.Context, r
 	return append(infos, permissions...), nil
 }
 
-func (s *authorizationService) completeInteractionStep(ctx context.Context, interactionSessionID, userID string, step interactionStep, approvedScopes []string, reauthenticationToken string, authenticationTime time.Time, meta requestMeta) (completeInteractionResponse, error) {
+func (s *authorizationService) completeInteractionStep(ctx context.Context, interactionSessionID, userID, sessionID string, step interactionStep, approvedScopes []string, reauthenticationToken string, authenticationTime time.Time, meta requestMeta) (completeInteractionResponse, error) {
 	var interactionSession InteractionSession
 	var response completeInteractionResponse
 	err := withTx(ctx, s.db, func(ctx context.Context) error {
@@ -634,15 +614,17 @@ func (s *authorizationService) completeInteractionStep(ctx context.Context, inte
 			return err
 		}
 
-		userSwitched := interactionSession.UserID != nil && *interactionSession.UserID != userID
-		if userSwitched {
-			if err := s.switchInteractionSessionUser(ctx, &interactionSession, userID, authenticationTime); err != nil {
-				return err
-			}
-		}
-
 		if userID == "" {
 			return fosite.ErrLoginRequired
+		}
+
+		// The session that answers a step is the one the interaction belongs to from then on
+		sessionSwitched := interactionSession.SessionID != nil && *interactionSession.SessionID != sessionID
+		interactionSession.SessionID = &sessionID
+		if sessionSwitched {
+			if err := s.restartInteractionSteps(ctx, &interactionSession, userID, authenticationTime); err != nil {
+				return err
+			}
 		}
 
 		// The authorize endpoint only checks the group restriction once every step is done, so a user who signed in or switched accounts here is checked before the consent step can record an authorization
@@ -662,9 +644,9 @@ func (s *authorizationService) completeInteractionStep(ctx context.Context, inte
 			}
 		}
 
-		// A step answered on a page that showed another account doesn't count for this one, which has to go through the steps itself
+		// A step answered on a page that was shown for another session doesn't count for this one, which has to go through the steps itself
 		// Only select_account is applied, because switching the account is its purpose
-		if userSwitched && step != interactionStepSelectAccount {
+		if sessionSwitched && step != interactionStepSelectAccount {
 			return s.interactionSessionService.update(ctx, interactionSession)
 		}
 
@@ -695,7 +677,7 @@ func (s *authorizationService) completeInteractionStep(ctx context.Context, inte
 		return completeInteractionResponse{RedirectURL: authorizeRedirectURL(interactionSession.ID)}, nil
 	}
 
-	interaction, err := s.buildInteractionForUser(ctx, interactionSession)
+	interaction, err := s.buildInteractionForUser(ctx, interactionSession, userID)
 	if err != nil {
 		return completeInteractionResponse{}, err
 	}
@@ -706,13 +688,10 @@ func (s *authorizationService) completeInteractionStep(ctx context.Context, inte
 func (s *authorizationService) applyInteractionStep(ctx context.Context, interactionSession *InteractionSession, userID string, step interactionStep, approvedScopes []string, reauthenticationToken string, authenticationTime time.Time, meta requestMeta) error {
 	switch step {
 	case interactionStepAuthenticate:
-		if err := bindInteractionSessionUser(interactionSession, userID); err != nil {
-			return err
-		}
 		interactionSession.AuthenticationRequired = false
 		return s.populatePostAuthenticationRequirements(ctx, userID, interactionSession, authenticationTime)
 	case interactionStepSelectAccount:
-		if err := s.switchInteractionSessionUser(ctx, interactionSession, userID, authenticationTime); err != nil {
+		if err := s.restartInteractionSteps(ctx, interactionSession, userID, authenticationTime); err != nil {
 			return err
 		}
 		interactionSession.AccountSelectionRequired = false
@@ -727,9 +706,6 @@ func (s *authorizationService) applyInteractionStep(ctx context.Context, interac
 }
 
 func (s *authorizationService) completeReauthenticationStep(ctx context.Context, interactionSession *InteractionSession, userID, reauthenticationToken string) error {
-	if err := bindInteractionSessionUser(interactionSession, userID); err != nil {
-		return err
-	}
 	if reauthenticationToken == "" {
 		return apperror.MissingField("reauthenticationToken")
 	}
@@ -744,10 +720,6 @@ func (s *authorizationService) completeReauthenticationStep(ctx context.Context,
 }
 
 func (s *authorizationService) completeConsentStep(ctx context.Context, interactionSession *InteractionSession, userID string, approvedScopes []string, meta requestMeta) error {
-	if err := bindInteractionSessionUser(interactionSession, userID); err != nil {
-		return err
-	}
-
 	// Narrow the request to the scopes the user approved before recording consent, so deselected scopes are neither consented to nor granted
 	if err := narrowInteractionScopes(interactionSession, approvedScopes); err != nil {
 		return err
