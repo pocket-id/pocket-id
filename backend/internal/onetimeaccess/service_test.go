@@ -141,7 +141,7 @@ func TestExchangeTokenSuccess(t *testing.T) {
 	}
 	require.NoError(t, db.Create(&user).Error)
 
-	token, err := StoreToken(t.Context(), svc.actorService, user.ID, time.Minute, nil, false)
+	token, err := StoreToken(t.Context(), svc.actorService, user.ID, time.Minute, nil, false, "")
 	require.NoError(t, err)
 
 	dbConfig := appconfig.NewTestConfig(nil)
@@ -205,7 +205,7 @@ func TestExchangeTokenDeviceMismatch(t *testing.T) {
 	require.NoError(t, db.Create(&user).Error)
 
 	// Store a token that requires a device token
-	token, err := StoreToken(t.Context(), svc.actorService, user.ID, time.Minute, new("device-token"), false)
+	token, err := StoreToken(t.Context(), svc.actorService, user.ID, time.Minute, new("device-token"), false, "")
 	require.NoError(t, err)
 
 	dbConfig := appconfig.NewTestConfig(nil)
@@ -225,6 +225,21 @@ func TestExchangeTokenDeviceMismatch(t *testing.T) {
 	require.ErrorIs(t, err, actor.ErrStateNotFound)
 }
 
+// A code in a mailbox the user no longer has, or never had, must not sign anyone in as them
+func TestExchangeTokenRejectsMailedCodeAfterEmailChange(t *testing.T) {
+	db := testutils.NewDatabaseForTest(t)
+	svc, _, _ := newServiceForTest(t, db)
+	user := model.User{Username: "moved", Email: new("old@example.com")}
+	require.NoError(t, db.Create(&user).Error)
+
+	token, err := StoreToken(t.Context(), svc.actorService, user.ID, time.Minute, nil, false, "old@example.com")
+	require.NoError(t, err)
+	require.NoError(t, db.Model(&user).Update("email", "new@example.com").Error)
+
+	_, _, err = svc.ExchangeToken(t.Context(), appconfig.NewTestConfig(nil), token, "", "", "", "", false)
+	require.True(t, apperror.IsCode(err, apperror.CodeTokenInvalidOrExpired))
+}
+
 func TestExchangeTokenRejectsDisabledUser(t *testing.T) {
 	db := testutils.NewDatabaseForTest(t)
 	svc, host, auditLog := newServiceForTest(t, db)
@@ -237,7 +252,7 @@ func TestExchangeTokenRejectsDisabledUser(t *testing.T) {
 	require.NoError(t, db.Create(&user).Error)
 
 	// Store a one-time access token for the disabled user in the actor state store
-	token, err := StoreToken(t.Context(), svc.actorService, user.ID, time.Minute, nil, false)
+	token, err := StoreToken(t.Context(), svc.actorService, user.ID, time.Minute, nil, false, "")
 	require.NoError(t, err)
 
 	dbConfig := appconfig.NewTestConfig(nil)
