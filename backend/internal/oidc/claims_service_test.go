@@ -222,6 +222,30 @@ func TestClaimsServiceBuildClaims(t *testing.T) {
 	})
 }
 
+// Whoever may edit custom claims must not be able to set the identity a relying party reads from the user's own fields
+func TestClaimsServiceBuildClaimsKeepsUserFieldClaimsOverCustomClaims(t *testing.T) {
+	db := testutils.NewDatabaseForTest(t)
+	require.NoError(t, claimmappingpolicy.Bootstrap(t.Context(), db))
+
+	customClaims := fakeCustomClaimSource{claims: []model.CustomClaim{
+		{Key: "preferred_username", Value: "admin"},
+		{Key: "preferred_uſername", Value: "admin"},
+		{Key: "email", Value: "admin@example.com"},
+		{Key: "department", Value: "engineering"},
+	}}
+	service := newClaimsService(db, customClaims, "https://id.example.com", nil, appconfig.StaticResolver{})
+	require.NoError(t, db.Create(&model.User{Base: model.Base{ID: "user-1"}, Username: "tim"}).Error)
+
+	claimsSource, err := service.loadUserClaimsSource(t.Context(), "user-1", "client-1")
+	require.NoError(t, err)
+
+	claims := service.buildClaims(claimsSource, []string{"profile"}, IDTokenType)
+	require.Equal(t, "tim", claims["preferred_username"])
+	require.NotContains(t, claims, "preferred_uſername")
+	require.NotContains(t, claims, "email")
+	require.Equal(t, "engineering", claims["department"])
+}
+
 // TestClaimsServiceBuildClaimsKeepsIntegerCustomClaims checks that integer custom claims are not turned into float64
 func TestClaimsServiceBuildClaimsKeepsIntegerCustomClaims(t *testing.T) {
 	db := testutils.NewDatabaseForTest(t)
