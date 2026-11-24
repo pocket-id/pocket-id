@@ -103,6 +103,10 @@ func resolveResource(ctx context.Context, tx *gorm.DB, provider APIAccessProvide
 // Narrowing a client's access doesn't revoke what was already issued, so this runs whenever a grant is refreshed or a token is accepted or introspected
 // An issued access token with an identity scope also lists the issuer, which isn't an API resource
 func validateGrantAPIAccess(ctx context.Context, apiAccess APIAccessProvider, issuer string, requester fosite.Requester) (string, error) {
+	return validateGrantAPIAccessTx(ctx, nil, apiAccess, issuer, requester)
+}
+
+func validateGrantAPIAccessTx(ctx context.Context, tx *gorm.DB, apiAccess APIAccessProvider, issuer string, requester fosite.Requester) (string, error) {
 	client, ok := requester.GetClient().(Client)
 	if !ok {
 		return "", fosite.ErrInvalidClient
@@ -126,7 +130,7 @@ func validateGrantAPIAccess(ctx context.Context, apiAccess APIAccessProvider, is
 		subjectType = SubjectTypeClient
 	}
 
-	_, _, err := resolveResource(ctx, nil, apiAccess, client.GetID(), resource, requester.GetGrantedScopes(), subjectType, client.customScopes)
+	_, _, err := resolveResource(ctx, tx, apiAccess, client.GetID(), resource, requester.GetGrantedScopes(), subjectType, client.customScopes)
 	return resource, err
 }
 

@@ -15,6 +15,7 @@ import (
 	"github.com/pocket-id/pocket-id/backend/internal/apperror"
 	"github.com/pocket-id/pocket-id/backend/internal/auditlogs"
 	"github.com/pocket-id/pocket-id/backend/internal/dto"
+	"github.com/pocket-id/pocket-id/backend/internal/model"
 	"github.com/pocket-id/pocket-id/backend/internal/utils"
 )
 
@@ -135,6 +136,56 @@ func (s *deviceService) acceptDeviceCode(ctx context.Context, userCode, userID, 
 	grantResourceIndicator(request, audience, grantedScopes)
 
 	return withTx(ctx, s.db, func(ctx context.Context) error {
+		// Lock CIMD clients and re-verify metadata validity, policy, and group restrictions inside the transaction before recording consent or accepting the device code
+		if client.IsMetadataDocument() {
+			tx := dbFromContext(ctx, s.db)
+			var lockedClient model.OidcClient
+			lockErr := withClientNoKeyUpdateLock(tx).Where("id = ?", client.GetID()).First(&lockedClient).Error
+			if errors.Is(lockErr, gorm.ErrRecordNotFound) {
+				return fosite.ErrInvalidClient.WithHint("The client is no longer valid.")
+			}
+			if lockErr != nil {
+				return lockErr
+			}
+			if lockedClient.Disabled {
+				return apperror.OidcClientDisabled()
+			}
+			if !isCIMDMetadataActive(lockedClient, time.Now()) || (s.store != nil && s.store.isCIMDInvalidatedForContext(ctx, client.GetID())) {
+				return fosite.ErrInvalidClient.WithHint("The client metadata document is no longer valid.")
+			}
+			if s.authorizationService != nil && s.authorizationService.validateCIMDClient != nil {
+				if policyErr := s.authorizationService.validateCIMDClient(ctx, client.GetID()); policyErr != nil {
+					return fosite.ErrInvalidClient.WithHint("The client metadata document could not be resolved.").WithWrap(policyErr).WithDebug(policyErr.Error())
+				}
+			}
+			if preloadErr := tx.Model(&lockedClient).Association("AllowedUserGroups").Find(&lockedClient.AllowedUserGroups); preloadErr != nil {
+				return preloadErr
+			}
+			client.OidcClient = lockedClient
+			lockedClaimsSource, loadErr := s.claimsService.loadUserClaimsSource(ctx, userID, client.GetID())
+			if errors.Is(loadErr, errClaimsUserNotFound) {
+				return apperror.UserNotFound()
+			} else if loadErr != nil {
+				return loadErr
+			}
+			if !IsUserGroupAllowedToAuthorize(lockedClaimsSource.user, client.OidcClient) {
+				return fosite.ErrAccessDenied.WithHint("You are not allowed to access this service.")
+			}
+			claimsSource = lockedClaimsSource
+
+			// Re-resolve the effective API grant and held scopes under the client lock so withdrawn API permissions or roles are never persisted into consent or the accepted device session
+			lockedAudience, lockedGrantedScopes, lockedConsentKeys, grantErr := s.authorizationService.resolveGrant(ctx, client.GetID(), userID, resource, request.GetRequestedScopes())
+			if grantErr != nil {
+				return grantErr
+			}
+			audience = lockedAudience
+			grantedScopes = lockedGrantedScopes
+			consentKeys = lockedConsentKeys
+			deviceRequest.GrantedScope = nil
+			deviceRequest.GrantedAudience = nil
+			grantResourceIndicator(request, audience, grantedScopes)
+		}
+
 		if client.RequiresReauthentication || grantsAdminAccess(audience, grantedScopes) {
 			if reauthenticationToken == "" || s.authorizationService == nil || s.authorizationService.reauth == nil {
 				return apperror.ReauthenticationRequired()

@@ -7,12 +7,14 @@ import (
 	"net/http"
 	"net/url"
 	"strings"
+	"time"
 
 	"github.com/gin-gonic/gin"
 	"github.com/pocket-id/fosite"
 	"github.com/pocket-id/pocket-id/backend/internal/apperror"
 	"github.com/pocket-id/pocket-id/backend/internal/authz"
 	"github.com/pocket-id/pocket-id/backend/internal/httpserver"
+	"github.com/pocket-id/pocket-id/backend/internal/model"
 	"github.com/pocket-id/pocket-id/backend/internal/utils"
 	"github.com/pocket-id/pocket-id/backend/internal/utils/cookie"
 )
@@ -91,23 +93,54 @@ func (h *authorizationHandler) authorize(c *gin.Context) {
 		if err != nil {
 			slog.WarnContext(ctx, "Failed to delete cancelled interaction session", "error", err.Error())
 		}
+		if pocketClient, ok := ar.GetClient().(Client); ok && pocketClient.IsMetadataDocument() {
+			if !h.isMetadataRedirectStillValid(ctx, ar) {
+				h.redirectToInteractionError(c, fosite.ErrInvalidClient.WithHint("The client metadata document is no longer valid."))
+				return
+			}
+			h.relaxCSPForFormPost(c, ar)
+			h.provider.WriteAuthorizeError(ctx, c.Writer, validatedRedirectAuthorizeRequester{ar}, fosite.ErrAccessDenied.WithHint("The user cancelled the request."))
+			return
+		}
 		h.relaxCSPForFormPost(c, ar)
 		h.provider.WriteAuthorizeError(ctx, c.Writer, ar, fosite.ErrAccessDenied.WithHint("The user cancelled the request."))
 		return
 	}
 
-	authorization, err := h.authorizationService.authorize(ctx, authorizeInput{
-		userID:                        principal.UserID,
-		sessionID:                     principal.SessionID,
-		authenticationMethod:          principal.AuthenticationMethod,
-		authenticationTime:            principal.AuthenticationTime,
-		requester:                     ar,
-		hasPushedAuthorizationRequest: hasPushedAuthorizationRequest,
-		reauthenticationToken:         reauthenticationToken,
-		interactionID:                 interactionID,
-		requestParams:                 authorizeRequestParams(ar),
-		meta:                          requestMetaFromGin(c),
-	})
+	var (
+		authorization authorizationResult
+		response      fosite.AuthorizeResponder
+	)
+	runAuthorize := func(runCtx context.Context) error {
+		var runErr error
+		authorization, runErr = h.authorizationService.authorize(runCtx, authorizeInput{
+			userID:                        principal.UserID,
+			sessionID:                     principal.SessionID,
+			authenticationMethod:          principal.AuthenticationMethod,
+			authenticationTime:            principal.AuthenticationTime,
+			requester:                     ar,
+			hasPushedAuthorizationRequest: hasPushedAuthorizationRequest,
+			reauthenticationToken:         reauthenticationToken,
+			interactionID:                 interactionID,
+			requestParams:                 authorizeRequestParams(ar),
+			meta:                          requestMetaFromGin(c),
+			validateCIMDClient:            h.cimdPolicyValidator(),
+		})
+		if runErr != nil {
+			return runErr
+		}
+		if authorization.RequiresInteraction {
+			return nil
+		}
+		response, runErr = h.provider.NewAuthorizeResponse(runCtx, ar, authorization.Session)
+		return runErr
+	}
+	// Keep authorization checks and authorization-code persistence in one transaction for CIMD clients so concurrent grant revocation cannot race between them
+	if pocketClient, ok := ar.GetClient().(Client); ok && pocketClient.IsMetadataDocument() {
+		err = withTx(ctx, h.authorizationService.db, runAuthorize)
+	} else {
+		err = runAuthorize(ctx)
+	}
 	if err != nil {
 		slog.ErrorContext(ctx, "Failed to authorize request", "error", err.Error())
 		h.writeAuthorizeError(ctx, c, ar, err)
@@ -116,13 +149,6 @@ func (h *authorizationHandler) authorize(c *gin.Context) {
 
 	if authorization.RequiresInteraction {
 		c.Redirect(http.StatusFound, "/interaction?interaction="+authorization.InteractionID)
-		return
-	}
-
-	response, err := h.provider.NewAuthorizeResponse(ctx, ar, authorization.Session)
-	if err != nil {
-		slog.ErrorContext(ctx, "Failed to create authorize response", "error", err.Error())
-		h.writeAuthorizeError(ctx, c, ar, err)
 		return
 	}
 
@@ -190,9 +216,20 @@ func (h *authorizationHandler) writeAuthorizeError(ctx context.Context, c *gin.C
 		slog.LogAttrs(ctx, slog.LevelDebug, "Fosite authorize error details", attrs...)
 	}
 
-	// Keep authorization policy denials in Pocket ID so users can see why access was refused
-	if errors.Is(err, fosite.ErrAccessDenied) {
+	// Keep authorization policy denials and invalidated-client errors in Pocket ID so users can see why access was refused and removed callbacks never receive state
+	if errors.Is(err, fosite.ErrAccessDenied) || errors.Is(err, fosite.ErrInvalidClient) {
 		h.redirectToInteractionError(c, err)
+		return
+	}
+
+	// For CIMD clients, verify the original requested callback against current persisted metadata before redirecting any error and state
+	if pocketClient, ok := ar.GetClient().(Client); ok && pocketClient.IsMetadataDocument() {
+		if !h.isMetadataRedirectStillValid(ctx, ar) {
+			h.redirectToInteractionError(c, err)
+			return
+		}
+		h.relaxCSPForFormPost(c, ar)
+		h.provider.WriteAuthorizeError(ctx, c.Writer, validatedRedirectAuthorizeRequester{ar}, err)
 		return
 	}
 
@@ -205,6 +242,54 @@ func (h *authorizationHandler) writeAuthorizeError(ctx context.Context, c *gin.C
 	}
 
 	h.redirectToInteractionError(c, err)
+}
+
+// validatedRedirectAuthorizeRequester preserves the raw redirect_uri validation already performed by isMetadataRedirectStillValid so Fosite's WriteAuthorizeError does not reject valid uppercase-scheme callbacks after url.Parse lowercases Scheme
+type validatedRedirectAuthorizeRequester struct {
+	fosite.AuthorizeRequester
+}
+
+func (validatedRedirectAuthorizeRequester) IsRedirectURIValid() bool {
+	return true
+}
+
+func (h *authorizationHandler) cimdPolicyValidator() func(context.Context, string) error {
+	if p, ok := h.provider.(*oidcProvider); ok && p.config != nil {
+		if resolver, ok := p.config.ClientResolver.(*cimdClientResolver); ok {
+			return resolver.policy.AllowCIMDClient
+		}
+	}
+	return nil
+}
+
+func (h *authorizationHandler) isMetadataRedirectStillValid(ctx context.Context, ar fosite.AuthorizeRequester) bool {
+	pocketClient, ok := ar.GetClient().(Client)
+	if !ok || !pocketClient.IsMetadataDocument() {
+		return true
+	}
+	redirectURI := ar.GetRedirectURI()
+	if redirectURI == nil || h.authorizationService == nil || h.authorizationService.db == nil {
+		return false
+	}
+	if p, ok := h.provider.(*oidcProvider); ok && p.config != nil {
+		if resolver, ok := p.config.ClientResolver.(*cimdClientResolver); ok && resolver.store != nil && resolver.store.isCIMDInvalidatedForContext(ctx, pocketClient.GetID()) {
+			return false
+		}
+	}
+	var current model.OidcClient
+	if dbErr := h.authorizationService.db.WithContext(ctx).Where("id = ?", pocketClient.GetID()).First(&current).Error; dbErr != nil ||
+		current.Disabled ||
+		!isCIMDMetadataActive(current, time.Now()) {
+		return false
+	}
+	if validatePolicy := h.cimdPolicyValidator(); validatePolicy != nil {
+		if err := validatePolicy(ctx, pocketClient.GetID()); err != nil {
+			return false
+		}
+	}
+	rawRedirect := ar.GetRequestForm().Get("redirect_uri")
+	matched := matchExactOrLoopbackRedirectURI([]string(current.CallbackURLs), rawRedirect)
+	return matched != nil && matched.String() == redirectURI.String()
 }
 
 func (h *authorizationHandler) redirectToInteractionError(c *gin.Context, err error) {

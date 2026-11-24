@@ -5,7 +5,9 @@ import (
 	"crypto/sha256"
 	"io"
 	"log/slog"
+	"net/netip"
 	"net/url"
+	"strings"
 	"time"
 
 	"github.com/pocket-id/fosite"
@@ -133,6 +135,14 @@ func redirectSecureChecker(allowInsecureCallbackURLs bool) func(context.Context,
 }
 
 func matchRedirectURI(rawurl string, client fosite.Client) (*url.URL, error) {
+	// CIMD clients register exact callback URIs and must never fall through to Fosite's decoded-path loopback or glob matching
+	if pocketClient, ok := client.(Client); ok && pocketClient.IsMetadataDocument() {
+		if matched := matchExactOrLoopbackRedirectURI(client.GetRedirectURIs(), rawurl); matched != nil {
+			return matched, nil
+		}
+		return nil, fosite.ErrInvalidRequest.WithHint("The 'redirect_uri' parameter does not match any of the OAuth 2.0 Client's pre-registered 'redirect_uris'.")
+	}
+
 	redirectURI, err := fosite.MatchRedirectURIWithClientRedirectURIs(rawurl, client)
 	if err == nil || rawurl == "" {
 		return redirectURI, err
@@ -152,6 +162,101 @@ func matchRedirectURI(rawurl string, client fosite.Client) (*url.URL, error) {
 	}
 
 	return redirectURI, nil
+}
+
+// matchExactRedirectURI requires exact string equality without loopback port variance (used for RP-Initiated Logout §3 post_logout_redirect_uri)
+func matchExactRedirectURI(registered []string, rawurl string) *url.URL {
+	if rawurl == "" {
+		if len(registered) != 1 || strings.Contains(registered[0], "#") {
+			return nil
+		}
+		parsed, err := url.Parse(registered[0])
+		if err != nil || !fosite.IsValidRedirectURI(parsed) || parsed.User != nil {
+			return nil
+		}
+		return parsed
+	}
+	if strings.Contains(rawurl, "#") {
+		return nil
+	}
+	reqURL, err := url.Parse(rawurl)
+	if err != nil || !fosite.IsValidRedirectURI(reqURL) || reqURL.User != nil {
+		return nil
+	}
+	for _, candidate := range registered {
+		if candidate == rawurl {
+			return reqURL
+		}
+	}
+	return nil
+}
+
+// matchExactOrLoopbackRedirectURI requires exact string equality, allowing only RFC 8252 ephemeral port differences for HTTP loopback IP redirects
+func matchExactOrLoopbackRedirectURI(registered []string, rawurl string) *url.URL {
+	if exact := matchExactRedirectURI(registered, rawurl); exact != nil || rawurl == "" {
+		return exact
+	}
+	if strings.Contains(rawurl, "#") {
+		return nil
+	}
+	reqURL, err := url.Parse(rawurl)
+	if err != nil || !fosite.IsValidRedirectURI(reqURL) || reqURL.User != nil {
+		return nil
+	}
+	reqStripped, ok := stripLoopbackPort(rawurl, reqURL)
+	if !ok {
+		return nil
+	}
+	for _, candidate := range registered {
+		if strings.Contains(candidate, "#") {
+			continue
+		}
+		regURL, parseErr := url.Parse(candidate)
+		if parseErr != nil || !fosite.IsValidRedirectURI(regURL) || regURL.User != nil {
+			continue
+		}
+		if candStripped, ok := stripLoopbackPort(candidate, regURL); ok && candStripped == reqStripped {
+			return reqURL
+		}
+	}
+	return nil
+}
+
+// stripLoopbackPort removes only the optional :port component from an HTTP loopback IP URI while preserving the original scheme, host literal, path, and query bytes
+func stripLoopbackPort(raw string, parsed *url.URL) (string, bool) {
+	if parsed.Scheme != "http" {
+		return "", false
+	}
+	addr, err := netip.ParseAddr(parsed.Hostname())
+	if err != nil || addr.Zone() != "" || !addr.IsLoopback() {
+		return "", false
+	}
+	schemeEnd := strings.Index(raw, "://")
+	if schemeEnd < 0 {
+		return "", false
+	}
+	authStart := schemeEnd + 3
+	rest := raw[authStart:]
+	authEnd := strings.IndexAny(rest, "/?")
+	if authEnd < 0 {
+		authEnd = len(rest)
+	}
+	authority := rest[:authEnd]
+	host := authority
+	if strings.HasPrefix(authority, "[") {
+		closeBracket := strings.IndexByte(authority, ']')
+		if closeBracket < 0 {
+			return "", false
+		}
+		host = authority[:closeBracket+1]
+		portPart := authority[closeBracket+1:]
+		if portPart != "" && !strings.HasPrefix(portPart, ":") {
+			return "", false
+		}
+	} else if colon := strings.IndexByte(authority, ':'); colon >= 0 {
+		host = authority[:colon]
+	}
+	return raw[:authStart] + host + rest[authEnd:], true
 }
 
 // DeriveGlobalSecret derives a 32-byte secret from the provided secret.

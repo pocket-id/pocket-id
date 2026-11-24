@@ -16,10 +16,11 @@ import (
 )
 
 type endSessionService struct {
-	db      *gorm.DB
-	store   *Store
-	signer  TokenSigner
-	baseURL string
+	db                 *gorm.DB
+	store              *Store
+	signer             TokenSigner
+	baseURL            string
+	validateCIMDClient func(context.Context, string) error
 }
 
 func newEndSessionService(db *gorm.DB, store *Store, signer TokenSigner, baseURL string) *endSessionService {
@@ -78,12 +79,7 @@ func (s *endSessionService) resolve(ctx context.Context, input dto.OidcLogoutDto
 	}
 	sessionID, _ := jwt.Get[string](token, common.SessionIDClaim)
 
-	var authorizedClient model.UserAuthorizedOidcClient
-	err = s.db.
-		WithContext(ctx).
-		Preload("Client").
-		First(&authorizedClient, "client_id = ? AND user_id = ?", clientID, subject).
-		Error
+	authorizedClient, err := s.loadAuthorizedClientSnapshot(ctx, clientID, subject)
 	if errors.Is(err, gorm.ErrRecordNotFound) {
 		return endSessionRequest{}, apperror.OidcMissingAuthorization()
 	}
@@ -91,9 +87,58 @@ func (s *endSessionService) resolve(ctx context.Context, input dto.OidcLogoutDto
 		return endSessionRequest{}, err
 	}
 
-	callbackURL, err := logoutCallbackURL(&authorizedClient.Client, input.PostLogoutRedirectUri)
-	if err != nil {
-		return endSessionRequest{}, err
+	var callbackURL string
+	if authorizedClient.Client.IsMetadataDocument() {
+		validateCIMD := s.validateCIMDClient
+		if validateCIMD == nil && s.store != nil {
+			if resolver, ok := s.store.clientResolver.(*cimdClientResolver); ok {
+				validateCIMD = resolver.policy.AllowCIMDClient
+			}
+		}
+		cimdAllowed := !authorizedClient.Client.Disabled &&
+			authorizedClient.Client.MetadataExpiresAt != nil &&
+			isCIMDClientCompatible(authorizedClient.Client) &&
+			(s.store == nil || !s.store.isCIMDInvalidatedForContext(ctx, clientID)) &&
+			(validateCIMD == nil || validateCIMD(ctx, clientID) == nil)
+		// Do not unconditionally extend expired CIMD metadata by the 24h outage allowance: resolve expired metadata first so reachable changes or mismatches take effect, and recheck surviving consent afterward
+		if cimdAllowed && authorizedClient.Client.MetadataExpiresAt.ToTime().Before(time.Now()) {
+			if s.store == nil || s.store.clientResolver == nil {
+				cimdAllowed = false
+			} else {
+				_, resolveErr := s.store.resolvePersistedClient(ctx, clientID)
+				// Always reload consent after discovery, including on errors such as ErrCIMDClientIDMismatch which revoke consent
+				refreshedAuth, reloadErr := s.loadAuthorizedClientSnapshot(ctx, clientID, subject)
+				if errors.Is(reloadErr, gorm.ErrRecordNotFound) {
+					return endSessionRequest{}, apperror.OidcMissingAuthorization()
+				}
+				if reloadErr != nil {
+					return endSessionRequest{}, reloadErr
+				}
+				authorizedClient = refreshedAuth
+				if resolveErr != nil {
+					cimdAllowed = false
+				} else {
+					cimdAllowed = !authorizedClient.Client.Disabled &&
+						isCIMDMetadataActive(authorizedClient.Client, time.Now()) &&
+						!s.store.isCIMDInvalidatedForContext(ctx, clientID) &&
+						(validateCIMD == nil || validateCIMD(ctx, clientID) == nil)
+				}
+			}
+		}
+		if !cimdAllowed {
+			// Suppress post-logout redirects for invalidated, disabled, expired-beyond-stale, or disallowed CIMD clients so surviving consents cannot redirect to untrusted callbacks
+			callbackURL = ""
+		} else {
+			callbackURL, err = cimdLogoutCallbackURL(&authorizedClient.Client, input.PostLogoutRedirectUri)
+			if err != nil {
+				return endSessionRequest{}, err
+			}
+		}
+	} else {
+		callbackURL, err = logoutCallbackURL(&authorizedClient.Client, input.PostLogoutRedirectUri)
+		if err != nil {
+			return endSessionRequest{}, err
+		}
 	}
 
 	return endSessionRequest{
@@ -105,6 +150,16 @@ func (s *endSessionService) resolve(ctx context.Context, input dto.OidcLogoutDto
 		callbackURL: callbackURL,
 		state:       input.State,
 	}, nil
+}
+
+// loadAuthorizedClientSnapshot reads user consent and the client's callback metadata in a single joined query so a concurrent CIMD refresh cannot pair revoked consent with newly written callbacks even inside a READ COMMITTED caller transaction
+func (s *endSessionService) loadAuthorizedClientSnapshot(ctx context.Context, clientID, userID string) (model.UserAuthorizedOidcClient, error) {
+	var authorizedClient model.UserAuthorizedOidcClient
+	err := dbFromContext(ctx, s.db).
+		InnerJoins("Client").
+		First(&authorizedClient, "user_authorized_oidc_clients.client_id = ? AND user_authorized_oidc_clients.user_id = ?", clientID, userID).
+		Error
+	return authorizedClient, err
 }
 
 // revokeClientGrant revokes the grant the ID token was issued with, unless it requested offline_access
@@ -156,6 +211,26 @@ func logoutCallbackURL(client *model.OidcClient, inputLogoutCallbackURL string) 
 	}
 
 	return matched, nil
+}
+
+// cimdLogoutCallbackURL enforces exact string matching per OIDC RP-Initiated Logout §3 (no wildcards, fragments, or unregistered loopback ports)
+func cimdLogoutCallbackURL(client *model.OidcClient, inputLogoutCallbackURL string) (string, error) {
+	if len(client.LogoutCallbackURLs) == 0 {
+		return "", nil
+	}
+	if inputLogoutCallbackURL == "" {
+		matched := matchExactRedirectURI([]string{client.LogoutCallbackURLs[0]}, "")
+		if matched == nil {
+			return "", nil
+		}
+		return matched.String(), nil
+	}
+
+	matched := matchExactRedirectURI([]string(client.LogoutCallbackURLs), inputLogoutCallbackURL)
+	if matched == nil {
+		return "", apperror.OidcInvalidCallbackURL()
+	}
+	return matched.String(), nil
 }
 
 func appendStateToURL(callbackURL string, state string) string {
