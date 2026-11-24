@@ -168,6 +168,7 @@ func initServices(
 		DB:              db,
 		Actors:          actors,
 		AppURL:          common.EnvConfig.AppURL,
+		TopOrigins:      common.EnvConfig.AllowedFrameAncestors,
 		HTTPClient:      fidoMetadataClient,
 		FidoMetadataURL: fidoMetadataURL,
 		Sessions:        svc.sessionModule,

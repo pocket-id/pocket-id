@@ -914,3 +914,97 @@ func queryValues(requests []mockSCIMRequest, method, path, key string) []string 
 	}
 	return values
 }
+
+// A resource ID with a reserved character must reach the provider escaped once, or updates and deletions go to an ID that doesn't exist
+func TestSCIMURLEscapesResourceIDOnce(t *testing.T) {
+	got, err := scimURL("https://scim.example.test/scim/v2/", "/Users/"+url.PathEscape("o'brien|a/b c"), nil)
+	require.NoError(t, err)
+	assert.Equal(t, "https://scim.example.test/scim/v2/Users/o%27brien%7Ca%2Fb%20c", got)
+}
+
+// A member the provider refuses must not keep a removed member in the group
+func TestSyncRemovesGroupMemberDespiteRefusedMember(t *testing.T) {
+	fixture := newSCIMSyncFixture(t, false)
+	carol := fixture.createUser(t, "user-carol", "carol", nil, false)
+	mallory := fixture.createUser(t, "user-mallory", "mallory", nil, false)
+	eve := fixture.createUser(t, "user-eve", "eve", nil, false)
+	group := fixture.createGroup(t, "group-editors", "editors", carol, eve)
+	fixture.transport.failCreates[eve.ID] = http.StatusConflict
+
+	for id, user := range map[string]string{"remote-carol": carol.ID, "remote-mallory": mallory.ID} {
+		fixture.transport.seedUser(ScimUser{ScimResourceData: ScimResourceData{ID: id, ExternalID: user, Schemas: []string{scimUserSchema}}, UserName: id, Active: true})
+	}
+	fixture.transport.seedGroup(ScimGroup{
+		ScimResourceData: ScimResourceData{ID: "remote-group", ExternalID: group.ID, Schemas: []string{scimGroupSchema}},
+		Display:          group.FriendlyName,
+		Members:          []ScimGroupMember{{Value: "remote-carol"}, {Value: "remote-mallory"}},
+	})
+
+	err := fixture.service.SyncServiceProvider(t.Context(), fixture.provider.ID)
+	require.ErrorContains(t, err, "status 409")
+	assert.Equal(t, []ScimGroupMember{{Value: "remote-carol"}}, fixture.transport.group("remote-group").Members)
+	fixture.requireLastSynced(t, false)
+}
+
+// stripMembersTransport removes "members" from group list responses, like providers that leave them out of a list
+type stripMembersTransport struct {
+	inner http.RoundTripper
+}
+
+func (s stripMembersTransport) RoundTrip(req *http.Request) (*http.Response, error) {
+	resp, err := s.inner.RoundTrip(req)
+	if err != nil || req.Method != http.MethodGet || req.URL.Path != "/Groups" {
+		return resp, err
+	}
+	defer resp.Body.Close()
+
+	var page map[string]any
+	err = json.NewDecoder(resp.Body).Decode(&page)
+	if err != nil {
+		return nil, err
+	}
+	resources, _ := page["Resources"].([]any)
+	for _, resource := range resources {
+		delete(resource.(map[string]any), "members")
+	}
+	body, err := json.Marshal(page)
+	if err != nil {
+		return nil, err
+	}
+	resp.Body = io.NopCloser(bytes.NewReader(body))
+	return resp, nil
+}
+
+// The last member of a group must lose it at the provider too, whether or not the provider's list returns members
+func TestSyncClearsEmptiedGroup(t *testing.T) {
+	for name, stripMembers := range map[string]bool{"list returns members": false, "list leaves members out": true} {
+		t.Run(name, func(t *testing.T) {
+			fixture := newSCIMSyncFixture(t, false)
+			if stripMembers {
+				fixture.service.httpClient = &http.Client{Transport: stripMembersTransport{inner: fixture.transport}}
+			}
+			user := fixture.createUser(t, "user-mallory", "mallory", nil, false)
+			group := fixture.createGroup(t, "group-operators", "operators")
+			fixture.transport.seedUser(ScimUser{
+				ScimResourceData: ScimResourceData{ID: "remote-user", ExternalID: user.ID, Schemas: []string{scimUserSchema}},
+				UserName:         user.Username,
+				Name:             &ScimName{GivenName: user.FirstName, FamilyName: user.LastName},
+				Display:          user.DisplayName,
+				Active:           true,
+			})
+			fixture.transport.seedGroup(ScimGroup{
+				ScimResourceData: ScimResourceData{ID: "remote-group", ExternalID: group.ID, Schemas: []string{scimGroupSchema}},
+				Display:          group.FriendlyName,
+				Members:          []ScimGroupMember{{Value: "remote-user"}},
+			})
+
+			require.NoError(t, fixture.service.SyncServiceProvider(t.Context(), fixture.provider.ID))
+
+			requests := fixture.transport.requestsSnapshot()
+			index := lastRequestIndex(requests, http.MethodPut, "/Groups/remote-group")
+			require.GreaterOrEqual(t, index, 0)
+			assert.Contains(t, string(requests[index].body), `"members":[]`)
+			assert.Empty(t, fixture.transport.group("remote-group").Members)
+		})
+	}
+}

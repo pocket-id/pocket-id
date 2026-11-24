@@ -9,6 +9,7 @@ import (
 
 	"github.com/pocket-id/pocket-id/backend/internal/authz"
 	"github.com/pocket-id/pocket-id/backend/internal/mcp"
+	"github.com/pocket-id/pocket-id/backend/internal/utils"
 )
 
 // Origin is who performed an audited action and where their request came from
@@ -59,13 +60,16 @@ var credentialKinds = map[authz.PrincipalKind]string{
 // An empty userID records an action that concerns no user, such as creating a client
 // A nil tx writes the entry on its own, for callers that keep no database transaction
 func (s *service) Record(ctx context.Context, event Event, origin Origin, userID string, data Data, tx *gorm.DB) (AuditLog, bool) {
+	// The action has already happened, so a client that hangs up at this point must not keep it out of the log
+	ctx = context.WithoutCancel(ctx)
+
 	if tx == nil {
 		tx = s.db
 	}
 	if data == nil {
 		data = Data{}
 	}
-	entry := AuditLog{Event: event, UserAgent: origin.UserAgent, UserID: userID, Data: data}
+	entry := AuditLog{Event: event, UserAgent: utils.TruncateUserAgent(origin.UserAgent), UserID: userID, Data: data}
 	setActor(ctx, tx, origin, &entry)
 	addCredential(ctx, tx, origin, data)
 	return s.insert(ctx, entry, origin.IPAddress, tx)

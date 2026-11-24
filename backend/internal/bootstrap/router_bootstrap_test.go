@@ -10,8 +10,11 @@ import (
 	"crypto/x509/pkix"
 	"encoding/json"
 	"encoding/pem"
+	"fmt"
+	"io"
 	"log/slog"
 	"math/big"
+	"net"
 	"net/http"
 	"net/http/httptest"
 	"os"
@@ -155,6 +158,35 @@ func TestRequestLoggerKeepsAllFieldsAtDebugLevel(t *testing.T) {
 	require.Contains(t, logLine, "user_agent=test-agent")
 }
 
+func TestRequestLoggerBoundsClientValues(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+
+	previousConfig := common.EnvConfig
+	common.EnvConfig.LogLevel = "debug"
+	var output bytes.Buffer
+	previousLogger := slog.Default()
+	slog.SetDefault(slog.New(slog.NewTextHandler(&output, nil)))
+	t.Cleanup(func() {
+		common.EnvConfig = previousConfig
+		slog.SetDefault(previousLogger)
+	})
+
+	router := gin.New()
+	initLogger(router)
+	router.NoRoute(func(c *gin.Context) {
+		c.Status(http.StatusNotFound)
+	})
+
+	request := httptest.NewRequestWithContext(t.Context(), http.MethodGet, "/x%0Afake"+strings.Repeat("a", 10_000), nil)
+	request.Header.Set("User-Agent", strings.Repeat("b", 10_000))
+	router.ServeHTTP(httptest.NewRecorder(), request)
+
+	// The path stays escaped in the message so a decoded newline can't forge a line in a log that writes it raw
+	logLine := output.String()
+	require.Contains(t, logLine, `msg="GET /x%0Afake`)
+	require.Less(t, len(logLine), 4096)
+}
+
 func TestRequestLoggerKeepsRateLimitsAtWarningLevel(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 
@@ -268,6 +300,45 @@ func TestRequestLoggerOmitsTokens(t *testing.T) {
 
 			require.Contains(t, output.String(), " "+wantPath+" ")
 			require.NotContains(t, output.String(), "secret")
+		})
+	}
+}
+
+// A HEAD response with a body, or one that closes the connection unannounced, makes a reverse proxy fail the next request it sends on that connection
+func TestHeadResponsesHaveNoBodyAndKeepConnectionOpen(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+
+	router := gin.New()
+	router.Use(middleware.HeadMiddleware())
+	router.GET("/api/users", func(c *gin.Context) {
+		c.String(http.StatusOK, "users")
+	})
+
+	server := httptest.NewServer(newHTTPServer(router, nil).Handler)
+	t.Cleanup(server.Close)
+
+	// The path with the trailing slash is answered by Gin's redirect, which doesn't run any middleware
+	responses := map[string]string{
+		"/api/users":  "HTTP/1.1 200 OK\r\n",
+		"/api/users/": "HTTP/1.1 301 Moved Permanently\r\n",
+	}
+	for path, wantStatusLine := range responses {
+		t.Run(path, func(t *testing.T) {
+			conn, err := (&net.Dialer{}).DialContext(t.Context(), "tcp", server.Listener.Addr().String())
+			require.NoError(t, err)
+			t.Cleanup(func() { _ = conn.Close() })
+
+			// Send a second request on the same connection to see what follows the response to the HEAD request
+			_, err = fmt.Fprintf(conn, "HEAD %s HTTP/1.1\r\nHost: localhost\r\n\r\nGET /api/users HTTP/1.1\r\nHost: localhost\r\nConnection: close\r\n\r\n", path)
+			require.NoError(t, err)
+			stream, err := io.ReadAll(conn)
+			require.NoError(t, err)
+
+			headResponse, nextResponse, found := strings.Cut(string(stream), "\r\n\r\n")
+			require.True(t, found)
+			require.True(t, strings.HasPrefix(headResponse, wantStatusLine), headResponse)
+			require.True(t, strings.HasPrefix(nextResponse, "HTTP/1.1 200 OK\r\n"), "bytes after the HEAD response: %q", nextResponse)
+			require.True(t, strings.HasSuffix(nextResponse, "\r\n\r\nusers"), nextResponse)
 		})
 	}
 }

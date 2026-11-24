@@ -193,8 +193,8 @@ func (s *Service) SignUpInitialAdmin(ctx context.Context, config *appconfig.AppC
 		return model.User{}, "", err
 	}
 
-	// Reject setup when a committed user already exists
-	setupCompleted, err := s.isInitialAdminSetupCompleted(ctx, tx)
+	// Reject setup when a committed user already exists or the first admin comes from LDAP
+	setupCompleted, err := s.isInitialAdminSetupCompleted(ctx, tx, config)
 	if err != nil {
 		return model.User{}, "", err
 	}
@@ -248,11 +248,13 @@ func lockInitialAdminSetup(ctx context.Context, tx *gorm.DB) error {
 	return nil
 }
 
-func (s *Service) IsInitialAdminSetupCompleted(ctx context.Context) (bool, error) {
-	return s.isInitialAdminSetupCompleted(ctx, s.db)
-}
+func (s *Service) isInitialAdminSetupCompleted(ctx context.Context, db *gorm.DB, config *appconfig.AppConfigModel) (bool, error) {
+	// An LDAP sync that deletes the users missing from the directory can empty the users table, which must not reopen the setup to whoever visits it first
+	// An instance with LDAP gets its first admin from the directory instead
+	if config.LdapEnabled.IsTrue() {
+		return true, nil
+	}
 
-func (s *Service) isInitialAdminSetupCompleted(ctx context.Context, db *gorm.DB) (bool, error) {
 	var exists bool
 	err := db.WithContext(ctx).Raw("SELECT EXISTS (SELECT 1 FROM users)").Scan(&exists).Error
 	return exists, err

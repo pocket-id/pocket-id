@@ -367,8 +367,9 @@ func (s *Store) InvalidateAuthorizeCodeSession(ctx context.Context, _ string, si
 	err := s.deactivateSession(ctx, sessionKindAuthorizeCode, signature)
 
 	// The code was active when the token request read it, so a missing active row means a concurrent request redeemed it first
+	// Fosite treats that as a second use of the code and revokes the tokens of its grant
 	if errors.Is(err, fosite.ErrNotFound) {
-		return fosite.ErrInvalidGrant.WithHint("The authorization code has already been used.")
+		return fosite.ErrInvalidatedAuthorizeCode
 	}
 	return err
 }
@@ -441,9 +442,11 @@ func (s *Store) RotateRefreshToken(ctx context.Context, requestID string, refres
 // Satisfies fositeoauth2.TokenRevocationStorage
 
 func (s *Store) RevokeRefreshToken(ctx context.Context, requestID string) error {
+	// Only usable tokens need revoking, so replaying a spent code does not rewrite every refresh token the grant ever had
 	return s.dbFor(ctx).
 		Model(&OAuth2Session{}).
 		Where("kind = ? AND request_id = ?", sessionKindRefreshToken, requestID).
+		Where("active = ? OR rotated_at > ?", true, datatype.DateTime(time.Now().UTC().Add(-refreshTokenGracePeriod))).
 		Updates(map[string]any{"active": false, "rotated_at": nil}).
 		Error
 }
@@ -654,6 +657,7 @@ func (s *Store) revokeRequestIDs(ctx context.Context, requestIDs []string) error
 	if err := s.dbFor(ctx).
 		Model(&OAuth2Session{}).
 		Where("kind = ? AND request_id IN ?", sessionKindRefreshToken, requestIDs).
+		Where("active = ? OR rotated_at > ?", true, datatype.DateTime(time.Now().UTC().Add(-refreshTokenGracePeriod))).
 		Updates(map[string]any{"active": false, "rotated_at": nil}).
 		Error; err != nil {
 		return err
@@ -813,7 +817,8 @@ func (s *Store) InvalidateDeviceCodeSession(ctx context.Context, signature strin
 	}
 	if result.RowsAffected == 0 {
 		// The device code was active when the token request read it, so a concurrent request redeemed it first
-		return fosite.ErrInvalidGrant.WithHint("The device code has already been used.")
+		// Fosite treats that as a second use of the device code and revokes the tokens of its grant
+		return fosite.ErrInvalidatedDeviceCode
 	}
 	return nil
 }

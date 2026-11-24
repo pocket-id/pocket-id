@@ -124,7 +124,16 @@
 			step === 'consent' ? selectedScopes : undefined
 		);
 		if (result.interaction) {
+			// A step that is still required did not count, because another account has signed in since this page loaded
+			// The page still shows the previous account, so it starts over for the new one
+			if (result.interaction.requiredSteps.includes(step)) {
+				window.location.reload();
+				return;
+			}
+
 			interactionSession = result.interaction;
+			// The scopes on offer can change with the interaction, so a selection made for the previous one never carries over
+			selectedScopes = [...(result.interaction.scopes ?? [])];
 			if (interactionSession.currentStep == 'reauthenticate') {
 				await handlePipeline();
 			}

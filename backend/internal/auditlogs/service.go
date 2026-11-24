@@ -6,7 +6,6 @@ import (
 	"log/slog"
 	"time"
 
-	userAgentParser "github.com/mileusna/useragent"
 	"gorm.io/gorm"
 	"gorm.io/gorm/clause"
 
@@ -117,7 +116,7 @@ func (s *service) ListAuditLogsForUser(ctx context.Context, userID string, dateR
 }
 
 func (s *service) DeviceStringFromUserAgent(userAgent string) string {
-	ua := userAgentParser.Parse(userAgent)
+	ua := utils.ParseUserAgent(userAgent)
 	// API clients such as curl or Terraform report no operating system
 	if ua.OS == "" {
 		return ua.Name

@@ -3,9 +3,12 @@ package utils
 import (
 	"crypto/rand"
 	"encoding/base64"
+	"net/url"
 	"strings"
 
 	"github.com/gin-gonic/gin"
+
+	"github.com/pocket-id/pocket-id/backend/internal/common"
 )
 
 const cspNonceContextKey = "csp_nonce"
@@ -32,7 +35,23 @@ func BuildCSP(nonce string) string {
 
 // BuildFormPostCSP builds the Content-Security-Policy for an OIDC response_mode=form_post page
 func BuildFormPostCSP(nonce, redirectURI, scriptHash string) string {
-	return buildCSP(nonce, []string{redirectURI}, []string{scriptHash})
+	return buildCSP(nonce, []string{formActionSource(redirectURI)}, []string{scriptHash})
+}
+
+// formActionSource returns the origin of the redirect URI as a CSP source expression, or an empty string if it has none
+// The path and query are left out because the client chooses them and they may contain the ";", "," and whitespace that end a directive or a policy
+func formActionSource(redirectURI string) string {
+	u, err := url.Parse(redirectURI)
+	if err != nil || u.Scheme == "" || u.Host == "" {
+		return ""
+	}
+	origin := (&url.URL{Scheme: u.Scheme, Host: u.Host}).String()
+
+	// net/url accepts these delimiters in a host too
+	if strings.ContainsAny(origin, ";, \t\n\f\r") {
+		return ""
+	}
+	return origin
 }
 
 func buildCSP(nonce string, formActionExtra, scriptSrcExtra []string) string {
@@ -62,10 +81,16 @@ func buildCSP(nonce string, formActionExtra, scriptSrcExtra []string) string {
 		formAction += b.String()
 	}
 
+	// Only the origins the admin allowed may embed Pocket ID, because framing exposes it to clickjacking
+	frameAncestors := "'none'"
+	if len(common.EnvConfig.AllowedFrameAncestors) > 0 {
+		frameAncestors = strings.Join(common.EnvConfig.AllowedFrameAncestors, " ")
+	}
+
 	return "default-src 'self'; " +
 		"base-uri 'self'; " +
 		"object-src 'none'; " +
-		"frame-ancestors 'none'; " +
+		"frame-ancestors " + frameAncestors + "; " +
 		"form-action " + formAction + "; " +
 		"img-src * blob:;" +
 		"font-src 'self'; " +

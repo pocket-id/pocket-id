@@ -161,13 +161,25 @@ func loopbackURLWithWildcardPort(input string) string {
 	return u.String()
 }
 
+const maxCallbackURLLength = 2048
+
 // matchCallbackURL checks if the input callback URL matches the given pattern.
 // It supports wildcard matching for paths and query parameters.
 //
 // The base URL (scheme, userinfo, host, port) and query parameters supports single '*' wildcards only,
 // while the path supports both single '*' and double '**' wildcards.
 func matchCallbackURL(pattern string, inputCallbackURL string) (matches bool, err error) {
-	if pattern == inputCallbackURL || pattern == "*" {
+	if pattern == inputCallbackURL {
+		return true, nil
+	}
+
+	// The WHATWG parser behind urlpattern, and the callers that parse a matched URL again, take quadratic time for a URL with many path segments
+	// A URL longer than any real one can therefore only match a pattern it equals
+	if len(inputCallbackURL) > maxCallbackURLLength {
+		return false, nil
+	}
+
+	if pattern == "*" {
 		return true, nil
 	}
 
@@ -199,8 +211,9 @@ func matchCallbackURL(pattern string, inputCallbackURL string) (matches bool, er
 	// Validate the rest of the URL using urlpattern
 	p, err := urlpattern.New(pattern, "", nil)
 	if err != nil {
+		// The pattern can come from a client metadata document, and urlpattern's error repeats it once per character
 		//nolint:nilerr
-		slog.Warn("invalid callback URL pattern, skipping", "pattern", pattern, "error", err)
+		slog.Warn("invalid callback URL pattern, skipping", "pattern", Truncate(pattern, 200), "error", Truncate(err.Error(), 200))
 		return false, nil
 	}
 

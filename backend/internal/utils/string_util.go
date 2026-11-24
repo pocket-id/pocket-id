@@ -8,6 +8,7 @@ import (
 	"regexp"
 	"strings"
 	"unicode"
+	"unicode/utf8"
 )
 
 // GenerateRandomAlphanumericString generates a random alphanumeric string of the given length
@@ -115,4 +116,15 @@ func GetFirstCharacter(str string) string {
 
 	// Empty string case
 	return ""
+}
+
+// Truncate shortens s to at most maxBytes bytes without splitting a multi-byte character
+func Truncate(s string, maxBytes int) string {
+	if len(s) <= maxBytes {
+		return s
+	}
+	for maxBytes > 0 && !utf8.RuneStart(s[maxBytes]) {
+		maxBytes--
+	}
+	return s[:maxBytes]
 }

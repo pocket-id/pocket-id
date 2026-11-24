@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"strconv"
+	"strings"
 	"testing"
 	"time"
 
@@ -11,6 +12,7 @@ import (
 
 	"github.com/pocket-id/pocket-id/backend/internal/appconfig"
 	"github.com/pocket-id/pocket-id/backend/internal/model"
+	"github.com/pocket-id/pocket-id/backend/internal/utils"
 	testutils "github.com/pocket-id/pocket-id/backend/internal/utils/testing"
 )
 
@@ -80,6 +82,22 @@ func TestSignInWithoutAddress(t *testing.T) {
 	require.True(t, first.Notify)
 	require.Nil(t, first.AuditLog.IpAddress)
 	second := s.CreateSignIn(t.Context(), EventSignIn, "", "browser", user.ID, "", db, appconfig.LoginNotificationBrowserRecognition)
+	require.False(t, second.Notify)
+}
+
+func TestSignInWithOverlongUserAgent(t *testing.T) {
+	db := testutils.NewDatabaseForTest(t)
+	s := newService(db, nil, signInLocationResolver{}, nil, browserTokenStub{})
+	user := model.User{Base: model.Base{ID: "user"}, Username: "user"}
+	require.NoError(t, db.Create(&user).Error)
+	agent := "Mozilla/5.0 " + strings.Repeat("a", 10_000)
+
+	// The stored User-Agent is truncated and a repeated sign-in still matches it
+	first := s.CreateSignIn(t.Context(), EventSignIn, "192.0.2.1", agent, user.ID, "", db, appconfig.LoginNotificationIPAndUserAgent)
+	require.True(t, first.Notify)
+	require.Equal(t, utils.TruncateUserAgent(agent), first.AuditLog.UserAgent)
+	require.Len(t, first.AuditLog.UserAgent, 512)
+	second := s.CreateSignIn(t.Context(), EventSignIn, "192.0.2.1", agent, user.ID, "", db, appconfig.LoginNotificationIPAndUserAgent)
 	require.False(t, second.Notify)
 }
 

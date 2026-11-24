@@ -81,7 +81,7 @@ func (s *Service) Create(ctx context.Context, ipAddress, userAgent string) (Requ
 			Code:            code,
 			DeviceTokenHash: deviceTokenHash,
 			IPAddress:       ipAddress,
-			UserAgent:       userAgent,
+			UserAgent:       utils.TruncateUserAgent(userAgent),
 		})
 		if err != nil {
 			return Request{}, "", err

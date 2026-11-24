@@ -6,6 +6,7 @@ import type {
 } from '#lib/types/api-key.type.ts';
 import type { ListRequestOptions, Paginated } from '#lib/types/list-request.type.ts';
 import APIService from './api-service';
+import { pathSegment } from '#lib/utils/path-segment-util.ts';
 
 export default class ApiKeyService extends APIService {
 	list = async (options?: ListRequestOptions) => {
@@ -19,7 +20,7 @@ export default class ApiKeyService extends APIService {
 	};
 
 	update = async (id: string, data: ApiKeyUpdate): Promise<ApiKey> => {
-		const res = await this.api.put(`/api-keys/${id}`, data);
+		const res = await this.api.put(`/api-keys/${pathSegment(id)}`, data);
 		return res.data as ApiKey;
 	};
 
@@ -28,7 +29,7 @@ export default class ApiKeyService extends APIService {
 		expiresAt: Date,
 		gracePeriodHours: number
 	): Promise<ApiKeyResponse> => {
-		const res = await this.api.post(`/api-keys/${id}/renew`, {
+		const res = await this.api.post(`/api-keys/${pathSegment(id)}/renew`, {
 			expiresAt,
 			gracePeriodHours
 		});
@@ -36,6 +37,6 @@ export default class ApiKeyService extends APIService {
 	};
 
 	revoke = async (id: string): Promise<void> => {
-		await this.api.delete(`/api-keys/${id}`);
+		await this.api.delete(`/api-keys/${pathSegment(id)}`);
 	};
 }

@@ -1,6 +1,7 @@
 package oidc
 
 import (
+	"encoding/json"
 	"io"
 	"net/http"
 	"net/http/httptest"
@@ -99,25 +100,6 @@ func TestClientService_RevokeAuthorizedClientRevokesAccessTokenWithoutRefreshTok
 	require.ErrorIs(t, err, fosite.ErrNotFound)
 	_, err = store.GetAccessTokenSession(t.Context(), "other-access", nil)
 	require.NoError(t, err, "another user's access token must stay valid")
-}
-
-func TestClientService_RevokeAuthorizedClientDeletesInteractionSessions(t *testing.T) {
-	db := testutils.NewDatabaseForTest(t)
-	const (
-		clientID = "revoked-client"
-		userID   = "revoking-user"
-	)
-	require.NoError(t, db.Create(&model.OidcClient{Base: model.Base{ID: clientID}, Name: "Client"}).Error)
-	require.NoError(t, db.Create(&model.User{Base: model.Base{ID: userID}, Username: userID}).Error)
-	require.NoError(t, db.Create(&model.UserAuthorizedOidcClient{UserID: userID, ClientID: clientID}).Error)
-	require.NoError(t, db.Create(&InteractionSession{ClientID: clientID, UserID: new(userID)}).Error)
-
-	service := &clientService{db: db, auditLog: &fakeAuditLogger{}}
-	require.NoError(t, service.RevokeAuthorizedClient(t.Context(), userID, clientID, auditlogs.Origin{}))
-
-	var count int64
-	require.NoError(t, db.Model(&InteractionSession{}).Count(&count).Error)
-	require.Zero(t, count, "a finished interaction must not be resumable after the user revoked the client")
 }
 
 func TestClientService_RefreshClientMetadataReturnsNotFoundForMissingClient(t *testing.T) {
@@ -1347,4 +1329,33 @@ func TestClientService_UpdateClient_recordsChangedSettings(t *testing.T) {
 
 	assert.Equal(t, []auditlogs.Event{auditlogs.EventClientUpdated}, auditLog.events)
 	assert.Equal(t, auditlogs.Data{"clientID": client.ID, "clientName": "Photos", "changes": "callbackURLs, pkceEnabled"}, auditLog.data[0])
+}
+
+// Removing the last pinned key must not silently switch the credential to the issuer's own keys
+func TestClientService_UpdateClient_refusesEmptyPublicKeyList(t *testing.T) {
+	db := testutils.NewDatabaseForTest(t)
+	require.NoError(t, claimmappingpolicy.Bootstrap(t.Context(), db))
+	s := &clientService{db: db, auditLog: &fakeAuditLogger{}}
+
+	pinnedKey := json.RawMessage(`{"kty":"OKP","crv":"Ed25519","kid":"pinned","x":"11qYAYKxCrfVS_7TyWQHOg7hcvPapiMlrwIaaPcHURo"}`)
+	client := model.OidcClient{
+		Name: "Pinned Client",
+		Credentials: model.OidcClientCredentials{
+			FederatedIdentities: []model.OidcClientFederatedIdentity{{Issuer: "https://issuer.example.com", PublicKeys: []json.RawMessage{pinnedKey}}},
+		},
+	}
+	require.NoError(t, db.Create(&client).Error)
+
+	_, err := s.UpdateClient(t.Context(), client.ID, dto.Replace(dto.OidcClientUpdateDto{
+		Name:                 client.Name,
+		ClaimMappingPolicyId: claimmappingpolicy.BuiltInClaimMappingPolicyID,
+		Credentials: dto.OidcClientCredentialsDto{
+			FederatedIdentities: []dto.OidcClientFederatedIdentityDto{{Issuer: "https://issuer.example.com", PublicKeys: []json.RawMessage{}}},
+		},
+	}), auditlogs.Origin{})
+	require.ErrorContains(t, err, "needs at least one public key")
+
+	var fetched model.OidcClient
+	require.NoError(t, db.First(&fetched, "id = ?", client.ID).Error)
+	require.Len(t, fetched.Credentials.FederatedIdentities[0].PublicKeys, 1)
 }

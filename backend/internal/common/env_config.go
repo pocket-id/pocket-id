@@ -22,6 +22,7 @@ type (
 	AppEnv                            string
 	DbProvider                        string
 	TrustProxyConfig                  []string
+	FrameAncestorsConfig              []string
 	DismissSQLiteStorageWarningConfig bool
 )
 
@@ -76,6 +77,10 @@ type EnvConfigSchema struct {
 	DisableRateLimiting       bool             `env:"DISABLE_RATE_LIMITING"`
 	VersionCheckDisabled      bool             `env:"VERSION_CHECK_DISABLED"`
 	StaticApiKey              string           `env:"STATIC_API_KEY" options:"file"`
+
+	// AllowedFrameAncestors lists the origins that may embed Pocket ID in an iframe and sign in with a passkey there
+	// Signing in only sticks when they are on the same site as Pocket ID, because its cookies are SameSite=Lax
+	AllowedFrameAncestors FrameAncestorsConfig `env:"ALLOWED_FRAME_ANCESTORS"`
 
 	FileBackend                     string `env:"FILE_BACKEND" options:"toLower"`
 	UploadPath                      string `env:"UPLOAD_PATH"`
@@ -697,5 +702,21 @@ func (config *TrustProxyConfig) UnmarshalText(text []byte) error {
 	}
 
 	*config = proxies
+	return nil
+}
+
+func (config *FrameAncestorsConfig) UnmarshalText(text []byte) error {
+	origins := strings.Split(string(text), ",")
+	for i, origin := range origins {
+		// Accept only a bare origin, because the browser and go-webauthn compare it with the embedding page's origin
+		// The characters checked last would end the source list in the Content-Security-Policy header, and net/url accepts them in a host
+		u, err := url.Parse(strings.TrimSpace(origin))
+		if err != nil || (u.Scheme != "http" && u.Scheme != "https") || u.Host == "" || u.User != nil || (u.Path != "" && u.Path != "/") || u.RawQuery != "" || u.Fragment != "" || strings.ContainsAny(u.Host, ";'*") {
+			return fmt.Errorf("invalid frame ancestor %q, it must be an HTTP or HTTPS origin like https://dashboard.example.com", origin)
+		}
+		origins[i] = strings.ToLower(u.Scheme + "://" + u.Host)
+	}
+
+	*config = origins
 	return nil
 }

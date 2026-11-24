@@ -164,6 +164,42 @@ func TestFederatedClientAuthenticatorAssertionValidation(t *testing.T) {
 		require.Empty(t, store.jtis)
 	})
 
+	t.Run("oversized assertion is rejected", func(t *testing.T) {
+		authenticator, _ := newAuthenticator(t, false)
+		signPadded := func(padding int) string {
+			return signAssertion(t, func(b *jwt.Builder) *jwt.Builder {
+				return b.Expiration(time.Now().Add(5*time.Minute)).Claim("padding", strings.Repeat("a", padding))
+			})
+		}
+
+		client, err := authenticator.authenticateAssertion(t.Context(), signPadded(maxClientAssertionLength/2), clientID)
+		require.NoError(t, err)
+		require.Equal(t, clientID, client.GetID())
+
+		// Valid apart from its length, so only the length check rejects it
+		_, err = authenticator.authenticateAssertion(t.Context(), signPadded(maxClientAssertionLength), clientID)
+		require.ErrorIs(t, err, fosite.ErrInvalidClient)
+	})
+
+	t.Run("assertion with a wrong key gets the same answer whether or not the client trusts its issuer", func(t *testing.T) {
+		authenticator, _ := newAuthenticator(t, true)
+		unrelatedKey, err := jwkutils.GenerateKey(jwa.RS256().String(), "")
+		require.NoError(t, err)
+
+		answerFor := func(assertionIssuer string) string {
+			token, err := jwt.NewBuilder().Issuer(assertionIssuer).Build()
+			require.NoError(t, err)
+			assertion, err := jwt.Sign(token, jwt.WithKey(jwa.RS256(), unrelatedKey))
+			require.NoError(t, err)
+
+			_, err = authenticator.authenticateAssertion(t.Context(), string(assertion), clientID)
+			require.ErrorIs(t, err, fosite.ErrInvalidClient)
+			return fosite.ErrorToRFC6749Error(err).GetDescription()
+		}
+
+		require.Equal(t, answerFor(issuer), answerFor("https://untrusted-idp.example.com"))
+	})
+
 	t.Run("assertion without exp is rejected", func(t *testing.T) {
 		authenticator, _ := newAuthenticator(t, true)
 		assertion := signAssertion(t, func(b *jwt.Builder) *jwt.Builder {
@@ -171,6 +207,16 @@ func TestFederatedClientAuthenticatorAssertionValidation(t *testing.T) {
 		})
 		_, err := authenticator.authenticateAssertion(t.Context(), assertion, clientID)
 		require.ErrorIs(t, err, fosite.ErrInvalidClient)
+	})
+
+	t.Run("assertion that expires after the year 9999 is rejected and not remembered", func(t *testing.T) {
+		authenticator, store := newAuthenticator(t, true)
+		assertion := signAssertion(t, func(b *jwt.Builder) *jwt.Builder {
+			return b.JwtID("far-future-token").Expiration(time.Unix(253402300800, 0))
+		})
+		_, err := authenticator.authenticateAssertion(t.Context(), assertion, clientID)
+		require.ErrorIs(t, err, fosite.ErrInvalidClient)
+		require.Empty(t, store.jtis)
 	})
 
 	t.Run("assertion without jti is rejected when replay protection is enabled", func(t *testing.T) {
@@ -404,6 +450,25 @@ func TestFederatedClientAuthenticatorConfiguredPublicKeys(t *testing.T) {
 
 		_, err := authenticator.authenticateAssertion(t.Context(), signAssertion(t, otherSigningKey), clientID)
 		require.ErrorIs(t, err, fosite.ErrInvalidClient)
+	})
+
+	t.Run("keys that cannot be loaded get the same answer as an unknown key", func(t *testing.T) {
+		signingKey, publicKey := generateKeyPair(t)
+		otherSigningKey, _ := generateKeyPair(t)
+
+		_, unknownKeyErr := newAuthenticator(t, model.OidcClientFederatedIdentity{
+			Issuer:     issuer,
+			PublicKeys: []json.RawMessage{publicKey},
+		}).authenticateAssertion(t.Context(), signAssertion(t, otherSigningKey), clientID)
+		require.ErrorIs(t, unknownKeyErr, fosite.ErrInvalidClient)
+
+		_, unloadableKeysErr := newAuthenticator(t, model.OidcClientFederatedIdentity{
+			Issuer:     issuer,
+			PublicKeys: []json.RawMessage{json.RawMessage(`{"kty":"invalid"}`)},
+		}).authenticateAssertion(t.Context(), signAssertion(t, signingKey), clientID)
+		require.ErrorIs(t, unloadableKeysErr, fosite.ErrInvalidClient)
+
+		require.Equal(t, fosite.ErrorToRFC6749Error(unknownKeyErr).GetDescription(), fosite.ErrorToRFC6749Error(unloadableKeysErr).GetDescription())
 	})
 
 	t.Run("configured public keys take precedence over a JWKS URL", func(t *testing.T) {

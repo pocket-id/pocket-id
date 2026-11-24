@@ -343,7 +343,6 @@ func (s *Service) SeedDatabase(baseURL string) error {
 			},
 			Scopes:          datatype.StringList{"openid"},
 			ClientID:        oidcClients[0].ID,
-			UserID:          new(users[0].ID),
 			ConsentRequired: true,
 			RequestedAt:     farFuture,
 			Parameters: oidc.InteractionSessionParameters{

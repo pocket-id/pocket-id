@@ -27,7 +27,7 @@ import (
 // This file is the only upgrade code in Pocket ID: when it finds such a database it takes that program from a file next to the Pocket ID binary or downloads it, and runs it only if it is the exact file pinned below
 
 const (
-	upgradeToolVersion = "v3.2.0"
+	upgradeToolVersion = "v3.2.1"
 
 	// upgradeToolMaxSize is far above the size of a released file, and a download cut off by it fails the checksum
 	upgradeToolMaxSize = 128 << 20
@@ -38,16 +38,16 @@ const (
 
 // upgradeToolChecksums holds the SHA-256 checksum of each released gzipped binary of upgradeToolVersion, keyed by GOOS/GOARCH
 var upgradeToolChecksums = map[string]string{
-	"darwin/amd64":  "08dd022d30914c75e5e21237d462db4c240a011ab025e695e1b00503643905c2",
-	"darwin/arm64":  "80a4b93f978cdebfd7906363088ac862825e2333a514b924eb0716821e3f945d",
-	"freebsd/amd64": "d20926c7979b0c8afaab47e639606de7f748f5190cc41b5129752bb75b9e20f5",
-	"freebsd/arm64": "c8a8c910da412dd81bc835b40b1e63fa8949265eb1b5a856639494eb656dfcaf",
-	"linux/amd64":   "09d732917e0998a4246ed47ea27a0c8f5998ab5fcde67a7e81b0b32e8d4f1a6f",
-	"linux/arm64":   "587e73deab2820c1189031fa57c445036d0a7b6e1b5d58b7e6f892dcc8787e92",
-	"openbsd/amd64": "ad031bce20eca91f5ee9bf16ae6d2d67e38fbe0e621a4b5b868f3f41d3719e66",
-	"openbsd/arm64": "1cf0c38fe94e7d707569d03096defab2ae1004cbfd98c1910755eff9e6960224",
-	"windows/amd64": "a69052d886e4e8b5f58e54744dd5dadb68d2ed3cb244d1c37a676b2c246dd98a",
-	"windows/arm64": "0ed19b6e3af5a772858fdc2810f273dd6b04c685fb2337f6cc32ab4d7c500aae",
+	"darwin/amd64":  "630ffa16b963b4855bd072e57ad50bc864fc10d52eb7e4139f8abd4721d34833",
+	"darwin/arm64":  "ff679b17936f884b15afdfb922ff6f26b86e11e45a02354a02eb1b1e278def49",
+	"freebsd/amd64": "46c3048646a0d2bf1ec88d5a7f5fab0f25dbfd6f4754da307a754a7444fbac11",
+	"freebsd/arm64": "25ecfd60eb95623d6e3f9ea9098495331a96471cd64cab58eeb7f23674e877bf",
+	"linux/amd64":   "1f5d1f3723cc159c474ef488a8306d71ff90b19fac1017d3eb5e45a6a3aebcf5",
+	"linux/arm64":   "7f397c716d0bed0e2e4a31de85008ce2ac0378b1658fb44f48a75c161e8b8026",
+	"openbsd/amd64": "e8968e0f1079fa4d41cc4b52c48d3ac83a49be19d38dc22c642f75aa6df12225",
+	"openbsd/arm64": "b08fe7a664ac45a452f280f98e7a2057b9a5132b349bbd4ecccb962934d6943f",
+	"windows/amd64": "fd25f1d7555d65020e913c89dddbb8539f20f4a11e430bce12eff2ba93763e98",
+	"windows/arm64": "02fafc730ac1ed0def9b5536e89c26cc6c5e6ef71692ad8a7966fe42bd8bed0a",
 }
 
 // upgradeLegacyDatabase runs the upgrade tool if the database was last used by Pocket ID v1 or v2

@@ -29,7 +29,11 @@ import (
 func newTestUserService(t *testing.T) *Service {
 	t.Helper()
 
-	db := testutils.NewDatabaseForTest(t)
+	return newTestUserServiceOn(t, testutils.NewDatabaseForTest(t))
+}
+
+func newTestUserServiceOn(t *testing.T, db *gorm.DB) *Service {
+	t.Helper()
 
 	fileStorage, err := storage.NewDatabaseStorage(db)
 	require.NoError(t, err)
@@ -477,6 +481,46 @@ func TestMarkingEmailVerifiedClearsSignupDeadline(t *testing.T) {
 	stored, err := userService.GetUser(t.Context(), user.ID)
 	require.NoError(t, err)
 	require.Nil(t, stored.EmailVerificationDeadline)
+}
+
+// The setting can be turned on while users without an email exist, and an admin must still be able to change or disable them
+func TestUpdateUserWithoutEmailWhileEmailsAreRequired(t *testing.T) {
+	userService := newTestUserService(t)
+	config := &appconfig.AppConfigModel{RequireUserEmail: "true"}
+	withoutEmail := model.User{Username: "without-email"}
+	require.NoError(t, userService.db.Create(&withoutEmail).Error)
+	withEmail := model.User{Username: "with-email", Email: new("with-email@example.com")}
+	require.NoError(t, userService.db.Create(&withEmail).Error)
+
+	updated, err := userService.UpdateUser(t.Context(), config, withoutEmail.ID, dto.Replace(dto.UserCreateDto{Username: "without-email", Disabled: true}), false, false, auditlogs.Origin{})
+	require.NoError(t, err)
+	require.True(t, updated.Disabled)
+
+	_, err = userService.UpdateUser(t.Context(), config, withEmail.ID, dto.Replace(dto.UserCreateDto{Username: "with-email"}), false, false, auditlogs.Origin{})
+	require.True(t, apperror.IsCode(err, apperror.CodeValidationFailed))
+}
+
+// Relying parties often compare addresses without their letter case, so two accounts must not hold spellings of one address
+func TestEmailIsUniqueWithoutRegardToLetterCase(t *testing.T) {
+	testutils.ForEachDatabase(t, func(t *testing.T, db *gorm.DB) {
+		userService := newTestUserServiceOn(t, db)
+		config := &appconfig.AppConfigModel{RequireUserEmail: "false"}
+
+		kim, err := userService.CreateUser(t.Context(), config, dto.UserCreateDto{Username: "kim", Email: new("Kim@example.com")}, auditlogs.Origin{})
+		require.NoError(t, err)
+		other, err := userService.CreateUser(t.Context(), config, dto.UserCreateDto{Username: "other"}, auditlogs.Origin{})
+		require.NoError(t, err)
+
+		_, err = userService.CreateUser(t.Context(), config, dto.UserCreateDto{Username: "third", Email: new("kim@EXAMPLE.com")}, auditlogs.Origin{})
+		require.True(t, apperror.IsCode(err, apperror.CodeAlreadyInUse))
+		_, err = userService.UpdateUser(t.Context(), config, other.ID, dto.Replace(dto.UserCreateDto{Username: "other", Email: new("KIM@example.com")}), false, false, auditlogs.Origin{})
+		require.True(t, apperror.IsCode(err, apperror.CodeAlreadyInUse))
+
+		// The spelling of the own address can still be changed
+		updated, err := userService.UpdateUser(t.Context(), config, kim.ID, dto.Replace(dto.UserCreateDto{Username: "kim", Email: new("kim@example.com")}), false, false, auditlogs.Origin{})
+		require.NoError(t, err)
+		require.Equal(t, "kim@example.com", *updated.Email)
+	})
 }
 
 func TestUpdateUserReturnsGroupsAndCustomClaims(t *testing.T) {

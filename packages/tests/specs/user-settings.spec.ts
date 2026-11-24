@@ -1,5 +1,5 @@
 import test, { expect } from '@playwright/test';
-import { userGroups, users } from '../data';
+import { oidcClients, userGroups, users } from '../data';
 import { setAppConfigValues } from '../utils/app-config.util';
 import authUtil from '../utils/auth.util';
 import { cleanupBackend } from '../utils/cleanup.util';
@@ -355,6 +355,18 @@ test('Non-admin cannot use admin passkey endpoints', async ({ page }) => {
 		`/api/admin/users/${users.tim.id}/webauthn-credentials/test-passkey-id`
 	);
 	expect(deleteResponse.status()).toBe(403);
+});
+
+test('User ID from the page URL stays in one API path segment', async ({ page }) => {
+	const requestedPaths: string[] = [];
+	page.on('request', (request) => requestedPaths.push(new URL(request.url()).pathname));
+
+	// A crafted ID must not turn the user lookup into a request for another endpoint
+	const id = `../../oidc/clients/${oidcClients.nextcloud.id}/logo?light=1`;
+	await page.goto(`/settings/admin/users/${encodeURIComponent(id)}`);
+
+	await expect(page.getByRole('heading', { name: 'Page not found' })).toBeVisible();
+	expect(requestedPaths.filter((path) => path.startsWith('/api/oidc/clients/'))).toEqual([]);
 });
 
 test('Reorder table columns in the column picker', async ({ page }) => {

@@ -61,6 +61,9 @@ func newService(deps Dependencies) (*Service, error) {
 		RPDisplayName: defaultRPDisplayName,
 		RPID:          appURL.Hostname(),
 		RPOrigins:     []string{deps.AppURL},
+		// A ceremony in a cross-origin iframe is only accepted below an embedding page the admin allowed
+		RPTopOrigins:       deps.TopOrigins,
+		RPAllowCrossOrigin: len(deps.TopOrigins) > 0,
 		AuthenticatorSelection: protocol.AuthenticatorSelection{
 			UserVerification: protocol.VerificationRequired,
 		},

@@ -59,19 +59,21 @@ CREATE TABLE storage
 
 CREATE TABLE "users"
 (
-    id           TEXT                  NOT NULL PRIMARY KEY,
-    created_at   DATETIME,
-    updated_at   DATETIME,
-    username     TEXT COLLATE NOCASE   NOT NULL UNIQUE,
-    email        TEXT UNIQUE,
-    first_name   TEXT                  NOT NULL,
-    last_name    TEXT                  NOT NULL,
-    display_name TEXT                  NOT NULL,
-    is_admin     BOOLEAN DEFAULT FALSE NOT NULL,
-    ldap_id      TEXT UNIQUE,
-    locale       TEXT,
-    disabled     BOOLEAN DEFAULT FALSE NOT NULL
-, email_verified BOOLEAN NOT NULL DEFAULT FALSE, email_verification_deadline DATETIME);
+    id                          TEXT                  NOT NULL PRIMARY KEY,
+    created_at                  DATETIME,
+    updated_at                  DATETIME,
+    username                    TEXT COLLATE NOCASE   NOT NULL UNIQUE,
+    email                       TEXT COLLATE NOCASE UNIQUE,
+    first_name                  TEXT                  NOT NULL,
+    last_name                   TEXT                  NOT NULL,
+    display_name                TEXT                  NOT NULL,
+    is_admin                    BOOLEAN DEFAULT FALSE NOT NULL,
+    ldap_id                     TEXT UNIQUE,
+    locale                      TEXT,
+    disabled                    BOOLEAN DEFAULT FALSE NOT NULL,
+    email_verified              BOOLEAN DEFAULT FALSE NOT NULL,
+    email_verification_deadline DATETIME
+);
 
 CREATE TABLE "user_authorized_oidc_clients" (
     scope BLOB NOT NULL DEFAULT X'5B5D',
@@ -122,10 +124,10 @@ CREATE TABLE "interaction_sessions" (
     account_selection_required BOOLEAN NOT NULL DEFAULT FALSE,
     scopes BLOB NOT NULL DEFAULT X'5B5D',
     client_id TEXT NOT NULL REFERENCES oidc_clients(id) ON DELETE CASCADE,
-    user_id TEXT REFERENCES users(id) ON DELETE CASCADE,
     requested_at DATETIME NOT NULL,
     reauthenticated_at DATETIME,
-    parameters BLOB NOT NULL DEFAULT X'7B7D'
+    parameters BLOB NOT NULL DEFAULT X'7B7D',
+    session_id TEXT
 );
 
 CREATE TABLE oidc_clients_allowed_apis (
@@ -278,15 +280,13 @@ CREATE INDEX idx_oauth2_jtis_expires_at ON oauth2_jtis (expires_at);
 
 CREATE INDEX idx_interaction_sessions_client_id ON interaction_sessions (client_id);
 
-CREATE INDEX idx_interaction_sessions_user_id ON interaction_sessions (user_id);
-
 CREATE INDEX idx_oidc_clients_allowed_apis_api_id ON oidc_clients_allowed_apis(api_id);
 
 CREATE INDEX idx_webauthn_sessions_expires_at ON webauthn_sessions (expires_at);
 
 CREATE UNIQUE INDEX idx_oauth2_sessions_kind_key ON oauth2_sessions (kind, key);
 
-CREATE INDEX idx_oauth2_sessions_kind_request ON oauth2_sessions (kind, request_id);
+CREATE INDEX idx_oauth2_sessions_kind_request ON oauth2_sessions (kind, request_id, active, rotated_at);
 
 CREATE INDEX idx_oauth2_sessions_expires_at ON oauth2_sessions (expires_at);
 

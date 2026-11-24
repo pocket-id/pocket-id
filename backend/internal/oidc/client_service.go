@@ -397,6 +397,10 @@ func updateOIDCClientModelFromDto(client *model.OidcClient, input *dto.OidcClien
 		if err != nil {
 			return apperror.ValidationMessage(fmt.Sprintf("Federated client credential %d has an invalid public key: %v", i+1, err))
 		}
+		// An empty key list would be stored as no list, which makes the issuer's own keys count and is not what removing the last key asks for
+		if fi.PublicKeys != nil && len(publicKeys) == 0 && fi.JWKS == "" {
+			return apperror.ValidationMessage(fmt.Sprintf("Federated client credential %d needs at least one public key", i+1))
+		}
 		if len(publicKeys) > 0 && fi.JWKS != "" {
 			return apperror.ValidationMessage(fmt.Sprintf("Federated client credential %d must use either a JWKS URL or public keys, but not both", i+1))
 		}
@@ -892,11 +896,6 @@ func (s *clientService) RevokeAuthorizedClient(ctx context.Context, userID strin
 		return err
 	}
 
-	// A finished interaction stores that consent was given, so resuming it would grant the revoked client again
-	err = tx.WithContext(ctx).Where("user_id = ? AND client_id = ?", userID, clientID).Delete(&InteractionSession{}).Error
-	if err != nil {
-		return err
-	}
 	s.auditLog.Record(ctx, auditlogs.EventClientAuthorizationRevoked, origin, userID, auditlogs.Data{"clientID": authorizedClient.Client.ID, "clientName": authorizedClient.Client.Name}, tx)
 
 	err = tx.Commit().Error

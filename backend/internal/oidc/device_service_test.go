@@ -68,6 +68,29 @@ func TestDeviceServiceAcceptRequiresReauthenticationTokenWhenClientRequiresIt(t 
 	require.Equal(t, 1, reauth.calls)
 }
 
+// TestDeviceServiceInfoIgnoresConsentAndSkipConsent guards that a prior consent or the client's skip-consent setting never changes what the device consent screen gets, since anyone may have started the device request
+func TestDeviceServiceInfoIgnoresConsentAndSkipConsent(t *testing.T) {
+	const (
+		userID   = "test-user"
+		clientID = "test-client"
+	)
+	service, store, _ := newTestDeviceService(t, clientID, userID, false, nil, nil)
+
+	// Describe and approve a first device code, which records the user's consent
+	userCode, _ := createTestDeviceCode(t, service, clientID, "openid email")
+	firstInfo, err := service.getDeviceCodeInfo(t.Context(), userCode, userID)
+	require.NoError(t, err)
+	require.NoError(t, service.acceptDeviceCode(t.Context(), userCode, userID, "phr", time.Now().UTC(), nil, "", requestMeta{}))
+	require.NoError(t, store.db.First(&model.UserAuthorizedOidcClient{}, "user_id = ? AND client_id = ?", userID, clientID).Error)
+
+	// A second device code for the now consented and skip-consent client is described exactly like the first one
+	require.NoError(t, store.db.Model(&model.OidcClient{}).Where("id = ?", clientID).Update("skip_consent", true).Error)
+	userCode, _ = createTestDeviceCode(t, service, clientID, "openid email")
+	secondInfo, err := service.getDeviceCodeInfo(t.Context(), userCode, userID)
+	require.NoError(t, err)
+	require.Equal(t, firstInfo, secondInfo)
+}
+
 func TestDeviceServiceCreatesUserCodeWithOAuthPrefix(t *testing.T) {
 	service, _, _, userCode, _ := newTestDeviceServiceWithCode(t, "test-client", "test-user", false, nil)
 

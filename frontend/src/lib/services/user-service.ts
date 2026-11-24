@@ -14,6 +14,7 @@ import type {
 import { cachedProfilePicture } from '#lib/utils/cached-asset-util.ts';
 import { get } from 'svelte/store';
 import APIService from './api-service';
+import { pathSegment } from '#lib/utils/path-segment-util.ts';
 
 export default class UserService extends APIService {
 	list = async (options?: ListRequestOptions) => {
@@ -22,7 +23,7 @@ export default class UserService extends APIService {
 	};
 
 	get = async (id: string) => {
-		const res = await this.api.get(`/admin/users/${id}`);
+		const res = await this.api.get(`/admin/users/${pathSegment(id)}`);
 		return res.data as User;
 	};
 
@@ -37,17 +38,17 @@ export default class UserService extends APIService {
 	};
 
 	getUserGroups = async (userId: string) => {
-		const res = await this.api.get(`/admin/users/${userId}/groups`);
+		const res = await this.api.get(`/admin/users/${pathSegment(userId)}/groups`);
 		return res.data as UserGroup[];
 	};
 
 	listUserPasskeys = async (userId: string) => {
-		const res = await this.api.get(`/admin/users/${userId}/webauthn-credentials`);
+		const res = await this.api.get(`/admin/users/${pathSegment(userId)}/webauthn-credentials`);
 		return res.data as Passkey[];
 	};
 
 	update = async (id: string, user: Partial<UserCreate>) => {
-		const res = await this.api.patch(`/admin/users/${id}`, user);
+		const res = await this.api.patch(`/admin/users/${pathSegment(id)}`, user);
 		return res.data as User;
 	};
 
@@ -57,17 +58,19 @@ export default class UserService extends APIService {
 	};
 
 	remove = async (id: string) => {
-		await this.api.delete(`/admin/users/${id}`);
+		await this.api.delete(`/admin/users/${pathSegment(id)}`);
 	};
 
 	removeUserPasskey = async (userId: string, passkeyId: string) => {
-		await this.api.delete(`/admin/users/${userId}/webauthn-credentials/${passkeyId}`);
+		await this.api.delete(
+			`/admin/users/${pathSegment(userId)}/webauthn-credentials/${pathSegment(passkeyId)}`
+		);
 	};
 
 	updateProfilePicture = async (userId: string, image: File) => {
 		const formData = new FormData();
 		formData.append('file', image!);
-		await this.api.put(`/admin/users/${userId}/profile-picture`, formData);
+		await this.api.put(`/admin/users/${pathSegment(userId)}/profile-picture`, formData);
 		cachedProfilePicture.bustCache(userId);
 	};
 
@@ -84,12 +87,14 @@ export default class UserService extends APIService {
 	};
 
 	resetProfilePicture = async (userId: string) => {
-		await this.api.delete(`/admin/users/${userId}/profile-picture`);
+		await this.api.delete(`/admin/users/${pathSegment(userId)}/profile-picture`);
 		cachedProfilePicture.bustCache(userId);
 	};
 
 	createOneTimeAccessToken = async (userId: string, ttl?: string | number) => {
-		const res = await this.api.post(`/admin/users/${userId}/one-time-access-token`, { ttl });
+		const res = await this.api.post(`/admin/users/${pathSegment(userId)}/one-time-access-token`, {
+			ttl
+		});
 		return res.data.token;
 	};
 
@@ -124,11 +129,15 @@ export default class UserService extends APIService {
 	};
 
 	requestOneTimeAccessEmailAsAdmin = async (userId: string, ttl: string | number) => {
-		await this.api.post(`/admin/users/${userId}/one-time-access-email`, { ttl });
+		await this.api.post(`/admin/users/${pathSegment(userId)}/one-time-access-email`, {
+			ttl
+		});
 	};
 
 	updateUserGroups = async (id: string, userGroupIds: string[]) => {
-		const res = await this.api.put(`/admin/users/${id}/user-groups`, { userGroupIds });
+		const res = await this.api.put(`/admin/users/${pathSegment(id)}/user-groups`, {
+			userGroupIds
+		});
 		return res.data as User;
 	};
 
@@ -152,7 +161,7 @@ export default class UserService extends APIService {
 	};
 
 	deleteSignupToken = async (tokenId: string) => {
-		await this.api.delete(`/admin/signup-tokens/${tokenId}`);
+		await this.api.delete(`/admin/signup-tokens/${pathSegment(tokenId)}`);
 	};
 
 	sendEmailVerification = async () => {

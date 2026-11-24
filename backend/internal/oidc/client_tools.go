@@ -170,6 +170,12 @@ func (h *clientHandler) updateClientTool(ctx context.Context, call mcp.Call, inp
 		if err := dto.MapStruct(current, &updateDto); err != nil {
 			return updateDto, err
 		}
+		// The mapping turns a credential's missing key list into an empty one, which the service refuses
+		for i := range updateDto.Credentials.FederatedIdentities {
+			if len(updateDto.Credentials.FederatedIdentities[i].PublicKeys) == 0 {
+				updateDto.Credentials.FederatedIdentities[i].PublicKeys = nil
+			}
+		}
 		mcp.SetIfPresent(&updateDto.Name, input.Name)
 		mcp.SetIfPresent(&updateDto.Notes, input.Notes)
 		mcp.SetIfPresent(&updateDto.CallbackURLs, input.CallbackURLs)

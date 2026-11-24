@@ -52,8 +52,8 @@ type InteractionSession struct {
 	ClientID string
 	Client   model.OidcClient
 
-	UserID *string
-	User   model.User
+	// SessionID is the sign-in session the interaction belongs to, whose completed steps count for no other session
+	SessionID *string
 
 	ConsentRequired          bool
 	ReauthenticationRequired bool

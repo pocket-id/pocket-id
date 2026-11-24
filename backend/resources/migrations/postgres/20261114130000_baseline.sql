@@ -70,10 +70,10 @@ CREATE TABLE interaction_sessions (
     account_selection_required boolean DEFAULT false NOT NULL,
     scopes jsonb DEFAULT '[]'::jsonb NOT NULL,
     client_id text NOT NULL,
-    user_id uuid,
     requested_at timestamp with time zone NOT NULL,
     reauthenticated_at timestamp with time zone,
-    parameters jsonb DEFAULT '{}'::jsonb NOT NULL
+    parameters jsonb DEFAULT '{}'::jsonb NOT NULL,
+    session_id text
 );
 
 CREATE TABLE kv (
@@ -218,7 +218,7 @@ CREATE TABLE users (
     id uuid NOT NULL,
     created_at timestamp with time zone,
     username citext NOT NULL COLLATE pg_catalog."C",
-    email character varying(255),
+    email citext COLLATE pg_catalog."C",
     first_name character varying(100) NOT NULL,
     last_name character varying(100) NOT NULL,
     is_admin boolean DEFAULT false NOT NULL,
@@ -386,8 +386,6 @@ CREATE INDEX idx_audit_logs_user_id ON audit_logs USING btree (user_id);
 
 CREATE INDEX idx_interaction_sessions_client_id ON interaction_sessions USING btree (client_id);
 
-CREATE INDEX idx_interaction_sessions_user_id ON interaction_sessions USING btree (user_id);
-
 CREATE INDEX idx_oauth2_jtis_expires_at ON oauth2_jtis USING btree (expires_at);
 
 CREATE INDEX idx_oauth2_sessions_client_subject ON oauth2_sessions USING btree (client_id, ((request_data #>> '{session,subject}'::text[])), kind, active);
@@ -396,7 +394,7 @@ CREATE INDEX idx_oauth2_sessions_expires_at ON oauth2_sessions USING btree (expi
 
 CREATE UNIQUE INDEX idx_oauth2_sessions_kind_key ON oauth2_sessions USING btree (kind, key);
 
-CREATE INDEX idx_oauth2_sessions_kind_request ON oauth2_sessions USING btree (kind, request_id);
+CREATE INDEX idx_oauth2_sessions_kind_request ON oauth2_sessions USING btree (kind, request_id, active, rotated_at);
 
 CREATE UNIQUE INDEX idx_oidc_claim_mapping_policies_default ON oidc_claim_mapping_policies USING btree (is_default) WHERE is_default;
 
@@ -430,9 +428,6 @@ ALTER TABLE ONLY oauth2_sessions
 
 ALTER TABLE ONLY interaction_sessions
     ADD CONSTRAINT interaction_sessions_client_id_fkey FOREIGN KEY (client_id) REFERENCES oidc_clients(id) ON DELETE CASCADE;
-
-ALTER TABLE ONLY interaction_sessions
-    ADD CONSTRAINT interaction_sessions_user_id_fkey FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE;
 
 ALTER TABLE ONLY oidc_clients_allowed_api_permissions
     ADD CONSTRAINT oidc_clients_allowed_api_permissions_api_permission_id_fkey FOREIGN KEY (api_permission_id) REFERENCES api_permissions(id) ON DELETE CASCADE;

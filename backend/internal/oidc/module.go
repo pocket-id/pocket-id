@@ -215,10 +215,14 @@ func (m *Module) VerifyAccessToken(ctx context.Context, token string) (fosite.Ac
 // RegisterRoutes mounts the OIDC endpoints and the admin endpoints for clients
 // protectPocketIDClients guards the routes that change a client, which need admin access when that client may use Pocket ID's own API
 func (m *Module) RegisterRoutes(root, api *authz.Router, logoSizeLimit, protectPocketIDClients gin.HandlerFunc) {
+	// Fosite splits and decodes the values of a protocol request before anything is known about the caller, at a multiple of their size in memory
+	// Their bodies therefore get the limit that the URL and the headers of a request already have
+	protocol := api.With(limitProtocolBody)
+
 	// Browsers reach the authorize endpoint through a redirect, so authorization errors are shown on the interaction error page instead of as JSON
 	authorize := root.Use(m.authorizationHandler.redirectAuthorizationErrors).Optional()
 	authorize.GET("/authorize", authz.AccountAuthorize, httpserver.Endpoint{Handler: m.authorizationHandler.authorize})
-	authorize.POST("/authorize", authz.AccountAuthorize, httpserver.Endpoint{Handler: m.authorizationHandler.authorize})
+	authorize.With(limitProtocolBody).POST("/authorize", authz.AccountAuthorize, httpserver.Endpoint{Handler: m.authorizationHandler.authorize})
 
 	root.GET("/.well-known/jwks.json", authz.Public, httpserver.Handle(m.discoveryHandler.jwksHandler),
 		option.Summary("Get JSON Web Key Set (JWKS)"),
@@ -239,12 +243,13 @@ func (m *Module) RegisterRoutes(root, api *authz.Router, logoSizeLimit, protectP
 		openapi.Response[map[string]any](http.StatusOK, "OAuth 2.0 authorization server metadata"),
 	)
 
-	api.GET("/oidc/interactions/:id", authz.Public, httpserver.Endpoint{Handler: m.authorizationHandler.getInteractionSession})
+	// The page shows the interaction before the sign-in too, and hides the scopes a signed-in caller cannot hold
+	api.Optional().GET("/oidc/interactions/:id", authz.Authenticated, httpserver.Endpoint{Handler: m.authorizationHandler.getInteractionSession})
 	api.POST("/oidc/interactions/:id/complete", authz.AccountAuthorize, httpserver.Endpoint{Handler: m.authorizationHandler.completeInteraction})
 
-	api.POST("/oidc/par", authz.Public, httpserver.Endpoint{Handler: m.parHandler.pushedAuthorizationRequest})
+	protocol.POST("/oidc/par", authz.Public, httpserver.Endpoint{Handler: m.parHandler.pushedAuthorizationRequest})
 
-	api.POST("/oidc/token", authz.Public, httpserver.Endpoint{Handler: m.tokenHandler.token})
+	protocol.POST("/oidc/token", authz.Public, httpserver.Endpoint{Handler: m.tokenHandler.token})
 
 	api.GET("/oidc/userinfo", authz.Public, httpserver.Endpoint{Handler: m.userInfoHandler.userInfo},
 		option.Summary("Get user information"),
@@ -252,9 +257,9 @@ func (m *Module) RegisterRoutes(root, api *authz.Router, logoSizeLimit, protectP
 		option.Tags("OIDC"),
 		openapi.Response[map[string]any](http.StatusOK, "User claims based on requested scopes"),
 	)
-	api.POST("/oidc/userinfo", authz.Public, httpserver.Endpoint{Handler: m.userInfoHandler.userInfo})
+	protocol.POST("/oidc/userinfo", authz.Public, httpserver.Endpoint{Handler: m.userInfoHandler.userInfo})
 
-	api.POST("/oidc/introspect", authz.Public, httpserver.Endpoint{Handler: m.introspectionHandler.introspectToken},
+	protocol.POST("/oidc/introspect", authz.Public, httpserver.Endpoint{Handler: m.introspectionHandler.introspectToken},
 		option.Summary("Introspect OIDC tokens"),
 		option.Description("Pass a token to verify if it is considered valid."),
 		option.Tags("OIDC"),
@@ -263,11 +268,11 @@ func (m *Module) RegisterRoutes(root, api *authz.Router, logoSizeLimit, protectP
 	)
 
 	api.Optional().GET("/oidc/end-session", authz.AccountSession, httpserver.Endpoint{Handler: m.endSessionHandler.endSession})
-	api.Optional().POST("/oidc/end-session", authz.AccountSession, httpserver.Endpoint{Handler: m.endSessionHandler.endSession})
+	protocol.Optional().POST("/oidc/end-session", authz.AccountSession, httpserver.Endpoint{Handler: m.endSessionHandler.endSession})
 	api.Optional().GET("/oidc/end-session/request", authz.AccountSession, httpserver.Endpoint{Handler: m.endSessionHandler.getEndSessionRequest})
-	api.Optional().POST("/oidc/end-session/confirm", authz.AccountSession, httpserver.Endpoint{Handler: m.endSessionHandler.confirmEndSession})
+	protocol.Optional().POST("/oidc/end-session/confirm", authz.AccountSession, httpserver.Endpoint{Handler: m.endSessionHandler.confirmEndSession})
 
-	api.POST("/oidc/device/authorize", authz.Public, httpserver.Endpoint{Handler: m.deviceHandler.authorizeDevice})
+	protocol.POST("/oidc/device/authorize", authz.Public, httpserver.Endpoint{Handler: m.deviceHandler.authorizeDevice})
 	api.POST("/oidc/device/verify", authz.AccountAuthorize, httpserver.Endpoint{Handler: m.deviceHandler.verifyDeviceCode})
 	api.GET("/oidc/device/info", authz.AccountAuthorize, httpserver.Endpoint{Handler: m.deviceHandler.deviceCodeInfo})
 
@@ -417,4 +422,8 @@ func (m *Module) RegisterRoutes(root, api *authz.Router, logoSizeLimit, protectP
 		openapi.List[model.OidcClient]("lastUsedAt"),
 		option.QueryBool("filters[hasLaunchURL]", "Filter clients by whether a launch URL is configured"),
 	)
+}
+
+func limitProtocolBody(c *gin.Context) {
+	c.Request.Body = http.MaxBytesReader(c.Writer, c.Request.Body, 64<<10)
 }

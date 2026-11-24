@@ -250,7 +250,7 @@ func (s *ClaimsService) buildClaims(src *userClaimsSource, scopes []string, toke
 			(mapping.AccessToken && tokenType == AccessTokenType) ||
 			(mapping.UserInfo && tokenType == UserInfoType)) &&
 			isScopeMatching(scopes, mapping.Scope) {
-			s.applyUserClaims(claims, src.user, src.customClaims, mapping)
+			s.applyUserClaims(claims, src, mapping)
 		}
 	}
 
@@ -317,7 +317,8 @@ func isScopeMatching(requestedScopes []string, claimScopes []string) bool {
 	return false
 }
 
-func (s *ClaimsService) applyUserClaims(claims map[string]any, user model.User, customClaims []model.CustomClaim, mapping claimmappingpolicy.OidcClaimMapping) {
+func (s *ClaimsService) applyUserClaims(claims map[string]any, src *userClaimsSource, mapping claimmappingpolicy.OidcClaimMapping) {
+	user := src.user
 	switch mapping.SourceType {
 	case claimmappingpolicy.MappingSourceUserField:
 		// Map from user field
@@ -359,10 +360,18 @@ func (s *ClaimsService) applyUserClaims(claims map[string]any, user model.User, 
 
 	case claimmappingpolicy.MappingSourceCustomClaim:
 		// Map from custom claim
-		for _, customClaim := range customClaims {
+		for _, customClaim := range src.customClaims {
 			if mapping.SourceValue == "*" || customClaim.Key == mapping.SourceValue {
 				claimName := mapping.ClaimName
 				if mapping.ClaimName == "*" {
+					// A custom claim that passes through under its own name must not stand in for a claim the policy sets itself, whatever the order of the mappings
+					// Names are compared without case, because a relying party that reads claims that way would take either one
+					mapped := slices.ContainsFunc(src.policy.ClaimMappings, func(m claimmappingpolicy.OidcClaimMapping) bool {
+						return strings.EqualFold(m.ClaimName, customClaim.Key)
+					})
+					if mapped {
+						continue
+					}
 					claimName = customClaim.Key
 				}
 				claims[claimName] = parseCustomClaimValue(customClaim.Value)

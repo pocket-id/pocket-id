@@ -111,7 +111,7 @@ func (s *Service) requestOneTimeAccessEmailInternal(ctx context.Context, userID,
 		}
 	}
 
-	oneTimeAccessToken, err := StoreToken(ctx, s.actorService, user.ID, ttl, deviceToken, forbidAdmin)
+	oneTimeAccessToken, err := StoreToken(ctx, s.actorService, user.ID, ttl, deviceToken, forbidAdmin, *user.Email)
 	if err != nil {
 		return err
 	}
@@ -165,7 +165,7 @@ func (s *Service) CreateToken(ctx context.Context, userID string, ttl time.Durat
 		return "", err
 	}
 
-	token, err = StoreToken(ctx, s.actorService, userID, ttl, nil, forbidAdmin)
+	token, err = StoreToken(ctx, s.actorService, userID, ttl, nil, forbidAdmin, "")
 	if err != nil {
 		return "", err
 	}
@@ -234,13 +234,23 @@ func (s *Service) completeTokenExchange(ctx context.Context, dbConfig *appconfig
 		return model.User{}, model.LoginTokens{}, apperror.TokenInvalidOrExpired()
 	}
 
+	// A mailed code only shows that its holder reads that mailbox, which says nothing about the user once their email is another one
+	// This is also how a code sent to a mistyped or abandoned address is withdrawn
+	if state.Email != "" && (user.Email == nil || *user.Email != state.Email) {
+		return model.User{}, model.LoginTokens{}, apperror.TokenInvalidOrExpired()
+	}
+
+	// Recognize the receiving browser after the login code has been consumed and the user validated
+	// The entry comes before the session, so a sign-in that can't be recorded leaves no session behind
+	signIn := s.auditLog.CreateSignIn(ctx, auditlogs.EventOneTimeAccessTokenSignIn, ipAddress, userAgent, user.ID, browserToken, s.db, dbConfig.EmailLoginNotificationMode)
+	if !signIn.Created {
+		return model.User{}, model.LoginTokens{}, errors.New("failed to create login code sign-in audit log")
+	}
+
 	sessionToken, err := s.sessions.Create(ctx, user.ID, authenticationMethodOneTimePassword, ipAddress, userAgent, dbConfig.SessionDuration.AsDurationMinutes(), remember)
 	if err != nil {
 		return model.User{}, model.LoginTokens{}, err
 	}
-
-	// Recognize the receiving browser after the login code has been consumed and the user validated
-	signIn := s.auditLog.CreateSignIn(ctx, auditlogs.EventOneTimeAccessTokenSignIn, ipAddress, userAgent, user.ID, browserToken, s.db, dbConfig.EmailLoginNotificationMode)
 	s.auditLog.SendSignInNotification(ctx, signIn)
 
 	return user, model.LoginTokens{SessionToken: sessionToken, KnownBrowserToken: signIn.KnownBrowserToken}, nil
@@ -262,7 +272,8 @@ func (s *Service) restoreToken(parentCtx context.Context, actorID string, state 
 // StoreToken generates a new one-time access token and persists it in the actor state store, with a TTL matching its lifetime.
 // A non-nil device token binds the token to the device that requested it.
 // forbidAdmin makes the token stop working if the user becomes an admin before it is used, see TokenState.
-func StoreToken(ctx context.Context, store TokenStore, userID string, ttl time.Duration, deviceToken *string, forbidAdmin bool) (token string, err error) {
+// email is the address the token is mailed to, and empty for a token that is handed over in another way
+func StoreToken(ctx context.Context, store TokenStore, userID string, ttl time.Duration, deviceToken *string, forbidAdmin bool, email string) (token string, err error) {
 	token, err = generateToken(ttl)
 	if err != nil {
 		return "", err
@@ -273,6 +284,7 @@ func StoreToken(ctx context.Context, store TokenStore, userID string, ttl time.D
 		UserID:      userID,
 		ExpiresAt:   now.Add(ttl),
 		ForbidAdmin: forbidAdmin,
+		Email:       email,
 	}
 	if deviceToken != nil {
 		state.DeviceToken = new(utils.CreateSha256Hash(*deviceToken))

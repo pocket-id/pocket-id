@@ -722,11 +722,6 @@ func canEditOwnProfilePicture(cfg *appconfig.AppConfigModel, user *model.User) b
 
 // updateUserInternal updates a user within an existing transaction
 func (s *Service) updateUserInternal(ctx context.Context, cfg *appconfig.AppConfigModel, userID string, updatedUser dto.UserCreateDto, updateOwnUser bool, isLdapSync bool, origin auditlogs.Origin, tx *gorm.DB) (model.User, error) {
-	// The LDAP sync keeps the stored email when the directory has none, so it only saves a user without an email that never had one
-	if cfg.RequireUserEmail.IsTrue() && updatedUser.Email == nil && !isLdapSync {
-		return model.User{}, apperror.MissingField("email")
-	}
-
 	var user model.User
 	err := tx.
 		WithContext(ctx).
@@ -739,6 +734,12 @@ func (s *Service) updateUserInternal(ctx context.Context, cfg *appconfig.AppConf
 	}
 	if err != nil {
 		return model.User{}, err
+	}
+
+	// A user who has no email, because the setting was turned on later, can still be changed or disabled
+	// The LDAP sync keeps the stored email when the directory has none
+	if cfg.RequireUserEmail.IsTrue() && updatedUser.Email == nil && user.Email != nil && !isLdapSync {
+		return model.User{}, apperror.MissingField("email")
 	}
 
 	wasAdmin, wasDisabled := user.IsAdmin, user.Disabled

@@ -5,6 +5,7 @@ import type { User } from '#lib/types/user.type.ts';
 import { getAxiosErrorCode } from '#lib/utils/error-util.ts';
 import type { AuthenticationResponseJSON, RegistrationResponseJSON } from '@simplewebauthn/browser';
 import APIService from './api-service';
+import { pathSegment } from '#lib/utils/path-segment-util.ts';
 
 class WebAuthnService extends APIService {
 	getRegistrationOptions = async () => (await this.api.get(`/webauthn/register/start`)).data;
@@ -32,11 +33,11 @@ class WebAuthnService extends APIService {
 	listCredentials = async () => (await this.api.get(`/webauthn/credentials`)).data as Passkey[];
 
 	removeCredential = async (id: string) => {
-		await this.api.delete(`/webauthn/credentials/${id}`);
+		await this.api.delete(`/webauthn/credentials/${pathSegment(id)}`);
 	};
 
 	updateCredentialName = async (id: string, name: string) => {
-		await this.api.patch(`/webauthn/credentials/${id}`, { name });
+		await this.api.patch(`/webauthn/credentials/${pathSegment(id)}`, { name });
 	};
 
 	reauthenticate = async (body?: AuthenticationResponseJSON) => {

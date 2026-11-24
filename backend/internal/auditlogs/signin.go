@@ -4,16 +4,22 @@ import (
 	"context"
 	"log/slog"
 
-	userAgentParser "github.com/mileusna/useragent"
 	"gorm.io/gorm"
 
 	"github.com/pocket-id/pocket-id/backend/internal/appconfig"
 	"github.com/pocket-id/pocket-id/backend/internal/model"
+	"github.com/pocket-id/pocket-id/backend/internal/utils"
 )
 
 // CreateSignIn records a successful login and applies the global notification policy
 // The caller must send the notification only after the login commits
 func (s *service) CreateSignIn(ctx context.Context, event Event, ipAddress, userAgent, userID, browserToken string, tx *gorm.DB, notificationMode appconfig.AppConfigValue) SignInResult {
+	// A client that hangs up must neither lose the entry nor turn the history lookup into "no new browser"
+	ctx = context.WithoutCancel(ctx)
+
+	// Compare the sign-in history against the User-Agent as it is stored
+	userAgent = utils.TruncateUserAgent(userAgent)
+
 	data := Data{}
 	if s.isNewBrowser(ctx, tx, userID, userAgent) {
 		data["newBrowser"] = "true"
@@ -91,7 +97,7 @@ func (s *service) isNewBrowser(ctx context.Context, tx *gorm.DB, userID, userAge
 }
 
 func browserFamily(userAgent string) string {
-	ua := userAgentParser.Parse(userAgent)
+	ua := utils.ParseUserAgent(userAgent)
 	return ua.Name + "|" + ua.OS
 }
 

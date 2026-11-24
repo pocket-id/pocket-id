@@ -14,6 +14,7 @@ import (
 	"github.com/pocket-id/pocket-id/backend/internal/apperror"
 	"github.com/pocket-id/pocket-id/backend/internal/common"
 	"github.com/pocket-id/pocket-id/backend/internal/model"
+	datatype "github.com/pocket-id/pocket-id/backend/internal/model/types"
 	testutils "github.com/pocket-id/pocket-id/backend/internal/utils/testing"
 )
 
@@ -102,8 +103,8 @@ func TestStoreInvalidateAuthorizeCodeSessionIsAtomic(t *testing.T) {
 	require.NoError(t, store.InvalidateAuthorizeCodeSession(t.Context(), code, signature))
 
 	// A second invalidation of the now-inactive code fails closed: a racing token request
-	// cannot proceed to issue a second set of tokens from the same code, and the client gets invalid_grant.
-	require.ErrorIs(t, store.InvalidateAuthorizeCodeSession(t.Context(), code, signature), fosite.ErrInvalidGrant)
+	// cannot proceed to issue a second set of tokens from the same code, and fosite learns that the code was used twice.
+	require.ErrorIs(t, store.InvalidateAuthorizeCodeSession(t.Context(), code, signature), fosite.ErrInvalidatedAuthorizeCode)
 
 	// Reads of the consumed code report it as invalidated so fosite triggers reuse handling.
 	_, err := store.GetAuthorizeCodeSession(t.Context(), code, signature, nil)
@@ -218,6 +219,45 @@ func TestStoreRevokeSessionsByIDTokenHintSkipsSessionsWithoutMatchingJTI(t *test
 	assert.True(t, activeRefreshByKey["other-client-refresh"])
 	assert.True(t, accessKeys["same-client-access"])
 	assert.True(t, accessKeys["other-client-access"])
+}
+
+func TestStoreRevokeRefreshTokenSkipsUnusableTokens(t *testing.T) {
+	revocations := map[string]func(*Store) error{
+		"RevokeRefreshToken": func(store *Store) error { return store.RevokeRefreshToken(t.Context(), "grant") },
+		"revokeRequestIDs":   func(store *Store) error { return store.revokeRequestIDs(t.Context(), []string{"grant"}) },
+	}
+	for name, revoke := range revocations {
+		t.Run(name, func(t *testing.T) {
+			db := testutils.NewDatabaseForTest(t)
+			store := NewStore(db, nil)
+			require.NoError(t, db.Create(&model.OidcClient{Base: model.Base{ID: "client"}, Name: "Client"}).Error)
+
+			// The grant has a token rotated before the grace period, one rotated within it and the active one
+			request := newTestRequester("grant", "client", "user", "jti")
+			for _, signature := range []string{"spent", "in-grace", "active"} {
+				require.NoError(t, store.CreateRefreshTokenSession(t.Context(), signature, "", request))
+			}
+			spentAt := datatype.DateTime(time.Now().UTC().Add(-refreshTokenGracePeriod - time.Second))
+			require.NoError(t, db.Model(&OAuth2Session{}).Where("key = ?", "spent").Updates(map[string]any{"active": false, "rotated_at": spentAt}).Error)
+			require.NoError(t, store.RotateRefreshToken(t.Context(), "grant", "in-grace"))
+
+			require.NoError(t, revoke(store))
+
+			// Usable tokens are revoked without a grace period, while the spent one is left untouched
+			for _, signature := range []string{"in-grace", "active"} {
+				session, err := store.getSession(t.Context(), sessionKindRefreshToken, signature)
+				require.NoError(t, err)
+				assert.False(t, session.Active)
+				assert.Nil(t, session.RotatedAt)
+				_, err = store.GetRefreshTokenSession(t.Context(), signature, nil)
+				require.ErrorIs(t, err, fosite.ErrInactiveToken)
+			}
+			spent, err := store.getSession(t.Context(), sessionKindRefreshToken, "spent")
+			require.NoError(t, err)
+			require.NotNil(t, spent.RotatedAt)
+			assert.Equal(t, spentAt.ToTime().Unix(), spent.RotatedAt.ToTime().Unix())
+		})
+	}
 }
 
 func newTestRequester(requestID, clientID, subject, idTokenJTI string) fosite.Requester {

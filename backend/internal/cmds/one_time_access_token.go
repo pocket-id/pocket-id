@@ -82,7 +82,7 @@ func storeOneTimeAccessToken(ctx context.Context, pg *pgxpool.Pool, instanceID s
 			defer tokenCancel()
 
 			var rErr error
-			token, rErr = onetimeaccess.StoreToken(tokenCtx, client, userID, time.Hour, nil, false)
+			token, rErr = onetimeaccess.StoreToken(tokenCtx, client, userID, time.Hour, nil, false, "")
 			return rErr
 		})
 		if err != nil {
@@ -105,7 +105,7 @@ func storeOneTimeAccessToken(ctx context.Context, pg *pgxpool.Pool, instanceID s
 	tokenCtx, tokenCancel := context.WithTimeout(ctx, 10*time.Second)
 	defer tokenCancel()
 
-	token, err := onetimeaccess.StoreToken(tokenCtx, actorStore, userID, time.Hour, nil, false)
+	token, err := onetimeaccess.StoreToken(tokenCtx, actorStore, userID, time.Hour, nil, false, "")
 	if err != nil {
 		return "", err
 	}

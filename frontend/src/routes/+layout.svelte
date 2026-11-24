@@ -20,7 +20,7 @@
 
 	// Start a new page-level trace on each navigation so a page view and the API calls it triggers are correlated as a single trace.
 	beforeNavigate((nav) => {
-		if (!nav.shallow) startPageTrace(nav.to?.url.pathname);
+		if (!nav.shallow) startPageTrace(nav.to?.route.id);
 	});
 
 	let {

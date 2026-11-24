@@ -31,6 +31,7 @@ import (
 	"github.com/pocket-id/pocket-id/backend/internal/mcp"
 	"github.com/pocket-id/pocket-id/backend/internal/middleware"
 	"github.com/pocket-id/pocket-id/backend/internal/tracing"
+	"github.com/pocket-id/pocket-id/backend/internal/utils"
 	"github.com/pocket-id/pocket-id/backend/internal/utils/systemd"
 )
 
@@ -312,9 +313,9 @@ func newHTTPServer(r *gin.Engine, protocols *http.Protocols) *http.Server {
 			// HEAD requests don't get matched by Gin routes, so we convert them to GET
 			// middleware.HeadMiddleware will convert them back to HEAD later
 			if req.Method == http.MethodHead {
-				req.Method = http.MethodGet
 				ctx := context.WithValue(req.Context(), middleware.IsHeadRequestCtxKey{}, true)
 				req = req.WithContext(ctx)
+				req.Method = http.MethodGet
 			}
 
 			r.ServeHTTP(w, req)
@@ -458,10 +459,14 @@ func initLogger(r *gin.Engine) {
 func enrichRequestLog(c *gin.Context, record *slog.Record) *slog.Record {
 	compact := !common.EnvConfig.LogJSON && common.EnvConfig.LogLevel != "debug"
 
+	// Client-chosen values are cut so a single request can't make its log line arbitrarily long
+	const maxValueLength = 512
+
+	// The escaped path keeps an encoded newline from starting a forged line in text logs
 	// The signup and login code pages are the only paths that carry a token
-	path := c.Request.URL.Path
+	path := utils.Truncate(c.Request.URL.EscapedPath(), maxValueLength)
 	for _, prefix := range []string{"/st/", "/lc/"} {
-		if strings.HasPrefix(path, prefix) {
+		if strings.HasPrefix(c.Request.URL.Path, prefix) {
 			path = prefix + ":token"
 		}
 	}
@@ -478,6 +483,9 @@ func enrichRequestLog(c *gin.Context, record *slog.Record) *slog.Record {
 		case "latency":
 			latency = attr.Value.Duration()
 		}
+		if attr.Value.Kind() == slog.KindString {
+			attr.Value = slog.StringValue(utils.Truncate(attr.Value.String(), maxValueLength))
+		}
 		if !compact || attr.Key == "ip" {
 			requestAttrs = append(requestAttrs, attr)
 		}
@@ -487,7 +495,7 @@ func enrichRequestLog(c *gin.Context, record *slog.Record) *slog.Record {
 	// Log processors filter on a fixed message, while people scan text logs by method, path and status
 	message := "HTTP request completed"
 	if !common.EnvConfig.LogJSON {
-		message = fmt.Sprintf("%s %s %d %s", c.Request.Method, path, c.Writer.Status(), latency.Round(time.Microsecond))
+		message = fmt.Sprintf("%s %s %d %s", utils.Truncate(c.Request.Method, maxValueLength), path, c.Writer.Status(), latency.Round(time.Microsecond))
 	}
 	enriched := slog.NewRecord(record.Time, record.Level, message, record.PC)
 

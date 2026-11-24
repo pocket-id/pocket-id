@@ -46,6 +46,8 @@ type TokenState struct {
 	DeviceToken *string
 	ExpiresAt   time.Time
 	ForbidAdmin bool
+	// Email is the address the token was mailed to, and empty for a token that wasn't mailed
+	Email string
 }
 
 // tokenConsumeRequest is the payload for the "consume" method

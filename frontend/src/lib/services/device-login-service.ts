@@ -6,6 +6,7 @@ import type {
 } from '#lib/types/device-login.type.ts';
 import { keepSignedIn } from '#lib/stores/keep-signed-in-store.svelte.ts';
 import APIService from './api-service';
+import { pathSegment } from '#lib/utils/path-segment-util.ts';
 
 export default class DeviceLoginService extends APIService {
 	createRequest = async (signal?: AbortSignal) => {
@@ -18,7 +19,7 @@ export default class DeviceLoginService extends APIService {
 		signal?: AbortSignal
 	): Promise<DeviceLoginExchangeResult> => {
 		const response = await this.api.post(
-			`/device-login/requests/${requestId}/exchange`,
+			`/device-login/requests/${pathSegment(requestId)}/exchange`,
 			undefined,
 			{ signal, params: { remember: keepSignedIn.current } }
 		);

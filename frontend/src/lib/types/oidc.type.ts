@@ -126,7 +126,6 @@ export type EndSessionParams = {
 export type OidcDeviceCodeInfo = {
 	scope: string[];
 	scopeInfo: InteractionScopeInfo[];
-	authorizationRequired: boolean;
 	reauthenticationRequired: boolean;
 	client: OidcClientMetaData;
 };

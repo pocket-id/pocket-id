@@ -10,6 +10,7 @@
 // enabled (see `setTracingEnabled`). When tracing is disabled they are never loaded and stay out of the main app bundle.
 
 import { browser, version } from '$app/env';
+import { page } from '$app/state';
 // Type-only imports are erased at build time, so they don't pull the OpenTelemetry libraries into the bundle.
 import type { Context, Span } from '@opentelemetry/api';
 
@@ -110,14 +111,16 @@ function endPageSpan(): void {
 /**
  * Starts a new page-level trace, ending the previous one, so that a page view and the API calls it triggers form a single trace rooted at the page view.
  * Called on each navigation from the root +layout.
+ *
+ * The span is named after the route (e.g. `/st/[token]`) and never after the address itself, because the signup and login code links carry their token in the path.
  */
-export function startPageTrace(path?: string): void {
+export function startPageTrace(route?: string | null): void {
 	if (!browser || !tracingEnabled || !otel) {
 		return;
 	}
 	endPageSpan();
 
-	pageSpan = otel.trace.getTracer(TRACER_NAME).startSpan(path ? `pageview ${path}` : 'pageview', {
+	pageSpan = otel.trace.getTracer(TRACER_NAME).startSpan(route ? `pageview ${route}` : 'pageview', {
 		root: true,
 		kind: otel.SpanKind.INTERNAL
 	});
@@ -139,7 +142,7 @@ export function startRequestSpan(
 
 	// If no navigation has happened yet (e.g. the initial page load), start the page trace lazily so the initial requests are grouped under it too.
 	if (!pageContext) {
-		startPageTrace(typeof location === 'undefined' ? undefined : location.pathname);
+		startPageTrace(page.route.id);
 	}
 
 	const parent = pageContext ?? otel.ROOT_CONTEXT;

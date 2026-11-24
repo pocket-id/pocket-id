@@ -12,6 +12,7 @@ import type {
 import type { ListRequestOptions, Paginated } from '#lib/types/list-request.type.ts';
 import { encodeClientIdParam } from '#lib/utils/client-id-util.ts';
 import APIService from './api-service';
+import { pathSegment } from '#lib/utils/path-segment-util.ts';
 
 export default class ApisService extends APIService {
 	list = async (options?: ListRequestOptions) => {
@@ -27,7 +28,7 @@ export default class ApisService extends APIService {
 	};
 
 	get = async (id: string) => {
-		const res = await this.api.get(`/admin/apis/${id}`);
+		const res = await this.api.get(`/admin/apis/${pathSegment(id)}`);
 		return res.data as Api;
 	};
 
@@ -37,44 +38,52 @@ export default class ApisService extends APIService {
 	};
 
 	update = async (id: string, api: ApiUpdate) => {
-		const res = await this.api.put(`/admin/apis/${id}`, api);
+		const res = await this.api.put(`/admin/apis/${pathSegment(id)}`, api);
 		return res.data as Api;
 	};
 
 	remove = async (id: string) => {
-		await this.api.delete(`/admin/apis/${id}`);
+		await this.api.delete(`/admin/apis/${pathSegment(id)}`);
 	};
 
 	updatePermissions = async (id: string, permissions: ApiPermissionInput[]) => {
-		const res = await this.api.put(`/admin/apis/${id}/permissions`, { permissions });
+		const res = await this.api.put(`/admin/apis/${pathSegment(id)}/permissions`, {
+			permissions
+		});
 		return res.data as Api;
 	};
 
 	updateCimdAccess = async (id: string, access: ApiCimdAccessUpdate) => {
-		const res = await this.api.put(`/admin/apis/${id}/cimd-access`, access);
+		const res = await this.api.put(`/admin/apis/${pathSegment(id)}/cimd-access`, access);
 		return res.data as Api;
 	};
 
 	listClients = async (id: string, options?: ListRequestOptions) => {
-		const res = await this.api.get(`/admin/apis/${id}/clients`, { params: options });
+		const res = await this.api.get(`/admin/apis/${pathSegment(id)}/clients`, {
+			params: options
+		});
 		return res.data as Paginated<ApiClientAccess>;
 	};
 
 	listAssignableClients = async (id: string, options?: ListRequestOptions) => {
-		const res = await this.api.get(`/admin/apis/${id}/assignable-clients`, { params: options });
+		const res = await this.api.get(`/admin/apis/${pathSegment(id)}/assignable-clients`, {
+			params: options
+		});
 		return res.data as Paginated<ApiClient>;
 	};
 
 	updateClientAccessForApi = async (id: string, clientId: string, grant: ApiClientGrant) => {
 		const res = await this.api.put(
-			`/admin/apis/${id}/clients/${encodeClientIdParam(clientId)}`,
+			`/admin/apis/${pathSegment(id)}/clients/${encodeClientIdParam(clientId)}`,
 			grant
 		);
 		return res.data as ApiClientGrant;
 	};
 
 	removeClientAccessForApi = async (id: string, clientId: string) => {
-		await this.api.delete(`/admin/apis/${id}/clients/${encodeClientIdParam(clientId)}`);
+		await this.api.delete(
+			`/admin/apis/${pathSegment(id)}/clients/${encodeClientIdParam(clientId)}`
+		);
 	};
 
 	listClientApis = async (clientId: string) => {

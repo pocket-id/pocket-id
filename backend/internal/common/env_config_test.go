@@ -194,6 +194,25 @@ func TestParseEnvConfig(t *testing.T) {
 		assert.ErrorContains(t, err, "invalid proxy IP address or CIDR")
 	})
 
+	t.Run("should normalize allowed frame ancestors to origins", func(t *testing.T) {
+		EnvConfig = defaultConfig()
+		t.Setenv("ALLOWED_FRAME_ANCESTORS", "HTTPS://Dashboard.Example.com/, http://localhost:8080")
+
+		err := parseAndValidateEnvConfig(t)
+		require.NoError(t, err)
+		assert.Equal(t, FrameAncestorsConfig{"https://dashboard.example.com", "http://localhost:8080"}, EnvConfig.AllowedFrameAncestors)
+	})
+
+	t.Run("should reject an allowed frame ancestor that isn't an origin", func(t *testing.T) {
+		for _, value := range []string{"dashboard.example.com", "*", "https://*.example.com", "https://example.com/dashboard", "https://example.com;report-uri", "https://example.com,", "javascript://example.com"} {
+			EnvConfig = defaultConfig()
+			t.Setenv("ALLOWED_FRAME_ANCESTORS", value)
+
+			err := parseAndValidateEnvConfig(t)
+			assert.ErrorContains(t, err, "invalid frame ancestor", value)
+		}
+	})
+
 	t.Run("should reject PROXY protocol with a UNIX socket", func(t *testing.T) {
 		EnvConfig = defaultConfig()
 		t.Setenv("PROXY_PROTOCOL", "true")

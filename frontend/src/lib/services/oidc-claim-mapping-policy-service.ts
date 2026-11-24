@@ -11,6 +11,7 @@ import type {
 	OidcClaimMappingsPreview
 } from '#lib/types/oidc-claim-mapping-policy.type.ts';
 import APIService from './api-service';
+import { pathSegment } from '#lib/utils/path-segment-util.ts';
 
 class OidcClaimMappingPolicyService extends APIService {
 	listClaimMappingPolicies = async (options?: ListRequestOptions) => {
@@ -21,7 +22,7 @@ class OidcClaimMappingPolicyService extends APIService {
 	};
 
 	getClaimMappingPolicy = async (id: string) => {
-		const res = await this.api.get(`/admin/oidc/claim-mapping-policies/${id}`);
+		const res = await this.api.get(`/admin/oidc/claim-mapping-policies/${pathSegment(id)}`);
 		return res.data as OidcClaimMappingPolicy;
 	};
 
@@ -31,12 +32,15 @@ class OidcClaimMappingPolicyService extends APIService {
 	};
 
 	updateClaimMappingPolicy = async (id: string, policy: Partial<OidcClaimMappingPolicyInput>) => {
-		const res = await this.api.patch(`/admin/oidc/claim-mapping-policies/${id}`, policy);
+		const res = await this.api.patch(
+			`/admin/oidc/claim-mapping-policies/${pathSegment(id)}`,
+			policy
+		);
 		return res.data as OidcClaimMappingPolicyInput & { id: string };
 	};
 
 	deleteClaimMappingPolicy = async (id: string) => {
-		await this.api.delete(`/admin/oidc/claim-mapping-policies/${id}`);
+		await this.api.delete(`/admin/oidc/claim-mapping-policies/${pathSegment(id)}`);
 	};
 
 	previewClaimMappings = async (
@@ -53,28 +57,34 @@ class OidcClaimMappingPolicyService extends APIService {
 	};
 
 	listClients = async (id: string, options?: ListRequestOptions) => {
-		const res = await this.api.get(`/admin/oidc/claim-mapping-policies/${id}/clients`, {
-			params: options
-		});
+		const res = await this.api.get(
+			`/admin/oidc/claim-mapping-policies/${pathSegment(id)}/clients`,
+			{
+				params: options
+			}
+		);
 		return res.data as Paginated<OidcClientMetaData>;
 	};
 
 	listAssignableClients = async (id: string, options?: ListRequestOptions) => {
-		const res = await this.api.get(`/admin/oidc/claim-mapping-policies/${id}/assignable-clients`, {
-			params: options
-		});
+		const res = await this.api.get(
+			`/admin/oidc/claim-mapping-policies/${pathSegment(id)}/assignable-clients`,
+			{
+				params: options
+			}
+		);
 		return res.data as Paginated<OidcClientMetaData>;
 	};
 
 	assignClient = async (id: string, clientId: string) => {
 		await this.api.post(
-			`/admin/oidc/claim-mapping-policies/${id}/clients/${encodeClientIdParam(clientId)}`
+			`/admin/oidc/claim-mapping-policies/${pathSegment(id)}/clients/${encodeClientIdParam(clientId)}`
 		);
 	};
 
 	removeClient = async (id: string, clientId: string) => {
 		await this.api.delete(
-			`/admin/oidc/claim-mapping-policies/${id}/clients/${encodeClientIdParam(clientId)}`
+			`/admin/oidc/claim-mapping-policies/${pathSegment(id)}/clients/${encodeClientIdParam(clientId)}`
 		);
 	};
 
@@ -94,12 +104,12 @@ class OidcClaimMappingPolicyService extends APIService {
 	};
 
 	updateCustomScope = async (id: string, scope: CustomScopeInput) => {
-		const res = await this.api.put(`/admin/oidc/custom-scopes/${id}`, scope);
+		const res = await this.api.put(`/admin/oidc/custom-scopes/${pathSegment(id)}`, scope);
 		return res.data as CustomScope;
 	};
 
 	deleteCustomScope = async (id: string) => {
-		await this.api.delete(`/admin/oidc/custom-scopes/${id}`);
+		await this.api.delete(`/admin/oidc/custom-scopes/${pathSegment(id)}`);
 	};
 }
 

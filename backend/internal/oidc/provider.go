@@ -71,7 +71,7 @@ func newProvider(store *Store, authenticator *federatedClientAuthenticator, sign
 	keyGetter := func(context.Context) (interface{}, error) {
 		return SigningKeyFromSigner(signer)
 	}
-	sig := newJWTSigner(keyGetter)
+	sig := &jwt.DefaultSigner{GetPrivateKey: keyGetter}
 	deviceStrategy := &deviceStrategy{DefaultDeviceStrategy: compose.NewDeviceStrategy(fositeConfig)}
 	rfc9068AccessTokenStrategy := &fositeoauth2.RFC9068JWTStrategy{
 		DefaultJWTStrategy: &fositeoauth2.DefaultJWTStrategy{

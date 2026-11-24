@@ -1,6 +1,7 @@
 package usersignup
 
 import (
+	"context"
 	"fmt"
 	"time"
 
@@ -25,8 +26,17 @@ func newHandler(service *Service, appConfig appconfig.AppConfigResolver) *handle
 	return &handler{service: service, appConfig: appConfig}
 }
 
+func (h *handler) isInitialAdminSetupCompleted(ctx context.Context) (bool, error) {
+	config, err := h.appConfig.GetConfig(ctx)
+	if err != nil {
+		return false, fmt.Errorf("error loading app configuration: %w", err)
+	}
+
+	return h.service.isInitialAdminSetupCompleted(ctx, h.service.db, config)
+}
+
 func (h *handler) checkInitialAdminSetupAvailable(c *gin.Context) error {
-	setupCompleted, err := h.service.IsInitialAdminSetupCompleted(c.Request.Context())
+	setupCompleted, err := h.isInitialAdminSetupCompleted(c.Request.Context())
 	if err != nil {
 		return err
 	}

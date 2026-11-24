@@ -20,18 +20,25 @@ import (
 	testutils "github.com/pocket-id/pocket-id/backend/internal/utils/testing"
 )
 
-type fakeSessionCreator struct{}
+type fakeSessionCreator struct {
+	created int
+}
 
-func (fakeSessionCreator) Create(_ context.Context, _, _, _, _ string, _ time.Duration, _ bool) (string, error) {
+func (f *fakeSessionCreator) Create(_ context.Context, _, _, _, _ string, _ time.Duration, _ bool) (string, error) {
+	f.created++
 	return "session-token", nil
 }
 
 type fakeAuditLogger struct {
 	events        []auditlogs.Event
 	notifications []auditlogs.SignInResult
+	createFails   bool
 }
 
 func (f *fakeAuditLogger) Create(_ context.Context, event auditlogs.Event, _, _, _ string, _ auditlogs.Data, _ *gorm.DB) (auditlogs.AuditLog, bool) {
+	if f.createFails {
+		return auditlogs.AuditLog{}, false
+	}
 	f.events = append(f.events, event)
 	return auditlogs.AuditLog{}, true
 }
@@ -69,7 +76,7 @@ func newServiceForTest(t *testing.T, db *gorm.DB) (*Service, *local.Host, *fakeA
 
 		svc = newService(Dependencies{
 			DB:           db,
-			Sessions:     fakeSessionCreator{},
+			Sessions:     &fakeSessionCreator{},
 			AuditLog:     auditLog,
 			UserProvider: fakeUserProvider{db: db},
 			EmailSender:  fakeEmailSender{},
@@ -141,7 +148,7 @@ func TestExchangeTokenSuccess(t *testing.T) {
 	}
 	require.NoError(t, db.Create(&user).Error)
 
-	token, err := StoreToken(t.Context(), svc.actorService, user.ID, time.Minute, nil, false)
+	token, err := StoreToken(t.Context(), svc.actorService, user.ID, time.Minute, nil, false, "")
 	require.NoError(t, err)
 
 	dbConfig := appconfig.NewTestConfig(nil)
@@ -205,7 +212,7 @@ func TestExchangeTokenDeviceMismatch(t *testing.T) {
 	require.NoError(t, db.Create(&user).Error)
 
 	// Store a token that requires a device token
-	token, err := StoreToken(t.Context(), svc.actorService, user.ID, time.Minute, new("device-token"), false)
+	token, err := StoreToken(t.Context(), svc.actorService, user.ID, time.Minute, new("device-token"), false, "")
 	require.NoError(t, err)
 
 	dbConfig := appconfig.NewTestConfig(nil)
@@ -225,6 +232,37 @@ func TestExchangeTokenDeviceMismatch(t *testing.T) {
 	require.ErrorIs(t, err, actor.ErrStateNotFound)
 }
 
+// A code in a mailbox the user no longer has, or never had, must not sign anyone in as them
+func TestExchangeTokenRejectsMailedCodeAfterEmailChange(t *testing.T) {
+	db := testutils.NewDatabaseForTest(t)
+	svc, _, _ := newServiceForTest(t, db)
+	user := model.User{Username: "moved", Email: new("old@example.com")}
+	require.NoError(t, db.Create(&user).Error)
+
+	token, err := StoreToken(t.Context(), svc.actorService, user.ID, time.Minute, nil, false, "old@example.com")
+	require.NoError(t, err)
+	require.NoError(t, db.Model(&user).Update("email", "new@example.com").Error)
+
+	_, _, err = svc.ExchangeToken(t.Context(), appconfig.NewTestConfig(nil), token, "", "", "", "", false)
+	require.True(t, apperror.IsCode(err, apperror.CodeTokenInvalidOrExpired))
+}
+
+// A sign-in that can't be recorded must not happen, as with passkeys and device logins
+func TestExchangeTokenFailsWithoutAuditEntry(t *testing.T) {
+	db := testutils.NewDatabaseForTest(t)
+	svc, _, auditLog := newServiceForTest(t, db)
+	auditLog.createFails = true
+	user := model.User{Username: "unrecorded"}
+	require.NoError(t, db.Create(&user).Error)
+
+	token, err := StoreToken(t.Context(), svc.actorService, user.ID, time.Minute, nil, false, "")
+	require.NoError(t, err)
+
+	_, _, err = svc.ExchangeToken(t.Context(), appconfig.NewTestConfig(nil), token, "", "", "", "", false)
+	require.Error(t, err)
+	require.Zero(t, svc.sessions.(*fakeSessionCreator).created)
+}
+
 func TestExchangeTokenRejectsDisabledUser(t *testing.T) {
 	db := testutils.NewDatabaseForTest(t)
 	svc, host, auditLog := newServiceForTest(t, db)
@@ -237,7 +275,7 @@ func TestExchangeTokenRejectsDisabledUser(t *testing.T) {
 	require.NoError(t, db.Create(&user).Error)
 
 	// Store a one-time access token for the disabled user in the actor state store
-	token, err := StoreToken(t.Context(), svc.actorService, user.ID, time.Minute, nil, false)
+	token, err := StoreToken(t.Context(), svc.actorService, user.ID, time.Minute, nil, false, "")
 	require.NoError(t, err)
 
 	dbConfig := appconfig.NewTestConfig(nil)
