@@ -5,6 +5,8 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/assert"
+
+	"github.com/pocket-id/pocket-id/backend/internal/common"
 )
 
 func TestBuildCSP(t *testing.T) {
@@ -12,6 +14,17 @@ func TestBuildCSP(t *testing.T) {
 
 	assert.Contains(t, csp, "form-action 'self';")
 	assert.Contains(t, csp, "script-src 'self' 'nonce-test-nonce'")
+	assert.Contains(t, csp, "frame-ancestors 'none';")
+}
+
+func TestBuildCSP_AllowedFrameAncestors(t *testing.T) {
+	original := common.EnvConfig.AllowedFrameAncestors
+	t.Cleanup(func() { common.EnvConfig.AllowedFrameAncestors = original })
+	common.EnvConfig.AllowedFrameAncestors = []string{"https://dashboard.example.com", "http://localhost:8080"}
+
+	csp := BuildCSP("test-nonce")
+
+	assert.Contains(t, csp, "frame-ancestors https://dashboard.example.com http://localhost:8080;")
 }
 
 func TestBuildFormPostCSP(t *testing.T) {

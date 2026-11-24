@@ -34,6 +34,8 @@ type Dependencies struct {
 	DB     *gorm.DB
 	Actors francishost.Host
 	AppURL string
+	// TopOrigins are the origins of the pages that may embed Pocket ID in an iframe to sign in or register a passkey there
+	TopOrigins []string
 
 	// HTTPClient downloads the FIDO metadata that attestations are verified against
 	HTTPClient *http.Client

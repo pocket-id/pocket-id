@@ -7,6 +7,8 @@ import (
 	"strings"
 
 	"github.com/gin-gonic/gin"
+
+	"github.com/pocket-id/pocket-id/backend/internal/common"
 )
 
 const cspNonceContextKey = "csp_nonce"
@@ -79,10 +81,16 @@ func buildCSP(nonce string, formActionExtra, scriptSrcExtra []string) string {
 		formAction += b.String()
 	}
 
+	// Only the origins the admin allowed may embed Pocket ID, because framing exposes it to clickjacking
+	frameAncestors := "'none'"
+	if len(common.EnvConfig.AllowedFrameAncestors) > 0 {
+		frameAncestors = strings.Join(common.EnvConfig.AllowedFrameAncestors, " ")
+	}
+
 	return "default-src 'self'; " +
 		"base-uri 'self'; " +
 		"object-src 'none'; " +
-		"frame-ancestors 'none'; " +
+		"frame-ancestors " + frameAncestors + "; " +
 		"form-action " + formAction + "; " +
 		"img-src * blob:;" +
 		"font-src 'self'; " +
