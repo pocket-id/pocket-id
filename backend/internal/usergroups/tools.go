@@ -117,10 +117,11 @@ func (h *handler) updateGroupTool(ctx context.Context, _ mcp.Call, input updateG
 		if err := dto.MapStruct(current, &updateDto); err != nil {
 			return updateDto, err
 		}
+		currentDto := updateDto
 		mcp.SetIfPresent(&updateDto.FriendlyName, input.FriendlyName)
 		mcp.SetIfPresent(&updateDto.Name, input.Name)
 		mcp.SetIfPresent(&updateDto.Notes, input.Notes)
-		return updateDto, httpserver.Validate(&updateDto)
+		return updateDto, dto.ValidateUpdate(&currentDto, &updateDto)
 	})
 	if err != nil {
 		return nil, err

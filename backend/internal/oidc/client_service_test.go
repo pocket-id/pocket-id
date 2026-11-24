@@ -896,6 +896,27 @@ func TestClientService_CreateClientSecret_preservesFederatedIdentities(t *testin
 	assert.Equal(t, "https://other.example.com", fetched.Credentials.FederatedIdentities[0].Issuer)
 }
 
+// A metadata document can give a client a name or redirect URI that the update rules refuse, and the admin must still be able to change the settings they own
+func TestClientService_UpdateClient_CIMDWithValuesTheRulesRefuse(t *testing.T) {
+	db := testutils.NewDatabaseForTest(t)
+	s := &clientService{db: db, auditLog: &fakeAuditLogger{}}
+
+	client := model.OidcClient{
+		Name:         strings.Repeat("n", 51),
+		CallbackURLs: datatype.StringList{"myapp:callback"},
+		IsPublic:     true,
+		ClientType:   model.OidcClientTypeCIMD,
+	}
+	require.NoError(t, db.Create(&client).Error)
+	require.NoError(t, claimmappingpolicy.Bootstrap(t.Context(), db))
+
+	updated, err := s.UpdateClient(t.Context(), client.ID, dto.MergePatch[dto.OidcClientUpdateDto](map[string]any{"disabled": true}), auditlogs.Origin{})
+	require.NoError(t, err)
+	require.True(t, updated.Disabled)
+	require.Equal(t, client.Name, updated.Name)
+	require.Equal(t, client.CallbackURLs, updated.CallbackURLs)
+}
+
 func TestClientService_UpdateClient_CIMDPreservesMetadataFields(t *testing.T) {
 	db := testutils.NewDatabaseForTest(t)
 

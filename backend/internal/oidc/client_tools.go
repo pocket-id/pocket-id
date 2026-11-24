@@ -176,6 +176,7 @@ func (h *clientHandler) updateClientTool(ctx context.Context, call mcp.Call, inp
 				updateDto.Credentials.FederatedIdentities[i].PublicKeys = nil
 			}
 		}
+		currentDto := updateDto
 		mcp.SetIfPresent(&updateDto.Name, input.Name)
 		mcp.SetIfPresent(&updateDto.Notes, input.Notes)
 		mcp.SetIfPresent(&updateDto.CallbackURLs, input.CallbackURLs)
@@ -189,7 +190,7 @@ func (h *clientHandler) updateClientTool(ctx context.Context, call mcp.Call, inp
 		if input.AllowedUserGroupIDs != nil {
 			updateDto.IsGroupRestricted = len(*input.AllowedUserGroupIDs) > 0
 		}
-		return updateDto, httpserver.Validate(&updateDto)
+		return updateDto, dto.ValidateUpdate(&currentDto, &updateDto)
 	}, auditlogs.OriginFromMCP(call))
 	if err != nil {
 		return nil, err

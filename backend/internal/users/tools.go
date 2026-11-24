@@ -172,6 +172,7 @@ func (h *handler) updateUserTool(ctx context.Context, call mcp.Call, input updat
 		if err := dto.MapStruct(current, &updateDto); err != nil {
 			return updateDto, err
 		}
+		currentDto := updateDto
 		mcp.SetIfPresent(&updateDto.Username, input.Username)
 		mcp.SetIfPresent(&updateDto.EmailVerified, input.EmailVerified)
 		mcp.SetIfPresent(&updateDto.FirstName, input.FirstName)
@@ -182,7 +183,7 @@ func (h *handler) updateUserTool(ctx context.Context, call mcp.Call, input updat
 		if input.Email != nil {
 			updateDto.Email = input.Email
 		}
-		return updateDto, httpserver.Validate(&updateDto)
+		return updateDto, dto.ValidateUpdate(&currentDto, &updateDto)
 	}, false, false, auditlogs.OriginFromMCP(call))
 	if err != nil {
 		return nil, err

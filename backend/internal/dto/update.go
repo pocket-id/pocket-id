@@ -3,10 +3,14 @@ package dto
 import (
 	"bytes"
 	"encoding/json"
+	"errors"
 	"io"
+	"reflect"
+	"slices"
 	"strings"
 
 	"github.com/gin-gonic/gin/binding"
+	"github.com/go-playground/validator/v10"
 
 	"github.com/pocket-id/pocket-id/backend/internal/apperror"
 )
@@ -22,7 +26,7 @@ func Replace[T any](input T) Update[T] {
 	}
 }
 
-// MergePatch is an update that applies a JSON merge patch (RFC 7396) to the current state mapped onto T, then validates and normalizes the result
+// MergePatch is an update that applies a JSON merge patch (RFC 7396) to the current state mapped onto T, then normalizes and validates the result
 // The patch is the decoded request body, so objects merge recursively, arrays replace, null removes a member and members match case-insensitively
 func MergePatch[T any](patch any) Update[T] {
 	return func(current any) (T, error) {
@@ -54,14 +58,32 @@ func MergePatch[T any](patch any) Update[T] {
 			return result, apperror.InvalidRequestBody(err)
 		}
 
-		// Validate the merged result like a PUT body, since the patch alone may leave a required field empty
-		err = binding.Validator.ValidateStruct(&result)
-		if err != nil {
-			return result, err
-		}
-		Normalize(&result)
-		return result, nil
+		// Validate the merged result, since the patch alone may leave a required field empty
+		return result, ValidateUpdate(&value, &result)
 	}
+}
+
+// ValidateUpdate normalizes and validates the updated DTO against the current one, and reports only the violations the update introduces
+// A value that broke a rule when it was stored would otherwise keep every other field of the resource from being changed
+// The whole DTO is still validated, because some rules read more than one field
+func ValidateUpdate(current, updated any) error {
+	Normalize(updated)
+	err := binding.Validator.ValidateStruct(updated)
+	violations, ok := errors.AsType[validator.ValidationErrors](err)
+	if !ok {
+		return err
+	}
+
+	stored, _ := errors.AsType[validator.ValidationErrors](binding.Validator.ValidateStruct(current))
+	violations = slices.DeleteFunc(violations, func(violation validator.FieldError) bool {
+		return slices.ContainsFunc(stored, func(known validator.FieldError) bool {
+			return known.Namespace() == violation.Namespace() && known.Tag() == violation.Tag() && reflect.DeepEqual(known.Value(), violation.Value())
+		})
+	})
+	if len(violations) == 0 {
+		return nil
+	}
+	return violations
 }
 
 // DecodeJSON keeps numbers as json.Number, so large integers survive the round trip through a merge

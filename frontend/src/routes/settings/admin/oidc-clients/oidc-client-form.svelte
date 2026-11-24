@@ -68,11 +68,12 @@
 			message: m.token_lifetime_whole_minutes()
 		});
 
+	// A metadata document owns the name and the redirect URIs, so the form shows them as they are and leaves judging them to the server
 	const formSchema = z.object({
-		name: z.string().min(2).max(50),
+		name: isCIMDClient ? z.string() : z.string().min(2).max(50),
 		notes: z.string().max(5000),
-		callbackURLs: z.array(callbackUrlSchema).default([]),
-		logoutCallbackURLs: z.array(callbackUrlSchema).default([]),
+		callbackURLs: z.array(isCIMDClient ? z.string() : callbackUrlSchema).default([]),
+		logoutCallbackURLs: z.array(isCIMDClient ? z.string() : callbackUrlSchema).default([]),
 		backchannelLogoutURL: z.url().or(z.literal('')),
 		isPublic: z.boolean(),
 		pkceEnabled: z.boolean(),

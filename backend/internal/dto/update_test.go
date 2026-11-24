@@ -87,3 +87,46 @@ func TestMergePatchValidatesMergedResult(t *testing.T) {
 	var validationErrors validator.ValidationErrors
 	require.ErrorAs(t, err, &validationErrors)
 }
+
+// A value that broke a rule when it was stored must not keep the other fields of the resource from being changed
+func TestMergePatchRefusesOnlyNewViolations(t *testing.T) {
+	valid := UserCreateDto{Username: "user"}
+	overLimit := UserCreateDto{Username: "user", LastName: strings.Repeat("a", 100)}
+
+	for _, test := range []struct {
+		name    string
+		stored  UserCreateDto
+		patch   string
+		refused bool
+	}{
+		{name: "another field changes over a stored violation", stored: overLimit, patch: `{"disabled":true}`},
+		{name: "a new violation is refused", stored: overLimit, patch: `{"firstName":"` + strings.Repeat("a", 51) + `"}`, refused: true},
+		{name: "a stored violation that changes is refused", stored: overLimit, patch: `{"lastName":"` + strings.Repeat("b", 100) + `"}`, refused: true},
+		{name: "a value that outgrows its limit when normalized is refused", stored: valid, patch: `{"firstName":"` + strings.Repeat("\u0958", 50) + `"}`, refused: true},
+	} {
+		t.Run(test.name, func(t *testing.T) {
+			var patch any
+			require.NoError(t, DecodeJSON(strings.NewReader(test.patch), &patch))
+
+			_, err := MergePatch[UserCreateDto](patch)(test.stored)
+			if test.refused {
+				var validationErrors validator.ValidationErrors
+				require.ErrorAs(t, err, &validationErrors)
+			} else {
+				require.NoError(t, err)
+			}
+		})
+	}
+}
+
+// Some rules read more than one field, so a patch is refused for a field it leaves alone when it makes that field's value invalid
+func TestMergePatchValidatesFieldsThePatchLeavesAlone(t *testing.T) {
+	var patch any
+	require.NoError(t, DecodeJSON(strings.NewReader(`{"isPublic":true}`), &patch))
+
+	_, err := MergePatch[OidcClientUpdateDto](patch)(OidcClientUpdateDto{Name: "client", BackchannelLogoutURL: "http://client.example/logout"})
+
+	var validationErrors validator.ValidationErrors
+	require.ErrorAs(t, err, &validationErrors)
+	require.Equal(t, "backchannelLogoutURL", validationErrors[0].Field())
+}
