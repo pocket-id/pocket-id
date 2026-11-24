@@ -68,7 +68,7 @@ var migratedSQLiteTemplate = sync.OnceValues(func() ([]byte, error) {
 	defer db.Close()
 	db.SetMaxOpenConns(1)
 
-	_, err = utils.MigrateDatabase(context.Background(), db, common.DbProviderSqlite)
+	err = utils.MigrateDatabase(context.Background(), db, common.DbProviderSqlite)
 	if err != nil {
 		return nil, err
 	}
@@ -96,7 +96,7 @@ func NewConcurrentDatabaseForTest(t *testing.T) *gorm.DB {
 	sqlDB, err := db.DB()
 	require.NoError(t, err, "Failed to get sql.DB")
 
-	_, err = utils.MigrateDatabase(t.Context(), sqlDB, common.DbProviderSqlite)
+	err = utils.MigrateDatabase(t.Context(), sqlDB, common.DbProviderSqlite)
 	require.NoError(t, err, "Failed to perform migrations")
 	_, err = sqlDB.ExecContext(t.Context(), "PRAGMA foreign_keys = OFF;")
 	require.NoError(t, err, "Failed to disable foreign keys")
@@ -163,7 +163,7 @@ func NewPostgresDatabaseForTest(t *testing.T) *gorm.DB {
 		require.NoError(t, sqlDB.Close(), "Failed to close the Postgres test database")
 	})
 
-	_, err = utils.MigrateDatabase(t.Context(), sqlDB, common.DbProviderPostgres)
+	err = utils.MigrateDatabase(t.Context(), sqlDB, common.DbProviderPostgres)
 	require.NoError(t, err, "Failed to perform migrations")
 
 	return db

@@ -73,7 +73,7 @@ func importAndRestart(importCfg func(*sql.DB)) func(t *testing.T) {
 		// Initial boot: connect, migrate, and let the actor host create its own schema.
 		boot := openImportTestDB(t, dbPath, nil)
 		sqlDB, _ := boot.DB()
-		_, err := utils.MigrateDatabase(t.Context(), sqlDB, common.DbProviderSqlite)
+		err := utils.MigrateDatabase(t.Context(), sqlDB, common.DbProviderSqlite)
 		require.NoError(t, err)
 		seedActorHostSchema(t, boot)
 		closeImportTestDB(boot)
@@ -94,7 +94,7 @@ func importAndRestart(importCfg func(*sql.DB)) func(t *testing.T) {
 		restart := openImportTestDB(t, dbPath, nil)
 		defer closeImportTestDB(restart)
 		sqlDB, _ = restart.DB()
-		_, err = utils.MigrateDatabase(t.Context(), sqlDB, common.DbProviderSqlite)
+		err = utils.MigrateDatabase(t.Context(), sqlDB, common.DbProviderSqlite)
 		require.NoError(t, err)
 		requireActorHostSchemaPreserved(t, restart)
 	}

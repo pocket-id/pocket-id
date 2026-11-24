@@ -1,12 +1,11 @@
 <script lang="ts">
 	import { onNavigate } from '$app/navigation';
 	import { page } from '$app/state';
-	import DocsLink from '#lib/components/docs-link.svelte';
+	import PagedBanner, { type BannerItem } from '#lib/components/paged-banner.svelte';
 	import CommandPalette from '#lib/components/shell/command-palette.svelte';
 	import { navGroups } from '#lib/components/shell/nav-items.ts';
 	import { appearance } from '#lib/components/appearance/appearance.svelte.ts';
 	import { shells } from '#lib/components/shell/variants/registry.ts';
-	import * as Alert from '@pocket-id/ui/alert';
 	import * as Tooltip from '@pocket-id/ui/tooltip';
 	import { m } from '#lib/paraglide/messages.js';
 	import { appReveal } from '#lib/stores/app-reveal-store.svelte.ts';
@@ -15,7 +14,6 @@
 	import userStore from '#lib/stores/user-store.ts';
 	import { isEmailVerificationPending } from '#lib/utils/email-verification-util.ts';
 	import { cn } from '@pocket-id/ui/utils';
-	import TriangleAlertIcon from '~icons/solar/danger-triangle-bold-duotone';
 	import type { Snippet } from 'svelte';
 	import type { LayoutData } from './$types';
 
@@ -27,7 +25,23 @@
 		data: LayoutData;
 	} = $props();
 
-	const { versionInformation, sqliteStorageWarning, newerDatabaseWarning, user } = data;
+	const { versionInformation, warnings, user } = data;
+
+	// The banner for each warning the backend reports, where a warning this frontend doesn't know is left out
+	const warningItems: Record<string, BannerItem> = {
+		'sqlite-on-networked-filesystem': {
+			tone: 'warning',
+			title: m.sqlite_network_storage_warning_title(),
+			description: m.sqlite_network_storage_warning(),
+			docsHref: 'https://pocket-id.org/docs/configuration/environment-variables#sqlite'
+		},
+		'database-migrated-by-newer-version': {
+			tone: 'warning',
+			title: m.newer_database_warning_title(),
+			description: m.newer_database_warning()
+		}
+	};
+	const warningBannerItems = warnings.flatMap((warning) => warningItems[warning] ?? []);
 
 	const isAdmin = $derived(!!($userStore?.isAdmin || user?.isAdmin));
 	const verificationPending = $derived(isEmailVerificationPending(user, $appConfigStore));
@@ -102,23 +116,7 @@
 					!listPage && 'max-w-[calc(var(--col-content)+5rem)]'
 				)}
 			>
-				{#if sqliteStorageWarning && isAdmin}
-					<Alert.Root variant="warning">
-						<TriangleAlertIcon />
-						<Alert.Description>
-							{m.sqlite_network_storage_warning()}
-							<DocsLink
-								href="https://pocket-id.org/docs/configuration/environment-variables#sqlite"
-							/>
-						</Alert.Description>
-					</Alert.Root>
-				{/if}
-				{#if newerDatabaseWarning && isAdmin}
-					<Alert.Root variant="warning">
-						<TriangleAlertIcon />
-						<Alert.Description>{m.newer_database_warning()}</Alert.Description>
-					</Alert.Root>
-				{/if}
+				<PagedBanner items={warningBannerItems} />
 				<!-- SvelteKit reuses the page when only the id changes, so a remount makes its state start from the new entity -->
 				{#key page.params.id}
 					{@render children()}

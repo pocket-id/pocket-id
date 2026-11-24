@@ -33,9 +33,6 @@ import (
 // It's always false when using Postgres
 var sqliteOnNetworkedFilesystem bool
 
-// Records whether the database has migrations of a newer Pocket ID version, which this older one runs with
-var databaseMigratedByNewerVersion bool
-
 func NewDatabase(ctx context.Context) (db *gorm.DB, pg *pgxpool.Pool, err error) {
 	db, pg, err = ConnectDatabase(ctx)
 	if err != nil {
@@ -78,7 +75,7 @@ func migrateDatabase(ctx context.Context, sqlDb *sql.DB) error {
 		return err
 	}
 
-	databaseMigratedByNewerVersion, err = utils.MigrateDatabase(ctx, sqlDb, common.EnvConfig.DbProvider)
+	err = utils.MigrateDatabase(ctx, sqlDb, common.EnvConfig.DbProvider)
 	if err != nil {
 		return fmt.Errorf("failed to run migrations: %w", err)
 	}

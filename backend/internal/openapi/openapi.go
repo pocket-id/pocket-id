@@ -45,7 +45,7 @@ var tags = openapi3.Tags{
 	{Name: "Well Known", Description: "Discovery documents and signing keys, which OIDC clients read without authentication."},
 	{Name: "Version", Description: "The running version and the latest release."},
 	{Name: "Health", Description: "A health check for container orchestrators and load balancers."},
-	{Name: "Storage", Description: "Storage warnings for the admin UI."},
+	{Name: "Warnings", Description: "Problems with this instance that admins should fix."},
 }
 
 var ginParam = regexp.MustCompile(`:([a-zA-Z0-9_]+)`)

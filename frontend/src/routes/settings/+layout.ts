@@ -1,28 +1,28 @@
 import FeatureService from '#lib/services/feature-service.ts';
-import StorageService from '#lib/services/storage-service.ts';
 import VersionService from '#lib/services/version-service.ts';
+import WarningService from '#lib/services/warning-service.ts';
 import WebAuthnService from '#lib/services/webauthn-service.ts';
 import type { AppVersionInformation } from '#lib/types/application-configuration.type.ts';
 import { redirect } from '@sveltejs/kit';
 import type { LayoutLoad } from './$types';
 
-export const load: LayoutLoad = async ({ url, depends }) => {
+export const load: LayoutLoad = async ({ url, depends, parent }) => {
 	depends('app:features');
 
 	const versionService = new VersionService();
-	const storageService = new StorageService();
 	const webauthnService = new WebAuthnService();
 
 	const currentVersion = versionService.getCurrentVersion();
 
-	const [newestVersion, sqliteStorageWarning, newerDatabaseWarning, passkeys, features] =
-		await Promise.all([
-			versionService.getNewestVersion().catch(() => null),
-			storageService.getSqliteStorageWarning().catch(() => false),
-			storageService.getNewerDatabaseWarning().catch(() => false),
-			webauthnService.listCredentials(),
-			new FeatureService().list()
-		]);
+	const { user } = await parent();
+
+	const [newestVersion, warnings, passkeys, features] = await Promise.all([
+		versionService.getNewestVersion().catch(() => null),
+		// Only admins may read the warnings, and a failed check shows none
+		user?.isAdmin ? new WarningService().list().catch(() => []) : [],
+		webauthnService.listCredentials(),
+		new FeatureService().list()
+	]);
 
 	// If newestVersion is empty, it means the check is disabled or failed.
 	// In this case, we assume the version is up to date.
@@ -48,8 +48,7 @@ export const load: LayoutLoad = async ({ url, depends }) => {
 
 	return {
 		versionInformation,
-		sqliteStorageWarning,
-		newerDatabaseWarning,
+		warnings,
 		passkeys,
 		features
 	};

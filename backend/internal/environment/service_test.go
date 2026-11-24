@@ -30,7 +30,7 @@ func TestShowSQLiteStorageWarning(t *testing.T) {
 			common.EnvConfig.DismissSQLiteStorageWarning = common.DismissSQLiteStorageWarningConfig(tt.dismissed)
 
 			svc := newService(Dependencies{SQLiteOnNetworkedFilesystem: tt.sqliteOnNetworkedFilesystem})
-			assert.Equal(t, tt.want, svc.ShowSQLiteStorageWarning())
+			assert.Equal(t, tt.want, svc.showSQLiteStorageWarning())
 		})
 	}
 }

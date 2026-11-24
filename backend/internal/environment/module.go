@@ -4,22 +4,22 @@ import (
 	"net/http"
 
 	"github.com/go-fuego/fuego/option"
+	"gorm.io/gorm"
+
 	"github.com/pocket-id/pocket-id/backend/internal/authz"
 	"github.com/pocket-id/pocket-id/backend/internal/httpserver"
 )
 
 type Dependencies struct {
+	DB         *gorm.DB
 	HTTPClient *http.Client
 
 	// SQLiteOnNetworkedFilesystem is true when the SQLite database was found on a networked filesystem
 	// It's always false when using Postgres
 	SQLiteOnNetworkedFilesystem bool
-
-	// DatabaseMigratedByNewerVersion is true when the database has migrations of a newer Pocket ID version, which this older one runs with
-	DatabaseMigratedByNewerVersion bool
 }
 
-// Module exposes read-only facts about the environment Pocket ID runs in, such as its version and where its database is stored
+// Module exposes read-only facts about the environment Pocket ID runs in, such as its version and the problems admins should fix
 type Module struct {
 	service *Service
 	handler *handler
@@ -43,14 +43,11 @@ func (m *Module) RegisterRoutes(r *authz.Router) {
 		option.Summary("Get current deployed version of Pocket ID"),
 		option.Tags("Version"),
 	)
-	r.GET("/storage/sqlite-warning", authz.Authenticated, httpserver.JSON(http.StatusOK, m.handler.getSqliteStorageWarning),
-		option.Summary("Get whether the SQLite storage warning should be shown"),
-		option.Description("Reports whether Pocket ID found its SQLite database on a networked filesystem, which is unsupported and can lead to database corruption"),
-		option.Tags("Storage"),
-	)
-	r.GET("/storage/newer-database-warning", authz.Authenticated, httpserver.JSON(http.StatusOK, m.handler.getNewerDatabaseWarning),
-		option.Summary("Get whether the newer database warning should be shown"),
-		option.Description("Reports whether the database was migrated by a newer Pocket ID version than this one, which happens after a rollback to an older version or while replicas are being updated"),
-		option.Tags("Storage"),
+
+	admin := r.Group("/admin")
+	admin.GET("/warnings", authz.ConfigRead, httpserver.JSON(http.StatusOK, m.handler.getWarnings),
+		option.Summary("Get the warnings for admins"),
+		option.Description("Lists the problems with this instance that admins should fix, such as a SQLite database on a networked filesystem or a database that a newer Pocket ID version migrated"),
+		option.Tags("Warnings"),
 	)
 }

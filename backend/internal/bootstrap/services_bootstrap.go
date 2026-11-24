@@ -350,9 +350,9 @@ func initServices(
 	}
 
 	svc.environmentModule = environment.New(environment.Dependencies{
-		HTTPClient:                     httpClient,
-		SQLiteOnNetworkedFilesystem:    sqliteOnNetworkedFilesystem,
-		DatabaseMigratedByNewerVersion: databaseMigratedByNewerVersion,
+		DB:                          db,
+		HTTPClient:                  httpClient,
+		SQLiteOnNetworkedFilesystem: sqliteOnNetworkedFilesystem,
 	})
 
 	// An empty base URL keeps the icon library disabled

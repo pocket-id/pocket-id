@@ -3,6 +3,7 @@
 	import ProfilePictureSettings from '#lib/components/form/profile-picture-settings.svelte';
 	import FormattedMessage from '#lib/components/formatted-message.svelte';
 	import HashTabs from '#lib/components/hash-tabs.svelte';
+	import PagedBanner, { type BannerItem } from '#lib/components/paged-banner.svelte';
 	import SettingRow from '#lib/components/setting-row.svelte';
 	import * as Tabs from '@pocket-id/ui/tabs';
 	import { m } from '#lib/paraglide/messages.js';
@@ -18,7 +19,6 @@
 	import ApiKeysRow from './api-keys-row.svelte';
 	import LocalePicker from './locale-picker.svelte';
 	import PasskeyList from './passkey-list.svelte';
-	import TaskBanner, { type AccountTask } from './task-banner.svelte';
 
 	let { data } = $props();
 
@@ -32,7 +32,7 @@
 	const emailRequired = $derived(isEmailVerificationPending(user, $appConfigStore));
 
 	const tasks = $derived.by(() => {
-		const list: AccountTask[] = [];
+		const list: BannerItem[] = [];
 		if (
 			$appConfigStore.emailVerification !== 'disabled' &&
 			!user.emailVerified &&
@@ -40,7 +40,6 @@
 		) {
 			const deadline = user.emailVerificationDeadline;
 			list.push({
-				id: 'email',
 				tone: emailRequired ? 'destructive' : 'warning',
 				title: emailRequired
 					? m.email_verification_required_warning()
@@ -61,7 +60,6 @@
 		}
 		if (passkeys.length === 0) {
 			list.push({
-				id: 'passkey',
 				tone: 'destructive',
 				title: m.add_a_passkey(),
 				description: m.auth_skip_passkey_description(),
@@ -69,7 +67,6 @@
 			});
 		} else if (passkeys.length === 1) {
 			list.push({
-				id: 'passkey',
 				tone: 'warning',
 				title: m.add_backup_passkey(),
 				description: m.add_backup_passkey_description({ name: passkeys[0].name }),
@@ -138,7 +135,7 @@
 	<!-- Svelte leaves anchor nodes behind, so :empty never matches and the wrapper hides when it holds no element -->
 	<div class="flex flex-col gap-3 not-has-[*]:hidden">
 		<EmailVerificationStateBox />
-		<TaskBanner {tasks} />
+		<PagedBanner items={tasks} />
 	</div>
 
 	<!-- Inactive panels stay mounted, so unsaved profile edits survive a look at another tab -->
