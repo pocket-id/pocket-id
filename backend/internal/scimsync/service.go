@@ -562,17 +562,13 @@ func (s *Service) syncGroup(ctx context.Context, provider ServiceProvider, group
 		return scimActionDeleted, nil
 	}
 
-	// Prepare group members
-	members := make([]ScimGroupMember, len(group.Users))
-	for i, user := range group.Users {
+	// Leave out members the provider has no account for, so one user it refuses can't hold back the removal of the others
+	// The failed creation of that user already fails the sync
+	members := make([]ScimGroupMember, 0, len(group.Users))
+	for _, user := range group.Users {
 		userResource := getResourceByExternalID(user.ID, userResources)
-		if userResource == nil {
-			// Groups depend on user IDs already being provisioned
-			return scimActionNone, fmt.Errorf("cannot sync group %s: user %s is not provisioned in SCIM provider", group.ID, user.ID)
-		}
-
-		members[i] = ScimGroupMember{
-			Value: userResource.GetID(),
+		if userResource != nil {
+			members = append(members, ScimGroupMember{Value: userResource.GetID()})
 		}
 	}
 
@@ -629,7 +625,9 @@ func scimUserUpToDate(remote ScimUser, payload ScimUser) bool {
 
 // scimGroupUpToDate reports whether the provider's copy of a group already has the name and the members the payload would write
 func scimGroupUpToDate(remote ScimGroup, payload ScimGroup) bool {
+	// A provider that leaves members out of its list says nothing about them, which must not pass for an empty group
 	return remote.Display == payload.Display &&
+		remote.Members != nil &&
 		slices.Equal(sortedMemberValues(remote.Members), sortedMemberValues(payload.Members))
 }
 

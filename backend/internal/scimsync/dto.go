@@ -43,8 +43,9 @@ type ScimEmail struct {
 
 type ScimGroup struct {
 	ScimResourceData
-	Display string            `json:"displayName"`
-	Members []ScimGroupMember `json:"members,omitempty"`
+	Display string `json:"displayName"`
+	// Members has no omitempty, because an emptied group must be sent as an empty list for the provider to remove its last member
+	Members []ScimGroupMember `json:"members"`
 }
 
 type ScimGroupMember struct {
