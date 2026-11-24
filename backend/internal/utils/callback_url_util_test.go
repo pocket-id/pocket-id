@@ -1,6 +1,8 @@
 package utils
 
 import (
+	"bytes"
+	"log/slog"
 	"strings"
 	"testing"
 
@@ -956,4 +958,18 @@ func TestMatchCallbackURL_OnlyAsteriskIsAWildcard(t *testing.T) {
 			assert.Equal(t, tt.want, got)
 		})
 	}
+}
+
+// A redirect URI from a client metadata document that urlpattern can't compile is logged on every request that tries to match it
+func TestMatchCallbackURL_InvalidPatternWarningIsShort(t *testing.T) {
+	var logs bytes.Buffer
+	previous := slog.Default()
+	slog.SetDefault(slog.New(slog.NewTextHandler(&logs, nil)))
+	t.Cleanup(func() { slog.SetDefault(previous) })
+
+	matches, err := matchCallbackURL("myapp:1"+strings.Repeat("a", 4400)+":2", "myapp:x")
+	require.NoError(t, err)
+	assert.False(t, matches)
+	assert.Contains(t, logs.String(), "invalid callback URL pattern")
+	assert.Less(t, logs.Len(), 1024)
 }

@@ -211,8 +211,9 @@ func matchCallbackURL(pattern string, inputCallbackURL string) (matches bool, er
 	// Validate the rest of the URL using urlpattern
 	p, err := urlpattern.New(pattern, "", nil)
 	if err != nil {
+		// The pattern can come from a client metadata document, and urlpattern's error repeats it once per character
 		//nolint:nilerr
-		slog.Warn("invalid callback URL pattern, skipping", "pattern", pattern, "error", err)
+		slog.Warn("invalid callback URL pattern, skipping", "pattern", Truncate(pattern, 200), "error", Truncate(err.Error(), 200))
 		return false, nil
 	}
 
