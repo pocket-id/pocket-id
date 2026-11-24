@@ -152,6 +152,11 @@ func (p cimdPolicy) cimdURLAllowed(id string) bool {
 
 // AllowCIMDClient applies Pocket ID's operator-managed dynamic-client allowlist
 func (p cimdPolicy) AllowCIMDClient(ctx context.Context, id string) error {
+	// A client is stored under its client ID as sent, while the allowlist matches the parsed URL
+	// Only the canonical spelling is accepted, so one allowlisted document cannot back several clients that each escape the settings made on the others
+	if canonical, err := whatwgurl.Parse(id); err != nil || canonical.Href(false) != id {
+		return errors.New("client ID must be a URL in canonical form")
+	}
 	if !p.cimdURLAllowed(id) {
 		return errors.New("client ID is not in the metadata document allowlist")
 	}

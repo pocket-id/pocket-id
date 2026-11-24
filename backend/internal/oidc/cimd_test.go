@@ -5,6 +5,7 @@ import (
 	"errors"
 	"net/http"
 	"net/http/httptest"
+	"slices"
 	"strings"
 	"testing"
 	"time"
@@ -861,9 +862,28 @@ func TestGetClient_HostileClientIDURLs(t *testing.T) {
 		"https://169.254.169.254/latest/meta-data", // cloud metadata
 	}
 
-	for _, id := range hostile {
+	// Respellings of an allowlisted URL would each become a client of their own, so they are refused even when a document claims them
+	respelled := []string{
+		"https://APP.example.com/oauth/client",      // host case
+		"HTTPS://app.example.com/oauth/client",      // scheme case
+		"https://app.example.com:443/oauth/client",  // default port
+		"https://app.example.com:/oauth/client",     // empty port
+		"https://app.example.com:0443/oauth/client", // leading-zero port
+	}
+
+	for _, id := range append(hostile, respelled...) {
 		t.Run(id, func(t *testing.T) {
 			s := newMetadataStore(t, nil)
+			if slices.Contains(respelled, id) {
+				// Any fetch gets a document that claims the respelled client ID, so only the client ID itself can be refused
+				body := `{"client_id":"` + id + `","client_name":"App","redirect_uris":["https://app/cb"],"token_endpoint_auth_method":"none"}`
+				s.resolver = newCIMDClientResolver(s.Store, cimdResolverConfig{
+					getURLAllowlist: func() []string { return []string{"*"} },
+					transport: roundTripFunc(func(*http.Request) (*http.Response, error) {
+						return testutils.NewMockResponse(http.StatusOK, body), nil
+					}),
+				})
+			}
 			_, err := s.GetClient(t.Context(), id)
 			require.Error(t, err, "must not be accepted as a Client Identifier URL")
 
@@ -872,6 +892,28 @@ func TestGetClient_HostileClientIDURLs(t *testing.T) {
 			assert.Zero(t, count)
 		})
 	}
+}
+
+// A client stored under a respelled client ID before canonical spellings were required must stop resolving
+func TestGetClient_NonCanonicalCachedClientIsRefused(t *testing.T) {
+	const id = "https://APP.example.com/oauth/client"
+	s := newMetadataStore(t, nil)
+
+	fresh := datatype.DateTime(time.Now().Add(time.Hour))
+	require.NoError(t, s.db.Create(&model.OidcClient{
+		Base:              model.Base{ID: id},
+		Name:              "App",
+		IsPublic:          true,
+		PkceEnabled:       true,
+		ClientType:        model.OidcClientTypeCIMD,
+		MetadataExpiresAt: &fresh,
+	}).Error)
+
+	_, err := s.GetClient(t.Context(), id)
+	require.ErrorIs(t, err, fosite.ErrInvalidClient)
+
+	_, err = s.RefreshMetadataClient(t.Context(), id)
+	require.ErrorContains(t, err, "canonical form")
 }
 
 // Section 5.2 forbids caching error responses or invalid documents, and section 5 requires every non-200 status to be treated as an error
