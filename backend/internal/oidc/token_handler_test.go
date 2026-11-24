@@ -1066,3 +1066,37 @@ func (f fakeSessions) IsActive(_ context.Context, _ string, sessionID string) (b
 func (fakeSessions) Revoke(context.Context, string, string, auditlogs.Origin) error {
 	return nil
 }
+
+// Fosite splits scope and grant_type before it authenticates the client, so an oversized body has to be refused before it is parsed
+func TestTokenHandlerRefusesOversizedBody(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+
+	const (
+		baseURL = "https://issuer.example.com"
+		secret  = "test-secret"
+	)
+
+	key, err := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
+	require.NoError(t, err)
+	db := testutils.NewDatabaseForTest(t)
+	provider, err := newProvider(NewStore(db, nil), nil, testTokenSigner{key: key}, Config{
+		BaseURL:      baseURL,
+		TokenBaseURL: baseURL,
+		Secret:       []byte(secret),
+	}, nil)
+	require.NoError(t, err)
+	handler := newTokenHandler(provider, newClaimsService(db, nil, baseURL, nil, appconfig.StaticResolver{}), nil, nil)
+
+	engine := gin.New()
+	engine.POST("/api/oidc/token", limitProtocolBody, handler.token)
+
+	body := "grant_type=client_credentials&client_id=unknown&scope=" + strings.Repeat("+", 100<<10)
+	req := httptest.NewRequestWithContext(t.Context(), http.MethodPost, "/api/oidc/token", strings.NewReader(body))
+	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+	rec := httptest.NewRecorder()
+	engine.ServeHTTP(rec, req)
+
+	// Without the limit the request gets as far as the client lookup and is answered with invalid_client
+	require.Equal(t, http.StatusBadRequest, rec.Code)
+	require.Contains(t, rec.Body.String(), "invalid_request")
+}
