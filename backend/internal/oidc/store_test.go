@@ -103,8 +103,8 @@ func TestStoreInvalidateAuthorizeCodeSessionIsAtomic(t *testing.T) {
 	require.NoError(t, store.InvalidateAuthorizeCodeSession(t.Context(), code, signature))
 
 	// A second invalidation of the now-inactive code fails closed: a racing token request
-	// cannot proceed to issue a second set of tokens from the same code, and the client gets invalid_grant.
-	require.ErrorIs(t, store.InvalidateAuthorizeCodeSession(t.Context(), code, signature), fosite.ErrInvalidGrant)
+	// cannot proceed to issue a second set of tokens from the same code, and fosite learns that the code was used twice.
+	require.ErrorIs(t, store.InvalidateAuthorizeCodeSession(t.Context(), code, signature), fosite.ErrInvalidatedAuthorizeCode)
 
 	// Reads of the consumed code report it as invalidated so fosite triggers reuse handling.
 	_, err := store.GetAuthorizeCodeSession(t.Context(), code, signature, nil)

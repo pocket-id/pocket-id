@@ -103,19 +103,54 @@ func TestRevokeUserClientSessionsRevokesApprovedDeviceCode(t *testing.T) {
 	require.ErrorIs(t, err, fosite.ErrInvalidGrant)
 }
 
-func TestStoreInvalidateDeviceCodeSessionReportsLostRaceAsInvalidGrant(t *testing.T) {
+func TestStoreInvalidateDeviceCodeSessionReportsLostRaceAsSecondUse(t *testing.T) {
 	_, store, provider, _, deviceCode := newTestDeviceServiceWithCode(t, "test-client", "test-user", false, nil)
 
 	signature, err := provider.deviceStrategy.DeviceCodeSignature(t.Context(), deviceCode)
 	require.NoError(t, err)
 
-	// The first redemption wins and a concurrent second one must not mint another token set
+	// The first redemption wins, and a concurrent second one must not mint another token set and tells fosite that the device code was used twice
 	require.NoError(t, store.InvalidateDeviceCodeSession(t.Context(), signature))
-	require.ErrorIs(t, store.InvalidateDeviceCodeSession(t.Context(), signature), fosite.ErrInvalidGrant)
+	require.ErrorIs(t, store.InvalidateDeviceCodeSession(t.Context(), signature), fosite.ErrInvalidatedDeviceCode)
+}
+
+// Two requests that redeem a device code at the same moment both find it unused, and the one that loses must end the grant like any other second use
+func TestDeviceCodeLostRedemptionRaceRevokesGrant(t *testing.T) {
+	const (
+		userID   = "test-user"
+		clientID = "test-client"
+	)
+	service, store, provider, userCode, deviceCode := newTestDeviceServiceWithCode(t, clientID, userID, false, nil)
+	require.NoError(t, service.acceptDeviceCode(t.Context(), userCode, userID, "phr", time.Now().UTC(), nil, "", requestMeta{}))
+
+	// The loser reads the device code before the winner redeems it
+	loser, err := newDeviceCodeAccessRequest(t, provider, clientID, deviceCode)
+	require.NoError(t, err)
+	_, err = exchangeDeviceCode(t, provider, clientID, deviceCode)
+	require.NoError(t, err)
+
+	_, err = provider.NewAccessResponse(t.Context(), loser)
+	require.ErrorIs(t, err, fosite.ErrInvalidGrant)
+
+	// The winner's tokens are revoked
+	var count int64
+	require.NoError(t, store.db.Model(&OAuth2Session{}).Where("request_id = ? AND (kind = ? OR (kind = ? AND active = ?))", loser.GetID(), sessionKindAccessToken, sessionKindRefreshToken, true).Count(&count).Error)
+	require.Zero(t, count)
 }
 
 // exchangeDeviceCode redeems the device code at the token endpoint like a polling device would
 func exchangeDeviceCode(t *testing.T, provider *oidcProvider, clientID, deviceCode string) (fosite.AccessResponder, error) {
+	t.Helper()
+
+	accessRequest, err := newDeviceCodeAccessRequest(t, provider, clientID, deviceCode)
+	if err != nil {
+		return nil, err
+	}
+	return provider.NewAccessResponse(t.Context(), accessRequest)
+}
+
+// newDeviceCodeAccessRequest runs the checks of the token endpoint that come before any token is issued
+func newDeviceCodeAccessRequest(t *testing.T, provider *oidcProvider, clientID, deviceCode string) (fosite.AccessRequester, error) {
 	t.Helper()
 
 	form := url.Values{
@@ -126,9 +161,5 @@ func exchangeDeviceCode(t *testing.T, provider *oidcProvider, clientID, deviceCo
 	req := httptest.NewRequestWithContext(t.Context(), http.MethodPost, "/api/oidc/token", strings.NewReader(form.Encode()))
 	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
 
-	accessRequest, err := provider.NewAccessRequest(t.Context(), req, NewEmptySession())
-	if err != nil {
-		return nil, err
-	}
-	return provider.NewAccessResponse(t.Context(), accessRequest)
+	return provider.NewAccessRequest(t.Context(), req, NewEmptySession())
 }
