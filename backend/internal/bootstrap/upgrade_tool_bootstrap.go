@@ -19,6 +19,8 @@ import (
 	"runtime"
 	"time"
 
+	"github.com/pressly/goose/v3/lock"
+
 	"github.com/pocket-id/pocket-id/backend/internal/common"
 	"github.com/pocket-id/pocket-id/backend/internal/utils"
 )
@@ -34,6 +36,9 @@ const (
 
 	// legacyMigrationsTable is the version table of golang-migrate, which the upgrade tool drops when it is done
 	legacyMigrationsTable = "schema_migrations"
+
+	// upgradeLockID is the row in goose's lock table that serializes the upgrade, next to the one goose locks for the migrations
+	upgradeLockID = lock.DefaultLockID + 1
 )
 
 // upgradeToolChecksums holds the SHA-256 checksum of each released gzipped binary of upgradeToolVersion, keyed by GOOS/GOARCH
@@ -56,6 +61,27 @@ func upgradeLegacyDatabase(ctx context.Context, sqlDb *sql.DB) error {
 	legacy, err := utils.TableExists(ctx, sqlDb, common.EnvConfig.DbProvider, legacyMigrationsTable)
 	if err != nil || !legacy {
 		return err
+	}
+
+	// Replicas that start together must not run the tool concurrently, so one runs it while the others wait and then find the database upgraded
+	if common.EnvConfig.DbProvider == common.DbProviderPostgres {
+		locker, err := lock.NewPostgresTableLocker(lock.WithTableLockID(upgradeLockID))
+		if err != nil {
+			return fmt.Errorf("failed to create the upgrade lock: %w", err)
+		}
+		err = locker.Lock(ctx, sqlDb)
+		if err != nil {
+			return fmt.Errorf("failed to acquire the upgrade lock: %w", err)
+		}
+		defer func() {
+			_ = locker.Unlock(ctx, sqlDb)
+		}()
+
+		legacy, err = utils.TableExists(ctx, sqlDb, common.EnvConfig.DbProvider, legacyMigrationsTable)
+		if err != nil || !legacy {
+			// Another replica has already upgraded the database so we move on
+			return err
+		}
 	}
 
 	// Build the download URL from compile-time values only, so nothing at runtime can point it elsewhere
