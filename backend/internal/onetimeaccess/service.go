@@ -240,13 +240,17 @@ func (s *Service) completeTokenExchange(ctx context.Context, dbConfig *appconfig
 		return model.User{}, model.LoginTokens{}, apperror.TokenInvalidOrExpired()
 	}
 
+	// Recognize the receiving browser after the login code has been consumed and the user validated
+	// The entry comes before the session, so a sign-in that can't be recorded leaves no session behind
+	signIn := s.auditLog.CreateSignIn(ctx, auditlogs.EventOneTimeAccessTokenSignIn, ipAddress, userAgent, user.ID, browserToken, s.db, dbConfig.EmailLoginNotificationMode)
+	if !signIn.Created {
+		return model.User{}, model.LoginTokens{}, errors.New("failed to create login code sign-in audit log")
+	}
+
 	sessionToken, err := s.sessions.Create(ctx, user.ID, authenticationMethodOneTimePassword, ipAddress, userAgent, dbConfig.SessionDuration.AsDurationMinutes(), remember)
 	if err != nil {
 		return model.User{}, model.LoginTokens{}, err
 	}
-
-	// Recognize the receiving browser after the login code has been consumed and the user validated
-	signIn := s.auditLog.CreateSignIn(ctx, auditlogs.EventOneTimeAccessTokenSignIn, ipAddress, userAgent, user.ID, browserToken, s.db, dbConfig.EmailLoginNotificationMode)
 	s.auditLog.SendSignInNotification(ctx, signIn)
 
 	return user, model.LoginTokens{SessionToken: sessionToken, KnownBrowserToken: signIn.KnownBrowserToken}, nil
