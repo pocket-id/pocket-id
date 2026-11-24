@@ -209,6 +209,16 @@ func TestFederatedClientAuthenticatorAssertionValidation(t *testing.T) {
 		require.ErrorIs(t, err, fosite.ErrInvalidClient)
 	})
 
+	t.Run("assertion that expires after the year 9999 is rejected and not remembered", func(t *testing.T) {
+		authenticator, store := newAuthenticator(t, true)
+		assertion := signAssertion(t, func(b *jwt.Builder) *jwt.Builder {
+			return b.JwtID("far-future-token").Expiration(time.Unix(253402300800, 0))
+		})
+		_, err := authenticator.authenticateAssertion(t.Context(), assertion, clientID)
+		require.ErrorIs(t, err, fosite.ErrInvalidClient)
+		require.Empty(t, store.jtis)
+	})
+
 	t.Run("assertion without jti is rejected when replay protection is enabled", func(t *testing.T) {
 		authenticator, _ := newAuthenticator(t, true)
 		assertion := signAssertion(t, func(b *jwt.Builder) *jwt.Builder {

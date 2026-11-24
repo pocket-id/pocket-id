@@ -227,8 +227,13 @@ func (a *federatedClientAuthenticator) authenticateAssertion(ctx context.Context
 		if err := a.clients.ClientAssertionJWTValid(ctx, jti); err != nil {
 			return nil, fosite.ErrInvalidClient.WithHint("Client assertion has already been used.").WithWrap(err)
 		}
-		// Store the jti to prevent future reuse
+		// A year past 9999 can't be written as a JSON timestamp, so one stored row with it would make every later export fail
+		// The last valid year is refused too, because a time zone can move it across that line
 		exp, _ := parsed.Expiration()
+		if exp.UTC().Year() >= 9999 {
+			return nil, fosite.ErrInvalidClient.WithHint("Client assertion expires too far in the future.")
+		}
+		// Store the jti to prevent future reuse
 		if err := a.clients.SetClientAssertionJWT(ctx, jti, exp); err != nil {
 			return nil, fosite.ErrInvalidClient.WithWrap(err)
 		}
