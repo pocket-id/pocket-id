@@ -17,7 +17,7 @@ type currentVersionDto struct {
 	CurrentVersion string `json:"currentVersion"`
 }
 
-type sqliteStorageWarningDto struct {
+type storageWarningDto struct {
 	ShowWarning bool `json:"showWarning"`
 }
 
@@ -44,6 +44,10 @@ func (h *handler) getCurrentVersion(c *gin.Context) (currentVersionDto, error) {
 	return currentVersionDto{CurrentVersion: common.Version}, nil
 }
 
-func (h *handler) getSqliteStorageWarning(c *gin.Context) (sqliteStorageWarningDto, error) {
-	return sqliteStorageWarningDto{ShowWarning: h.service.ShowSQLiteStorageWarning()}, nil
+func (h *handler) getSqliteStorageWarning(c *gin.Context) (storageWarningDto, error) {
+	return storageWarningDto{ShowWarning: h.service.ShowSQLiteStorageWarning()}, nil
+}
+
+func (h *handler) getNewerDatabaseWarning(c *gin.Context) (storageWarningDto, error) {
+	return storageWarningDto{ShowWarning: h.service.databaseMigratedByNewerVersion}, nil
 }

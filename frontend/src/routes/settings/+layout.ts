@@ -15,12 +15,14 @@ export const load: LayoutLoad = async ({ url, depends }) => {
 
 	const currentVersion = versionService.getCurrentVersion();
 
-	const [newestVersion, sqliteStorageWarning, passkeys, features] = await Promise.all([
-		versionService.getNewestVersion().catch(() => null),
-		storageService.getSqliteStorageWarning().catch(() => false),
-		webauthnService.listCredentials(),
-		new FeatureService().list()
-	]);
+	const [newestVersion, sqliteStorageWarning, newerDatabaseWarning, passkeys, features] =
+		await Promise.all([
+			versionService.getNewestVersion().catch(() => null),
+			storageService.getSqliteStorageWarning().catch(() => false),
+			storageService.getNewerDatabaseWarning().catch(() => false),
+			webauthnService.listCredentials(),
+			new FeatureService().list()
+		]);
 
 	// If newestVersion is empty, it means the check is disabled or failed.
 	// In this case, we assume the version is up to date.
@@ -47,6 +49,7 @@ export const load: LayoutLoad = async ({ url, depends }) => {
 	return {
 		versionInformation,
 		sqliteStorageWarning,
+		newerDatabaseWarning,
 		passkeys,
 		features
 	};

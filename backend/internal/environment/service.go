@@ -23,14 +23,16 @@ type Service struct {
 	httpClient *http.Client
 	cache      *utils.Cache[string]
 
-	sqliteOnNetworkedFilesystem bool
+	sqliteOnNetworkedFilesystem    bool
+	databaseMigratedByNewerVersion bool
 }
 
 func newService(deps Dependencies) *Service {
 	return &Service{
-		httpClient:                  deps.HTTPClient,
-		cache:                       utils.New[string](versionTTL),
-		sqliteOnNetworkedFilesystem: deps.SQLiteOnNetworkedFilesystem,
+		httpClient:                     deps.HTTPClient,
+		cache:                          utils.New[string](versionTTL),
+		sqliteOnNetworkedFilesystem:    deps.SQLiteOnNetworkedFilesystem,
+		databaseMigratedByNewerVersion: deps.DatabaseMigratedByNewerVersion,
 	}
 }
 

@@ -27,7 +27,7 @@
 		data: LayoutData;
 	} = $props();
 
-	const { versionInformation, sqliteStorageWarning, user } = data;
+	const { versionInformation, sqliteStorageWarning, newerDatabaseWarning, user } = data;
 
 	const isAdmin = $derived(!!($userStore?.isAdmin || user?.isAdmin));
 	const verificationPending = $derived(isEmailVerificationPending(user, $appConfigStore));
@@ -111,6 +111,12 @@
 								href="https://pocket-id.org/docs/configuration/environment-variables#sqlite"
 							/>
 						</Alert.Description>
+					</Alert.Root>
+				{/if}
+				{#if newerDatabaseWarning && isAdmin}
+					<Alert.Root variant="warning">
+						<TriangleAlertIcon />
+						<Alert.Description>{m.newer_database_warning()}</Alert.Description>
 					</Alert.Root>
 				{/if}
 				<!-- SvelteKit reuses the page when only the id changes, so a remount makes its state start from the new entity -->

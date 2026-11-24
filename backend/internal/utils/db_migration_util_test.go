@@ -15,7 +15,9 @@ func TestMigrateDatabaseWithNewerMigrations(t *testing.T) {
 	t.Run("an older replica keeps the newer migrations", func(t *testing.T) {
 		sqlDb := newDatabaseWithNewerMigration(t, "-- +goose Up\nCREATE TABLE newer_feature (id TEXT);\n-- +goose Down\nDROP TABLE newer_feature;\n")
 
-		require.NoError(t, utils.MigrateDatabase(t.Context(), sqlDb, common.DbProviderSqlite))
+		kept, err := utils.MigrateDatabase(t.Context(), sqlDb, common.DbProviderSqlite)
+		require.NoError(t, err)
+		require.True(t, kept)
 		exists, err := utils.TableExists(t.Context(), sqlDb, common.DbProviderSqlite, "newer_feature")
 		require.NoError(t, err)
 		require.True(t, exists, "the newer migration must not be rolled back")
@@ -29,7 +31,9 @@ func TestMigrateDatabaseWithNewerMigrations(t *testing.T) {
 			common.EnvConfig.AllowDowngrade = previous
 		})
 
-		require.NoError(t, utils.MigrateDatabase(t.Context(), sqlDb, common.DbProviderSqlite))
+		kept, err := utils.MigrateDatabase(t.Context(), sqlDb, common.DbProviderSqlite)
+		require.NoError(t, err)
+		require.False(t, kept)
 		exists, err := utils.TableExists(t.Context(), sqlDb, common.DbProviderSqlite, "newer_feature")
 		require.NoError(t, err)
 		require.False(t, exists)

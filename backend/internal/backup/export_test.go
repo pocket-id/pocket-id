@@ -21,7 +21,8 @@ func TestExportExcludesActorHostTables(t *testing.T) {
 	defer closeImportTestDB(db)
 
 	sqlDB, _ := db.DB()
-	require.NoError(t, utils.MigrateDatabase(t.Context(), sqlDB, common.DbProviderSqlite))
+	_, err := utils.MigrateDatabase(t.Context(), sqlDB, common.DbProviderSqlite)
+	require.NoError(t, err)
 	seedActorHostSchema(t, db) // creates francis_active_actors (with a row) and a view over it
 
 	export, err := NewExportService(db, nil, nil).extractDatabase(t.Context())
@@ -96,7 +97,8 @@ func newExportTestDB(t *testing.T) *gorm.DB {
 
 	sqlDB, err := db.DB()
 	require.NoError(t, err)
-	require.NoError(t, utils.MigrateDatabase(t.Context(), sqlDB, common.DbProviderSqlite))
+	_, err = utils.MigrateDatabase(t.Context(), sqlDB, common.DbProviderSqlite)
+	require.NoError(t, err)
 
 	return db
 }

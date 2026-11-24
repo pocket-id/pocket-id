@@ -5,4 +5,9 @@ export default class StorageService extends APIService {
 		const response = await this.api.get('/storage/sqlite-warning').then((res) => res.data);
 		return response.showWarning as boolean;
 	};
+
+	getNewerDatabaseWarning = async () => {
+		const response = await this.api.get('/storage/newer-database-warning').then((res) => res.data);
+		return response.showWarning as boolean;
+	};
 }
