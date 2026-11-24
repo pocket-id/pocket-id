@@ -441,9 +441,11 @@ func (s *Store) RotateRefreshToken(ctx context.Context, requestID string, refres
 // Satisfies fositeoauth2.TokenRevocationStorage
 
 func (s *Store) RevokeRefreshToken(ctx context.Context, requestID string) error {
+	// Only usable tokens need revoking, so replaying a spent code does not rewrite every refresh token the grant ever had
 	return s.dbFor(ctx).
 		Model(&OAuth2Session{}).
 		Where("kind = ? AND request_id = ?", sessionKindRefreshToken, requestID).
+		Where("active = ? OR rotated_at > ?", true, datatype.DateTime(time.Now().UTC().Add(-refreshTokenGracePeriod))).
 		Updates(map[string]any{"active": false, "rotated_at": nil}).
 		Error
 }
@@ -654,6 +656,7 @@ func (s *Store) revokeRequestIDs(ctx context.Context, requestIDs []string) error
 	if err := s.dbFor(ctx).
 		Model(&OAuth2Session{}).
 		Where("kind = ? AND request_id IN ?", sessionKindRefreshToken, requestIDs).
+		Where("active = ? OR rotated_at > ?", true, datatype.DateTime(time.Now().UTC().Add(-refreshTokenGracePeriod))).
 		Updates(map[string]any{"active": false, "rotated_at": nil}).
 		Error; err != nil {
 		return err

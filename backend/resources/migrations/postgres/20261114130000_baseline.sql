@@ -396,7 +396,7 @@ CREATE INDEX idx_oauth2_sessions_expires_at ON oauth2_sessions USING btree (expi
 
 CREATE UNIQUE INDEX idx_oauth2_sessions_kind_key ON oauth2_sessions USING btree (kind, key);
 
-CREATE INDEX idx_oauth2_sessions_kind_request ON oauth2_sessions USING btree (kind, request_id);
+CREATE INDEX idx_oauth2_sessions_kind_request ON oauth2_sessions USING btree (kind, request_id, active, rotated_at);
 
 CREATE UNIQUE INDEX idx_oidc_claim_mapping_policies_default ON oidc_claim_mapping_policies USING btree (is_default) WHERE is_default;
 

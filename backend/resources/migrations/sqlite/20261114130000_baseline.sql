@@ -286,7 +286,7 @@ CREATE INDEX idx_webauthn_sessions_expires_at ON webauthn_sessions (expires_at);
 
 CREATE UNIQUE INDEX idx_oauth2_sessions_kind_key ON oauth2_sessions (kind, key);
 
-CREATE INDEX idx_oauth2_sessions_kind_request ON oauth2_sessions (kind, request_id);
+CREATE INDEX idx_oauth2_sessions_kind_request ON oauth2_sessions (kind, request_id, active, rotated_at);
 
 CREATE INDEX idx_oauth2_sessions_expires_at ON oauth2_sessions (expires_at);
 
