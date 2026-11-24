@@ -313,9 +313,9 @@ func newHTTPServer(r *gin.Engine, protocols *http.Protocols) *http.Server {
 			// HEAD requests don't get matched by Gin routes, so we convert them to GET
 			// middleware.HeadMiddleware will convert them back to HEAD later
 			if req.Method == http.MethodHead {
-				req.Method = http.MethodGet
 				ctx := context.WithValue(req.Context(), middleware.IsHeadRequestCtxKey{}, true)
 				req = req.WithContext(ctx)
+				req.Method = http.MethodGet
 			}
 
 			r.ServeHTTP(w, req)
