@@ -43,7 +43,7 @@ require (
 	github.com/nlnwa/whatwg-url v0.6.2
 	github.com/oschwald/maxminddb-golang/v2 v2.9.0
 	github.com/pires/go-proxyproto v0.16.0
-	github.com/pocket-id/fosite v1.6.0
+	github.com/pocket-id/fosite v1.7.0
 	github.com/pressly/goose/v3 v3.30.1
 	github.com/quic-go/quic-go v0.64.1
 	github.com/spf13/cobra v1.10.2
