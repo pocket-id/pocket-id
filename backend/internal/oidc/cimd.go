@@ -11,6 +11,7 @@ import (
 	"strings"
 	"time"
 
+	whatwgurl "github.com/nlnwa/whatwg-url/url"
 	"github.com/pocket-id/fosite"
 
 	"github.com/pocket-id/pocket-id/backend/internal/model"
@@ -216,7 +217,7 @@ func hasInitiatingGrantType(grantTypes []string) bool {
 }
 
 // validateMetadataRedirectURIs rejects self-asserted redirect URIs Pocket ID must not accept
-func validateMetadataRedirectURIs(field string, uris []string) error {
+func validateMetadataRedirectURIs(field string, uris []string, issuerHost string) error {
 	for _, raw := range uris {
 		if strings.Contains(raw, "*") {
 			return fmt.Errorf("%s entry %q must not contain a wildcard", field, raw)
@@ -232,17 +233,32 @@ func validateMetadataRedirectURIs(field string, uris []string) error {
 		switch strings.ToLower(u.Scheme) {
 		case "javascript", "data":
 			return fmt.Errorf("%s entry %q uses a disallowed scheme", field, raw)
+		case "http", "https":
+			// A browser resolves a host-less form such as https:/path against the page it is on, which is Pocket ID itself
+			if u.Host == "" {
+				return fmt.Errorf("%s entry %q must have a host", field, raw)
+			}
+		}
+
+		// Error responses are auto-submitted to the redirect URI, so one on Pocket ID's own host would be a same-site form post carrying the user's session
+		// The host is read the way a browser reads it, because net/url keeps spellings such as full-width or numeric hosts that a browser maps to another host
+		if browserURL, err := whatwgurl.Parse(raw); err == nil && strings.EqualFold(browserURL.Hostname(), issuerHost) {
+			return fmt.Errorf("%s entry %q must not be on Pocket ID's own host", field, raw)
 		}
 	}
 	return nil
 }
 
 // buildClientFromMetadata applies Pocket ID's persisted-client projection to validated generic metadata
-func buildClientFromMetadata(doc *fosite.ClientMetadataDocument, rawURL string) (model.OidcClient, error) {
-	if err := validateMetadataRedirectURIs("redirect_uris", doc.RedirectURIs); err != nil {
+func buildClientFromMetadata(doc *fosite.ClientMetadataDocument, rawURL, issuer string) (model.OidcClient, error) {
+	var issuerHost string
+	if issuerURL, err := whatwgurl.Parse(issuer); err == nil {
+		issuerHost = issuerURL.Hostname()
+	}
+	if err := validateMetadataRedirectURIs("redirect_uris", doc.RedirectURIs, issuerHost); err != nil {
 		return model.OidcClient{}, err
 	}
-	if err := validateMetadataRedirectURIs("post_logout_redirect_uris", doc.PostLogoutRedirectURIs); err != nil {
+	if err := validateMetadataRedirectURIs("post_logout_redirect_uris", doc.PostLogoutRedirectURIs, issuerHost); err != nil {
 		return model.OidcClient{}, err
 	}
 
@@ -276,7 +292,7 @@ func buildClientFromMetadata(doc *fosite.ClientMetadataDocument, rawURL string) 
 
 // MaterializeCIMDClient converts validated generic metadata into Pocket ID's runtime client
 func (s *Store) MaterializeCIMDClient(_ context.Context, doc *fosite.ClientMetadataDocument) (fosite.Client, error) {
-	client, err := buildClientFromMetadata(doc, doc.ClientID)
+	client, err := buildClientFromMetadata(doc, doc.ClientID, s.issuer)
 	if err != nil {
 		return nil, err
 	}
