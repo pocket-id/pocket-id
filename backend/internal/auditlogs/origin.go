@@ -60,6 +60,9 @@ var credentialKinds = map[authz.PrincipalKind]string{
 // An empty userID records an action that concerns no user, such as creating a client
 // A nil tx writes the entry on its own, for callers that keep no database transaction
 func (s *service) Record(ctx context.Context, event Event, origin Origin, userID string, data Data, tx *gorm.DB) (AuditLog, bool) {
+	// The action has already happened, so a client that hangs up at this point must not keep it out of the log
+	ctx = context.WithoutCancel(ctx)
+
 	if tx == nil {
 		tx = s.db
 	}

@@ -14,6 +14,9 @@ import (
 // CreateSignIn records a successful login and applies the global notification policy
 // The caller must send the notification only after the login commits
 func (s *service) CreateSignIn(ctx context.Context, event Event, ipAddress, userAgent, userID, browserToken string, tx *gorm.DB, notificationMode appconfig.AppConfigValue) SignInResult {
+	// A client that hangs up must neither lose the entry nor turn the history lookup into "no new browser"
+	ctx = context.WithoutCancel(ctx)
+
 	// Compare the sign-in history against the User-Agent as it is stored
 	userAgent = utils.TruncateUserAgent(userAgent)
 

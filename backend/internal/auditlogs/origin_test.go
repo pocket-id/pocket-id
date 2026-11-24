@@ -1,6 +1,7 @@
 package auditlogs
 
 import (
+	"context"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -73,4 +74,15 @@ func TestRecordDescribesTheOrigin(t *testing.T) {
 
 func actor(entry AuditLog) [3]string {
 	return [3]string{string(entry.ActorType), entry.ActorID, entry.ActorName}
+}
+
+// Hanging up right after an action must not keep it out of the audit log
+func TestRecordIgnoresCancelledRequest(t *testing.T) {
+	db := testutils.NewDatabaseForTest(t)
+	s := newService(db, nil, signInLocationResolver{}, nil, browserTokenStub{})
+
+	ctx, cancel := context.WithCancel(t.Context())
+	cancel()
+	_, created := s.Record(ctx, EventPasskeyRemoved, Origin{}, "", nil, nil)
+	require.True(t, created)
 }
