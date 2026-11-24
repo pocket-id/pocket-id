@@ -1,6 +1,7 @@
 package utils
 
 import (
+	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -740,6 +741,7 @@ func TestMatchesAnyURLPattern(t *testing.T) {
 		{"star matches all", []string{"*"}, "https://anything.example.com/x", true},
 		{"no match", []string{"https://other.example.com/**"}, "https://app.example.com/oauth/client", false},
 		{"second pattern matches", []string{"https://a.example.com/**", "https://app.example.com/**"}, "https://app.example.com/oauth/client", true},
+		{"overlong input matches no wildcard", []string{"*", "https://app.example.com/**"}, "https://app.example.com" + strings.Repeat("/a", 1100), false},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
