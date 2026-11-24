@@ -293,7 +293,7 @@
 				"reauthentication_required": false,
 				"requested_at": "2099-01-01T00:00:00Z",
 				"scopes": "WyJvcGVuaWQiXQ==",
-				"user_id": "f4b89dc2-62fb-46bf-9f5f-c34f4eafe93e"
+				"session_id": null
 			}
 		],
 		"kv": [
