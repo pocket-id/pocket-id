@@ -2,12 +2,15 @@ package oidc
 
 import (
 	"context"
+	"database/sql"
 	"encoding/json"
 	"errors"
 	"fmt"
 	"log/slog"
 	"net/url"
+	"reflect"
 	"slices"
+	"sync"
 	"time"
 
 	"github.com/pocket-id/fosite"
@@ -56,11 +59,271 @@ func NewStore(db *gorm.DB, apiAccess APIAccessProvider) *Store {
 	return &Store{db: db, apiAccess: apiAccess}
 }
 
+const cimdRepairSeqRetention = time.Hour
+
+type cimdRepairEntry struct {
+	seq       uint64
+	updatedAt time.Time
+}
+
+type cimdPendingClearEntry struct {
+	ch                 chan struct{}
+	owner              *txHooks
+	deferredFailEpochs []uint64
+	prev               *cimdPendingClearEntry
+}
 type Store struct {
 	db             *gorm.DB
 	apiAccess      APIAccessProvider
 	issuer         string
 	clientResolver fosite.ClientResolver
+
+	// cimdFailedInvalidation records client IDs whose mismatch revocation and fallback DB invalidation both failed,
+	// preventing stale fresh-cache hits until a subsequent cleanup or valid repair commits to the database.
+	cimdInvalidationMu     sync.Mutex
+	cimdInvalidationSeq    uint64
+	cimdFailedInvalidation map[string]uint64
+	cimdRepairCounter      uint64
+	cimdRepairSeq          map[string]cimdRepairEntry
+	cimdPendingClear       map[string]cimdPendingClearEntry
+	onWaitPendingCIMDClear func()
+}
+
+// acquireCIMDPendingClear waits until no other transaction owns cimdPendingClear[clientID],
+// then atomically reserves ownership and reads the current failure generation under the same mutex acquisition.
+func (s *Store) acquireCIMDPendingClear(ctx context.Context, clientID string) (chan struct{}, uint64, error) {
+	callerHooks := txHooksFromContext(ctx)
+	for {
+		s.cimdInvalidationMu.Lock()
+		entry := s.cimdPendingClear[clientID]
+		hook := s.onWaitPendingCIMDClear
+		if entry.ch == nil || (callerHooks != nil && entry.owner == callerHooks) {
+			ch := make(chan struct{})
+			if s.cimdPendingClear == nil {
+				s.cimdPendingClear = make(map[string]cimdPendingClearEntry)
+			}
+			next := cimdPendingClearEntry{
+				ch:                 ch,
+				owner:              callerHooks,
+				deferredFailEpochs: entry.deferredFailEpochs,
+			}
+			if entry.ch != nil {
+				prevCopy := entry
+				prevCopy.deferredFailEpochs = nil
+				next.prev = &prevCopy
+			}
+			s.cimdPendingClear[clientID] = next
+			failedGen := s.cimdFailedInvalidation[clientID]
+			s.cimdInvalidationMu.Unlock()
+			return ch, failedGen, nil
+		}
+		s.cimdInvalidationMu.Unlock()
+		if hook != nil {
+			hook()
+		}
+		select {
+		case <-entry.ch:
+		case <-ctx.Done():
+			return nil, 0, ctx.Err()
+		}
+	}
+}
+
+func (s *Store) drainDeferredFailEpochsLocked(clientID string, epochs []uint64) {
+	if s.cimdFailedInvalidation[clientID] != 0 || len(epochs) == 0 {
+		return
+	}
+	for _, epoch := range epochs {
+		if !s.cimdRepairedSinceLocked(clientID, epoch) {
+			if s.cimdFailedInvalidation == nil {
+				s.cimdFailedInvalidation = make(map[string]uint64)
+			}
+			s.cimdInvalidationSeq++
+			s.cimdFailedInvalidation[clientID] = s.cimdInvalidationSeq
+			break
+		}
+	}
+}
+
+func (s *Store) abortCIMDRepair(clientID string, ch chan struct{}) {
+	s.cimdInvalidationMu.Lock()
+	if entry := s.cimdPendingClear[clientID]; entry.ch == ch {
+		if entry.prev != nil {
+			restored := *entry.prev
+			restored.deferredFailEpochs = entry.deferredFailEpochs
+			s.cimdPendingClear[clientID] = restored
+		} else {
+			delete(s.cimdPendingClear, clientID)
+			s.drainDeferredFailEpochsLocked(clientID, entry.deferredFailEpochs)
+		}
+	}
+	s.cimdInvalidationMu.Unlock()
+	close(ch)
+}
+
+func (s *Store) pruneCIMDRepairSeqLocked(now time.Time) {
+	for id, entry := range s.cimdRepairSeq {
+		if now.Sub(entry.updatedAt) <= cimdRepairSeqRetention {
+			continue
+		}
+		if _, failed := s.cimdFailedInvalidation[id]; failed {
+			continue
+		}
+		if _, pending := s.cimdPendingClear[id]; pending {
+			continue
+		}
+		delete(s.cimdRepairSeq, id)
+	}
+}
+
+func (s *Store) finishCIMDClear(clientID string, gen uint64, ch chan struct{}, committed bool, bumpRepairGen bool) {
+	s.cimdInvalidationMu.Lock()
+	if committed {
+		if gen != 0 && s.cimdFailedInvalidation[clientID] == gen {
+			delete(s.cimdFailedInvalidation, clientID)
+		}
+		if bumpRepairGen && s.cimdFailedInvalidation[clientID] == 0 {
+			if s.cimdRepairSeq == nil {
+				s.cimdRepairSeq = make(map[string]cimdRepairEntry)
+			}
+			if s.cimdRepairCounter == 0 {
+				s.cimdRepairCounter = 1
+			}
+			s.cimdRepairCounter++
+			now := time.Now()
+			s.cimdRepairSeq[clientID] = cimdRepairEntry{seq: s.cimdRepairCounter, updatedAt: now}
+			s.pruneCIMDRepairSeqLocked(now)
+		}
+	}
+	if entry := s.cimdPendingClear[clientID]; entry.ch == ch {
+		delete(s.cimdPendingClear, clientID)
+		s.drainDeferredFailEpochsLocked(clientID, entry.deferredFailEpochs)
+	}
+	s.cimdInvalidationMu.Unlock()
+	close(ch)
+}
+
+func (s *Store) cimdRepairGenLocked(clientID string) uint64 {
+	if entry, ok := s.cimdRepairSeq[clientID]; ok && entry.seq != 0 {
+		return entry.seq
+	}
+	return 1
+}
+
+// cimdRepairedSinceLocked reports whether a repair committed for clientID after observedRepairGen.
+// Comparing strictly greater (>) keeps outstanding observations valid even if a stale entry is pruned back to 1,
+// because cimdRepairCounter is strictly monotonic across the lifetime of the Store.
+func (s *Store) cimdRepairedSinceLocked(clientID string, observedRepairGen uint64) bool {
+	return observedRepairGen != 0 && s.cimdRepairGenLocked(clientID) > observedRepairGen
+}
+
+func (s *Store) cimdRepairedSince(clientID string, observedRepairGen uint64) bool {
+	s.cimdInvalidationMu.Lock()
+	defer s.cimdInvalidationMu.Unlock()
+	return s.cimdRepairedSinceLocked(clientID, observedRepairGen)
+}
+
+func (s *Store) cimdRepairGen(clientID string) uint64 {
+	s.cimdInvalidationMu.Lock()
+	defer s.cimdInvalidationMu.Unlock()
+	return s.cimdRepairGenLocked(clientID)
+}
+
+func (s *Store) markCIMDInvalidationFailed(clientID string) uint64 {
+	gen, _, _ := s.markCIMDInvalidationFailedIfUnrepaired(context.Background(), clientID, 0)
+	return gen
+}
+
+func (s *Store) markCIMDInvalidationFailedIfUnrepaired(ctx context.Context, clientID string, expectedRepairGen uint64) (uint64, bool, bool) {
+	s.cimdInvalidationMu.Lock()
+	defer s.cimdInvalidationMu.Unlock()
+	if s.cimdRepairedSinceLocked(clientID, expectedRepairGen) {
+		return 0, true, false
+	}
+	callerHooks := txHooksFromContext(ctx)
+	if current := s.cimdPendingClear[clientID]; current.ch != nil && (callerHooks == nil || current.owner != callerHooks) {
+		// Another transaction has a pending repair/clear: defer publication so a committing repair supersedes it while a rolled-back repair publishes it
+		current.deferredFailEpochs = append(current.deferredFailEpochs, expectedRepairGen)
+		s.cimdPendingClear[clientID] = current
+		return 0, false, true
+	}
+	if s.cimdFailedInvalidation == nil {
+		s.cimdFailedInvalidation = make(map[string]uint64)
+	}
+	s.cimdInvalidationSeq++
+	s.cimdFailedInvalidation[clientID] = s.cimdInvalidationSeq
+	return s.cimdInvalidationSeq, false, false
+}
+
+// markCIMDInvalidationFailedAfterPending atomically checks pending repairs, compares expectedRepairGen, and publishes a failure marker under one mutex boundary.
+// If ctx expires while another transaction's clear/repair is still pending, publication is deferred to finishCIMDClear so a committing repair supersedes it while a rolled-back repair still publishes the marker.
+func (s *Store) markCIMDInvalidationFailedAfterPending(ctx context.Context, clientID string, expectedRepairGen uint64) (uint64, bool) {
+	callerHooks := txHooksFromContext(ctx)
+	for {
+		s.cimdInvalidationMu.Lock()
+		if s.cimdRepairedSinceLocked(clientID, expectedRepairGen) {
+			s.cimdInvalidationMu.Unlock()
+			return 0, true
+		}
+		entry := s.cimdPendingClear[clientID]
+		hook := s.onWaitPendingCIMDClear
+		if entry.ch == nil || (callerHooks != nil && entry.owner == callerHooks) {
+			if s.cimdFailedInvalidation == nil {
+				s.cimdFailedInvalidation = make(map[string]uint64)
+			}
+			s.cimdInvalidationSeq++
+			s.cimdFailedInvalidation[clientID] = s.cimdInvalidationSeq
+			gen := s.cimdInvalidationSeq
+			s.cimdInvalidationMu.Unlock()
+			return gen, false
+		}
+		s.cimdInvalidationMu.Unlock()
+		if hook != nil {
+			hook()
+		}
+		select {
+		case <-entry.ch:
+		case <-ctx.Done():
+			s.cimdInvalidationMu.Lock()
+			if s.cimdRepairedSinceLocked(clientID, expectedRepairGen) {
+				s.cimdInvalidationMu.Unlock()
+				return 0, true
+			}
+			current := s.cimdPendingClear[clientID]
+			if current.ch == nil || (callerHooks != nil && current.owner == callerHooks) {
+				if s.cimdFailedInvalidation == nil {
+					s.cimdFailedInvalidation = make(map[string]uint64)
+				}
+				s.cimdInvalidationSeq++
+				s.cimdFailedInvalidation[clientID] = s.cimdInvalidationSeq
+				gen := s.cimdInvalidationSeq
+				s.cimdInvalidationMu.Unlock()
+				return gen, false
+			}
+			current.deferredFailEpochs = append(current.deferredFailEpochs, expectedRepairGen)
+			s.cimdPendingClear[clientID] = current
+			s.cimdInvalidationMu.Unlock()
+			return 0, false
+		}
+	}
+}
+
+func (s *Store) cimdInvalidationFailedGen(clientID string) uint64 {
+	s.cimdInvalidationMu.Lock()
+	defer s.cimdInvalidationMu.Unlock()
+	return s.cimdFailedInvalidation[clientID]
+}
+
+func (s *Store) isCIMDInvalidated(clientID string) bool {
+	return s.cimdInvalidationFailedGen(clientID) != 0
+}
+
+func (s *Store) isCIMDInvalidatedForContext(ctx context.Context, clientID string) bool {
+	gen := s.cimdInvalidationFailedGen(clientID)
+	if gen == 0 {
+		return false
+	}
+	return !txRepairedCIMD(ctx, clientID, gen)
 }
 
 // WithIssuer sets the issuer that is added as an extra audience to access tokens carrying an identity scope, so they can be presented to Pocket ID's own endpoints such as /userinfo
@@ -115,8 +378,31 @@ func (s *Store) GetClient(ctx context.Context, id string) (fosite.Client, error)
 	return client, nil
 }
 
+type lockedResolvedClientKey struct{}
+
+func contextWithLockedResolvedClient(ctx context.Context, client Client) context.Context {
+	return context.WithValue(ctx, lockedResolvedClientKey{}, client)
+}
+
+func lockedResolvedClientFromContext(ctx context.Context, id string) (Client, bool) {
+	client, ok := ctx.Value(lockedResolvedClientKey{}).(Client)
+	if !ok || client.GetID() != id {
+		return Client{}, false
+	}
+	return client, true
+}
+
 // resolvePersistedClient restores a client from storage and falls back to the configured generic resolver for uncached clients
 func (s *Store) resolvePersistedClient(ctx context.Context, id string) (fosite.Client, error) {
+	// Reuse the client already locked and validated for this token exchange so session decoding cannot re-enter metadata discovery while holding the client row lock, while still enforcing the current CIMD policy
+	if client, ok := lockedResolvedClientFromContext(ctx, id); ok {
+		if resolver, ok := s.clientResolver.(*cimdClientResolver); ok {
+			if err := resolver.policy.AllowCIMDClient(ctx, id); err != nil {
+				return nil, fosite.ErrInvalidClient.WithHint("The client metadata document could not be resolved.").WithWrap(err).WithDebug(err.Error())
+			}
+		}
+		return client, nil
+	}
 	if s.clientResolver != nil {
 		return s.clientResolver.ResolveClient(ctx, id, s.GetClient)
 	}
@@ -147,29 +433,76 @@ func (s *Store) clientFromModel(ctx context.Context, tx *gorm.DB, clientModel mo
 	return client, nil
 }
 
-// LoadCIMDClient loads only clients that Pocket ID previously associated with a metadata document
-func (s *Store) LoadCIMDClient(ctx context.Context, id string) (fosite.CIMDCachedClient, bool, error) {
+func isCIMDClientCompatible(clientModel model.OidcClient) bool {
+	return clientModel.IsPublic && clientModel.PkceEnabled && len(clientModel.Credentials.FederatedIdentities) == 0
+}
+
+func isCIMDMetadataActive(clientModel model.OidcClient, now time.Time) bool {
+	return clientModel.MetadataExpiresAt != nil &&
+		isCIMDClientCompatible(clientModel) &&
+		!clientModel.MetadataExpiresAt.ToTime().Add(cimdStaleIfUnavailable).Before(now)
+}
+
+func (s *Store) loadCIMDClientOnce(ctx context.Context, tx *gorm.DB, id string) (model.OidcClient, Client, bool, error) {
 	clientModel, err := s.firstClientByID(ctx, id)
 	if errors.Is(err, gorm.ErrRecordNotFound) {
-		return fosite.CIMDCachedClient{}, false, nil
+		return model.OidcClient{}, Client{}, false, nil
 	}
 	if err != nil {
-		return fosite.CIMDCachedClient{}, false, err
+		return model.OidcClient{}, Client{}, false, err
 	}
 	if !clientModel.IsMetadataDocument() {
-		return fosite.CIMDCachedClient{}, false, nil
+		return model.OidcClient{}, Client{}, false, nil
+	}
+	client, err := s.clientFromModel(ctx, tx, clientModel)
+	if err != nil {
+		return model.OidcClient{}, Client{}, false, err
+	}
+	return clientModel, client, true, nil
+}
+
+// loadConsistentCIMDClient loads a CIMD client row and its runtime scopes/audiences.
+// Outside a caller transaction (all production CIMD resolution paths) it opens a single read-only snapshot transaction (REPEATABLE READ on PostgreSQL, ReadOnly on SQLite).
+// Inside a caller-owned transaction it reuses the caller's transaction directly (inheriting its isolation level, matching Store.GetClient) so it observes the caller's own uncommitted writes without nesting connections.
+func (s *Store) loadConsistentCIMDClient(ctx context.Context, id string) (model.OidcClient, Client, bool, error) {
+	if tx, inTx := txFromContext(ctx); inTx {
+		return s.loadCIMDClientOnce(ctx, tx, id)
 	}
 
-	client, err := s.clientFromModel(ctx, s.dbFor(ctx), clientModel)
+	opts := &sql.TxOptions{ReadOnly: true}
+	if s.db.Name() == "postgres" {
+		opts.Isolation = sql.LevelRepeatableRead
+	}
+	var (
+		clientModel model.OidcClient
+		client      Client
+		found       bool
+	)
+	err := s.db.WithContext(ctx).Transaction(func(roTx *gorm.DB) error {
+		roCtx := contextWithTx(ctx, roTx)
+		var qErr error
+		clientModel, client, found, qErr = s.loadCIMDClientOnce(roCtx, roTx, id)
+		return qErr
+	}, opts)
 	if err != nil {
+		return model.OidcClient{}, Client{}, false, err
+	}
+	return clientModel, client, found, nil
+}
+
+// LoadCIMDClient loads only clients that Pocket ID previously associated with a metadata document
+func (s *Store) LoadCIMDClient(ctx context.Context, id string) (fosite.CIMDCachedClient, bool, error) {
+	clientModel, client, found, err := s.loadConsistentCIMDClient(ctx, id)
+	if err != nil || !found {
 		return fosite.CIMDCachedClient{}, false, err
 	}
+	// An invalidated metadata entry (MetadataExpiresAt == nil or failed DB invalidation) receives a zero expiry, which is outside StaleIfUnavailable while still allowing forced manual refresh
 	var expiresAt time.Time
-	if clientModel.MetadataExpiresAt != nil {
+	if clientModel.MetadataExpiresAt != nil && !s.isCIMDInvalidatedForContext(ctx, id) {
 		expiresAt = time.Time(*clientModel.MetadataExpiresAt)
 	}
 	// Force incompatible cached entries through discovery so current policy applies before they can be used
-	if !clientModel.IsPublic || !clientModel.PkceEnabled || len(clientModel.Credentials.FederatedIdentities) > 0 {
+	if !isCIMDClientCompatible(clientModel) {
 		expiresAt = time.Time{}
 	}
 	return fosite.CIMDCachedClient{Client: client, ExpiresAt: expiresAt}, true, nil
@@ -187,8 +520,28 @@ func (s *Store) StoreCIMDClient(ctx context.Context, resolved fosite.Client, _ *
 	var changes []string
 	var revokeConsent bool
 	var stored fosite.Client
-	err := withTx(ctx, s.db, func(ctx context.Context) error {
-		existing, err := s.firstClientByID(ctx, client.ID)
+	_, inCallerTx := txFromContext(ctx)
+	runStore := func(ctx context.Context) error {
+		// Serialize first-insert and concurrent mismatch cleanup on PostgreSQL even before an oidc_clients row exists
+		if err := lockCIMDClientID(s.dbFor(ctx), client.ID); err != nil {
+			return err
+		}
+		// Atomically wait for any other transaction's pending clear/repair, reserve ownership, and read failedGen under one mutex boundary
+		pendingCh, failedGen, err := s.acquireCIMDPendingClear(ctx, client.ID)
+		if err != nil {
+			return err
+		}
+		handedOffToFinish := false
+		defer func() {
+			if !handedOffToFinish {
+				s.abortCIMDRepair(client.ID, pendingCh)
+			}
+		}()
+		// Lock any existing row before computing metadata differences so a concurrent refresh cannot race between diffing and writing
+		var existing model.OidcClient
+		err = withClientNoKeyUpdateLock(s.dbFor(ctx)).
+			Where("id = ?", client.ID).
+			First(&existing).Error
 		found := err == nil
 		if err != nil && !errors.Is(err, gorm.ErrRecordNotFound) {
 			return err
@@ -196,35 +549,73 @@ func (s *Store) StoreCIMDClient(ctx context.Context, resolved fosite.Client, _ *
 		if found && !existing.IsMetadataDocument() {
 			return errors.New("client is already registered without a metadata document")
 		}
+		var metadataRevokesConsent bool
 		if found {
 			changes = metadataClientChanges(existing, client.OidcClient)
 			// Every detected change except the display name invalidates what the user agreed to
-			revokeConsent = slices.ContainsFunc(changes, func(field string) bool { return field != "client_name" })
+			metadataRevokesConsent = slices.ContainsFunc(changes, func(field string) bool { return field != "client_name" })
 		}
+		// Repairing an invalidated or incompatible row (MetadataExpiresAt == nil, incompatible auth settings, or an unrepaired prior failed DB invalidation) always revokes surviving grants
+		unresolvedFailure := failedGen != 0 && !txRepairedCIMD(ctx, client.ID, failedGen)
+		wasInvalidated := found && (existing.MetadataExpiresAt == nil || !isCIMDClientCompatible(existing) || unresolvedFailure)
+		revokeConsent = metadataRevokesConsent || wasInvalidated
 
-		// Persist the refreshed metadata and consent invalidation together so a failed deletion cannot suppress the next revocation attempt
-		if err := s.upsertMetadataClient(ctx, s.dbFor(ctx), &client.OidcClient, found); err != nil {
-			return err
-		}
-
-		// A security-relevant document change invalidates consent because it changes what the user previously approved
-		// No back-channel logout tokens are sent here, which is safe only because CIMD clients cannot register a backchannel_logout_url today
-		// If that URL is ever mapped from the metadata document, resolve the notifications before this delete removes the rows
-		if revokeConsent {
-			if _, err := s.revokeClientGrants(ctx, client.ID); err != nil {
+		// Persist the refreshed metadata and consent invalidation together; when running inside a caller-owned transaction, wrap them in a savepoint so a failed grant deletion cannot leave fresh metadata committed alongside surviving grants
+		writeMetadataAndRevoke := func(wCtx context.Context) error {
+			if err := s.upsertMetadataClient(wCtx, s.dbFor(wCtx), &client.OidcClient, found); err != nil {
 				return err
 			}
-		}
 
-		// Reload inside the transaction so DB-managed columns and preloads are populated consistently
-		// This bypasses GetClient so an admin can still refresh the metadata of a disabled client
-		storedModel, err := s.firstClientByID(ctx, client.ID)
-		if err != nil {
+			// A security-relevant document change invalidates consent because it changes what the user previously approved
+			// No back-channel logout tokens are sent here, which is safe only because CIMD clients cannot register a backchannel_logout_url today
+			// If that URL is ever mapped from the metadata document, resolve the notifications before this delete removes the rows
+			if revokeConsent {
+				if _, err := s.revokeClientGrants(wCtx, client.ID); err != nil {
+					return err
+				}
+			}
+
+			// Reload inside the transaction so DB-managed columns and preloads are populated consistently
+			// This bypasses GetClient so an admin can still refresh the metadata of a disabled client
+			storedModel, err := s.firstClientByID(wCtx, client.ID)
+			if err != nil {
+				return err
+			}
+			if !storedModel.IsMetadataDocument() {
+				return errors.New("client is already registered without a metadata document")
+			}
+			stored, err = s.clientFromModel(wCtx, s.dbFor(wCtx), storedModel)
 			return err
 		}
-		stored, err = s.clientFromModel(ctx, s.dbFor(ctx), storedModel)
-		return err
-	})
+		if inCallerTx {
+			if spErr := s.dbFor(ctx).Transaction(func(spTx *gorm.DB) error {
+				return writeMetadataAndRevoke(contextWithTx(ctx, spTx))
+			}); spErr != nil {
+				return spErr
+			}
+		} else if wErr := writeMetadataAndRevoke(ctx); wErr != nil {
+			return wErr
+		}
+
+		if hasTxHooks(ctx) {
+			// Disarm any earlier failed-mismatch commit retry in this same transaction so committing this repair does not get undone by that queued retry (rollback still retries)
+			cancelPostTxOnCommit(ctx, "cimd-mismatch:"+client.ID)
+			if wasInvalidated || unresolvedFailure {
+				id := client.ID
+				gen := failedGen
+				if unresolvedFailure {
+					markTxCIMDRepaired(ctx, id, gen)
+				}
+				handedOffToFinish = true
+				// Coordinate the commit-and-clear/repair-epoch boundary across transactions via afterTxFinish so waiters always unblock before any rollback callback acquires database locks
+				afterTxFinish(ctx, func(committed bool) {
+					s.finishCIMDClear(id, gen, pendingCh, committed, true)
+				})
+			}
+		}
+		return nil
+	}
+	err := withTx(ctx, s.db, runStore)
 	if err != nil {
 		return nil, err
 	}
@@ -244,9 +635,16 @@ func (s *Store) StoreCIMDClient(ctx context.Context, resolved fosite.Client, _ *
 	return stored, nil
 }
 
-// revokeClientGrants deletes every consent users gave to a client together with the tokens issued under it, and returns how many of both it deleted
-// The caller runs it in a transaction so a client never keeps tokens whose consent is gone
+// revokeClientGrants deletes every consent users gave to a client together with the tokens and pending interactions issued under it, and returns how many rows it deleted
+// The caller runs it in a transaction so a client never keeps tokens or pending approvals whose consent is gone
 func (s *Store) revokeClientGrants(ctx context.Context, clientID string) (int64, error) {
+	// Lock the client row with FOR NO KEY UPDATE on PostgreSQL so revocation serializes with concurrent CIMD consent/code flows without conflicting with FOR KEY SHARE foreign-key checks from token rotation
+	var lockedClient model.OidcClient
+	if err := withClientNoKeyUpdateLock(s.dbFor(ctx)).Select("id").Where("id = ?", clientID).First(&lockedClient).Error; err != nil && !errors.Is(err, gorm.ErrRecordNotFound) {
+		return 0, fmt.Errorf("failed to lock client for grant revocation: %w", err)
+	}
+
+	// Delete consents, then OAuth2 sessions, then pending interactions to match the manual revocation order in clientService and prevent lock-order deadlocks
 	consents := s.dbFor(ctx).
 		Where("client_id = ?", clientID).
 		Delete(&model.UserAuthorizedOidcClient{})
@@ -261,7 +659,38 @@ func (s *Store) revokeClientGrants(ctx context.Context, clientID string) (int64,
 	if tokens.Error != nil {
 		return 0, fmt.Errorf("failed to revoke the tokens of the client: %w", tokens.Error)
 	}
-	return consents.RowsAffected + tokens.RowsAffected, nil
+
+	interactions := s.dbFor(ctx).
+		Where("client_id = ?", clientID).
+		Delete(&InteractionSession{})
+	if interactions.Error != nil {
+		return 0, fmt.Errorf("failed to revoke pending interactions of the client: %w", interactions.Error)
+	}
+	return consents.RowsAffected + tokens.RowsAffected + interactions.RowsAffected, nil
+}
+
+// invalidateCIMDClientCache clears metadata_expires_at so a rejected metadata document cannot be served fresh or stale until a valid fetch succeeds
+func (s *Store) invalidateCIMDClientCache(ctx context.Context, clientID string) error {
+	return s.dbFor(ctx).
+		Model(&model.OidcClient{}).
+		Where("id = ? AND client_type = ?", clientID, model.OidcClientTypeCIMD).
+		Update("metadata_expires_at", nil).Error
+}
+
+// lockCIMDClientID acquires a transaction-scoped advisory lock on PostgreSQL so first-time CIMD inserts and missing-row mismatch cleanups serialize even before an oidc_clients row exists.
+func lockCIMDClientID(tx *gorm.DB, clientID string) error {
+	if tx.Name() != "postgres" {
+		return nil
+	}
+	return tx.Exec("SELECT pg_advisory_xact_lock(hashtextextended(?, 0))", "pocket-id:cimd:"+clientID).Error
+}
+
+// withClientNoKeyUpdateLock acquires FOR NO KEY UPDATE on PostgreSQL so CIMD revocation and authorization flows serialize without blocking FOR KEY SHARE foreign-key checks from oauth2_sessions writes.
+func withClientNoKeyUpdateLock(db *gorm.DB) *gorm.DB {
+	if db.Name() == "postgres" {
+		return db.Clauses(clause.Locking{Strength: "NO KEY UPDATE"})
+	}
+	return db
 }
 
 // metadataClientChanges returns the names of security-relevant metadata fields that differ between the stored client and a freshly fetched one
@@ -273,7 +702,9 @@ func metadataClientChanges(old, next model.OidcClient) []string {
 	if !slices.Equal([]string(old.LogoutCallbackURLs), next.LogoutCallbackURLs) {
 		changed = append(changed, "post_logout_redirect_uris")
 	}
-	if old.IsPublic != next.IsPublic {
+	federatedChanged := (len(old.Credentials.FederatedIdentities) > 0 || len(next.Credentials.FederatedIdentities) > 0) &&
+		!reflect.DeepEqual(old.Credentials.FederatedIdentities, next.Credentials.FederatedIdentities)
+	if old.IsPublic != next.IsPublic || old.PkceEnabled != next.PkceEnabled || federatedChanged {
 		changed = append(changed, "token_endpoint_auth_method")
 	}
 	if old.Name != next.Name {
@@ -401,6 +832,13 @@ func (s *Store) GetRefreshTokenSession(ctx context.Context, signature string, _ 
 	if err != nil {
 		return nil, err
 	}
+	// Client resolution for a CIMD client may have repaired metadata and revoked sessions; recheck the persisted session before returning it
+	if client, ok := request.GetClient().(Client); ok && client.IsMetadataDocument() {
+		session, err = s.getSession(ctx, sessionKindRefreshToken, signature)
+		if err != nil {
+			return nil, err
+		}
+	}
 	// Allow retries briefly after rotation while keeping explicitly revoked tokens inactive
 	if !session.Active && (session.RotatedAt == nil || !time.Now().UTC().Before(session.RotatedAt.ToTime().Add(refreshTokenGracePeriod))) {
 		return request, fosite.ErrInactiveToken
@@ -413,6 +851,36 @@ func (s *Store) DeleteRefreshTokenSession(ctx context.Context, signature string)
 }
 
 func (s *Store) RotateRefreshToken(ctx context.Context, requestID string, refreshTokenSignature string) error {
+	// If the caller already locked a CIMD client row for this exchange, proceed directly to the session update
+	if _, alreadyLocked := ctx.Value(lockedResolvedClientKey{}).(Client); alreadyLocked {
+		return s.rotateRefreshTokenLocked(ctx, requestID, refreshTokenSignature)
+	}
+	// If the caller has not already locked a CIMD client row for this exchange, keep the row lock, policy check, and session updates in one transaction
+	return withTx(ctx, s.db, func(txCtx context.Context) error {
+		var lockedClient model.OidcClient
+		lockErr := withClientNoKeyUpdateLock(s.dbFor(txCtx)).
+			Select("id", "metadata_expires_at", "disabled", "is_public", "pkce_enabled", "credentials").
+			Where("client_type = ? AND id = (SELECT client_id FROM oauth2_sessions WHERE kind = ? AND key = ? AND request_id = ? LIMIT 1)",
+				model.OidcClientTypeCIMD, sessionKindRefreshToken, refreshTokenSignature, requestID).
+			First(&lockedClient).Error
+		if lockErr != nil && !errors.Is(lockErr, gorm.ErrRecordNotFound) {
+			return lockErr
+		}
+		if lockErr == nil {
+			if lockedClient.Disabled || !isCIMDMetadataActive(lockedClient, time.Now()) || s.isCIMDInvalidatedForContext(txCtx, lockedClient.ID) {
+				return fosite.ErrInactiveToken
+			}
+			if resolver, ok := s.clientResolver.(*cimdClientResolver); ok {
+				if err := resolver.policy.AllowCIMDClient(txCtx, lockedClient.ID); err != nil {
+					return fosite.ErrInactiveToken
+				}
+			}
+		}
+		return s.rotateRefreshTokenLocked(txCtx, requestID, refreshTokenSignature)
+	})
+}
+
+func (s *Store) rotateRefreshTokenLocked(ctx context.Context, requestID string, refreshTokenSignature string) error {
 	// Atomically start the grace period once so parallel refreshes cannot extend it or revive revoked tokens
 	now := time.Now().UTC()
 	result := s.dbFor(ctx).
@@ -756,7 +1224,17 @@ func (s *Store) GetPARSession(ctx context.Context, requestURI string) (fosite.Au
 		return nil, fosite.ErrNotFound
 	}
 
-	return s.decodeAuthorizeRequester(ctx, session.RequestData)
+	requester, err := s.decodeAuthorizeRequester(ctx, session.RequestData)
+	if err != nil {
+		return nil, err
+	}
+	// Client resolution for a CIMD client may have repaired metadata and deleted oauth2_sessions; verify the PAR session still exists
+	if client, ok := requester.GetClient().(Client); ok && client.IsMetadataDocument() {
+		if _, err := s.getSession(ctx, sessionKindPAR, requestURI); err != nil {
+			return nil, err
+		}
+	}
+	return requester, nil
 }
 
 func (s *Store) DeletePARSession(ctx context.Context, requestURI string) error {
@@ -967,6 +1445,14 @@ func (s *Store) getRequesterSession(ctx context.Context, kind string, key string
 		return nil, false, err
 	}
 
+	// Client resolution for a CIMD client may have repaired metadata and deleted oauth2_sessions; recheck the persisted session before returning it
+	if client, ok := requester.GetClient().(Client); ok && client.IsMetadataDocument() {
+		session, err = s.getSession(ctx, kind, key)
+		if err != nil {
+			return nil, false, err
+		}
+	}
+
 	return requester, session.Active, nil
 }
 
@@ -979,6 +1465,13 @@ func (s *Store) getDeviceRequesterSession(ctx context.Context, kind string, key 
 	requester, err := s.decodeDeviceRequester(ctx, session.RequestData)
 	if err != nil {
 		return nil, false, err
+	}
+
+	if client, ok := requester.GetClient().(Client); ok && client.IsMetadataDocument() {
+		session, err = s.getSession(ctx, kind, key)
+		if err != nil {
+			return nil, false, err
+		}
 	}
 
 	return requester, session.Active, nil

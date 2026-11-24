@@ -41,6 +41,9 @@ type authorizationService struct {
 	reauth                    ReauthenticationTokenConsumer
 	auditLog                  AuditLogger
 	apiAccess                 APIAccessProvider
+	validateCIMDClient        func(context.Context, string) error
+	isCIMDInvalidated         func(context.Context, string) bool
+	resolveCIMDClient         func(context.Context, string) (fosite.Client, error)
 }
 
 // resolveGrant resolves the RFC 8707 resource of a request into the token audience, the scopes that may actually be granted, and the audience-qualified keys used to record and check consent
@@ -121,6 +124,7 @@ type authorizeInput struct {
 	interactionID                 string
 	requestParams                 map[string]string
 	meta                          requestMeta
+	validateCIMDClient            func(context.Context, string) error
 }
 
 // authorizeRequest is the input enriched with everything the service derives from it.
@@ -136,6 +140,45 @@ type authorizeRequest struct {
 func (s *authorizationService) authorize(ctx context.Context, input authorizeInput) (authorizationResult, error) {
 	client := input.requester.GetClient().(Client)
 	prompt := newPromptValues(input.requester.GetRequestForm().Get("prompt"))
+
+	// Lock the CIMD client row and reload its current metadata, policy, and group restrictions before any check or code issuance
+	if client.IsMetadataDocument() {
+		tx := dbFromContext(ctx, s.db)
+		var lockedClient model.OidcClient
+		lockErr := withClientNoKeyUpdateLock(tx).Where("id = ?", client.GetID()).First(&lockedClient).Error
+		if errors.Is(lockErr, gorm.ErrRecordNotFound) {
+			return authorizationResult{}, fosite.ErrInvalidClient.WithHint("The client is no longer valid.")
+		}
+		if lockErr != nil {
+			return authorizationResult{}, lockErr
+		}
+		if lockedClient.Disabled {
+			return authorizationResult{}, apperror.OidcClientDisabled()
+		}
+		if !isCIMDMetadataActive(lockedClient, time.Now()) || (s.isCIMDInvalidated != nil && s.isCIMDInvalidated(ctx, client.GetID())) {
+			return authorizationResult{}, fosite.ErrInvalidClient.WithHint("The client metadata document is no longer valid.")
+		}
+		validateCIMD := input.validateCIMDClient
+		if validateCIMD == nil {
+			validateCIMD = s.validateCIMDClient
+		}
+		if validateCIMD != nil {
+			if policyErr := validateCIMD(ctx, client.GetID()); policyErr != nil {
+				return authorizationResult{}, fosite.ErrInvalidClient.WithHint("The client metadata document could not be resolved.").WithWrap(policyErr).WithDebug(policyErr.Error())
+			}
+		}
+		if redirectURI := input.requester.GetRedirectURI(); redirectURI != nil {
+			rawRedirect := input.requester.GetRequestForm().Get("redirect_uri")
+			matched := matchExactOrLoopbackRedirectURI([]string(lockedClient.CallbackURLs), rawRedirect)
+			if matched == nil || matched.String() != redirectURI.String() {
+				return authorizationResult{}, fosite.ErrInvalidClient.WithHint("The 'redirect_uri' parameter no longer matches the client metadata.")
+			}
+		}
+		if preloadErr := tx.Model(&lockedClient).Association("AllowedUserGroups").Find(&lockedClient.AllowedUserGroups); preloadErr != nil {
+			return authorizationResult{}, preloadErr
+		}
+		client.OidcClient = lockedClient
+	}
 
 	err := validateClientPKCERequirement(client, input.requester)
 	if err != nil {
@@ -630,62 +673,123 @@ func (s *authorizationService) resolveScopeInfoForRequest(ctx context.Context, r
 	return append(infos, permissions...), nil
 }
 
+var errCIMDMetadataRefreshRequired = errors.New("cimd metadata refresh required")
+
 func (s *authorizationService) completeInteractionStep(ctx context.Context, interactionSessionID, userID string, step interactionStep, approvedScopes []string, reauthenticationToken string, authenticationTime time.Time, meta requestMeta) (completeInteractionResponse, error) {
 	var interactionSession InteractionSession
 	var response completeInteractionResponse
-	err := withTx(ctx, s.db, func(ctx context.Context) error {
-		var err error
-		interactionSession, err = s.interactionSessionService.get(ctx, interactionSessionID)
-		if errors.Is(err, gorm.ErrRecordNotFound) {
-			return apperror.OidcInteractionNotFound()
-		}
-		if err != nil {
-			return err
-		}
+	var refreshedCIMD bool
+	var refreshClientID string
 
-		if interactionSession.UserID != nil && *interactionSession.UserID != userID {
-			if err := s.switchInteractionSessionUser(ctx, &interactionSession, userID, authenticationTime); err != nil {
-				return err
+	run := func() error {
+		return withTx(ctx, s.db, func(ctx context.Context) error {
+			var err error
+			interactionSession, err = s.interactionSessionService.get(ctx, interactionSessionID)
+			if errors.Is(err, gorm.ErrRecordNotFound) {
+				return apperror.OidcInteractionNotFound()
 			}
-		}
-
-		if userID == "" {
-			return fosite.ErrLoginRequired
-		}
-
-		// The authorize endpoint only checks the group restriction once every step is done, so a user who signed in or switched accounts here is checked before the consent step can record an authorization
-		if interactionSession.Client.IsGroupRestricted {
-			tx := dbFromContext(ctx, s.db)
-			var user model.User
-			err = tx.Preload("UserGroups").First(&user, "id = ?", userID).Error
 			if err != nil {
 				return err
 			}
-			err = tx.Model(&interactionSession.Client).Association("AllowedUserGroups").Find(&interactionSession.Client.AllowedUserGroups)
-			if err != nil {
+
+			// Lock CIMD clients and verify metadata validity and policy before reloading the interaction and recording consent
+			if interactionSession.Client.IsMetadataDocument() {
+				// If expired CIMD metadata needs live discovery, exit the transaction first so network I/O never runs inside a DB transaction (registered clients pay zero extra queries; fresh CIMD clients stay in one transaction)
+				if !refreshedCIMD && s.resolveCIMDClient != nil && !interactionSession.Client.Disabled &&
+					(interactionSession.Client.MetadataExpiresAt == nil ||
+						interactionSession.Client.MetadataExpiresAt.ToTime().Before(time.Now()) ||
+						!isCIMDClientCompatible(interactionSession.Client) ||
+						(s.isCIMDInvalidated != nil && s.isCIMDInvalidated(ctx, interactionSession.ClientID))) {
+					refreshClientID = interactionSession.ClientID
+					return errCIMDMetadataRefreshRequired
+				}
+				var lockedClient model.OidcClient
+				lockErr := withClientNoKeyUpdateLock(dbFromContext(ctx, s.db)).
+					Select("id", "disabled", "is_public", "pkce_enabled", "credentials", "metadata_expires_at").
+					Where("id = ?", interactionSession.ClientID).
+					First(&lockedClient).Error
+				if errors.Is(lockErr, gorm.ErrRecordNotFound) {
+					return fosite.ErrInvalidClient.WithHint("The client is no longer valid.")
+				}
+				if lockErr != nil {
+					return lockErr
+				}
+				if lockedClient.Disabled {
+					return apperror.OidcClientDisabled()
+				}
+				if !isCIMDMetadataActive(lockedClient, time.Now()) || (s.isCIMDInvalidated != nil && s.isCIMDInvalidated(ctx, interactionSession.ClientID)) {
+					return fosite.ErrInvalidClient.WithHint("The client metadata document is no longer valid.")
+				}
+				if s.validateCIMDClient != nil {
+					if policyErr := s.validateCIMDClient(ctx, interactionSession.ClientID); policyErr != nil {
+						return fosite.ErrInvalidClient.WithHint("The client metadata document could not be resolved.").WithWrap(policyErr).WithDebug(policyErr.Error())
+					}
+				}
+				interactionSession, err = s.interactionSessionService.get(ctx, interactionSessionID)
+				if errors.Is(err, gorm.ErrRecordNotFound) {
+					return apperror.OidcInteractionNotFound()
+				}
+				if err != nil {
+					return err
+				}
+			}
+
+			if interactionSession.UserID != nil && *interactionSession.UserID != userID {
+				if err := s.switchInteractionSessionUser(ctx, &interactionSession, userID, authenticationTime); err != nil {
+					return err
+				}
+			}
+
+			if userID == "" {
+				return fosite.ErrLoginRequired
+			}
+
+			// The authorize endpoint only checks the group restriction once every step is done, so a user who signed in or switched accounts here is checked before the consent step can record an authorization
+			if interactionSession.Client.IsGroupRestricted {
+				tx := dbFromContext(ctx, s.db)
+				var user model.User
+				err = tx.Preload("UserGroups").First(&user, "id = ?", userID).Error
+				if err != nil {
+					return err
+				}
+				err = tx.Model(&interactionSession.Client).Association("AllowedUserGroups").Find(&interactionSession.Client.AllowedUserGroups)
+				if err != nil {
+					return err
+				}
+				if !IsUserGroupAllowedToAuthorize(user, interactionSession.Client) {
+					return apperror.OidcAccessDenied()
+				}
+			}
+
+			requiredSteps := requiredInteractionSteps(interactionSession)
+			if len(requiredSteps) == 0 {
+				response = completeInteractionResponse{RedirectURL: authorizeRedirectURL(interactionSession.ID)}
+				return nil
+			}
+
+			if requiredSteps[0] != step {
+				return apperror.ValidationMessage("expected interaction step " + string(requiredSteps[0]) + " but got " + string(step))
+			}
+
+			if err := s.applyInteractionStep(ctx, &interactionSession, userID, step, approvedScopes, reauthenticationToken, authenticationTime, meta); err != nil {
 				return err
 			}
-			if !IsUserGroupAllowedToAuthorize(user, interactionSession.Client) {
-				return apperror.OidcAccessDenied()
+
+			return s.interactionSessionService.update(ctx, interactionSession)
+		})
+	}
+
+	err := run()
+	if errors.Is(err, errCIMDMetadataRefreshRequired) {
+		if _, resolveErr := s.resolveCIMDClient(ctx, refreshClientID); resolveErr != nil {
+			if errors.Is(resolveErr, apperror.OidcClientDisabled()) {
+				return completeInteractionResponse{}, resolveErr
 			}
+			return completeInteractionResponse{}, fosite.ErrInvalidClient.WithHint("The client metadata document is no longer valid.").WithWrap(resolveErr)
 		}
-
-		requiredSteps := requiredInteractionSteps(interactionSession)
-		if len(requiredSteps) == 0 {
-			response = completeInteractionResponse{RedirectURL: authorizeRedirectURL(interactionSession.ID)}
-			return nil
-		}
-
-		if requiredSteps[0] != step {
-			return apperror.ValidationMessage("expected interaction step " + string(requiredSteps[0]) + " but got " + string(step))
-		}
-
-		if err := s.applyInteractionStep(ctx, &interactionSession, userID, step, approvedScopes, reauthenticationToken, authenticationTime, meta); err != nil {
-			return err
-		}
-
-		return s.interactionSessionService.update(ctx, interactionSession)
-	})
+		refreshedCIMD = true
+		err = run()
+	}
 	if err != nil {
 		return completeInteractionResponse{}, err
 	}

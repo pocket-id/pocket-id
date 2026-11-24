@@ -148,8 +148,12 @@ func New(ctx context.Context, deps Dependencies) (*Module, error) {
 	previewBuilder := newClientPreviewBuilder(claimsService, provider.tokenStrategies)
 	interactionSessionService := newInteractionSessionService(deps.DB)
 	authorizationService := newAuthorizationService(deps.DB, interactionSessionService, claimsService, deps.Reauth, deps.AuditLog, deps.APIAccess)
+	authorizationService.validateCIMDClient = cimdResolver.policy.AllowCIMDClient
+	authorizationService.isCIMDInvalidated = store.isCIMDInvalidatedForContext
+	authorizationService.resolveCIMDClient = store.resolvePersistedClient
 	deviceService := newDeviceService(provider, store, provider.deviceStrategy, authorizationService, claimsService, deps.AuditLog, deps.DB)
 	endSessionService := newEndSessionService(deps.DB, store, deps.Signer, deps.Config.BaseURL)
+	endSessionService.validateCIMDClient = cimdResolver.policy.AllowCIMDClient
 
 	// Register the cleanup jobs for expired OIDC rows
 	if !deps.CleanupDisabled {
