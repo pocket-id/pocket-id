@@ -479,6 +479,23 @@ func TestMarkingEmailVerifiedClearsSignupDeadline(t *testing.T) {
 	require.Nil(t, stored.EmailVerificationDeadline)
 }
 
+// The setting can be turned on while users without an email exist, and an admin must still be able to change or disable them
+func TestUpdateUserWithoutEmailWhileEmailsAreRequired(t *testing.T) {
+	userService := newTestUserService(t)
+	config := &appconfig.AppConfigModel{RequireUserEmail: "true"}
+	withoutEmail := model.User{Username: "without-email"}
+	require.NoError(t, userService.db.Create(&withoutEmail).Error)
+	withEmail := model.User{Username: "with-email", Email: new("with-email@example.com")}
+	require.NoError(t, userService.db.Create(&withEmail).Error)
+
+	updated, err := userService.UpdateUser(t.Context(), config, withoutEmail.ID, dto.Replace(dto.UserCreateDto{Username: "without-email", Disabled: true}), false, false, auditlogs.Origin{})
+	require.NoError(t, err)
+	require.True(t, updated.Disabled)
+
+	_, err = userService.UpdateUser(t.Context(), config, withEmail.ID, dto.Replace(dto.UserCreateDto{Username: "with-email"}), false, false, auditlogs.Origin{})
+	require.True(t, apperror.IsCode(err, apperror.CodeValidationFailed))
+}
+
 func TestUpdateUserReturnsGroupsAndCustomClaims(t *testing.T) {
 	userService := newTestUserService(t)
 	group := createTestGroup(t, userService.db, "family", "Family")
