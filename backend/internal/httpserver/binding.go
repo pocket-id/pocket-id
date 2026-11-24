@@ -1,6 +1,7 @@
 package httpserver
 
 import (
+	"encoding/json"
 	"errors"
 	"io"
 	"mime"
@@ -10,25 +11,22 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"github.com/gin-gonic/gin/binding"
-	"github.com/go-playground/validator/v10"
 
 	"github.com/pocket-id/pocket-id/backend/internal/apperror"
 	"github.com/pocket-id/pocket-id/backend/internal/dto"
 )
 
-// BindJSON binds and normalizes a JSON request while distinguishing invalid input from internal failures
+// BindJSON binds, normalizes and validates a JSON request while distinguishing invalid input from internal failures
 func BindJSON(c *gin.Context, value any) error {
 	if err := requireJSONContentType(c); err != nil {
 		return err
 	}
 
-	err := classifyBindingError(c.ShouldBindJSON(value))
+	err := json.NewDecoder(c.Request.Body).Decode(value)
 	if err != nil {
-		return err
+		return apperror.InvalidRequestBody(err)
 	}
-
-	dto.Normalize(value)
-	return nil
+	return Validate(value)
 }
 
 // acceptedPatchTypes lists the PATCH formats BindUpdate accepts, where plain JSON is read as a merge patch too
@@ -62,31 +60,26 @@ func BindUpdate[T any](c *gin.Context) (dto.Update[T], error) {
 	return dto.MergePatch[T](patch), nil
 }
 
-// Validate validates and normalizes input that was not bound from a request, such as MCP tool arguments, with the same rules as BindJSON
+// Validate normalizes and validates input that was not bound from a request, such as MCP tool arguments, with the same rules as BindJSON
+// Normalizing comes first, because it can change the length of a value and the characters it holds
 func Validate(value any) error {
-	if err := binding.Validator.ValidateStruct(value); err != nil {
-		return err
-	}
-
 	dto.Normalize(value)
-	return nil
+	return binding.Validator.ValidateStruct(value)
 }
 
-// BindOptionalJSON accepts an empty body while normalizing valid input and classifying malformed JSON as invalid input
+// BindOptionalJSON accepts an empty body while normalizing and validating other input and classifying malformed JSON as invalid input
 func BindOptionalJSON(c *gin.Context, value any) error {
-	err := c.ShouldBindJSON(value)
+	err := json.NewDecoder(c.Request.Body).Decode(value)
 	if errors.Is(err, io.EOF) {
 		return nil
 	}
 	if contentTypeErr := requireJSONContentType(c); contentTypeErr != nil {
 		return contentTypeErr
 	}
-	if err = classifyBindingError(err); err != nil {
-		return err
+	if err != nil {
+		return apperror.InvalidRequestBody(err)
 	}
-
-	dto.Normalize(value)
-	return nil
+	return Validate(value)
 }
 
 // FormFile returns an uploaded file while classifying a missing field as request validation
@@ -125,20 +118,4 @@ func isJSONMediaType(mediaType string) bool {
 
 	baseSubtype, ok := strings.CutSuffix(subtype, "+json")
 	return ok && baseSubtype != ""
-}
-
-func classifyBindingError(err error) error {
-	if err == nil {
-		return nil
-	}
-
-	if _, ok := errors.AsType[validator.ValidationErrors](err); ok {
-		return err
-	}
-
-	if _, ok := errors.AsType[binding.SliceValidationError](err); ok {
-		return err
-	}
-
-	return apperror.InvalidRequestBody(err)
 }

@@ -9,6 +9,7 @@ import (
 	"testing"
 
 	"github.com/gin-gonic/gin"
+	"github.com/go-playground/validator/v10"
 	"github.com/stretchr/testify/require"
 	"golang.org/x/text/unicode/norm"
 
@@ -62,6 +63,22 @@ func TestBindJSONNormalizesTaggedFieldsRecursively(t *testing.T) {
 	require.NotNil(t, input.Email)
 	require.Equal(t, norm.NFC.String("user@café.example"), *input.Email)
 	require.Equal(t, norm.NFC.String("Résumé"), input.Items[0].Label)
+}
+
+// Normalizing can make a value longer, so the limits must be checked on the normalized value
+func TestBindJSONValidatesNormalizedValue(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	c, _ := gin.CreateTestContext(httptest.NewRecorder())
+	c.Request = httptest.NewRequestWithContext(t.Context(), http.MethodPost, "/", strings.NewReader(`{"name":"`+strings.Repeat("\u0958", 50)+`"}`))
+	c.Request.Header.Set("Content-Type", "application/json")
+
+	var input struct {
+		Name string `json:"name" binding:"max=50" unorm:"nfc"`
+	}
+	err := BindJSON(c, &input)
+
+	var validationErrors validator.ValidationErrors
+	require.ErrorAs(t, err, &validationErrors)
 }
 
 func TestBindJSONRejectsFormCompatibleContentTypes(t *testing.T) {
