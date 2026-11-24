@@ -643,7 +643,8 @@ func (s *authorizationService) completeInteractionStep(ctx context.Context, inte
 			return err
 		}
 
-		if interactionSession.UserID != nil && *interactionSession.UserID != userID {
+		userSwitched := interactionSession.UserID != nil && *interactionSession.UserID != userID
+		if userSwitched {
 			if err := s.switchInteractionSessionUser(ctx, &interactionSession, userID, authenticationTime); err != nil {
 				return err
 			}
@@ -668,6 +669,12 @@ func (s *authorizationService) completeInteractionStep(ctx context.Context, inte
 			if !IsUserGroupAllowedToAuthorize(user, interactionSession.Client) {
 				return apperror.OidcAccessDenied()
 			}
+		}
+
+		// A step answered on a page that showed another account doesn't count for this one, which has to go through the steps itself
+		// Only select_account is applied, because switching the account is its purpose
+		if userSwitched && step != interactionStepSelectAccount {
+			return s.interactionSessionService.update(ctx, interactionSession)
 		}
 
 		requiredSteps := requiredInteractionSteps(interactionSession)

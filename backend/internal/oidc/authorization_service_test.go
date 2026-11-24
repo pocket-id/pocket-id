@@ -986,6 +986,51 @@ func TestAuthorizationServiceCompleteInteractionSwitchesUserAndResetsRequirement
 	require.True(t, interactionSession.ConsentRequired)
 }
 
+// TestAuthorizationServiceConsentStepDoesNotCountForAnotherUser guards that a consent answered on the page of one account is not recorded for another account that has signed in since
+// That account is handed the interaction instead and has to give consent itself
+func TestAuthorizationServiceConsentStepDoesNotCountForAnotherUser(t *testing.T) {
+	db := testutils.NewDatabaseForTest(t)
+	auditLogger := &fakeAuditLogger{}
+	service := newAuthorizationService(db, newInteractionSessionService(db), newClaimsService(db, nil, "", nil, appconfig.StaticResolver{}), nil, auditLogger, nil)
+
+	const (
+		shownUserID    = "shown-user"
+		signedInUserID = "signed-in-user"
+		clientID       = "test-client"
+		interactionID  = "test-interaction"
+	)
+
+	require.NoError(t, db.Create(&model.User{Base: model.Base{ID: shownUserID}, Username: "shown"}).Error)
+	require.NoError(t, db.Create(&model.User{Base: model.Base{ID: signedInUserID}, Username: "signed-in"}).Error)
+	require.NoError(t, db.Create(&model.OidcClient{Base: model.Base{ID: clientID}, Name: "Test Client"}).Error)
+	require.NoError(t, db.Create(&InteractionSession{
+		Base:            model.Base{ID: interactionID},
+		Scopes:          datatype.StringList{"openid", "profile"},
+		ClientID:        clientID,
+		UserID:          stringPointer(shownUserID),
+		ConsentRequired: true,
+		RequestedAt:     datatype.DateTime(time.Now().UTC()),
+		Parameters:      map[string]string{"scope": "openid profile"},
+	}).Error)
+
+	response, err := service.completeInteractionStep(t.Context(), interactionID, signedInUserID, interactionStepConsent, []string{"openid", "profile"}, "", time.Now().UTC(), requestMeta{})
+	require.NoError(t, err)
+	require.Empty(t, response.RedirectURL)
+	require.NotNil(t, response.Interaction)
+	require.Equal(t, interactionStepConsent, response.Interaction.CurrentStep)
+	require.Empty(t, auditLogger.events)
+
+	var count int64
+	require.NoError(t, db.Model(&model.UserAuthorizedOidcClient{}).Count(&count).Error)
+	require.Zero(t, count)
+
+	var interactionSession InteractionSession
+	require.NoError(t, db.First(&interactionSession, "id = ?", interactionID).Error)
+	require.NotNil(t, interactionSession.UserID)
+	require.Equal(t, signedInUserID, *interactionSession.UserID)
+	require.True(t, interactionSession.ConsentRequired)
+}
+
 // TestAuthorizationServiceSelectAccountRecomputesConsentForSelectedUser ensures consent is
 // evaluated for the FINAL selected user. When an already-consented user starts
 // prompt=select_account and a different, not-yet-consented user is selected, consent must
