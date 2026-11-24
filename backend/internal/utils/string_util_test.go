@@ -230,6 +230,26 @@ func TestCamelCaseToSnakeCase(t *testing.T) {
 	}
 }
 
+func TestTruncate(t *testing.T) {
+	tests := []struct {
+		input    string
+		maxBytes int
+		expected string
+	}{
+		{"short", 10, "short"},
+		{"abcdef", 3, "abc"},
+		// "ä" takes two bytes, so cutting through it keeps only the complete characters before it
+		{"aää", 4, "aä"},
+		{"ää", 1, ""},
+	}
+
+	for _, tt := range tests {
+		if result := Truncate(tt.input, tt.maxBytes); result != tt.expected {
+			t.Errorf("Truncate(%q, %d) = %q, expected %q", tt.input, tt.maxBytes, result, tt.expected)
+		}
+	}
+}
+
 func TestGetFirstCharacter(t *testing.T) {
 	tests := []struct {
 		name     string

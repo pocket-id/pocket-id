@@ -75,7 +75,7 @@ func (s *Service) Create(ctx context.Context, userID, authenticationMethod, ipAd
 		TokenHash:            utils.CreateSha256Hash(secret),
 		AuthenticationMethod: authenticationMethod,
 		IPAddress:            ipAddress,
-		UserAgent:            userAgent,
+		UserAgent:            utils.TruncateUserAgent(userAgent),
 		Country:              country,
 		City:                 city,
 		CreatedAt:            now,

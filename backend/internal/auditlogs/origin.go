@@ -9,6 +9,7 @@ import (
 
 	"github.com/pocket-id/pocket-id/backend/internal/authz"
 	"github.com/pocket-id/pocket-id/backend/internal/mcp"
+	"github.com/pocket-id/pocket-id/backend/internal/utils"
 )
 
 // Origin is who performed an audited action and where their request came from
@@ -65,7 +66,7 @@ func (s *service) Record(ctx context.Context, event Event, origin Origin, userID
 	if data == nil {
 		data = Data{}
 	}
-	entry := AuditLog{Event: event, UserAgent: origin.UserAgent, UserID: userID, Data: data}
+	entry := AuditLog{Event: event, UserAgent: utils.TruncateUserAgent(origin.UserAgent), UserID: userID, Data: data}
 	setActor(ctx, tx, origin, &entry)
 	addCredential(ctx, tx, origin, data)
 	return s.insert(ctx, entry, origin.IPAddress, tx)

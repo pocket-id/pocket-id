@@ -3,7 +3,7 @@ package session
 import (
 	"time"
 
-	userAgentParser "github.com/mileusna/useragent"
+	"github.com/pocket-id/pocket-id/backend/internal/utils"
 )
 
 type sessionDto struct {
@@ -26,7 +26,7 @@ type sessionDto struct {
 func toSessionDtos(sessions []Session, currentSessionID string) []sessionDto {
 	dtos := make([]sessionDto, len(sessions))
 	for i, session := range sessions {
-		ua := userAgentParser.Parse(session.UserAgent)
+		ua := utils.ParseUserAgent(session.UserAgent)
 		deviceType := "desktop"
 		switch {
 		case ua.Tablet:
