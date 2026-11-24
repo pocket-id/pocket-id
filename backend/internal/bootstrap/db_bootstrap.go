@@ -2,6 +2,7 @@ package bootstrap
 
 import (
 	"context"
+	"database/sql"
 	"errors"
 	"fmt"
 	"log/slog"
@@ -18,6 +19,7 @@ import (
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/jackc/pgx/v5/stdlib"
 	"github.com/libtnb/sqlite"
+	"github.com/pressly/goose/v3/lock"
 	"gorm.io/driver/postgres"
 	"gorm.io/gorm"
 	gormLogger "gorm.io/gorm/logger"
@@ -41,19 +43,43 @@ func NewDatabase(ctx context.Context) (db *gorm.DB, pg *pgxpool.Pool, err error)
 		return nil, nil, fmt.Errorf("failed to get sql.DB: %w", err)
 	}
 
-	// A database of Pocket ID v1 or v2 is upgraded by a separate tool before the migrations of v3 can run
-	err = upgradeLegacyDatabase(ctx, sqlDb)
+	err = migrateDatabase(ctx, sqlDb)
 	if err != nil {
 		return nil, nil, err
 	}
 
-	// Run migrations
-	err = utils.MigrateDatabase(ctx, sqlDb, common.EnvConfig.DbProvider)
-	if err != nil {
-		return nil, nil, fmt.Errorf("failed to run migrations: %w", err)
+	return db, pg, nil
+}
+
+// migrateDatabase brings the database to the schema of this version
+// Replicas that start together take turns, so one changes the schema while the others wait and then find nothing left to do
+func migrateDatabase(ctx context.Context, sqlDb *sql.DB) error {
+	// SQLite needs no lock, since only one Pocket ID instance can use its file
+	if common.EnvConfig.DbProvider == common.DbProviderPostgres {
+		locker, err := lock.NewPostgresTableLocker()
+		if err != nil {
+			return fmt.Errorf("failed to create the migration lock: %w", err)
+		}
+		err = locker.Lock(ctx, sqlDb)
+		if err != nil {
+			return fmt.Errorf("failed to acquire the migration lock: %w", err)
+		}
+		defer func() {
+			_ = locker.Unlock(ctx, sqlDb)
+		}()
 	}
 
-	return db, pg, nil
+	// A database of Pocket ID v1 or v2 is upgraded by a separate tool before the migrations of v3 can run
+	err := upgradeLegacyDatabase(ctx, sqlDb)
+	if err != nil {
+		return err
+	}
+
+	err = utils.MigrateDatabase(ctx, sqlDb, common.EnvConfig.DbProvider)
+	if err != nil {
+		return fmt.Errorf("failed to run migrations: %w", err)
+	}
+	return nil
 }
 
 func ConnectDatabase(ctx context.Context) (db *gorm.DB, pg *pgxpool.Pool, err error) {

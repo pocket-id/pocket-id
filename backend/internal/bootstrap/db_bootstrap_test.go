@@ -9,10 +9,12 @@ import (
 	"testing"
 	"time"
 
+	"github.com/pressly/goose/v3/lock"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
 	"github.com/pocket-id/pocket-id/backend/internal/common"
+	testutils "github.com/pocket-id/pocket-id/backend/internal/utils/testing"
 )
 
 // TestSqlInstrumentOptions covers the wiring that makes the instrumentation on the connection the single source of SQL logs.
@@ -207,4 +209,38 @@ func TestConnectDatabaseSqlite(t *testing.T) {
 		// In-memory databases only see the whole data through a single connection
 		assert.Equal(t, 1, sqlDB.Stats().MaxOpenConnections)
 	})
+}
+
+func TestMigrateDatabaseWaitsForAnotherReplica(t *testing.T) {
+	db := testutils.NewPostgresDatabaseForTest(t)
+	sqlDb, err := db.DB()
+	require.NoError(t, err)
+	previousProvider := common.EnvConfig.DbProvider
+	common.EnvConfig.DbProvider = common.DbProviderPostgres
+	t.Cleanup(func() {
+		common.EnvConfig.DbProvider = previousProvider
+	})
+
+	// Another replica holds the lock while it upgrades a legacy database
+	_, err = sqlDb.ExecContext(t.Context(), `CREATE TABLE schema_migrations (version bigint)`)
+	require.NoError(t, err)
+	other, err := lock.NewPostgresTableLocker()
+	require.NoError(t, err)
+	require.NoError(t, other.Lock(t.Context(), sqlDb))
+
+	done := make(chan error, 1)
+	go func() {
+		done <- migrateDatabase(t.Context(), sqlDb)
+	}()
+	select {
+	case err = <-done:
+		t.Fatalf("returned while another replica held the migration lock: %v", err)
+	case <-time.After(time.Second):
+	}
+
+	// Once the other replica finished the upgrade, this one must find nothing left to do instead of running the tool again
+	_, err = sqlDb.ExecContext(t.Context(), `DROP TABLE schema_migrations`)
+	require.NoError(t, err)
+	require.NoError(t, other.Unlock(t.Context(), sqlDb))
+	require.NoError(t, <-done)
 }

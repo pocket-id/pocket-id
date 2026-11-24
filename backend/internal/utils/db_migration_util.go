@@ -12,7 +12,6 @@ import (
 
 	"github.com/pressly/goose/v3"
 	goosedb "github.com/pressly/goose/v3/database"
-	"github.com/pressly/goose/v3/lock"
 
 	"github.com/pocket-id/pocket-id/backend/internal/common"
 	"github.com/pocket-id/pocket-id/backend/resources"
@@ -42,7 +41,7 @@ func CheckMigrationVersionSupported(version int64) error {
 }
 
 // MigrateDatabase applies the embedded migrations to the database
-// If the database has migrations of a newer Pocket ID version, they are rolled back first, as long as downgrades are allowed
+// If the database has migrations of a newer Pocket ID version, they are rolled back first when downgrades are allowed, and kept otherwise
 func MigrateDatabase(ctx context.Context, sqlDb *sql.DB, dbProvider common.DbProvider) error {
 	dialect := migrationDialect(dbProvider)
 	store, err := goosedb.NewStore(dialect, goose.DefaultTablename)
@@ -119,23 +118,11 @@ func migrationDialect(dbProvider common.DbProvider) goose.Dialect {
 }
 
 func newMigrationProvider(sqlDb *sql.DB, dialect goose.Dialect, files fs.FS) (*goose.Provider, error) {
-	opts := []goose.ProviderOption{
+	provider, err := goose.NewProvider(dialect, sqlDb, files,
 		// Migrations of parallel branches can be merged in a different order than their versions, and they must still be applied
 		goose.WithAllowOutofOrder(true),
 		goose.WithDisableGlobalRegistry(true),
-	}
-
-	// Replicas that start at the same time must not migrate the database concurrently
-	// The table lock also works behind connection poolers such as PgBouncer, and it expires if the replica holding it crashes
-	if dialect == goose.DialectPostgres {
-		locker, err := lock.NewPostgresTableLocker()
-		if err != nil {
-			return nil, fmt.Errorf("failed to create the migration lock: %w", err)
-		}
-		opts = append(opts, goose.WithLocker(locker))
-	}
-
-	provider, err := goose.NewProvider(dialect, sqlDb, files, opts...)
+	)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create the migration provider: %w", err)
 	}
@@ -176,6 +163,7 @@ func storeMigrationFiles(ctx context.Context, sqlDb *sql.DB, files fs.FS, source
 }
 
 // rollBackUnknownMigrations rolls back the applied migrations that aren't part of this version, newest first, using the files the newer version stored
+// Without ALLOW_DOWNGRADE it keeps them and this version runs on the newer schema, so an older replica still starts during a rolling update
 func rollBackUnknownMigrations(ctx context.Context, sqlDb *sql.DB, dbProvider common.DbProvider, store goosedb.Store, sources []*goose.Source) error {
 	// A new database has no migrations to roll back
 	exists, err := TableExists(ctx, sqlDb, dbProvider, goose.DefaultTablename)
@@ -202,7 +190,8 @@ func rollBackUnknownMigrations(ctx context.Context, sqlDb *sql.DB, dbProvider co
 		return nil
 	}
 	if !common.EnvConfig.AllowDowngrade {
-		return fmt.Errorf("the database has migrations of a newer Pocket ID version (%v), and downgrades are not allowed (set ALLOW_DOWNGRADE=true to enable)", unknown)
+		slog.WarnContext(ctx, "The database has migrations of a newer Pocket ID version, which are kept because downgrades are not allowed (set ALLOW_DOWNGRADE=true to roll them back)", slog.Any("versions", unknown))
+		return nil
 	}
 	slog.WarnContext(ctx, "Rolling back the migrations of a newer Pocket ID version", slog.Any("versions", unknown))
 
