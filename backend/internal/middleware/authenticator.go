@@ -2,6 +2,7 @@ package middleware
 
 import (
 	"context"
+	"slices"
 	"strings"
 
 	"github.com/gin-gonic/gin"
@@ -206,7 +207,7 @@ func (a *OAuthAuthenticator) Authenticate(c *gin.Context) (*authz.Principal, err
 	}
 
 	// Only a token issued for Pocket ID's own API may call it, which keeps a custom API's token with a colliding permission key out
-	if !accessRequest.GetGrantedAudience().Has(a.audience) {
+	if !slices.Contains(accessRequest.GetGrantedAudience(), a.audience) {
 		return nil, apperror.NotSignedIn()
 	}
 

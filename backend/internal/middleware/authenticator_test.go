@@ -97,6 +97,7 @@ func TestAuthorizationWithRealCredentials(t *testing.T) {
 		"disabled-token":       oauthAccessRequest(disabled.ID, fosite.Arguments{resource}, string(authz.UsersRead)),
 		"session-scope-token":  oauthAccessRequest(admin.ID, fosite.Arguments{resource}, string(authz.AccountSession)),
 		"custom-api-token":     oauthAccessRequest(admin.ID, fosite.Arguments{"https://api.example.com", common.EnvConfig.AppURL}, "openid", string(authz.UsersRead)),
+		"lookalike-api-token":  oauthAccessRequest(admin.ID, fosite.Arguments{"https://teſt.example.com/api"}, string(authz.UsersRead)),
 		"unverified-api-token": oauthAccessRequest(unverified.ID, fosite.Arguments{resource}, string(authz.AccountRead), string(authz.AccountApps)),
 		"machine-token":        oauthAccessRequest(oidc.ClientSubject(oauthTestClientID), fosite.Arguments{resource}, string(authz.UsersRead), string(authz.AccountRead)),
 	}
@@ -157,6 +158,7 @@ func TestAuthorizationWithRealCredentials(t *testing.T) {
 		{name: "disabled user's OAuth token", path: "/api/admin/users", authorization: "Bearer disabled-token", status: http.StatusForbidden, errorCode: "user_disabled"},
 		{name: "OAuth token of a client the user lost group access to", path: "/api/admin/users", authorization: "Bearer group-restricted-token", status: http.StatusUnauthorized, errorCode: "not_signed_in"},
 		{name: "OAuth token on session-only route", path: "/api/session-only", authorization: "Bearer session-scope-token", status: http.StatusForbidden, errorCode: "oauth_token_auth_not_allowed"},
+		{name: "token of a custom API whose identifier only differs by case folding", path: "/api/admin/users", authorization: "Bearer lookalike-api-token", status: http.StatusUnauthorized, errorCode: "not_signed_in"},
 		{name: "custom API token with a colliding scope key", path: "/api/admin/users", authorization: "Bearer custom-api-token", status: http.StatusUnauthorized, errorCode: "not_signed_in"},
 		{name: "unverified user OAuth token on apps route", path: "/api/apps", authorization: "Bearer unverified-api-token", status: http.StatusForbidden, errorCode: "email_verification_required"},
 		{name: "unknown OAuth token", path: "/api/account", authorization: "Bearer unknown", status: http.StatusUnauthorized, errorCode: "not_signed_in"},
