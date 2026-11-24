@@ -1,5 +1,6 @@
 import type { CustomClaim } from '#lib/types/custom-claim.type.ts';
 import APIService from './api-service';
+import { pathSegment } from '#lib/utils/path-segment-util.ts';
 
 export default class CustomClaimService extends APIService {
 	getSuggestions = async () => {
@@ -8,12 +9,15 @@ export default class CustomClaimService extends APIService {
 	};
 
 	updateUserCustomClaims = async (userId: string, claims: CustomClaim[]) => {
-		const res = await this.api.put(`/admin/custom-claims/user/${userId}`, claims);
+		const res = await this.api.put(`/admin/custom-claims/user/${pathSegment(userId)}`, claims);
 		return res.data as CustomClaim[];
 	};
 
 	updateUserGroupCustomClaims = async (userGroupId: string, claims: CustomClaim[]) => {
-		const res = await this.api.put(`/admin/custom-claims/user-group/${userGroupId}`, claims);
+		const res = await this.api.put(
+			`/admin/custom-claims/user-group/${pathSegment(userGroupId)}`,
+			claims
+		);
 		return res.data as CustomClaim[];
 	};
 }

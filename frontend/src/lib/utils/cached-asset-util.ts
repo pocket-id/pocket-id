@@ -1,4 +1,5 @@
 import { encodeClientIdParam } from './client-id-util';
+import { pathSegment } from './path-segment-util';
 
 type SkipCacheUntil = {
 	[key: string]: number;
@@ -52,11 +53,17 @@ export const cachedTitleFont: CachedAsset = {
 
 export const cachedProfilePicture: CachedAsset = {
 	getUrl: (userId: string) => {
-		const url = new URL(`/api/users/${userId}/profile-picture.png`, window.location.origin);
+		const url = new URL(
+			`/api/users/${pathSegment(userId)}/profile-picture.png`,
+			window.location.origin
+		);
 		return getCachedAssetUrl(url);
 	},
 	bustCache: (userId: string) => {
-		const url = new URL(`/api/users/${userId}/profile-picture.png`, window.location.origin);
+		const url = new URL(
+			`/api/users/${pathSegment(userId)}/profile-picture.png`,
+			window.location.origin
+		);
 		bustAssetCache(url);
 	}
 };
@@ -83,7 +90,7 @@ function oidcClientLogoUrl(clientId: string, light: boolean) {
 // Unlike the assets above these are static assets that only change with a new release, so they skip the cache busting helper and rely on the backend's cache headers
 export function authenticatorIconUrl(aaguid: string, light = true) {
 	const url = new URL(
-		`/api/webauthn/authenticator-icons/${encodeURIComponent(aaguid)}`,
+		`/api/webauthn/authenticator-icons/${pathSegment(aaguid)}`,
 		window.location.origin
 	);
 	if (!light) url.searchParams.set('light', 'false');

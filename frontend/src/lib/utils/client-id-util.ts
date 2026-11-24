@@ -10,7 +10,8 @@ const RAW_CLIENT_ID = /^[a-zA-Z0-9._-]+$/;
  * are unchanged.
  */
 export function encodeClientIdParam(id: string): string {
-	if (RAW_CLIENT_ID.test(id)) {
+	// Dot segments match the pattern but would move up the path, so they are encoded too
+	if (RAW_CLIENT_ID.test(id) && id !== '.' && id !== '..') {
 		return id;
 	}
 	const base64 = btoa(String.fromCharCode(...new TextEncoder().encode(id)));

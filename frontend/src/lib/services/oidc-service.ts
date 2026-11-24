@@ -21,10 +21,13 @@ import type { ScimServiceProvider } from '#lib/types/scim.type.ts';
 import { cachedOidcClientLogo } from '#lib/utils/cached-asset-util.ts';
 import { encodeClientIdParam } from '#lib/utils/client-id-util.ts';
 import APIService from './api-service';
+import { pathSegment } from '#lib/utils/path-segment-util.ts';
 
 class OidcService extends APIService {
 	getAuthorizeInteraction = async (id: string) => {
-		const { data } = await this.api.get<InteractionSession>(`/oidc/interactions/${id}`);
+		const { data } = await this.api.get<InteractionSession>(
+			`/oidc/interactions/${pathSegment(id)}`
+		);
 		return data;
 	};
 
@@ -54,7 +57,7 @@ class OidcService extends APIService {
 		scopes?: string[]
 	) => {
 		const { data } = await this.api.post<CompleteInteractionResponse>(
-			`/oidc/interactions/${id}/complete`,
+			`/oidc/interactions/${pathSegment(id)}/complete`,
 			{ step, scopes }
 		);
 		return data;
@@ -132,7 +135,9 @@ class OidcService extends APIService {
 		).data as OidcClientSecretCreated;
 
 	deleteClientSecret = async (id: string, secretId: string) => {
-		await this.api.delete(`/admin/oidc/clients/${encodeClientIdParam(id)}/secrets/${secretId}`);
+		await this.api.delete(
+			`/admin/oidc/clients/${encodeClientIdParam(id)}/secrets/${pathSegment(secretId)}`
+		);
 	};
 
 	updateAllowedUserGroups = async (id: string, userGroupIds: string[]) => {
@@ -156,7 +161,7 @@ class OidcService extends APIService {
 
 	getClientPreview = async (id: string, userId: string, scopes: string) => {
 		const response = await this.api.get(
-			`/admin/oidc/clients/${encodeClientIdParam(id)}/preview/${userId}`,
+			`/admin/oidc/clients/${encodeClientIdParam(id)}/preview/${pathSegment(userId)}`,
 			{
 				params: { scopes }
 			}
