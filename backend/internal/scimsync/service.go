@@ -11,7 +11,6 @@ import (
 	"log/slog"
 	"net/http"
 	"net/url"
-	"path"
 	"slices"
 	"strconv"
 	"strings"
@@ -927,7 +926,8 @@ func scimURL(endpoint, p string, queryParams map[string]string) (string, error) 
 		return "", fmt.Errorf("invalid scim endpoint: %w", err)
 	}
 
-	u.Path = path.Join(strings.TrimRight(u.Path, "/"), p)
+	// JoinPath keeps the escaping of p, where assigning Path would escape an already escaped resource ID a second time
+	u = u.JoinPath(p)
 
 	q := u.Query()
 	for key, value := range queryParams {

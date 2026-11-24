@@ -914,3 +914,10 @@ func queryValues(requests []mockSCIMRequest, method, path, key string) []string 
 	}
 	return values
 }
+
+// A resource ID with a reserved character must reach the provider escaped once, or updates and deletions go to an ID that doesn't exist
+func TestSCIMURLEscapesResourceIDOnce(t *testing.T) {
+	got, err := scimURL("https://scim.example.test/scim/v2/", "/Users/"+url.PathEscape("o'brien|a/b c"), nil)
+	require.NoError(t, err)
+	assert.Equal(t, "https://scim.example.test/scim/v2/Users/o%27brien%7Ca%2Fb%20c", got)
+}
