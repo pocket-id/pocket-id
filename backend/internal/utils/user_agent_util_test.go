@@ -14,3 +14,7 @@ func TestParseUserAgent(t *testing.T) {
 
 	assert.Equal(t, useragent.Parse(userAgent[:512]), ParseUserAgent(userAgent))
 }
+
+func TestTruncateUserAgentDropsInvalidUTF8(t *testing.T) {
+	assert.Equal(t, "curl/8", TruncateUserAgent("curl\xff/8"))
+}
