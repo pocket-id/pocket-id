@@ -1,6 +1,7 @@
 package oidc
 
 import (
+	"context"
 	"net/url"
 	"testing"
 	"time"
@@ -288,6 +289,59 @@ func newBrowserSessionRequester(requestID, clientID, subject, sessionID string, 
 	request.Session.(*Session).SessionID = sessionID
 	request.GrantedScope = append(request.GrantedScope, scopes...)
 	return request
+}
+
+// On Postgres a revocation waits for a refresh that is committing, and must then also revoke the token that refresh stored
+func TestRevokeRefreshTokenCatchesConcurrentRefresh(t *testing.T) {
+	db := testutils.NewPostgresDatabaseForTest(t)
+	store := NewStore(db, nil)
+
+	// Column types such as DateTime pick their encoding from the configured provider
+	previousProvider := common.EnvConfig.DbProvider
+	common.EnvConfig.DbProvider = common.DbProviderPostgres
+	t.Cleanup(func() {
+		common.EnvConfig.DbProvider = previousProvider
+	})
+
+	const clientID = "test-client"
+	require.NoError(t, db.Create(&model.OidcClient{Base: model.Base{ID: clientID}, Name: clientID}).Error)
+	grant := newBrowserSessionRequester("grant", clientID, "test-user", "")
+	require.NoError(t, store.CreateRefreshTokenSession(t.Context(), "rotated", "", grant))
+
+	// A refresh rotates the token and stores its successor without committing yet
+	stored, commit, refreshed := make(chan struct{}), make(chan struct{}), make(chan error, 1)
+	go func() {
+		refreshed <- store.Transaction(t.Context(), func(ctx context.Context) error {
+			err := store.RotateRefreshToken(ctx, grant.GetID(), "rotated")
+			if err != nil {
+				return err
+			}
+			err = store.CreateRefreshTokenSession(ctx, "successor", "", grant)
+			close(stored)
+			<-commit
+			return err
+		})
+	}()
+	<-stored
+
+	// The revocation starts meanwhile and has to wait for the row the refresh holds
+	revoked := make(chan error, 1)
+	go func() {
+		revoked <- store.RevokeRefreshToken(t.Context(), grant.GetID())
+	}()
+	require.Eventually(t, func() bool {
+		var waiting int64
+		err := db.Raw(`SELECT count(*) FROM pg_stat_activity WHERE datname = current_database() AND wait_event_type = 'Lock'`).Scan(&waiting).Error
+		return err == nil && waiting > 0
+	}, 5*time.Second, 10*time.Millisecond)
+
+	close(commit)
+	require.NoError(t, <-refreshed)
+	require.NoError(t, <-revoked)
+
+	var active int64
+	require.NoError(t, db.Model(&OAuth2Session{}).Where("kind = ? AND active = ?", sessionKindRefreshToken, true).Count(&active).Error)
+	require.Zero(t, active)
 }
 
 func TestEndBrowserSession(t *testing.T) {

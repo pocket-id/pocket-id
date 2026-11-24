@@ -442,13 +442,25 @@ func (s *Store) RotateRefreshToken(ctx context.Context, requestID string, refres
 // Satisfies fositeoauth2.TokenRevocationStorage
 
 func (s *Store) RevokeRefreshToken(ctx context.Context, requestID string) error {
-	// Only usable tokens need revoking, so replaying a spent code does not rewrite every refresh token the grant ever had
-	return s.dbFor(ctx).
-		Model(&OAuth2Session{}).
-		Where("kind = ? AND request_id = ?", sessionKindRefreshToken, requestID).
-		Where("active = ? OR rotated_at > ?", true, datatype.DateTime(time.Now().UTC().Add(-refreshTokenGracePeriod))).
-		Updates(map[string]any{"active": false, "rotated_at": nil}).
-		Error
+	return s.revokeRefreshTokens(ctx, []string{requestID})
+}
+
+// revokeRefreshTokens revokes the usable refresh tokens of the given grants
+// Tokens that are already revoked or past their grace period are left alone, so replaying a spent code does not rewrite every refresh token a grant ever had
+func (s *Store) revokeRefreshTokens(ctx context.Context, requestIDs []string) error {
+	// A refresh rotates the old token and inserts its successor in one transaction
+	// If that transaction is still open, Postgres lets this update wait for it and then revokes the old token, but the successor did not exist when the update started, so the update cannot see it and it stays usable
+	// Repeating the update catches the successor, and the loop ends with the first update that finds nothing to revoke, since revoked tokens no longer match its condition
+	for {
+		result := s.dbFor(ctx).
+			Model(&OAuth2Session{}).
+			Where("kind = ? AND request_id IN ?", sessionKindRefreshToken, requestIDs).
+			Where("active = ? OR rotated_at > ?", true, datatype.DateTime(time.Now().UTC().Add(-refreshTokenGracePeriod))).
+			Updates(map[string]any{"active": false, "rotated_at": nil})
+		if result.Error != nil || result.RowsAffected == 0 {
+			return result.Error
+		}
+	}
 }
 
 func (s *Store) RevokeAccessToken(ctx context.Context, requestID string) error {
@@ -654,21 +666,17 @@ func (s *Store) revokeRequestIDs(ctx context.Context, requestIDs []string) error
 		return nil
 	}
 
-	if err := s.dbFor(ctx).
-		Model(&OAuth2Session{}).
-		Where("kind = ? AND request_id IN ?", sessionKindRefreshToken, requestIDs).
-		Where("active = ? OR rotated_at > ?", true, datatype.DateTime(time.Now().UTC().Add(-refreshTokenGracePeriod))).
-		Updates(map[string]any{"active": false, "rotated_at": nil}).
-		Error; err != nil {
-		return err
-	}
-
 	// A code that is not exchanged yet must not mint tokens for a revoked grant
+	// This runs before the refresh tokens are revoked, because it waits for an exchange that is still committing, so the refresh token that exchange inserted is already visible to the revocation below
 	if err := s.dbFor(ctx).
 		Model(&OAuth2Session{}).
 		Where("kind IN ? AND request_id IN ?", []string{sessionKindAuthorizeCode, sessionKindDeviceCode}, requestIDs).
 		Update("active", false).
 		Error; err != nil {
+		return err
+	}
+
+	if err := s.revokeRefreshTokens(ctx, requestIDs); err != nil {
 		return err
 	}
 
