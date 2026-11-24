@@ -213,6 +213,17 @@ func TestSignUpInitialAdminRejectsExistingInstallation(t *testing.T) {
 	require.True(t, apperror.IsCode(err, apperror.CodeSetupAlreadyCompleted))
 }
 
+// A sync that deletes every LDAP user must not hand the instance to the next visitor of the setup page
+func TestSignUpInitialAdminIsClosedWhileLDAPIsEnabled(t *testing.T) {
+	db := testutils.NewDatabaseForTest(t)
+	svc := newSignupServiceForTest(t, db, fakeUserCreator{user: model.User{Base: model.Base{ID: "new-admin"}}})
+	config := appconfig.NewTestConfig(nil)
+	config.LdapEnabled = "true"
+
+	_, _, err := svc.SignUpInitialAdmin(t.Context(), config, signUpDto{Username: "new-admin"}, "", "")
+	require.True(t, apperror.IsCode(err, apperror.CodeSetupAlreadyCompleted))
+}
+
 // listAllOptions returns list options that return every token on a single page.
 func listAllOptions() utils.ListRequestOptions {
 	var opts utils.ListRequestOptions
