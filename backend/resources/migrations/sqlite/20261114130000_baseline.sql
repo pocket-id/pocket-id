@@ -59,19 +59,21 @@ CREATE TABLE storage
 
 CREATE TABLE "users"
 (
-    id           TEXT                  NOT NULL PRIMARY KEY,
-    created_at   DATETIME,
-    updated_at   DATETIME,
-    username     TEXT COLLATE NOCASE   NOT NULL UNIQUE,
-    email        TEXT UNIQUE,
-    first_name   TEXT                  NOT NULL,
-    last_name    TEXT                  NOT NULL,
-    display_name TEXT                  NOT NULL,
-    is_admin     BOOLEAN DEFAULT FALSE NOT NULL,
-    ldap_id      TEXT UNIQUE,
-    locale       TEXT,
-    disabled     BOOLEAN DEFAULT FALSE NOT NULL
-, email_verified BOOLEAN NOT NULL DEFAULT FALSE, email_verification_deadline DATETIME);
+    id                          TEXT                  NOT NULL PRIMARY KEY,
+    created_at                  DATETIME,
+    updated_at                  DATETIME,
+    username                    TEXT COLLATE NOCASE   NOT NULL UNIQUE,
+    email                       TEXT COLLATE NOCASE UNIQUE,
+    first_name                  TEXT                  NOT NULL,
+    last_name                   TEXT                  NOT NULL,
+    display_name                TEXT                  NOT NULL,
+    is_admin                    BOOLEAN DEFAULT FALSE NOT NULL,
+    ldap_id                     TEXT UNIQUE,
+    locale                      TEXT,
+    disabled                    BOOLEAN DEFAULT FALSE NOT NULL,
+    email_verified              BOOLEAN DEFAULT FALSE NOT NULL,
+    email_verification_deadline DATETIME
+);
 
 CREATE TABLE "user_authorized_oidc_clients" (
     scope BLOB NOT NULL DEFAULT X'5B5D',

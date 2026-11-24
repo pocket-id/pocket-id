@@ -218,7 +218,7 @@ CREATE TABLE users (
     id uuid NOT NULL,
     created_at timestamp with time zone,
     username citext NOT NULL COLLATE pg_catalog."C",
-    email character varying(255),
+    email citext COLLATE pg_catalog."C",
     first_name character varying(100) NOT NULL,
     last_name character varying(100) NOT NULL,
     is_admin boolean DEFAULT false NOT NULL,

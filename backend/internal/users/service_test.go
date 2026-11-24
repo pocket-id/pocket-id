@@ -29,7 +29,11 @@ import (
 func newTestUserService(t *testing.T) *Service {
 	t.Helper()
 
-	db := testutils.NewDatabaseForTest(t)
+	return newTestUserServiceOn(t, testutils.NewDatabaseForTest(t))
+}
+
+func newTestUserServiceOn(t *testing.T, db *gorm.DB) *Service {
+	t.Helper()
 
 	fileStorage, err := storage.NewDatabaseStorage(db)
 	require.NoError(t, err)
@@ -494,6 +498,29 @@ func TestUpdateUserWithoutEmailWhileEmailsAreRequired(t *testing.T) {
 
 	_, err = userService.UpdateUser(t.Context(), config, withEmail.ID, dto.Replace(dto.UserCreateDto{Username: "with-email"}), false, false, auditlogs.Origin{})
 	require.True(t, apperror.IsCode(err, apperror.CodeValidationFailed))
+}
+
+// Relying parties often compare addresses without their letter case, so two accounts must not hold spellings of one address
+func TestEmailIsUniqueWithoutRegardToLetterCase(t *testing.T) {
+	testutils.ForEachDatabase(t, func(t *testing.T, db *gorm.DB) {
+		userService := newTestUserServiceOn(t, db)
+		config := &appconfig.AppConfigModel{RequireUserEmail: "false"}
+
+		kim, err := userService.CreateUser(t.Context(), config, dto.UserCreateDto{Username: "kim", Email: new("Kim@example.com")}, auditlogs.Origin{})
+		require.NoError(t, err)
+		other, err := userService.CreateUser(t.Context(), config, dto.UserCreateDto{Username: "other"}, auditlogs.Origin{})
+		require.NoError(t, err)
+
+		_, err = userService.CreateUser(t.Context(), config, dto.UserCreateDto{Username: "third", Email: new("kim@EXAMPLE.com")}, auditlogs.Origin{})
+		require.True(t, apperror.IsCode(err, apperror.CodeAlreadyInUse))
+		_, err = userService.UpdateUser(t.Context(), config, other.ID, dto.Replace(dto.UserCreateDto{Username: "other", Email: new("KIM@example.com")}), false, false, auditlogs.Origin{})
+		require.True(t, apperror.IsCode(err, apperror.CodeAlreadyInUse))
+
+		// The spelling of the own address can still be changed
+		updated, err := userService.UpdateUser(t.Context(), config, kim.ID, dto.Replace(dto.UserCreateDto{Username: "kim", Email: new("kim@example.com")}), false, false, auditlogs.Origin{})
+		require.NoError(t, err)
+		require.Equal(t, "kim@example.com", *updated.Email)
+	})
 }
 
 func TestUpdateUserReturnsGroupsAndCustomClaims(t *testing.T) {
