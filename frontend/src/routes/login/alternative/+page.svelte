@@ -16,7 +16,7 @@
 	import MailIcon from '~icons/solar/letter-bold-duotone';
 	import SmartphoneIcon from '~icons/solar/smartphone-bold-duotone';
 
-	const emailCodes = $appConfigStore.emailOneTimeAccessAsUnauthenticatedEnabled;
+	const emailCodes = $appConfigStore.emailOneTimeAccessAsUnauthenticated !== 'disabled';
 
 	// Choosing a method again starts over, so Enter a login code no longer refers to an earlier email
 	emailedLoginCode.sentTo = '';

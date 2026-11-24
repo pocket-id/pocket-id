@@ -135,6 +135,12 @@ func TestService_NewService(t *testing.T) {
 				wantDetail: "is invalid",
 			},
 			{
+				name:       "boolean value for the email login code mode",
+				envName:    "EMAIL_ONE_TIME_ACCESS_AS_UNAUTHENTICATED",
+				value:      "true",
+				wantDetail: "is invalid",
+			},
+			{
 				name:       "invalid boolean type",
 				envName:    "REQUIRE_USER_EMAIL",
 				value:      "hello",

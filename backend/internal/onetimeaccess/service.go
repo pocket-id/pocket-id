@@ -65,7 +65,8 @@ func (s *Service) RequestOneTimeAccessEmailAsAdmin(ctx context.Context, dbConfig
 }
 
 func (s *Service) RequestOneTimeAccessEmailAsUnauthenticatedUser(ctx context.Context, dbConfig *appconfig.AppConfigModel, email, redirectPath string, origin auditlogs.Origin) (string, error) {
-	if !dbConfig.EmailOneTimeAccessAsUnauthenticatedEnabled.IsTrue() {
+	// Requests are rejected outright only when no user at all may request a code, which the login page already reveals
+	if !selfRequestedCodeAllowed(dbConfig, false) {
 		return "", apperror.OneTimeAccessDisabled()
 	}
 
@@ -91,6 +92,19 @@ func (s *Service) RequestOneTimeAccessEmailAsUnauthenticatedUser(ctx context.Con
 	return deviceToken, nil
 }
 
+// selfRequestedCodeAllowed reports whether the configuration lets a user sign in with a login code they requested from the login page
+// Unknown modes are treated as disabled so a misconfiguration fails closed
+func selfRequestedCodeAllowed(dbConfig *appconfig.AppConfigModel, isAdmin bool) bool {
+	switch dbConfig.EmailOneTimeAccessAsUnauthenticated {
+	case appconfig.EmailOneTimeAccessAsUnauthenticatedAll:
+		return true
+	case appconfig.EmailOneTimeAccessAsUnauthenticatedNonAdmins:
+		return !isAdmin
+	default:
+		return false
+	}
+}
+
 // byAdmin marks a code an admin requests for the user, as opposed to one the user requests for themselves
 func (s *Service) requestOneTimeAccessEmailInternal(ctx context.Context, userID, redirectPath string, ttl time.Duration, deviceToken *string, dbConfig *appconfig.AppConfigModel, origin auditlogs.Origin, byAdmin bool) error {
 	// Load the user to ensure it exists and has an email address
@@ -109,6 +123,12 @@ func (s *Service) requestOneTimeAccessEmailInternal(ctx context.Context, userID,
 		if err != nil {
 			return err
 		}
+	} else {
+		// A user who may not request a code is ignored like an unknown email, so nothing reveals who is an admin
+		if !selfRequestedCodeAllowed(dbConfig, user.IsAdmin) {
+			return nil
+		}
+		forbidAdmin = !selfRequestedCodeAllowed(dbConfig, true)
 	}
 
 	oneTimeAccessToken, err := StoreToken(ctx, s.actorService, user.ID, ttl, deviceToken, forbidAdmin)
@@ -231,6 +251,11 @@ func (s *Service) completeTokenExchange(ctx context.Context, dbConfig *appconfig
 
 	// The code's creator couldn't have created it for an admin, so it must not sign in as one either
 	if state.ForbidAdmin && user.IsAdmin {
+		return model.User{}, model.LoginTokens{}, apperror.TokenInvalidOrExpired()
+	}
+
+	// Only codes requested from the login page carry a device token, so check them again in case the setting changed since the code was sent
+	if state.DeviceToken != nil && !selfRequestedCodeAllowed(dbConfig, user.IsAdmin) {
 		return model.User{}, model.LoginTokens{}, apperror.TokenInvalidOrExpired()
 	}
 

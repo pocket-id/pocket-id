@@ -60,7 +60,7 @@ test.describe('Login code by email', () => {
 		const admin = await browser.newContext({ baseURL, storageState: authFile });
 		await setAppConfigValues(admin.request, {
 			...smtpSinkConfig,
-			emailOneTimeAccessAsUnauthenticatedEnabled: 'true'
+			emailOneTimeAccessAsUnauthenticated: 'all'
 		});
 		await admin.close();
 

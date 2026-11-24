@@ -77,6 +77,16 @@
 		}
 	];
 
+	const userLoginCodeOptions = [
+		{ value: 'disabled' as const, label: m.config_off() },
+		{
+			value: 'nonAdmins' as const,
+			label: m.config_user_login_codes_non_admins(),
+			description: m.config_user_login_codes_non_admins_description()
+		},
+		{ value: 'all' as const, label: m.config_user_login_codes_all() }
+	];
+
 	let isSendingTestEmail = $state(false);
 
 	const requiredSmtpFields = ['smtpHost', 'smtpPort', 'smtpFrom'] as const;
@@ -84,14 +94,14 @@
 	function emailFeaturesOn(data: {
 		emailLoginNotificationMode: string;
 		emailVerification: string;
-		emailOneTimeAccessAsUnauthenticatedEnabled: boolean;
+		emailOneTimeAccessAsUnauthenticated: string;
 		emailOneTimeAccessAsAdminEnabled: boolean;
 		emailApiKeyExpirationEnabled: boolean;
 	}) {
 		return (
 			data.emailLoginNotificationMode !== 'disabled' ||
 			data.emailVerification !== 'disabled' ||
-			data.emailOneTimeAccessAsUnauthenticatedEnabled ||
+			data.emailOneTimeAccessAsUnauthenticated !== 'disabled' ||
 			data.emailOneTimeAccessAsAdminEnabled ||
 			data.emailApiKeyExpirationEnabled
 		);
@@ -111,7 +121,7 @@
 			smtpFrom: z.email().or(z.literal('')).optional(),
 			smtpTls: z.enum(['none', 'starttls', 'tls']),
 			smtpSkipCertVerify: z.boolean(),
-			emailOneTimeAccessAsUnauthenticatedEnabled: z.boolean(),
+			emailOneTimeAccessAsUnauthenticated: z.enum(['disabled', 'nonAdmins', 'all']),
 			emailVerification: z.enum(['disabled', 'optional', 'required']),
 			emailOneTimeAccessAsAdminEnabled: z.boolean(),
 			emailLoginNotificationMode: z.enum([
@@ -154,8 +164,7 @@
 		emailFeaturesOn({
 			emailLoginNotificationMode: $inputs.emailLoginNotificationMode.value,
 			emailVerification: $inputs.emailVerification.value,
-			emailOneTimeAccessAsUnauthenticatedEnabled:
-				$inputs.emailOneTimeAccessAsUnauthenticatedEnabled.value,
+			emailOneTimeAccessAsUnauthenticated: $inputs.emailOneTimeAccessAsUnauthenticated.value,
 			emailOneTimeAccessAsAdminEnabled: $inputs.emailOneTimeAccessAsAdminEnabled.value,
 			emailApiKeyExpirationEnabled: $inputs.emailApiKeyExpirationEnabled.value
 		}) && requiredSmtpFields.some((field) => !$inputs[field]?.value)
@@ -387,16 +396,18 @@
 			<SettingRow
 				title={m.config_user_login_codes()}
 				description={m.config_user_login_codes_description()}
-				consequence={$inputs.emailOneTimeAccessAsUnauthenticatedEnabled.value
+				consequence={$inputs.emailOneTimeAccessAsUnauthenticated.value !== 'disabled'
 					? m.config_user_login_codes_note()
 					: undefined}
 				icon={HashIcon}
-				envOverride={envOverrides.has('emailOneTimeAccessAsUnauthenticatedEnabled')}
+				envOverride={envOverrides.has('emailOneTimeAccessAsUnauthenticated')}
 			>
 				{#snippet control(props)}
-					<Switch
+					<OptionSelect
 						{...props}
-						bind:checked={$inputs.emailOneTimeAccessAsUnauthenticatedEnabled.value}
+						value={$inputs.emailOneTimeAccessAsUnauthenticated.value}
+						options={userLoginCodeOptions}
+						onValueChange={(v) => ($inputs.emailOneTimeAccessAsUnauthenticated.value = v)}
 					/>
 				{/snippet}
 			</SettingRow>
