@@ -149,7 +149,6 @@ type ScopeInfoDto struct {
 type DeviceCodeInfoDto struct {
 	Scope                    []string              `json:"scope"`
 	ScopeInfo                []ScopeInfoDto        `json:"scopeInfo"`
-	AuthorizationRequired    bool                  `json:"authorizationRequired"`
 	ReauthenticationRequired bool                  `json:"reauthenticationRequired"`
 	Client                   OidcClientMetaDataDto `json:"client"`
 }

@@ -150,7 +150,7 @@ class OidcService extends APIService {
 		return res.data as OidcClientWithAllowedUserGroups;
 	};
 
-	verifyDeviceCode = async (userCode: string, scopes?: string[]) => {
+	verifyDeviceCode = async (userCode: string, scopes: string[]) => {
 		return await this.api.post('/oidc/device/verify', { scopes }, { params: { code: userCode } });
 	};
 

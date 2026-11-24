@@ -46,9 +46,7 @@
 	let deviceLoginOutcome: 'approved' | 'denied' | undefined = $state();
 	let deviceLoginDecision: 'approve' | 'deny' | undefined = $state();
 	let failure: { message: string; code?: string; closed: boolean } | undefined = $state();
-	let authorizationRequired = $state(false);
 	let selectedScopes: string[] = $state([]);
-	let reauthenticationRequired = $state(false);
 	let reauthenticated = $state(false);
 	let normalizedUserCode = $derived(
 		userCode.trim().toUpperCase().replaceAll('I', '1').replaceAll('O', '0')
@@ -70,7 +68,7 @@
 				? 'authorized'
 				: deviceLoginInfo
 					? 'review'
-					: client && (authorizationRequired || reauthenticationRequired)
+					: client
 						? 'consent'
 						: 'enter'
 	);
@@ -85,9 +83,7 @@
 	);
 	const statusFailure = $derived(codeFailure ? undefined : failure);
 	// Granted scopes stay in view after approving, so the wide card does not collapse into a small one
-	const showScopes = $derived(
-		authorizationRequired && (view === 'consent' || view === 'authorized')
-	);
+	const showScopes = $derived(view === 'consent' || view === 'authorized');
 
 	// Typing again clears the last outcome
 	$effect(() => {
@@ -120,30 +116,20 @@
 				return;
 			}
 
-			const info = await oidcService.getDeviceCodeInfo(normalizedUserCode);
-			deviceInfo = info;
-
-			if (info.authorizationRequired && !authorizationRequired) {
-				authorizationRequired = true;
+			// The consent screen is always shown, even for a client the user approved before, because anyone may have started the device request
+			if (!deviceInfo) {
+				deviceInfo = await oidcService.getDeviceCodeInfo(normalizedUserCode);
 				// Every requested scope starts selected so the user only has to deselect the ones they do not want to grant
-				selectedScopes = [...(info.scope ?? [])];
+				selectedScopes = [...(deviceInfo.scope ?? [])];
 				return;
 			}
 
-			if (info.reauthenticationRequired && !reauthenticationRequired && !authorizationRequired) {
-				reauthenticationRequired = true;
-				return;
-			}
-
-			if (info.reauthenticationRequired && !reauthenticated) {
+			if (deviceInfo.reauthenticationRequired && !reauthenticated) {
 				await reauthenticate();
 				reauthenticated = true;
 			}
 
-			await oidcService.verifyDeviceCode(
-				normalizedUserCode,
-				authorizationRequired ? selectedScopes : undefined
-			);
+			await oidcService.verifyDeviceCode(normalizedUserCode, selectedScopes);
 			success = true;
 		} catch (error) {
 			setFailure(error);
@@ -334,21 +320,19 @@
 	{/if}
 
 	{#snippet side()}
-		{#if showScopes && view === 'authorized'}
+		{#if view === 'authorized'}
 			<!-- The granted scopes only fill the second column, because stacked under the outcome they would read as another question -->
 			<div class="max-lg:hidden">
 				<ScopeList scopes={selectedScopes} scopeInfo={deviceInfo!.scopeInfo || []} />
 			</div>
 		{:else if view === 'consent' && client}
-			{#if authorizationRequired}
-				<div class="mb-6">
-					<ScopeList
-						scopes={deviceInfo!.scope || []}
-						scopeInfo={deviceInfo!.scopeInfo || []}
-						bind:selectedScopes
-					/>
-				</div>
-			{/if}
+			<div class="mb-6">
+				<ScopeList
+					scopes={deviceInfo!.scope || []}
+					scopeInfo={deviceInfo!.scopeInfo || []}
+					bind:selectedScopes
+				/>
+			</div>
 			<ActionPanel>
 				<div class="flex flex-col items-center gap-3">
 					{#if failure?.code === 'email_verification_required'}

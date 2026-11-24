@@ -784,16 +784,12 @@ test('Authorize new client with device authorization flow while not signed in', 
 	await expect(page.getByRole('heading', { name: 'Authorized' })).toBeVisible();
 });
 
+// Whoever started the device request gets the tokens, so the consent screen shows even for a client the user approved before or one that skips consent
 for (const scenario of [
-	{ name: 'new client', client: oidcClients.immich, consentRequired: true },
-	{ name: 'previously authorized client', client: oidcClients.nextcloud, consentRequired: false },
-	{ name: 'skip-consent client', client: oidcClients.skipConsent, consentRequired: false },
-	{
-		name: 'public skip-consent client',
-		client: oidcClients.skipConsent,
-		consentRequired: false,
-		isPublic: true
-	}
+	{ name: 'new client', client: oidcClients.immich },
+	{ name: 'previously authorized client', client: oidcClients.nextcloud },
+	{ name: 'skip-consent client', client: oidcClients.skipConsent },
+	{ name: 'public skip-consent client', client: oidcClients.skipConsent, isPublic: true }
 ]) {
 	for (const decision of ['authorize', 'cancel'] as const) {
 		test(`Device authorization requires code confirmation for ${scenario.name}: ${decision}`, async ({
@@ -847,10 +843,10 @@ for (const scenario of [
 				await expect(page).not.toHaveURL(/\/device/);
 			} else {
 				await page.getByRole('button', { name: 'Continue', exact: true }).click();
-				if (scenario.consentRequired) {
-					await expectScopes(page, ['Email', 'Profile']);
-					await page.getByRole('button', { name: 'Approve', exact: true }).click();
-				}
+				await expect(page.getByRole('heading', { name: client.name })).toBeVisible();
+				await expectScopes(page, ['Email', 'Profile']);
+				expect(approvals).toHaveLength(0);
+				await page.getByRole('button', { name: 'Approve', exact: true }).click();
 				await expect(page.getByRole('heading', { name: 'Authorized' })).toBeVisible();
 			}
 
@@ -885,6 +881,10 @@ test('Authorize existing client with device authorization flow while not signed 
 	await (await passkeyUtil.init(page)).addPasskey();
 	await page.getByRole('button', { name: 'Continue', exact: true }).click();
 
+	await expectScopes(page, ['Email', 'Profile']);
+
+	await page.getByRole('button', { name: 'Approve' }).click();
+
 	await expect(page.getByRole('heading', { name: 'Authorized' })).toBeVisible();
 });
 
@@ -900,6 +900,9 @@ test('Device authorization submits manually entered codes with Enter', async ({ 
 	await page.getByRole('textbox', { name: 'Device code' }).fill(userCode);
 	expect(approvals).toHaveLength(0);
 	await page.getByRole('textbox', { name: 'Device code' }).press('Enter');
+	await expectScopes(page, ['Email', 'Profile']);
+	expect(approvals).toHaveLength(0);
+	await page.getByRole('button', { name: 'Approve' }).click();
 	await expect(page.getByRole('heading', { name: 'Authorized' })).toBeVisible();
 	expect(approvals).toHaveLength(1);
 });

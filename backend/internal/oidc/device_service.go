@@ -224,6 +224,8 @@ func copyDeviceCodeExpiry(from fosite.Session, to *Session) {
 	}
 }
 
+// getDeviceCodeInfo describes a pending device authorization for the consent screen
+// The consent screen is always shown, regardless of prior consent or the client's skip-consent setting, because the tokens go to whoever started the device request rather than to a registered redirect URI
 func (s *deviceService) getDeviceCodeInfo(ctx context.Context, userCode, userID string) (*dto.DeviceCodeInfoDto, error) {
 	request, _, err := s.deviceRequestFromUserCode(ctx, userCode)
 	if err != nil {
@@ -234,19 +236,6 @@ func (s *deviceService) getDeviceCodeInfo(ctx context.Context, userCode, userID 
 	resource, err := request.GetResource()
 	if err != nil {
 		return nil, err
-	}
-	authorizationRequired := true
-	if userID != "" {
-		_, _, consentKeys, err := s.authorizationService.resolveGrant(ctx, client.GetID(), userID, resource, request.GetRequestedScopes())
-		if err != nil {
-			return nil, err
-		}
-		hasAuthorizedClient, err := s.authorizationService.hasAuthorizedClient(ctx, client.GetID(), userID, consentKeys)
-		if err != nil {
-			return nil, err
-		}
-		// The device flow has no per-request prompt parameter, so consent depends only on prior authorization and the client's skip-consent setting
-		authorizationRequired = consentRequired(hasAuthorizedClient, client.SkipConsent, nil)
 	}
 
 	// Hide the scopes the signed-in user can't hold, since resolveGrant won't grant them either
@@ -280,7 +269,6 @@ func (s *deviceService) getDeviceCodeInfo(ctx context.Context, userCode, userID 
 		},
 		Scope:                    scope,
 		ScopeInfo:                scopeInfo,
-		AuthorizationRequired:    authorizationRequired,
 		ReauthenticationRequired: client.RequiresReauthentication || grantsAdminAccess(canonicalResource(resource), scope),
 	}, nil
 }
