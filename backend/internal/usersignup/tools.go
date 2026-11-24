@@ -25,7 +25,7 @@ func (m *Module) RegisterTools(t *mcp.Tools) {
 type createSignupLinkInput struct {
 	ExpiresInMinutes int      `json:"expiresInMinutes,omitempty" jsonschema:"Minutes until the link expires, 60 by default and at most 44640 (31 days)"`
 	UsageLimit       int      `json:"usageLimit,omitempty" jsonschema:"How many accounts the link can create, 1 by default and at most 100"`
-	UserGroupIDs     []string `json:"userGroupIds,omitempty" jsonschema:"IDs of the groups new users join"`
+	UserGroupIDs     []string `json:"userGroupIds,omitempty" jsonschema:"IDs of the groups new users join, the default groups when none are given"`
 }
 
 type signupLinkResult struct {

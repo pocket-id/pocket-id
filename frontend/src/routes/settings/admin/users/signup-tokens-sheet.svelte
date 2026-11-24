@@ -72,8 +72,9 @@
 	const formatDay = (date: string | Date) =>
 		new Date(date).toLocaleDateString(getLocale(), { dateStyle: 'medium' });
 
+	// A token without groups of its own gives the default groups, like an open sign-up
 	const groupNames = (token: SignupToken) =>
-		token.userGroups.map((g) => g.friendlyName).join(', ') || m.no_groups();
+		token.userGroups.map((g) => g.friendlyName).join(', ') || m.config_default_groups();
 
 	function statusOf(token: SignupToken) {
 		if (token.usageCount >= token.usageLimit) return { active: false, label: m.used_up() };
