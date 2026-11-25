@@ -17,6 +17,10 @@ func TestClearUnusedDefaultProfilePictures(t *testing.T) {
 	db := testutils.NewDatabaseForTest(t)
 	cacheStorage, err := storage.NewFilesystemStorage(t.TempDir())
 	require.NoError(t, err)
+	// Windows can't remove the temporary folder while the storage holds it open
+	t.Cleanup(func() {
+		require.NoError(t, cacheStorage.Close())
+	})
 	service := newService(Dependencies{DB: db, CacheStorage: cacheStorage})
 
 	require.NoError(t, db.Create(&model.User{Username: "ada", FirstName: "Ada", LastName: "Lovelace"}).Error)
