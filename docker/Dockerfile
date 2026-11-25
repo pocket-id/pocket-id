@@ -56,6 +56,7 @@ COPY --from=backend-builder /build/pocket-id /app/pocket-id
 USER 65532:65532
 
 WORKDIR /app/data
+WORKDIR /app/cache
 WORKDIR /app
 
 EXPOSE 1411

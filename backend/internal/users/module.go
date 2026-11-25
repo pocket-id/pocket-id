@@ -2,15 +2,12 @@ package users
 
 import (
 	"context"
-	"errors"
-	"fmt"
 	"io"
 	"net/http"
 	"time"
 
 	"github.com/gin-gonic/gin"
 	"github.com/go-fuego/fuego/option"
-	francishost "github.com/italypaleale/francis/host"
 	"gorm.io/gorm"
 
 	"github.com/pocket-id/pocket-id/backend/internal/appconfig"
@@ -69,6 +66,7 @@ type Dependencies struct {
 	DB                *gorm.DB
 	AppConfig         appconfig.AppConfigResolver
 	FileStorage       storage.FileStorage
+	CacheStorage      storage.FileStorage
 	CustomClaims      CustomClaimUpdater
 	AppAssets         AppAssetProvider
 	WebAuthn          PasskeyManager
@@ -77,10 +75,6 @@ type Dependencies struct {
 	EmailVerification EmailVerificationSender
 	OwnAccountLimiter OwnAccountLimiter
 	AuditLog          AuditLogger
-	Actors            francishost.Host
-
-	// CleanupDisabled skips registering the cron job that deletes unused default profile pictures, for example in tests
-	CleanupDisabled bool
 }
 
 type Module struct {
@@ -88,29 +82,12 @@ type Module struct {
 	handler *handler
 }
 
-func New(deps Dependencies) (*Module, error) {
-	// Register the cleanup job for the generated default profile pictures
-	if !deps.CleanupDisabled {
-		if deps.Actors == nil {
-			return nil, errors.New("actor host is required for the users cleanup cron job")
-		}
-
-		cj, err := newCleanupJob(deps.DB, deps.FileStorage)
-		if err != nil {
-			return nil, err
-		}
-
-		err = deps.Actors.RegisterBuiltInActor(cj)
-		if err != nil {
-			return nil, fmt.Errorf("error registering users cleanup cron actor %q: %w", cj.ActorType(), err)
-		}
-	}
-
+func New(deps Dependencies) *Module {
 	service := newService(deps)
 	return &Module{
 		service: service,
 		handler: newHandler(deps.AppConfig, service, deps.WebAuthn),
-	}, nil
+	}
 }
 
 func (m *Module) RegisterRoutes(r *authz.Router, profilePictureSizeLimit gin.HandlerFunc) {

@@ -20,5 +20,7 @@
 # Application specific
 data
 /backend/data
+/cache
+/backend/cache
 /scripts/development
 /backend/GeoLite2-City.mmdb

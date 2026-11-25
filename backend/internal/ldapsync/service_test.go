@@ -842,15 +842,13 @@ func newTestLdapService(t *testing.T, client ldapClient) (*Service, *gorm.DB) {
 
 	// The sync is exercised against the real user and group services, so the assertions below can check what actually lands in the database
 	groupsModule := usergroups.New(usergroups.Dependencies{DB: db, AuditLog: nopAuditLogger{}})
-	usersModule, err := users.New(users.Dependencies{
-		DB:              db,
-		FileStorage:     fileStorage,
-		CustomClaims:    customclaims.New(db),
-		AppAssets:       appAssets,
-		AuditLog:        nopAuditLogger{},
-		CleanupDisabled: true,
+	usersModule := users.New(users.Dependencies{
+		DB:           db,
+		FileStorage:  fileStorage,
+		CustomClaims: customclaims.New(db),
+		AppAssets:    appAssets,
+		AuditLog:     nopAuditLogger{},
 	})
-	require.NoError(t, err)
 
 	svc := newService(Dependencies{
 		DB:          db,

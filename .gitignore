@@ -43,6 +43,8 @@ vite.config.ts.timestamp-*
 
 # Application specific
 data
+/cache
+/backend/cache
 /packages/tests/.auth
 /packages/tests/.report
 /packages/tests/.blob

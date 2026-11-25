@@ -2,7 +2,6 @@ import { expect, test } from '@playwright/test';
 import AdmZip from 'adm-zip';
 import { execFileSync, ExecFileSyncOptions } from 'child_process';
 import crypto from 'crypto';
-import { users } from 'data';
 import fs from 'fs';
 import path from 'path';
 import { cleanupBackend } from 'utils/cleanup.util';
@@ -31,15 +30,9 @@ test.beforeAll(() => {
 	console.log(`Running CLI tests in ${mode.toUpperCase()} mode`);
 });
 
-test('Export', async ({ baseURL }) => {
+test('Export', async () => {
 	// Reset the backend but with LDAP setup because the example export has no LDAP data
 	await cleanupBackend({ skipLdapSetup: true });
-
-	// Fetch the profile pictures because they get generated on demand
-	await Promise.all([
-		fetch(`${baseURL}/api/users/${users.craig.id}/profile-picture.png`),
-		fetch(`${baseURL}/api/users/${users.tim.id}/profile-picture.png`)
-	]);
 
 	// Export the data from the seeded container
 	const exportPath = path.join(tmpDir, 'export.zip');
@@ -51,13 +44,8 @@ test('Export', async ({ baseURL }) => {
 	compareExports(exampleExportPath, extractPath);
 });
 
-test('Export via stdout', async ({ baseURL }) => {
+test('Export via stdout', async () => {
 	await cleanupBackend({ skipLdapSetup: true });
-
-	await Promise.all([
-		fetch(`${baseURL}/api/users/${users.craig.id}/profile-picture.png`),
-		fetch(`${baseURL}/api/users/${users.tim.id}/profile-picture.png`)
-	]);
 
 	const stdoutBuffer = runExportToStdout();
 	const stdoutExtractPath = path.join(tmpDir, 'export-stdout-extracted');
@@ -144,10 +132,6 @@ function compareExports(dir1: string, dir2: string): void {
 	expect(files2).toEqual(files1);
 
 	for (const file of files1) {
-		const profilePictures = ['CF-v3.png', 'CR-v3.png'];
-		if (profilePictures.includes(path.basename(file))) {
-			continue; // Skip profile pictures because they get generated on demand and can differ between exports
-		}
 		expect(hashes2[file], `${file} hash should match`).toEqual(hashes1[file]);
 	}
 

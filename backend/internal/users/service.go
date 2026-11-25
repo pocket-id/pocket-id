@@ -39,6 +39,7 @@ type Service struct {
 	scimSyncScheduler ScimSyncScheduler
 	backchannelLogout *backchannellogout.Service
 	fileStorage       storage.FileStorage
+	cacheStorage      storage.FileStorage
 	emailVerification EmailVerificationSender
 	ownAccountLimiter OwnAccountLimiter
 	auditLog          AuditLogger
@@ -60,6 +61,7 @@ func newService(deps Dependencies) *Service {
 		scimSyncScheduler: deps.ScimSync,
 		backchannelLogout: deps.BackchannelLogout,
 		fileStorage:       deps.FileStorage,
+		cacheStorage:      deps.CacheStorage,
 		emailVerification: deps.EmailVerification,
 		ownAccountLimiter: deps.OwnAccountLimiter,
 		auditLog:          deps.AuditLog,
@@ -139,8 +141,8 @@ func (s *Service) GetProfilePicture(ctx context.Context, userID string) (io.Read
 
 	// Try cached default for initials
 	initials := profilepicture.Initials(user.FirstName, user.LastName, user.Username)
-	defaultPicturePath := path.Join("profile-pictures", "defaults", profilepicture.DefaultPictureFile(initials))
-	file, size, err = s.fileStorage.Open(ctx, defaultPicturePath)
+	defaultPicturePath := path.Join(defaultPicturesDir, profilepicture.DefaultPictureFile(initials))
+	file, size, err = s.cacheStorage.Open(ctx, defaultPicturePath)
 	if err == nil {
 		return file, size, nil
 	} else if !errors.Is(err, fs.ErrNotExist) {
@@ -159,7 +161,7 @@ func (s *Service) GetProfilePicture(ctx context.Context, userID string) (io.Read
 	// nolint:contextcheck
 	go func() {
 		// Use bytes.NewReader because we need an io.ReadSeeker
-		rErr := s.fileStorage.Save(context.Background(), defaultPicturePath, bytes.NewReader(defaultPictureBytes))
+		rErr := s.cacheStorage.Save(context.Background(), defaultPicturePath, bytes.NewReader(defaultPictureBytes))
 		if rErr != nil {
 			slog.Error("Failed to cache default profile picture", slog.String("initials", initials), slog.Any("error", rErr))
 		}

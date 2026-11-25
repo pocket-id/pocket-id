@@ -15,6 +15,7 @@ COPY ./.tmp/frontend.cdx.json /usr/share/doc/pocket-id/frontend.cdx.json
 USER 65532:65532
 
 WORKDIR /app/data
+WORKDIR /app/cache
 WORKDIR /app
 
 EXPOSE 1411

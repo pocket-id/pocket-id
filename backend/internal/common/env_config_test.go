@@ -284,6 +284,18 @@ func TestParseEnvConfig(t *testing.T) {
 		assert.Equal(t, "localhost", EnvConfig.Host) // lowercased
 		assert.Equal(t, "9999", EnvConfig.ActorsPort)
 		assert.Equal(t, "localhost", EnvConfig.ActorsHost) // lowercased
+		assert.Equal(t, "/custom/geolite.mmdb", EnvConfig.GeoLiteDBPath)
+	})
+
+	t.Run("should keep the GeoLite database in the cache folder unless a path is set", func(t *testing.T) {
+		EnvConfig = defaultConfig()
+		t.Setenv("DB_CONNECTION_STRING", "file:test")
+		t.Setenv("APP_URL", "http://localhost:3000")
+		t.Setenv("CACHE_PATH", "/custom/cache")
+
+		err := parseAndValidateEnvConfig(t)
+		require.NoError(t, err)
+		assert.Equal(t, filepath.Join("/custom/cache", "GeoLite2-City.mmdb"), EnvConfig.GeoLiteDBPath)
 	})
 
 	t.Run("should normalize file backend and default upload path", func(t *testing.T) {

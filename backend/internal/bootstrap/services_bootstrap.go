@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"net/http"
+	"path/filepath"
 	"time"
 
 	"github.com/go-webauthn/x/revoke"
@@ -87,6 +88,7 @@ func initServices(
 	outboundClients *outbound.Clients,
 	appAssetsModule *appassets.Module,
 	fileStorage storage.FileStorage,
+	cacheStorage storage.FileStorage,
 	rateLimitServices map[string]*ratelimit.RateLimitService,
 ) (svc *services, err error) {
 	svc = &services{
@@ -165,15 +167,16 @@ func initServices(
 	}
 
 	svc.webauthnModule, err = webauthn.New(webauthn.Dependencies{
-		DB:              db,
-		Actors:          actors,
-		AppURL:          common.EnvConfig.AppURL,
-		TopOrigins:      common.EnvConfig.AllowedFrameAncestors,
-		HTTPClient:      fidoMetadataClient,
-		FidoMetadataURL: fidoMetadataURL,
-		Sessions:        svc.sessionModule,
-		AuditLog:        svc.auditLogsModule,
-		AppConfig:       svc.appConfigService,
+		DB:               db,
+		Actors:           actors,
+		AppURL:           common.EnvConfig.AppURL,
+		TopOrigins:       common.EnvConfig.AllowedFrameAncestors,
+		HTTPClient:       fidoMetadataClient,
+		FidoMetadataURL:  fidoMetadataURL,
+		FidoMetadataPath: filepath.Join(common.EnvConfig.CachePath, "fido-mds.jwt"),
+		Sessions:         svc.sessionModule,
+		AuditLog:         svc.auditLogsModule,
+		AppConfig:        svc.appConfigService,
 		// Disable in test environment
 		CleanupDisabled: common.EnvConfig.AppEnv.IsTest(),
 	})
@@ -268,10 +271,11 @@ func initServices(
 		return nil, fmt.Errorf("failed to create email verification module: %w", err)
 	}
 
-	svc.usersModule, err = users.New(users.Dependencies{
+	svc.usersModule = users.New(users.Dependencies{
 		DB:                db,
 		AppConfig:         svc.appConfigService,
 		FileStorage:       fileStorage,
+		CacheStorage:      cacheStorage,
 		CustomClaims:      svc.customClaimsModule,
 		AppAssets:         svc.appAssetsModule,
 		WebAuthn:          svc.webauthnModule,
@@ -280,13 +284,7 @@ func initServices(
 		EmailVerification: svc.emailVerificationModule,
 		OwnAccountLimiter: ownAccountLimiter,
 		AuditLog:          svc.auditLogsModule,
-		Actors:            actors,
-		// Disable in test environment
-		CleanupDisabled: common.EnvConfig.AppEnv.IsTest(),
 	})
-	if err != nil {
-		return nil, fmt.Errorf("failed to create users module: %w", err)
-	}
 
 	svc.ldapSyncModule, err = ldapsync.New(ldapsync.Dependencies{
 		DB:                db,
