@@ -512,6 +512,44 @@ func TestService_EnvOverrides(t *testing.T) {
 	})
 }
 
+func TestService_UpdateAppConfigNeedsThePasswordAgainForANewServer(t *testing.T) {
+	patch := func(values map[string]any) dto.Update[AppConfigUpdateDto] {
+		return dto.MergePatch[AppConfigUpdateDto](values)
+	}
+
+	t.Run("saved password", func(t *testing.T) {
+		setUIConfigDisabled(t, false)
+		svc := newActorBackedService(t)
+		_, err := svc.UpdateAppConfig(t.Context(), patch(map[string]any{"smtpHost": "smtp.example.com", "smtpPassword": "secret", "ldapUrl": "ldaps://ldap.example.com", "ldapBindPassword": "secret"}), adminAccess)
+		require.NoError(t, err)
+
+		// Left out and sent back redacted both mean the password was not entered again
+		_, err = svc.UpdateAppConfig(t.Context(), patch(map[string]any{"smtpHost": "smtp.attacker.example"}), adminAccess)
+		require.True(t, apperror.IsCode(err, apperror.CodeValidationFailed))
+		_, err = svc.UpdateAppConfig(t.Context(), patch(map[string]any{"ldapUrl": "ldaps://attacker.example", "ldapBindPassword": redactedValue}), adminAccess)
+		require.True(t, apperror.IsCode(err, apperror.CodeValidationFailed))
+
+		// Another port of the same host can be another party's server
+		_, err = svc.UpdateAppConfig(t.Context(), patch(map[string]any{"smtpPort": "2525"}), adminAccess)
+		require.True(t, apperror.IsCode(err, apperror.CodeValidationFailed))
+
+		// The same password counts as entered again, and the other settings of the server need none
+		_, err = svc.UpdateAppConfig(t.Context(), patch(map[string]any{"smtpHost": "smtp2.example.com", "smtpPassword": "secret"}), adminAccess)
+		require.NoError(t, err)
+		_, err = svc.UpdateAppConfig(t.Context(), patch(map[string]any{"smtpFrom": "id@example.com"}), adminAccess)
+		require.NoError(t, err)
+	})
+
+	t.Run("password from the environment", func(t *testing.T) {
+		setUIConfigDisabled(t, false)
+		t.Setenv("SMTP_PASSWORD", "secret")
+		svc := newActorBackedService(t)
+
+		_, err := svc.UpdateAppConfig(t.Context(), patch(map[string]any{"smtpHost": "smtp.attacker.example", "smtpPassword": "secret"}), adminAccess)
+		require.True(t, apperror.IsCode(err, apperror.CodeValidationFailed))
+	})
+}
+
 func TestService_SecretEncryption(t *testing.T) {
 	// loadSavedState returns the actor state as it is saved in the database
 	loadSavedState := func(t *testing.T, h *local.Host) AppConfigModel {

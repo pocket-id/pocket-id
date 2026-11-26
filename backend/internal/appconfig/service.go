@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"os"
 	"reflect"
+	"slices"
 	"strings"
 	"time"
 
@@ -146,7 +147,15 @@ func (s *AppConfigService) UpdateAppConfig(ctx context.Context, update dto.Updat
 	if err != nil {
 		return nil, err
 	}
-	input, err := update(current)
+
+	// Hide the secrets from the update, so a secret that comes back redacted was not sent again
+	redacted, err := current.mapSecrets(func(string) (string, error) {
+		return redactedValue, nil
+	})
+	if err != nil {
+		return nil, err
+	}
+	input, err := update(redacted)
 	if err != nil {
 		return nil, err
 	}
@@ -179,6 +188,16 @@ func (s *AppConfigService) UpdateAppConfig(ctx context.Context, update dto.Updat
 			continue
 		}
 		changes[key] = value
+	}
+
+	// A password that is kept only goes to the server it was saved for, or else anyone who may change the server could have it sent to their own
+	keepsPassword := func(passwordKey, password string, serverKeys ...string) bool {
+		_, fromEnv := s.envOverrides[passwordKey]
+		serverChanges := slices.ContainsFunc(serverKeys, func(key string) bool { return changes[key] != "" })
+		return serverChanges && (fromEnv || password == redactedValue)
+	}
+	if keepsPassword("smtpPassword", input.SmtpPassword, "smtpHost", "smtpPort") || keepsPassword("ldapBindPassword", input.LdapBindPassword, "ldapUrl") {
+		return nil, apperror.ValidationMessage("Enter the password again when you change the server")
 	}
 
 	// A caller without admin access may change everything except the settings that could hand it admin access
