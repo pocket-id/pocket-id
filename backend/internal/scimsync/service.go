@@ -39,6 +39,9 @@ const (
 const (
 	scimErrorBodyLimit      = 4 << 10 // 4KB
 	syncProviderConcurrency = 4
+
+	// maxRetryDelay is the longest wait a rate-limiting provider may ask for before a request is retried
+	maxRetryDelay = time.Minute
 )
 
 type scimSyncAction int
@@ -895,11 +898,12 @@ func (s *Service) scimRequest(ctx context.Context, provider ServiceProvider, met
 		}
 
 		// Only retry on 429 to avoid masking other errors
-		if resp.StatusCode != http.StatusTooManyRequests || attempt == retryAttempts {
+		// A provider that asks for a longer wait is left to the next sync, because the wait happens inside the actor's turn and holds up the sync of the others
+		retryDelay := scimRetryDelay(resp.Header.Get("Retry-After"), attempt)
+		if resp.StatusCode != http.StatusTooManyRequests || attempt == retryAttempts || retryDelay > maxRetryDelay {
 			return resp, nil
 		}
 
-		retryDelay := scimRetryDelay(resp.Header.Get("Retry-After"), attempt)
 		slog.WarnContext(ctx, "SCIM provider rate-limited, retrying",
 			slog.String("provider_id", provider.ID),
 			slog.String("method", method),
@@ -919,26 +923,12 @@ func (s *Service) scimRequest(ctx context.Context, provider ServiceProvider, met
 }
 
 func scimRetryDelay(retryAfter string, attempt int) time.Duration {
-	// Respect Retry-After when provided
-	if retryAfter != "" {
-		seconds, err := strconv.Atoi(retryAfter)
-		if err == nil {
-			return time.Duration(seconds) * time.Second
-		}
-		t, err := http.ParseTime(retryAfter)
-		if err == nil {
-			delay := time.Until(t)
-			if delay > 0 {
-				return delay
-			}
-		}
-	}
-
-	// Exponential backoff otherwise
-	maxDelay := 10 * time.Second
+	// Back off exponentially unless the provider names a delay
 	delay := 500 * time.Millisecond * (time.Duration(1) << (attempt - 1)) //nolint:gosec // attempt is bounded 1-3
-	if delay > maxDelay {
-		return maxDelay
+	if seconds, err := strconv.Atoi(retryAfter); err == nil {
+		delay = time.Duration(seconds) * time.Second
+	} else if t, err := http.ParseTime(retryAfter); err == nil && time.Until(t) > 0 {
+		delay = time.Until(t)
 	}
 	return delay
 }
