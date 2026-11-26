@@ -2,11 +2,12 @@
 	import * as Alert from '@pocket-id/ui/alert';
 	import { m } from '#lib/paraglide/messages.js';
 	import appConfigStore from '#lib/stores/application-configuration-store.ts';
-	import type { InteractionScopeInfo } from '#lib/types/oidc.type.ts';
+	import type { InteractionScopeInfo, RequestedApi } from '#lib/types/oidc.type.ts';
 	import { isAdminEquivalentScope, scopeLabel } from '#lib/utils/api-key-scopes.ts';
 	import ClockIcon from '~icons/solar/clock-circle-bold-duotone';
 	import KeyRoundIcon from '~icons/solar/key-minimalistic-bold-duotone';
 	import MailIcon from '~icons/solar/letter-bold-duotone';
+	import ServerIcon from '~icons/solar/server-bold-duotone';
 	import TriangleAlertIcon from '~icons/solar/danger-triangle-bold-duotone';
 	import UserRoundIcon from '~icons/solar/user-rounded-bold-duotone';
 	import UsersRoundIcon from '~icons/solar/users-group-rounded-bold-duotone';
@@ -15,10 +16,13 @@
 	let {
 		scopes,
 		scopeInfo = [],
+		api,
 		selectedScopes = $bindable()
 	}: {
 		scopes?: string[] | null;
 		scopeInfo?: InteractionScopeInfo[] | null;
+		// The API the tokens are issued for, which can't be deselected because the whole request is for it
+		api?: RequestedApi;
 		// When bound, every displayed scope gets a checkbox so the user can deselect it
 		selectedScopes?: string[];
 	} = $props();
@@ -53,6 +57,9 @@
 	class="bg-surface divide-border w-full divide-y overflow-hidden rounded-md border"
 >
 	<legend class="sr-only">{m.permissions()}</legend>
+	{#if api}
+		<ScopeItem icon={ServerIcon} name={api.name} description={api.audience} />
+	{/if}
 	{#if (scopes || []).includes('email')}
 		<ScopeItem
 			icon={MailIcon}

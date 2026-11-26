@@ -323,13 +323,18 @@
 		{#if view === 'authorized'}
 			<!-- The granted scopes only fill the second column, because stacked under the outcome they would read as another question -->
 			<div class="max-lg:hidden">
-				<ScopeList scopes={selectedScopes} scopeInfo={deviceInfo!.scopeInfo || []} />
+				<ScopeList
+					scopes={selectedScopes}
+					scopeInfo={deviceInfo!.scopeInfo || []}
+					api={deviceInfo!.api}
+				/>
 			</div>
 		{:else if view === 'consent' && client}
 			<div class="mb-6">
 				<ScopeList
 					scopes={deviceInfo!.scope || []}
 					scopeInfo={deviceInfo!.scopeInfo || []}
+					api={deviceInfo!.api}
 					bind:selectedScopes
 				/>
 			</div>

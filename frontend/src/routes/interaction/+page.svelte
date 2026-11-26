@@ -49,8 +49,10 @@
 	const client = $derived(interactionSession.client);
 	// Metadata-document clients go by their host in body copy, because their display name is self-declared
 	const clientName = $derived(getClientIDHost(client) ?? client.name);
-	// openid shows nothing, so a request for only openid keeps the compact card
-	const hasScopes = $derived((interactionSession.scopes ?? []).some((s) => s !== 'openid'));
+	// openid shows nothing, so a request for only openid and no API keeps the compact card
+	const hasScopes = $derived(
+		!!interactionSession.api || (interactionSession.scopes ?? []).some((s) => s !== 'openid')
+	);
 	const emailVerificationRequired = $derived(failure?.code === 'email_verification_required');
 	const view = $derived(
 		redirectUrl
@@ -231,7 +233,11 @@
 		{#if showScopes && view === 'success'}
 			<!-- The granted scopes only fill the second column, because stacked under the outcome they would read as another question -->
 			<div class="max-lg:hidden">
-				<ScopeList scopes={selectedScopes} scopeInfo={interactionSession.scopeInfo ?? []} />
+				<ScopeList
+					scopes={selectedScopes}
+					scopeInfo={interactionSession.scopeInfo ?? []}
+					api={interactionSession.api}
+				/>
 			</div>
 		{:else if view !== 'success'}
 			{#if showScopes}
@@ -239,6 +245,7 @@
 					<ScopeList
 						scopes={interactionSession.scopes || []}
 						scopeInfo={interactionSession.scopeInfo ?? []}
+						api={interactionSession.api}
 						bind:selectedScopes
 					/>
 				</div>

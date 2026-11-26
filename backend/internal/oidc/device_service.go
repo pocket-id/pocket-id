@@ -257,7 +257,13 @@ func (s *deviceService) getDeviceCodeInfo(ctx context.Context, userCode, userID 
 		scopeInfo = []dto.ScopeInfoDto{}
 	}
 
+	api, err := s.authorizationService.requestedAPI(ctx, resource)
+	if err != nil {
+		return nil, err
+	}
+
 	return &dto.DeviceCodeInfoDto{
+		API: api,
 		Client: dto.OidcClientMetaDataDto{
 			ID:                       client.ID,
 			Name:                     client.Name,

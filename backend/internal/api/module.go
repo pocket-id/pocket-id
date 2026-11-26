@@ -104,6 +104,13 @@ func (m *Module) DescribePermissions(ctx context.Context, audience string, keys 
 	return infos, nil
 }
 
+// APIName implements the OIDC module's APIAccessProvider interface
+func (m *Module) APIName(ctx context.Context, audience string) (string, error) {
+	var name string
+	err := m.service.db.WithContext(ctx).Model(&API{}).Select("name").Where("audience = ?", audience).Scan(&name).Error
+	return name, err
+}
+
 // RegisterRoutes mounts the admin CRUD endpoints
 func (m *Module) RegisterRoutes(r *authz.Router) {
 	apis := r.Group("/admin/apis")

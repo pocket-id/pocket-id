@@ -63,6 +63,13 @@ func (f fakeAPIAccess) AllowedScopesForAudience(_ context.Context, _ *gorm.DB, _
 	return scopes, true, hasAccess, nil
 }
 
+func (f fakeAPIAccess) APIName(_ context.Context, audience string) (string, error) {
+	if _, ok := f.allowed[audience]; !ok {
+		return "", nil
+	}
+	return "API " + audience, nil
+}
+
 func (f fakeAPIAccess) DescribePermissions(_ context.Context, audience string, keys []string) ([]dto.ScopeInfoDto, error) {
 	bySubject, ok := f.allowed[audience]
 	if !ok {

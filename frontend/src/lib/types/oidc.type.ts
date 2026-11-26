@@ -126,6 +126,7 @@ export type EndSessionParams = {
 export type OidcDeviceCodeInfo = {
 	scope: string[];
 	scopeInfo: InteractionScopeInfo[];
+	api?: RequestedApi;
 	reauthenticationRequired: boolean;
 	client: OidcClientMetaData;
 };
@@ -149,6 +150,12 @@ export type InteractionScopeInfo = {
 	builtIn: boolean;
 };
 
+// The API a client asks access to
+export type RequestedApi = {
+	name: string;
+	audience: string;
+};
+
 export type InteractionClient = Pick<
 	OidcClientMetaData,
 	'id' | 'name' | 'hasLogo' | 'hasDarkLogo' | 'clientType'
@@ -158,6 +165,7 @@ export type InteractionSession = {
 	id: string;
 	scopes: string[];
 	scopeInfo: InteractionScopeInfo[];
+	api?: RequestedApi;
 	client: InteractionClient;
 	currentStep?: InteractionStep;
 	requiredSteps: InteractionStep[];

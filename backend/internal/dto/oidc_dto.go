@@ -146,9 +146,17 @@ type ScopeInfoDto struct {
 	BuiltIn     bool   `json:"builtIn"`
 }
 
+// RequestedAPIDto is the API a client asks access to, for the consent screen
+type RequestedAPIDto struct {
+	Name     string `json:"name"`
+	Audience string `json:"audience"`
+}
+
 type DeviceCodeInfoDto struct {
-	Scope                    []string              `json:"scope"`
-	ScopeInfo                []ScopeInfoDto        `json:"scopeInfo"`
+	Scope     []string       `json:"scope"`
+	ScopeInfo []ScopeInfoDto `json:"scopeInfo"`
+	// API is the API the tokens are issued for, when the client asked for one
+	API                      *RequestedAPIDto      `json:"api,omitempty"`
 	ReauthenticationRequired bool                  `json:"reauthenticationRequired"`
 	Client                   OidcClientMetaDataDto `json:"client"`
 }
