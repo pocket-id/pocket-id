@@ -35,3 +35,17 @@ func TestAddSignInSessionTokenCookie(t *testing.T) {
 		})
 	}
 }
+
+func TestAddDeviceTokenCookieIsHostOnly(t *testing.T) {
+	w := httptest.NewRecorder()
+	c, _ := gin.CreateTestContext(w)
+
+	AddDeviceTokenCookie(c, "token")
+
+	// A browser only accepts a __Host- cookie with the path / and without a domain
+	cookies := w.Result().Cookies()
+	require.Len(t, cookies, 1)
+	assert.Equal(t, "/", cookies[0].Path)
+	assert.Empty(t, cookies[0].Domain)
+	assert.True(t, cookies[0].Secure)
+}
