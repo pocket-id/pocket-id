@@ -169,6 +169,25 @@ func NewPostgresDatabaseForTest(t *testing.T) *gorm.DB {
 	return db
 }
 
+// RecordWrites returns a list that receives "create <table>" or "update <table>" for every statement GORM writes rows with on db from now on
+// A save that should only write references uses it to show that it leaves the referenced rows alone, which a concurrent delete may have removed
+func RecordWrites(t *testing.T, db *gorm.DB) *[]string {
+	t.Helper()
+
+	var writes []string
+	record := func(kind string) func(tx *gorm.DB) {
+		return func(tx *gorm.DB) {
+			// Saving an association runs the update callbacks of its owner without a statement
+			if tx.Statement.SQL.Len() > 0 {
+				writes = append(writes, kind+" "+tx.Statement.Table)
+			}
+		}
+	}
+	require.NoError(t, db.Callback().Create().After("gorm:create").Register("test:record_create", record("create")))
+	require.NoError(t, db.Callback().Update().After("gorm:update").Register("test:record_update", record("update")))
+	return &writes
+}
+
 // openInMemoryTestDB opens a GORM instance backed by an in-memory SQLite database, unique to the test.
 func openInMemoryTestDB(t *testing.T) *gorm.DB {
 	t.Helper()

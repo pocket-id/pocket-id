@@ -627,3 +627,21 @@ func TestManagingAdminsRequiresAdminAccess(t *testing.T) {
 	session.SudoUntil = time.Now().Add(time.Minute)
 	require.NoError(t, userService.requireAdminAccessFor(t.Context(), session, admin.ID))
 }
+
+func TestGroupMembershipSavesWriteOnlyReferences(t *testing.T) {
+	userService := newTestUserService(t)
+	config := &appconfig.AppConfigModel{}
+	group := model.UserGroup{Name: "family", FriendlyName: "Family"}
+	require.NoError(t, userService.db.Create(&group).Error)
+
+	writes := testutils.RecordWrites(t, userService.db)
+	user, err := userService.CreateUser(t.Context(), config, dto.UserCreateDto{Username: "member", UserGroupIds: []string{group.ID}}, auditlogs.Origin{})
+	require.NoError(t, err)
+	assert.NotContains(t, *writes, "create user_groups")
+
+	*writes = nil
+	_, err = userService.UpdateUserGroups(t.Context(), user.ID, nil, auditlogs.Origin{})
+	require.NoError(t, err)
+	assert.NotContains(t, *writes, "create user_groups")
+	assert.NotContains(t, *writes, "update users")
+}

@@ -1380,3 +1380,26 @@ func TestClientService_UpdateClient_refusesEmptyPublicKeyList(t *testing.T) {
 	require.NoError(t, db.First(&fetched, "id = ?", client.ID).Error)
 	require.Len(t, fetched.Credentials.FederatedIdentities[0].PublicKeys, 1)
 }
+
+func TestClientService_SavesWriteOnlyReferences(t *testing.T) {
+	db := testutils.NewDatabaseForTest(t)
+	s := &clientService{db: db, auditLog: &fakeAuditLogger{}}
+	require.NoError(t, claimmappingpolicy.Bootstrap(t.Context(), db))
+	creator := model.User{Username: "creator"}
+	require.NoError(t, db.Create(&creator).Error)
+	group := model.UserGroup{Name: "family", FriendlyName: "Family"}
+	require.NoError(t, db.Create(&group).Error)
+	client := model.OidcClient{Name: "Photos", CallbackURLs: datatype.StringList{"https://photos.example.com/callback"}, CreatedByID: &creator.ID}
+	require.NoError(t, db.Create(&client).Error)
+
+	writes := testutils.RecordWrites(t, db)
+	_, err := s.UpdateAllowedUserGroups(t.Context(), client.ID, dto.OidcUpdateAllowedUserGroupsDto{UserGroupIDs: []string{group.ID}}, auditlogs.Origin{})
+	require.NoError(t, err)
+	assert.Equal(t, []string{"create oidc_clients_allowed_user_groups"}, *writes)
+
+	// The client is loaded with its creator and allowed groups, which a save of its own fields leaves alone
+	*writes = nil
+	_, err = s.UpdateClient(t.Context(), client.ID, dto.MergePatch[dto.OidcClientUpdateDto](map[string]any{"name": "Pictures"}), auditlogs.Origin{})
+	require.NoError(t, err)
+	assert.Equal(t, []string{"update oidc_clients"}, *writes)
+}

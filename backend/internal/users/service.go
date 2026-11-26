@@ -383,7 +383,7 @@ func (s *Service) createUserInternal(ctx context.Context, input dto.UserCreateDt
 		user.LdapID = &input.LdapID
 	}
 
-	err := tx.WithContext(ctx).Create(&user).Error
+	err := tx.WithContext(ctx).Omit("UserGroups.*").Create(&user).Error
 	if errors.Is(err, gorm.ErrDuplicatedKey) {
 		// Do not follow this path if we're using LDAP, as we don't want to roll-back the transaction here
 		if !isLdapSync {
@@ -460,6 +460,7 @@ func (s *Service) applyDefaultGroups(ctx context.Context, user *model.User, tx *
 
 			err = tx.WithContext(ctx).
 				Model(user).
+				Omit("UserGroups.*").
 				Association("UserGroups").
 				Replace(groups)
 			if err != nil {
@@ -862,14 +863,9 @@ func (s *Service) UpdateUserGroups(ctx context.Context, id string, userGroupIds 
 	err = tx.
 		WithContext(ctx).
 		Model(&user).
+		Omit("UserGroups.*").
 		Association("UserGroups").
 		Replace(groups)
-	if err != nil {
-		return model.User{}, err
-	}
-
-	// Save the updated user
-	err = tx.WithContext(ctx).Save(&user).Error
 	if err != nil {
 		return model.User{}, err
 	}

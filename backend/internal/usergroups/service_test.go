@@ -179,3 +179,24 @@ type noPocketIDClients struct{}
 func (noPocketIDClients) RequireAdminAccessForClients(context.Context, *gorm.DB, authz.Principal, ...string) error {
 	return nil
 }
+
+func TestMembershipAndClientSavesWriteOnlyReferences(t *testing.T) {
+	db := testutils.NewDatabaseForTest(t)
+	groupService := newService(db, nil, nil, &fakeAuditLogger{}, noPocketIDClients{})
+	user := model.User{Username: "member"}
+	require.NoError(t, db.Create(&user).Error)
+	client := model.OidcClient{Name: "Photos"}
+	require.NoError(t, db.Create(&client).Error)
+	group := model.UserGroup{Name: "family", FriendlyName: "Family"}
+	require.NoError(t, db.Create(&group).Error)
+
+	writes := testutils.RecordWrites(t, db)
+	_, err := groupService.UpdateUsers(t.Context(), group.ID, []string{user.ID}, auditlogs.Origin{})
+	require.NoError(t, err)
+	assert.Equal(t, []string{"create user_groups_users", "update user_groups"}, *writes)
+
+	*writes = nil
+	_, err = groupService.UpdateAllowedOidcClient(t.Context(), group.ID, dto.UserGroupUpdateAllowedOidcClientsDto{OidcClientIDs: []string{client.ID}}, auditlogs.Origin{})
+	require.NoError(t, err)
+	assert.Equal(t, []string{"create oidc_clients_allowed_user_groups"}, *writes)
+}

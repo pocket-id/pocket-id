@@ -354,6 +354,7 @@ func (s *Service) updateUsersInternal(ctx context.Context, id string, userIds []
 		WithContext(ctx).
 		Session(&gorm.Session{CreateBatchSize: 500}).
 		Model(&group).
+		Omit("Users.*").
 		Association("Users").
 		Replace(users)
 	if err != nil {
@@ -451,6 +452,7 @@ func (s *Service) UpdateAllowedOidcClient(ctx context.Context, id string, input 
 	err = tx.
 		WithContext(ctx).
 		Model(&group).
+		Omit("AllowedOidcClients.*").
 		Association("AllowedOidcClients").
 		Replace(clients)
 	if err != nil {
@@ -474,16 +476,6 @@ func (s *Service) UpdateAllowedOidcClient(ctx context.Context, id string, input 
 	}
 	for _, client := range removed {
 		s.auditLog.Record(ctx, auditlogs.EventClientGroupRemoved, origin, "", auditlogs.Data{"clientID": client.ID, "clientName": client.Name, "groupName": group.FriendlyName}, tx)
-	}
-
-	// Save the updated group
-	err = tx.
-		WithContext(ctx).
-		Omit(clause.Associations).
-		Save(&group).
-		Error
-	if err != nil {
-		return model.UserGroup{}, err
 	}
 
 	err = tx.Commit().Error
