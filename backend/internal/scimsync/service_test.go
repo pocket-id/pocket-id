@@ -74,6 +74,33 @@ func TestServiceProviderCreateAndUpdate(t *testing.T) {
 	require.Equal(t, provider.ID, snapshot.provider.ID)
 }
 
+func TestLoadSyncSnapshotWithMoreUsersThanSQLVariables(t *testing.T) {
+	// One more user than SQLite allows variables in a statement
+	const userCount = 32767
+
+	db := testutils.NewDatabaseForTest(t)
+	service := newService(db, nil, appconfig.StaticResolver{})
+	require.NoError(t, db.Create(&model.OidcClient{Base: model.Base{ID: "client"}, Name: "Client"}).Error)
+	provider := ServiceProvider{Endpoint: "https://scim.example.com/v2", OidcClientID: "client"}
+	require.NoError(t, db.Create(&provider).Error)
+	group := model.UserGroup{Name: "everyone", FriendlyName: "Everyone"}
+	require.NoError(t, db.Create(&group).Error)
+
+	users := make([]model.User, userCount)
+	memberships := make([]map[string]any, userCount)
+	for i := range users {
+		users[i] = model.User{Base: model.Base{ID: fmt.Sprintf("user-%d", i)}, Username: fmt.Sprintf("user-%d", i)}
+		memberships[i] = map[string]any{"user_group_id": group.ID, "user_id": users[i].ID}
+	}
+	require.NoError(t, db.CreateInBatches(&users, 1000).Error)
+	require.NoError(t, db.Table("user_groups_users").CreateInBatches(memberships, 1000).Error)
+
+	snapshot, err := service.loadSyncSnapshot(t.Context(), provider.ID)
+	require.NoError(t, err)
+	require.Len(t, snapshot.users, userCount)
+	require.Len(t, snapshot.groupMembers[group.ID], userCount)
+}
+
 func TestUpdateServiceProviderToken(t *testing.T) {
 	db := testutils.NewDatabaseForTest(t)
 	service := newService(db, nil, appconfig.StaticResolver{})

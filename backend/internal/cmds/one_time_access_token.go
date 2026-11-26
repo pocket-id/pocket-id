@@ -33,22 +33,9 @@ var oneTimeAccessTokenCmd = &cobra.Command{
 			return err
 		}
 
-		// Load the user to retrieve the user ID
-		var user model.User
-		queryCtx, queryCancel := context.WithTimeout(cmd.Context(), 10*time.Second)
-		defer queryCancel()
-		err = db.
-			WithContext(queryCtx).
-			Where("username = ? OR email = ?", userArg, userArg).
-			First(&user).
-			Error
-		switch {
-		case errors.Is(err, gorm.ErrRecordNotFound):
-			return errors.New("user not found")
-		case err != nil:
-			return fmt.Errorf("failed to query for user: %w", err)
-		case user.ID == "":
-			return errors.New("invalid user loaded: ID is empty")
+		user, err := findUserByUsernameOrEmail(cmd.Context(), db, userArg)
+		if err != nil {
+			return err
 		}
 
 		instanceID, err := instanceid.Load(cmd.Context(), db)
@@ -65,11 +52,34 @@ var oneTimeAccessTokenCmd = &cobra.Command{
 		auditlogs.RecordCLI(cmd.Context(), db, auditlogs.EventLoginCodeCreated, user.ID, auditlogs.Data{"delivery": "link"})
 
 		// Print the result
-		fmt.Printf(`A one-time access token valid for 1 hour has been created for "%s".`+"\n", userArg)
+		fmt.Printf(`A one-time access token valid for 1 hour has been created for "%s".`+"\n", user.Username)
 		fmt.Printf("Use the following URL to sign in once: %s/lc/%s\n", common.EnvConfig.AppURL, token)
 
 		return nil
 	},
+}
+
+// findUserByUsernameOrEmail refuses a value that is one user's username and another's email, because anyone can pick an email address as their username and would get the link by chance
+func findUserByUsernameOrEmail(ctx context.Context, db *gorm.DB, value string) (model.User, error) {
+	queryCtx, queryCancel := context.WithTimeout(ctx, 10*time.Second)
+	defer queryCancel()
+
+	var users []model.User
+	err := db.
+		WithContext(queryCtx).
+		Where("username = ? OR email = ?", value, value).
+		Limit(2).
+		Find(&users).
+		Error
+	switch {
+	case err != nil:
+		return model.User{}, fmt.Errorf("failed to query for user: %w", err)
+	case len(users) == 0:
+		return model.User{}, errors.New("user not found")
+	case len(users) > 1:
+		return model.User{}, fmt.Errorf(`"%s" matches the users "%s" and "%s", pass a username or email that only one of them has`, value, users[0].Username, users[1].Username)
+	}
+	return users[0], nil
 }
 
 // storeOneTimeAccessToken persists a one-time access token valid for one hour, through whichever actor runtime this deployment uses, and returns the token

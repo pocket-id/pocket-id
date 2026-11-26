@@ -245,7 +245,7 @@ func (s *clientService) UpdateClient(ctx context.Context, clientID string, updat
 			).
 			Updates(&client).Error
 	} else {
-		err = tx.WithContext(ctx).Save(&client).Error
+		err = tx.WithContext(ctx).Omit(clause.Associations).Save(&client).Error
 	}
 	if err != nil {
 		return model.OidcClient{}, err
@@ -717,6 +717,7 @@ func (s *clientService) deleteClientLogoInternal(ctx context.Context, clientID s
 
 	err = tx.
 		WithContext(ctx).
+		Omit(clause.Associations).
 		Save(&client).
 		Error
 	if err != nil {
@@ -767,6 +768,7 @@ func (s *clientService) UpdateAllowedUserGroups(ctx context.Context, id string, 
 	err = tx.
 		WithContext(ctx).
 		Model(&client).
+		Omit("AllowedUserGroups.*").
 		Association("AllowedUserGroups").
 		Replace(groups)
 	if err != nil {
@@ -775,19 +777,10 @@ func (s *clientService) UpdateAllowedUserGroups(ctx context.Context, id string, 
 
 	added, removed := utils.Changes(previousGroups, groups, func(group model.UserGroup) string { return group.ID })
 	for _, group := range added {
-		s.auditLog.Record(ctx, auditlogs.EventClientGroupAdded, origin, "", auditlogs.Data{"clientID": client.ID, "clientName": client.Name, "groupName": group.FriendlyName}, tx)
+		s.auditLog.Record(ctx, auditlogs.EventClientGroupAdded, origin, "", auditlogs.Data{"clientID": client.ID, "clientName": client.Name, "groupID": group.ID, "groupName": group.FriendlyName}, tx)
 	}
 	for _, group := range removed {
-		s.auditLog.Record(ctx, auditlogs.EventClientGroupRemoved, origin, "", auditlogs.Data{"clientID": client.ID, "clientName": client.Name, "groupName": group.FriendlyName}, tx)
-	}
-
-	// Save the updated client
-	err = tx.
-		WithContext(ctx).
-		Save(&client).
-		Error
-	if err != nil {
-		return model.OidcClient{}, err
+		s.auditLog.Record(ctx, auditlogs.EventClientGroupRemoved, origin, "", auditlogs.Data{"clientID": client.ID, "clientName": client.Name, "groupID": group.ID, "groupName": group.FriendlyName}, tx)
 	}
 
 	err = tx.Commit().Error
@@ -1179,6 +1172,7 @@ func (s *clientService) updateClientLogoType(ctx context.Context, clientID strin
 
 	err = tx.
 		WithContext(ctx).
+		Omit(clause.Associations).
 		Save(&client).
 		Error
 	if err != nil {

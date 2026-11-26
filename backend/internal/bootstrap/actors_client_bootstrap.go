@@ -19,7 +19,7 @@ const actorClientConnectTimeout = 30 * time.Second
 
 // WithActorClient connects to the standalone Francis runtime, calls fn once the connection is live, and disconnects before returning.
 // It's meant for CLI commands, which have no actor host of their own: the client joins the cluster only for the duration of fn, and hosts no actor while connected, so the runtime never places an actor on it.
-// It requires FRANCIS_HOST to point to a standalone runtime, and returns ErrEmbeddedFrancisRuntime otherwise, since an embedded runtime is reached through the database instead.
+// It requires FRANCIS_RUNTIME_ADDRESS to point to a standalone runtime, and returns ErrEmbeddedFrancisRuntime otherwise, since an embedded runtime is reached through the database instead.
 func WithActorClient(parentCtx context.Context, envConfig *common.EnvConfigSchema, fn func(ctx context.Context, client francishost.Host) error) error {
 	if envConfig.HasEmbeddedFrancisRuntime() {
 		return ErrEmbeddedFrancisRuntime

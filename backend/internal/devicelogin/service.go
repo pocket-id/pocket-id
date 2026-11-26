@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/italypaleale/francis/actor"
+	"github.com/italypaleale/francis/builtin/signal"
 	"gorm.io/gorm"
 
 	"github.com/pocket-id/pocket-id/backend/internal/appconfig"
@@ -25,7 +26,7 @@ const (
 	RequestDuration        = 5 * time.Minute
 	PollingInterval        = 3
 	longPollingDuration    = 25 * time.Second
-	actorPollingInterval   = 2 * time.Second
+	signalCompleteTimeout  = 10 * time.Second
 	codePrefix             = "P"
 	codeRandomLength       = 7
 	reauthenticationMaxAge = time.Minute
@@ -35,6 +36,7 @@ const (
 
 type Service struct {
 	actService *actor.Service
+	decisions  *signal.SignalService
 	db         *gorm.DB
 	sessions   SessionCreator
 	reauth     ReauthenticationTokenConsumer
@@ -51,9 +53,10 @@ type VerificationInfo struct {
 	ExpiresAt datatype.DateTime
 }
 
-func NewService(actService *actor.Service, db *gorm.DB, sessions SessionCreator, reauth ReauthenticationTokenConsumer, auditLog AuditLogger, ipLocator iplocation.Resolver) *Service {
+func NewService(actService *actor.Service, decisions *signal.SignalService, db *gorm.DB, sessions SessionCreator, reauth ReauthenticationTokenConsumer, auditLog AuditLogger, ipLocator iplocation.Resolver) *Service {
 	return &Service{
 		actService: actService,
+		decisions:  decisions,
 		db:         db,
 		sessions:   sessions,
 		reauth:     reauth,
@@ -152,7 +155,20 @@ func (s *Service) Decide(ctx context.Context, code, decision, userID, reauthenti
 	if err != nil {
 		return err
 	}
-	return actorResultError(result.Code)
+	err = actorResultError(result.Code)
+	if err != nil {
+		return err
+	}
+
+	// Release the waiting device's long poll, which otherwise only sees the decision on its next poll
+	// The signal outlives the request context so an approver disconnecting right after the decision still wakes the waiting device
+	completeCtx, cancel := context.WithTimeout(context.WithoutCancel(ctx), signalCompleteTimeout)
+	defer cancel()
+	err = s.decisions.Complete(completeCtx, actorID, nil)
+	if err != nil {
+		slog.WarnContext(ctx, "Failed to signal device login decision", slog.Any("error", err))
+	}
+	return nil
 }
 
 func (s *Service) Exchange(ctx context.Context, requestID, deviceToken, ipAddress, userAgent, browserToken string, sessionDuration time.Duration, remember bool, notificationMode appconfig.AppConfigValue) (dto.UserDto, model.LoginTokens, RequestStatus, error) {
@@ -161,75 +177,80 @@ func (s *Service) Exchange(ctx context.Context, requestID, deviceToken, ipAddres
 	}
 
 	deviceTokenHash := utils.CreateSha256Hash(deviceToken)
-	timeout := time.NewTimer(longPollingDuration)
-	defer timeout.Stop()
-	ticker := time.NewTicker(actorPollingInterval)
-	defer ticker.Stop()
+	result, err := s.poll(ctx, requestID, deviceTokenHash)
+	if err != nil {
+		return dto.UserDto{}, model.LoginTokens{}, result.Status, err
+	}
 
-	for {
-		// Poll the actor's activation cache so the long-lived HTTP request does not repeatedly query the database
-		result, err := s.peek(ctx, requestID, requestActorMethodPoll, requestActorPollInput{DeviceTokenHash: deviceTokenHash})
-		if err != nil {
+	// Hold a pending request open until the decision signal fires, so a decision on any replica answers it at once without polling the actor
+	if result.Status == RequestStatusPending {
+		waitCtx, cancel := context.WithTimeout(ctx, min(longPollingDuration, time.Until(result.ExpiresAt)))
+		_, err = s.decisions.Wait(waitCtx, requestID)
+		cancel()
+		if err != nil && (ctx.Err() != nil || !errors.Is(err, context.DeadlineExceeded)) {
 			return dto.UserDto{}, model.LoginTokens{}, "", err
 		}
 
-		err = actorResultError(result.Code)
+		// Read the request again because the signal only says that it was decided, and a timed out wait may have outlived the request
+		result, err = s.poll(ctx, requestID, deviceTokenHash)
 		if err != nil {
 			return dto.UserDto{}, model.LoginTokens{}, result.Status, err
 		}
-
-		switch result.Status {
-		case RequestStatusApproved:
-			// Validate the approved user before consuming so lookup failures leave the request untouched
-			user, userDTO, err := s.loadExchangeUser(ctx, result.UserID)
-			if err != nil {
-				return dto.UserDto{}, model.LoginTokens{}, result.Status, err
-			}
-
-			// Consume inside the actor so only one concurrent exchange can mint a token
-			consume, err := s.invoke(ctx, requestID, requestActorMethodConsume, requestActorConsumeInput{
-				DeviceTokenHash: deviceTokenHash,
-			})
-			if err != nil {
-				return dto.UserDto{}, model.LoginTokens{}, "", err
-			}
-
-			err = actorResultError(consume.Code)
-			if err != nil {
-				return dto.UserDto{}, model.LoginTokens{}, consume.Status, err
-			}
-
-			// Mint the session with login-code semantics because the waiting device did not perform WebAuthn
-			sessionToken, err := s.sessions.Create(ctx, user.ID, authenticationMethodOneTimePassword, ipAddress, userAgent, sessionDuration, remember)
-			if err != nil {
-				return dto.UserDto{}, model.LoginTokens{}, consume.Status, err
-			}
-
-			// Record the successful remote sign-in after the request has been consumed
-			signIn := s.auditLog.CreateSignIn(ctx, auditlogs.EventRemoteSignIn, ipAddress, userAgent, user.ID, browserToken, s.db, notificationMode)
-			if !signIn.Created {
-				return dto.UserDto{}, model.LoginTokens{}, consume.Status, errors.New("failed to create device login audit log")
-			}
-
-			s.auditLog.SendSignInNotification(ctx, signIn)
-			return userDTO, model.LoginTokens{SessionToken: sessionToken, KnownBrowserToken: signIn.KnownBrowserToken}, consume.Status, nil
-		case RequestStatusPending:
-			// no-op
-		case RequestStatusDenied:
-			return dto.UserDto{}, model.LoginTokens{}, result.Status, apperror.DeviceLoginDenied()
-		default:
-			return dto.UserDto{}, model.LoginTokens{}, "", apperror.DeviceLoginRequestInvalidOrExpired()
-		}
-
-		select {
-		case <-ticker.C:
-			// no-op
-		case <-timeout.C:
-			return dto.UserDto{}, model.LoginTokens{}, RequestStatusPending, nil
-		case <-ctx.Done():
-			return dto.UserDto{}, model.LoginTokens{}, "", ctx.Err()
-		}
 	}
+
+	switch result.Status {
+	case RequestStatusPending:
+		return dto.UserDto{}, model.LoginTokens{}, RequestStatusPending, nil
+	case RequestStatusDenied:
+		return dto.UserDto{}, model.LoginTokens{}, result.Status, apperror.DeviceLoginDenied()
+	case RequestStatusApproved:
+		// Handled below
+	default:
+		return dto.UserDto{}, model.LoginTokens{}, "", apperror.DeviceLoginRequestInvalidOrExpired()
+	}
+
+	// Validate the approved user before consuming so lookup failures leave the request untouched
+	user, userDTO, err := s.loadExchangeUser(ctx, result.UserID)
+	if err != nil {
+		return dto.UserDto{}, model.LoginTokens{}, result.Status, err
+	}
+
+	// Consume inside the actor so only one concurrent exchange can mint a token
+	consume, err := s.invoke(ctx, requestID, requestActorMethodConsume, requestActorConsumeInput{
+		DeviceTokenHash: deviceTokenHash,
+	})
+	if err != nil {
+		return dto.UserDto{}, model.LoginTokens{}, "", err
+	}
+
+	err = actorResultError(consume.Code)
+	if err != nil {
+		return dto.UserDto{}, model.LoginTokens{}, consume.Status, err
+	}
+
+	// Mint the session with login-code semantics because the waiting device did not perform WebAuthn
+	sessionToken, err := s.sessions.Create(ctx, user.ID, authenticationMethodOneTimePassword, ipAddress, userAgent, sessionDuration, remember)
+	if err != nil {
+		return dto.UserDto{}, model.LoginTokens{}, consume.Status, err
+	}
+
+	// Record the successful remote sign-in after the request has been consumed
+	signIn := s.auditLog.CreateSignIn(ctx, auditlogs.EventRemoteSignIn, ipAddress, userAgent, user.ID, browserToken, s.db, notificationMode)
+	if !signIn.Created {
+		return dto.UserDto{}, model.LoginTokens{}, consume.Status, errors.New("failed to create device login audit log")
+	}
+
+	s.auditLog.SendSignInNotification(ctx, signIn)
+	return userDTO, model.LoginTokens{SessionToken: sessionToken, KnownBrowserToken: signIn.KnownBrowserToken}, consume.Status, nil
+}
+
+// poll reads the request from the actor's activation cache and validates the device binding
+func (s *Service) poll(ctx context.Context, requestID, deviceTokenHash string) (requestActorResult, error) {
+	result, err := s.peek(ctx, requestID, requestActorMethodPoll, requestActorPollInput{DeviceTokenHash: deviceTokenHash})
+	if err != nil {
+		return requestActorResult{}, err
+	}
+	return result, actorResultError(result.Code)
 }
 
 func (s *Service) consumeReauthenticationProof(ctx context.Context, token, userID string) error {

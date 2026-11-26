@@ -14,6 +14,7 @@
 	import type { ListRequestOptions, Paginated, SortRequest } from '#lib/types/list-request.type.ts';
 	import { cn } from '@pocket-id/ui/utils';
 	import { createRangeSelect } from '#lib/utils/range-select-util.ts';
+	import { latestRequest } from '#lib/utils/latest-request-util.ts';
 	import { cssMs } from '#lib/utils/style.ts';
 	import ArrowDownIcon from '~icons/solar/arrow-down-linear';
 	import ArrowUpIcon from '~icons/solar/arrow-up-linear';
@@ -45,7 +46,10 @@
 		// Whether a filter the page applies itself, outside the table's own facets, narrows the list
 		filtered?: boolean;
 		onClearQuery?: () => void;
-		fetchCallback: (requestOptions: ListRequestOptions) => Promise<Paginated<T>>;
+		fetchCallback: (
+			requestOptions: ListRequestOptions,
+			signal: AbortSignal
+		) => Promise<Paginated<T>>;
 		defaultSort?: SortRequest;
 		columns: AdvancedTableColumn<T>[];
 		onRowClick?: (item: T) => void;
@@ -297,15 +301,22 @@
 		await refresh();
 	}
 
-	export async function refresh() {
+	const latestRefresh = latestRequest();
+
+	export function refresh() {
 		isRefreshing = true;
-		try {
-			items = await fetchCallback(requestOptions);
-		} finally {
-			isRefreshing = false;
-		}
-		await changePageState(items.pagination.currentPage);
-		updateListLength(items.pagination.totalItems);
+		return latestRefresh(async (signal) => {
+			try {
+				items = await fetchCallback(requestOptions, signal);
+			} finally {
+				if (!signal.aborted) isRefreshing = false;
+			}
+
+			// A newer refresh can start while the URL updates, and then its own result decides the list length
+			await changePageState(items.pagination.currentPage);
+			if (signal.aborted) return;
+			updateListLength(items.pagination.totalItems);
+		});
 	}
 
 	export function isColumnVisible(column: string) {

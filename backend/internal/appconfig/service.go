@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"os"
 	"reflect"
+	"slices"
 	"strings"
 	"time"
 
@@ -136,12 +137,25 @@ func (s *AppConfigService) UpdateAppConfig(ctx context.Context, update dto.Updat
 		return nil, apperror.UIConfigDisabled()
 	}
 
-	// Compute the update from the saved configuration, which holds the secrets but not the values set in the environment
+	// Compute the update from the configuration in effect, so a rule that reads several properties sees the values set in the environment
 	saved, err := s.getSavedConfig(ctx)
 	if err != nil {
 		return nil, err
 	}
-	input, err := update(saved)
+	current := saved.Clone()
+	err = current.Update(s.envOverrides)
+	if err != nil {
+		return nil, err
+	}
+
+	// Hide the secrets from the update, so a secret that comes back redacted was not sent again
+	redacted, err := current.mapSecrets(func(string) (string, error) {
+		return redactedValue, nil
+	})
+	if err != nil {
+		return nil, err
+	}
+	input, err := update(redacted)
 	if err != nil {
 		return nil, err
 	}
@@ -176,6 +190,16 @@ func (s *AppConfigService) UpdateAppConfig(ctx context.Context, update dto.Updat
 		changes[key] = value
 	}
 
+	// A password that is kept only goes to the server it was saved for, or else anyone who may change the server could have it sent to their own
+	keepsPassword := func(passwordKey, password string, serverKeys ...string) bool {
+		_, fromEnv := s.envOverrides[passwordKey]
+		serverChanges := slices.ContainsFunc(serverKeys, func(key string) bool { return changes[key] != "" })
+		return serverChanges && (fromEnv || password == redactedValue)
+	}
+	if keepsPassword("smtpPassword", input.SmtpPassword, "smtpHost", "smtpPort") || keepsPassword("ldapBindPassword", input.LdapBindPassword, "ldapUrl") {
+		return nil, apperror.ValidationMessage("Enter the password again when you change the server")
+	}
+
 	// A caller without admin access may change everything except the settings that could hand it admin access
 	for key := range changes {
 		if !needsAdminAccess(key) {
@@ -186,6 +210,22 @@ func (s *AppConfigService) UpdateAppConfig(ctx context.Context, update dto.Updat
 			return nil, err
 		}
 		break
+	}
+
+	// Refuse the rule violations the changes introduce to the configuration in effect, where the environment has the last word
+	effective := current.Clone()
+	err = effective.Update(changes)
+	if err != nil {
+		return nil, err
+	}
+	var currentDto, effectiveDto AppConfigUpdateDto
+	err = errors.Join(dto.MapStruct(current, &currentDto), dto.MapStruct(effective, &effectiveDto))
+	if err != nil {
+		return nil, err
+	}
+	err = dto.ValidateUpdate(&currentDto, &effectiveDto)
+	if err != nil {
+		return nil, err
 	}
 
 	// Apply the changes by invoking the actor

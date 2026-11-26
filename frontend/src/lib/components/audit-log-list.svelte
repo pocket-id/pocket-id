@@ -15,6 +15,7 @@
 	import type { ListRequestOptions, Paginated } from '#lib/types/list-request.type.ts';
 	import { translateAuditLogEvent } from '#lib/utils/audit-log-translator.ts';
 	import { cachedProfilePicture } from '#lib/utils/cached-asset-util.ts';
+	import { latestRequest } from '#lib/utils/latest-request-util.ts';
 	import { cn } from '@pocket-id/ui/utils';
 	import ChevronDownIcon from '~icons/solar/alt-arrow-down-linear';
 	import CodeSquareIcon from '~icons/solar/code-square-bold-duotone';
@@ -62,18 +63,23 @@
 		});
 	});
 
-	async function refresh() {
+	const latestRefresh = latestRequest();
+
+	function refresh() {
 		isRefreshing = true;
-		try {
-			logs = isAdmin
-				? await auditLogService.listAllLogs(
-						{ ...requestOptions, filters: wrapFilters(filters) },
-						dateRange
-					)
-				: await auditLogService.list(requestOptions, dateRange);
-		} finally {
-			isRefreshing = false;
-		}
+		return latestRefresh(async (signal) => {
+			try {
+				logs = isAdmin
+					? await auditLogService.listAllLogs(
+							{ ...requestOptions, filters: wrapFilters(filters) },
+							dateRange,
+							signal
+						)
+					: await auditLogService.list(requestOptions, dateRange, signal);
+			} finally {
+				if (!signal.aborted) isRefreshing = false;
+			}
+		});
 	}
 
 	function wrapFilters(filters?: AuditLogFilter) {

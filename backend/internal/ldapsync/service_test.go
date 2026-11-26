@@ -448,6 +448,40 @@ func TestLdapServiceSyncAllBumpsUpdatedAtOfSoftDeletedUsers(t *testing.T) {
 	assert.Equal(t, lastSync.ToTime().Unix(), disabled.UpdatedAt.ToTime().Unix())
 }
 
+type recordingAuditLogger struct {
+	nopAuditLogger
+
+	events []auditlogs.Event
+}
+
+func (l *recordingAuditLogger) Record(_ context.Context, event auditlogs.Event, _ auditlogs.Origin, _ string, _ auditlogs.Data, _ *gorm.DB) {
+	l.events = append(l.events, event)
+}
+
+func TestLdapServiceSyncAllRecordsWhenItEnablesAUserAgain(t *testing.T) {
+	auditLog := &recordingAuditLogger{}
+	service, db := newTestLdapServiceWithAuditLog(t, newFakeLDAPClient(
+		ldapSearchResult(ldapEntry("uid=alice,ou=people,dc=example,dc=com", map[string][]string{
+			"entryUUID": {"u-alice"},
+			"uid":       {"alice"},
+			"mail":      {"alice@example.com"},
+			"givenName": {"Alice"},
+			"sn":        {"Jones"},
+		})),
+		ldapSearchResult(),
+	), auditLog)
+	require.NoError(t, db.Create(&model.User{Username: "alice", Email: new("alice@example.com"), FirstName: "Alice", LastName: "Jones", DisplayName: "Alice Jones", LdapID: new("u-alice"), Disabled: true}).Error)
+
+	// The second run finds the user enabled and has nothing to record
+	require.NoError(t, service.SyncAll(t.Context(), defaultTestLDAPAppConfig()))
+	require.NoError(t, service.SyncAll(t.Context(), defaultTestLDAPAppConfig()))
+
+	var user model.User
+	require.NoError(t, db.First(&user, "ldap_id = ?", "u-alice").Error)
+	assert.False(t, user.Disabled)
+	assert.Equal(t, []auditlogs.Event{auditlogs.EventAccountEnabled}, auditLog.events)
+}
+
 func TestLdapServiceSyncAllSkipsUsersWithoutEmailWhenEmailIsRequired(t *testing.T) {
 	service, db := newTestLdapService(t, newFakeLDAPClient(
 		ldapSearchResult(
@@ -833,6 +867,12 @@ func TestCollectRemovedMembers(t *testing.T) {
 func newTestLdapService(t *testing.T, client ldapClient) (*Service, *gorm.DB) {
 	t.Helper()
 
+	return newTestLdapServiceWithAuditLog(t, client, nopAuditLogger{})
+}
+
+func newTestLdapServiceWithAuditLog(t *testing.T, client ldapClient, auditLog users.AuditLogger) (*Service, *gorm.DB) {
+	t.Helper()
+
 	db := testutils.NewDatabaseForTest(t)
 
 	fileStorage, err := storage.NewDatabaseStorage(db)
@@ -847,7 +887,7 @@ func newTestLdapService(t *testing.T, client ldapClient) (*Service, *gorm.DB) {
 		FileStorage:  fileStorage,
 		CustomClaims: customclaims.New(db),
 		AppAssets:    appAssets,
-		AuditLog:     nopAuditLogger{},
+		AuditLog:     auditLog,
 	})
 
 	svc := newService(Dependencies{

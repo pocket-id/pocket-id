@@ -3,8 +3,10 @@ package usergroups
 import (
 	"context"
 	"errors"
+	"fmt"
 	"log/slog"
 	"slices"
+	"strings"
 	"time"
 
 	"gorm.io/gorm"
@@ -136,7 +138,7 @@ func (s *Service) deleteInternal(ctx context.Context, group model.UserGroup, ori
 	if err != nil {
 		return err
 	}
-	s.auditLog.Record(ctx, auditlogs.EventGroupDeleted, origin, "", auditlogs.Data{"groupName": group.FriendlyName}, tx)
+	s.auditLog.Record(ctx, auditlogs.EventGroupDeleted, origin, "", auditlogs.Data{"groupID": group.ID, "groupName": group.FriendlyName}, tx)
 	return nil
 }
 
@@ -189,12 +191,12 @@ func (s *Service) createInternal(ctx context.Context, input dto.UserGroupCreateD
 	} else if err != nil {
 		return model.UserGroup{}, err
 	}
-	s.auditLog.Record(ctx, auditlogs.EventGroupCreated, origin, "", auditlogs.Data{"groupName": group.FriendlyName}, tx)
+	s.auditLog.Record(ctx, auditlogs.EventGroupCreated, origin, "", auditlogs.Data{"groupID": group.ID, "groupName": group.FriendlyName}, tx)
 
 	return group, nil
 }
 
-func (s *Service) Update(ctx context.Context, cfg *appconfig.AppConfigModel, id string, update dto.Update[dto.UserGroupCreateDto]) (group model.UserGroup, err error) {
+func (s *Service) Update(ctx context.Context, cfg *appconfig.AppConfigModel, id string, update dto.Update[dto.UserGroupCreateDto], origin auditlogs.Origin) (group model.UserGroup, err error) {
 	tx := s.db.Begin()
 	defer func() {
 		tx.Rollback()
@@ -212,7 +214,7 @@ func (s *Service) Update(ctx context.Context, cfg *appconfig.AppConfigModel, id 
 		return model.UserGroup{}, err
 	}
 
-	group, err = s.updateInternal(ctx, id, input, false, tx, cfg)
+	group, err = s.updateInternal(ctx, id, input, false, origin, tx, cfg)
 	if err != nil {
 		return model.UserGroup{}, err
 	}
@@ -228,7 +230,7 @@ func (s *Service) Update(ctx context.Context, cfg *appconfig.AppConfigModel, id 
 	return group, nil
 }
 
-func (s *Service) updateInternal(ctx context.Context, id string, input dto.UserGroupCreateDto, isLdapSync bool, tx *gorm.DB, cfg *appconfig.AppConfigModel) (group model.UserGroup, err error) {
+func (s *Service) updateInternal(ctx context.Context, id string, input dto.UserGroupCreateDto, isLdapSync bool, origin auditlogs.Origin, tx *gorm.DB, cfg *appconfig.AppConfigModel) (group model.UserGroup, err error) {
 	group, err = s.getInternal(ctx, id, tx)
 	if err != nil {
 		return model.UserGroup{}, err
@@ -239,6 +241,15 @@ func (s *Service) updateInternal(ctx context.Context, id string, input dto.UserG
 		if cfg.LdapEnabled.IsTrue() {
 			return model.UserGroup{}, apperror.LdapUserGroupUpdate()
 		}
+	}
+
+	// The other entries name a group as it was called at the time, so a rename is recorded with both names to keep them traceable
+	var changes []string
+	if group.Name != input.Name {
+		changes = append(changes, fmt.Sprintf("name: %s → %s", group.Name, input.Name))
+	}
+	if group.FriendlyName != input.FriendlyName {
+		changes = append(changes, fmt.Sprintf("friendlyName: %s → %s", group.FriendlyName, input.FriendlyName))
 	}
 
 	group.Name = input.Name
@@ -259,6 +270,9 @@ func (s *Service) updateInternal(ctx context.Context, id string, input dto.UserG
 		return model.UserGroup{}, apperror.AlreadyInUse("name")
 	} else if err != nil {
 		return model.UserGroup{}, err
+	}
+	if len(changes) > 0 {
+		s.auditLog.Record(ctx, auditlogs.EventGroupUpdated, origin, "", auditlogs.Data{"groupID": group.ID, "groupName": group.FriendlyName, "changes": strings.Join(changes, ", ")}, tx)
 	}
 
 	return group, nil
@@ -354,6 +368,7 @@ func (s *Service) updateUsersInternal(ctx context.Context, id string, userIds []
 		WithContext(ctx).
 		Session(&gorm.Session{CreateBatchSize: 500}).
 		Model(&group).
+		Omit("Users.*").
 		Association("Users").
 		Replace(users)
 	if err != nil {
@@ -362,10 +377,10 @@ func (s *Service) updateUsersInternal(ctx context.Context, id string, userIds []
 
 	added, removed := utils.Changes(previousUsers, users, func(user model.User) string { return user.ID })
 	for _, user := range added {
-		s.auditLog.Record(ctx, auditlogs.EventGroupMemberAdded, origin, user.ID, auditlogs.Data{"groupName": group.FriendlyName}, tx)
+		s.auditLog.Record(ctx, auditlogs.EventGroupMemberAdded, origin, user.ID, auditlogs.Data{"groupID": group.ID, "groupName": group.FriendlyName}, tx)
 	}
 	for _, user := range removed {
-		s.auditLog.Record(ctx, auditlogs.EventGroupMemberRemoved, origin, user.ID, auditlogs.Data{"groupName": group.FriendlyName}, tx)
+		s.auditLog.Record(ctx, auditlogs.EventGroupMemberRemoved, origin, user.ID, auditlogs.Data{"groupID": group.ID, "groupName": group.FriendlyName}, tx)
 	}
 
 	// Save the updated group
@@ -393,7 +408,6 @@ func (s *Service) GetUserCountOfGroup(ctx context.Context, id string) (int64, er
 	var group model.UserGroup
 	err := tx.
 		WithContext(ctx).
-		Preload("Users").
 		Where("id = ?", id).
 		First(&group).
 		Error
@@ -451,6 +465,7 @@ func (s *Service) UpdateAllowedOidcClient(ctx context.Context, id string, input 
 	err = tx.
 		WithContext(ctx).
 		Model(&group).
+		Omit("AllowedOidcClients.*").
 		Association("AllowedOidcClients").
 		Replace(clients)
 	if err != nil {
@@ -470,20 +485,10 @@ func (s *Service) UpdateAllowedOidcClient(ctx context.Context, id string, input 
 	}
 
 	for _, client := range added {
-		s.auditLog.Record(ctx, auditlogs.EventClientGroupAdded, origin, "", auditlogs.Data{"clientID": client.ID, "clientName": client.Name, "groupName": group.FriendlyName}, tx)
+		s.auditLog.Record(ctx, auditlogs.EventClientGroupAdded, origin, "", auditlogs.Data{"clientID": client.ID, "clientName": client.Name, "groupID": group.ID, "groupName": group.FriendlyName}, tx)
 	}
 	for _, client := range removed {
-		s.auditLog.Record(ctx, auditlogs.EventClientGroupRemoved, origin, "", auditlogs.Data{"clientID": client.ID, "clientName": client.Name, "groupName": group.FriendlyName}, tx)
-	}
-
-	// Save the updated group
-	err = tx.
-		WithContext(ctx).
-		Omit(clause.Associations).
-		Save(&group).
-		Error
-	if err != nil {
-		return model.UserGroup{}, err
+		s.auditLog.Record(ctx, auditlogs.EventClientGroupRemoved, origin, "", auditlogs.Data{"clientID": client.ID, "clientName": client.Name, "groupID": group.ID, "groupName": group.FriendlyName}, tx)
 	}
 
 	err = tx.Commit().Error

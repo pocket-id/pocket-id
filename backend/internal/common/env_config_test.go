@@ -273,8 +273,8 @@ func TestParseEnvConfig(t *testing.T) {
 		t.Setenv("UNIX_SOCKET", "/tmp/app.sock")
 		t.Setenv("MAXMIND_LICENSE_KEY", "test-license")
 		t.Setenv("GEOLITE_DB_PATH", "/custom/geolite.mmdb")
-		t.Setenv("ACTORS_PORT", "9999")
-		t.Setenv("ACTORS_HOST", "LOCALHOST")
+		t.Setenv("CLUSTER_PORT", "9999")
+		t.Setenv("CLUSTER_ADDRESS", "LOCALHOST")
 
 		err := parseAndValidateEnvConfig(t)
 		require.NoError(t, err)
@@ -282,8 +282,8 @@ func TestParseEnvConfig(t *testing.T) {
 		assert.Equal(t, "/custom/uploads", EnvConfig.UploadPath)
 		assert.Equal(t, "8080", EnvConfig.Port)
 		assert.Equal(t, "localhost", EnvConfig.Host) // lowercased
-		assert.Equal(t, "9999", EnvConfig.ActorsPort)
-		assert.Equal(t, "localhost", EnvConfig.ActorsHost) // lowercased
+		assert.Equal(t, "9999", EnvConfig.ClusterPort)
+		assert.Equal(t, "localhost", EnvConfig.ClusterAddress) // lowercased
 		assert.Equal(t, "/custom/geolite.mmdb", EnvConfig.GeoLiteDBPath)
 	})
 
@@ -473,14 +473,14 @@ func TestFrancisHostConfig(t *testing.T) {
 
 		err := parseAndValidateEnvConfig(t)
 		require.NoError(t, err)
-		assert.Equal(t, FrancisHostEmbedded, EnvConfig.FrancisHost)
+		assert.Equal(t, FrancisRuntimeEmbedded, EnvConfig.FrancisRuntimeAddress)
 		assert.Empty(t, EnvConfig.francisAddresses)
 		assert.True(t, EnvConfig.HasEmbeddedFrancisRuntime())
 	})
 
-	t.Run("should keep the embedded runtime when FRANCIS_HOST is empty", func(t *testing.T) {
+	t.Run("should keep the embedded runtime when FRANCIS_RUNTIME_ADDRESS is empty", func(t *testing.T) {
 		setBaseEnv(t)
-		t.Setenv("EXPERIMENTAL_FRANCIS_HOST", "")
+		t.Setenv("FRANCIS_RUNTIME_ADDRESS", "")
 
 		err := parseAndValidateEnvConfig(t)
 		require.NoError(t, err)
@@ -488,21 +488,21 @@ func TestFrancisHostConfig(t *testing.T) {
 		assert.True(t, EnvConfig.HasEmbeddedFrancisRuntime())
 	})
 
-	t.Run("should keep the embedded runtime when FRANCIS_HOST is 'embedded'", func(t *testing.T) {
+	t.Run("should keep the embedded runtime when FRANCIS_RUNTIME_ADDRESS is 'embedded'", func(t *testing.T) {
 		setBaseEnv(t)
-		t.Setenv("EXPERIMENTAL_FRANCIS_HOST", "EMBEDDED")
+		t.Setenv("FRANCIS_RUNTIME_ADDRESS", "EMBEDDED")
 
 		err := parseAndValidateEnvConfig(t)
 		require.NoError(t, err)
-		assert.Equal(t, FrancisHostEmbedded, EnvConfig.FrancisHost) // lowercased
+		assert.Equal(t, FrancisRuntimeEmbedded, EnvConfig.FrancisRuntimeAddress) // lowercased
 		assert.Empty(t, EnvConfig.francisAddresses)
 		assert.True(t, EnvConfig.HasEmbeddedFrancisRuntime())
 	})
 
 	t.Run("should parse a single remote runtime address", func(t *testing.T) {
 		setBaseEnv(t)
-		t.Setenv("EXPERIMENTAL_FRANCIS_HOST", "francis.example.com:8443")
-		t.Setenv("EXPERIMENTAL_FRANCIS_HOST_PSK", "bootstrap-psk-that-is-long-enough")
+		t.Setenv("FRANCIS_RUNTIME_ADDRESS", "francis.example.com:8443")
+		t.Setenv("FRANCIS_HOST_PSK", "bootstrap-psk-that-is-long-enough")
 
 		err := parseAndValidateEnvConfig(t)
 		require.NoError(t, err)
@@ -512,8 +512,8 @@ func TestFrancisHostConfig(t *testing.T) {
 
 	t.Run("should parse a comma-separated list of remote runtime addresses", func(t *testing.T) {
 		setBaseEnv(t)
-		t.Setenv("EXPERIMENTAL_FRANCIS_HOST", "one.example.com:8443, two.example.com:8443 ,[2001:db8::1]:8443")
-		t.Setenv("EXPERIMENTAL_FRANCIS_HOST_PSK", "bootstrap-psk-that-is-long-enough")
+		t.Setenv("FRANCIS_RUNTIME_ADDRESS", "one.example.com:8443, two.example.com:8443 ,[2001:db8::1]:8443")
+		t.Setenv("FRANCIS_HOST_PSK", "bootstrap-psk-that-is-long-enough")
 
 		err := parseAndValidateEnvConfig(t)
 		require.NoError(t, err)
@@ -523,27 +523,27 @@ func TestFrancisHostConfig(t *testing.T) {
 
 	t.Run("should fail when a remote runtime address has no port", func(t *testing.T) {
 		setBaseEnv(t)
-		t.Setenv("EXPERIMENTAL_FRANCIS_HOST", "francis.example.com")
-		t.Setenv("EXPERIMENTAL_FRANCIS_HOST_PSK", "bootstrap-psk-that-is-long-enough")
+		t.Setenv("FRANCIS_RUNTIME_ADDRESS", "francis.example.com")
+		t.Setenv("FRANCIS_HOST_PSK", "bootstrap-psk-that-is-long-enough")
 
 		err := parseAndValidateEnvConfig(t)
 		require.Error(t, err)
-		assert.ErrorContains(t, err, "invalid address 'francis.example.com' in FRANCIS_HOST")
+		assert.ErrorContains(t, err, "invalid address 'francis.example.com' in FRANCIS_RUNTIME_ADDRESS")
 	})
 
-	t.Run("should fail when FRANCIS_HOST only contains separators", func(t *testing.T) {
+	t.Run("should fail when FRANCIS_RUNTIME_ADDRESS only contains separators", func(t *testing.T) {
 		setBaseEnv(t)
-		t.Setenv("EXPERIMENTAL_FRANCIS_HOST", " , ")
-		t.Setenv("EXPERIMENTAL_FRANCIS_HOST_PSK", "bootstrap-psk-that-is-long-enough")
+		t.Setenv("FRANCIS_RUNTIME_ADDRESS", " , ")
+		t.Setenv("FRANCIS_HOST_PSK", "bootstrap-psk-that-is-long-enough")
 
 		err := parseAndValidateEnvConfig(t)
 		require.Error(t, err)
-		assert.ErrorContains(t, err, "FRANCIS_HOST does not contain any address")
+		assert.ErrorContains(t, err, "FRANCIS_RUNTIME_ADDRESS does not contain any address")
 	})
 
 	t.Run("should fail when no bootstrap method is configured", func(t *testing.T) {
 		setBaseEnv(t)
-		t.Setenv("EXPERIMENTAL_FRANCIS_HOST", "francis.example.com:8443")
+		t.Setenv("FRANCIS_RUNTIME_ADDRESS", "francis.example.com:8443")
 
 		err := parseAndValidateEnvConfig(t)
 		require.Error(t, err)
@@ -557,8 +557,8 @@ func TestFrancisHostConfig(t *testing.T) {
 		jwtFile := t.TempDir() + "/token"
 		require.NoError(t, os.WriteFile(jwtFile, []byte("header.payload.signature"), 0600))
 
-		t.Setenv("EXPERIMENTAL_FRANCIS_HOST", "francis.example.com:8443")
-		t.Setenv("EXPERIMENTAL_FRANCIS_HOST_JWT_FILE", jwtFile)
+		t.Setenv("FRANCIS_RUNTIME_ADDRESS", "francis.example.com:8443")
+		t.Setenv("FRANCIS_HOST_JWT_FILE", jwtFile)
 
 		err := parseAndValidateEnvConfig(t)
 		require.NoError(t, err)
@@ -568,8 +568,8 @@ func TestFrancisHostConfig(t *testing.T) {
 
 	t.Run("should fail when the bootstrap JWT file does not exist", func(t *testing.T) {
 		setBaseEnv(t)
-		t.Setenv("EXPERIMENTAL_FRANCIS_HOST", "francis.example.com:8443")
-		t.Setenv("EXPERIMENTAL_FRANCIS_HOST_JWT_FILE", "/nonexistent/token")
+		t.Setenv("FRANCIS_RUNTIME_ADDRESS", "francis.example.com:8443")
+		t.Setenv("FRANCIS_HOST_JWT_FILE", "/nonexistent/token")
 
 		err := parseAndValidateEnvConfig(t)
 		require.Error(t, err)
@@ -582,9 +582,9 @@ func TestFrancisHostConfig(t *testing.T) {
 		jwtFile := t.TempDir() + "/token"
 		require.NoError(t, os.WriteFile(jwtFile, []byte("header.payload.signature"), 0600))
 
-		t.Setenv("EXPERIMENTAL_FRANCIS_HOST", "francis.example.com:8443")
-		t.Setenv("EXPERIMENTAL_FRANCIS_HOST_PSK", "bootstrap-psk-that-is-long-enough")
-		t.Setenv("EXPERIMENTAL_FRANCIS_HOST_JWT_FILE", jwtFile)
+		t.Setenv("FRANCIS_RUNTIME_ADDRESS", "francis.example.com:8443")
+		t.Setenv("FRANCIS_HOST_PSK", "bootstrap-psk-that-is-long-enough")
+		t.Setenv("FRANCIS_HOST_JWT_FILE", jwtFile)
 
 		err := parseAndValidateEnvConfig(t)
 		require.Error(t, err)
@@ -593,8 +593,8 @@ func TestFrancisHostConfig(t *testing.T) {
 
 	t.Run("should fail when the bootstrap PSK is too short", func(t *testing.T) {
 		setBaseEnv(t)
-		t.Setenv("EXPERIMENTAL_FRANCIS_HOST", "francis.example.com:8443")
-		t.Setenv("EXPERIMENTAL_FRANCIS_HOST_PSK", "too-short")
+		t.Setenv("FRANCIS_RUNTIME_ADDRESS", "francis.example.com:8443")
+		t.Setenv("FRANCIS_HOST_PSK", "too-short")
 
 		err := parseAndValidateEnvConfig(t)
 		require.Error(t, err)
@@ -612,9 +612,9 @@ func TestFrancisHostConfig(t *testing.T) {
 		require.NoError(t, os.WriteFile(pskFile, []byte("bootstrap-psk-that-is-long-enough\n"), 0600))
 		require.NoError(t, os.WriteFile(caFile, []byte(caContent), 0600))
 
-		t.Setenv("EXPERIMENTAL_FRANCIS_HOST", "francis.example.com:8443")
-		t.Setenv("EXPERIMENTAL_FRANCIS_HOST_PSK_FILE", pskFile)
-		t.Setenv("EXPERIMENTAL_FRANCIS_CA_FILE", caFile)
+		t.Setenv("FRANCIS_RUNTIME_ADDRESS", "francis.example.com:8443")
+		t.Setenv("FRANCIS_HOST_PSK_FILE", pskFile)
+		t.Setenv("FRANCIS_CA_FILE", caFile)
 
 		err := parseAndValidateEnvConfig(t)
 		require.NoError(t, err)
@@ -753,4 +753,29 @@ func TestIconLibraryConfig(t *testing.T) {
 			assert.Equal(t, tt.wantEnabled, EnvConfig.IconLibraryEnabled())
 		})
 	}
+}
+
+func TestHAConfig(t *testing.T) {
+	originalConfig := EnvConfig
+	t.Cleanup(func() {
+		EnvConfig = originalConfig
+	})
+
+	t.Run("rejects SQLite", func(t *testing.T) {
+		EnvConfig = defaultConfig()
+		t.Setenv("HA_ENABLED", "true")
+		t.Setenv("DB_CONNECTION_STRING", "file:test")
+
+		err := parseAndValidateEnvConfig(t)
+		require.ErrorContains(t, err, "high-availability mode requires a PostgreSQL database")
+	})
+
+	t.Run("accepts PostgreSQL", func(t *testing.T) {
+		EnvConfig = defaultConfig()
+		t.Setenv("HA_ENABLED", "true")
+		t.Setenv("DB_CONNECTION_STRING", "postgres://localhost/db")
+
+		err := parseAndValidateEnvConfig(t)
+		require.NoError(t, err)
+	})
 }

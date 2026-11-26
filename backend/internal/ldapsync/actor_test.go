@@ -3,15 +3,19 @@ package ldapsync
 import (
 	"context"
 	"errors"
+	"net/http"
+	"net/http/httptest"
 	"testing"
 	"time"
 
+	"github.com/gin-gonic/gin"
 	"github.com/italypaleale/francis/actor"
 	"github.com/italypaleale/francis/host/local"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
 	"github.com/pocket-id/pocket-id/backend/internal/appconfig"
+	"github.com/pocket-id/pocket-id/backend/internal/apperror"
 	"github.com/pocket-id/pocket-id/backend/internal/model"
 	testutils "github.com/pocket-id/pocket-id/backend/internal/utils/testing"
 )
@@ -205,6 +209,34 @@ func TestSyncActorRegisteredSingletonBootstrapsAndFires(t *testing.T) {
 
 // newSyncActorForTest starts a test actor host and allocates the sync actor against it
 // The actor is not registered on the host, so the host never bootstraps or fires it on its own and the test drives it explicitly
+func TestSyncActorRunsManualSyncInItsTurn(t *testing.T) {
+	service, db := newTestLdapService(t, newFakeLDAPClient(
+		ldapSearchResult(ldapEntry("uid=alice,ou=people,dc=example,dc=com", map[string][]string{
+			"entryUUID": {"u-alice"},
+			"uid":       {"alice"},
+			"givenName": {"Alice"},
+		})),
+		ldapSearchResult(),
+	))
+	host := testutils.NewActorHostForTest(t, func(t *testing.T, h *local.Host) {
+		require.NoError(t, h.RegisterSingletonActor(SyncActorType, NewSyncActor(service, fakeAppConfigResolver{config: defaultTestLDAPAppConfig()}, true)))
+	})
+	h := &handler{actors: host.Service()}
+	c, _ := gin.CreateTestContext(httptest.NewRecorder())
+	c.Request = httptest.NewRequestWithContext(t.Context(), http.MethodPost, "/", nil)
+
+	require.NoError(t, h.syncLdap(c))
+	var count int64
+	require.NoError(t, db.Model(&model.User{}).Where("ldap_id = ?", "u-alice").Count(&count).Error)
+	assert.EqualValues(t, 1, count)
+
+	// The caller still learns why a sync failed
+	service.clientFactory = func(*appconfig.AppConfigModel) (ldapClient, error) {
+		return nil, apperror.LdapDisabled()
+	}
+	require.True(t, apperror.IsCode(h.syncLdap(c), apperror.CodeLdapDisabled))
+}
+
 func newSyncActorForTest(t *testing.T, service *Service, appConfig appconfig.AppConfigResolver, scheduleDisabled bool) (*local.Host, *syncActor) {
 	t.Helper()
 

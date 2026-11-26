@@ -17,8 +17,8 @@ import APIService from './api-service';
 import { pathSegment } from '#lib/utils/path-segment-util.ts';
 
 export default class UserService extends APIService {
-	list = async (options?: ListRequestOptions) => {
-		const res = await this.api.get('/admin/users', { params: options });
+	list = async (options?: ListRequestOptions, signal?: AbortSignal) => {
+		const res = await this.api.get('/admin/users', { params: options, signal });
 		return res.data as Paginated<User>;
 	};
 

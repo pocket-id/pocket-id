@@ -15,12 +15,14 @@ const (
 )
 
 type interactionSessionForUser struct {
-	ID            string             `json:"id"`
-	Scopes        []string           `json:"scopes"`
-	ScopeInfo     []dto.ScopeInfoDto `json:"scopeInfo"`
-	Client        interactionClient  `json:"client"`
-	CurrentStep   interactionStep    `json:"currentStep,omitempty"`
-	RequiredSteps []interactionStep  `json:"requiredSteps"`
+	ID        string             `json:"id"`
+	Scopes    []string           `json:"scopes"`
+	ScopeInfo []dto.ScopeInfoDto `json:"scopeInfo"`
+	// API is the API the tokens are issued for, when the client asked for one
+	API           *dto.RequestedAPIDto `json:"api,omitempty"`
+	Client        interactionClient    `json:"client"`
+	CurrentStep   interactionStep      `json:"currentStep,omitempty"`
+	RequiredSteps []interactionStep    `json:"requiredSteps"`
 }
 
 type interactionClient struct {

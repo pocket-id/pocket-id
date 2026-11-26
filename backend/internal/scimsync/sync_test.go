@@ -428,6 +428,17 @@ func TestSyncRetriesRateLimitedSCIMRequests(t *testing.T) {
 	fixture.transport.requireCompliant(t)
 }
 
+func TestSyncDoesNotWaitOutALongRetryAfter(t *testing.T) {
+	for _, retryAfter := range []string{"86400", time.Now().Add(24 * time.Hour).UTC().Format(http.TimeFormat)} {
+		fixture := newSCIMSyncFixture(t, false)
+		fixture.transport.rateLimits[http.MethodGet+" /Users"] = 1
+		fixture.transport.retryAfter = retryAfter
+
+		require.Error(t, fixture.service.SyncServiceProvider(t.Context(), fixture.provider.ID))
+		assert.Equal(t, 1, countRequests(fixture.transport.requestsSnapshot(), http.MethodGet, "/Users"))
+	}
+}
+
 func TestSCIMRequestLogsRedactEndpointCredentials(t *testing.T) {
 	var logs bytes.Buffer
 	previous := slog.Default()
@@ -492,6 +503,7 @@ type mockSCIMTransport struct {
 	requests      []mockSCIMRequest
 	violations    []string
 	rateLimits    map[string]int
+	retryAfter    string
 	failCreates   map[string]int
 }
 
@@ -501,6 +513,7 @@ func newMockSCIMTransport(expectedToken string) *mockSCIMTransport {
 		users:         map[string]ScimUser{},
 		groups:        map[string]ScimGroup{},
 		rateLimits:    map[string]int{},
+		retryAfter:    "0",
 		failCreates:   map[string]int{},
 	}
 }
@@ -534,7 +547,7 @@ func (m *mockSCIMTransport) RoundTrip(req *http.Request) (*http.Response, error)
 	if m.rateLimits[requestKey] > 0 {
 		m.rateLimits[requestKey]--
 		response := mockSCIMErrorResponse(req, http.StatusTooManyRequests, "rate limited")
-		response.Header.Set("Retry-After", "0")
+		response.Header.Set("Retry-After", m.retryAfter)
 		return response, nil
 	}
 

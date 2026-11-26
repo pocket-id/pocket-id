@@ -16,6 +16,7 @@ import (
 	"github.com/pocket-id/pocket-id/backend/internal/authz"
 	"github.com/pocket-id/pocket-id/backend/internal/claimmappingpolicy"
 	"github.com/pocket-id/pocket-id/backend/internal/common"
+	"github.com/pocket-id/pocket-id/backend/internal/dto"
 	"github.com/pocket-id/pocket-id/backend/internal/model"
 	datatype "github.com/pocket-id/pocket-id/backend/internal/model/types"
 	testutils "github.com/pocket-id/pocket-id/backend/internal/utils/testing"
@@ -496,6 +497,40 @@ func TestAuthorizationServiceRequiresReauthenticationForAdminAccess(t *testing.T
 			require.Equal(t, tt.wantReauthentication, authorization.RequiresInteraction)
 		})
 	}
+}
+
+func TestAuthorizationServiceNamesTheRequestedAPI(t *testing.T) {
+	db := testutils.NewDatabaseForTest(t)
+	const (
+		userID   = "test-user"
+		clientID = "test-client"
+		api      = "https://api-a.example.com"
+	)
+	service := newAuthorizationService(db, newInteractionSessionService(db), newClaimsService(db, nil, "", nil, appconfig.StaticResolver{}), nil, nil, userAccess(map[string][]string{api: {}}))
+	require.NoError(t, db.Create(&model.OidcClient{Base: model.Base{ID: clientID}, Name: "Test Client"}).Error)
+
+	// A request for an API without any of its permissions would otherwise look like a plain sign-in
+	for id, parameters := range map[string]map[string]string{
+		"with-api":      {"scope": "openid", "resource": api},
+		"plain-sign-in": {"scope": "openid"},
+	} {
+		require.NoError(t, db.Create(&InteractionSession{
+			Base:            model.Base{ID: id},
+			Scopes:          datatype.StringList{"openid"},
+			ClientID:        clientID,
+			ConsentRequired: true,
+			RequestedAt:     datatype.DateTime(time.Now().UTC()),
+			Parameters:      parameters,
+		}).Error)
+	}
+
+	interaction, err := service.getInteractionSession(t.Context(), "with-api", userID)
+	require.NoError(t, err)
+	require.Equal(t, &dto.RequestedAPIDto{Name: "API " + api, Audience: api}, interaction.API)
+
+	interaction, err = service.getInteractionSession(t.Context(), "plain-sign-in", userID)
+	require.NoError(t, err)
+	require.Nil(t, interaction.API)
 }
 
 func TestAuthorizationServiceRequiresConsentForScopelessAPIAccess(t *testing.T) {

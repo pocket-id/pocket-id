@@ -518,13 +518,17 @@
 	bind:open={clientPickerOpen}
 	title={m.assign_clients_to_policy({ policy: policy.name })}
 	searchLabel={m.search_clients()}
-	load={(search) =>
+	load={(search, signal) =>
 		policyService
-			.listAssignableClients(policy.id, {
-				search,
-				pagination: { page: 1, limit: 50 },
-				sort: { column: 'name', direction: 'asc' }
-			})
+			.listAssignableClients(
+				policy.id,
+				{
+					search,
+					pagination: { page: 1, limit: 50 },
+					sort: { column: 'name', direction: 'asc' }
+				},
+				signal
+			)
 			.then((res) => res.data)}
 	row={ClientRow}
 	confirmLabel={(n) =>

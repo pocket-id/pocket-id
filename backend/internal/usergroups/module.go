@@ -110,7 +110,7 @@ func (m *Module) CreateInternal(ctx context.Context, input dto.UserGroupCreateDt
 // UpdateInternal updates a user group within an existing transaction
 // It's exported for the LDAP sync, which reconciles users and groups in a single transaction of its own
 func (m *Module) UpdateInternal(ctx context.Context, cfg *appconfig.AppConfigModel, id string, input dto.UserGroupCreateDto, isLdapSync bool, tx *gorm.DB) (model.UserGroup, error) {
-	return m.service.updateInternal(ctx, id, input, isLdapSync, tx, cfg)
+	return m.service.updateInternal(ctx, id, input, isLdapSync, auditlogs.LDAPSync, tx, cfg)
 }
 
 // UpdateUsersInternal replaces the members of a user group within an existing transaction

@@ -7,6 +7,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/go-playground/validator/v10"
 	"github.com/italypaleale/francis/actor"
 	"github.com/italypaleale/francis/host/local"
 	"github.com/stretchr/testify/assert"
@@ -484,6 +485,22 @@ func TestService_EnvOverrides(t *testing.T) {
 		}
 	})
 
+	t.Run("a rule that reads several properties sees the values set in the environment", func(t *testing.T) {
+		setUIConfigDisabled(t, false)
+		t.Setenv("SMTP_HOST", "smtp.example.com")
+		t.Setenv("SMTP_FROM", "id@example.com")
+		svc := newActorBackedService(t)
+
+		required := dto.MergePatch[AppConfigUpdateDto](map[string]any{"emailVerification": "required", "requireUserEmail": "true", "emailsVerified": "false"})
+		_, err := svc.UpdateAppConfig(t.Context(), required, adminAccess)
+		require.NoError(t, err)
+
+		t.Setenv("EMAILS_VERIFIED", "true")
+		svc = newActorBackedService(t)
+		_, err = svc.UpdateAppConfig(t.Context(), required, adminAccess)
+		require.ErrorAs(t, err, new(validator.ValidationErrors))
+	})
+
 	t.Run("cross-property rules are left to saving when the UI config is enabled", func(t *testing.T) {
 		setUIConfigDisabled(t, false)
 		t.Setenv("EMAIL_VERIFICATION", "required")
@@ -492,6 +509,44 @@ func TestService_EnvOverrides(t *testing.T) {
 		cfg, err := svc.GetConfig(t.Context())
 		require.NoError(t, err)
 		assert.Equal(t, AppConfigValue(EmailVerificationRequired), cfg.EmailVerification)
+	})
+}
+
+func TestService_UpdateAppConfigNeedsThePasswordAgainForANewServer(t *testing.T) {
+	patch := func(values map[string]any) dto.Update[AppConfigUpdateDto] {
+		return dto.MergePatch[AppConfigUpdateDto](values)
+	}
+
+	t.Run("saved password", func(t *testing.T) {
+		setUIConfigDisabled(t, false)
+		svc := newActorBackedService(t)
+		_, err := svc.UpdateAppConfig(t.Context(), patch(map[string]any{"smtpHost": "smtp.example.com", "smtpPassword": "secret", "ldapUrl": "ldaps://ldap.example.com", "ldapBindPassword": "secret"}), adminAccess)
+		require.NoError(t, err)
+
+		// Left out and sent back redacted both mean the password was not entered again
+		_, err = svc.UpdateAppConfig(t.Context(), patch(map[string]any{"smtpHost": "smtp.attacker.example"}), adminAccess)
+		require.True(t, apperror.IsCode(err, apperror.CodeValidationFailed))
+		_, err = svc.UpdateAppConfig(t.Context(), patch(map[string]any{"ldapUrl": "ldaps://attacker.example", "ldapBindPassword": redactedValue}), adminAccess)
+		require.True(t, apperror.IsCode(err, apperror.CodeValidationFailed))
+
+		// Another port of the same host can be another party's server
+		_, err = svc.UpdateAppConfig(t.Context(), patch(map[string]any{"smtpPort": "2525"}), adminAccess)
+		require.True(t, apperror.IsCode(err, apperror.CodeValidationFailed))
+
+		// The same password counts as entered again, and the other settings of the server need none
+		_, err = svc.UpdateAppConfig(t.Context(), patch(map[string]any{"smtpHost": "smtp2.example.com", "smtpPassword": "secret"}), adminAccess)
+		require.NoError(t, err)
+		_, err = svc.UpdateAppConfig(t.Context(), patch(map[string]any{"smtpFrom": "id@example.com"}), adminAccess)
+		require.NoError(t, err)
+	})
+
+	t.Run("password from the environment", func(t *testing.T) {
+		setUIConfigDisabled(t, false)
+		t.Setenv("SMTP_PASSWORD", "secret")
+		svc := newActorBackedService(t)
+
+		_, err := svc.UpdateAppConfig(t.Context(), patch(map[string]any{"smtpHost": "smtp.attacker.example", "smtpPassword": "secret"}), adminAccess)
+		require.True(t, apperror.IsCode(err, apperror.CodeValidationFailed))
 	})
 }
 

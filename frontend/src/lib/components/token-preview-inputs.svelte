@@ -6,6 +6,7 @@
 	import UserService from '#lib/services/user-service.ts';
 	import type { User } from '#lib/types/user.type.ts';
 	import { debounced } from '#lib/utils/debounce-util.ts';
+	import { latestRequest } from '#lib/utils/latest-request-util.ts';
 
 	let {
 		userId = $bindable(),
@@ -23,9 +24,13 @@
 	let users = $state<User[]>([]);
 	let isUserSearchLoading = $state(false);
 
-	async function loadUsers(search?: string) {
-		users = (await userService.list({ search, pagination: { limit: 10, page: 1 } })).data;
-		userId ||= users[0]?.id ?? '';
+	const latestLoad = latestRequest();
+
+	function loadUsers(search?: string) {
+		return latestLoad(async (signal) => {
+			users = (await userService.list({ search, pagination: { limit: 10, page: 1 } }, signal)).data;
+			userId ||= users[0]?.id ?? '';
+		});
 	}
 
 	const onUserSearch = debounced(

@@ -9,6 +9,7 @@
 	import type { AppConfig } from '#lib/types/application-configuration.type.ts';
 	import type { OidcClientLogoPreset } from '#lib/types/oidc.type.ts';
 	import { debounced } from '#lib/utils/debounce-util.ts';
+	import { latestRequest } from '#lib/utils/latest-request-util.ts';
 	import { getAxiosErrorMessage } from '#lib/utils/error-util.ts';
 	import { readsOnDarkBackground } from '#lib/utils/logo-contrast-util.ts';
 	import { cn } from '@pocket-id/ui/utils';
@@ -55,7 +56,7 @@
 	// The search the shown presets answer, so an empty result keeps its message while the next search loads instead of collapsing the popover
 	let presetsQuery = $state<string | null>(null);
 	let errorMessage = $state<string | null>(null);
-	let latestRequest = 0;
+	const latestSearch = latestRequest();
 	// An image that fails to load shows a fallback instead of the browser's broken-image icon
 	const brokenLogos = new SvelteSet<string>();
 
@@ -78,31 +79,29 @@
 		}
 	}
 
-	async function loadPresets(query: string) {
-		const request = ++latestRequest;
-
-		try {
-			// The library has a white variant of nearly every icon, which dark mode only uses where the color icon would blend into the background
-			const result = await Promise.all(
-				(await oidcService.searchLogoPresets(query)).map(async (preset) =>
-					preset.darkLogoUrl && (await readsOnDarkBackground(preset.logoUrl))
-						? { ...preset, darkLogoUrl: null }
-						: preset
-				)
-			);
-			// Responses can arrive out of order, so only the newest search may update the results
-			if (request === latestRequest) {
+	function loadPresets(query: string) {
+		return latestSearch(async (signal) => {
+			try {
+				// The library has a white variant of nearly every icon, which dark mode only uses where the color icon would blend into the background
+				const result = await Promise.all(
+					(await oidcService.searchLogoPresets(query, signal)).map(async (preset) =>
+						preset.darkLogoUrl && (await readsOnDarkBackground(preset.logoUrl))
+							? { ...preset, darkLogoUrl: null }
+							: preset
+					)
+				);
+				// Checking the logos loads images, and a newer search can start meanwhile
+				if (signal.aborted) return;
 				presets = result;
 				presetsQuery = query;
 				errorMessage = null;
-			}
-		} catch (e) {
-			if (request === latestRequest) {
+			} catch (e) {
+				if (signal.aborted) return;
 				presets = [];
 				presetsQuery = query;
 				errorMessage = getAxiosErrorMessage(e);
 			}
-		}
+		});
 	}
 
 	// The popover always opens below the logo without collision handling, so it is fitted into the viewport by hand whenever its size or the window changes

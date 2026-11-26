@@ -26,7 +26,6 @@ import (
 	"github.com/pocket-id/pocket-id/backend/internal/emailverification"
 	"github.com/pocket-id/pocket-id/backend/internal/model"
 	datatype "github.com/pocket-id/pocket-id/backend/internal/model/types"
-	"github.com/pocket-id/pocket-id/backend/internal/oidc"
 	"github.com/pocket-id/pocket-id/backend/internal/utils"
 )
 
@@ -39,6 +38,9 @@ const (
 const (
 	scimErrorBodyLimit      = 4 << 10 // 4KB
 	syncProviderConcurrency = 4
+
+	// maxRetryDelay is the longest wait a rate-limiting provider may ask for before a request is retried
+	maxRetryDelay = time.Minute
 )
 
 type scimSyncAction int
@@ -47,7 +49,6 @@ const (
 	scimActionNone scimSyncAction = iota
 	scimActionCreated
 	scimActionUpdated
-	scimActionDeleted
 )
 
 type scimSyncStats struct {
@@ -290,7 +291,7 @@ func (s *Service) SyncServiceProvider(ctx context.Context, serviceProviderID str
 		errs = append(errs, err)
 	}
 
-	groupStats, err := s.syncGroups(ctx, provider, snapshot.groups, groupResources.Resources, userResources.Resources)
+	groupStats, err := s.syncGroups(ctx, provider, snapshot.groups, snapshot.groupMembers, groupResources.Resources, userResources.Resources)
 	if err != nil {
 		errs = append(errs, err)
 	}
@@ -342,6 +343,8 @@ type syncSnapshot struct {
 	provider ServiceProvider
 	users    []model.User
 	groups   []model.UserGroup
+	// groupMembers holds the IDs of each group's users by group ID
+	groupMembers map[string][]string
 }
 
 // loadSyncSnapshot reads all local inputs from one point in time without holding the transaction across remote SCIM calls
@@ -357,6 +360,11 @@ func (s *Service) loadSyncSnapshot(ctx context.Context, serviceProviderID string
 
 				allowedGroupIDs := groupIDs(snapshot.provider.OidcClient.AllowedUserGroups)
 				snapshot.groups, err = groupsForClient(ctx, tx, snapshot.provider.OidcClient, allowedGroupIDs)
+				if err != nil {
+					return err
+				}
+
+				snapshot.groupMembers, err = groupMembersForClient(ctx, tx, snapshot.provider.OidcClient, allowedGroupIDs)
 				if err != nil {
 					return err
 				}
@@ -439,8 +447,6 @@ func (s *Service) syncUsers(ctx context.Context, cfg *appconfig.AppConfigModel, 
 			stats.Created++
 		case scimActionUpdated:
 			stats.Updated++
-		case scimActionDeleted:
-			stats.Deleted++
 		case scimActionNone:
 		}
 	}
@@ -464,14 +470,14 @@ func (s *Service) syncUsers(ctx context.Context, cfg *appconfig.AppConfigModel, 
 	return stats, errors.Join(errs...)
 }
 
-func (s *Service) syncGroups(ctx context.Context, provider ServiceProvider, groups []model.UserGroup, remoteGroups []ScimGroup, userResources []ScimUser) (stats scimSyncStats, err error) {
+func (s *Service) syncGroups(ctx context.Context, provider ServiceProvider, groups []model.UserGroup, groupMembers map[string][]string, remoteGroups []ScimGroup, userResources []ScimUser) (stats scimSyncStats, err error) {
 	var errs []error
 
 	// Update or create groups
 	for _, g := range groups {
 		existing := getResourceByExternalID(g.ID, remoteGroups)
 
-		action, err := s.syncGroup(ctx, provider, g, existing, userResources)
+		action, err := s.syncGroup(ctx, provider, g, groupMembers[g.ID], existing, userResources)
 		if err != nil {
 			errs = append(errs, err)
 			continue
@@ -483,8 +489,6 @@ func (s *Service) syncGroups(ctx context.Context, provider ServiceProvider, grou
 			stats.Created++
 		case scimActionUpdated:
 			stats.Updated++
-		case scimActionDeleted:
-			stats.Deleted++
 		case scimActionNone:
 		}
 
@@ -510,11 +514,6 @@ func (s *Service) syncGroups(ctx context.Context, provider ServiceProvider, grou
 }
 
 func (s *Service) syncUser(ctx context.Context, cfg *appconfig.AppConfigModel, provider ServiceProvider, user model.User, userResource *ScimUser) (scimSyncAction, *ScimUser, error) {
-	// If user is not allowed for the client, delete it from SCIM provider
-	if userResource != nil && !oidc.IsUserGroupAllowedToAuthorize(user, provider.OidcClient) {
-		return scimActionDeleted, nil, s.deleteScimResource(ctx, provider, "/Users/"+url.PathEscape(userResource.ID))
-	}
-
 	// An account that still has to verify its email can't sign in to the client, so it gets no account there either
 	pending := emailverification.IsPending(cfg, &user)
 	if pending && userResource == nil {
@@ -576,22 +575,12 @@ func (s *Service) syncUser(ctx context.Context, cfg *appconfig.AppConfigModel, p
 	return scimActionCreated, userResource, nil
 }
 
-func (s *Service) syncGroup(ctx context.Context, provider ServiceProvider, group model.UserGroup, groupResource *ScimGroup, userResources []ScimUser) (scimSyncAction, error) {
-	// If group is not allowed for the client, delete it from SCIM provider
-	if groupResource != nil && !groupAllowedForClient(group.ID, provider.OidcClient) {
-		err := s.deleteScimResource(ctx, provider, "/Groups/"+url.PathEscape(groupResource.GetID()))
-		if err != nil {
-			return scimActionNone, err
-		}
-
-		return scimActionDeleted, nil
-	}
-
+func (s *Service) syncGroup(ctx context.Context, provider ServiceProvider, group model.UserGroup, memberIDs []string, groupResource *ScimGroup, userResources []ScimUser) (scimSyncAction, error) {
 	// Leave out members the provider has no account for, so one user it refuses can't hold back the removal of the others
 	// The failed creation of that user already fails the sync
-	members := make([]ScimGroupMember, 0, len(group.Users))
-	for _, user := range group.Users {
-		userResource := getResourceByExternalID(user.ID, userResources)
+	members := make([]ScimGroupMember, 0, len(memberIDs))
+	for _, userID := range memberIDs {
+		userResource := getResourceByExternalID(userID, userResources)
 		if userResource != nil {
 			members = append(members, ScimGroupMember{Value: userResource.GetID()})
 		}
@@ -666,20 +655,6 @@ func sortedMemberValues(members []ScimGroupMember) []string {
 	return values
 }
 
-func groupAllowedForClient(groupID string, client model.OidcClient) bool {
-	if !client.IsGroupRestricted {
-		return true
-	}
-
-	for _, allowedGroup := range client.AllowedUserGroups {
-		if allowedGroup.ID == groupID {
-			return true
-		}
-	}
-
-	return false
-}
-
 func groupIDs(groups []model.UserGroup) []string {
 	ids := make([]string, len(groups))
 	for i, g := range groups {
@@ -691,7 +666,7 @@ func groupIDs(groups []model.UserGroup) []string {
 func groupsForClient(ctx context.Context, db *gorm.DB, client model.OidcClient, allowedGroupIDs []string) ([]model.UserGroup, error) {
 	var groups []model.UserGroup
 
-	query := db.WithContext(ctx).Preload("Users").Model(&model.UserGroup{})
+	query := db.WithContext(ctx).Model(&model.UserGroup{})
 	if client.IsGroupRestricted {
 		if len(allowedGroupIDs) == 0 {
 			return groups, nil
@@ -721,13 +696,35 @@ func usersForClient(ctx context.Context, db *gorm.DB, client model.OidcClient, a
 			Distinct()
 	}
 
-	query = query.Preload("UserGroups")
-
 	err := query.Find(&users).Error
 	if err != nil {
 		return nil, err
 	}
 	return users, nil
+}
+
+// groupMembersForClient returns the IDs of each group's users by group ID
+// It reads the membership table itself, because a preload binds one SQL variable per loaded row and fails once a client has more users than the database allows variables
+func groupMembersForClient(ctx context.Context, db *gorm.DB, client model.OidcClient, allowedGroupIDs []string) (map[string][]string, error) {
+	query := db.WithContext(ctx).Table("user_groups_users")
+	if client.IsGroupRestricted {
+		query = query.Where("user_group_id IN ?", allowedGroupIDs)
+	}
+
+	var memberships []struct {
+		UserGroupID string
+		UserID      string
+	}
+	err := query.Find(&memberships).Error
+	if err != nil {
+		return nil, err
+	}
+
+	members := make(map[string][]string)
+	for _, membership := range memberships {
+		members[membership.UserGroupID] = append(members[membership.UserGroupID], membership.UserID)
+	}
+	return members, nil
 }
 
 func getResourceByExternalID[T ScimResource](externalID string, resource []T) *T {
@@ -895,11 +892,12 @@ func (s *Service) scimRequest(ctx context.Context, provider ServiceProvider, met
 		}
 
 		// Only retry on 429 to avoid masking other errors
-		if resp.StatusCode != http.StatusTooManyRequests || attempt == retryAttempts {
+		// A provider that asks for a longer wait is left to the next sync, because the wait happens inside the actor's turn and holds up the sync of the others
+		retryDelay := scimRetryDelay(resp.Header.Get("Retry-After"), attempt)
+		if resp.StatusCode != http.StatusTooManyRequests || attempt == retryAttempts || retryDelay > maxRetryDelay {
 			return resp, nil
 		}
 
-		retryDelay := scimRetryDelay(resp.Header.Get("Retry-After"), attempt)
 		slog.WarnContext(ctx, "SCIM provider rate-limited, retrying",
 			slog.String("provider_id", provider.ID),
 			slog.String("method", method),
@@ -919,26 +917,12 @@ func (s *Service) scimRequest(ctx context.Context, provider ServiceProvider, met
 }
 
 func scimRetryDelay(retryAfter string, attempt int) time.Duration {
-	// Respect Retry-After when provided
-	if retryAfter != "" {
-		seconds, err := strconv.Atoi(retryAfter)
-		if err == nil {
-			return time.Duration(seconds) * time.Second
-		}
-		t, err := http.ParseTime(retryAfter)
-		if err == nil {
-			delay := time.Until(t)
-			if delay > 0 {
-				return delay
-			}
-		}
-	}
-
-	// Exponential backoff otherwise
-	maxDelay := 10 * time.Second
+	// Back off exponentially unless the provider names a delay
 	delay := 500 * time.Millisecond * (time.Duration(1) << (attempt - 1)) //nolint:gosec // attempt is bounded 1-3
-	if delay > maxDelay {
-		return maxDelay
+	if seconds, err := strconv.Atoi(retryAfter); err == nil {
+		delay = time.Duration(seconds) * time.Second
+	} else if t, err := http.ParseTime(retryAfter); err == nil && time.Until(t) > 0 {
+		delay = time.Until(t)
 	}
 	return delay
 }

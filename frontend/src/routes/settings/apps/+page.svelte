@@ -11,6 +11,7 @@
 	import userStore from '#lib/stores/user-store.ts';
 	import type { Paginated } from '#lib/types/list-request.type.ts';
 	import type { AccessibleOidcClient, AuthorizedOidcClient } from '#lib/types/oidc.type.ts';
+	import { latestRequest } from '#lib/utils/latest-request-util.ts';
 	import { debounced } from '#lib/utils/debounce-util.ts';
 	import { axiosErrorToast } from '#lib/utils/error-util.ts';
 	import { cssMs } from '#lib/utils/style.ts';
@@ -86,23 +87,27 @@
 				? m.good_afternoon_name({ name })
 				: m.good_evening_name({ name });
 
+	const latestReload = latestRequest();
+
 	async function reload(search = searchValue) {
 		for (const options of [requestOptions, otherRequestOptions]) {
 			options.search = search || undefined;
 			options.pagination!.page = 1;
 		}
 		try {
-			[clients, authorizedClients] = await Promise.all([
-				oidcService.listOwnAccessibleClients(requestOptions),
-				oidcService.listOwnAuthorizedClients(otherRequestOptions)
-			]);
-			// The search is applied together with its results so the no-match line never describes stale results
-			searchValue = search;
-			// A search that matches apps without a launch link opens their section, so no match stays tucked away
-			if (search && authorizedClients.data.length > 0) showOtherApps = true;
-			if (!search) {
-				hasAnyApps = clients.pagination.totalItems + authorizedClients.pagination.totalItems > 0;
-			}
+			await latestReload(async (signal) => {
+				[clients, authorizedClients] = await Promise.all([
+					oidcService.listOwnAccessibleClients(requestOptions, signal),
+					oidcService.listOwnAuthorizedClients(otherRequestOptions, signal)
+				]);
+				// The search is applied together with its results so the no-match line never describes stale results
+				searchValue = search;
+				// A search that matches apps without a launch link opens their section, so no match stays tucked away
+				if (search && authorizedClients.data.length > 0) showOtherApps = true;
+				if (!search) {
+					hasAnyApps = clients.pagination.totalItems + authorizedClients.pagination.totalItems > 0;
+				}
+			});
 		} catch (e) {
 			axiosErrorToast(e);
 		}

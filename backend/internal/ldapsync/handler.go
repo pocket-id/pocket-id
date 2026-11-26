@@ -1,28 +1,17 @@
 package ldapsync
 
 import (
-	"fmt"
-
 	"github.com/gin-gonic/gin"
-
-	"github.com/pocket-id/pocket-id/backend/internal/appconfig"
+	"github.com/italypaleale/francis/actor"
 )
 
 type handler struct {
-	service   *Service
-	appConfig appconfig.AppConfigResolver
-}
-
-func newHandler(service *Service, appConfig appconfig.AppConfigResolver) *handler {
-	return &handler{service: service, appConfig: appConfig}
+	actors *actor.Service
 }
 
 func (h *handler) syncLdap(c *gin.Context) error {
-	dbConfig, err := h.appConfig.GetConfig(c.Request.Context())
-	if err != nil {
-		return fmt.Errorf("error loading app configuration: %w", err)
-	}
-
-	// The sync runs inline rather than through the actor, so the response reports whether it succeeded
-	return h.service.SyncAll(c.Request.Context(), dbConfig)
+	// The sync runs in the actor's turn like the scheduled one, so on every replica a sync finishes before the next one reads the directory
+	// A sync that read the directory earlier would otherwise write its older view over the newer result
+	_, err := h.actors.Invoke(c.Request.Context(), SyncActorType, actor.SingletonActorID, methodSync, nil)
+	return err
 }

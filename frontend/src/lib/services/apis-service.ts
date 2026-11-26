@@ -15,8 +15,8 @@ import APIService from './api-service';
 import { pathSegment } from '#lib/utils/path-segment-util.ts';
 
 export default class ApisService extends APIService {
-	list = async (options?: ListRequestOptions) => {
-		const res = await this.api.get('/admin/apis', { params: options });
+	list = async (options?: ListRequestOptions, signal?: AbortSignal) => {
+		const res = await this.api.get('/admin/apis', { params: options, signal });
 		return res.data as Paginated<Api>;
 	};
 
@@ -91,12 +91,14 @@ export default class ApisService extends APIService {
 		return res.data as ClientApiGrant[];
 	};
 
-	listAssignableApis = async (clientId: string, options?: ListRequestOptions) => {
+	listAssignableApis = async (
+		clientId: string,
+		options?: ListRequestOptions,
+		signal?: AbortSignal
+	) => {
 		const res = await this.api.get(
 			`/admin/api-access/${encodeClientIdParam(clientId)}/assignable-apis`,
-			{
-				params: options
-			}
+			{ params: options, signal }
 		);
 		return res.data as Paginated<Api>;
 	};

@@ -564,7 +564,26 @@ func (s *authorizationService) buildInteractionForUser(ctx context.Context, inte
 	}
 	result.ScopeInfo = scopeInfo
 
+	result.API, err = s.requestedAPI(ctx, resource)
+	if err != nil {
+		return interactionSessionForUser{}, err
+	}
+
 	return result, nil
+}
+
+// requestedAPI names the API identified by resource, so that the consent screen says which API the tokens are for even when no permission is requested
+func (s *authorizationService) requestedAPI(ctx context.Context, resource string) (*dto.RequestedAPIDto, error) {
+	if s.apiAccess == nil || resource == "" {
+		return nil, nil
+	}
+
+	audience := canonicalResource(resource)
+	name, err := s.apiAccess.APIName(ctx, audience)
+	if err != nil || name == "" {
+		return nil, err
+	}
+	return &dto.RequestedAPIDto{Name: name, Audience: audience}, nil
 }
 
 // resolveScopeInfoForRequest resolves display names and descriptions for the requested custom scopes and for the permissions of the API identified by resource

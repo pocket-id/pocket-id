@@ -228,14 +228,21 @@ func TestPendingExchangeObservesDecisionDuringLongPoll(t *testing.T) {
 		result <- exchangeOutcome{status: status, err: exchangeErr}
 	}()
 
-	require.NoError(t, fixture.service.Decide(t.Context(), request.Code, "deny", "device-login-user", ""))
+	// Let the exchange pass its first poll and park on the signal, so the decision has to wake it up
+	select {
+	case outcome := <-result:
+		t.Fatalf("exchange returned before the decision: %v", outcome.err)
+	case <-time.After(500 * time.Millisecond):
+	}
+
+	err = fixture.service.Decide(t.Context(), request.Code, "deny", "device-login-user", "")
+	require.NoError(t, err)
 
 	select {
 	case outcome := <-result:
 		require.True(t, apperror.IsCode(outcome.err, apperror.CodeDeviceLoginDenied))
 		require.Equal(t, RequestStatusDenied, outcome.status)
-	case <-time.After(2 * time.Second):
-	case <-time.After(actorPollingInterval + 5*time.Second):
+	case <-time.After(time.Second):
 		t.Fatal("exchange did not observe the actor decision")
 	}
 }

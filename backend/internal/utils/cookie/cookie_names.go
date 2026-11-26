@@ -9,7 +9,7 @@ import (
 var KnownBrowserCookieName = "__Host-known_browser"
 var SessionTokenCookieName = "__Host-session_token" // #nosec G101 -- cookie name, not a credential
 var SessionIdCookieName = "__Host-session"
-var DeviceTokenCookieName = "__Secure-device_token"                     // #nosec G101 -- cookie name, not a credential
+var DeviceTokenCookieName = "__Host-device_token"                       // #nosec G101 -- cookie name, not a credential
 var DeviceLoginTokenCookieName = "__Secure-device_login_token"          // #nosec G101 -- cookie name, not a credential
 var ReauthenticationTokenCookieName = "__Secure-reauthentication_token" // #nosec G101 -- cookie name, not a credential
 

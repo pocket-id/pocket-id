@@ -25,8 +25,8 @@
 		{ label: m.api_permissions(), key: 'permissions', value: (item) => item.permissions.length }
 	];
 
-	function fetchCallback(options: ListRequestOptions) {
-		return apisService.listAssignableApis(clientId, options);
+	function fetchCallback(options: ListRequestOptions, signal: AbortSignal) {
+		return apisService.listAssignableApis(clientId, options, signal);
 	}
 </script>
 

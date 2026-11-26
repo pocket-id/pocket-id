@@ -9,6 +9,7 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/go-fuego/fuego/option"
 	"github.com/go-fuego/fuego/param"
+	"github.com/italypaleale/francis/builtin/signal"
 	francishost "github.com/italypaleale/francis/host"
 	"gorm.io/gorm"
 
@@ -54,14 +55,24 @@ type Module struct {
 }
 
 func New(deps Dependencies) (*Module, error) {
-	service := NewService(deps.Actors.Service(), deps.DB, deps.Sessions, deps.Reauth, deps.AuditLog, deps.IPLocator)
+	// Decisions are signalled so the waiting device's long poll ends on whichever replica holds it, and they only need to outlive their request
+	decisions, err := signal.New("device-login-decision", signal.WithRetention(RequestDuration))
+	if err != nil {
+		return nil, fmt.Errorf("failed to create device login decision signal: %w", err)
+	}
+	err = deps.Actors.RegisterBuiltInActor(decisions)
+	if err != nil {
+		return nil, fmt.Errorf("failed to register device login decision signal: %w", err)
+	}
+
+	service := NewService(deps.Actors.Service(), decisions.Service(deps.Actors.Service()), deps.DB, deps.Sessions, deps.Reauth, deps.AuditLog, deps.IPLocator)
 	module := &Module{
 		service: service,
 		handler: newHandler(service, deps.BaseURL, deps.AppConfig),
 	}
 
 	// Register the durable request actor before the host starts
-	err := deps.Actors.RegisterActor(
+	err = deps.Actors.RegisterActor(
 		requestActorType,
 		newRequestActor,
 	)

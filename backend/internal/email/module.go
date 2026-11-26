@@ -206,9 +206,9 @@ func send[V any](ctx context.Context, module *Module, dbConfig *appconfig.AppCon
 
 	// Send text and HTML together so clients can select the format they support
 	err = emailerService.SendEmail(ctx, emailer.EmailAddress{
-		Name:    recipient.name,
+		Name:    singleLine(recipient.name),
 		Address: recipient.email,
-	}, subject, emailer.SendEmailMessage{
+	}, singleLine(subject), emailer.SendEmailMessage{
 		Text: text,
 		HTML: html,
 	})
@@ -217,6 +217,11 @@ func send[V any](ctx context.Context, module *Module, dbConfig *appconfig.AppCon
 	}
 
 	return nil
+}
+
+// singleLine takes the line breaks out of a header value, because the emailer refuses a message that has one in a header
+func singleLine(value string) string {
+	return strings.Join(strings.Fields(value), " ")
 }
 
 func (m *Module) getEmailer(ctx context.Context, dbConfig *appconfig.AppConfigModel) (emailer.Emailer, error) {
@@ -270,7 +275,7 @@ func smtpConnString(dbConfig *appconfig.AppConfigModel) (string, error) {
 
 	query := url.Values{}
 	query.Set("fromAddress", dbConfig.SmtpFrom.String())
-	query.Set("fromName", dbConfig.AppName.String())
+	query.Set("fromName", singleLine(dbConfig.AppName.String()))
 	query.Set("tls", tlsMode)
 	if dbConfig.SmtpSkipCertVerify.IsTrue() {
 		query.Set("insecureSkipVerify", "true")

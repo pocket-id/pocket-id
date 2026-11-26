@@ -208,6 +208,7 @@
 	"audit_event_client_group_added": "Client group allowed",
 	"audit_event_client_group_removed": "Client group removed",
 	"audit_event_group_created": "Group created",
+	"audit_event_group_updated": "Group updated",
 	"audit_event_group_deleted": "Group deleted",
 	"audit_event_group_member_added": "Group member added",
 	"audit_event_group_member_removed": "Group member removed",

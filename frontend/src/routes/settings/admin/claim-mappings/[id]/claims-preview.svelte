@@ -8,6 +8,7 @@
 		OidcClaimMappingDto,
 		OidcClaimMappingsPreview
 	} from '#lib/types/oidc-claim-mapping-policy.type.ts';
+	import { latestRequest } from '#lib/utils/latest-request-util.ts';
 	import { debounced } from '#lib/utils/debounce-util.ts';
 	import { getAxiosErrorMessage } from '#lib/utils/error-util.ts';
 	import { cn } from '@pocket-id/ui/utils';
@@ -56,20 +57,17 @@
 		];
 	});
 
-	// Each request gets a number so that responses arriving out of order don't overwrite newer ones
-	let latestRequest = 0;
+	const latestPreview = latestRequest();
 	const refresh = debounced(
-		async (userId: string, scopes: string[], mappings: OidcClaimMappingDto[]) => {
-			const request = ++latestRequest;
-			try {
-				const data = await policyService.previewClaimMappings(userId, scopes, mappings);
-				if (request !== latestRequest) return;
-				preview = data;
-				errorMessage = null;
-			} catch (e) {
-				if (request === latestRequest) errorMessage = getAxiosErrorMessage(e);
-			}
-		},
+		(userId: string, scopes: string[], mappings: OidcClaimMappingDto[]) =>
+			latestPreview(async (signal) => {
+				try {
+					preview = await policyService.previewClaimMappings(userId, scopes, mappings, signal);
+					errorMessage = null;
+				} catch (e) {
+					if (!signal.aborted) errorMessage = getAxiosErrorMessage(e);
+				}
+			}),
 		200
 	);
 

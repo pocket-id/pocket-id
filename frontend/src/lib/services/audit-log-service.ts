@@ -3,13 +3,20 @@ import type { ListRequestOptions, Paginated } from '#lib/types/list-request.type
 import APIService from './api-service';
 
 export default class AuditLogService extends APIService {
-	list = async (options?: ListRequestOptions, range?: AuditLogDateRange) => {
-		const res = await this.api.get('/audit-logs', { params: { ...options, ...range } });
+	list = async (options?: ListRequestOptions, range?: AuditLogDateRange, signal?: AbortSignal) => {
+		const res = await this.api.get('/audit-logs', { params: { ...options, ...range }, signal });
 		return res.data as Paginated<AuditLog>;
 	};
 
-	listAllLogs = async (options?: ListRequestOptions, range?: AuditLogDateRange) => {
-		const res = await this.api.get('/admin/audit-logs', { params: { ...options, ...range } });
+	listAllLogs = async (
+		options?: ListRequestOptions,
+		range?: AuditLogDateRange,
+		signal?: AbortSignal
+	) => {
+		const res = await this.api.get('/admin/audit-logs', {
+			params: { ...options, ...range },
+			signal
+		});
 		return res.data as Paginated<AuditLog>;
 	};
 

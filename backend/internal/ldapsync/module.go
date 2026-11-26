@@ -87,7 +87,7 @@ func New(deps Dependencies) (*Module, error) {
 
 	return &Module{
 		service: service,
-		handler: newHandler(service, deps.AppConfig),
+		handler: &handler{actors: deps.Actors.Service()},
 	}, nil
 }
 

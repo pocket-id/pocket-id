@@ -5,6 +5,7 @@ import (
 	"net/http"
 	"net/url"
 	"strings"
+	"time"
 
 	"github.com/pocket-id/fosite"
 	"go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp"
@@ -13,6 +14,9 @@ import (
 )
 
 const envVarPrefix = "OUTBOUND_ALLOWED_HOSTS_"
+
+// requestTimeout bounds a request including its response body, so a server that stops answering cannot hold up its caller forever
+const requestTimeout = 30 * time.Second
 
 // Purpose identifies a feature that sends requests to URLs that admins or third parties control
 type Purpose string
@@ -98,7 +102,7 @@ func New(config *common.EnvConfigSchema) (*Clients, error) {
 
 		transport := NewTransport(base, purpose, policy)
 		c.transports[purpose] = transport
-		c.clients[purpose] = &http.Client{Transport: otelhttp.NewTransport(transport)}
+		c.clients[purpose] = &http.Client{Transport: otelhttp.NewTransport(transport), Timeout: requestTimeout}
 	}
 
 	return c, nil

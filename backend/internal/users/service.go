@@ -385,7 +385,7 @@ func (s *Service) createUserInternal(ctx context.Context, input dto.UserCreateDt
 		user.LdapID = &input.LdapID
 	}
 
-	err := tx.WithContext(ctx).Create(&user).Error
+	err := tx.WithContext(ctx).Omit("UserGroups.*").Create(&user).Error
 	if errors.Is(err, gorm.ErrDuplicatedKey) {
 		// Do not follow this path if we're using LDAP, as we don't want to roll-back the transaction here
 		if !isLdapSync {
@@ -462,6 +462,7 @@ func (s *Service) applyDefaultGroups(ctx context.Context, user *model.User, tx *
 
 			err = tx.WithContext(ctx).
 				Model(user).
+				Omit("UserGroups.*").
 				Association("UserGroups").
 				Replace(groups)
 			if err != nil {
@@ -590,6 +591,13 @@ func (s *Service) UpdateUser(ctx context.Context, cfg *appconfig.AppConfigModel,
 	emailChanged := updatedUser.Email != nil && (locked.Email == nil || *locked.Email != *updatedUser.Email)
 	if !isLdapSync && ((!updateOwnUser && (locked.IsAdmin || updatedUser.IsAdmin)) || (updateOwnUser && locked.IsAdmin && emailChanged)) {
 		if err := origin.Principal.RequireAdminAccess(); err != nil {
+			return model.User{}, err
+		}
+	}
+
+	// A login code mailed to the new address signs in to the whole account, which is more than a key or token that may edit the profile was given
+	if updateOwnUser && emailChanged {
+		if err := origin.Principal.RequireSession(); err != nil {
 			return model.User{}, err
 		}
 	}
@@ -857,14 +865,9 @@ func (s *Service) UpdateUserGroups(ctx context.Context, id string, userGroupIds 
 	err = tx.
 		WithContext(ctx).
 		Model(&user).
+		Omit("UserGroups.*").
 		Association("UserGroups").
 		Replace(groups)
-	if err != nil {
-		return model.User{}, err
-	}
-
-	// Save the updated user
-	err = tx.WithContext(ctx).Save(&user).Error
 	if err != nil {
 		return model.User{}, err
 	}
@@ -877,10 +880,10 @@ func (s *Service) UpdateUserGroups(ctx context.Context, id string, userGroupIds 
 
 	joined, left := utils.Changes(previousGroups, groups, func(group model.UserGroup) string { return group.ID })
 	for _, group := range joined {
-		s.auditLog.Record(ctx, auditlogs.EventGroupMemberAdded, origin, id, auditlogs.Data{"groupName": group.FriendlyName}, tx)
+		s.auditLog.Record(ctx, auditlogs.EventGroupMemberAdded, origin, id, auditlogs.Data{"groupID": group.ID, "groupName": group.FriendlyName}, tx)
 	}
 	for _, group := range left {
-		s.auditLog.Record(ctx, auditlogs.EventGroupMemberRemoved, origin, id, auditlogs.Data{"groupName": group.FriendlyName}, tx)
+		s.auditLog.Record(ctx, auditlogs.EventGroupMemberRemoved, origin, id, auditlogs.Data{"groupID": group.ID, "groupName": group.FriendlyName}, tx)
 	}
 
 	err = tx.Commit().Error

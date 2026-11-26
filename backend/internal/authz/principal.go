@@ -80,6 +80,14 @@ func (p *Principal) RequireSudo() error {
 	return nil
 }
 
+// RequireSession returns the error for a principal that is not a browser session, for checks that depend on the target of a request
+func (p *Principal) RequireSession() error {
+	if p.Kind == KindSession {
+		return nil
+	}
+	return rejectionError(p.Kind)
+}
+
 // RequireAdminAccess returns the error for a principal that may not decide who holds admin access, for checks that depend on the target of a request
 func (p *Principal) RequireAdminAccess() error {
 	err := p.Require(AdminAccessWrite)

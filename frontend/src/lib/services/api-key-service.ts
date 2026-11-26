@@ -9,8 +9,8 @@ import APIService from './api-service';
 import { pathSegment } from '#lib/utils/path-segment-util.ts';
 
 export default class ApiKeyService extends APIService {
-	list = async (options?: ListRequestOptions) => {
-		const res = await this.api.get('/api-keys', { params: options });
+	list = async (options?: ListRequestOptions, signal?: AbortSignal) => {
+		const res = await this.api.get('/api-keys', { params: options, signal });
 		return res.data as Paginated<ApiKey>;
 	};
 
