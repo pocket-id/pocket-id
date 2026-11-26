@@ -10,6 +10,7 @@ import (
 	"github.com/italypaleale/francis/actor"
 
 	"github.com/pocket-id/pocket-id/backend/internal/appconfig"
+	"github.com/pocket-id/pocket-id/backend/internal/common"
 )
 
 // The LdapSync singleton actor decides when the recurring LDAP synchronization runs.
@@ -20,6 +21,9 @@ const SyncActorType = "LdapSync"
 const (
 	// alarmSync is the name of the repeating alarm that runs the synchronization
 	alarmSync = "sync"
+
+	// methodSync runs a synchronization right away and returns its error
+	methodSync = "sync"
 
 	// syncInterval is how often the synchronization runs, as the ISO8601 duration the alarm repetition expects
 	// There's no jitter: the alarm is cluster-wide, so there are no replicas to spread apart
@@ -88,6 +92,19 @@ func (a *syncActor) Bootstrap(parentCtx context.Context, _ actor.Envelope) error
 	a.log.DebugContext(parentCtx, "Registered the recurring LDAP sync alarm", slog.String("interval", syncInterval))
 
 	return nil
+}
+
+// Invoke implements actor.ActorInvoke
+func (a *syncActor) Invoke(ctx context.Context, method string, _ actor.Envelope) (any, error) {
+	if method != methodSync {
+		return nil, common.ErrUnsupportedActorMethod{Method: method}
+	}
+
+	dbConfig, err := a.appConfig.GetConfig(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("error loading app configuration: %w", err)
+	}
+	return nil, a.service.SyncAll(ctx, dbConfig)
 }
 
 // Alarm implements actor.ActorAlarm
