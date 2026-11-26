@@ -187,6 +187,30 @@ func TestModuleSendsInRecipientLanguage(t *testing.T) {
 	assert.Contains(t, decodedBody(t, message), `lang="de"`)
 }
 
+func TestModuleSendsToNamesWithLineBreaks(t *testing.T) {
+	db := testutils.NewDatabaseForTest(t)
+	user := model.User{Username: "recipient", Email: new("recipient@example.test"), FirstName: "Test\nUser"}
+	require.NoError(t, db.Create(&user).Error)
+	module, err := New(db)
+	require.NoError(t, err)
+
+	server := newSMTPTestServer(t)
+	config := newSMTPTestConfig(t, server.address())
+	config.AppName = "Pocket\r\nID"
+	require.NoError(t, module.SendTestEmail(t.Context(), config, user.ID))
+
+	session, err := server.wait()
+	require.NoError(t, err)
+	message, err := mail.ReadMessage(strings.NewReader(session.message))
+	require.NoError(t, err)
+	to, err := mail.ParseAddress(message.Header.Get("To"))
+	require.NoError(t, err)
+	assert.Equal(t, "Test User", to.Name)
+	from, err := mail.ParseAddress(message.Header.Get("From"))
+	require.NoError(t, err)
+	assert.Equal(t, "Pocket ID", from.Name)
+}
+
 // decodedBody joins the decoded text and HTML parts, so assertions don't depend on where quoted-printable breaks lines
 func decodedBody(t *testing.T, message *mail.Message) string {
 	t.Helper()
