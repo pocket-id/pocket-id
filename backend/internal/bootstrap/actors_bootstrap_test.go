@@ -46,7 +46,7 @@ func TestNewActorsOptsGetPSKUsesStableValue(t *testing.T) {
 	require.Equalf(t, expected, actual, "actual result: %s", actual)
 }
 
-// TestNewActorsSelectsTopology covers the branch that FRANCIS_HOST drives: with no standalone runtime configured Pocket ID starts an embedded one, and otherwise it connects to the addresses it was given.
+// TestNewActorsSelectsTopology covers the branch that FRANCIS_RUNTIME_ADDRESS drives: with no standalone runtime configured Pocket ID starts an embedded one, and otherwise it connects to the addresses it was given.
 func TestNewActorsSelectsTopology(t *testing.T) {
 	// registerCronJobs reads the app environment off the global config and skips every job in test mode, which keeps each case down to the host itself and the rate limiters
 	// The actor host is created but never run, so its SQLite file only needs a folder
@@ -61,10 +61,10 @@ func TestNewActorsSelectsTopology(t *testing.T) {
 		})
 
 		return &common.EnvConfigSchema{
-			AppEnv:        common.AppEnvTest,
-			EncryptionKey: []byte("test-encryption-key"),
-			ActorsHost:    "127.0.0.1",
-			ActorsPort:    "1414",
+			AppEnv:         common.AppEnvTest,
+			EncryptionKey:  []byte("test-encryption-key"),
+			ClusterAddress: "127.0.0.1",
+			ClusterPort:    "1414",
 		}
 	}
 

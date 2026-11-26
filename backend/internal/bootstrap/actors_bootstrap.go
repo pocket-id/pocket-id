@@ -25,9 +25,9 @@ import (
 	"github.com/pocket-id/pocket-id/backend/internal/utils/crypto"
 )
 
-// ErrRemoteFrancisRuntime is returned by the helpers that reach the actor data through Pocket ID's own database when FRANCIS_HOST points to a standalone Francis runtime
+// ErrRemoteFrancisRuntime is returned by the helpers that reach the actor data through Pocket ID's own database when FRANCIS_RUNTIME_ADDRESS points to a standalone Francis runtime
 // That runtime owns the actor data instead, so it can only be reached through the runtime itself
-var ErrRemoteFrancisRuntime = errors.New("the actor data is owned by the standalone Francis runtime configured in FRANCIS_HOST, and is not stored in Pocket ID's database")
+var ErrRemoteFrancisRuntime = errors.New("the actor data is owned by the standalone Francis runtime configured in FRANCIS_RUNTIME_ADDRESS, and is not stored in Pocket ID's database")
 
 // ErrEmbeddedFrancisRuntime is returned by the helpers that reach the actor data through a standalone Francis runtime when Pocket ID runs an embedded one
 // There is no runtime to connect to in that case, and the actor data is in Pocket ID's own database
@@ -98,7 +98,7 @@ func (o *NewActorsOpts) newEmbeddedHost(log *slog.Logger) (*local.Host, error) {
 
 	// Options for the host
 	opts := []local.HostOption{
-		local.WithAddress(net.JoinHostPort(o.EnvConfig.ActorsHost, o.EnvConfig.ActorsPort)),
+		local.WithAddress(net.JoinHostPort(o.EnvConfig.ClusterAddress, o.EnvConfig.ClusterPort)),
 		local.WithLogger(log),
 		local.WithRuntimePSKs(psk),
 		local.WithShutdownGracePeriod(10 * time.Second),
@@ -136,7 +136,7 @@ func (o *NewActorsOpts) newEmbeddedHost(log *slog.Logger) (*local.Host, error) {
 func (o *NewActorsOpts) newRemoteHost(log *slog.Logger) (*remote.Host, error) {
 	opts := append(
 		remoteConnectionOptions(o.EnvConfig, log),
-		remote.WithAddress(net.JoinHostPort(o.EnvConfig.ActorsHost, o.EnvConfig.ActorsPort)),
+		remote.WithAddress(net.JoinHostPort(o.EnvConfig.ClusterAddress, o.EnvConfig.ClusterPort)),
 		remote.WithShutdownGracePeriod(10*time.Second),
 	)
 

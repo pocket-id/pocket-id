@@ -139,8 +139,7 @@ func Bootstrap(ctx context.Context) error {
 	// This call blocks until the context is canceled
 	err = servicerunner.NewServiceRunner(services...).Run(ctx)
 	if errors.Is(err, components.ErrClusterFull) {
-		// TODO: Once HA mode is supported, add a note about enabling it
-		return errors.New("it appears that there's already one instance of Pocket ID running - running multiple replicas is not (yet) supported")
+		return errors.New("it appears that there's already one instance of Pocket ID running - set HA_ENABLED=true to run multiple replicas")
 	} else if err != nil {
 		return fmt.Errorf("failed to run services: %w", err)
 	}
