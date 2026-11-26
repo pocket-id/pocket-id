@@ -264,6 +264,9 @@ func (r *recordingEmailVerificationSender) RequestEmailChange(_ context.Context,
 }
 
 func TestUpdateOwnEmailWithVerification(t *testing.T) {
+	// A user changes their own email in their browser session
+	session := auditlogs.Origin{Principal: authz.Principal{Kind: authz.KindSession}}
+
 	// setup creates a user with the given verification state and an update that changes only their email
 	setup := func(t *testing.T, mode string, emailVerified bool) (*Service, *recordingEmailVerificationSender, *appconfig.AppConfigModel, model.User, dto.UserCreateDto) {
 		t.Helper()
@@ -295,7 +298,7 @@ func TestUpdateOwnEmailWithVerification(t *testing.T) {
 	t.Run("a verified email stays in effect until the new address is confirmed", func(t *testing.T) {
 		userService, sender, config, user, update := setup(t, appconfig.EmailVerificationRequired, true)
 
-		updated, err := userService.UpdateUser(t.Context(), config, user.ID, dto.Replace(update), true, false, auditlogs.Origin{})
+		updated, err := userService.UpdateUser(t.Context(), config, user.ID, dto.Replace(update), true, false, session)
 		require.NoError(t, err)
 
 		require.Equal(t, "old@example.com", *updated.Email)
@@ -310,7 +313,7 @@ func TestUpdateOwnEmailWithVerification(t *testing.T) {
 		_, err := userService.CreateUser(t.Context(), config, dto.UserCreateDto{Username: "other", Email: new("new@example.com"), FirstName: "Other"}, auditlogs.Origin{})
 		require.NoError(t, err)
 
-		_, err = userService.UpdateUser(t.Context(), config, user.ID, dto.Replace(update), true, false, auditlogs.Origin{})
+		_, err = userService.UpdateUser(t.Context(), config, user.ID, dto.Replace(update), true, false, session)
 		require.True(t, apperror.IsCode(err, apperror.CodeAlreadyInUse))
 		require.Empty(t, sender.requested)
 	})
@@ -318,7 +321,7 @@ func TestUpdateOwnEmailWithVerification(t *testing.T) {
 	t.Run("an unverified email is replaced right away and the new one has to be verified", func(t *testing.T) {
 		userService, sender, config, user, update := setup(t, appconfig.EmailVerificationRequired, false)
 
-		updated, err := userService.UpdateUser(t.Context(), config, user.ID, dto.Replace(update), true, false, auditlogs.Origin{})
+		updated, err := userService.UpdateUser(t.Context(), config, user.ID, dto.Replace(update), true, false, session)
 		require.NoError(t, err)
 
 		require.Equal(t, "new@example.com", *updated.Email)
@@ -332,7 +335,7 @@ func TestUpdateOwnEmailWithVerification(t *testing.T) {
 		userService, _, config, user, update := setup(t, appconfig.EmailVerificationRequired, true)
 		update.FirstName = "Renamed"
 
-		updated, err := userService.UpdateUser(t.Context(), config, user.ID, dto.Replace(update), true, false, auditlogs.Origin{})
+		updated, err := userService.UpdateUser(t.Context(), config, user.ID, dto.Replace(update), true, false, session)
 		require.NoError(t, err)
 
 		require.Equal(t, "Renamed", updated.FirstName)
@@ -344,7 +347,7 @@ func TestUpdateOwnEmailWithVerification(t *testing.T) {
 		sender.allowErr = apperror.TooManyRequests()
 		update.FirstName = "Renamed"
 
-		_, err := userService.UpdateUser(t.Context(), config, user.ID, dto.Replace(update), true, false, auditlogs.Origin{})
+		_, err := userService.UpdateUser(t.Context(), config, user.ID, dto.Replace(update), true, false, session)
 		require.True(t, apperror.IsCode(err, apperror.CodeRateLimited))
 		require.Empty(t, sender.requested)
 
@@ -363,7 +366,7 @@ func TestUpdateOwnEmailWithVerification(t *testing.T) {
 			return userService.db.WithContext(ctx).Exec("CREATE TABLE IF NOT EXISTS limiter_probe (id INTEGER)").Error
 		}
 
-		_, err := userService.UpdateUser(t.Context(), config, user.ID, dto.Replace(update), true, false, auditlogs.Origin{})
+		_, err := userService.UpdateUser(t.Context(), config, user.ID, dto.Replace(update), true, false, session)
 		require.NoError(t, err)
 		require.Equal(t, []string{"new@example.com"}, sender.requested)
 	})
@@ -373,7 +376,7 @@ func TestUpdateOwnEmailWithVerification(t *testing.T) {
 		sender.requestErr = errors.New("smtp unavailable")
 		update.FirstName = "Renamed"
 
-		updated, err := userService.UpdateUser(t.Context(), config, user.ID, dto.Replace(update), true, false, auditlogs.Origin{})
+		updated, err := userService.UpdateUser(t.Context(), config, user.ID, dto.Replace(update), true, false, session)
 		require.True(t, apperror.IsCode(err, apperror.CodeEmailChangeNotStarted))
 		require.Equal(t, "Renamed", updated.FirstName)
 
@@ -387,7 +390,7 @@ func TestUpdateOwnEmailWithVerification(t *testing.T) {
 		userService, sender, config, user, update := setup(t, appconfig.EmailVerificationRequired, true)
 		config.AllowOwnAccountEdit = "false"
 
-		updated, err := userService.UpdateUser(t.Context(), config, user.ID, dto.Replace(update), true, false, auditlogs.Origin{})
+		updated, err := userService.UpdateUser(t.Context(), config, user.ID, dto.Replace(update), true, false, session)
 		require.NoError(t, err)
 
 		require.Equal(t, "old@example.com", *updated.Email)
@@ -410,7 +413,7 @@ func TestUpdateOwnEmailWithVerification(t *testing.T) {
 	t.Run("the email is replaced right away when verification is optional", func(t *testing.T) {
 		userService, sender, config, user, update := setup(t, appconfig.EmailVerificationOptional, true)
 
-		updated, err := userService.UpdateUser(t.Context(), config, user.ID, dto.Replace(update), true, false, auditlogs.Origin{})
+		updated, err := userService.UpdateUser(t.Context(), config, user.ID, dto.Replace(update), true, false, session)
 		require.NoError(t, err)
 
 		require.Equal(t, "new@example.com", *updated.Email)
@@ -610,6 +613,11 @@ func TestManagingAdminsRequiresAdminAccess(t *testing.T) {
 	require.NoError(t, userService.requireAdminAccessFor(t.Context(), usersWrite.Principal, member.ID))
 	_, err = userService.UpdateUser(t.Context(), config, member.ID, dto.Replace(dto.UserCreateDto{Username: "renamed-member"}), false, false, usersWrite)
 	require.NoError(t, err)
+
+	// A key or token that may edit the profile of a regular user can't move their email either
+	memberKey := auditlogs.Origin{Principal: authz.Principal{Kind: authz.KindAPIKey, UserID: member.ID, Scopes: authz.NewScopeSet(authz.AccountWrite)}}
+	_, err = userService.UpdateUser(t.Context(), config, member.ID, dto.Replace(dto.UserCreateDto{Username: "renamed-member", Email: new("attacker@example.com")}), true, false, memberKey)
+	require.True(t, apperror.IsCode(err, apperror.CodeAPIKeyAuthNotAllowed), err)
 
 	// A browser session with admin access also has to be in sudo mode, but only to act on an admin
 	session := authz.Principal{Kind: authz.KindSession, Scopes: authz.NewScopeSet(authz.UsersWrite, authz.AdminAccessWrite)}

@@ -592,6 +592,13 @@ func (s *Service) UpdateUser(ctx context.Context, cfg *appconfig.AppConfigModel,
 		}
 	}
 
+	// A login code mailed to the new address signs in to the whole account, which is more than a key or token that may edit the profile was given
+	if updateOwnUser && emailChanged {
+		if err := origin.Principal.RequireSession(); err != nil {
+			return model.User{}, err
+		}
+	}
+
 	// Only an admin setting the flag can disable a user, so the previous state is only needed to detect that transition
 	canDisable := s.backchannelLogout != nil && !updateOwnUser && updatedUser.Disabled
 	wasDisabled := locked.Disabled
