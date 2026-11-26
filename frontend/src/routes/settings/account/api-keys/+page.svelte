@@ -74,8 +74,8 @@
 		return [expiry, lastUsed].filter(Boolean).join(' · ');
 	}
 
-	async function fetchKeys(options: ListRequestOptions) {
-		const res = await apiKeyService.list(options);
+	async function fetchKeys(options: ListRequestOptions, signal: AbortSignal) {
+		const res = await apiKeyService.list(options, signal);
 		empty = res.pagination.totalItems === 0;
 		return res;
 	}

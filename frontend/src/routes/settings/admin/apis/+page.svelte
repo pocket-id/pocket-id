@@ -34,7 +34,8 @@
 
 	const href = (api: Api) => `/settings/admin/apis/${api.id}`;
 
-	const fetchApis = (options: ListRequestOptions) => apisService.list(options);
+	const fetchApis = (options: ListRequestOptions, signal: AbortSignal) =>
+		apisService.list(options, signal);
 
 	const columns: AdvancedTableColumn<Api>[] = $derived([
 		{ label: m.api(), column: 'name', sortable: true, cell: ApiCell },

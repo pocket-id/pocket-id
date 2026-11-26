@@ -35,8 +35,8 @@
 	const groupSlug = (group: UserGroupMinimal) =>
 		group.name !== group.friendlyName.toLowerCase() ? group.name : undefined;
 
-	async function fetchGroups(options: ListRequestOptions) {
-		const res = await userGroupService.list(options);
+	async function fetchGroups(options: ListRequestOptions, signal: AbortSignal) {
+		const res = await userGroupService.list(options, signal);
 		empty = res.pagination.totalItems === 0 && !options.search;
 		return res;
 	}

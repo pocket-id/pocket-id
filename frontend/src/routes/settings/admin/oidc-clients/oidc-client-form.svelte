@@ -18,6 +18,7 @@
 		OidcClientLogoPreset
 	} from '#lib/types/oidc.type.ts';
 	import { cachedOidcClientLogo } from '#lib/utils/cached-asset-util.ts';
+	import { latestRequest } from '#lib/utils/latest-request-util.ts';
 	import { debounced } from '#lib/utils/debounce-util.ts';
 	import { axiosErrorToast } from '#lib/utils/error-util.ts';
 	import { preventDefault } from '#lib/utils/event-util.ts';
@@ -125,19 +126,24 @@
 	// Every policy loaded so far, so the selected one keeps its label when a search no longer returns it
 	let knownPolicies = $state(claimMappingPolicies ?? []);
 	let isPolicySearchLoading = $state(false);
+	const latestPolicySearch = latestRequest();
 	const onPolicySearch = debounced(
-		async (search: string) => {
-			const result = await policyService.listClaimMappingPolicies({
-				search,
-				pagination: { page: 1, limit: 20 },
-				sort: { column: 'isDefault', direction: 'desc' }
-			});
-			policyResults = result.data;
-			knownPolicies = [
-				...knownPolicies,
-				...result.data.filter((p) => !knownPolicies.some((known) => known.id === p.id))
-			];
-		},
+		(search: string) =>
+			latestPolicySearch(async (signal) => {
+				const result = await policyService.listClaimMappingPolicies(
+					{
+						search,
+						pagination: { page: 1, limit: 20 },
+						sort: { column: 'isDefault', direction: 'desc' }
+					},
+					signal
+				);
+				policyResults = result.data;
+				knownPolicies = [
+					...knownPolicies,
+					...result.data.filter((p) => !knownPolicies.some((known) => known.id === p.id))
+				];
+			}),
 		300,
 		(loading) => (isPolicySearchLoading = loading)
 	);

@@ -81,12 +81,15 @@
 		).filter(([value]) => value !== 'unverified' || verificationOn)
 	);
 
-	async function fetchUsers(options: ListRequestOptions) {
-		const res = await userService.list({
-			...options,
-			search: search.trim() || undefined,
-			filters: { ...options.filters, ...scopeFilters[scope] }
-		});
+	async function fetchUsers(options: ListRequestOptions, signal: AbortSignal) {
+		const res = await userService.list(
+			{
+				...options,
+				search: search.trim() || undefined,
+				filters: { ...options.filters, ...scopeFilters[scope] }
+			},
+			signal
+		);
 		for (const user of res.data) loadedUsers.set(user.id, user);
 		shownCount = res.pagination.totalItems;
 		return res;
@@ -382,13 +385,16 @@
 		? m.add_name_to_groups({ name: selectedUsers[0].firstName || selectedUsers[0].displayName })
 		: m.add_count_users_to_groups({ count: selectedUsers.length })}
 	searchLabel={m.search_groups()}
-	load={(search) =>
+	load={(search, signal) =>
 		userGroupService
-			.list({
-				search,
-				pagination: { page: 1, limit: 50 },
-				sort: { column: 'friendlyName', direction: 'asc' }
-			})
+			.list(
+				{
+					search,
+					pagination: { page: 1, limit: 50 },
+					sort: { column: 'friendlyName', direction: 'asc' }
+				},
+				signal
+			)
 			.then((res) => res.data)}
 	row={GroupRow}
 	confirmLabel={groupsConfirmLabel}

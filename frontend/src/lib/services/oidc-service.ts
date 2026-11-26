@@ -63,10 +63,8 @@ class OidcService extends APIService {
 		return data;
 	};
 
-	listClients = async (options?: ListRequestOptions) => {
-		const res = await this.api.get('/admin/oidc/clients', {
-			params: options
-		});
+	listClients = async (options?: ListRequestOptions, signal?: AbortSignal) => {
+		const res = await this.api.get('/admin/oidc/clients', { params: options, signal });
 		return res.data as Paginated<OidcClientWithAllowedGroups>;
 	};
 
@@ -116,9 +114,10 @@ class OidcService extends APIService {
 		cachedOidcClientLogo.bustCache(id);
 	};
 
-	searchLogoPresets = async (search: string) => {
+	searchLogoPresets = async (search: string, signal?: AbortSignal) => {
 		const { data } = await this.api.get<OidcClientLogoPreset[]>('/admin/oidc/logo-presets', {
-			params: { search }
+			params: { search },
+			signal
 		});
 		return data;
 	};
@@ -169,13 +168,16 @@ class OidcService extends APIService {
 		return response.data;
 	};
 
-	listOwnAccessibleClients = async (options?: ListRequestOptions) => {
-		const res = await this.api.get('/oidc/users/me/clients', { params: options });
+	listOwnAccessibleClients = async (options?: ListRequestOptions, signal?: AbortSignal) => {
+		const res = await this.api.get('/oidc/users/me/clients', { params: options, signal });
 		return res.data as Paginated<AccessibleOidcClient>;
 	};
 
-	listOwnAuthorizedClients = async (options?: ListRequestOptions) => {
-		const res = await this.api.get('/oidc/users/me/authorized-clients', { params: options });
+	listOwnAuthorizedClients = async (options?: ListRequestOptions, signal?: AbortSignal) => {
+		const res = await this.api.get('/oidc/users/me/authorized-clients', {
+			params: options,
+			signal
+		});
 		return res.data as Paginated<AuthorizedOidcClient>;
 	};
 

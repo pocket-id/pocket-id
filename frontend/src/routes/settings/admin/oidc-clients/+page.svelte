@@ -40,8 +40,8 @@
 	openOnCreateParam(() => (createOpen = true));
 	let empty = $state(data.empty);
 
-	async function fetchClients(options: ListRequestOptions) {
-		const res = await oidcService.listClients(options);
+	async function fetchClients(options: ListRequestOptions, signal: AbortSignal) {
+		const res = await oidcService.listClients(options, signal);
 		const filtered = Object.values(options.filters ?? {}).some((values) => values.length);
 		empty = res.pagination.totalItems === 0 && !options.search && !filtered;
 		return res;

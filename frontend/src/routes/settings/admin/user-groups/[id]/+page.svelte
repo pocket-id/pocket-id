@@ -458,13 +458,16 @@
 	bind:open={memberPickerOpen}
 	title={m.add_members_to_group({ group: group.friendlyName })}
 	searchLabel={m.search_people()}
-	load={(search) =>
+	load={(search, signal) =>
 		userService
-			.list({
-				search,
-				pagination: { page: 1, limit: 50 },
-				sort: { column: 'displayName', direction: 'asc' }
-			})
+			.list(
+				{
+					search,
+					pagination: { page: 1, limit: 50 },
+					sort: { column: 'displayName', direction: 'asc' }
+				},
+				signal
+			)
 			.then((res) => res.data)}
 	exclude={group.users.map((u) => u.id)}
 	row={MemberRow}

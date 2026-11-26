@@ -14,9 +14,10 @@ import APIService from './api-service';
 import { pathSegment } from '#lib/utils/path-segment-util.ts';
 
 class OidcClaimMappingPolicyService extends APIService {
-	listClaimMappingPolicies = async (options?: ListRequestOptions) => {
+	listClaimMappingPolicies = async (options?: ListRequestOptions, signal?: AbortSignal) => {
 		const res = await this.api.get('/admin/oidc/claim-mapping-policies', {
-			params: options
+			params: options,
+			signal
 		});
 		return res.data as Paginated<OidcClaimMappingPolicyMetadataDto>;
 	};
@@ -46,13 +47,14 @@ class OidcClaimMappingPolicyService extends APIService {
 	previewClaimMappings = async (
 		userId: string,
 		scopes: string[],
-		claimMappings: OidcClaimMappingDto[]
+		claimMappings: OidcClaimMappingDto[],
+		signal?: AbortSignal
 	) => {
-		const res = await this.api.post('/admin/oidc/claim-mapping-policies/preview', {
-			userId,
-			scopes,
-			claimMappings
-		});
+		const res = await this.api.post(
+			'/admin/oidc/claim-mapping-policies/preview',
+			{ userId, scopes, claimMappings },
+			{ signal }
+		);
 		return res.data as OidcClaimMappingsPreview;
 	};
 
@@ -66,12 +68,14 @@ class OidcClaimMappingPolicyService extends APIService {
 		return res.data as Paginated<OidcClientMetaData>;
 	};
 
-	listAssignableClients = async (id: string, options?: ListRequestOptions) => {
+	listAssignableClients = async (
+		id: string,
+		options?: ListRequestOptions,
+		signal?: AbortSignal
+	) => {
 		const res = await this.api.get(
 			`/admin/oidc/claim-mapping-policies/${pathSegment(id)}/assignable-clients`,
-			{
-				params: options
-			}
+			{ params: options, signal }
 		);
 		return res.data as Paginated<OidcClientMetaData>;
 	};
@@ -88,8 +92,8 @@ class OidcClaimMappingPolicyService extends APIService {
 		);
 	};
 
-	listCustomScopes = async (options?: ListRequestOptions) => {
-		const res = await this.api.get('/admin/oidc/custom-scopes', { params: options });
+	listCustomScopes = async (options?: ListRequestOptions, signal?: AbortSignal) => {
+		const res = await this.api.get('/admin/oidc/custom-scopes', { params: options, signal });
 		return res.data as Paginated<CustomScope>;
 	};
 

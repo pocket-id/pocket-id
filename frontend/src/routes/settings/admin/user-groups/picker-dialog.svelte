@@ -14,6 +14,7 @@
 	import { Skeleton } from '@pocket-id/ui/skeleton';
 	import { debounced } from '#lib/utils/debounce-util.ts';
 	import { axiosErrorToast } from '#lib/utils/error-util.ts';
+	import { latestRequest } from '#lib/utils/latest-request-util.ts';
 	import { createRangeSelect } from '#lib/utils/range-select-util.ts';
 	import SearchIcon from '~icons/solar/magnifier-linear';
 	import { untrack, type Snippet } from 'svelte';
@@ -31,7 +32,7 @@
 		open: boolean;
 		title: string;
 		searchLabel: string;
-		load: (search: string) => Promise<T[]>;
+		load: (search: string, signal: AbortSignal) => Promise<T[]>;
 		// Items that are already assigned; only what can still be added is listed
 		exclude?: string[];
 		row: Snippet<[T]>;
@@ -51,9 +52,13 @@
 
 	const visible = $derived(items?.filter((item) => !excluded.includes(item.id)));
 
+	const latestLoad = latestRequest();
+
 	async function refresh() {
 		try {
-			items = await load(search.trim());
+			await latestLoad(async (signal) => {
+				items = await load(search.trim(), signal);
+			});
 		} catch (e) {
 			axiosErrorToast(e);
 		}

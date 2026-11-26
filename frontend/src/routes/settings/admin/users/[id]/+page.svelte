@@ -292,13 +292,16 @@
 	bind:open={groupPickerOpen}
 	title={m.add_name_to_groups({ name: firstName })}
 	searchLabel={m.search_groups()}
-	load={(search) =>
+	load={(search, signal) =>
 		userGroupService
-			.list({
-				search,
-				pagination: { page: 1, limit: 50 },
-				sort: { column: 'friendlyName', direction: 'asc' }
-			})
+			.list(
+				{
+					search,
+					pagination: { page: 1, limit: 50 },
+					sort: { column: 'friendlyName', direction: 'asc' }
+				},
+				signal
+			)
 			.then((res) => res.data)}
 	exclude={user.userGroups.map((g) => g.id)}
 	row={GroupRow}
