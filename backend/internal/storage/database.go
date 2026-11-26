@@ -8,9 +8,13 @@ import (
 	"io"
 	"os"
 	"path/filepath"
+	"runtime"
 	"strings"
+	"sync"
 	"time"
+	"weak"
 
+	"golang.org/x/sync/singleflight"
 	"gorm.io/gorm"
 	"gorm.io/gorm/clause"
 
@@ -34,6 +38,23 @@ func (storageRow) TableName() string {
 
 type databaseStorage struct {
 	db *gorm.DB
+
+	// loaded holds a weak.Pointer[storageRow] by path for the files that readers still hold, so that the downloads of one file share a single copy in memory
+	// One copy per download would let slow or many readers of a public file use up the memory
+	loaded sync.Map
+	// loading lets the readers that find a file not loaded wait for one load of it
+	loading singleflight.Group
+}
+
+// sharedFile reads a loaded file and keeps the copy it shares with other readers alive
+type sharedFile struct {
+	*bytes.Reader
+
+	row *storageRow
+}
+
+func (sharedFile) Close() error {
+	return nil
 }
 
 // NewDatabaseStorage creates a new database storage provider
@@ -84,27 +105,67 @@ func (s *databaseStorage) Save(ctx context.Context, relativePath string, data io
 		return fmt.Errorf("failed to save file to database: %w", result.Error)
 	}
 
+	// The size and the time in seconds can't tell this version from one saved a moment ago, so the next reader loads it
+	s.loaded.Delete(relativePath)
+
 	return nil
 }
 
 func (s *databaseStorage) Open(ctx context.Context, relativePath string) (io.ReadCloser, int64, error) {
 	relativePath = filepath.ToSlash(filepath.Clean(relativePath))
 
-	var storage storageRow
-	result := s.db.
+	// Look up the version of the file without its data
+	var current storageRow
+	err := s.db.
 		WithContext(ctx).
+		Select("size", "mod_time").
 		Where("path = ?", relativePath).
-		First(&storage)
-
-	if result.Error != nil {
-		if errors.Is(result.Error, gorm.ErrRecordNotFound) {
-			return nil, 0, os.ErrNotExist
-		}
-		return nil, 0, fmt.Errorf("failed to read file from database: %w", result.Error)
+		First(&current).
+		Error
+	if errors.Is(err, gorm.ErrRecordNotFound) {
+		return nil, 0, os.ErrNotExist
+	}
+	if err != nil {
+		return nil, 0, fmt.Errorf("failed to read file from database: %w", err)
 	}
 
-	reader := io.NopCloser(bytes.NewReader(storage.Data))
-	return reader, storage.Size, nil
+	// Load the file unless other readers hold this version of it, which another replica may have replaced
+	// The load is shared, so it goes on when the reader that started it gives up
+	loaded, err, _ := s.loading.Do(relativePath, func() (any, error) {
+		held, _ := s.loaded.Load(relativePath)
+		pointer, _ := held.(weak.Pointer[storageRow])
+		row := pointer.Value()
+		if row != nil && row.Size == current.Size && row.ModTime.ToTime().Equal(current.ModTime.ToTime()) {
+			return row, nil
+		}
+
+		row = &storageRow{}
+		err := s.db.
+			WithContext(context.WithoutCancel(ctx)).
+			Where("path = ?", relativePath).
+			First(row).
+			Error
+		if err != nil {
+			return nil, err
+		}
+
+		// Forget the path again once no reader holds this copy any more
+		pointer = weak.Make(row)
+		s.loaded.Store(relativePath, pointer)
+		runtime.AddCleanup(row, func(path string) {
+			s.loaded.CompareAndDelete(path, pointer)
+		}, relativePath)
+		return row, nil
+	})
+	if errors.Is(err, gorm.ErrRecordNotFound) {
+		return nil, 0, os.ErrNotExist
+	}
+	if err != nil {
+		return nil, 0, fmt.Errorf("failed to read file from database: %w", err)
+	}
+
+	row := loaded.(*storageRow) //nolint:forcetypeassert // The function above only returns a *storageRow
+	return sharedFile{Reader: bytes.NewReader(row.Data), row: row}, row.Size, nil
 }
 
 func (s *databaseStorage) Delete(ctx context.Context, relativePath string) error {

@@ -132,6 +132,30 @@ func TestDatabaseStorageOperations(t *testing.T) {
 	})
 }
 
+func TestDatabaseStorageSharesOneCopyAmongReaders(t *testing.T) {
+	store, err := NewDatabaseStorage(testingutil.NewDatabaseForTest(t))
+	require.NoError(t, err)
+	require.NoError(t, store.Save(t.Context(), "background.png", bytes.NewBufferString("first")))
+
+	// Readers that are open at the same time read the same copy
+	first, _, err := store.Open(t.Context(), "background.png")
+	require.NoError(t, err)
+	second, _, err := store.Open(t.Context(), "background.png")
+	require.NoError(t, err)
+	assert.Same(t, first.(sharedFile).row, second.(sharedFile).row)
+
+	// A new version of the same size reaches the next reader, while the open ones keep the version they opened
+	require.NoError(t, store.Save(t.Context(), "background.png", bytes.NewBufferString("other")))
+	third, _, err := store.Open(t.Context(), "background.png")
+	require.NoError(t, err)
+	contents, err := io.ReadAll(third)
+	require.NoError(t, err)
+	assert.Equal(t, "other", string(contents))
+	contents, err = io.ReadAll(first)
+	require.NoError(t, err)
+	assert.Equal(t, "first", string(contents))
+}
+
 func TestNewDatabaseStorage(t *testing.T) {
 	t.Run("should return error with nil database", func(t *testing.T) {
 		_, err := NewDatabaseStorage(nil)
