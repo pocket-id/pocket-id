@@ -609,22 +609,6 @@ func (s *Service) reconcileUsers(ctx context.Context, tx *gorm.DB, desiredUsers 
 			continue
 		}
 
-		// If a user is found (even if disabled), enable them since they're now back in LDAP.
-		if databaseUser.ID != "" && databaseUser.Disabled {
-			err = tx.
-				WithContext(ctx).
-				Model(&model.User{}).
-				Where("id = ?", databaseUser.ID).
-				Update("disabled", false).
-				Error
-			if err != nil {
-				return nil, nil, nil, fmt.Errorf("failed to enable user %s: %w", databaseUser.Username, err)
-			}
-
-			databaseUser.Disabled = false
-			ldapUsersByID[desiredUser.ldapID] = databaseUser
-		}
-
 		userID := databaseUser.ID
 		if databaseUser.ID == "" {
 			createdUser, err := s.users.CreateUserInternal(ctx, dbConfig, input, true, tx)
