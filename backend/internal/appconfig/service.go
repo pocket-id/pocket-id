@@ -136,12 +136,17 @@ func (s *AppConfigService) UpdateAppConfig(ctx context.Context, update dto.Updat
 		return nil, apperror.UIConfigDisabled()
 	}
 
-	// Compute the update from the saved configuration, which holds the secrets but not the values set in the environment
+	// Compute the update from the configuration in effect, so a rule that reads several properties sees the values set in the environment
 	saved, err := s.getSavedConfig(ctx)
 	if err != nil {
 		return nil, err
 	}
-	input, err := update(saved)
+	current := saved.Clone()
+	err = current.Update(s.envOverrides)
+	if err != nil {
+		return nil, err
+	}
+	input, err := update(current)
 	if err != nil {
 		return nil, err
 	}
@@ -186,6 +191,22 @@ func (s *AppConfigService) UpdateAppConfig(ctx context.Context, update dto.Updat
 			return nil, err
 		}
 		break
+	}
+
+	// Refuse the rule violations the changes introduce to the configuration in effect, where the environment has the last word
+	effective := current.Clone()
+	err = effective.Update(changes)
+	if err != nil {
+		return nil, err
+	}
+	var currentDto, effectiveDto AppConfigUpdateDto
+	err = errors.Join(dto.MapStruct(current, &currentDto), dto.MapStruct(effective, &effectiveDto))
+	if err != nil {
+		return nil, err
+	}
+	err = dto.ValidateUpdate(&currentDto, &effectiveDto)
+	if err != nil {
+		return nil, err
 	}
 
 	// Apply the changes by invoking the actor

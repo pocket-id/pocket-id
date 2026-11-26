@@ -7,6 +7,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/go-playground/validator/v10"
 	"github.com/italypaleale/francis/actor"
 	"github.com/italypaleale/francis/host/local"
 	"github.com/stretchr/testify/assert"
@@ -482,6 +483,22 @@ func TestService_EnvOverrides(t *testing.T) {
 		for _, v := range vars {
 			assert.Equal(t, v.Key == "appName" || v.Key == "smtpPassword", v.EnvOverride, v.Key)
 		}
+	})
+
+	t.Run("a rule that reads several properties sees the values set in the environment", func(t *testing.T) {
+		setUIConfigDisabled(t, false)
+		t.Setenv("SMTP_HOST", "smtp.example.com")
+		t.Setenv("SMTP_FROM", "id@example.com")
+		svc := newActorBackedService(t)
+
+		required := dto.MergePatch[AppConfigUpdateDto](map[string]any{"emailVerification": "required", "requireUserEmail": "true", "emailsVerified": "false"})
+		_, err := svc.UpdateAppConfig(t.Context(), required, adminAccess)
+		require.NoError(t, err)
+
+		t.Setenv("EMAILS_VERIFIED", "true")
+		svc = newActorBackedService(t)
+		_, err = svc.UpdateAppConfig(t.Context(), required, adminAccess)
+		require.ErrorAs(t, err, new(validator.ValidationErrors))
 	})
 
 	t.Run("cross-property rules are left to saving when the UI config is enabled", func(t *testing.T) {
