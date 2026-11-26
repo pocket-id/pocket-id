@@ -297,15 +297,24 @@
 		await refresh();
 	}
 
+	let latestRefreshRequest = 0;
+
 	export async function refresh() {
+		const request = ++latestRefreshRequest;
 		isRefreshing = true;
+		let nextItems: Paginated<T>;
 		try {
-			items = await fetchCallback(requestOptions);
+			nextItems = await fetchCallback(requestOptions);
 		} finally {
-			isRefreshing = false;
+			if (request === latestRefreshRequest) {
+				isRefreshing = false;
+			}
 		}
-		await changePageState(items.pagination.currentPage);
-		updateListLength(items.pagination.totalItems);
+		if (request !== latestRefreshRequest) return;
+		items = nextItems;
+		await changePageState(nextItems.pagination.currentPage);
+		if (request !== latestRefreshRequest) return;
+		updateListLength(nextItems.pagination.totalItems);
 	}
 
 	export function isColumnVisible(column: string) {
