@@ -456,37 +456,19 @@ func (s *Service) DeleteCredential(ctx context.Context, userID string, credentia
 }
 
 func (s *Service) UpdateCredential(ctx context.Context, userID, credentialID, name string) (WebauthnCredential, error) {
-	tx := s.db.Begin()
-	defer func() {
-		tx.Rollback()
-	}()
-
+	// Rename the passkey in one statement, so one that is removed in the meantime stays removed
 	var credential WebauthnCredential
-	err := tx.
+	result := s.db.
 		WithContext(ctx).
+		Model(&credential).
+		Clauses(clause.Returning{}).
 		Where("id = ? AND user_id = ?", credentialID, userID).
-		First(&credential).
-		Error
-	if errors.Is(err, gorm.ErrRecordNotFound) {
+		Update("name", name)
+	if result.Error != nil {
+		return WebauthnCredential{}, result.Error
+	}
+	if result.RowsAffected == 0 {
 		return WebauthnCredential{}, apperror.NotFound("Passkey")
-	}
-	if err != nil {
-		return credential, err
-	}
-
-	credential.Name = name
-
-	err = tx.
-		WithContext(ctx).
-		Save(&credential).
-		Error
-	if err != nil {
-		return credential, err
-	}
-
-	err = tx.Commit().Error
-	if err != nil {
-		return credential, err
 	}
 
 	return credential, nil

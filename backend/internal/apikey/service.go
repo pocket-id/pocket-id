@@ -179,6 +179,7 @@ func (s *Service) RenewApiKey(ctx context.Context, userID, apiKeyID string, expi
 	err := tx.
 		WithContext(ctx).
 		Model(&ApiKey{}).
+		Clauses(clause.Locking{Strength: "UPDATE"}).
 		Where("id = ? AND user_id = ?", apiKeyID, userID).
 		First(&apiKey).
 		Error

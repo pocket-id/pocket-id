@@ -15,6 +15,7 @@ import (
 	"github.com/google/uuid"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"gorm.io/gorm"
 
 	"github.com/pocket-id/pocket-id/backend/internal/appconfig"
 	"github.com/pocket-id/pocket-id/backend/internal/apperror"
@@ -398,6 +399,26 @@ func TestConsumeReauthenticationTokenReturnsTokenCreationTime(t *testing.T) {
 	require.NoError(t, tx.Commit().Error)
 
 	require.Equal(t, storedToken.CreatedAt.UTC(), reauthenticatedAt)
+}
+
+func TestUpdateCredentialDoesNotRestoreRemovedPasskey(t *testing.T) {
+	db := testutils.NewDatabaseForTest(t)
+	user := model.User{Username: "owner"}
+	require.NoError(t, db.Create(&user).Error)
+	credential := WebauthnCredential{Name: "Original name", CredentialID: []byte("test-credential"), PublicKey: []byte("test-public-key"), UserID: user.ID}
+	require.NoError(t, db.Create(&credential).Error)
+
+	// Remove the passkey right before the rename writes, like a removal that commits first
+	require.NoError(t, db.Callback().Update().Before("gorm:update").Register("test:remove_passkey", func(tx *gorm.DB) {
+		tx.Session(&gorm.Session{NewDB: true}).Exec("DELETE FROM webauthn_credentials")
+	}))
+
+	_, err := (&Service{db: db}).UpdateCredential(t.Context(), user.ID, credential.ID, "New name")
+	require.True(t, apperror.IsCode(err, apperror.CodeNotFound), err)
+
+	var count int64
+	require.NoError(t, db.Model(&WebauthnCredential{}).Count(&count).Error)
+	assert.Zero(t, count)
 }
 
 func TestUpdateCredentialKeepsAAGUID(t *testing.T) {
