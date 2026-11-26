@@ -126,9 +126,19 @@ func TestMembershipAndClientChangesAreRecorded(t *testing.T) {
 	require.NoError(t, err)
 
 	assert.Equal(t, []recordedEntry{
-		{event: auditlogs.EventGroupMemberAdded, userID: joiner.ID, data: auditlogs.Data{"groupName": "Family"}},
-		{event: auditlogs.EventGroupMemberRemoved, userID: leaver.ID, data: auditlogs.Data{"groupName": "Family"}},
-		{event: auditlogs.EventClientGroupAdded, data: auditlogs.Data{"clientID": client.ID, "clientName": "Photos", "groupName": "Family"}},
+		{event: auditlogs.EventGroupMemberAdded, userID: joiner.ID, data: auditlogs.Data{"groupID": group.ID, "groupName": "Family"}},
+		{event: auditlogs.EventGroupMemberRemoved, userID: leaver.ID, data: auditlogs.Data{"groupID": group.ID, "groupName": "Family"}},
+		{event: auditlogs.EventClientGroupAdded, data: auditlogs.Data{"clientID": client.ID, "clientName": "Photos", "groupID": group.ID, "groupName": "Family"}},
+	}, auditLog.entries)
+
+	// A rename is recorded with both names, a change of the notes alone is not
+	auditLog.entries = nil
+	_, err = groupService.Update(t.Context(), &appconfig.AppConfigModel{}, group.ID, dto.Replace(dto.UserGroupCreateDto{Name: "admins", FriendlyName: "Family", Notes: "Renamed"}), auditlogs.Origin{})
+	require.NoError(t, err)
+	_, err = groupService.Update(t.Context(), &appconfig.AppConfigModel{}, group.ID, dto.Replace(dto.UserGroupCreateDto{Name: "admins", FriendlyName: "Family"}), auditlogs.Origin{})
+	require.NoError(t, err)
+	assert.Equal(t, []recordedEntry{
+		{event: auditlogs.EventGroupUpdated, data: auditlogs.Data{"groupID": group.ID, "groupName": "Family", "changes": "name: family → admins"}},
 	}, auditLog.entries)
 }
 
@@ -150,7 +160,7 @@ func TestUpdatesGroupWithThousandsOfMembers(t *testing.T) {
 
 	_, err = groupService.UpdateUsers(t.Context(), group.ID, userIDs, auditlogs.Origin{})
 	require.NoError(t, err)
-	_, err = groupService.Update(t.Context(), &appconfig.AppConfigModel{}, group.ID, dto.Replace(dto.UserGroupCreateDto{Name: "staff", FriendlyName: "All staff"}))
+	_, err = groupService.Update(t.Context(), &appconfig.AppConfigModel{}, group.ID, dto.Replace(dto.UserGroupCreateDto{Name: "staff", FriendlyName: "All staff"}), auditlogs.Origin{})
 	require.NoError(t, err)
 	_, err = groupService.UpdateAllowedOidcClient(t.Context(), group.ID, dto.UserGroupUpdateAllowedOidcClientsDto{}, auditlogs.Origin{})
 	require.NoError(t, err)
@@ -167,7 +177,7 @@ func TestLdapSyncKeepsGroupNotes(t *testing.T) {
 	require.NoError(t, err)
 
 	// LDAP sends no notes, so a sync must not clear the ones an admin wrote
-	group, err = groupService.updateInternal(t.Context(), group.ID, dto.UserGroupCreateDto{Name: "staff", FriendlyName: "All staff"}, true, db, &appconfig.AppConfigModel{})
+	group, err = groupService.updateInternal(t.Context(), group.ID, dto.UserGroupCreateDto{Name: "staff", FriendlyName: "All staff"}, true, auditlogs.LDAPSync, db, &appconfig.AppConfigModel{})
 	require.NoError(t, err)
 	require.Equal(t, "All staff", group.FriendlyName)
 	require.Equal(t, "Everyone on payroll", group.Notes)

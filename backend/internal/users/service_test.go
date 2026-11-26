@@ -575,8 +575,8 @@ func TestAccessChangesAreRecorded(t *testing.T) {
 
 	assert.Len(t, auditLog.events[auditlogs.EventAdminGranted], 1)
 	assert.Len(t, auditLog.events[auditlogs.EventAccountDisabled], 1)
-	assert.Equal(t, []auditlogs.Data{{"groupName": "New"}}, auditLog.events[auditlogs.EventGroupMemberAdded])
-	assert.Equal(t, []auditlogs.Data{{"groupName": "Old"}}, auditLog.events[auditlogs.EventGroupMemberRemoved])
+	assert.Equal(t, []auditlogs.Data{{"groupID": newGroup.ID, "groupName": "New"}}, auditLog.events[auditlogs.EventGroupMemberAdded])
+	assert.Equal(t, []auditlogs.Data{{"groupID": oldGroup.ID, "groupName": "Old"}}, auditLog.events[auditlogs.EventGroupMemberRemoved])
 	assert.Len(t, auditLog.events[auditlogs.EventAccountDeleted], 1)
 }
 

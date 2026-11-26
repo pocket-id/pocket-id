@@ -878,10 +878,10 @@ func (s *Service) UpdateUserGroups(ctx context.Context, id string, userGroupIds 
 
 	joined, left := utils.Changes(previousGroups, groups, func(group model.UserGroup) string { return group.ID })
 	for _, group := range joined {
-		s.auditLog.Record(ctx, auditlogs.EventGroupMemberAdded, origin, id, auditlogs.Data{"groupName": group.FriendlyName}, tx)
+		s.auditLog.Record(ctx, auditlogs.EventGroupMemberAdded, origin, id, auditlogs.Data{"groupID": group.ID, "groupName": group.FriendlyName}, tx)
 	}
 	for _, group := range left {
-		s.auditLog.Record(ctx, auditlogs.EventGroupMemberRemoved, origin, id, auditlogs.Data{"groupName": group.FriendlyName}, tx)
+		s.auditLog.Record(ctx, auditlogs.EventGroupMemberRemoved, origin, id, auditlogs.Data{"groupID": group.ID, "groupName": group.FriendlyName}, tx)
 	}
 
 	err = tx.Commit().Error

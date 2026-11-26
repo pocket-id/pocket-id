@@ -82,7 +82,7 @@ func (h *handler) update(c *gin.Context, update dto.Update[dto.UserGroupCreateDt
 		return dto.UserGroupDto{}, fmt.Errorf("error loading app configuration: %w", err)
 	}
 
-	group, err := h.service.Update(c.Request.Context(), dbConfig, c.Param("id"), update)
+	group, err := h.service.Update(c.Request.Context(), dbConfig, c.Param("id"), update, auditlogs.OriginFrom(c))
 	if err != nil {
 		return dto.UserGroupDto{}, err
 	}

@@ -33,6 +33,7 @@ export const eventTypes: Record<string, string> = {
 	CLIENT_GROUP_ADDED: m.audit_event_client_group_added(),
 	CLIENT_GROUP_REMOVED: m.audit_event_client_group_removed(),
 	GROUP_CREATED: m.audit_event_group_created(),
+	GROUP_UPDATED: m.audit_event_group_updated(),
 	GROUP_DELETED: m.audit_event_group_deleted(),
 	GROUP_MEMBER_ADDED: m.audit_event_group_member_added(),
 	GROUP_MEMBER_REMOVED: m.audit_event_group_member_removed()

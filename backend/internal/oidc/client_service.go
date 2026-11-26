@@ -777,10 +777,10 @@ func (s *clientService) UpdateAllowedUserGroups(ctx context.Context, id string, 
 
 	added, removed := utils.Changes(previousGroups, groups, func(group model.UserGroup) string { return group.ID })
 	for _, group := range added {
-		s.auditLog.Record(ctx, auditlogs.EventClientGroupAdded, origin, "", auditlogs.Data{"clientID": client.ID, "clientName": client.Name, "groupName": group.FriendlyName}, tx)
+		s.auditLog.Record(ctx, auditlogs.EventClientGroupAdded, origin, "", auditlogs.Data{"clientID": client.ID, "clientName": client.Name, "groupID": group.ID, "groupName": group.FriendlyName}, tx)
 	}
 	for _, group := range removed {
-		s.auditLog.Record(ctx, auditlogs.EventClientGroupRemoved, origin, "", auditlogs.Data{"clientID": client.ID, "clientName": client.Name, "groupName": group.FriendlyName}, tx)
+		s.auditLog.Record(ctx, auditlogs.EventClientGroupRemoved, origin, "", auditlogs.Data{"clientID": client.ID, "clientName": client.Name, "groupID": group.ID, "groupName": group.FriendlyName}, tx)
 	}
 
 	err = tx.Commit().Error

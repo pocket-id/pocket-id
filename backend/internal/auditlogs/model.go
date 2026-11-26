@@ -79,6 +79,7 @@ const (
 	EventClientGroupAdded           Event = "CLIENT_GROUP_ADDED"
 	EventClientGroupRemoved         Event = "CLIENT_GROUP_REMOVED"
 	EventGroupCreated               Event = "GROUP_CREATED"
+	EventGroupUpdated               Event = "GROUP_UPDATED"
 	EventGroupDeleted               Event = "GROUP_DELETED"
 	EventGroupMemberAdded           Event = "GROUP_MEMBER_ADDED"
 	EventGroupMemberRemoved         Event = "GROUP_MEMBER_REMOVED"

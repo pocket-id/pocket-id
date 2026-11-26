@@ -105,7 +105,7 @@ func (h *handler) createGroupTool(ctx context.Context, call mcp.Call, input crea
 	return toGroupResult(group)
 }
 
-func (h *handler) updateGroupTool(ctx context.Context, _ mcp.Call, input updateGroupInput) (any, error) {
+func (h *handler) updateGroupTool(ctx context.Context, call mcp.Call, input updateGroupInput) (any, error) {
 	dbConfig, err := h.appConfig.GetConfig(ctx)
 	if err != nil {
 		return nil, fmt.Errorf("error loading app configuration: %w", err)
@@ -122,7 +122,7 @@ func (h *handler) updateGroupTool(ctx context.Context, _ mcp.Call, input updateG
 		mcp.SetIfPresent(&updateDto.Name, input.Name)
 		mcp.SetIfPresent(&updateDto.Notes, input.Notes)
 		return updateDto, dto.ValidateUpdate(&currentDto, &updateDto)
-	})
+	}, auditlogs.OriginFromMCP(call))
 	if err != nil {
 		return nil, err
 	}
