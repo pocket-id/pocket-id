@@ -394,7 +394,6 @@ func (s *Service) GetUserCountOfGroup(ctx context.Context, id string) (int64, er
 	var group model.UserGroup
 	err := tx.
 		WithContext(ctx).
-		Preload("Users").
 		Where("id = ?", id).
 		First(&group).
 		Error
