@@ -82,6 +82,22 @@ func (s *Service) ListUsers(ctx context.Context, searchTerm string, listRequestO
 			searchPattern, searchPattern, searchPattern, searchPattern)
 	}
 
+	// Membership is an any-of filter applied before counting and pagination
+	if values := listRequestOptions.Filters["userGroups"]; len(values) > 0 {
+		groupIDs := make([]string, 0, len(values))
+		for _, value := range values {
+			id, ok := value.(string)
+			if !ok || id == "" {
+				return nil, utils.PaginationResponse{}, apperror.InvalidField("filters[userGroups]", "type", "must contain group IDs")
+			}
+			groupIDs = append(groupIDs, id)
+		}
+		membership := s.db.Table("user_groups_users").
+			Select("user_id").
+			Where("user_group_id IN ?", groupIDs)
+		query = query.Where("users.id IN (?)", membership)
+	}
+
 	pagination, err := utils.PaginateFilterAndSort(listRequestOptions, query, &users)
 
 	return users, pagination, err
