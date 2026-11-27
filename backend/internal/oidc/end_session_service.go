@@ -91,6 +91,11 @@ func (s *endSessionService) resolve(ctx context.Context, input dto.OidcLogoutDto
 		return endSessionRequest{}, err
 	}
 
+	// The client is loaded here without going through Store.GetClient, so a disabled client must be refused before it can end the user's session
+	if authorizedClient.Client.Disabled {
+		return endSessionRequest{}, apperror.OidcClientDisabled()
+	}
+
 	callbackURL, err := logoutCallbackURL(&authorizedClient.Client, input.PostLogoutRedirectUri)
 	if err != nil {
 		return endSessionRequest{}, err

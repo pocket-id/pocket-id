@@ -50,17 +50,15 @@ func WithActorClient(parentCtx context.Context, envConfig *common.EnvConfigSchem
 	connectCtx, connectCancel := context.WithTimeout(ctx, actorClientConnectTimeout)
 	defer connectCancel()
 
+	var fnErr error
 	select {
 	case <-client.Ready():
+		fnErr = fn(ctx, client)
 	case err = <-runErrCh:
 		return fmt.Errorf("failed to connect to the Francis runtime: %w", err)
 	case <-connectCtx.Done():
-		cancel()
-		<-runErrCh
-		return fmt.Errorf("timed out connecting to the Francis runtime after %v", actorClientConnectTimeout)
+		fnErr = fmt.Errorf("timed out connecting to the Francis runtime after %v", actorClientConnectTimeout)
 	}
-
-	fnErr := fn(ctx, client)
 
 	// Leave the cluster before returning, so the runtime drops the registration instead of waiting for the health check to lapse
 	cancel()
