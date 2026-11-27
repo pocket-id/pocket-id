@@ -199,6 +199,14 @@ func TestEndSessionService(t *testing.T) {
 		require.True(t, apperror.IsCode(err, apperror.CodeOidcMissingAuthorization))
 	})
 
+	t.Run("a disabled client is rejected", func(t *testing.T) {
+		service, _ := newService(t)
+		require.NoError(t, service.db.Model(&model.OidcClient{}).Where("id = ?", clientID).Update("disabled", true).Error)
+		token := signToken(t, validToken)
+		_, err := service.resolve(t.Context(), dto.OidcLogoutDto{IdTokenHint: token}, "")
+		require.True(t, apperror.IsCode(err, apperror.CodeOidcClientDisabled))
+	})
+
 	t.Run("unregistered post_logout_redirect_uri is rejected", func(t *testing.T) {
 		service, _ := newService(t)
 		token := signToken(t, validToken)
