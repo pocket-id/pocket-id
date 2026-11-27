@@ -281,6 +281,11 @@ func ValidateEnvConfig(config *EnvConfigSchema) error {
 		return err
 	}
 
+	err = resolveClusterAddress(config)
+	if err != nil {
+		return err
+	}
+
 	// Validate other required options
 	err = validateAppURLs(config)
 	if err != nil {
@@ -407,6 +412,62 @@ func prepareFrancisConfig(config *EnvConfigSchema) error {
 	config.francisAddresses = addresses
 
 	return nil
+}
+
+// interfaceAddrs lists the IP addresses of this machine, and is replaced in tests
+var interfaceAddrs = net.InterfaceAddrs
+
+// resolveClusterAddress makes sure CLUSTER_ADDRESS is one the other hosts can dial whenever this replica doesn't run alone
+// Every replica would otherwise register the same wildcard or loopback address, which the cluster only admits once
+func resolveClusterAddress(config *EnvConfigSchema) error {
+	if !config.HAEnabled && config.HasEmbeddedFrancisRuntime() {
+		return nil
+	}
+
+	// A loopback address can only have been set on purpose, and no other host can reach it
+	// ParseIP returns nil for a hostname, which is neither loopback nor unspecified
+	ip := net.ParseIP(config.ClusterAddress)
+	if config.ClusterAddress == "localhost" || ip.IsLoopback() {
+		return fmt.Errorf("CLUSTER_ADDRESS must be an address the other replicas can reach this one at when HA_ENABLED is true or FRANCIS_RUNTIME_ADDRESS points to a standalone runtime, but it is the loopback address '%s'", config.ClusterAddress)
+	}
+
+	// Keep a configured hostname or IP, and detect one only in place of the wildcard default
+	if config.ClusterAddress != "" && !ip.IsUnspecified() {
+		return nil
+	}
+
+	// A pod or container usually has a single IP, which is the one the other replicas reach it at
+	addrs, err := interfaceAddrs()
+	if err != nil {
+		return fmt.Errorf("failed to list the network addresses to detect CLUSTER_ADDRESS: %w", err)
+	}
+	var ipv4, ipv6 []string
+	for _, addr := range addrs {
+		ipNet, ok := addr.(*net.IPNet)
+		if !ok || !ipNet.IP.IsGlobalUnicast() {
+			continue
+		}
+		if ipNet.IP.To4() != nil {
+			ipv4 = append(ipv4, ipNet.IP.String())
+		} else {
+			ipv6 = append(ipv6, ipNet.IP.String())
+		}
+	}
+
+	// Dual-stack pods have one address of each family, of which IPv4 is preferred
+	candidates := ipv4
+	if len(candidates) == 0 {
+		candidates = ipv6
+	}
+	switch len(candidates) {
+	case 1:
+		config.ClusterAddress = candidates[0]
+		return nil
+	case 0:
+		return errors.New("failed to detect the address the other replicas reach this one at: set CLUSTER_ADDRESS")
+	default:
+		return fmt.Errorf("failed to detect the address the other replicas reach this one at, as this machine has several (%s): set CLUSTER_ADDRESS to one of them", strings.Join(candidates, ", "))
+	}
 }
 
 // validateFrancisBootstrap checks the credential Pocket ID presents when joining a standalone Francis runtime

@@ -37,9 +37,6 @@ services:
       FRANCIS_HOST_PSK: e2e-host-bootstrap-psk-0123456789
       # FRANCIS_CA is intentionally unset, so this exercises the same trust-on-first-use path an operator gets without it
       # The cluster only exists inside this Compose network for the duration of the tests
-      #
-      # Peers reach actors placed on this host at CLUSTER_ADDRESS, which the runtime hands out, so it has to be the address other containers resolve rather than the default wildcard
-      CLUSTER_ADDRESS: pocket-id
     depends_on:
       francis-runtime:
         condition: service_healthy
