@@ -1,6 +1,7 @@
 package common
 
 import (
+	"net"
 	"os"
 	"path/filepath"
 	"testing"
@@ -454,6 +455,7 @@ func TestFrancisHostConfig(t *testing.T) {
 		EnvConfig = defaultConfig()
 		t.Setenv("DB_CONNECTION_STRING", "file:test")
 		t.Setenv("APP_URL", "http://localhost:3000")
+		t.Setenv("CLUSTER_ADDRESS", "pocket-id.example.com")
 	}
 
 	t.Run("should default to the embedded runtime", func(t *testing.T) {
@@ -762,8 +764,70 @@ func TestHAConfig(t *testing.T) {
 		EnvConfig = defaultConfig()
 		t.Setenv("HA_ENABLED", "true")
 		t.Setenv("DB_CONNECTION_STRING", "postgres://localhost/db")
+		t.Setenv("CLUSTER_ADDRESS", "10.0.0.5")
 
 		err := parseAndValidateEnvConfig(t)
 		require.NoError(t, err)
+	})
+
+	t.Run("rejects a loopback cluster address", func(t *testing.T) {
+		EnvConfig = defaultConfig()
+		t.Setenv("HA_ENABLED", "true")
+		t.Setenv("DB_CONNECTION_STRING", "postgres://localhost/db")
+		t.Setenv("CLUSTER_ADDRESS", "127.0.0.1")
+
+		err := parseAndValidateEnvConfig(t)
+		require.ErrorContains(t, err, "but it is the loopback address '127.0.0.1'")
+	})
+
+	t.Run("detects the IPv4 address of the replica", func(t *testing.T) {
+		setInterfaceAddrs(t, "127.0.0.1/8", "fe80::1/64", "2001:db8::5/64", "10.0.0.5/24")
+		EnvConfig = defaultConfig()
+		t.Setenv("HA_ENABLED", "true")
+		t.Setenv("DB_CONNECTION_STRING", "postgres://localhost/db")
+
+		err := parseAndValidateEnvConfig(t)
+		require.NoError(t, err)
+		assert.Equal(t, "10.0.0.5", EnvConfig.ClusterAddress)
+	})
+
+	t.Run("refuses to guess between several addresses", func(t *testing.T) {
+		setInterfaceAddrs(t, "10.0.0.5/24", "172.17.0.1/16")
+		EnvConfig = defaultConfig()
+		t.Setenv("HA_ENABLED", "true")
+		t.Setenv("DB_CONNECTION_STRING", "postgres://localhost/db")
+
+		err := parseAndValidateEnvConfig(t)
+		require.ErrorContains(t, err, "this machine has several (10.0.0.5, 172.17.0.1): set CLUSTER_ADDRESS to one of them")
+	})
+
+	t.Run("detects the address with a standalone runtime", func(t *testing.T) {
+		setInterfaceAddrs(t, "10.0.0.5/24")
+		EnvConfig = defaultConfig()
+		t.Setenv("DB_CONNECTION_STRING", "file:test")
+		t.Setenv("FRANCIS_RUNTIME_ADDRESS", "francis.example.com:8443")
+		t.Setenv("FRANCIS_HOST_PSK", "bootstrap-psk-that-is-long-enough")
+
+		err := parseAndValidateEnvConfig(t)
+		require.NoError(t, err)
+		assert.Equal(t, "10.0.0.5", EnvConfig.ClusterAddress)
+	})
+}
+
+func setInterfaceAddrs(t *testing.T, cidrs ...string) {
+	t.Helper()
+
+	addrs := make([]net.Addr, len(cidrs))
+	for i, cidr := range cidrs {
+		ip, ipNet, err := net.ParseCIDR(cidr)
+		require.NoError(t, err)
+		ipNet.IP = ip
+		addrs[i] = ipNet
+	}
+
+	original := interfaceAddrs
+	interfaceAddrs = func() ([]net.Addr, error) { return addrs, nil }
+	t.Cleanup(func() {
+		interfaceAddrs = original
 	})
 }

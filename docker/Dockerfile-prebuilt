@@ -17,7 +17,7 @@ USER 65532:65532
 WORKDIR /app/data
 WORKDIR /app
 
-EXPOSE 1411
+EXPOSE 1411 1414/udp
 ENV APP_ENV=production
 
 HEALTHCHECK --interval=90s --timeout=5s --start-period=10s --retries=3 CMD [ "/app/pocket-id", "healthcheck" ]
