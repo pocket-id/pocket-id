@@ -1,5 +1,5 @@
 import test, { expect, type APIRequestContext, type Page, type Request } from '@playwright/test';
-import { oidcClients, refreshTokens, users } from '../data';
+import { oidcClients, oneTimeAccessTokens, refreshTokens, users } from '../data';
 import { cleanupBackend } from '../utils/cleanup.util';
 import { generateIdToken } from '../utils/jwt.util';
 import * as oidcUtil from '../utils/oidc.util';
@@ -73,10 +73,8 @@ test('Authorize existing client with POST while signed in', async ({ page }, tes
 			{ fields: formFields, target: authorizeURL }
 		);
 
-		// Since the access token isn't sent with the POST request because of SameSite cookie restrictions,
-		// /authorize thinks the user is not signed in and shows the login page.
-		// The interaction page has the access token so the user just needs to click "Continue to …" to finish the flow.
-		await page.getByRole('button', { name: /^Continue to / }).click();
+		// The session cookie isn't sent with the cross-site POST, so /authorize asks for a sign-in
+		// The interaction page has the session and continues the flow on its own
 	});
 	await authorizeRequestPromise;
 });
@@ -92,6 +90,22 @@ test('Authorize existing client while not signed in', async ({ page }) => {
 		await (await passkeyUtil.init(page)).addPasskey();
 		await page.getByRole('button', { name: 'Sign in with passkey' }).click();
 	});
+});
+
+test('Authorize existing client after signing in with a login code', async ({ page }) => {
+	const oidcClient = oidcClients.nextcloud;
+	const urlParams = createUrlParams(oidcClient);
+	await page.context().clearCookies();
+
+	await page.goto(`/authorize?${urlParams.toString()}`);
+	await expect(page.getByRole('button', { name: 'Sign in with passkey' })).toBeVisible();
+	const { pathname, search } = new URL(page.url());
+
+	// The code page returns to the interaction, which continues to the client without another click
+	const token = oneTimeAccessTokens.find((t) => !t.expired)!;
+	await expectCallbackRedirect(page, oidcClient.callbackUrl, () =>
+		page.goto(`/lc/${token.token}?redirect=${encodeURIComponent(pathname + search)}`)
+	);
 });
 
 test('Authorize new client', async ({ page }) => {

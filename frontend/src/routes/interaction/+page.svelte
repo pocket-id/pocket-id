@@ -26,6 +26,7 @@
 	import { getAxiosErrorCode, getWebauthnErrorMessage } from '#lib/utils/error-util.ts';
 	import { cssMs } from '#lib/utils/style.ts';
 	import { startAuthentication } from '@simplewebauthn/browser';
+	import { onMount } from 'svelte';
 	import ChevronRightIcon from '~icons/solar/alt-arrow-right-linear';
 	import type { PageProps } from './$types';
 
@@ -64,6 +65,11 @@
 					: (currentStep ?? 'authenticate')
 	);
 	const showScopes = $derived(hasScopes && (view === 'consent' || (view === 'success' && granted)));
+
+	// Someone who signed in another way, like with a login code, comes back here already signed in, so the sign-in step continues without a second click
+	onMount(() => {
+		if ($userStore && currentStep === 'authenticate') handlePipeline();
+	});
 
 	async function useDifferentAccount() {
 		await webauthnService.logout();
