@@ -15,6 +15,7 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/pocket-id/pocket-id/backend/internal/appconfig"
+	"github.com/pocket-id/pocket-id/backend/internal/apperror"
 	"github.com/pocket-id/pocket-id/backend/internal/claimmappingpolicy"
 	"github.com/pocket-id/pocket-id/backend/internal/model"
 	testutils "github.com/pocket-id/pocket-id/backend/internal/utils/testing"
@@ -220,7 +221,7 @@ func TestUserInfoHandler(t *testing.T) {
 		rec, c := call(t, token)
 		require.Empty(t, c.Errors)
 		require.Equal(t, http.StatusUnauthorized, rec.Code)
-		require.Contains(t, rec.Body.String(), "You are not allowed to access this service.")
+		require.Contains(t, rec.Body.String(), apperror.OidcAccessDenied().ClientMessage())
 	})
 
 	t.Run("missing access token is rejected", func(t *testing.T) {
