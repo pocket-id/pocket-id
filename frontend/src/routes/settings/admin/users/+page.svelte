@@ -376,7 +376,11 @@
 	/>
 </div>
 
-<UserCreateSheet bind:open={createOpen} emailsVerifiedPerDefault={data.emailsVerifiedPerDefault} />
+<UserCreateSheet
+	bind:open={createOpen}
+	emailsVerifiedPerDefault={data.emailsVerifiedPerDefault}
+	defaultUserGroupIds={data.defaultUserGroupIds}
+/>
 <SignupTokensSheet bind:open={tokensOpen} />
 <LoginCodeDialog bind:user={loginCodeUser} />
 <PickerDialog
