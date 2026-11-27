@@ -84,7 +84,7 @@ type EnvConfigSchema struct {
 
 	// CachePath is the folder of the files Pocket ID can download or render again, like the GeoLite database, the FIDO metadata and the default profile pictures
 	// It should preferably be local to each replica
-    // Files in this folder do not need to be placed on persistent storage
+	// Files in this folder do not need to be placed on persistent storage
 	CachePath string `env:"CACHE_PATH"`
 
 	FileBackend                     string `env:"FILE_BACKEND" options:"toLower"`
