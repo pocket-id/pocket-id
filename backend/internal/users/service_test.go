@@ -72,14 +72,6 @@ func createTestGroup(t *testing.T, db *gorm.DB, name, friendlyName string) model
 	return group
 }
 
-func getTestGroup(t *testing.T, db *gorm.DB, id string) model.UserGroup {
-	t.Helper()
-
-	var group model.UserGroup
-	require.NoError(t, db.Preload("Users").First(&group, "id = ?", id).Error)
-	return group
-}
-
 func TestGetUserReturnsUserNotFound(t *testing.T) {
 	userService := newTestUserService(t)
 
@@ -130,112 +122,30 @@ func TestCanEditOwnProfilePicture(t *testing.T) {
 	assert.True(t, canEditOwnProfilePicture(cfg("false", "true"), &model.User{}))
 }
 
-func TestCreateUserBumpsGroupUpdatedAt(t *testing.T) {
-	config := &appconfig.AppConfigModel{RequireUserEmail: "false"}
+func TestCreateUserJoinsTheGivenOrTheDefaultGroups(t *testing.T) {
 	userService := newTestUserService(t)
+	defaultGroup := createTestGroup(t, userService.db, "default", "Default")
+	givenGroup := createTestGroup(t, userService.db, "given", "Given")
 
-	group := createTestGroup(t, userService.db, "members", "Members")
-	require.Nil(t, group.UpdatedAt, "a freshly created group has no UpdatedAt yet")
-
-	// Create a user that is a member of the group
-	// This mirrors signing up via an invite link that adds the user to a group
-	email := "member@example.com"
-	_, err := userService.CreateUser(t.Context(), config, dto.UserCreateDto{
-		Username:     "member",
-		Email:        &email,
-		FirstName:    "Group",
-		LastName:     "Member",
-		UserGroupIds: []string{group.ID},
-	}, auditlogs.Origin{})
+	defaultGroups, err := json.Marshal([]string{defaultGroup.ID})
 	require.NoError(t, err)
+	config := &appconfig.AppConfigModel{RequireUserEmail: "false", SignupDefaultUserGroupIDs: appconfig.AppConfigValue(defaultGroups)}
 
-	// The group's UpdatedAt must now be set
-	updated := getTestGroup(t, userService.db, group.ID)
-	require.NotNil(t, updated.UpdatedAt, "creating a group member must bump the group's UpdatedAt")
-	require.False(t, updated.UpdatedAt.ToTime().Before(updated.CreatedAt.ToTime()), "group UpdatedAt must not predate its CreatedAt after a membership change")
-	require.Len(t, updated.Users, 1, "the user should be a member of the group")
-}
-
-func TestCreateUserBumpsDefaultGroupUpdatedAt(t *testing.T) {
-	config := &appconfig.AppConfigModel{RequireUserEmail: "false"}
-	userService := newTestUserService(t)
-
-	group := createTestGroup(t, userService.db, "default", "Default")
-	require.Nil(t, group.UpdatedAt)
-
-	// Configure the group as a default signup group
-	defaultGroups, err := json.Marshal([]string{group.ID})
-	require.NoError(t, err)
-	config.SignupDefaultUserGroupIDs = appconfig.AppConfigValue(defaultGroups)
-
-	// Create a user without explicit group IDs, so the default groups apply
-	email := "default@example.com"
-	_, err = userService.CreateUser(t.Context(), config, dto.UserCreateDto{
-		Username:  "defaultmember",
-		Email:     &email,
-		FirstName: "Default",
-		LastName:  "Member",
-	}, auditlogs.Origin{})
-	require.NoError(t, err)
-
-	updated := getTestGroup(t, userService.db, group.ID)
-	require.NotNil(t, updated.UpdatedAt, "adding a default group member must bump the group's UpdatedAt")
-	require.Len(t, updated.Users, 1)
-}
-
-func TestUpdateUserGroupsBumpsRemovedGroupUpdatedAt(t *testing.T) {
-	config := &appconfig.AppConfigModel{RequireUserEmail: "false"}
-	userService := newTestUserService(t)
-
-	oldGroup := createTestGroup(t, userService.db, "old", "Old")
-	newGroup := createTestGroup(t, userService.db, "new", "New")
-
-	user, err := userService.CreateUser(t.Context(), config, dto.UserCreateDto{
-		Username:     "mover",
-		FirstName:    "Group",
-		LastName:     "Mover",
-		UserGroupIds: []string{oldGroup.ID},
-	}, auditlogs.Origin{})
-	require.NoError(t, err)
-
-	// Backdate both groups so a bump is visible regardless of the timestamp precision
-	past := time.Now().Add(-time.Hour)
-	require.NoError(t, userService.db.Model(&model.UserGroup{}).Where("id IN ?", []string{oldGroup.ID, newGroup.ID}).Update("updated_at", datatype.DateTime(past)).Error)
-
-	// Move the user from the old group to the new one, as the user's group selection does
-	_, err = userService.UpdateUserGroups(t.Context(), user.ID, []string{newGroup.ID}, auditlogs.Origin{})
-	require.NoError(t, err)
-
-	for _, groupID := range []string{oldGroup.ID, newGroup.ID} {
-		updated := getTestGroup(t, userService.db, groupID)
-		require.True(t, updated.UpdatedAt.ToTime().After(past), "group %s changed membership, so its UpdatedAt must be bumped", updated.Name)
+	groupIDsOf := func(userID string) []string {
+		var ids []string
+		require.NoError(t, userService.db.Table("user_groups_users").Where("user_id = ?", userID).Pluck("user_group_id", &ids).Error)
+		return ids
 	}
-}
 
-func TestDeleteUserBumpsGroupUpdatedAt(t *testing.T) {
-	config := &appconfig.AppConfigModel{RequireUserEmail: "false"}
-	userService := newTestUserService(t)
-
-	group := createTestGroup(t, userService.db, "members", "Members")
-
-	user, err := userService.CreateUser(t.Context(), config, dto.UserCreateDto{
-		Username:     "leaver",
-		FirstName:    "Group",
-		LastName:     "Leaver",
-		UserGroupIds: []string{group.ID},
-	}, auditlogs.Origin{})
+	// A user created without groups joins the default signup groups
+	user, err := userService.CreateUser(t.Context(), config, dto.UserCreateDto{Username: "defaulted", FirstName: "Default", LastName: "Member"}, auditlogs.Origin{})
 	require.NoError(t, err)
+	require.Equal(t, []string{defaultGroup.ID}, groupIDsOf(user.ID))
 
-	// Backdate the group so a bump is visible regardless of the timestamp precision
-	past := time.Now().Add(-time.Hour)
-	require.NoError(t, userService.db.Model(&model.UserGroup{}).Where("id = ?", group.ID).Update("updated_at", datatype.DateTime(past)).Error)
-
-	err = userService.DeleteUser(t.Context(), config, user.ID, false, auditlogs.Origin{})
+	// Groups given for the user replace the default ones
+	user, err = userService.CreateUser(t.Context(), config, dto.UserCreateDto{Username: "given", FirstName: "Given", LastName: "Member", UserGroupIds: []string{givenGroup.ID}}, auditlogs.Origin{})
 	require.NoError(t, err)
-
-	updated := getTestGroup(t, userService.db, group.ID)
-	require.Empty(t, updated.Users)
-	require.True(t, updated.UpdatedAt.ToTime().After(past), "deleting a member must bump the group's UpdatedAt")
+	require.Equal(t, []string{givenGroup.ID}, groupIDsOf(user.ID))
 }
 
 type recordingEmailVerificationSender struct {

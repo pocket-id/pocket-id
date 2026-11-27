@@ -285,18 +285,6 @@ func (s *Service) deleteUserInternal(ctx context.Context, cfg *appconfig.AppConf
 		}
 	}
 
-	// Remember the user's groups before the delete cascades their memberships away
-	var groupIDs []string
-	err = tx.
-		WithContext(ctx).
-		Table("user_groups_users").
-		Where("user_id = ?", userID).
-		Pluck("user_group_id", &groupIDs).
-		Error
-	if err != nil {
-		return fmt.Errorf("failed to load user groups of user to delete: %w", err)
-	}
-
 	// Record the deletion first, so the username is kept on this entry as well
 	s.auditLog.Record(ctx, auditlogs.EventAccountDeleted, origin, userID, nil, tx)
 	err = s.auditLog.KeepUsername(ctx, userID, user.Username, tx)
@@ -307,12 +295,6 @@ func (s *Service) deleteUserInternal(ctx context.Context, cfg *appconfig.AppConf
 	err = tx.WithContext(ctx).Delete(&user).Error
 	if err != nil {
 		return fmt.Errorf("failed to delete user: %w", err)
-	}
-
-	// Bump the UpdatedAt of the groups the user was in, so the SCIM sync pushes the groups without the deleted member
-	err = s.touchUserGroups(ctx, tx, groupIDs)
-	if err != nil {
-		return fmt.Errorf("failed to update user groups timestamp: %w", err)
 	}
 
 	return nil
@@ -399,15 +381,6 @@ func (s *Service) createUserInternal(ctx context.Context, input dto.UserCreateDt
 		return model.User{}, err
 	}
 
-	// Bump the UpdatedAt timestamp of the groups the new user was added to
-	// This is necessary for SCIM to work with the newly-created user, or groups may not be synced via SCIM
-	if len(userGroups) > 0 {
-		err = s.touchUserGroups(ctx, tx, userGroupIDs(userGroups))
-		if err != nil {
-			return model.User{}, err
-		}
-	}
-
 	// The signup and admins record the accounts they create themselves, but the LDAP sync has no request to record it with
 	if isLdapSync {
 		s.auditLog.Record(ctx, auditlogs.EventAccountCreated, auditlogs.LDAPSync, user.ID, nil, tx)
@@ -429,15 +402,6 @@ func (s *Service) createUserInternal(ctx context.Context, input dto.UserCreateDt
 	}
 
 	return user, nil
-}
-
-func userGroupIDs(groups []model.UserGroup) []string {
-	ids := make([]string, len(groups))
-	for i, group := range groups {
-		ids[i] = group.ID
-	}
-
-	return ids
 }
 
 func (s *Service) applyDefaultGroups(ctx context.Context, user *model.User, tx *gorm.DB, cfg *appconfig.AppConfigModel) error {
@@ -466,41 +430,9 @@ func (s *Service) applyDefaultGroups(ctx context.Context, user *model.User, tx *
 			if err != nil {
 				return fmt.Errorf("failed to associate default user groups: %w", err)
 			}
-
-			// Bump the groups' UpdatedAt so the SCIM sync picks up the new
-			// membership (see touchUserGroups for details).
-			touchIDs := make([]string, len(groups))
-			for i := range groups {
-				touchIDs[i] = groups[i].ID
-			}
-			if err := s.touchUserGroups(ctx, tx, touchIDs); err != nil {
-				return fmt.Errorf("failed to update default user groups timestamp: %w", err)
-			}
 		}
 	}
 	return nil
-}
-
-// touchUserGroups updates the UpdatedAt timestamp of the given user groups.
-//
-// Group membership is stored in the user_groups_users join table, so adding or
-// removing a member does not modify the group row itself. The SCIM sync only
-// re-pushes a group to the provider when its UpdatedAt is not older than the
-// remote resource's last-modified time, so any code path that changes a group's
-// membership must bump this timestamp explicitly. Otherwise the membership
-// change is never synced to the SCIM provider.
-func (s *Service) touchUserGroups(ctx context.Context, tx *gorm.DB, ids []string) error {
-	if len(ids) == 0 {
-		return nil
-	}
-
-	now := datatype.DateTime(time.Now())
-	return tx.
-		WithContext(ctx).
-		Model(&model.UserGroup{}).
-		Where("id IN ?", ids).
-		Update("updated_at", now).
-		Error
 }
 
 func (s *Service) applyDefaultCustomClaims(ctx context.Context, user *model.User, tx *gorm.DB, cfg *appconfig.AppConfigModel) error {
@@ -870,12 +802,6 @@ func (s *Service) UpdateUserGroups(ctx context.Context, id string, userGroupIds 
 		return model.User{}, err
 	}
 
-	// Bump the UpdatedAt of every group the user joined or left, so the SCIM sync pushes the new membership
-	err = s.touchUserGroups(ctx, tx, append(userGroupIDs(previousGroups), userGroupIDs(groups)...))
-	if err != nil {
-		return model.User{}, err
-	}
-
 	joined, left := utils.Changes(previousGroups, groups, func(group model.UserGroup) string { return group.ID })
 	for _, group := range joined {
 		s.auditLog.Record(ctx, auditlogs.EventGroupMemberAdded, origin, id, auditlogs.Data{"groupID": group.ID, "groupName": group.FriendlyName}, tx)
@@ -953,7 +879,7 @@ func (s *Service) ResetProfilePicture(ctx context.Context, userID string) error 
 
 // disableUserInternal disables a user within an existing transaction
 func (s *Service) disableUserInternal(ctx context.Context, tx *gorm.DB, userID string, origin auditlogs.Origin) error {
-	// Bump UpdatedAt so the SCIM sync pushes the disabled state, but only when the user was still enabled
+	// Only a user who is still enabled is changed, so the audit entry is recorded once
 	result := tx.
 		WithContext(ctx).
 		Model(&model.User{}).
