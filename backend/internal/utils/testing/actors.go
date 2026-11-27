@@ -57,7 +57,10 @@ func NewActorHostForTest(t *testing.T, register func(t *testing.T, h *local.Host
 
 	t.Cleanup(func() {
 		cancel()
-		<-errCh
+		err := <-errCh
+		if err != nil && !errors.Is(err, context.Canceled) {
+			t.Errorf("actor host stopped with an error: %v", err)
+		}
 	})
 
 	// Wait until the host is ready before returning, so callers can invoke actors immediately
