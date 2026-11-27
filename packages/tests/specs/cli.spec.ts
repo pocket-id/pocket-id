@@ -184,20 +184,19 @@ function archiveExampleExport(outputPath: string, keepActorsBackup = false): Buf
 
 	const skipActorsBackup = isRemoteFrancis() && !keepActorsBackup;
 
+	// Add the files one by one because adm-zip's addLocalFolder skips symlinks that leave the folder, like the one to the bundled application assets
 	const zip = new AdmZip();
-	const files = fs.readdirSync(exampleExportPath);
-	for (const file of files) {
-		if (skipActorsBackup && file === 'francis.bin') {
-			continue;
+	const addFolder = (localPath: string, zipPath: string) => {
+		for (const file of fs.readdirSync(localPath)) {
+			const filePath = path.join(localPath, file);
+			if (fs.statSync(filePath).isDirectory()) {
+				addFolder(filePath, path.posix.join(zipPath, file));
+			} else if (!(skipActorsBackup && zipPath === '' && file === 'francis.bin')) {
+				zip.addLocalFile(filePath, zipPath);
+			}
 		}
-
-		const filePath = path.join(exampleExportPath, file);
-		if (fs.statSync(filePath).isFile()) {
-			zip.addLocalFile(filePath);
-		} else if (fs.statSync(filePath).isDirectory()) {
-			zip.addLocalFolder(filePath, file);
-		}
-	}
+	};
+	addFolder(exampleExportPath, '');
 
 	const buffer = zip.toBuffer();
 	fs.writeFileSync(outputPath, buffer);
