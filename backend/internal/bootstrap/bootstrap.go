@@ -136,11 +136,6 @@ func Bootstrap(ctx context.Context) error {
 		services = append(services, svc.geoLiteModule.Run)
 	}
 
-	// Delete the unused default profile pictures from the cache folder of this replica
-	if !common.EnvConfig.AppEnv.IsTest() {
-		services = append(services, svc.usersModule.Run)
-	}
-
 	// Init the router
 	// The rate-limit middleware invokes the actor host with each request's own context, so the setup context is intentionally not threaded through the router
 	//nolint:contextcheck

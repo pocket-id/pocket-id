@@ -141,7 +141,7 @@ func (s *Service) GetProfilePicture(ctx context.Context, userID string) (io.Read
 
 	// Try cached default for initials
 	initials := profilepicture.Initials(user.FirstName, user.LastName, user.Username)
-	defaultPicturePath := path.Join(defaultPicturesDir, profilepicture.DefaultPictureFile(initials))
+	defaultPicturePath := path.Join("profile-pictures", initials+".png")
 	file, size, err = s.cacheStorage.Open(ctx, defaultPicturePath)
 	if err == nil {
 		return file, size, nil

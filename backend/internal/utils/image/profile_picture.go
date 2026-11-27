@@ -130,12 +130,6 @@ func canRenderInitials(initials string) bool {
 	return true
 }
 
-// DefaultPictureFile returns the cache file name of the default picture for the initials
-// The suffix changes whenever the rendering changes, so the cleanup job deletes pictures cached by an earlier version
-func DefaultPictureFile(initials string) string {
-	return initials + "-v3.png"
-}
-
 // CreateDefaultProfilePicture creates a profile picture with the initials
 func CreateDefaultProfilePicture(initials string) (*bytes.Buffer, error) {
 	// Create a blank image with a white background
