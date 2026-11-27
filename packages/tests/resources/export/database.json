@@ -306,6 +306,18 @@
 				"value": "6puTIBpn0u2Y8FJQ9C4gxuzORTgMmac9Tz9B2epw212hlaepET06ca/CPnwdirCNNg/tLG1wXd2MNSEMgZAnl1cPkF9hPabrRW+SUYpFDLu4yE9w5uc6ns//9pphedK5vS190oXcE7FaWBoso789JuQ0yoicNEnjAAjBWExnp0dXXufmXzUZSnKQ"
 			},
 			{
+				"key": "application_asset_background",
+				"value": "background.avif"
+			},
+			{
+				"key": "application_asset_favicon",
+				"value": "favicon.ico"
+			},
+			{
+				"key": "application_asset_logoEmail",
+				"value": "logoEmail.png"
+			},
+			{
 				"key": "instance_id",
 				"value": "test-instance-id"
 			}
