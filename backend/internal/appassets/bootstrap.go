@@ -4,101 +4,83 @@ import (
 	"context"
 	"fmt"
 	"log/slog"
-	"os"
 	"path"
-	"strings"
 
+	"gorm.io/gorm"
+	"gorm.io/gorm/clause"
+
+	"github.com/pocket-id/pocket-id/backend/internal/model"
 	"github.com/pocket-id/pocket-id/backend/internal/storage"
 	"github.com/pocket-id/pocket-id/backend/internal/utils"
 	"github.com/pocket-id/pocket-id/backend/resources"
 )
 
 const (
-	applicationAssetsPath        = "application-assets"
-	deletedApplicationAssetsPath = applicationAssetsPath + "/.deleted"
+	applicationAssetsPath = "application-assets"
+	// assetKeyPrefix prefixes the "kv" rows that hold the file of each asset relative to applicationAssetsPath, or an empty value once an admin removed it
+	assetKeyPrefix = "application_asset_"
 )
 
-// initApplicationAssets copies embedded images to storage and returns the detected file extensions
-func initApplicationAssets(ctx context.Context, fileStorage storage.FileStorage) (map[string]string, error) {
-	sourceFiles, err := resources.FS.ReadDir("images")
-	if err != nil && !os.IsNotExist(err) {
-		return nil, fmt.Errorf("failed to read directory: %w", err)
-	}
-
-	destinationFiles, err := fileStorage.List(ctx, applicationAssetsPath)
+// Init copies the bundled images for assets that were never set, which the upgrade from v2 leaves without a row
+// Every replica runs it on startup, and the copies of two replicas write the same file and keep the row of the first one
+func Init(ctx context.Context, db *gorm.DB, fileStorage storage.FileStorage) error {
+	// Load the assets that are already recorded, including the ones an admin removed
+	var rows []model.KV
+	err := db.WithContext(ctx).Where("key LIKE ?", assetKeyPrefix+"%").Find(&rows).Error
 	if err != nil {
-		if storage.IsNotExist(err) {
-			destinationFiles = []storage.ObjectInfo{}
-		} else {
-			return nil, fmt.Errorf("failed to list application images: %w", err)
-		}
-
+		return fmt.Errorf("failed to load application assets: %w", err)
 	}
-	dstNameToExt := make(map[string]string, len(destinationFiles))
-	for _, f := range destinationFiles {
-		// Skip the deleted markers that recursive storage backends may include in the listing
-		if strings.HasPrefix(f.Path, deletedApplicationAssetsPath+"/") {
-			continue
-		}
-
-		// Skip directory entries returned by storage backends
-		_, name := path.Split(f.Path)
-		if name == "" {
-			continue
-		}
-		nameWithoutExt, ext := utils.SplitFileName(name)
-		dstNameToExt[nameWithoutExt] = ext
+	recorded := make(map[string]struct{}, len(rows))
+	for _, row := range rows {
+		recorded[row.Key[len(assetKeyPrefix):]] = struct{}{}
 	}
 
-	// Copy missing bundled images unless an administrator intentionally deleted them
-	for _, sourceFile := range sourceFiles {
-		if sourceFile.IsDir() {
+	bundledFiles, err := resources.FS.ReadDir("images")
+	if err != nil {
+		return fmt.Errorf("failed to read the bundled images: %w", err)
+	}
+	for _, bundledFile := range bundledFiles {
+		name, _ := utils.SplitFileName(bundledFile.Name())
+		if _, ok := recorded[name]; ok {
 			continue
 		}
 
-		name := sourceFile.Name()
-		nameWithoutExt, ext := utils.SplitFileName(name)
-		srcFilePath := path.Join("images", name)
-
-		if _, exists := dstNameToExt[nameWithoutExt]; exists {
-			continue
-		}
-		deleted, err := storageObjectExists(ctx, fileStorage, deletedApplicationAssetPath(nameWithoutExt))
+		slog.InfoContext(ctx, "Writing new application image", slog.String("name", bundledFile.Name()))
+		err = copyBundledImage(ctx, fileStorage, bundledFile.Name())
 		if err != nil {
-			return nil, fmt.Errorf("failed to read deleted application image marker '%s': %w", nameWithoutExt, err)
+			return err
 		}
-		if deleted {
-			continue
-		}
-
-		slog.Info("Writing new application image", slog.String("name", name))
-		srcFile, err := resources.FS.Open(srcFilePath)
+		err = recordAsset(ctx, db, name, bundledFile.Name())
 		if err != nil {
-			return nil, fmt.Errorf("failed to open embedded file '%s': %w", name, err)
+			return err
 		}
-		if err := fileStorage.Save(ctx, path.Join(applicationAssetsPath, name), srcFile); err != nil {
-			srcFile.Close()
-			return nil, fmt.Errorf("failed to store application image '%s': %w", name, err)
-		}
-		srcFile.Close()
-		dstNameToExt[nameWithoutExt] = ext
 	}
 
-	return dstNameToExt, nil
+	return nil
 }
 
-func deletedApplicationAssetPath(name string) string {
-	return path.Join(deletedApplicationAssetsPath, name)
+// recordAsset stores the file of an asset unless another replica recorded it first
+func recordAsset(ctx context.Context, db *gorm.DB, name, file string) error {
+	err := db.WithContext(ctx).
+		Clauses(clause.OnConflict{DoNothing: true}).
+		Create(&model.KV{Key: assetKeyPrefix + name, Value: &file}).
+		Error
+	if err != nil {
+		return fmt.Errorf("failed to record application asset '%s': %w", name, err)
+	}
+	return nil
 }
 
-func storageObjectExists(ctx context.Context, fileStorage storage.FileStorage, objectPath string) (bool, error) {
-	reader, _, err := fileStorage.Open(ctx, objectPath)
-	if err == nil {
-		reader.Close()
-		return true, nil
+func copyBundledImage(ctx context.Context, fileStorage storage.FileStorage, fileName string) error {
+	file, err := resources.FS.Open(path.Join("images", fileName))
+	if err != nil {
+		return fmt.Errorf("failed to open bundled image '%s': %w", fileName, err)
 	}
-	if storage.IsNotExist(err) {
-		return false, nil
+	defer file.Close()
+
+	err = fileStorage.Save(ctx, path.Join(applicationAssetsPath, fileName), file)
+	if err != nil {
+		return fmt.Errorf("failed to store application image '%s': %w", fileName, err)
 	}
-	return false, err
+	return nil
 }

@@ -12,20 +12,13 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/pocket-id/pocket-id/backend/internal/apperror"
-	"github.com/pocket-id/pocket-id/backend/internal/storage"
 )
 
 func TestHandlerGetLogo(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 
-	store, err := storage.NewFilesystemStorage(t.TempDir())
-	require.NoError(t, err)
-	t.Cleanup(func() {
-		require.NoError(t, store.Close())
-	})
-
-	extensions := map[string]string{}
-	assetsHandler := &handler{service: &Service{extensions: extensions, storage: store}}
+	service, store := newServiceForTest(t)
+	assetsHandler := &handler{service: service}
 
 	t.Run("returns the bundled logo if no custom logo is set", func(t *testing.T) {
 		res, err := getLogo(t, assetsHandler, "/api/application-assets/logo")
@@ -57,10 +50,7 @@ func TestHandlerGetLogo(t *testing.T) {
 	t.Run("returns the custom logo if one is set", func(t *testing.T) {
 		err := store.Save(t.Context(), path.Join("application-assets", "logoLight.png"), bytes.NewReader([]byte("custom")))
 		require.NoError(t, err)
-		extensions["logoLight"] = "png"
-		t.Cleanup(func() {
-			delete(extensions, "logoLight")
-		})
+		require.NoError(t, recordAsset(t.Context(), service.db, "logoLight", "logoLight.png"))
 
 		for _, target := range []string{"/api/application-assets/logo", "/api/application-assets/logo?default=false"} {
 			res, err := getLogo(t, assetsHandler, target)

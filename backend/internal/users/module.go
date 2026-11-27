@@ -30,7 +30,6 @@ type CustomClaimUpdater interface {
 
 // AppAssetProvider serves the default profile picture an admin may have uploaded
 type AppAssetProvider interface {
-	IsDefaultProfilePictureSet() bool
 	GetAsset(ctx context.Context, name string) (io.ReadCloser, int64, string, error)
 }
 

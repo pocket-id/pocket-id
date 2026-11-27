@@ -835,7 +835,7 @@ func newTestLdapServiceWithAuditLog(t *testing.T, client ldapClient, auditLog us
 
 	fileStorage, err := storage.NewDatabaseStorage(db)
 	require.NoError(t, err)
-	appAssets, err := appassets.New(t.Context(), fileStorage)
+	appAssets, err := appassets.New(t.Context(), db, fileStorage)
 	require.NoError(t, err)
 
 	// The sync is exercised against the real user and group services, so the assertions below can check what actually lands in the database

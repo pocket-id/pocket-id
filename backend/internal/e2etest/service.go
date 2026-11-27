@@ -10,7 +10,6 @@ import (
 	"encoding/base64"
 	"fmt"
 	"log/slog"
-	"path"
 	"time"
 	"uuid"
 
@@ -27,6 +26,7 @@ import (
 
 	"github.com/pocket-id/pocket-id/backend/internal/api"
 	"github.com/pocket-id/pocket-id/backend/internal/apikey"
+	"github.com/pocket-id/pocket-id/backend/internal/appassets"
 	"github.com/pocket-id/pocket-id/backend/internal/appconfig"
 	"github.com/pocket-id/pocket-id/backend/internal/authz"
 	"github.com/pocket-id/pocket-id/backend/internal/claimmappingpolicy"
@@ -44,7 +44,6 @@ import (
 	"github.com/pocket-id/pocket-id/backend/internal/utils"
 	jwkutils "github.com/pocket-id/pocket-id/backend/internal/utils/jwk"
 	"github.com/pocket-id/pocket-id/backend/internal/webauthn"
-	"github.com/pocket-id/pocket-id/backend/resources"
 )
 
 // LdapSyncer runs a full LDAP synchronization
@@ -775,29 +774,8 @@ func (s *Service) ResetApplicationAssets(ctx context.Context) error {
 		return err
 	}
 
-	files, err := resources.FS.ReadDir("images")
-	if err != nil {
-		return err
-	}
-
-	for _, file := range files {
-		if file.IsDir() {
-			continue
-		}
-		srcFilePath := path.Join("images", file.Name())
-		srcFile, err := resources.FS.Open(srcFilePath)
-		if err != nil {
-			return err
-		}
-		err = s.fileStorage.Save(ctx, path.Join("application-assets", file.Name()), srcFile)
-		if err != nil {
-			srcFile.Close()
-			return err
-		}
-		srcFile.Close()
-	}
-
-	return nil
+	// The database reset removed the asset rows too, so this records the bundled images again
+	return appassets.Init(ctx, s.db, s.fileStorage)
 }
 
 func (s *Service) ResetAppConfig(ctx context.Context) error {

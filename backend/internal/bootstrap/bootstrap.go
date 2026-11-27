@@ -88,7 +88,7 @@ func Bootstrap(ctx context.Context) error {
 	}()
 
 	// Init application assets like images and fonts
-	appAssetsModule, err := appassets.New(ctx, fileStorage)
+	appAssetsModule, err := appassets.New(ctx, db, fileStorage)
 	if err != nil {
 		return err
 	}

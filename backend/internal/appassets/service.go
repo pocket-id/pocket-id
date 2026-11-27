@@ -8,34 +8,41 @@ import (
 	"mime/multipart"
 	"path"
 	"strings"
-	"sync"
+
+	"gorm.io/gorm"
+	"gorm.io/gorm/clause"
 
 	"github.com/pocket-id/pocket-id/backend/internal/apperror"
+	"github.com/pocket-id/pocket-id/backend/internal/model"
 	"github.com/pocket-id/pocket-id/backend/internal/storage"
 	"github.com/pocket-id/pocket-id/backend/internal/utils"
 	imageutil "github.com/pocket-id/pocket-id/backend/internal/utils/image"
 	"github.com/pocket-id/pocket-id/backend/resources"
 )
 
+// Service keeps the file of each asset in the database rather than in memory, so every replica serves the latest upload
 type Service struct {
-	mu         sync.RWMutex
-	extensions map[string]string
-	storage    storage.FileStorage
+	db      *gorm.DB
+	storage storage.FileStorage
 }
 
 func (s *Service) GetAsset(ctx context.Context, name string) (io.ReadCloser, int64, string, error) {
-	ext, err := s.getExtension(name)
+	var row model.KV
+	err := s.db.WithContext(ctx).Where("key = ?", assetKeyPrefix+name).Limit(1).Find(&row).Error
 	if err != nil {
-		return nil, 0, "", err
+		return nil, 0, "", fmt.Errorf("failed to load application asset '%s': %w", name, err)
+	}
+	if row.Value == nil || *row.Value == "" {
+		return nil, 0, "", apperror.ImageNotFound()
 	}
 
-	mimeType := fileMimeType(name, ext)
+	ext := utils.GetFileExtension(*row.Value)
+	mimeType := fileMimeType(name, strings.ToLower(ext))
 	if mimeType == "" {
 		return nil, 0, "", fmt.Errorf("unsupported image type '%s'", ext)
 	}
 
-	assetPath := path.Join(applicationAssetsPath, name+"."+ext)
-	reader, size, err := s.storage.Open(ctx, assetPath)
+	reader, size, err := s.storage.Open(ctx, path.Join(applicationAssetsPath, *row.Value))
 	if err != nil {
 		if storage.IsNotExist(err) {
 			return nil, 0, "", apperror.ImageNotFound()
@@ -87,12 +94,6 @@ func (s *Service) UpdateAsset(ctx context.Context, file *multipart.FileHeader, a
 		return apperror.UnsupportedFileType("")
 	}
 
-	s.mu.Lock()
-	defer s.mu.Unlock()
-
-	currentExt := s.extensions[assetName]
-
-	assetPath := path.Join(applicationAssetsPath, assetName+"."+fileType)
 	fileReader, err := file.Open()
 	if err != nil {
 		return err
@@ -107,45 +108,66 @@ func (s *Service) UpdateAsset(ctx context.Context, file *multipart.FileHeader, a
 		return err
 	}
 
-	if err := s.storage.Save(ctx, assetPath, strippedReader); err != nil {
+	// Every upload gets its own file, so a concurrent upload never overwrites a file that another one is about to delete
+	suffix, err := utils.GenerateRandomAlphanumericString(16)
+	if err != nil {
+		return err
+	}
+	assetFile := path.Join(assetName, suffix+"."+fileType)
+	if err := s.storage.Save(ctx, path.Join(applicationAssetsPath, assetFile), strippedReader); err != nil {
 		return err
 	}
 
-	if currentExt != "" && currentExt != fileType {
-		oldAssetPath := path.Join(applicationAssetsPath, assetName+"."+currentExt)
-		if err := s.storage.Delete(ctx, oldAssetPath); err != nil {
-			return err
-		}
-	}
-	s.extensions[assetName] = fileType
-
-	if err := s.storage.Delete(ctx, deletedApplicationAssetPath(assetName)); err != nil {
+	// Switch to the new file before removing the previous one
+	previousFile, err := s.swapFile(ctx, assetName, assetFile)
+	if err != nil {
 		return err
+	}
+	if previousFile != "" {
+		return s.storage.Delete(ctx, path.Join(applicationAssetsPath, previousFile))
 	}
 
 	return nil
 }
 
 func (s *Service) DeleteAsset(ctx context.Context, assetName string) error {
-	s.mu.Lock()
-	defer s.mu.Unlock()
-
-	ext, ok := s.extensions[assetName]
-	if !ok || ext == "" {
+	// The empty value keeps Init from copying the bundled image back on the next start
+	previousFile, err := s.swapFile(ctx, assetName, "")
+	if err != nil {
+		return err
+	}
+	if previousFile == "" {
 		return apperror.ImageNotFound()
 	}
 
-	if err := s.storage.Save(ctx, deletedApplicationAssetPath(assetName), strings.NewReader("")); err != nil {
-		return err
-	}
+	return s.storage.Delete(ctx, path.Join(applicationAssetsPath, previousFile))
+}
 
-	assetPath := path.Join(applicationAssetsPath, assetName+"."+ext)
-	if err := s.storage.Delete(ctx, assetPath); err != nil {
-		return err
-	}
+// swapFile records the current file of an asset and returns the previous one
+// The row lock serializes concurrent uploads and deletions, so each one removes exactly the file it replaced
+func (s *Service) swapFile(ctx context.Context, name, file string) (previousFile string, err error) {
+	err = s.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
+		// Create the row first, since a missing row can't be locked
+		row := model.KV{Key: assetKeyPrefix + name, Value: new("")}
+		err := tx.Clauses(clause.OnConflict{DoNothing: true}).Create(&row).Error
+		if err != nil {
+			return err
+		}
 
-	delete(s.extensions, assetName)
-	return nil
+		err = tx.Clauses(clause.Locking{Strength: clause.LockingStrengthUpdate}).First(&row, "key = ?", row.Key).Error
+		if err != nil {
+			return err
+		}
+		if row.Value != nil {
+			previousFile = *row.Value
+		}
+
+		return tx.Model(&model.KV{}).Where("key = ?", row.Key).Update("value", file).Error
+	})
+	if err != nil {
+		return "", fmt.Errorf("failed to record application asset '%s': %w", name, err)
+	}
+	return previousFile, nil
 }
 
 // The title font is the one application file that isn't an image
@@ -154,24 +176,4 @@ func fileMimeType(name, ext string) string {
 		return utils.GetFontMimeType(ext)
 	}
 	return utils.GetImageMimeType(ext)
-}
-
-func (s *Service) IsDefaultProfilePictureSet() bool {
-	s.mu.RLock()
-	defer s.mu.RUnlock()
-
-	_, ok := s.extensions["default-profile-picture"]
-	return ok
-}
-
-func (s *Service) getExtension(name string) (string, error) {
-	s.mu.RLock()
-	defer s.mu.RUnlock()
-
-	ext, ok := s.extensions[name]
-	if !ok || ext == "" {
-		return "", apperror.ImageNotFound()
-	}
-
-	return strings.ToLower(ext), nil
 }

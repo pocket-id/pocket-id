@@ -129,14 +129,12 @@ func (s *Service) GetProfilePicture(ctx context.Context, userID string) (io.Read
 	}
 
 	// Try default global profile picture
-	if s.appAssets.IsDefaultProfilePictureSet() {
-		reader, size, _, err := s.appAssets.GetAsset(ctx, "default-profile-picture")
-		if err == nil {
-			return reader, size, nil
-		}
-		if !apperror.IsCode(err, apperror.CodeImageNotFound) {
-			return nil, 0, err
-		}
+	reader, size, _, err := s.appAssets.GetAsset(ctx, "default-profile-picture")
+	if err == nil {
+		return reader, size, nil
+	}
+	if !apperror.IsCode(err, apperror.CodeImageNotFound) {
+		return nil, 0, err
 	}
 
 	// Try cached default for initials

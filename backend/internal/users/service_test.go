@@ -37,7 +37,7 @@ func newTestUserServiceOn(t *testing.T, db *gorm.DB) *Service {
 
 	fileStorage, err := storage.NewDatabaseStorage(db)
 	require.NoError(t, err)
-	appAssets, err := appassets.New(t.Context(), fileStorage)
+	appAssets, err := appassets.New(t.Context(), db, fileStorage)
 	require.NoError(t, err)
 
 	return newService(Dependencies{

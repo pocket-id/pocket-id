@@ -8,6 +8,7 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/go-fuego/fuego/option"
 	"github.com/go-fuego/fuego/param"
+	"gorm.io/gorm"
 
 	"github.com/pocket-id/pocket-id/backend/internal/authz"
 	"github.com/pocket-id/pocket-id/backend/internal/httpserver"
@@ -25,13 +26,13 @@ type Module struct {
 }
 
 // New copies the bundled assets into the file storage where no custom ones exist, so it must run before the module serves anything
-func New(ctx context.Context, fileStorage storage.FileStorage) (*Module, error) {
-	extensions, err := initApplicationAssets(ctx, fileStorage)
+func New(ctx context.Context, db *gorm.DB, fileStorage storage.FileStorage) (*Module, error) {
+	err := Init(ctx, db, fileStorage)
 	if err != nil {
 		return nil, fmt.Errorf("failed to initialize application assets: %w", err)
 	}
 
-	service := &Service{extensions: extensions, storage: fileStorage}
+	service := &Service{db: db, storage: fileStorage}
 	return &Module{
 		service: service,
 		handler: &handler{service: service},
@@ -150,12 +151,6 @@ func (m *Module) RegisterRoutes(r *authz.Router, uploadLimit gin.HandlerFunc) {
 		option.Description("Delete the custom font of page and dialog titles"),
 		option.Tags("Application Assets"),
 	)
-}
-
-// IsDefaultProfilePictureSet reports whether an admin uploaded a default profile picture
-// It is consumed by the users module, which serves it in place of the generated initials
-func (m *Module) IsDefaultProfilePictureSet() bool {
-	return m.service.IsDefaultProfilePictureSet()
 }
 
 // GetAsset returns an uploaded asset without falling back to the bundled default
