@@ -49,8 +49,7 @@ func TestAuthorizationWithRealCredentials(t *testing.T) {
 
 	db := testutils.NewDatabaseForTest(t)
 
-	usersModule, err := users.New(users.Dependencies{DB: db, CleanupDisabled: true})
-	require.NoError(t, err)
+	usersModule := users.New(users.Dependencies{DB: db})
 	apiKeyModule, err := apikey.New(apikey.Dependencies{DB: db, StaticApiKey: staticAPIKey, CleanupDisabled: true})
 	require.NoError(t, err)
 
@@ -208,12 +207,12 @@ func TestDeviceBoundSession(t *testing.T) {
 	common.EnvConfig.EncryptionKey = []byte("0123456789abcdef0123456789abcdef")
 
 	db := testutils.NewDatabaseForTest(t)
-	usersModule, err := users.New(users.Dependencies{DB: db, CleanupDisabled: true})
-	require.NoError(t, err)
+	usersModule := users.New(users.Dependencies{DB: db})
 	user := createUserForAuthorizationTest(t, db, "bound-user", false, false, true)
 
 	var sessions *session.Module
 	testutils.NewActorHostForTest(t, func(t *testing.T, h *local.Host) {
+		var err error
 		sessions, err = session.New(session.Dependencies{Actors: h, IPLocator: noIPLocation{}, AuditLog: nopAuditLogger{}, EndNotifier: noEndNotifier{}})
 		require.NoError(t, err)
 	})

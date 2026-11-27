@@ -41,6 +41,8 @@ type Dependencies struct {
 	HTTPClient *http.Client
 	// FidoMetadataURL is where the FIDO metadata is downloaded from, and empty never downloads it
 	FidoMetadataURL string
+	// FidoMetadataPath is where the FIDO metadata is cached across restarts
+	FidoMetadataPath string
 
 	Sessions  SessionStore
 	AuditLog  AuditLogger

@@ -34,6 +34,7 @@ services:
       OUTBOUND_ALLOWED_HOSTS_FEDERATED_JWKS: private,loopback,host.docker.internal
     volumes:
       - pocket-id-test-data:/app/data
+      - pocket-id-test-cache:/app/cache
       - ./tls:/tls:ro
     build:
       args:
@@ -43,3 +44,4 @@ services:
 
 volumes:
   pocket-id-test-data:
+  pocket-id-test-cache:

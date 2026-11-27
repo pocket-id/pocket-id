@@ -82,6 +82,11 @@ type EnvConfigSchema struct {
 	// Signing in only sticks when they are on the same site as Pocket ID, because its cookies are SameSite=Lax
 	AllowedFrameAncestors FrameAncestorsConfig `env:"ALLOWED_FRAME_ANCESTORS"`
 
+	// CachePath is the folder of the files Pocket ID can download or render again, like the GeoLite database, the FIDO metadata and the default profile pictures
+	// It should preferably be local to each replica
+	// Files in this folder do not need to be placed on persistent storage
+	CachePath string `env:"CACHE_PATH"`
+
 	FileBackend                     string `env:"FILE_BACKEND" options:"toLower"`
 	UploadPath                      string `env:"UPLOAD_PATH"`
 	S3Bucket                        string `env:"S3_BUCKET"`
@@ -126,7 +131,7 @@ type EnvConfigSchema struct {
 	IconLibraryURL string `env:"ICON_LIBRARY_URL" options:"trimTrailingSlash"`
 
 	// FidoMetadataURL is where the FIDO metadata for passkey attestation is downloaded from and refreshed
-	// Setting it to "disabled" never downloads it, so the blob has to be placed at data/fido-mds.jwt by hand, e.g. on air-gapped installs
+	// Setting it to "disabled" never downloads it, so the blob has to be placed at fido-mds.jwt in the cache folder by hand, e.g. on air-gapped installs
 	FidoMetadataURL string `env:"FIDO_MDS_URL"`
 
 	// ClusterAddress and ClusterPort are where this replica listens for the other replicas, which also reach it at that address
@@ -186,6 +191,7 @@ func defaultConfig() EnvConfigSchema {
 		LogLevel:                  "info",
 		DbProvider:                "sqlite",
 		FileBackend:               "filesystem",
+		CachePath:                 "cache",
 		AuditLogRetentionDays:     90,
 		AllowInsecureCallbackURLs: true, // TODO: Default to false in major v3
 		AppURL:                    AppUrl,
@@ -194,7 +200,6 @@ func defaultConfig() EnvConfigSchema {
 		ClusterPort:               "1414",
 		ClusterAddress:            "0.0.0.0",
 		FrancisRuntimeAddress:     FrancisRuntimeEmbedded,
-		GeoLiteDBPath:             "data/GeoLite2-City.mmdb",
 		GeoLiteDBUrl:              MaxMindGeoLiteCityUrl,
 		IconLibraryURL:            DefaultIconLibraryURL,
 		FidoMetadataURL:           DefaultFidoMetadataURL,
@@ -285,6 +290,11 @@ func ValidateEnvConfig(config *EnvConfigSchema) error {
 	err = validateFileBackend(config)
 	if err != nil {
 		return err
+	}
+
+	// The GeoLite database can be downloaded again, so it belongs in the cache folder unless a path is set
+	if config.GeoLiteDBPath == "" {
+		config.GeoLiteDBPath = filepath.Join(config.CachePath, "GeoLite2-City.mmdb")
 	}
 
 	err = validateURLOrDisabled("ICON_LIBRARY_URL", &config.IconLibraryURL, DefaultIconLibraryURL)

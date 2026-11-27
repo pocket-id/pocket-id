@@ -92,7 +92,7 @@ func newService(deps Dependencies) (*Service, error) {
 		fidoMetadata: &fidoMetadata{
 			httpClient: deps.HTTPClient,
 			url:        deps.FidoMetadataURL,
-			path:       fidoMetadataPath,
+			path:       deps.FidoMetadataPath,
 		},
 	}, nil
 }

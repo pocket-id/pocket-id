@@ -15,9 +15,6 @@ import (
 	"github.com/go-webauthn/webauthn/metadata/providers/memory"
 )
 
-// fidoMetadataPath is where the FIDO Metadata Service blob is cached across restarts
-const fidoMetadataPath = "data/fido-mds.jwt"
-
 // fidoMetadataRetryInterval spaces out downloads after a failure, because the FIDO Metadata Service rate-limits them
 const fidoMetadataRetryInterval = time.Hour
 
@@ -26,7 +23,8 @@ const fidoMetadataRetryInterval = time.Hour
 type fidoMetadata struct {
 	httpClient *http.Client
 	// url is where the blob is downloaded from, and empty never downloads it
-	url  string
+	url string
+	// path is where the blob is cached across restarts
 	path string
 
 	mu       sync.Mutex

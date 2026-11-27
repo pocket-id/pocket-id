@@ -43,3 +43,4 @@ services:
 
 volumes:
   pocket-id-test-data:
+  pocket-id-test-cache:

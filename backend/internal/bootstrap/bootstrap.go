@@ -75,6 +75,18 @@ func Bootstrap(ctx context.Context) error {
 		}
 	}()
 
+	// Open the cache folder, which only holds files that can be downloaded or rendered again and may be local to this replica
+	cacheStorage, err := storage.NewFilesystemStorage(common.EnvConfig.CachePath)
+	if err != nil {
+		return fmt.Errorf("failed to initialize the cache folder: %w", err)
+	}
+	defer func() {
+		closeErr := cacheStorage.Close()
+		if closeErr != nil {
+			slog.ErrorContext(ctx, "Failed to close the cache folder", slog.Any("error", closeErr))
+		}
+	}()
+
 	// Init application assets like images and fonts
 	appAssetsModule, err := appassets.New(ctx, fileStorage)
 	if err != nil {
@@ -113,7 +125,7 @@ func Bootstrap(ctx context.Context) error {
 	services = append(services, actorsRun)
 
 	// Create all services
-	svc, err := initServices(ctx, db, instanceID, actors, httpClient, outboundClients, appAssetsModule, fileStorage, rateLimitServices)
+	svc, err := initServices(ctx, db, instanceID, actors, httpClient, outboundClients, appAssetsModule, fileStorage, cacheStorage, rateLimitServices)
 	if err != nil {
 		return fmt.Errorf("failed to initialize services: %w", err)
 	}

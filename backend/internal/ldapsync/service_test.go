@@ -840,15 +840,13 @@ func newTestLdapServiceWithAuditLog(t *testing.T, client ldapClient, auditLog us
 
 	// The sync is exercised against the real user and group services, so the assertions below can check what actually lands in the database
 	groupsModule := usergroups.New(usergroups.Dependencies{DB: db, AuditLog: nopAuditLogger{}})
-	usersModule, err := users.New(users.Dependencies{
-		DB:              db,
-		FileStorage:     fileStorage,
-		CustomClaims:    customclaims.New(db),
-		AppAssets:       appAssets,
-		AuditLog:        auditLog,
-		CleanupDisabled: true,
+	usersModule := users.New(users.Dependencies{
+		DB:           db,
+		FileStorage:  fileStorage,
+		CustomClaims: customclaims.New(db),
+		AppAssets:    appAssets,
+		AuditLog:     auditLog,
 	})
-	require.NoError(t, err)
 
 	svc := newService(Dependencies{
 		DB:          db,
